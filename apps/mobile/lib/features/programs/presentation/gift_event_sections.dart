@@ -11,6 +11,8 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
+import 'package:kabso_live/features/programs/presentation/event_leaderboard_styles.dart'
+    show MyRankBar;
 import 'package:kabso_live/features/programs/presentation/event_page_theme.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -272,6 +274,10 @@ class GiftEventBoards extends ConsumerStatefulWidget {
   static ValueNotifier<int> selection(String eventId) =>
       _selection.putIfAbsent(eventId, () => ValueNotifier(0));
   static final _selection = <String, ValueNotifier<int>>{};
+
+  /// v1.115-social (D354): the designed page forgets its tab choice as
+  /// today's page does when it goes.
+  static void release(String eventId) => _selection.remove(eventId)?.dispose();
 
   /// How often a shown, running board reloads.
   static const refreshEvery = Duration(seconds: 30);
@@ -690,9 +696,18 @@ const Color kEventGold = kProgramFrameGold;
 /// legibility, with the title art on top and the Lottie overlay playing over
 /// the page — paused with reduced motion and when the page is hidden.
 class GiftEventBackdrop extends StatelessWidget {
-  const new({required this.art, super.key});
+  const new({
+    required this.art,
+    super.key,
+    this.overlaySpeed = 1,
+    this.overlayOpacity = 1,
+  });
 
   final EventArt art;
+
+  /// v1.115-social (D354): the design's overlay speed and opacity.
+  final double overlaySpeed;
+  final double overlayOpacity;
 
   static const overlayKey = Key('event.art.overlay');
   static const backgroundKey = Key('event.art.background');
@@ -742,14 +757,58 @@ class GiftEventBackdrop extends StatelessWidget {
             ),
           ),
         ),
-        if (overlay != null && art.overlayFormat == 'LOTTIE' && motion)
+        if (overlay != null &&
+            art.overlayFormat == 'LOTTIE' &&
+            motion &&
+            overlayOpacity > 0)
           IgnorePointer(
             key: overlayKey,
-            child: Lottie.network(overlay, repeat: true, fit: BoxFit.cover),
+            child: Opacity(
+              opacity: overlayOpacity.clamp(0.0, 1.0),
+              child: overlaySpeed == 1
+                  ? Lottie.network(overlay, repeat: true, fit: BoxFit.cover)
+                  : _PacedLottie(url: overlay, speed: overlaySpeed),
+            ),
           ),
       ],
     );
   }
+}
+
+/// A looping Lottie at [speed] × its own pace (D354 motion settings).
+class _PacedLottie extends StatefulWidget {
+  const new({required this.url, required this.speed});
+
+  final String url;
+  final double speed;
+
+  @override
+  State<_PacedLottie> createState() => _PacedLottieState();
+}
+
+class _PacedLottieState extends State<_PacedLottie>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Lottie.network(
+    widget.url,
+    controller: _c,
+    fit: BoxFit.cover,
+    onLoaded: (composition) {
+      final ms =
+          composition.duration.inMilliseconds / widget.speed.clamp(0.25, 2);
+      _c
+        ..duration = Duration(milliseconds: ms.round().clamp(1, 600000))
+        ..repeat();
+    },
+  );
 }
 
 /// Kabso's own crown (a simple drawing, no third-party art) for ranks 1–3.
@@ -816,17 +875,9 @@ class _CrownPainter extends CustomPainter {
 
 /// «تبدأ بعد / تنتهي بعد …»: a countdown that ticks every second while shown.
 class EventCountdown extends StatefulWidget {
-  const new({
-    required this.event,
-    this.now,
-    super.key,
-    this.style = EventCountdownStyle.pill,
-  });
+  const new({required this.event, this.now, super.key});
 
   final EventSummary event;
-
-  /// KL-352 prototype: the banner style.
-  final EventCountdownStyle style;
 
   /// Tests and goldens: a fixed clock.
   final DateTime Function()? now;
@@ -875,35 +926,6 @@ class _EventCountdownState extends State<EventCountdown> {
         : end != null && now.isBefore(end)
         ? l10n.eventsCountdownEnds(_span(end.difference(now)))
         : l10n.eventsCountdownEnded;
-    if (widget.style != EventCountdownStyle.pill) {
-      final starts = now.isBefore(e.startsAt);
-      final left = starts
-          ? e.startsAt.difference(now)
-          : end != null && now.isBefore(end)
-          ? end.difference(now)
-          : null;
-      String two(int v) => v.toString().padLeft(2, '0');
-      return KeyedSubtree(
-        key: EventCountdown.countdownKey,
-        child: EventCountdownBanner(
-          style: widget.style,
-          fallback: text,
-          parts: left == null
-              ? null
-              : (
-                  label:
-                      (starts
-                              ? l10n.eventsCountdownStarts('')
-                              : l10n.eventsCountdownEnds(''))
-                          .trim(),
-                  days: left.inDays,
-                  h: two(left.inHours % 24),
-                  m: two(left.inMinutes % 60),
-                  s: two(left.inSeconds % 60),
-                ),
-        ),
-      );
-    }
     final et = EventPageTheme.of(context);
     final label = Text(
       text,
@@ -949,9 +971,12 @@ class _EventCountdownState extends State<EventCountdown> {
 /// The sticky «مركزي» bar: the caller's place and points on the selected
 /// board, and what is missing — to the next rank, or to the minimum.
 class GiftEventMyBar extends ConsumerWidget {
-  const new({required this.event, super.key});
+  const new({required this.event, super.key, this.gold = false});
 
   final EventDetail event;
+
+  /// v1.115-social (D354): the designed page's gold bar (same lines).
+  final bool gold;
 
   static const barKey = Key('event.myBar');
 
@@ -1056,6 +1081,35 @@ class GiftEventMyBar extends ConsumerWidget {
                         ),
                       ),
                   ],
+                ),
+              ),
+            ),
+          );
+        }
+        if (gold) {
+          final mine = rank == null
+              ? null
+              : b.giftRows.where((r) => r.rank == rank).firstOrNull;
+          final photo = mine?.user.avatarUrl;
+          return SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                KSpacing.md,
+                0,
+                KSpacing.md,
+                KSpacing.sm,
+              ),
+              child: Semantics(
+                container: true,
+                label: [label, ?hint].join('، '),
+                excludeSemantics: true,
+                child: MyRankBar(
+                  key: barKey,
+                  rank: rank,
+                  photo: photo == null ? null : GiftEventBackdrop.image(photo),
+                  label: label,
+                  hint: hint,
                 ),
               ),
             ),
@@ -1191,7 +1245,7 @@ Future<void> showEventPrizeSheet(BuildContext context, EventPrizeItem item) =>
 
 /// KL-352 prototype: a board tab drawn with the event page theme.
 class _ThemedTab extends StatelessWidget {
-  const _ThemedTab({required this.label, required this.selected});
+  const new({required this.label, required this.selected});
 
   final String label;
   final bool selected;

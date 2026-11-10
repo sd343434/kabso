@@ -1717,6 +1717,28 @@ answers 404 and the mirror does nothing (silently); `/app/` answers 404 until th
 debug key, which can differ between runs — if Android answers "App not installed" / a package conflict, uninstall the
 old staging app first, as with the artifact before).
 
+### 11.12 The event page designer (D354; migration `20270420090000_event_page_design`) — [IMPLEMENTED phase 1, draft contract v1.115-social; not deployed, not device-tested]
+
+CONVENTIONS §10.150 (owner 2026-11-10 «اجعل كل الخيارات متاحة»). §11.9–§11.11 are left for in-flight work (D350, D351,
+D353).
+
+- **Migration:** `20270420090000_event_page_design` adds `events.design JSONB` (nullable, no default — metadata only, no
+  rewrite) with CHECK `events_design_shape` (null, or an object whose `v` is 1), and re-creates
+  `media_assets_kind_known` with `EVENT_BOARD_BG` added (a short `ACCESS EXCLUSIVE` lock on `media_assets` while the
+  CHECK is validated — run it off-peak; the table is scanned once). Every existing event keeps `design` null = today's
+  page. The app role's grants already cover both tables.
+- **No new settings, no new endpoint.** The design travels in the gift event body (`PUT /admin/gift-events/{id}`, the
+  staff app's editor) and in `GET /events/{id}`; the background is a new `kind=board_background` of the existing event
+  media upload (stored like the other event art in the media bucket, `media/<id>/…`).
+- **Order:** migration, API, then the app (an older app ignores `design` and keeps today's page; the new app against an
+  older API sees no design and draws today's page). The panel needs nothing yet (its designer is phase 2); an older
+  panel's full edit leaves `design` out, which keeps it.
+- **Rollback:** the older API ignores the column (and would not offer `board_background`); drop the column and restore
+  the previous CHECK only after the older API is back, or leave them. A design saved meanwhile stays and reappears when
+  the new API returns.
+- **Check after deploy:** `GET /admin/event-options` lists `designChoices`; a test event with
+  `design: {v: 1, layout: "STAGE"}` returns the full design on `GET /events/{id}`; PP-86 on phones.
+
 ### 5.25 Video posts and reels (migration `20261211090000_video_posts_reels`; D162) — [IMPLEMENTED, draft contract v1.41-social; not deployed, not device-tested]
 
 Video in «منشور جديد» (the «فيديو» tab), reels («ريلز») in «لحظات» and the ➕ menu (CONVENTIONS

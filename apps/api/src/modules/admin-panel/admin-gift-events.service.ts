@@ -38,12 +38,15 @@ import {
   checkEventOverlayVideo,
   checkEventVideo,
   isMp4,
+  EVENT_BOARD_BG_KIND,
   EVENT_MEDIA_SPECS,
   EventMediaError,
+  storeBoardBackground,
   storeEventArt,
   type EventMediaKind,
 } from '../programs/event-media.js';
 import { EVENT_ART_KEYS, EVENT_BADGE_CODE } from '../programs/gift-events.js';
+import { designChoices, parseStoredDesign, type EventDesign } from '../programs/event-design.js';
 import { auditBy } from '../../common/audit/admin-actor.js';
 import { z } from 'zod';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
@@ -77,6 +80,14 @@ export class AdminGiftEventsService {
 
   private url(key: string | null): string | null {
     return giftArtUrl(this.storageSettings.current().publicBaseUrl, key);
+  }
+
+  /** v1.115-social (D354): the URL of a design's leaderboard background (null: none, or the asset is gone). */
+  private async boardBackgroundUrl(design: EventDesign | null): Promise<string | null> {
+    const id = design?.leaderboardBackgroundMediaId ?? null;
+    if (id === null) return null;
+    const asset = await this.prisma.mediaAsset.findFirst({ where: { id, kind: EVENT_BOARD_BG_KIND } });
+    return asset ? this.url(asset.largeKey) : null;
   }
 
   /**
@@ -116,6 +127,22 @@ export class AdminGiftEventsService {
           height: checked.info.height,
           animated: true,
           durationMs: checked.info.durationMs,
+          spec,
+        };
+      }
+      // v1.115-social (D354): a leaderboard background is a media asset of its own kind (the design names its id).
+      if (kind === 'board_background') {
+        const checked = await checkEventImage('board_background', body);
+        const asset = await storeBoardBackground(this.prisma, this.storage, ctx.userId, checked.body);
+        return {
+          kind,
+          mediaId: asset.id,
+          key: null,
+          url: this.url(asset.largeKey),
+          width: asset.width,
+          height: asset.height,
+          animated: false,
+          durationMs: null,
           spec,
         };
       }
@@ -276,6 +303,8 @@ export class AdminGiftEventsService {
       scorings: [...EVENT_SCORINGS],
       countedGifts: [...EVENT_COUNTED_GIFTS],
       prizeTypes: [...PRIZE_ITEM_TYPES],
+      // v1.115-social (D354): the page designer's choices (phase 2's panel builds its pickers from them).
+      designChoices: designChoices(),
       giftCategories: categories.map((c) => ({ code: c.code, nameAr: c.nameAr, nameEn: c.nameEn })),
       gifts: gifts.map((g) => ({
         code: g.code,
@@ -348,6 +377,7 @@ export class AdminGiftEventsService {
     });
     if (!e || e.metric !== 'EVENT_GIFTS') throw new AppException(ErrorCode.NOT_FOUND);
     const now = this.clock.now();
+    const design = parseStoredDesign(e.design);
     const results = await this.prisma.eventResult.findMany({
       where: { eventId: id },
       orderBy: [{ period: 'desc' }, { board: 'asc' }, { rank: 'asc' }],
@@ -370,6 +400,8 @@ export class AdminGiftEventsService {
         backgroundPoster: this.url(e.backgroundPosterKey),
         title: this.url(e.titleKey),
         overlay: this.url(e.overlayKey),
+        // v1.115-social (D354): the design's leaderboard background.
+        leaderboardBackground: await this.boardBackgroundUrl(design),
       },
       form: {
         titleAr: e.titleAr,
@@ -399,6 +431,8 @@ export class AdminGiftEventsService {
         backgroundPosterKey: e.backgroundPosterKey,
         titleKey: e.titleKey,
         overlayKey: e.overlayKey,
+        // v1.115-social (D354): the page design (null: today's page).
+        design,
         gifts: e.gifts.map((g) => ({
           giftCode: g.giftCode,
           pointsPerCoin: Number(g.pointsPerCoin),
@@ -542,6 +576,8 @@ export const eventUploadQuery = z.strictObject({
     'overlay',
     'badge',
     'prize',
+    // v1.115-social (D354): the leaderboard background (an EVENT_BOARD_BG media id for the design).
+    'board_background',
   ]),
 });
 

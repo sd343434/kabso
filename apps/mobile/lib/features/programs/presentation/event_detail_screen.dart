@@ -6,7 +6,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/event_center_screen.dart';
-import 'package:kabso_live/features/programs/presentation/event_page_theme.dart';
+import 'package:kabso_live/features/programs/presentation/event_designed_page.dart';
 import 'package:kabso_live/features/programs/presentation/gift_event_sections.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -50,20 +50,6 @@ class EventDetailScreen extends ConsumerWidget {
   @visibleForTesting
   static DateTime Function()? countdownClock;
 
-  /// KL-352 design-options prototype: the page theme, the rules button and
-  /// the countdown banner being previewed (null / pill = today's page).
-  @visibleForTesting
-  static EventPageTheme? designTheme;
-  @visibleForTesting
-  static EventRulesButtonStyle? designRules;
-  @visibleForTesting
-  static EventCountdownStyle designCountdown = EventCountdownStyle.pill;
-  static const rulesButtonKey = Key('event.rulesButton');
-
-  /// The visible sections, in order (today's order by default).
-  @visibleForTesting
-  static List<String> designSections = const ['gifts', 'rules', 'boards'];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -77,20 +63,6 @@ class EventDetailScreen extends ConsumerWidget {
         ? const AsyncValue<EventLeaderboard>.loading()
         : ref.watch(eventLeaderboardProvider(eventId));
     final localeTag = Localizations.localeOf(context).toLanguageTag();
-    final rulesStyle = designRules;
-    void openRules() {
-      final e = detail.value;
-      if (e == null) return;
-      showEventRulesSheet(
-        context,
-        lines: [
-          if (e.rules.trim().isNotEmpty) e.rules.trim(),
-          l10n.eventsRuleOnlyGifts,
-          if (e.boards.any((b) => b.minPoints > 0)) l10n.eventsRuleMinimum,
-          l10n.eventsRuleAutoPayout,
-        ],
-      );
-    }
 
     Future<void> refresh() async {
       ref
@@ -103,6 +75,20 @@ class EventDetailScreen extends ConsumerWidget {
       } on Object {
         // The page shows the failure with a retry.
       }
+    }
+
+    // v1.115-social (D354, §10.150): a gift event the team designed is drawn
+    // as designed; no design (or one this app does not know) is today's page.
+    final designed = detail.value;
+    final design = designed?.design;
+    if (designed != null && designed.isGiftEvent && design != null) {
+      return EventDesignedPage(
+        key: ValueKey('event.design.${designed.id}'),
+        event: designed,
+        design: design,
+        onRefresh: refresh,
+        now: countdownClock,
+      );
     }
 
     final children = switch (detail) {
@@ -135,15 +121,8 @@ class EventDetailScreen extends ConsumerWidget {
             child: EventCountdown(
               event: e,
               now: EventDetailScreen.countdownClock,
-              style: designCountdown,
             ),
           ),
-          if (rulesStyle == EventRulesButtonStyle.goldPill) ...[
-            const SizedBox(height: KSpacing.sm),
-            Center(
-              child: EventRulesGoldPill(key: rulesButtonKey, onTap: openRules),
-            ),
-          ],
         ],
         const SizedBox(height: KSpacing.md),
         Row(
@@ -180,27 +159,16 @@ class EventDetailScreen extends ConsumerWidget {
           ),
         const SizedBox(height: KSpacing.lg),
         if (e.isGiftEvent) ...[
-          // KL-352 prototype: the page's sections in the theme's order;
-          // hidden ones left out (the rules stay reachable by the button,
-          // the boards always shown when the event has boards).
-          for (final id in designSections)
-            ...switch (id) {
-              'gifts' when e.gifts.isNotEmpty => [
-                EventGiftsSection(gifts: e.gifts),
-              ],
-              'rules' when rulesStyle == null => [
-                ProgramSection(
-                  key: rulesKey,
-                  title: l10n.eventsRules,
-                  child: GiftEventRules(
-                    rules: e.rules,
-                    hasMinimum: e.boards.any((b) => b.minPoints > 0),
-                  ),
-                ),
-              ],
-              'boards' => [GiftEventBoards(event: e)],
-              _ => const <Widget>[],
-            },
+          if (e.gifts.isNotEmpty) EventGiftsSection(gifts: e.gifts),
+          ProgramSection(
+            key: rulesKey,
+            title: l10n.eventsRules,
+            child: GiftEventRules(
+              rules: e.rules,
+              hasMinimum: e.boards.any((b) => b.minPoints > 0),
+            ),
+          ),
+          GiftEventBoards(event: e),
           // Room for the sticky «مركزي» bar.
           const SizedBox(height: 72),
         ] else ...[
@@ -300,73 +268,14 @@ class EventDetailScreen extends ConsumerWidget {
         backgroundColor: art == null ? p.background : const Color(0x00000000),
         centerTitle: true,
         title: Text(l10n.eventsDetailTitle),
-        actions: [
-          if (rulesStyle == EventRulesButtonStyle.appBarLink)
-            EventRulesAppBarLink(key: rulesButtonKey, onTap: openRules),
-        ],
       ),
       body: art == null
           ? list
-          : Builder(
-              builder: (context) {
-                final top = MediaQuery.paddingOf(context).top;
-                final rtl = Directionality.of(context) == TextDirection.rtl;
-                // The countdown's row (list padding + its own height / 2).
-                final row = top + KSpacing.sm;
-                return Stack(
-                  children: [
-                    Positioned.fill(child: GiftEventBackdrop(art: art)),
-                    SafeArea(child: ProgramGoldFrame(child: list)),
-                    if (rulesStyle == EventRulesButtonStyle.edgeRibbonEnd ||
-                        rulesStyle == EventRulesButtonStyle.edgeRibbonStart)
-                      Builder(
-                        builder: (context) {
-                          final atEnd =
-                              rulesStyle == EventRulesButtonStyle.edgeRibbonEnd;
-                          final left = atEnd == rtl;
-                          return Positioned(
-                            top: row - 4,
-                            left: left ? 0 : null,
-                            right: left ? null : 0,
-                            child: EventRulesRibbon(
-                              key: rulesButtonKey,
-                              edgeIsLeft: left,
-                              onTap: openRules,
-                            ),
-                          );
-                        },
-                      ),
-                    if (rulesStyle == EventRulesButtonStyle.roundIcon)
-                      PositionedDirectional(
-                        top: row - 6,
-                        end: KSpacing.md,
-                        child: EventRulesRoundButton(
-                          key: rulesButtonKey,
-                          onTap: openRules,
-                        ),
-                      ),
-                    if (rulesStyle == EventRulesButtonStyle.glassChip)
-                      PositionedDirectional(
-                        top: row - 2,
-                        end: KSpacing.md,
-                        child: EventRulesGlassChip(
-                          key: rulesButtonKey,
-                          onTap: openRules,
-                        ),
-                      ),
-                    if (rulesStyle == EventRulesButtonStyle.sideTab)
-                      PositionedDirectional(
-                        top: MediaQuery.sizeOf(context).height * 0.36,
-                        end: 0,
-                        child: EventRulesSideTab(
-                          key: rulesButtonKey,
-                          edgeIsLeft: rtl,
-                          onTap: openRules,
-                        ),
-                      ),
-                  ],
-                );
-              },
+          : Stack(
+              children: [
+                Positioned.fill(child: GiftEventBackdrop(art: art)),
+                SafeArea(child: ProgramGoldFrame(child: list)),
+              ],
             ),
       bottomNavigationBar: gift ? GiftEventMyBar(event: event) : null,
     );
@@ -377,11 +286,7 @@ class EventDetailScreen extends ConsumerWidget {
               brightness: Brightness.dark,
               locale: Localizations.localeOf(context),
             ),
-            child: designTheme == null
-                ? scaffold
-                : Builder(
-                    builder: (context) => designTheme!.apply(context, scaffold),
-                  ),
+            child: scaffold,
           );
   }
 }

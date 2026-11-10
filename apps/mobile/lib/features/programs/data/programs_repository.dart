@@ -5,6 +5,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/live/domain/home_banner.dart';
+import 'package:kabso_live/features/programs/data/event_page_design.dart';
 
 // The Me hub's programs (openapi v1.44-social, D166, CONVENTIONS §10.41):
 // the Task Center, the Event Center, SVIP and the recharge packages. Every
@@ -525,9 +526,15 @@ final class EventPrizeItem {
     this.level,
     this.cherries,
     this.coins,
+    this.displayUrl,
+    this.stillUrl,
+    this.animationUrl,
   });
 
   factory fromJson(Map<String, dynamic> json) => EventPrizeItem(
+    displayUrl: json['displayUrl'] as String?,
+    stillUrl: json['stillUrl'] as String?,
+    animationUrl: json['animationUrl'] as String?,
     imageUrl: json['imageUrl'] as String?,
     level: _intOrNull(json['level']),
     cherries: _intOrNull(json['cherries']),
@@ -563,6 +570,12 @@ final class EventPrizeItem {
   /// CP_MONEY: cherries for a host / creator partner, coins for another.
   final int? cherries;
   final int? coins;
+
+  /// v1.101-social (D325): the prize's own display picture on the event
+  /// page, and a hosted bag item's still / animation (null: none).
+  final String? displayUrl;
+  final String? stillUrl;
+  final String? animationUrl;
 
   /// A bag item or a medal with no end («دائم»).
   bool get isPermanent =>
@@ -646,12 +659,24 @@ final class EventBoardInfo {
     required this.kind,
     required this.minPoints,
     required this.prizes,
+    this.shown = 20,
   });
 
   final EventBoardKind kind;
   final int minPoints;
   final List<EventPrizeLine> prizes;
+
+  /// v1.102-social (D334): «عدد المعروضين» — the places the board lists.
+  final int shown;
 }
+
+/// v1.101-social (D325): a milestone «مرحلة» — a board's points threshold
+/// and the bundle each entrant reaching it gets.
+typedef EventMilestoneInfo = ({
+  EventBoardKind board,
+  int points,
+  List<EventPrizeItem> prize,
+});
 
 /// `EventGift` (D303): an event gift with its price and points.
 @immutable
@@ -713,6 +738,8 @@ final class EventDetail extends EventSummary {
     this.gifts = const [],
     this.boards = const [],
     this.art = const EventArt(),
+    this.milestones = const [],
+    this.design,
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -749,6 +776,7 @@ final class EventDetail extends EventSummary {
             EventBoardInfo(
               kind: kind,
               minPoints: _int(b['minPoints']),
+              shown: _intOrNull(b['shown']) ?? 20,
               prizes: [
                 for (final l in _list(b['prizes']))
                   (
@@ -759,11 +787,30 @@ final class EventDetail extends EventSummary {
               ],
             ),
       ],
+      milestones: [
+        for (final m in _list(json['milestones'] ?? const <Object?>[]))
+          if (EventBoardKind.fromWire(m['board']) case final board?)
+            (
+              board: board,
+              points: _int(m['points']),
+              prize: _items(m['prize']),
+            ),
+      ],
+      // v1.115-social (D354): only a gift event is designed.
+      design: s.metric == 'EVENT_GIFTS'
+          ? EventPageDesign.fromJson(json['design'])
+          : null,
     );
   }
 
   final String rules;
   final List<EventPrize> prizes;
+
+  /// v1.101-social (D325): the milestones (empty: none, or older servers).
+  final List<EventMilestoneInfo> milestones;
+
+  /// v1.115-social (D354, §10.150): the page design; null = today's page.
+  final EventPageDesign? design;
   final DateTime? paidAt;
 
   /// v1.97-social (D303): the zone the event's dates are set in.

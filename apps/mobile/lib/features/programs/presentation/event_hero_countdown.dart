@@ -1,5 +1,6 @@
-// KL-352 PROTOTYPE (design options for the owner, not wired into routing):
-// five large, animated event countdowns.
+// v1.115-social (D354, CONVENTIONS §10.150): the five large, animated event
+// countdowns of a designed page (FLIP, RING, COINS, NEON, RIBBON; CLASSIC is
+// today's pill), promoted from the KL-352 prototype.
 //
 // Motion rules shared by every style:
 // - ONE continuous animation: a single [Ticker] drives the per-second digit
@@ -36,18 +37,18 @@ enum HeroCountdownStyle {
 }
 
 // Palette (brand gold / red tokens + wine shades of the event page).
-const _gold = KBrandColors.gold; // F5C451
+const Color _gold = KBrandColors.gold; // F5C451
 const _goldLight = Color(0xFFFFE7A3);
 const _goldDeep = Color(0xFFB9832A);
 const _wine = Color(0xFF2A0508);
 const _wineMid = Color(0xFF5A0A10);
-const _red = KBrandColors.red500;
-const _redLight = KBrandColors.red400;
+const Color _red = KBrandColors.red500;
+const Color _redLight = KBrandColors.red400;
 
 /// The state of the countdown for one frame.
 @immutable
 class CountdownSnap {
-  const CountdownSnap({
+  const new({
     required this.cur,
     required this.prev,
     required this.t,
@@ -85,7 +86,7 @@ class CountdownSnap {
 }
 
 class EventHeroCountdown extends StatefulWidget {
-  const EventHeroCountdown({
+  const new({
     required this.startsAt,
     required this.endsAt,
     required this.style,
@@ -180,18 +181,19 @@ class _EventHeroCountdownState extends State<EventHeroCountdown>
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final labels = [
-      l10n.eventsUnitDays,
-      l10n.eventsUnitHours,
-      l10n.eventsUnitMinutes,
-      l10n.eventsUnitSeconds,
-    ];
     return RepaintBoundary(
       key: EventHeroCountdown.key0,
       child: ValueListenableBuilder<Duration>(
         valueListenable: _elapsed,
         builder: (context, e, _) {
           final s = _snap(e);
+          // The unit names agree with their numbers (Arabic plurals).
+          final labels = [
+            l10n.eventsUnitDays(s.cur[0]),
+            l10n.eventsUnitHours(s.cur[1]),
+            l10n.eventsUnitMinutes(s.cur[2]),
+            l10n.eventsUnitSeconds(s.cur[3]),
+          ];
           final heading = s.ended
               ? l10n.eventsCountdownEnded
               : s.urgent
@@ -245,11 +247,11 @@ TextStyle _labelStyle(BuildContext context, Color color, {double? size}) =>
 
 /// The heading over a countdown («تنتهي بعد» / «الساعة الأخيرة!»).
 class _Heading extends StatelessWidget {
-  const _Heading(this.text, this.s);
+  const new(this.text, this.s);
 
   final String text;
   final CountdownSnap s;
-  static const color = _goldLight;
+  static const Color color = _goldLight;
 
   @override
   Widget build(BuildContext context) => Text(
@@ -267,7 +269,7 @@ class _Heading extends StatelessWidget {
 
 /// The «انتهت الفعالية» plate shown by every style when the event is over.
 class _EndedPlate extends StatelessWidget {
-  const _EndedPlate(this.text);
+  const new(this.text);
 
   final String text;
   static const double height = 84;
@@ -298,7 +300,7 @@ class _EndedPlate extends StatelessWidget {
 
 /// Four units in a left-to-right row with separators between them.
 class _UnitRow extends StatelessWidget {
-  const _UnitRow({required this.unit, required this.separator});
+  const new({required this.unit, required this.separator});
 
   final Widget Function(int i) unit;
   final Widget separator;
@@ -318,7 +320,7 @@ class _UnitRow extends StatelessWidget {
 
 /// A labelled unit: [child] over its unit name.
 class _Labelled extends StatelessWidget {
-  const _Labelled({
+  const new({
     required this.label,
     required this.child,
     this.color = _goldLight,
@@ -345,7 +347,7 @@ class _Labelled extends StatelessWidget {
 // ---- 1. Flip clock -----------------------------------------------------
 
 class _Flip extends StatelessWidget {
-  const _Flip(this.s, this.heading, this.labels);
+  const new(this.s, this.heading, this.labels);
 
   final CountdownSnap s;
   final String heading;
@@ -399,7 +401,7 @@ class _Flip extends StatelessWidget {
 }
 
 class _FlipCard extends StatelessWidget {
-  const _FlipCard({
+  const new({
     required this.cur,
     required this.prev,
     required this.t,
@@ -531,7 +533,7 @@ class _FlipCard extends StatelessWidget {
 // ---- 2. Glowing ring ---------------------------------------------------
 
 class _Ring extends StatelessWidget {
-  const _Ring(this.s, this.heading, this.labels);
+  const new(this.s, this.heading, this.labels);
 
   final CountdownSnap s;
   final String heading;
@@ -544,7 +546,7 @@ class _Ring extends StatelessWidget {
     final digits = s.urgent
         ? Color.lerp(Colors.white, const Color(0xFFFFC2C6), s.pulse)!
         : _goldLight;
-    final two = CountdownSnap.two;
+    const two = CountdownSnap.two;
     // Days in the centre; under a day, the biggest two units move there.
     final String big;
     final String unit;
@@ -639,7 +641,7 @@ class _Ring extends StatelessWidget {
 }
 
 class _RingPainter extends CustomPainter {
-  _RingPainter(this.s);
+  new(this.s);
 
   final CountdownSnap s;
 
@@ -650,23 +652,24 @@ class _RingPainter extends CustomPainter {
     const stroke = 10.0;
     final rect = Rect.fromCircle(center: c, radius: r);
     // Disc behind the numbers.
-    canvas.drawCircle(
-      c,
-      r - stroke / 2 - 1,
-      Paint()
-        ..shader = const RadialGradient(
-          colors: [Color(0xF2420810), Color(0xF21A0306)],
-        ).createShader(rect),
-    );
-    // Track.
-    canvas.drawCircle(
-      c,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..color = const Color(0xFF3A070C),
-    );
+    canvas
+      ..drawCircle(
+        c,
+        r - stroke / 2 - 1,
+        Paint()
+          ..shader = const RadialGradient(
+            colors: [Color(0xF2420810), Color(0xF21A0306)],
+          ).createShader(rect),
+      )
+      // Track.
+      ..drawCircle(
+        c,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..color = const Color(0xFF3A070C),
+      );
     // Second ticks around the outside; the current second is lit.
     for (var i = 0; i < 60; i++) {
       final a = -math.pi / 2 + i * math.pi * 2 / 60;
@@ -696,23 +699,24 @@ class _RingPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..color = main.withValues(alpha: s.urgent ? .25 + .45 * s.pulse : .35)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
-    canvas.drawArc(rect, -math.pi / 2, sweep, false, glow);
-    canvas.drawArc(
-      rect,
-      -math.pi / 2,
-      sweep,
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..strokeCap = StrokeCap.round
-        ..shader = SweepGradient(
-          transform: const GradientRotation(-math.pi / 2),
-          colors: s.urgent
-              ? const [KBrandColors.red700, _red, _redLight]
-              : const [_goldDeep, _gold, _goldLight],
-        ).createShader(rect),
-    );
+    canvas
+      ..drawArc(rect, -math.pi / 2, sweep, false, glow)
+      ..drawArc(
+        rect,
+        -math.pi / 2,
+        sweep,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..strokeCap = StrokeCap.round
+          ..shader = SweepGradient(
+            transform: const GradientRotation(-math.pi / 2),
+            colors: s.urgent
+                ? const [KBrandColors.red700, _red, _redLight]
+                : const [_goldDeep, _gold, _goldLight],
+          ).createShader(rect),
+      );
     // Shimmer: a bright short arc that runs along the progress (2.4 s).
     if (s.motion && sweep > .3) {
       final head = (s.loop / 2.4 % 1) * sweep;
@@ -732,8 +736,9 @@ class _RingPainter extends CustomPainter {
     // The head knob.
     final a = -math.pi / 2 + sweep;
     final k = c + Offset(math.cos(a), math.sin(a)) * r;
-    canvas.drawCircle(k, 7, Paint()..color = Colors.white);
-    canvas.drawCircle(k, 4.5, Paint()..color = main);
+    canvas
+      ..drawCircle(k, 7, Paint()..color = Colors.white)
+      ..drawCircle(k, 4.5, Paint()..color = main);
   }
 
   @override
@@ -743,7 +748,7 @@ class _RingPainter extends CustomPainter {
 // ---- 3. Gold coin dials -------------------------------------------------
 
 class _Coins extends StatelessWidget {
-  const _Coins(this.s, this.heading, this.labels);
+  const new(this.s, this.heading, this.labels);
 
   final CountdownSnap s;
   final String heading;
@@ -811,7 +816,7 @@ class _Coins extends StatelessWidget {
 }
 
 class _CoinPainter extends CustomPainter {
-  _CoinPainter({
+  new({
     required this.urgent,
     required this.pulse,
     required this.edge,
@@ -869,42 +874,43 @@ class _CoinPainter extends CustomPainter {
     }
     // Face.
     final face = r - 6;
-    canvas.drawCircle(
-      c,
-      face,
-      Paint()
-        ..shader = RadialGradient(
-          center: const Alignment(-.35, -.4),
-          radius: 1.1,
-          colors: [
-            Color.lerp(const Color(0xFFFFF4C8), Colors.black, edge * .5)!,
-            Color.lerp(_gold, Colors.black, edge * .5)!,
-            Color.lerp(const Color(0xFFD69B2E), Colors.black, edge * .5)!,
-          ],
-          stops: const [0, .55, 1],
-        ).createShader(Rect.fromCircle(center: c, radius: face)),
-    );
-    canvas.drawCircle(
-      c,
-      face - 4,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = const Color(0x809A6416),
-    );
-    if (shine >= 0) {
-      canvas.save();
-      canvas.clipPath(
-        Path()..addOval(Rect.fromCircle(center: c, radius: face)),
-      );
-      final x = -r + shine * 4 * r;
-      canvas.drawRect(
-        Rect.fromLTWH(c.dx + x - 6, c.dy - r, 12, 2 * r),
+    canvas
+      ..drawCircle(
+        c,
+        face,
         Paint()
-          ..color = Colors.white.withValues(alpha: .55)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+          ..shader = RadialGradient(
+            center: const Alignment(-.35, -.4),
+            radius: 1.1,
+            colors: [
+              Color.lerp(const Color(0xFFFFF4C8), Colors.black, edge * .5)!,
+              Color.lerp(_gold, Colors.black, edge * .5)!,
+              Color.lerp(const Color(0xFFD69B2E), Colors.black, edge * .5)!,
+            ],
+            stops: const [0, .55, 1],
+          ).createShader(Rect.fromCircle(center: c, radius: face)),
+      )
+      ..drawCircle(
+        c,
+        face - 4,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..color = const Color(0x809A6416),
       );
-      canvas.restore();
+    if (shine >= 0) {
+      canvas
+        ..save()
+        ..clipPath(Path()..addOval(Rect.fromCircle(center: c, radius: face)));
+      final x = -r + shine * 4 * r;
+      canvas
+        ..drawRect(
+          Rect.fromLTWH(c.dx + x - 6, c.dy - r, 12, 2 * r),
+          Paint()
+            ..color = Colors.white.withValues(alpha: .55)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        )
+        ..restore();
     }
   }
 
@@ -919,7 +925,7 @@ class _CoinPainter extends CustomPainter {
 // ---- 4. Neon digital ---------------------------------------------------
 
 class _Neon extends StatelessWidget {
-  const _Neon(this.s, this.heading, this.labels);
+  const new(this.s, this.heading, this.labels);
 
   final CountdownSnap s;
   final String heading;
@@ -1006,7 +1012,7 @@ class _Neon extends StatelessWidget {
 }
 
 class _NeonPanelPainter extends CustomPainter {
-  _NeonPanelPainter({
+  new({
     required this.color,
     required this.loop,
     required this.motion,
@@ -1024,42 +1030,44 @@ class _NeonPanelPainter extends CustomPainter {
       Offset.zero & size,
       const Radius.circular(KRadius.lg + 2),
     );
-    canvas.drawRRect(rr, Paint()..color = const Color(0xF20E0306));
-    // Scanlines, drifting slowly.
-    canvas.save();
-    canvas.clipRRect(rr);
+    canvas
+      ..drawRRect(rr, Paint()..color = const Color(0xF20E0306))
+      // Scanlines, drifting slowly.
+      ..save()
+      ..clipRRect(rr);
     final off = motion ? (loop * 10) % 4 : 0.0;
     final line = Paint()..color = const Color(0x0FFFFFFF);
     for (var y = off; y < size.height; y += 4) {
       canvas.drawRect(Rect.fromLTWH(0, y, size.width, 1.2), line);
     }
     // A faint reflection band.
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height * .45),
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0x14FFFFFF), Color(0x00FFFFFF)],
-        ).createShader(Offset.zero & size),
-    );
-    canvas.restore();
-    // Neon tube border: glow + core.
-    canvas.drawRRect(
-      rr.deflate(1.5),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5
-        ..color = color.withValues(alpha: .45 + .4 * pulse)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6 + 6 * pulse),
-    );
-    canvas.drawRRect(
-      rr.deflate(1.5),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
-        ..color = Color.lerp(color, Colors.white, .55)!,
-    );
+    canvas
+      ..drawRect(
+        Rect.fromLTWH(0, 0, size.width, size.height * .45),
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x14FFFFFF), Color(0x00FFFFFF)],
+          ).createShader(Offset.zero & size),
+      )
+      ..restore()
+      // Neon tube border: glow + core.
+      ..drawRRect(
+        rr.deflate(1.5),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 5
+          ..color = color.withValues(alpha: .45 + .4 * pulse)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6 + 6 * pulse),
+      )
+      ..drawRRect(
+        rr.deflate(1.5),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6
+          ..color = Color.lerp(color, Colors.white, .55)!,
+      );
   }
 
   @override
@@ -1068,7 +1076,7 @@ class _NeonPanelPainter extends CustomPainter {
 }
 
 class _ColonPainter extends CustomPainter {
-  _ColonPainter({required this.color, required this.on});
+  new({required this.color, required this.on});
 
   final Color color;
   final bool on;
@@ -1102,7 +1110,7 @@ class _ColonPainter extends CustomPainter {
 }
 
 class _SevenSegPainter extends CustomPainter {
-  _SevenSegPainter({
+  new({
     required this.text,
     required this.color,
     required this.flash,
@@ -1148,7 +1156,10 @@ class _SevenSegPainter extends CustomPainter {
     const t = 5.5;
     final skew = Matrix4.identity()..setEntry(0, 1, -.08);
     Path seg(String s) {
-      final w = r.width, h = r.height, x = r.left, y = r.top;
+      final w = r.width;
+      final h = r.height;
+      final x = r.left;
+      final y = r.top;
       final hm = h / 2;
       Rect rr;
       switch (s) {
@@ -1171,10 +1182,11 @@ class _SevenSegPainter extends CustomPainter {
         ..addRRect(RRect.fromRectAndRadius(rr, const Radius.circular(t / 2)));
     }
 
-    canvas.save();
-    canvas.translate(r.center.dx, r.center.dy);
-    canvas.transform(skew.storage);
-    canvas.translate(-r.center.dx, -r.center.dy);
+    canvas
+      ..save()
+      ..translate(r.center.dx, r.center.dy)
+      ..transform(skew.storage)
+      ..translate(-r.center.dx, -r.center.dy);
     final glow = Paint()
       ..color = color.withValues(alpha: (.55 + .35 * flash) * flicker)
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, 5 + 4 * flash);
@@ -1188,8 +1200,9 @@ class _SevenSegPainter extends CustomPainter {
     for (final s in 'abcdefg'.split('')) {
       final p = seg(s);
       if (on.contains(s)) {
-        canvas.drawPath(p, glow);
-        canvas.drawPath(p, core);
+        canvas
+          ..drawPath(p, glow)
+          ..drawPath(p, core);
       } else {
         canvas.drawPath(p, off);
       }
@@ -1208,7 +1221,7 @@ class _SevenSegPainter extends CustomPainter {
 // ---- 5. Ribbon banner with odometer digits -------------------------------
 
 class _Ribbon extends StatelessWidget {
-  const _Ribbon(this.s, this.heading, this.labels);
+  const new(this.s, this.heading, this.labels);
 
   final CountdownSnap s;
   final String heading;
@@ -1291,7 +1304,7 @@ class _Ribbon extends StatelessWidget {
 }
 
 class _Odometer extends StatelessWidget {
-  const _Odometer({
+  const new({
     required this.cur,
     required this.prev,
     required this.t,
@@ -1325,7 +1338,7 @@ class _Odometer extends StatelessWidget {
           colors: [Color(0xFF1A0205), Color(0xFF3D070D), Color(0xFF1A0205)],
         ),
         borderRadius: BorderRadius.circular(KRadius.sm),
-        border: Border.all(color: _goldDeep, width: 1),
+        border: Border.all(color: _goldDeep),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1365,7 +1378,7 @@ class _Odometer extends StatelessWidget {
 }
 
 class _RibbonPainter extends CustomPainter {
-  _RibbonPainter(this.s);
+  new(this.s);
 
   final CountdownSnap s;
 
@@ -1392,53 +1405,56 @@ class _RibbonPainter extends CustomPainter {
         ..lineTo(x0, top + bandH + 10)
         ..lineTo(x0 + dir * 12, top + 14 + (bandH - 4) / 2)
         ..close();
-      canvas.drawPath(p, Paint()..color = const Color(0xFF2A0408));
-      canvas.drawPath(
-        p,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2
-          ..color = _goldDeep,
-      );
+      canvas
+        ..drawPath(p, Paint()..color = const Color(0xFF2A0408))
+        ..drawPath(
+          p,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.2
+            ..color = _goldDeep,
+        );
     }
     // Main band.
     final band = RRect.fromRectAndRadius(
       Rect.fromLTWH(tail, top, w - tail * 2, bandH),
       const Radius.circular(10),
     );
-    canvas.drawRRect(
-      band.shift(const Offset(0, 4)),
-      Paint()
-        ..color = Colors.black.withValues(alpha: .5)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-    );
-    canvas.drawRRect(
-      band,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: base,
-        ).createShader(band.outerRect),
-    );
+    canvas
+      ..drawRRect(
+        band.shift(const Offset(0, 4)),
+        Paint()
+          ..color = Colors.black.withValues(alpha: .5)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      )
+      ..drawRRect(
+        band,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: base,
+          ).createShader(band.outerRect),
+      );
     // Gold edges.
     final edge = Paint()
       ..shader = const LinearGradient(
         colors: [_goldDeep, _goldLight, _gold, _goldLight, _goldDeep],
       ).createShader(band.outerRect);
-    canvas.drawRRect(
-      band,
-      edge
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.4,
-    );
-    canvas.drawRRect(
-      band.deflate(5),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = .8
-        ..color = _gold.withValues(alpha: .45),
-    );
+    canvas
+      ..drawRRect(
+        band,
+        edge
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.4,
+      )
+      ..drawRRect(
+        band.deflate(5),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = .8
+          ..color = _gold.withValues(alpha: .45),
+      );
     if (!s.motion) return;
     // Sparkles twinkling along the band edges.
     final rnd = math.Random(7);
@@ -1447,7 +1463,10 @@ class _RibbonPainter extends CustomPainter {
       final x = tail + 8 + rnd.nextDouble() * (w - tail * 2 - 16);
       final y = (onTop ? top : top + bandH) + (rnd.nextDouble() - .5) * 14;
       final seed = rnd.nextDouble();
-      final a = math.max(0.0, math.sin(2 * math.pi * (s.loop / 1.8 + seed)));
+      final a = math.max<double>(
+        0,
+        math.sin(2 * math.pi * (s.loop / 1.8 + seed)),
+      );
       if (a <= .05) continue;
       final r = (3 + rnd.nextDouble() * 4) * a;
       final col = s.urgent ? const Color(0xFFFFC2C6) : const Color(0xFFFFF4CF);
@@ -1463,14 +1482,15 @@ class _RibbonPainter extends CustomPainter {
       ..quadraticBezierTo(c.dx, c.dy, c.dx - r, c.dy)
       ..quadraticBezierTo(c.dx, c.dy, c.dx, c.dy - r)
       ..close();
-    canvas.drawCircle(
-      c,
-      r * .9,
-      Paint()
-        ..color = color.withValues(alpha: color.a * .4)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-    );
-    canvas.drawPath(p, Paint()..color = color);
+    canvas
+      ..drawCircle(
+        c,
+        r * .9,
+        Paint()
+          ..color = color.withValues(alpha: color.a * .4)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      )
+      ..drawPath(p, Paint()..color = color);
   }
 
   @override

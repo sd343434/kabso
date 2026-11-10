@@ -1,13 +1,10 @@
-// KL-352 DESIGN-OPTIONS PROTOTYPE (scratch branch, not for merge as is).
+// v1.115-social (D354, CONVENTIONS §10.150): the event page designer's card
+// presets and rules buttons (promoted from the KL-352 options prototype; the
+// owner chose «اجعل كل الخيارات متاحة» — every option selectable per event).
 //
-// Owner (2026-11-10): «القواعد يمكن ان تكون بزر … او قم بعمل عدة تصميم لزر
-// قواعد نختار بينها» and control, per event, over the cards' look. This file
-// holds the options rendered for him to choose from:
-//
-// - [EventPageTheme]: a card theme applied to the whole gift-event page
-//   (cards, tabs, countdown, sticky «مركزي» bar, prize chips), five presets.
+// - [EventPageTheme]: a card theme applied to the designed page (cards,
+//   tabs, the sticky «مركزي» bar, prize chips), five presets.
 // - [EventRulesButtonStyle]: six ways to open the rules (in a bottom sheet).
-// - [EventCountdownStyle]: three countdown banners (plus today's pill).
 //
 // Kabso tokens only (brand reds, `KBrandColors.gold`, the event gold and the
 // dark palette). No third-party art or shapes.
@@ -25,10 +22,8 @@ import 'package:material_ui/material_ui.dart';
 /// tokens (or a tint of one).
 @immutable
 class EventPageTheme {
-  const EventPageTheme({
+  const new({
     required this.id,
-    required this.nameAr,
-    required this.nameEn,
     required this.cardFill,
     required this.cardBorder,
     required this.cardBorderWidth,
@@ -62,8 +57,6 @@ class EventPageTheme {
   });
 
   final String id;
-  final String nameAr;
-  final String nameEn;
 
   /// Card body and its rim (a gradient stroke of [cardBorderWidth]).
   final Gradient cardFill;
@@ -154,7 +147,7 @@ class EventPageTheme {
 
   // --- The five presets ----------------------------------------------------
 
-  static const _gold = KBrandColors.gold; // #F5C451
+  static const ui.Color _gold = KBrandColors.gold; // #F5C451
   static const _goldLight = Color(0xFFFFE7A3); // gold tint (highlight)
   static const _goldDeep = Color(0xFFB7811A); // programGold on light
   static const _wine = Color(0xFF2A0508); // red700 shade (fills)
@@ -169,8 +162,6 @@ class EventPageTheme {
   /// «ذهبي فاخر»: dark wine fills, gold gradient rims, a gold selected tab.
   static const luxuryGold = EventPageTheme(
     id: 'luxuryGold',
-    nameAr: 'ذهبي فاخر',
-    nameEn: 'Luxury gold',
     cardFill: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
@@ -221,8 +212,6 @@ class EventPageTheme {
   /// «زجاجي»: frosted dark glass over the art, hairline white rims.
   static const glass = EventPageTheme(
     id: 'glass',
-    nameAr: 'زجاجي',
-    nameEn: 'Glass',
     cardFill: LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
@@ -270,8 +259,6 @@ class EventPageTheme {
   /// «داكن بسيط»: the app's dark surfaces, flat, red selection.
   static const darkMinimal = EventPageTheme(
     id: 'darkMinimal',
-    nameAr: 'داكن بسيط',
-    nameEn: 'Dark minimal',
     cardFill: LinearGradient(colors: [Color(0xF216161A), Color(0xF216161A)]),
     cardBorder: LinearGradient(colors: [Color(0xFF34343D), Color(0xFF34343D)]),
     cardBorderWidth: 1,
@@ -307,8 +294,6 @@ class EventPageTheme {
   /// «نيون»: near-black cards with a glowing brand-red rim and gold accents.
   static const neon = EventPageTheme(
     id: 'neon',
-    nameAr: 'نيون',
-    nameEn: 'Neon',
     cardFill: LinearGradient(colors: [Color(0xE60B0B0D), Color(0xE60B0B0D)]),
     cardBorder: LinearGradient(
       begin: Alignment.topLeft,
@@ -360,8 +345,6 @@ class EventPageTheme {
   /// contrast), white rims, a white selected tab.
   static const kabsoRed = EventPageTheme(
     id: 'kabsoRed',
-    nameAr: 'أحمر Kabso',
-    nameEn: 'Kabso red',
     cardFill: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
@@ -404,11 +387,17 @@ class EventPageTheme {
     scrim: [Color(0x4D000000), Color(0x99000000), Color(0xCC000000)],
   );
 
-  static const presets = [luxuryGold, glass, darkMinimal, neon, kabsoRed];
+  static const List<EventPageTheme> presets = [
+    luxuryGold,
+    glass,
+    darkMinimal,
+    neon,
+    kabsoRed,
+  ];
 }
 
 class _EventPageThemeScope extends InheritedWidget {
-  const _EventPageThemeScope({required this.theme, required super.child});
+  const new({required this.theme, required super.child});
 
   final EventPageTheme theme;
 
@@ -419,7 +408,7 @@ class _EventPageThemeScope extends InheritedWidget {
 /// A themed surface: optional backdrop blur, a gradient fill, a gradient rim
 /// and an optional glow.
 class EventFrame extends StatelessWidget {
-  const EventFrame({
+  const new({
     required this.child,
     required this.fill,
     super.key,
@@ -474,7 +463,7 @@ class EventFrame extends StatelessWidget {
 }
 
 class _RimPainter extends CustomPainter {
-  const _RimPainter(this.gradient, this.width, this.radius);
+  const new(this.gradient, this.width, this.radius);
 
   final Gradient gradient;
   final double width;
@@ -531,8 +520,8 @@ enum EventRulesButtonStyle {
 /// bundled Material `menu_book` stands in until one is drawn.
 const IconData kEventRulesIcon = Icons.menu_book_rounded;
 
-const _red600 = KBrandColors.red600;
-const _red700 = KBrandColors.red700;
+const ui.Color _red600 = KBrandColors.red600;
+const ui.Color _red700 = KBrandColors.red700;
 const _wineDark = Color(0xFF2A0508);
 
 const _ribbonFill = LinearGradient(
@@ -545,11 +534,7 @@ const _ribbonFill = LinearGradient(
 /// inner side, a gold rim, and a small darker fold under it at the edge
 /// (as if the ribbon wraps behind the screen).
 class EventRulesRibbon extends StatelessWidget {
-  const EventRulesRibbon({
-    required this.onTap,
-    required this.edgeIsLeft,
-    super.key,
-  });
+  const new({required this.onTap, required this.edgeIsLeft, super.key});
 
   final VoidCallback onTap;
 
@@ -599,7 +584,7 @@ class EventRulesRibbon extends StatelessWidget {
 }
 
 class _RibbonPainter extends CustomPainter {
-  const _RibbonPainter({required this.edgeIsLeft});
+  const new({required this.edgeIsLeft});
 
   final bool edgeIsLeft;
   static const double fold = 7;
@@ -666,7 +651,7 @@ class _RibbonPainter extends CustomPainter {
 /// 2. A round icon button: a wine disc, a gold ring, the rules glyph, and
 /// the word under it.
 class EventRulesRoundButton extends StatelessWidget {
-  const EventRulesRoundButton({required this.onTap, super.key});
+  const new({required this.onTap, super.key});
 
   final VoidCallback onTap;
 
@@ -725,7 +710,7 @@ class EventRulesRoundButton extends StatelessWidget {
 
 /// 3. A gold pill (dark wine text) under the countdown.
 class EventRulesGoldPill extends StatelessWidget {
-  const EventRulesGoldPill({required this.onTap, super.key});
+  const new({required this.onTap, super.key});
 
   final VoidCallback onTap;
 
@@ -779,7 +764,7 @@ class EventRulesGoldPill extends StatelessWidget {
 
 /// 4. A frosted glass chip «القواعد ⓘ».
 class EventRulesGlassChip extends StatelessWidget {
-  const EventRulesGlassChip({required this.onTap, super.key});
+  const new({required this.onTap, super.key});
 
   final VoidCallback onTap;
 
@@ -833,11 +818,7 @@ class EventRulesGlassChip extends StatelessWidget {
 
 /// 5. A vertical side tab: the glyph on top, the word turned along the edge.
 class EventRulesSideTab extends StatelessWidget {
-  const EventRulesSideTab({
-    required this.onTap,
-    required this.edgeIsLeft,
-    super.key,
-  });
+  const new({required this.onTap, required this.edgeIsLeft, super.key});
 
   final VoidCallback onTap;
   final bool edgeIsLeft;
@@ -904,7 +885,7 @@ class EventRulesSideTab extends StatelessWidget {
 
 /// 6. A text link in the app bar.
 class EventRulesAppBarLink extends StatelessWidget {
-  const EventRulesAppBarLink({required this.onTap, super.key});
+  const new({required this.onTap, super.key});
 
   final VoidCallback onTap;
 
@@ -950,7 +931,7 @@ Future<void> showEventRulesSheet(
 );
 
 class EventRulesSheet extends StatelessWidget {
-  const EventRulesSheet({required this.lines, super.key});
+  const new({required this.lines, super.key});
 
   final List<String> lines;
 
@@ -1095,298 +1076,4 @@ class EventRulesSheet extends StatelessWidget {
       ),
     );
   }
-}
-
-// ---------------------------------------------------------------------------
-// Countdown banners.
-
-enum EventCountdownStyle {
-  /// Today's gold-rimmed pill.
-  pill,
-
-  /// A. A ribbon strip across the page: wine band, gold hairlines fading
-  /// out at both ends, the label over large digits.
-  ribbon,
-
-  /// B. A frosted glass pill with a clock glyph.
-  glass,
-
-  /// C. Segmented digit boxes (days · hours : minutes : seconds) with units.
-  segmented,
-}
-
-/// The parts of a countdown, for the styled banners.
-typedef CountdownParts = ({
-  String label,
-  int days,
-  String h,
-  String m,
-  String s,
-});
-
-String _days(BuildContext context, int days) {
-  final ar = Localizations.localeOf(context).languageCode == 'ar';
-  if (!ar) return '${days}d';
-  // Prototype Arabic plural (to become an ICU plural in the ARB).
-  return switch (days) {
-    1 => 'يوم',
-    2 => 'يومان',
-    <= 10 => '$days أيام',
-    _ => '$days يومًا',
-  };
-}
-
-String _unit(BuildContext context, String key) {
-  final ar = Localizations.localeOf(context).languageCode == 'ar';
-  // Prototype strings (to become l10n keys).
-  return switch (key) {
-    'd' => ar ? 'يوم' : 'days',
-    'h' => ar ? 'ساعة' : 'hrs',
-    'm' => ar ? 'دقيقة' : 'min',
-    _ => ar ? 'ثانية' : 'sec',
-  };
-}
-
-class EventCountdownBanner extends StatelessWidget {
-  const EventCountdownBanner({
-    required this.style,
-    required this.parts,
-    required this.fallback,
-    super.key,
-  });
-
-  final EventCountdownStyle style;
-  final CountdownParts? parts;
-
-  /// The one-line text (when ended, or for the pill).
-  final String fallback;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.textStyles;
-    final parts = this.parts;
-    const tabular = [FontFeature.tabularFigures()];
-    final time = parts == null
-        ? fallback
-        : [
-            if (parts.days > 0) _days(context, parts.days),
-            '\u2066${parts.h}:${parts.m}:${parts.s}\u2069',
-          ].join('  ');
-    switch (style) {
-      case EventCountdownStyle.pill:
-        return const SizedBox.shrink();
-      case EventCountdownStyle.ribbon:
-        return SizedBox(
-          width: double.infinity,
-          child: Column(
-            children: [
-              _hairline(),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0x002A0508),
-                      Color(0xE65A0A10),
-                      Color(0xF22A0508),
-                      Color(0xE65A0A10),
-                      Color(0x002A0508),
-                    ],
-                    stops: [0, 0.18, 0.5, 0.82, 1],
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    if (parts != null)
-                      Text(
-                        parts.label,
-                        style: t.caption.copyWith(
-                          color: const Color(0xFFF1DDB0),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    Text(
-                      time,
-                      style: t.headline.copyWith(
-                        color: KBrandColors.gold,
-                        fontWeight: FontWeight.w800,
-                        fontFeatures: tabular,
-                        letterSpacing: 1,
-                        shadows: const [
-                          Shadow(color: Color(0xCC000000), blurRadius: 4),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _hairline(),
-            ],
-          ),
-        );
-      case EventCountdownStyle.glass:
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(KRadius.pill),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0x59000000),
-                borderRadius: BorderRadius.circular(KRadius.pill),
-                border: Border.all(color: const Color(0x66FFFFFF)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.schedule_rounded,
-                    size: 18,
-                    color: KBrandColors.gold,
-                  ),
-                  const SizedBox(width: 8),
-                  if (parts != null) ...[
-                    Text(
-                      parts.label,
-                      style: t.label.copyWith(
-                        color: const Color(0xFFE6E6EC),
-                        shadows: KLiveColors.glassShadow,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Text(
-                    time,
-                    style: t.bodyStrong.copyWith(
-                      color: const Color(0xFFFFFFFF),
-                      fontWeight: FontWeight.w800,
-                      fontFeatures: tabular,
-                      shadows: KLiveColors.glassShadow,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      case EventCountdownStyle.segmented:
-        if (parts == null) {
-          return Text(
-            fallback,
-            style: t.label.copyWith(color: KBrandColors.gold),
-          );
-        }
-        Widget box(String value, String unit) => Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              constraints: const BoxConstraints(minWidth: 42),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF5A0A10), _wineDark],
-                ),
-                border: Border.all(color: KBrandColors.gold, width: 1.2),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x80000000), blurRadius: 4),
-                ],
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                value,
-                textDirection: TextDirection.ltr,
-                style: t.headline.copyWith(
-                  color: const Color(0xFFFFFFFF),
-                  fontWeight: FontWeight.w800,
-                  fontFeatures: tabular,
-                  height: 1.1,
-                ),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              unit,
-              style: t.caption.copyWith(
-                color: const Color(0xFFF1DDB0),
-                fontSize: 10,
-                shadows: const [
-                  Shadow(color: Color(0xE6000000), blurRadius: 3),
-                ],
-              ),
-            ),
-          ],
-        );
-        Widget colon() => Padding(
-          padding: const EdgeInsets.only(bottom: 16, left: 2, right: 2),
-          child: Text(
-            ':',
-            style: t.headline.copyWith(
-              color: KBrandColors.gold,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        );
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              parts.label,
-              style: t.label.copyWith(
-                color: KBrandColors.gold,
-                fontWeight: FontWeight.w700,
-                shadows: const [
-                  Shadow(color: Color(0xE6000000), blurRadius: 3),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (parts.days > 0) ...[
-                  box('${parts.days}'.padLeft(2, '0'), _unit(context, 'd')),
-                  const SizedBox(width: 10),
-                ],
-                // hh:mm:ss always reads left to right.
-                Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      box(parts.h, _unit(context, 'h')),
-                      colon(),
-                      box(parts.m, _unit(context, 'm')),
-                      colon(),
-                      box(parts.s, _unit(context, 's')),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-    }
-  }
-
-  static Widget _hairline() => Container(
-    height: 1.2,
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        colors: [
-          Color(0x00F5C451),
-          KBrandColors.gold,
-          Color(0xFFFFE7A3),
-          KBrandColors.gold,
-          Color(0x00F5C451),
-        ],
-        stops: [0, 0.2, 0.5, 0.8, 1],
-      ),
-    ),
-  );
 }

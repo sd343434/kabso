@@ -17257,16 +17257,64 @@ class AppLocalizationsAr extends AppLocalizations {
       'استرداد عبر المتجر (سُحبت العملات)';
 
   @override
-  String get eventsUnitDays => 'أيام';
+  String eventsUnitDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'يوم',
+      many: 'يومًا',
+      few: 'أيام',
+      two: 'يومان',
+      one: 'يوم',
+      zero: 'يوم',
+    );
+    return '$_temp0';
+  }
 
   @override
-  String get eventsUnitHours => 'ساعات';
+  String eventsUnitHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'ساعة',
+      many: 'ساعة',
+      few: 'ساعات',
+      two: 'ساعتان',
+      one: 'ساعة',
+      zero: 'ساعة',
+    );
+    return '$_temp0';
+  }
 
   @override
-  String get eventsUnitMinutes => 'دقائق';
+  String eventsUnitMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'دقيقة',
+      many: 'دقيقة',
+      few: 'دقائق',
+      two: 'دقيقتان',
+      one: 'دقيقة',
+      zero: 'دقيقة',
+    );
+    return '$_temp0';
+  }
 
   @override
-  String get eventsUnitSeconds => 'ثوانٍ';
+  String eventsUnitSeconds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'ثانية',
+      many: 'ثانية',
+      few: 'ثوانٍ',
+      two: 'ثانيتان',
+      one: 'ثانية',
+      zero: 'ثانية',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get eventsTabRanking => 'الترتيب';
@@ -17292,7 +17340,7 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get eventsLastHour => 'الساعة الأخيرة!';
+  String get eventsLastHour => 'الساعة الأخيرة';
 
   @override
   String eventsRewardDays(int days) {
@@ -17306,5 +17354,31 @@ class AppLocalizationsAr extends AppLocalizations {
       one: 'يوم واحد',
     );
     return '$_temp0';
+  }
+
+  @override
+  String eventsDaysShort(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يوم',
+      many: '$days يومًا',
+      few: '$days أيام',
+      two: 'يومان',
+      one: 'يوم',
+      zero: '0 يوم',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get eventsNoEnd => 'بلا نهاية';
+
+  @override
+  String get eventsMilestonesTitle => 'المراحل';
+
+  @override
+  String eventsMilestoneAt(String points) {
+    return 'عند $points نقطة';
   }
 }

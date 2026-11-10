@@ -9,6 +9,8 @@
  */
 import { randomUUID } from 'node:crypto';
 import sharp, { type Metadata } from 'sharp';
+import type { MediaAsset, PrismaClient } from '../../generated/prisma/client.js';
+import { uuidv7 } from '../levels/uuidv7.js';
 import type { ObjectStorage } from '../media/object-storage.js';
 import {
   inspectVideo,
@@ -31,6 +33,8 @@ export const EVENT_MEDIA_KINDS = [
   'badge',
   // v1.101-social (D325): a prize's display picture on the event page.
   'prize',
+  // v1.115-social (D354): the leaderboard's own background (an `EVENT_BOARD_BG` media asset, named by the design).
+  'board_background',
 ] as const;
 export type EventMediaKind = (typeof EVENT_MEDIA_KINDS)[number];
 
@@ -147,7 +151,24 @@ export const EVENT_MEDIA_SPECS: Readonly<Record<EventMediaKind, EventMediaSpec>>
     transparent: false,
     safeZone: 'The prize centred; shown in a square card on the event page.',
   },
+  // v1.115-social (D354, §10.150.5): behind the leaderboard (the top three and the rows), under a dark scrim.
+  board_background: {
+    kind: 'board_background',
+    width: 1080,
+    height: 1440,
+    formats: ['PNG', 'JPEG', 'WEBP'],
+    maxStillBytes: 2 * MB,
+    maxAnimatedBytes: null,
+    maxDurationMs: null,
+    transparent: false,
+    safeZone:
+      'Top 0–720 px: behind the top three (keep it calm in the middle third, where the photos stand); the rest is ' +
+      'behind the rows under a dark scrim.',
+  },
 };
+
+/** v1.115-social (D354): the media asset kind of a leaderboard background. */
+export const EVENT_BOARD_BG_KIND = 'EVENT_BOARD_BG';
 
 /** v1.101-social (D325): the largest alpha-MP4 overlay. */
 export const EVENT_OVERLAY_MP4_MAX_BYTES = 8 * MB;
@@ -211,7 +232,9 @@ export async function checkEventImage(kind: EventMediaKind, bytes: Buffer): Prom
       ? ['png', 'webp']
       : kind === 'title'
         ? ['png', 'webp', 'gif']
-        : ['png', 'jpeg', 'webp', 'gif'];
+        : kind === 'board_background'
+          ? ['png', 'jpeg', 'webp']
+          : ['png', 'jpeg', 'webp', 'gif'];
   if (!allowed.includes(format)) {
     throw new EventMediaError(
       'event_media_format',
@@ -385,7 +408,9 @@ export function checkEventOverlay(bytes: Buffer): EventMediaChecked {
   };
 }
 
-const FOLDER: Readonly<Record<Exclude<EventMediaKind, 'banner' | 'banner_video'>, string>> = {
+const FOLDER: Readonly<
+  Record<Exclude<EventMediaKind, 'banner' | 'banner_video' | 'board_background'>, string>
+> = {
   background: 'bg',
   background_video: 'bg',
   title: 'title',
@@ -446,10 +471,46 @@ export function checkEventLottieTitle(bytes: Buffer): EventMediaChecked {
   };
 }
 
+/**
+ * v1.115-social (D354): stores a checked leaderboard background (`checkEventImage('board_background')`, a 1 080 × 1 440
+ * WebP) as an `EVENT_BOARD_BG` media asset — `media/<id>/1080.webp` and a 240 × 320 thumbnail. Unattached until a
+ * design names it (the media sweeper deletes it after 24 hours otherwise).
+ */
+export async function storeBoardBackground(
+  prisma: Pick<PrismaClient, 'mediaAsset'>,
+  storage: ObjectStorage,
+  ownerId: string,
+  webp: Buffer,
+): Promise<MediaAsset> {
+  const spec = EVENT_MEDIA_SPECS.board_background;
+  const id = uuidv7();
+  const largeKey = `media/${id}/${String(spec.width)}.webp`;
+  const thumbKey = `media/${id}/240.webp`;
+  const thumb = await sharp(webp).resize(240, 320, { fit: 'cover' }).webp({ quality: 80 }).toBuffer();
+  const cache = 'public, max-age=31536000, immutable';
+  await storage.put(largeKey, webp, 'image/webp', cache);
+  await storage.put(thumbKey, thumb, 'image/webp', cache);
+  return prisma.mediaAsset.create({
+    data: {
+      id,
+      ownerId,
+      kind: EVENT_BOARD_BG_KIND,
+      width: spec.width!,
+      height: spec.height!,
+      blurhash: null,
+      largeKey,
+      thumbKey,
+      posterKey: null,
+      durationMs: null,
+      byteSize: webp.length,
+    },
+  });
+}
+
 /** Stores checked event art at `media/events/<folder>/<uuid>.<ext>`; returns its key. */
 export async function storeEventArt(
   storage: ObjectStorage,
-  kind: Exclude<EventMediaKind, 'banner' | 'banner_video'>,
+  kind: Exclude<EventMediaKind, 'banner' | 'banner_video' | 'board_background'>,
   checked: { body: Buffer; contentType: string; ext: string },
 ): Promise<string> {
   const key = `media/events/${FOLDER[kind]}/${randomUUID()}.${checked.ext}`;

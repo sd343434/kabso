@@ -29140,83 +29140,107 @@ abstract class AppLocalizations {
   /// **'استرداد عبر المتجر (سُحبت العملات)'**
   String get walletReasonStoreIapReversal;
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): a hero countdown's unit under its number, agreeing with it.
   ///
   /// In ar, this message translates to:
-  /// **'أيام'**
-  String get eventsUnitDays;
+  /// **'{count, plural, =0{يوم} =1{يوم} =2{يومان} few{أيام} many{يومًا} other{يوم}}'**
+  String eventsUnitDays(int count);
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): a hero countdown's unit under its number, agreeing with it.
   ///
   /// In ar, this message translates to:
-  /// **'ساعات'**
-  String get eventsUnitHours;
+  /// **'{count, plural, =0{ساعة} =1{ساعة} =2{ساعتان} few{ساعات} many{ساعة} other{ساعة}}'**
+  String eventsUnitHours(int count);
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): a hero countdown's unit under its number, agreeing with it.
   ///
   /// In ar, this message translates to:
-  /// **'دقائق'**
-  String get eventsUnitMinutes;
+  /// **'{count, plural, =0{دقيقة} =1{دقيقة} =2{دقيقتان} few{دقائق} many{دقيقة} other{دقيقة}}'**
+  String eventsUnitMinutes(int count);
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): a hero countdown's unit under its number, agreeing with it.
   ///
   /// In ar, this message translates to:
-  /// **'ثوانٍ'**
-  String get eventsUnitSeconds;
+  /// **'{count, plural, =0{ثانية} =1{ثانية} =2{ثانيتان} few{ثوانٍ} many{ثانية} other{ثانية}}'**
+  String eventsUnitSeconds(int count);
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): the designed event page.
   ///
   /// In ar, this message translates to:
   /// **'الترتيب'**
   String get eventsTabRanking;
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): the designed event page.
   ///
   /// In ar, this message translates to:
   /// **'الجوائز'**
   String get eventsTabRewards;
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): the designed event page.
   ///
   /// In ar, this message translates to:
   /// **'دائم'**
   String get eventsRewardPermanent;
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): the designed event page.
   ///
   /// In ar, this message translates to:
   /// **'معاينة'**
   String get eventsRewardPreview;
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): the designed event page.
   ///
   /// In ar, this message translates to:
   /// **'الجائزة الكبرى'**
   String get eventsRewardFeatured;
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): the designed event page.
   ///
   /// In ar, this message translates to:
   /// **'المركز متاح'**
   String get eventsSeatOpen;
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): the designed event page.
   ///
   /// In ar, this message translates to:
   /// **'باقي {points} للمركز {rank}'**
   String eventsToPrevRank(String points, String rank);
 
-  /// KL-352 event page concepts (prototype).
+  /// D354 (§10.150): the designed event page.
   ///
   /// In ar, this message translates to:
-  /// **'الساعة الأخيرة!'**
+  /// **'الساعة الأخيرة'**
   String get eventsLastHour;
 
-  /// KL-352: a reward's duration.
+  /// D354 (§10.150): a reward's duration.
   ///
   /// In ar, this message translates to:
   /// **'{days, plural, =1{يوم واحد} =2{يومان} few{{days} أيام} many{{days} يوماً} other{{days} يوم}}'**
   String eventsRewardDays(int days);
+
+  /// D354 (§10.150): the days left in the stage layout's small countdown.
+  ///
+  /// In ar, this message translates to:
+  /// **'{days, plural, =0{0 يوم} =1{يوم} =2{يومان} few{{days} أيام} many{{days} يومًا} other{{days} يوم}}'**
+  String eventsDaysShort(int days);
+
+  /// D354 (§10.150): a permanent event's small countdown.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا نهاية'**
+  String get eventsNoEnd;
+
+  /// D354 (§10.150): the milestones section «المراحل» (D325).
+  ///
+  /// In ar, this message translates to:
+  /// **'المراحل'**
+  String get eventsMilestonesTitle;
+
+  /// D354 (§10.150): a milestone's points threshold.
+  ///
+  /// In ar, this message translates to:
+  /// **'عند {points} نقطة'**
+  String eventsMilestoneAt(String points);
 }
 
 class _AppLocalizationsDelegate

@@ -1,29 +1,32 @@
-// KL-352 PROTOTYPE (design options for the owner): five leaderboard display
-// styles, each with its own background layer, plus the shared kit used by
-// the event page concepts (gold text, ornaments, avatars, score format).
+// v1.115-social (D354, CONVENTIONS §10.150): the five leaderboard styles of a
+// designed event page (THRONE, PODIUM, CARDS_ROW, SPOTLIGHT, SHIELD_CREST),
+// each with its own background layer (or the event's uploaded leaderboard
+// background under a scrim), plus the shared kit (gold text, avatars, the
+// score format). Promoted from the KL-352 prototype; fed from the real board.
 //
 // Art: only Kabso's own assets — `assets/leaderboard/*` (D84, generated for
 // Kabso), `assets/live_top_frames/*` (owner-supplied, D256),
 // `assets/currency/kabso_coin.png`, `assets/flags/*` (Noto, OFL). Everything
 // else (pedestals, podium steps, crests, ribbons, beams, particles) is drawn
-// here in CustomPainters. Preview photos are `assets/preview/*` (development
-// fixtures).
+// here in CustomPainters. The photos are the entrants' own (Kabso's default
+// picture without one).
 //
 // Motion: one ticker per stage (frame shimmer, #1 pulse, particles); with
-// reduced motion everything is drawn at rest.
+// reduced motion everything is drawn at rest, and the design may switch the
+// shimmer and the pulse off ([StageMotion]).
 
 import 'dart:math' as math;
 
 import 'package:flutter/scheduler.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/programs/presentation/gift_event_sections.dart'
-    show RankCrown;
+    show GiftEventMyBar, RankCrown;
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 // ---- kit -------------------------------------------------------------------
 
-const kGold = KBrandColors.gold;
+const Color kGold = KBrandColors.gold;
 const kGoldLight = Color(0xFFFFE7A3);
 const kGoldDeep = Color(0xFFB9832A);
 const kWine = Color(0xFF2A0508);
@@ -68,28 +71,58 @@ String eventScore(int v) {
 
 @immutable
 class LbEntry {
-  const LbEntry({
+  const new({
     required this.rank,
     required this.name,
-    required this.flag,
     required this.score,
+    this.flag,
     this.photo,
+    this.isMe = false,
   });
 
   final int rank;
   final String name;
 
-  /// ISO code of `assets/flags/<code>.webp`.
-  final String flag;
+  /// ISO code of `assets/flags/<code>.webp`; null: no flag.
+  final String? flag;
   final int score;
 
-  /// Asset path, or null for Kabso's default avatar.
-  final String? photo;
+  /// The entrant's photo, or null for Kabso's default avatar.
+  final ImageProvider? photo;
+
+  /// The caller's own row.
+  final bool isMe;
+}
+
+/// The design's motion switches for a stage below it (D354): the light
+/// sweep and the first place's pulse. Reduced motion stops both anyway.
+class StageMotion extends InheritedWidget {
+  const new({
+    required this.shimmer,
+    required this.pulseFirst,
+    required super.child,
+    super.key,
+  });
+
+  final bool shimmer;
+  final bool pulseFirst;
+
+  static bool shimmerOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<StageMotion>()?.shimmer ??
+      true;
+
+  static bool pulseOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<StageMotion>()?.pulseFirst ??
+      true;
+
+  @override
+  bool updateShouldNotify(StageMotion old) =>
+      old.shimmer != shimmer || old.pulseFirst != pulseFirst;
 }
 
 /// Gold gradient text with a dark outline, for titles and numerals.
 class GoldText extends StatelessWidget {
-  const GoldText(
+  const new(
     this.text, {
     required this.style,
     this.gradient = kGoldGradient,
@@ -125,7 +158,7 @@ class GoldText extends StatelessWidget {
         ),
       ShaderMask(
         blendMode: BlendMode.srcIn,
-        shaderCallback: (r) => gradient.createShader(r),
+        shaderCallback: gradient.createShader,
         child: Text(text, style: style.copyWith(color: Colors.white)),
       ),
     ],
@@ -133,7 +166,7 @@ class GoldText extends StatelessWidget {
 }
 
 class Avatar extends StatelessWidget {
-  const Avatar(
+  const new(
     this.photo, {
     required this.size,
     this.ring,
@@ -141,21 +174,31 @@ class Avatar extends StatelessWidget {
     super.key,
   });
 
-  final String? photo;
+  final ImageProvider? photo;
   final double size;
   final List<Color>? ring;
   final double ringWidth;
 
   @override
   Widget build(BuildContext context) {
+    Widget fallback() => Image.asset(
+      KDefaultAvatarArt.small,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      excludeFromSemantics: true,
+    );
     final img = ClipOval(
-      child: Image.asset(
-        photo ?? KDefaultAvatarArt.small,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        excludeFromSemantics: true,
-      ),
+      child: photo == null
+          ? fallback()
+          : Image(
+              image: photo!,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => fallback(),
+            ),
     );
     if (ring == null) return img;
     return Container(
@@ -175,7 +218,7 @@ class Avatar extends StatelessWidget {
 }
 
 class Flag extends StatelessWidget {
-  const Flag(this.code, {this.height = 12, super.key});
+  const new(this.code, {this.height = 12, super.key});
 
   final String code;
   final double height;
@@ -194,7 +237,7 @@ class Flag extends StatelessWidget {
 }
 
 class CoinIcon extends StatelessWidget {
-  const CoinIcon({this.size = 14, super.key});
+  const new({this.size = 14, super.key});
 
   final double size;
 
@@ -209,7 +252,7 @@ class CoinIcon extends StatelessWidget {
 
 /// Name + flag on one line, ellipsised.
 class NameFlag extends StatelessWidget {
-  const NameFlag(this.e, {required this.style, this.center = true, super.key});
+  const new(this.e, {required this.style, this.center = true, super.key});
 
   final LbEntry e;
   final TextStyle style;
@@ -230,22 +273,28 @@ class NameFlag extends StatelessWidget {
           style: style,
         ),
       ),
-      const SizedBox(width: 4),
-      Flag(e.flag, height: (style.fontSize ?? 13) * .8),
+      if (e.flag case final flag?) ...[
+        const SizedBox(width: 4),
+        Flag(flag, height: (style.fontSize ?? 13) * .8),
+      ],
     ],
   );
 }
 
 /// Coin + score in a wine pill with a gold rim.
 class ScorePlate extends StatelessWidget {
-  const ScorePlate(this.score, {this.big = false, this.metal, super.key});
+  const new(this.score, {this.big = false, this.metal, super.key});
 
   final int score;
   final bool big;
   final List<Color>? metal;
 
+  // A narrow seat or a large text size scales the plate down (D354).
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) =>
+      FittedBox(fit: BoxFit.scaleDown, child: _plate());
+
+  Widget _plate() => Container(
     padding: EdgeInsets.symmetric(
       horizontal: big ? 12 : 8,
       vertical: big ? 4 : 2,
@@ -257,7 +306,7 @@ class ScorePlate extends StatelessWidget {
         colors: [Color(0xE65A0A10), Color(0xF22A0508)],
       ),
       borderRadius: BorderRadius.circular(KRadius.pill),
-      border: Border.all(color: (metal ?? rankMetal(1))[1], width: 1),
+      border: Border.all(color: (metal ?? rankMetal(1))[1]),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
@@ -282,9 +331,10 @@ class ScorePlate extends StatelessWidget {
 
 /// A shared ticker for a stage (one continuous animation per stage).
 class StageClock extends StatefulWidget {
-  const StageClock({required this.builder, this.reduceMotion, super.key});
+  const new({required this.builder, this.reduceMotion, super.key});
 
-  final Widget Function(BuildContext context, double t, bool motion) builder;
+  final Widget Function(BuildContext context, ({double t, bool motion}) at)
+  builder;
   final bool? reduceMotion;
 
   @override
@@ -317,13 +367,14 @@ class _StageClockState extends State<StageClock>
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<double>(
     valueListenable: _t,
-    builder: (context, t, _) => widget.builder(context, t, _motion),
+    builder: (context, t, _) =>
+        widget.builder(context, (t: t, motion: _motion)),
   );
 }
 
 /// A diagonal light sweep over [child] (frames, plates), period 2.8 s.
 class Shimmer extends StatelessWidget {
-  const Shimmer({
+  const new({
     required this.t,
     required this.motion,
     required this.child,
@@ -338,7 +389,7 @@ class Shimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!motion) return child;
+    if (!motion || !StageMotion.shimmerOf(context)) return child;
     final p = (t % period) / period; // sweep in the first 45 %
     if (p > .45) return child;
     final x = -1.6 + p / .45 * 3.2;
@@ -364,14 +415,15 @@ void paintSparkle(Canvas canvas, Offset c, double r, Color color) {
     ..quadraticBezierTo(c.dx, c.dy, c.dx - r, c.dy)
     ..quadraticBezierTo(c.dx, c.dy, c.dx, c.dy - r)
     ..close();
-  canvas.drawCircle(
-    c,
-    r * .8,
-    Paint()
-      ..color = color.withValues(alpha: color.a * .35)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-  );
-  canvas.drawPath(p, Paint()..color = color);
+  canvas
+    ..drawCircle(
+      c,
+      r * .8,
+      Paint()
+        ..color = color.withValues(alpha: color.a * .35)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    )
+    ..drawPath(p, Paint()..color = color);
 }
 
 /// A five-point star.
@@ -408,7 +460,7 @@ enum LeaderboardStyle {
 /// The leaderboard area: its own background, the top three in [style],
 /// rows 4+ and (outside, by the page) the «مركزي» bar.
 class LeaderboardStage extends StatelessWidget {
-  const LeaderboardStage({
+  const new({
     required this.style,
     required this.entries,
     this.background,
@@ -437,18 +489,19 @@ class LeaderboardStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => StageClock(
     reduceMotion: reduceMotion,
-    builder: (context, t, motion) {
+    builder: (context, at) {
+      final (:t, :motion) = at;
       final top = [_at(1), _at(2), _at(3)];
       final rows = entries.where((e) => e.rank > 3).take(rowsLimit).toList();
       final content = Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           switch (style) {
-            LeaderboardStyle.throne => _Throne(top, t, motion),
-            LeaderboardStyle.podium => _Podium(top, t, motion),
-            LeaderboardStyle.cardsRow => _CardsRow(top, t, motion),
-            LeaderboardStyle.spotlight => _Spotlight(top, t, motion),
-            LeaderboardStyle.shieldCrest => _Shields(top, t, motion),
+            LeaderboardStyle.throne => _Throne(top, t, motion: motion),
+            LeaderboardStyle.podium => _Podium(top, t, motion: motion),
+            LeaderboardStyle.cardsRow => _CardsRow(top, t, motion: motion),
+            LeaderboardStyle.spotlight => _Spotlight(top, t, motion: motion),
+            LeaderboardStyle.shieldCrest => _Shields(top, t, motion: motion),
           },
           const SizedBox(height: KSpacing.md),
           if (rows.isEmpty)
@@ -494,7 +547,7 @@ class LeaderboardStage extends StatelessWidget {
 
 /// Each style's own background layer (or the admin's image under a scrim).
 class StageBackground extends StatelessWidget {
-  const StageBackground({
+  const new({
     required this.style,
     required this.t,
     required this.motion,
@@ -529,7 +582,12 @@ class StageBackground extends StatelessWidget {
         ?base,
         RepaintBoundary(
           child: CustomPaint(
-            painter: _BgPainter(style, t, motion, overImage: base != null),
+            painter: _BgPainter(
+              style,
+              t,
+              motion: motion,
+              overImage: base != null,
+            ),
           ),
         ),
       ],
@@ -538,7 +596,7 @@ class StageBackground extends StatelessWidget {
 }
 
 class _BgPainter extends CustomPainter {
-  _BgPainter(this.style, this.t, this.motion, {required this.overImage});
+  new(this.style, this.t, {required this.motion, required this.overImage});
 
   final LeaderboardStyle style;
   final double t;
@@ -637,16 +695,9 @@ class _BgPainter extends CustomPainter {
           ..strokeWidth = 1
           ..color = kGold.withValues(alpha: .07);
         for (var x = -size.height; x < w + size.height; x += 34) {
-          canvas.drawLine(
-            Offset(x, 0),
-            Offset(x + size.height, size.height),
-            lp,
-          );
-          canvas.drawLine(
-            Offset(x, 0),
-            Offset(x - size.height, size.height),
-            lp,
-          );
+          canvas
+            ..drawLine(Offset(x, 0), Offset(x + size.height, size.height), lp)
+            ..drawLine(Offset(x, 0), Offset(x - size.height, size.height), lp);
         }
       case LeaderboardStyle.throne:
         canvas.drawRect(
@@ -734,7 +785,7 @@ class _BgPainter extends CustomPainter {
 
 /// A podium frame (D84 art) with the photo filling its measured opening.
 class PodiumFrame extends StatelessWidget {
-  const PodiumFrame(
+  const new(
     this.rank,
     this.photo, {
     required this.width,
@@ -743,7 +794,7 @@ class PodiumFrame extends StatelessWidget {
   });
 
   final int rank;
-  final String? photo;
+  final ImageProvider? photo;
   final double width;
   final bool empty;
 
@@ -797,7 +848,7 @@ class PodiumFrame extends StatelessWidget {
 }
 
 class _Throne extends StatelessWidget {
-  const _Throne(this.top, this.t, this.motion);
+  const new(this.top, this.t, {required this.motion});
 
   final List<LbEntry?> top;
   final double t;
@@ -811,7 +862,9 @@ class _Throne extends StatelessWidget {
     // #2 / #3 shrink on narrow phones so #1's name keeps ≥ 120 dp.
     final sideW = ((width - 120) / 2).clamp(96.0, 132.0);
     final ts = context.textStyles;
-    final pulse = motion ? (math.sin(t * math.pi * 2 / 2.4) * .5 + .5) : .5;
+    final pulse = motion && StageMotion.pulseOf(context)
+        ? (math.sin(t * math.pi * 2 / 2.4) * .5 + .5)
+        : .5;
     Widget side(int rank, LbEntry? e) => SizedBox(
       width: sideW,
       child: Column(
@@ -877,7 +930,7 @@ class _Throne extends StatelessWidget {
             child: SizedBox(
               width: 120,
               height: 26,
-              child: CustomPaint(painter: _StarsPainter(t, motion)),
+              child: CustomPaint(painter: _StarsPainter(t, motion: motion)),
             ),
           ),
           Positioned(
@@ -894,7 +947,7 @@ class _Throne extends StatelessWidget {
                     empty: one == null,
                   ),
                 ),
-                _Pedestal(rank: 1, width: 170),
+                const _Pedestal(rank: 1, width: 170),
                 const SizedBox(height: 6),
                 if (one != null) ...[
                   NameFlag(
@@ -921,7 +974,7 @@ class _Throne extends StatelessWidget {
 }
 
 class _StarsPainter extends CustomPainter {
-  _StarsPainter(this.t, this.motion);
+  new(this.t, {required this.motion});
 
   final double t;
   final bool motion;
@@ -937,19 +990,20 @@ class _StarsPainter extends CustomPainter {
       );
       final tw = motion ? .75 + .25 * math.sin(t * 3 + i) : 1;
       final p = starPath(c, r);
-      canvas.drawPath(
-        p,
-        Paint()
-          ..color = kGold.withValues(alpha: .5 * tw)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
-      canvas.drawPath(
-        p,
-        Paint()
-          ..shader = kGoldGradient.createShader(
-            Rect.fromCircle(center: c, radius: r),
-          ),
-      );
+      canvas
+        ..drawPath(
+          p,
+          Paint()
+            ..color = kGold.withValues(alpha: .5 * tw)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        )
+        ..drawPath(
+          p,
+          Paint()
+            ..shader = kGoldGradient.createShader(
+              Rect.fromCircle(center: c, radius: r),
+            ),
+        );
     }
   }
 
@@ -959,7 +1013,7 @@ class _StarsPainter extends CustomPainter {
 
 /// An oval stage: gold rim, velvet top, a metal front with the numeral.
 class _Pedestal extends StatelessWidget {
-  const _Pedestal({required this.rank, required this.width});
+  const new({required this.rank, required this.width});
 
   final int rank;
   final double width;
@@ -973,13 +1027,14 @@ class _Pedestal extends StatelessWidget {
 }
 
 class _PedestalPainter extends CustomPainter {
-  _PedestalPainter(this.rank);
+  new(this.rank);
 
   final int rank;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
+    final w = size.width;
+    final h = size.height;
     final metal = rankMetal(rank);
     final topH = h * .55;
     final front = Path()
@@ -1000,20 +1055,21 @@ class _PedestalPainter extends CustomPainter {
         ).createShader(Offset.zero & size),
     );
     final top = Rect.fromLTWH(0, 0, w, topH);
-    canvas.drawOval(
-      top,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [const Color(0xFF8A0E1A), const Color(0xFF3A050B)],
-        ).createShader(top),
-    );
-    canvas.drawOval(
-      top.deflate(1),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..color = metal[0],
-    );
+    canvas
+      ..drawOval(
+        top,
+        Paint()
+          ..shader = const RadialGradient(
+            colors: [Color(0xFF8A0E1A), Color(0xFF3A050B)],
+          ).createShader(top),
+      )
+      ..drawOval(
+        top.deflate(1),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = metal[0],
+      );
   }
 
   @override
@@ -1023,7 +1079,7 @@ class _PedestalPainter extends CustomPainter {
 // ---- 2. Podium -------------------------------------------------------------
 
 class _Podium extends StatelessWidget {
-  const _Podium(this.top, this.t, this.motion);
+  const new(this.top, this.t, {required this.motion});
 
   final List<LbEntry?> top;
   final double t;
@@ -1111,7 +1167,7 @@ class _Podium extends StatelessWidget {
 }
 
 class _Medal extends StatelessWidget {
-  const _Medal({required this.rank, required this.size});
+  const new({required this.rank, required this.size});
 
   final int rank;
   final double size;
@@ -1128,7 +1184,7 @@ class _Medal extends StatelessWidget {
         end: Alignment.bottomRight,
         colors: rankMetal(rank),
       ),
-      border: Border.all(color: Colors.white.withValues(alpha: .8), width: 1),
+      border: Border.all(color: Colors.white.withValues(alpha: .8)),
       boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 4)],
     ),
     child: Text(
@@ -1145,14 +1201,15 @@ class _Medal extends StatelessWidget {
 }
 
 class _StepPainter extends CustomPainter {
-  _StepPainter(this.rank, this.t);
+  new(this.rank, this.t);
 
   final int rank;
   final double t;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
+    final w = size.width;
+    final h = size.height;
     final metal = rankMetal(rank);
     const lip = 12.0;
     final topFace = Path()
@@ -1166,27 +1223,28 @@ class _StepPainter extends CustomPainter {
       Paint()..color = Color.lerp(metal[0], Colors.white, .3)!,
     );
     final front = Rect.fromLTWH(6, lip, w - 12, h - lip);
-    canvas.drawRect(
-      front,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            metal[1],
-            Color.lerp(metal[2], const Color(0xFF2A0508), .5)!,
-          ],
-        ).createShader(front),
-    );
-    // Side bevels.
-    canvas.drawRect(
-      Rect.fromLTWH(6, lip, 6, h - lip),
-      Paint()..color = Colors.white.withValues(alpha: .18),
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(w - 12, lip, 6, h - lip),
-      Paint()..color = Colors.black.withValues(alpha: .25),
-    );
+    canvas
+      ..drawRect(
+        front,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              metal[1],
+              Color.lerp(metal[2], const Color(0xFF2A0508), .5)!,
+            ],
+          ).createShader(front),
+      )
+      // Side bevels.
+      ..drawRect(
+        Rect.fromLTWH(6, lip, 6, h - lip),
+        Paint()..color = Colors.white.withValues(alpha: .18),
+      )
+      ..drawRect(
+        Rect.fromLTWH(w - 12, lip, 6, h - lip),
+        Paint()..color = Colors.black.withValues(alpha: .25),
+      );
     // A glint that runs across the top edge.
     if (t > 0) {
       final x = (t * 60 + rank * 40) % (w * 3) - w;
@@ -1206,7 +1264,7 @@ class _StepPainter extends CustomPainter {
 // ---- 3. Cards row ----------------------------------------------------------
 
 class _CardsRow extends StatelessWidget {
-  const _CardsRow(this.top, this.t, this.motion);
+  const new(this.top, this.t, {required this.motion});
 
   final List<LbEntry?> top;
   final double t;
@@ -1215,7 +1273,9 @@ class _CardsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ts = context.textStyles;
-    final pulse = motion ? (math.sin(t * math.pi * 2 / 2.4) * .5 + .5) : .5;
+    final pulse = motion && StageMotion.pulseOf(context)
+        ? (math.sin(t * math.pi * 2 / 2.4) * .5 + .5)
+        : .5;
     Widget card(int rank, double w, double h, double avatar) {
       final e = top[rank - 1];
       final metal = rankMetal(rank);
@@ -1312,10 +1372,10 @@ class _CardsRow extends StatelessWidget {
 
 /// A live-top frame (owner art, D256) around a photo.
 class TopFrame extends StatelessWidget {
-  const TopFrame(this.rank, this.photo, {required this.size, super.key});
+  const new(this.rank, this.photo, {required this.size, super.key});
 
   final int rank;
-  final String? photo;
+  final ImageProvider? photo;
   final double size;
 
   static const _win = <int, (double, double, double)>{
@@ -1350,7 +1410,7 @@ class TopFrame extends StatelessWidget {
 }
 
 class _Spotlight extends StatelessWidget {
-  const _Spotlight(this.top, this.t, this.motion);
+  const new(this.top, this.t, {required this.motion});
 
   final List<LbEntry?> top;
   final double t;
@@ -1437,7 +1497,7 @@ class _Spotlight extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(KRadius.xl - 2),
               child: CustomPaint(
-                painter: _SpotPainter(t, motion),
+                painter: _SpotPainter(t, motion: motion),
                 child: Row(
                   children: [
                     const SizedBox(width: 6),
@@ -1453,7 +1513,7 @@ class _Spotlight extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              const RankCrown(rank: 1, size: 22),
+                              const RankCrown(rank: 1),
                               const SizedBox(width: 6),
                               Text(
                                 l10n.eventsRank('1'),
@@ -1502,12 +1562,12 @@ class _Spotlight extends StatelessWidget {
 }
 
 class _SpotPainter extends CustomPainter {
-  _SpotPainter(this.t, this.motion);
+  new(this.t, {required this.motion});
 
   final double t;
   final bool motion;
 
-  static const _confetti = [
+  static const List<Color> _confetti = [
     kGold,
     KBrandColors.red400,
     Colors.white,
@@ -1534,26 +1594,27 @@ class _SpotPainter extends CustomPainter {
       ..lineTo(size.width * .30 + 70 + sway, size.height)
       ..lineTo(size.width * .30 - 110 + sway, size.height)
       ..close();
-    canvas.drawPath(
-      p,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [const Color(0x80FFF1C9), const Color(0x00FFF1C9)],
-        ).createShader(r)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(size.width * .3 + sway - 20, size.height - 6),
-        width: 170,
-        height: 26,
-      ),
-      Paint()
-        ..color = const Color(0x55FFE3A0)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
-    );
+    canvas
+      ..drawPath(
+        p,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x80FFF1C9), Color(0x00FFF1C9)],
+          ).createShader(r)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+      )
+      ..drawOval(
+        Rect.fromCenter(
+          center: Offset(size.width * .3 + sway - 20, size.height - 6),
+          width: 170,
+          height: 26,
+        ),
+        Paint()
+          ..color = const Color(0x55FFE3A0)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+      );
     // Confetti falling.
     final rnd = math.Random(11);
     for (var i = 0; i < 26; i++) {
@@ -1564,18 +1625,19 @@ class _SpotPainter extends CustomPainter {
               (size.height + 10) -
           5;
       final ang = (motion ? t * (1 + rnd.nextDouble() * 2) : 0.0) + i;
-      canvas.save();
-      canvas.translate(x, y);
-      canvas.rotate(ang);
-      canvas.drawRect(
-        Rect.fromCenter(
-          center: Offset.zero,
-          width: 5,
-          height: 2.5 + 2 * math.cos(ang * 2).abs(),
-        ),
-        Paint()..color = _confetti[i % 4].withValues(alpha: .8),
-      );
-      canvas.restore();
+      canvas
+        ..save()
+        ..translate(x, y)
+        ..rotate(ang)
+        ..drawRect(
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: 5,
+            height: 2.5 + 2 * math.cos(ang * 2).abs(),
+          ),
+          Paint()..color = _confetti[i % 4].withValues(alpha: .8),
+        )
+        ..restore();
     }
   }
 
@@ -1586,7 +1648,7 @@ class _SpotPainter extends CustomPainter {
 // ---- 5. Shield crest -------------------------------------------------------
 
 class _Shields extends StatelessWidget {
-  const _Shields(this.top, this.t, this.motion);
+  const new(this.top, this.t, {required this.motion});
 
   final List<LbEntry?> top;
   final double t;
@@ -1595,7 +1657,9 @@ class _Shields extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ts = context.textStyles;
-    final pulse = motion ? (math.sin(t * math.pi * 2 / 2.4) * .5 + .5) : .5;
+    final pulse = motion && StageMotion.pulseOf(context)
+        ? (math.sin(t * math.pi * 2 / 2.4) * .5 + .5)
+        : .5;
     Widget crest(int rank, double w) {
       final e = top[rank - 1];
       final metal = rankMetal(rank);
@@ -1719,13 +1783,14 @@ class _Shields extends StatelessWidget {
 }
 
 class _ShieldPainter extends CustomPainter {
-  _ShieldPainter(this.rank);
+  new(this.rank);
 
   final int rank;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
+    final w = size.width;
+    final h = size.height;
     final metal = rankMetal(rank);
     Path shield(double inset) => Path()
       ..moveTo(w / 2, inset)
@@ -1736,37 +1801,38 @@ class _ShieldPainter extends CustomPainter {
       ..lineTo(inset, h * .1 + inset)
       ..quadraticBezierTo(w * .25, h * .08 + inset, w / 2, inset)
       ..close();
-    canvas.drawPath(
-      shield(0).shift(const Offset(0, 4)),
-      Paint()
-        ..color = Colors.black.withValues(alpha: .5)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-    );
-    canvas.drawPath(
-      shield(0),
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: metal,
-        ).createShader(Offset.zero & size),
-    );
-    canvas.drawPath(
-      shield(5),
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [KBrandColors.red500, Color(0xFF8A050C), Color(0xFF3A0508)],
-        ).createShader(Offset.zero & size),
-    );
-    canvas.drawPath(
-      shield(9),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..color = metal[0].withValues(alpha: .6),
-    );
+    canvas
+      ..drawPath(
+        shield(0).shift(const Offset(0, 4)),
+        Paint()
+          ..color = Colors.black.withValues(alpha: .5)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+      )
+      ..drawPath(
+        shield(0),
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: metal,
+          ).createShader(Offset.zero & size),
+      )
+      ..drawPath(
+        shield(5),
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [KBrandColors.red500, Color(0xFF8A050C), Color(0xFF3A0508)],
+          ).createShader(Offset.zero & size),
+      )
+      ..drawPath(
+        shield(9),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = metal[0].withValues(alpha: .6),
+      );
     // Top gem.
     final g = Offset(w / 2, 4);
     final gem = Path()
@@ -1775,14 +1841,15 @@ class _ShieldPainter extends CustomPainter {
       ..lineTo(g.dx, g.dy + 10)
       ..lineTo(g.dx - 7, g.dy + 2)
       ..close();
-    canvas.drawPath(gem, Paint()..color = const Color(0xFFFF4D5E));
-    canvas.drawPath(
-      gem,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..color = metal[0],
-    );
+    canvas
+      ..drawPath(gem, Paint()..color = const Color(0xFFFF4D5E))
+      ..drawPath(
+        gem,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..color = metal[0],
+      );
   }
 
   @override
@@ -1790,13 +1857,14 @@ class _ShieldPainter extends CustomPainter {
 }
 
 class _BannerPainter extends CustomPainter {
-  _BannerPainter(this.metal);
+  new(this.metal);
 
   final List<Color> metal;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
+    final w = size.width;
+    final h = size.height;
     // Tails.
     for (final left in [true, false]) {
       final x = left ? 0.0 : w;
@@ -1818,22 +1886,23 @@ class _BannerPainter extends CustomPainter {
       ..lineTo(w - 12, h - 6)
       ..quadraticBezierTo(w / 2, h, 12, h - 6)
       ..close();
-    canvas.drawPath(
-      band,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [KBrandColors.red500, KBrandColors.red700],
-        ).createShader(Offset.zero & size),
-    );
-    canvas.drawPath(
-      band,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4
-        ..color = metal[0],
-    );
+    canvas
+      ..drawPath(
+        band,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [KBrandColors.red500, KBrandColors.red700],
+          ).createShader(Offset.zero & size),
+      )
+      ..drawPath(
+        band,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4
+          ..color = metal[0],
+      );
   }
 
   @override
@@ -1843,7 +1912,7 @@ class _BannerPainter extends CustomPainter {
 // ---- rows and the «مركزي» bar ----------------------------------------------
 
 class RankRow extends StatelessWidget {
-  const RankRow(this.e, {this.style, super.key});
+  const new(this.e, {this.style, super.key});
 
   final LbEntry e;
   final LeaderboardStyle? style;
@@ -1916,7 +1985,7 @@ class RankRow extends StatelessWidget {
 
 /// A free place in the rows (fewer participants than places).
 class OpenRow extends StatelessWidget {
-  const OpenRow({required this.rank, super.key});
+  const new({required this.rank, super.key});
 
   final int rank;
 
@@ -1963,20 +2032,29 @@ class OpenRow extends StatelessWidget {
   );
 }
 
-/// The sticky «مركزي» bar: gold, with wine text.
+/// The sticky «مركزي» bar of a designed page: gold, with wine text — the
+/// caller's place, photo, the line [GiftEventMyBar] computes (rank and
+/// score, or the final result) and its hint (what is missing, the prize).
 class MyRankBar extends StatelessWidget {
-  const MyRankBar({required this.me, required this.toNext, super.key});
+  const new({required this.label, this.rank, this.photo, this.hint, super.key});
 
-  final LbEntry me;
-  final int toNext;
+  final int? rank;
+  final ImageProvider? photo;
+  final String label;
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
     final ts = context.textStyles;
     const ink = Color(0xFF2A0508);
     return Container(
-      height: 64,
-      padding: const EdgeInsetsDirectional.only(start: 8, end: 14),
+      constraints: const BoxConstraints(minHeight: 64),
+      padding: const EdgeInsetsDirectional.only(
+        start: 8,
+        end: 14,
+        top: 6,
+        bottom: 6,
+      ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(KRadius.lg),
         gradient: const LinearGradient(
@@ -1998,7 +2076,7 @@ class MyRankBar extends StatelessWidget {
           SizedBox(
             width: 38,
             child: Text(
-              '${me.rank}',
+              rank == null ? '–' : '$rank',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontFamily: KFonts.latin,
@@ -2009,19 +2087,20 @@ class MyRankBar extends StatelessWidget {
             ),
           ),
           Avatar(
-            me.photo,
+            photo,
             size: 42,
             ring: const [Colors.white, KBrandColors.red500],
           ),
           const SizedBox(width: KSpacing.md),
           Expanded(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  me.name,
-                  maxLines: 1,
+                  label,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: ts.bodyStrong.copyWith(
                     color: ink,
@@ -2029,31 +2108,18 @@ class MyRankBar extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                Text(
-                  context.l10n.eventsToPrevRank(
-                    eventScore(toNext),
-                    '${me.rank - 1}',
+                if (hint case final hint?)
+                  Text(
+                    hint,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: ts.caption.copyWith(
+                      color: const Color(0xFF5A1A0A),
+                      fontWeight: FontWeight.w600,
+                      height: 1.2,
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: ts.caption.copyWith(
-                    color: const Color(0xFF5A1A0A),
-                    fontWeight: FontWeight.w600,
-                    height: 1.2,
-                  ),
-                ),
               ],
-            ),
-          ),
-          const CoinIcon(size: 18),
-          const SizedBox(width: 4),
-          Text(
-            eventScore(me.score),
-            style: const TextStyle(
-              fontFamily: KFonts.latin,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: ink,
             ),
           ),
         ],

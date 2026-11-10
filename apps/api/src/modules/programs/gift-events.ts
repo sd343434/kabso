@@ -7,6 +7,7 @@
  */
 import { z } from 'zod';
 import { auditBy, type AdminVia } from '../../common/audit/admin-actor.js';
+import { AppException } from '../../common/errors/app-exception.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { Prisma, type Event } from '../../generated/prisma/client.js';
 import { addItemTimeIn, catalogueItemIn, lockItemHoldersIn } from '../bag/bag-grants.js';
@@ -14,6 +15,15 @@ import { creditEventPrizeCherriesIn } from '../economy/cherry-ledger.js';
 import { grantStockIn } from '../gifts/gift-catalogue.js';
 import { creditIn } from '../wallet/wallet-ledger.js';
 import { EVENT_TONES, EventAdminError } from './event-admin-rules.js';
+import {
+  designAudit,
+  designJson,
+  designProblems,
+  eventDesignSchema,
+  parseStoredDesign,
+  type DesignBoard,
+  type EventDesign,
+} from './event-design.js';
 import { EVENT_LEADERBOARD_MAX } from './programs-rules.js';
 
 type Tx = Prisma.TransactionClient;
@@ -281,6 +291,11 @@ export const giftEventInputSchema = z
       .default([]),
     /** v1.101-social (D325): optional milestones «مراحل». */
     milestones: z.array(milestoneSchema).max(GIFT_EVENT_LIMITS.milestones).default([]),
+    /**
+     * v1.115-social (D354, §10.150): the page design (`event-design.ts`). Absent: none on a create, kept on an edit;
+     * null: today's page. A display setting: it may change while the event runs (audited with the reason).
+     */
+    design: eventDesignSchema.nullable().optional(),
     reason: z.string().trim().min(3).max(500),
   })
   // D303's shape stays a 400 for a published body: at least one event gift (unless every gift counts) and one board;
@@ -307,8 +322,33 @@ export const giftEventInputSchema = z
         message: 'at least one board',
       });
     }
+  })
+  // v1.115-social (D354): the design's rules against the body's boards (a 400 with `design_*` issues). A board whose
+  // «عدد المعروضين» the body leaves out is checked against its stored value by the service.
+  .superRefine((v, ctx) => {
+    if (!v.design) return;
+    for (const p of designProblems(v.design, designBoardsOf(v.boards))) {
+      ctx.addIssue({
+        code: 'custom',
+        path: p.field.split('.').map((k) => (/^\d+$/.test(k) ? Number(k) : k)),
+        message: p.message,
+        params: { issue: p.issue },
+      });
+    }
   });
 export type GiftEventInput = z.infer<typeof giftEventInputSchema>;
+
+/** v1.115-social (D354): the boards as the design rules see them (`shown` from [stored] when the body leaves it out). */
+export function designBoardsOf(
+  boards: readonly { kind: EventBoardKind; prizes: readonly PrizeLine[]; shown?: number | undefined }[],
+  stored?: ReadonlyMap<string, number>,
+): DesignBoard[] {
+  return boards.map((b) => ({
+    kind: b.kind,
+    lines: b.prizes.map((l) => ({ rankFrom: l.rankFrom, rankTo: l.rankTo, items: l.items.length })),
+    shown: b.shown ?? (stored ? (stored.get(b.kind) ?? EVENT_BOARD_SHOWN) : null),
+  }));
+}
 
 /** Whether `zone` is an IANA time zone this runtime knows. */
 export function isTimeZone(zone: string): boolean {
@@ -608,7 +648,55 @@ function rowFields(input: GiftEventInput, startsAt: Date | null, endsAt: Date | 
     countedGifts: input.countedGifts,
     bannerMediaId: input.bannerMediaId ?? null,
     ...(input.announceFullscreen !== undefined ? { announceFullscreen: input.announceFullscreen } : {}),
+    // v1.115-social (D354): absent — kept; null — today's page.
+    ...(input.design !== undefined
+      ? {
+          design: input.design === null ? Prisma.DbNull : (designJson(input.design) as Prisma.InputJsonValue),
+        }
+      : {}),
   };
+}
+
+/**
+ * v1.115-social (D354, §10.150.3): the design the event will have (the body's, else the stored one) against the
+ * boards it will have, with each board's «عدد المعروضين» as it will be — a 400 `VALIDATION_FAILED` with the `design_*`
+ * issue otherwise (also when an edit that leaves the design out makes the stored one stale). A named leaderboard
+ * background must be an uploaded `EVENT_BOARD_BG` asset (400 `design.leaderboardBackgroundMediaId` / `invalid_value`);
+ * it is marked attached so the media sweeper keeps it.
+ */
+async function checkDesignIn(tx: Tx, input: GiftEventInput, event: Event | null, now: Date): Promise<void> {
+  const design: EventDesign | null =
+    input.design !== undefined ? input.design : event ? parseStoredDesign(event.design) : null;
+  if (design === null) return;
+  const stored = new Map<string, number>(
+    event
+      ? (
+          await tx.eventBoard.findMany({ where: { eventId: event.id }, select: { kind: true, shown: true } })
+        ).map((b) => [b.kind, b.shown] as const)
+      : [],
+  );
+  const problems = designProblems(design, designBoardsOf(input.boards, stored));
+  if (problems.length > 0) {
+    throw AppException.validation(
+      problems.map(({ field, issue }) => ({ field, issue })),
+      input.design === undefined
+        ? `The page design no longer fits the boards: ${problems[0]!.message} Send the design again.`
+        : problems[0]!.message,
+    );
+  }
+  const media = design.leaderboardBackgroundMediaId;
+  if (media !== null && input.design !== undefined) {
+    const attached = await tx.mediaAsset.updateMany({
+      where: { id: media, kind: 'EVENT_BOARD_BG' },
+      data: { attachedAt: now },
+    });
+    if (attached.count === 0) {
+      throw AppException.validation(
+        [{ field: 'design.leaderboardBackgroundMediaId', issue: 'invalid_value' }],
+        'Upload the leaderboard background first (event media kind board_background).',
+      );
+    }
+  }
 }
 
 async function writeStructureIn(tx: Tx, eventId: string, input: GiftEventInput): Promise<void> {
@@ -702,6 +790,8 @@ function auditMeta(input: GiftEventInput, by: AdminVia) {
       ...(b.shown !== undefined ? { shown: b.shown } : {}),
     })),
     milestones: input.milestones.map((m) => `${m.board}:${String(m.points)}`),
+    // v1.115-social (D354): the page design (absent: unchanged).
+    ...(input.design !== undefined ? { design: designAudit(input.design) } : {}),
     reason: input.reason,
     via: by.via,
   };
@@ -786,6 +876,7 @@ export async function createGiftEventIn(
     throw new EventAdminError('The end is in the past.');
   }
   await checkCatalogueIn(tx, input, null);
+  await checkDesignIn(tx, input, null, now);
   const row = await tx.event.create({
     data: {
       ...rowFields(input, startsAt, endsAt),
@@ -845,6 +936,12 @@ export async function updateGiftEventIn(
     throw new EventAdminError('The end is in the past.');
   }
   await checkCatalogueIn(tx, input, eventId);
+  // v1.115-social (D354): the design is a display setting — checked, and changed while running too.
+  await checkDesignIn(tx, input, event, now);
+  const designChanged =
+    input.design !== undefined &&
+    JSON.stringify(input.design === null ? null : designJson(input.design)) !==
+      JSON.stringify(parseStoredDesign(event.design));
   const running = event.status === 'PUBLISHED' && event.startsAt !== null && event.startsAt <= now;
   if (running) {
     const regions = [...new Set(input.regions.map((r) => r.toUpperCase()))];
@@ -909,7 +1006,11 @@ export async function updateGiftEventIn(
       action: AuditAction.EVENT_UPDATE,
       targetType: 'event',
       targetId: eventId,
-      metadata: { ...auditMeta(input, by), running },
+      metadata: {
+        ...auditMeta(input, by),
+        running,
+        ...(input.design !== undefined ? { designChanged } : {}),
+      },
     },
   });
   return { id: eventId, status: input.status };
@@ -952,6 +1053,7 @@ export async function inputOfIn(tx: Tx, eventId: string, reason: string): Promis
     backgroundPosterKey: e.backgroundPosterKey,
     titleKey: e.titleKey,
     overlayKey: e.overlayKey,
+    design: parseStoredDesign(e.design),
     gifts: e.gifts.map((g) => ({
       giftCode: g.giftCode,
       pointsPerCoin: Number(g.pointsPerCoin),

@@ -1,112 +1,201 @@
-// KL-352 PROTOTYPE (design options for the owner, not wired into routing):
-// three full-page layouts for a gift event, the rewards tab and the shared
-// parts (hero, gifts strip, tabs, board switcher). Real widgets over the
-// prototype data the capture test passes in; production would feed them
-// from `EventDetail` / `EventLeaderboard` (see the report for the mapping).
+// v1.115-social (D354, CONVENTIONS §10.150): the shared parts of a designed
+// gift-event page — the hero, the gifts strip, the tabs, the board pills, the
+// rewards tiers and the deck card — promoted from the KL-352 prototype and fed
+// from `EventDetail` / `EventLeaderboard` (`event_designed_page.dart` builds
+// the three layouts from them). Kabso art and tokens only.
 
 import 'dart:math' as math;
 
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/programs/data/event_page_design.dart';
+import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/event_hero_countdown.dart';
 import 'package:kabso_live/features/programs/presentation/event_leaderboard_styles.dart';
-import 'package:kabso_live/features/programs/presentation/event_page_theme.dart'
-    show EventRulesRibbon;
+import 'package:kabso_live/features/programs/presentation/event_page_theme.dart';
+import 'package:kabso_live/features/programs/presentation/gift_event_sections.dart';
 import 'package:kabso_live/l10n/l10n.dart';
+import 'package:lottie/lottie.dart';
 import 'package:material_ui/material_ui.dart';
 
+/// The designed page's ground (a red700 shade).
 const kPageBg = Color(0xFF1A0306);
 
-// ---- data --------------------------------------------------------------------
+// ---- data ------------------------------------------------------------------
 
-enum RewardKind { frame, entrance, badge, nameBar, gift, coins, cherries }
+/// What a prize is, for its picture (derived from the prize item: never a
+/// second copy of the prize table — §10.150.4).
+enum RewardKind {
+  frame,
+  entrance,
+  badge,
+  nameBar,
+  gift,
+  coins,
+  cherries,
+  other,
+}
 
+/// One prize of a tier, from an `EventPrizeItem`.
 @immutable
 class RewardPrize {
-  const RewardPrize({
+  const new({
     required this.kind,
     required this.name,
+    required this.item,
     this.days,
     this.qty,
-    this.art,
+    this.image,
     this.rank = 1,
     this.featured = false,
   });
 
+  /// The tile of [item] (its name as the page states it, its picture and
+  /// its duration).
+  factory of(
+    AppLocalizations l10n,
+    EventPrizeItem item, {
+    required int rank,
+    bool featured = false,
+  }) {
+    final kind = switch (item.type) {
+      'COINS' => RewardKind.coins,
+      'CHERRIES' || 'CP_MONEY' => RewardKind.cherries,
+      'BADGE' => RewardKind.badge,
+      'GIFT_PIECES' => RewardKind.gift,
+      'BAG_ITEM' => switch (item.category) {
+        'AVATAR_FRAME' => RewardKind.frame,
+        'ENTRY_EFFECT' || 'ENTRY_BANNER' => RewardKind.entrance,
+        _ => RewardKind.other,
+      },
+      _ => RewardKind.other,
+    };
+    final url = item.displayUrl ?? item.stillUrl ?? item.imageUrl;
+    final money = kind == RewardKind.coins || kind == RewardKind.cherries;
+    return RewardPrize(
+      kind: kind,
+      item: item,
+      name: money
+          ? eventPrizeText(l10n, item)
+          : item.name ?? eventPrizeText(l10n, item),
+      days: item.days,
+      qty: switch (item.type) {
+        'COINS' || 'CHERRIES' => item.amount,
+        'GIFT_PIECES' => item.amount,
+        _ => null,
+      },
+      image: url == null ? null : GiftEventBackdrop.image(url),
+      rank: rank,
+      featured: featured,
+    );
+  }
+
   final RewardKind kind;
   final String name;
+  final EventPrizeItem item;
 
-  /// Null = permanent («دائم»); ignored for coins and cherries.
+  /// Null = permanent («دائم»); ignored for money.
   final int? days;
   final int? qty;
 
-  /// The item's art (asset path); frames use [rank]'s frame art.
-  final String? art;
+  /// The item's own picture (its display picture first), else drawn.
+  final ImageProvider? image;
   final int rank;
   final bool featured;
 
+  bool get isMoney => kind == RewardKind.coins || kind == RewardKind.cherries;
+
+  /// The money and VIP have no duration chip.
+  bool get hasDuration => !isMoney && item.type != 'VIP';
+
   bool get previewable =>
-      kind == RewardKind.entrance || kind == RewardKind.frame;
+      item.animationUrl != null &&
+      (kind == RewardKind.entrance || kind == RewardKind.frame);
 }
 
+/// A tier of the rewards tab: a rank range and its prizes.
 @immutable
 class RewardTier {
-  const RewardTier({
+  const new({
     required this.from,
     required this.to,
     required this.prizes,
+    this.label,
   });
 
   final int from;
   final int to;
   final List<RewardPrize> prizes;
+
+  /// The team's heading, else «المركز N» / «المراكز N–M».
+  final String? label;
 }
 
-@immutable
-class EventGiftLite {
-  const EventGiftLite(this.name, this.art, this.price, this.points);
-
-  final String name;
-  final String art;
-  final int price;
-  final int points;
+/// The rewards tab of [board]: the design's tiers on it (the covering prize
+/// line's items; the featured ones shown large), else one tier per prize
+/// line (its first item featured on the first place).
+List<RewardTier> rewardTiersOf(
+  AppLocalizations l10n,
+  String languageCode,
+  EventBoardInfo board,
+  List<EventRewardTierSpec>? specs,
+) {
+  final lines = board.prizes;
+  final mine = specs?.where((t) => t.board == board.kind.wire).toList();
+  // No tiers designed for this board: one tier per prize line.
+  if (mine == null || mine.isEmpty) {
+    return [
+      for (final l in lines)
+        RewardTier(
+          from: l.rankFrom,
+          to: l.rankTo,
+          prizes: [
+            for (final (i, item) in l.items.indexed)
+              RewardPrize.of(
+                l10n,
+                item,
+                rank: l.rankFrom,
+                featured: i == 0 && l.rankFrom == 1,
+              ),
+          ],
+        ),
+    ];
+  }
+  final out = <RewardTier>[];
+  for (final t in mine) {
+    final line = lines
+        .where((l) => t.from >= l.rankFrom && t.to <= l.rankTo)
+        .firstOrNull;
+    // A tier whose line is gone (an older stored design) is left out.
+    if (line == null) continue;
+    out.add(
+      RewardTier(
+        from: t.from,
+        to: t.to,
+        label: t.label(languageCode),
+        prizes: [
+          for (final (i, item) in line.items.indexed)
+            RewardPrize.of(
+              l10n,
+              item,
+              rank: t.from,
+              featured: t.featured.contains(i),
+            ),
+        ],
+      ),
+    );
+  }
+  return out;
 }
 
-@immutable
-class EventShowcase {
-  const EventShowcase({
-    required this.title,
-    required this.dates,
-    required this.startsAt,
-    required this.endsAt,
-    required this.gifts,
-    required this.entries,
-    required this.me,
-    required this.toNext,
-    required this.tiers,
-    required this.background,
-  });
-
-  final String title;
-  final String dates;
-  final DateTime startsAt;
-  final DateTime endsAt;
-  final List<EventGiftLite> gifts;
-  final List<LbEntry> entries;
-  final LbEntry me;
-  final int toNext;
-  final List<RewardTier> tiers;
-  final ImageProvider background;
-}
-
-enum EventConcept { heroPodium, stage, deck }
-
-// ---- shared parts ------------------------------------------------------------
+// ---- shared parts ----------------------------------------------------------
 
 /// Placeholder title art: the event title in gold with a dark outline.
 /// The owner supplies real title art per event (an image replaces this).
 class TitleArt extends StatelessWidget {
-  const TitleArt(this.title, {this.size = 46, super.key});
+  const new(this.title, {this.size = 46, super.key});
 
   final String title;
   final double size;
@@ -135,51 +224,178 @@ class TitleArt extends StatelessWidget {
 }
 
 class _GlassIcon extends StatelessWidget {
-  const _GlassIcon(this.icon);
+  const new(this.icon, {required this.label, this.onTap, super.key});
 
   final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: 40,
-    height: 40,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: const Color(0x66000000),
-      border: Border.all(color: const Color(0x33FFFFFF)),
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: label,
+    excludeSemantics: true,
+    child: GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: KSizes.minTouchTarget,
+        height: KSizes.minTouchTarget,
+        child: Center(
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0x66000000),
+              border: Border.all(color: const Color(0x33FFFFFF)),
+            ),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+        ),
+      ),
     ),
-    child: Icon(icon, color: Colors.white, size: 22),
   );
 }
 
-/// The full-bleed hero: background, top bar, title art, dates, countdown.
-class EventHero extends StatelessWidget {
-  const EventHero({
-    required this.data,
-    required this.countdown,
-    required this.height,
-    this.titleTop = 92,
+/// The title: the event's title art (a picture, an animated WebP or a
+/// Lottie) when uploaded, else the title in gold.
+class EventTitleArt extends StatelessWidget {
+  const new({
+    required this.title,
+    this.url,
+    this.size = 46,
+    this.height = 140,
     super.key,
   });
 
-  final EventShowcase data;
-  final HeroCountdownStyle countdown;
+  final String title;
+  final String? url;
+  final double size;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = this.url;
+    if (url == null) {
+      return Semantics(
+        header: true,
+        label: title,
+        excludeSemantics: true,
+        child: TitleArt(title, size: size),
+      );
+    }
+    final fallback = TitleArt(title, size: size);
+    return Semantics(
+      header: true,
+      label: title,
+      excludeSemantics: true,
+      child: SizedBox(
+        height: height,
+        child: url.endsWith('.json')
+            ? Lottie.network(
+                url,
+                fit: BoxFit.contain,
+                animate: !MediaQuery.disableAnimationsOf(context),
+                errorBuilder: (_, _, _) => fallback,
+              )
+            : Image(
+                image: GiftEventBackdrop.image(url),
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => fallback,
+              ),
+      ),
+    );
+  }
+}
+
+/// The countdown of the hero: today's pill ([EventCountdownKind.classic])
+/// or one of the five large ones; none for an event without an end.
+class EventDesignCountdown extends StatelessWidget {
+  const new({required this.event, required this.kind, this.now, super.key});
+
+  final EventSummary event;
+  final EventCountdownKind kind;
+  final DateTime Function()? now;
+
+  @override
+  Widget build(BuildContext context) {
+    final end = event.endsAt;
+    if (kind == EventCountdownKind.classic || end == null) {
+      return EventCountdown(event: event, now: now);
+    }
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: SizedBox(
+        width: 361,
+        child: EventHeroCountdown(
+          startsAt: event.startsAt,
+          endsAt: end,
+          style: switch (kind) {
+            EventCountdownKind.flip => HeroCountdownStyle.flip,
+            EventCountdownKind.ring => HeroCountdownStyle.ring,
+            EventCountdownKind.coins => HeroCountdownStyle.coins,
+            EventCountdownKind.neon => HeroCountdownStyle.neon,
+            _ => HeroCountdownStyle.ribbon,
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// The full-bleed hero: background, title art, dates, countdown (and what
+/// goes under it — the gold rules pill).
+class EventHero extends StatelessWidget {
+  const new({
+    required this.event,
+    required this.dates,
+    required this.countdown,
+    required this.height,
+    this.titleTop = 92,
+    this.belowCountdown,
+    this.now,
+    super.key,
+  });
+
+  final EventDetail event;
+  final String dates;
+  final EventCountdownKind countdown;
   final double height;
   final double titleTop;
+  final Widget? belowCountdown;
+  final DateTime Function()? now;
+
+  static const heroKey = Key('event.design.hero');
 
   @override
   Widget build(BuildContext context) {
     final ts = context.textStyles;
+    final still = event.art.stillUrl;
     return SizedBox(
+      key: heroKey,
       height: height,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image(
-            image: data.background,
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-          ),
+          if (still != null)
+            Image(
+              image: GiftEventBackdrop.image(still),
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => const ColoredBox(color: kPageBg),
+            )
+          else
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(0, -.5),
+                  radius: 1.1,
+                  colors: [Color(0xFF6E0A14), kPageBg],
+                ),
+              ),
+            ),
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -201,7 +417,7 @@ class EventHero extends StatelessWidget {
             right: KSpacing.lg,
             child: Column(
               children: [
-                TitleArt(data.title),
+                EventTitleArt(title: event.title, url: event.art.titleUrl),
                 const SizedBox(height: KSpacing.sm),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -214,7 +430,8 @@ class EventHero extends StatelessWidget {
                     border: Border.all(color: kGold.withValues(alpha: .5)),
                   ),
                   child: Text(
-                    data.dates,
+                    dates,
+                    textAlign: TextAlign.center,
                     style: ts.label.copyWith(
                       color: kGoldLight,
                       fontWeight: FontWeight.w600,
@@ -228,19 +445,21 @@ class EventHero extends StatelessWidget {
             left: KSpacing.lg,
             right: KSpacing.lg,
             bottom: KSpacing.lg,
-            child: Center(
-              // Narrow phones: the countdown scales down, never overflows.
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: SizedBox(
-                  width: 361,
-                  child: EventHeroCountdown(
-                    startsAt: data.startsAt,
-                    endsAt: data.endsAt,
-                    style: countdown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: EventDesignCountdown(
+                    event: event,
+                    kind: countdown,
+                    now: now,
                   ),
                 ),
-              ),
+                if (belowCountdown != null) ...[
+                  const SizedBox(height: KSpacing.sm),
+                  Center(child: belowCountdown),
+                ],
+              ],
             ),
           ),
         ],
@@ -249,32 +468,39 @@ class EventHero extends StatelessWidget {
   }
 }
 
-/// Back + share over the hero, and the rules ribbon on the END edge.
+/// The back button over the hero (and, at the end, the app-bar rules link).
 class HeroChrome extends StatelessWidget {
-  const HeroChrome({this.ribbonTop = 104, super.key});
+  const new({this.trailing, super.key});
 
-  final double ribbonTop;
+  final Widget? trailing;
+
+  static const backKey = Key('event.design.back');
 
   @override
   Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
     final rtl = Directionality.of(context) == TextDirection.rtl;
     return Stack(
       children: [
-        const PositionedDirectional(
-          top: 52,
-          start: KSpacing.lg,
-          child: _GlassIcon(Icons.arrow_back_rounded),
-        ),
-        const PositionedDirectional(
-          top: 52,
-          end: KSpacing.lg,
-          child: _GlassIcon(Icons.ios_share_rounded),
-        ),
         PositionedDirectional(
-          top: ribbonTop,
-          end: 0,
-          child: EventRulesRibbon(onTap: () {}, edgeIsLeft: rtl),
+          top: top + KSpacing.xs,
+          start: KSpacing.sm,
+          child: _GlassIcon(
+            rtl ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
+            key: backKey,
+            label: MaterialLocalizations.of(context).backButtonTooltip,
+            onTap: () => Navigator.of(context).maybePop(),
+          ),
         ),
+        if (trailing != null)
+          PositionedDirectional(
+            top: top + KSpacing.xs,
+            end: KSpacing.sm,
+            child: SizedBox(
+              height: KSizes.minTouchTarget,
+              child: Center(child: trailing),
+            ),
+          ),
       ],
     );
   }
@@ -282,14 +508,14 @@ class HeroChrome extends StatelessWidget {
 
 /// A small ornamented heading: diamond — gold text — diamond.
 class OrnamentHeading extends StatelessWidget {
-  const OrnamentHeading(this.text, {this.trailing, super.key});
+  const new(this.text, {this.trailing, super.key});
 
   final String text;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    Widget line(bool flip) => Expanded(
+    Widget line({required bool flip}) => Expanded(
       child: Container(
         height: 1.2,
         decoration: BoxDecoration(
@@ -309,7 +535,7 @@ class OrnamentHeading extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
       child: Row(
         children: [
-          line(true),
+          line(flip: true),
           const SizedBox(width: 6),
           diamond(),
           const SizedBox(width: 10),
@@ -324,7 +550,7 @@ class OrnamentHeading extends StatelessWidget {
           const SizedBox(width: 10),
           diamond(),
           const SizedBox(width: 6),
-          line(false),
+          line(flip: false),
           if (trailing != null) ...[const SizedBox(width: 8), trailing!],
         ],
       ),
@@ -332,17 +558,25 @@ class OrnamentHeading extends StatelessWidget {
   }
 }
 
-/// Event gifts, compact and horizontally scrollable.
+/// Event gifts, compact and horizontally scrollable; a tap explains how to
+/// send one (from a live's gift panel).
 class GiftsStrip extends StatelessWidget {
-  const GiftsStrip(this.gifts, {super.key});
+  const new(this.gifts, {required this.onTap, super.key});
 
-  final List<EventGiftLite> gifts;
+  final List<EventGiftInfo> gifts;
+  final void Function(EventGiftInfo gift) onTap;
+
+  static const stripKey = Key('event.design.gifts');
 
   @override
   Widget build(BuildContext context) {
     final ts = context.textStyles;
+    final l10n = context.l10n;
+    final theme = EventPageTheme.of(context);
+    final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
     return SizedBox(
-      height: 112,
+      key: stripKey,
+      height: 112 + 30 * (scale - 1),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
@@ -350,55 +584,71 @@ class GiftsStrip extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: KSpacing.sm),
         itemBuilder: (context, i) {
           final g = gifts[i];
-          return Container(
-            width: 80,
-            padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(KRadius.md),
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF4A0A12), Color(0xFF240409)],
-              ),
-              border: Border.all(color: kGold.withValues(alpha: .45)),
-            ),
-            child: Column(
-              children: [
-                Image.asset(
-                  g.art,
-                  width: 46,
-                  height: 46,
-                  excludeFromSemantics: true,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  g.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: ts.caption.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    height: 1.2,
+          return Semantics(
+            key: EventGiftsSection.giftKey(g.code),
+            button: true,
+            label: [
+              g.name,
+              l10n.meHubCoins(KFormat.grouped(g.priceCoins)),
+              l10n.eventsGiftPoints(KFormat.grouped(g.pointsEach)),
+            ].join('، '),
+            excludeSemantics: true,
+            child: GestureDetector(
+              onTap: () => onTap(g),
+              child: Container(
+                width: 80 * scale,
+                padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(KRadius.md),
+                  color: theme?.tileFill,
+                  gradient: theme != null
+                      ? null
+                      : const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0xFF4A0A12), Color(0xFF240409)],
+                        ),
+                  border: Border.all(
+                    color: theme?.tileBorder ?? kGold.withValues(alpha: .45),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Column(
                   children: [
-                    const CoinIcon(size: 11),
-                    const SizedBox(width: 2),
+                    KGiftImage(g.assetKey, imageUrl: g.imageUrl, size: 46),
+                    const SizedBox(height: 4),
                     Text(
-                      eventScore(g.price),
-                      style: const TextStyle(
-                        fontFamily: KFonts.latin,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: kGoldLight,
+                      g.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: ts.caption.copyWith(
+                        color: theme?.text ?? Colors.white,
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
                       ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CoinIcon(size: 11),
+                        const SizedBox(width: 2),
+                        Flexible(
+                          child: Text(
+                            eventScore(g.priceCoins),
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontFamily: KFonts.latin,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: kGoldLight,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           );
         },
@@ -407,66 +657,105 @@ class GiftsStrip extends StatelessWidget {
   }
 }
 
-/// «الترتيب | الجوائز» as two gold tab buttons.
+/// «الترتيب | الجوائز» as two gold tab buttons (the preset's tab colours
+/// when one is chosen).
 class GoldTabs extends StatelessWidget {
-  const GoldTabs({required this.selected, this.compact = false, super.key});
+  const new({
+    required this.selected,
+    required this.onSelected,
+    this.rewardsFirst = false,
+    this.compact = false,
+    super.key,
+  });
 
+  /// 0 = ranking, 1 = rewards.
   final int selected;
+  final ValueChanged<int> onSelected;
+
+  /// The rewards tab comes first (REWARDS before BOARDS in the design).
+  final bool rewardsFirst;
   final bool compact;
+
+  static Key tabKey(int tab) => Key('event.design.tab.$tab');
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final theme = EventPageTheme.of(context);
+    final order = rewardsFirst ? const [1, 0] : const [0, 1];
     final labels = [l10n.eventsTabRanking, l10n.eventsTabRewards];
     final icons = [Icons.leaderboard_rounded, Icons.card_giftcard_rounded];
+    final selectedText = theme?.tabSelectedText ?? kWine;
+    final text = theme?.tabText ?? kGoldLight;
     return Container(
-      height: compact ? 44 : 50,
+      constraints: BoxConstraints(minHeight: compact ? 44 : 50),
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(KRadius.pill),
-        color: const Color(0xE6240409),
+        color: theme == null ? const Color(0xE6240409) : null,
+        gradient: theme?.tabFill,
         border: Border.all(color: kGold.withValues(alpha: .7), width: 1.2),
       ),
       child: Row(
         children: [
-          for (var i = 0; i < 2; i++)
+          for (final i in order)
             Expanded(
-              child: Container(
-                alignment: Alignment.center,
-                decoration: i == selected
-                    ? BoxDecoration(
-                        borderRadius: BorderRadius.circular(KRadius.pill),
-                        gradient: const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Color(0xFFFFF0B8), kGold, Color(0xFFC88E2C)],
+              child: Semantics(
+                selected: i == selected,
+                button: true,
+                child: GestureDetector(
+                  key: tabKey(i),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onSelected(i),
+                  child: Container(
+                    constraints: BoxConstraints(minHeight: compact ? 38 : 44),
+                    alignment: Alignment.center,
+                    decoration: i == selected
+                        ? BoxDecoration(
+                            borderRadius: BorderRadius.circular(KRadius.pill),
+                            gradient:
+                                theme?.tabSelectedFill ??
+                                const LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Color(0xFFFFF0B8),
+                                    kGold,
+                                    Color(0xFFC88E2C),
+                                  ],
+                                ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: kGold.withValues(alpha: .4),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          )
+                        : null,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          icons[i],
+                          size: 18,
+                          color: i == selected ? selectedText : text,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: kGold.withValues(alpha: .4),
-                            blurRadius: 8,
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            labels[i],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.textStyles.bodyStrong.copyWith(
+                              color: i == selected ? selectedText : text,
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
+                            ),
                           ),
-                        ],
-                      )
-                    : null,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      icons[i],
-                      size: 18,
-                      color: i == selected ? kWine : kGoldLight,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      labels[i],
-                      style: context.textStyles.bodyStrong.copyWith(
-                        color: i == selected ? kWine : kGoldLight,
-                        fontWeight: FontWeight.w800,
-                        height: 1.2,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -476,48 +765,74 @@ class GoldTabs extends StatelessWidget {
   }
 }
 
-/// داعمون / مضيفون / CP as gold pills.
+/// The event's boards (داعمون / مضيفون / CP …) as gold pills.
 class BoardPills extends StatelessWidget {
-  const BoardPills({this.selected = 0, super.key});
+  const new({
+    required this.labels,
+    required this.selected,
+    required this.onSelected,
+    this.keys,
+    super.key,
+  });
 
+  final List<String> labels;
   final int selected;
+  final ValueChanged<int> onSelected;
+  final List<Key>? keys;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final labels = [
-      l10n.eventsBoardSenders,
-      l10n.eventsBoardReceivers,
-      l10n.eventsBoardCp,
-    ];
-    return SizedBox(
-      height: 36,
+    Widget pill(int i) => Semantics(
+      selected: i == selected,
+      button: true,
+      child: GestureDetector(
+        key: keys?[i],
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onSelected(i),
+        child: Container(
+          constraints: const BoxConstraints(
+            minHeight: 36,
+            minWidth: KSizes.minTouchTarget,
+          ),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(KRadius.pill),
+            gradient: i == selected ? kGoldGradient : null,
+            color: i == selected ? null : const Color(0xCC2A0508),
+            border: Border.all(
+              color: kGold.withValues(alpha: i == selected ? 1 : .45),
+            ),
+          ),
+          child: Text(
+            labels[i],
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.textStyles.label.copyWith(
+              color: i == selected ? kWine : kGoldLight,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
+    if (labels.length <= 3) {
+      return Row(
+        children: [
+          for (var i = 0; i < labels.length; i++) ...[
+            if (i > 0) const SizedBox(width: KSpacing.sm),
+            Expanded(child: pill(i)),
+          ],
+        ],
+      );
+    }
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          for (var i = 0; i < 3; i++) ...[
+          for (var i = 0; i < labels.length; i++) ...[
             if (i > 0) const SizedBox(width: KSpacing.sm),
-            Expanded(
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(KRadius.pill),
-                  gradient: i == selected ? kGoldGradient : null,
-                  color: i == selected ? null : const Color(0xCC2A0508),
-                  border: Border.all(
-                    color: kGold.withValues(alpha: i == selected ? 1 : .45),
-                  ),
-                ),
-                child: Text(
-                  labels[i],
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.textStyles.label.copyWith(
-                    color: i == selected ? kWine : kGoldLight,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
+            pill(i),
           ],
         ],
       ),
@@ -525,61 +840,81 @@ class BoardPills extends StatelessWidget {
   }
 }
 
-// ---- rewards -------------------------------------------------------------------
+// ---- rewards ---------------------------------------------------------------
 
 String rewardDuration(BuildContext context, RewardPrize p) => p.days == null
     ? context.l10n.eventsRewardPermanent
     : context.l10n.eventsRewardDays(p.days!);
 
-/// The prize's picture: frame on a sample avatar, entrance, badge, name bar,
-/// gift or coins.
+/// The prize's picture: its own art when uploaded, else drawn — a frame on
+/// the default photo, coins, cherries, the event gift, a medal.
 class RewardArt extends StatelessWidget {
-  const RewardArt(this.p, {required this.size, super.key});
+  const new(this.p, {required this.size, super.key});
 
   final RewardPrize p;
   final double size;
 
   @override
-  Widget build(BuildContext context) => switch (p.kind) {
-    RewardKind.frame => TopFrame(p.rank, null, size: size),
-    RewardKind.nameBar => SizedBox(
-      width: size,
-      height: size,
-      child: Center(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: KSpecialUsername(
-            username: 'Kabso',
-            tier: p.rank == 1 ? PremiumTier.gold : PremiumTier.silver,
-            height: size * .26,
-            animate: false,
+  Widget build(BuildContext context) {
+    final image = p.image;
+    Widget drawn() => switch (p.kind) {
+      RewardKind.frame => TopFrame(p.rank.clamp(1, 3), null, size: size),
+      RewardKind.nameBar => SizedBox(
+        width: size,
+        height: size,
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: KSpecialUsername(
+              username: 'Kabso',
+              tier: p.rank == 1 ? PremiumTier.gold : PremiumTier.silver,
+              height: size * .26,
+              animate: false,
+            ),
           ),
         ),
       ),
-    ),
-    RewardKind.coins => Image.asset(
-      'assets/currency/kabso_coin.png',
-      width: size * .72,
-      height: size * .72,
-      excludeFromSemantics: true,
-    ),
-    RewardKind.cherries => Image.asset(
-      'assets/currency/kabso_cherry.webp',
-      width: size * .72,
-      height: size * .72,
-      excludeFromSemantics: true,
-    ),
-    _ => Image.asset(
-      p.art!,
+      RewardKind.coins => Image.asset(
+        'assets/currency/kabso_coin.png',
+        width: size * .72,
+        height: size * .72,
+        excludeFromSemantics: true,
+      ),
+      RewardKind.cherries => Image.asset(
+        'assets/currency/kabso_cherry.webp',
+        width: size * .72,
+        height: size * .72,
+        excludeFromSemantics: true,
+      ),
+      RewardKind.gift => KGiftImage(
+        p.item.code ?? '',
+        imageUrl: p.item.imageUrl,
+        size: size * .8,
+      ),
+      _ => Icon(
+        p.item.type == 'VIP'
+            ? Icons.workspace_premium_rounded
+            : p.kind == RewardKind.badge
+            ? Icons.military_tech_rounded
+            : Icons.card_giftcard_rounded,
+        size: size * .6,
+        color: kGoldLight,
+      ),
+    };
+    if (image == null) return drawn();
+    return Image(
+      image: image,
       width: size * .9,
       height: size * .9,
+      fit: BoxFit.contain,
       excludeFromSemantics: true,
-    ),
-  };
+      errorBuilder: (_, _, _) => drawn(),
+    );
+  }
 }
 
 class _PlayBadge extends StatelessWidget {
-  const _PlayBadge({this.size = 26});
+  const new({this.size = 26});
 
   final double size;
 
@@ -597,7 +932,7 @@ class _PlayBadge extends StatelessWidget {
 }
 
 class _DurationChip extends StatelessWidget {
-  const _DurationChip(this.text, {required this.permanent});
+  const new(this.text, {required this.permanent});
 
   final String text;
   final bool permanent;
@@ -622,244 +957,293 @@ class _DurationChip extends StatelessWidget {
   );
 }
 
-/// One prize tile: art (with ▶ / ×qty), name, duration.
+/// One prize tile: art (with ▶ / ×qty), name, duration; a tap opens it.
 class RewardTile extends StatelessWidget {
-  const RewardTile(this.p, {required this.width, super.key});
+  const new(this.p, {required this.width, super.key});
 
   final RewardPrize p;
   final double width;
 
   @override
   Widget build(BuildContext context) {
-    final money = p.kind == RewardKind.coins || p.kind == RewardKind.cherries;
     final qty = p.qty;
-    return SizedBox(
-      width: width,
-      child: Column(
-        children: [
-          Container(
-            width: width,
-            height: width,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(KRadius.md + 2),
-              gradient: const RadialGradient(
-                center: Alignment(0, -.2),
-                radius: .85,
-                colors: [Color(0xFF7A1420), Color(0xFF2E050C)],
-              ),
-              border: Border.all(color: kGold.withValues(alpha: .55)),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                RewardArt(p, size: width - 14),
-                if (p.previewable)
-                  const PositionedDirectional(
-                    end: 5,
-                    bottom: 5,
-                    child: _PlayBadge(),
+    final theme = EventPageTheme.of(context);
+    return Semantics(
+      button: true,
+      label: [
+        eventPrizeText(context.l10n, p.item),
+        if (p.hasDuration) rewardDuration(context, p),
+      ].join('، '),
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => showEventPrizeSheet(context, p.item),
+        child: SizedBox(
+          width: width,
+          child: Column(
+            children: [
+              Container(
+                width: width,
+                height: width,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(KRadius.md + 2),
+                  color: theme?.tileFill,
+                  gradient: theme != null
+                      ? null
+                      : const RadialGradient(
+                          center: Alignment(0, -.2),
+                          radius: .85,
+                          colors: [Color(0xFF7A1420), Color(0xFF2E050C)],
+                        ),
+                  border: Border.all(
+                    color: theme?.tileBorder ?? kGold.withValues(alpha: .55),
                   ),
-                if (qty != null)
-                  PositionedDirectional(
-                    end: 5,
-                    bottom: 5,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(KRadius.pill),
-                        color: const Color(0xD9000000),
-                      ),
-                      child: Text(
-                        '\u2066×${money ? eventScore(qty) : qty}\u2069',
-                        style: const TextStyle(
-                          fontFamily: KFonts.latin,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: kGoldLight,
-                          height: 1.4,
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    RewardArt(p, size: width - 14),
+                    if (p.previewable)
+                      const PositionedDirectional(
+                        end: 5,
+                        bottom: 5,
+                        child: _PlayBadge(),
+                      )
+                    else if (qty != null)
+                      PositionedDirectional(
+                        end: 5,
+                        bottom: 5,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(KRadius.pill),
+                            color: const Color(0xD9000000),
+                          ),
+                          child: Text(
+                            '\u2066×${p.isMoney ? eventScore(qty) : qty}\u2069',
+                            style: const TextStyle(
+                              fontFamily: KFonts.latin,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: kGoldLight,
+                              height: 1.4,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-              ],
-            ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                p.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: context.textStyles.caption.copyWith(
+                  color: theme?.text ?? Colors.white,
+                  fontWeight: FontWeight.w700,
+                  height: 1.25,
+                ),
+              ),
+              const SizedBox(height: 4),
+              if (p.hasDuration)
+                _DurationChip(
+                  rewardDuration(context, p),
+                  permanent: p.days == null,
+                ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            p.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: context.textStyles.caption.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              height: 1.25,
-            ),
-          ),
-          const SizedBox(height: 4),
-          if (!money)
-            _DurationChip(rewardDuration(context, p), permanent: p.days == null)
-          else
-            const SizedBox(height: 18),
-        ],
+        ),
       ),
     );
   }
 }
 
-/// The featured (grand) prize: bigger, with the preview action.
+/// The featured (grand) prize: bigger, with «معاينة» that opens it.
 class FeaturedReward extends StatelessWidget {
-  const FeaturedReward(this.p, {super.key});
+  const new(this.p, {super.key});
 
   final RewardPrize p;
+
+  static const featuredKey = Key('event.design.featured');
 
   @override
   Widget build(BuildContext context) {
     final ts = context.textStyles;
     final l10n = context.l10n;
-    return Container(
-      height: 150,
-      padding: const EdgeInsets.all(1.5),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(KRadius.lg),
-        gradient: kGoldGradient,
-        boxShadow: [
-          BoxShadow(color: kGold.withValues(alpha: .3), blurRadius: 16),
-        ],
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(KRadius.lg - 1.5),
-          gradient: const RadialGradient(
-            radius: 1.1,
-            colors: [Color(0xFF8A1A24), Color(0xFF2A050B)],
+    return Semantics(
+      button: true,
+      label: [
+        l10n.eventsRewardFeatured,
+        eventPrizeText(l10n, p.item),
+        if (p.hasDuration) rewardDuration(context, p),
+      ].join('، '),
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => showEventPrizeSheet(context, p.item),
+        child: Container(
+          key: featuredKey,
+          constraints: const BoxConstraints(minHeight: 150),
+          padding: const EdgeInsets.all(1.5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(KRadius.lg),
+            gradient: kGoldGradient,
+            boxShadow: [
+              BoxShadow(color: kGold.withValues(alpha: .3), blurRadius: 16),
+            ],
           ),
-        ),
-        padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 14, 8),
-        child: Row(
-          children: [
-            Stack(
-              children: [
-                RewardArt(p, size: 134),
-                const PositionedDirectional(
-                  end: 4,
-                  bottom: 4,
-                  child: _PlayBadge(size: 30),
-                ),
-              ],
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(KRadius.lg - 1.5),
+              gradient: const RadialGradient(
+                radius: 1.1,
+                colors: [Color(0xFF8A1A24), Color(0xFF2A050B)],
+              ),
             ),
-            const SizedBox(width: KSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: KBrandColors.red500,
-                      borderRadius: BorderRadius.circular(KRadius.xs),
-                    ),
-                    child: Text(
-                      l10n.eventsRewardFeatured,
-                      style: ts.caption.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
+            padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 14, 8),
+            child: Row(
+              children: [
+                Stack(
+                  children: [
+                    RewardArt(p, size: 120),
+                    if (p.previewable)
+                      const PositionedDirectional(
+                        end: 4,
+                        bottom: 4,
+                        child: _PlayBadge(size: 30),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    p.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: ts.title.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      height: 1.25,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  _DurationChip(
-                    rewardDuration(context, p),
-                    permanent: p.days == null,
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    height: 32,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(KRadius.pill),
-                      border: Border.all(color: kGoldLight),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.play_arrow_rounded,
-                          color: kGoldLight,
-                          size: 20,
+                  ],
+                ),
+                const SizedBox(width: KSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 1,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          l10n.eventsRewardPreview,
-                          style: ts.label.copyWith(
-                            color: kGoldLight,
+                        decoration: BoxDecoration(
+                          color: KBrandColors.red500,
+                          borderRadius: BorderRadius.circular(KRadius.xs),
+                        ),
+                        child: Text(
+                          l10n.eventsRewardFeatured,
+                          style: ts.caption.copyWith(
+                            color: Colors.white,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        p.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: ts.title.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          height: 1.25,
+                        ),
+                      ),
+                      if (p.hasDuration) ...[
+                        const SizedBox(height: 6),
+                        _DurationChip(
+                          rewardDuration(context, p),
+                          permanent: p.days == null,
+                        ),
                       ],
-                    ),
+                      const SizedBox(height: 10),
+                      Container(
+                        constraints: const BoxConstraints(minHeight: 32),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(KRadius.pill),
+                          border: Border.all(color: kGoldLight),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.play_arrow_rounded,
+                              color: kGoldLight,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                l10n.eventsRewardPreview,
+                                style: ts.label.copyWith(
+                                  color: kGoldLight,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// The tier heading: a red banner with gold rims, crown, «المركز 1».
+/// The tier heading: a red banner with gold rims, a medal, «المركز 1».
 class TierBanner extends StatelessWidget {
-  const TierBanner(this.tier, {super.key});
+  const new(this.tier, {super.key});
 
   final RewardTier tier;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final label = tier.from == tier.to
-        ? l10n.eventsRank('${tier.from}')
-        : l10n.eventsRanks('${tier.from}', '${tier.to}');
+    final label =
+        tier.label ??
+        (tier.from == tier.to
+            ? l10n.eventsRank('${tier.from}')
+            : l10n.eventsRanks('${tier.from}', '${tier.to}'));
     final metal = rankMetal(tier.from.clamp(1, 3));
-    return SizedBox(
-      height: 44,
-      child: CustomPaint(
-        painter: _TierBannerPainter(tier.from <= 3 ? metal : rankMetal(1)),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (tier.from <= 3) ...[
-              _MedalDot(tier.from),
-              const SizedBox(width: 8),
-            ],
-            Text(
-              label,
-              style: context.textStyles.title.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                height: 1.2,
-                shadows: const [
-                  Shadow(color: Color(0x99000000), blurRadius: 3),
+    return Semantics(
+      header: true,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 44),
+        child: CustomPaint(
+          painter: _TierBannerPainter(tier.from <= 3 ? metal : rankMetal(1)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 40),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (tier.from <= 3) ...[
+                  _MedalDot(tier.from),
+                  const SizedBox(width: 8),
                 ],
-              ),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textStyles.title.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                      shadows: const [
+                        Shadow(color: Color(0x99000000), blurRadius: 3),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -867,7 +1251,7 @@ class TierBanner extends StatelessWidget {
 }
 
 class _MedalDot extends StatelessWidget {
-  const _MedalDot(this.rank);
+  const new(this.rank);
 
   final int rank;
 
@@ -894,13 +1278,14 @@ class _MedalDot extends StatelessWidget {
 }
 
 class _TierBannerPainter extends CustomPainter {
-  _TierBannerPainter(this.metal);
+  new(this.metal);
 
   final List<Color> metal;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
+    final w = size.width;
+    final h = size.height;
     final cx = w / 2;
     const half = 120.0;
     // Thin gold rules out to the edges.
@@ -924,56 +1309,71 @@ class _TierBannerPainter extends CustomPainter {
       ..lineTo(cx - half, h - 4)
       ..lineTo(cx - half - 14, h / 2)
       ..close();
-    canvas.drawPath(
-      band,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [KBrandColors.red500, KBrandColors.red700],
-        ).createShader(Offset.zero & size),
-    );
-    canvas.drawPath(
-      band,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
-        ..shader = LinearGradient(colors: metal)
-            .createShader(Offset.zero & size),
-    );
+    canvas
+      ..drawPath(
+        band,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [KBrandColors.red500, KBrandColors.red700],
+          ).createShader(Offset.zero & size),
+      )
+      ..drawPath(
+        band,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6
+          ..shader = LinearGradient(colors: metal)
+              .createShader(Offset.zero & size),
+      );
   }
 
   @override
   bool shouldRepaint(_TierBannerPainter old) => false;
 }
 
-/// A tier: banner + (featured prize) + a 3-column grid of tiles in a frame.
+/// A tier: banner + (featured prizes) + a 3-column grid of tiles in a frame.
 class RewardTierCard extends StatelessWidget {
-  const RewardTierCard(this.tier, {super.key});
+  const new(this.tier, {super.key});
 
   final RewardTier tier;
+
+  static Key tierKey(int from) => Key('event.design.tier.$from');
 
   @override
   Widget build(BuildContext context) {
     final featured = tier.prizes.where((p) => p.featured).toList();
     final rest = tier.prizes.where((p) => !p.featured).toList();
+    final theme = EventPageTheme.of(context);
     return Padding(
+      key: tierKey(tier.from),
       padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
       child: Column(
         children: [
           TierBanner(tier),
           const SizedBox(height: KSpacing.sm),
-          Container(
+          EventFrame(
+            radius: theme?.radius ?? KRadius.lg,
+            fill:
+                theme?.cardFill ??
+                const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xE6400810), Color(0xE61E0307)],
+                ),
+            border:
+                theme?.cardBorder ??
+                LinearGradient(
+                  colors: [
+                    kGold.withValues(alpha: .35),
+                    kGold.withValues(alpha: .35),
+                  ],
+                ),
+            borderWidth: theme?.cardBorderWidth ?? 1,
+            blur: theme?.blur ?? 0,
+            glow: theme?.glow ?? const [],
             padding: const EdgeInsets.all(KSpacing.md),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(KRadius.lg),
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xE6400810), Color(0xE61E0307)],
-              ),
-              border: Border.all(color: kGold.withValues(alpha: .35)),
-            ),
             child: LayoutBuilder(
               builder: (context, c) {
                 final w = (c.maxWidth - KSpacing.md * 2) / 3;
@@ -999,307 +1399,62 @@ class RewardTierCard extends StatelessWidget {
   }
 }
 
-/// A tier as a horizontal carousel (concept 3).
+/// A tier as a horizontal carousel (the deck layout).
 class RewardTierCarousel extends StatelessWidget {
-  const RewardTierCarousel(this.tier, {super.key});
+  const new(this.tier, {super.key});
 
   final RewardTier tier;
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
-        child: TierBanner(tier),
-      ),
-      const SizedBox(height: KSpacing.sm),
-      SizedBox(
-        height: 160,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
+  Widget build(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
+    return Column(
+      key: RewardTierCard.tierKey(tier.from),
+      children: [
+        Padding(
           padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
-          itemCount: tier.prizes.length,
-          separatorBuilder: (_, _) => const SizedBox(width: KSpacing.md),
-          itemBuilder: (_, i) => RewardTile(tier.prizes[i], width: 106),
+          child: TierBanner(tier),
         ),
-      ),
-    ],
-  );
+        const SizedBox(height: KSpacing.sm),
+        SizedBox(
+          height: 180 + 40 * (scale - 1),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+            itemCount: tier.prizes.length,
+            separatorBuilder: (_, _) => const SizedBox(width: KSpacing.md),
+            itemBuilder: (_, i) => RewardTile(tier.prizes[i], width: 106),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-// ---- the three concepts --------------------------------------------------------
+// ---- the deck's board card and the pinned bars -----------------------------
 
-class EventConceptPage extends StatelessWidget {
-  const EventConceptPage({
-    required this.concept,
-    required this.data,
-    this.tab = 0,
-    this.controller,
+/// A board as one card of the deck: the top three on podium frames, then the
+/// next rows.
+class BoardDeckCard extends StatelessWidget {
+  const new({
+    required this.title,
+    required this.entries,
+    this.rows = 4,
+    this.loading = false,
+    this.background,
     super.key,
   });
 
-  final EventConcept concept;
-  final EventShowcase data;
-
-  /// 0 = ranking, 1 = rewards.
-  final int tab;
-  final ScrollController? controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final bottom = Positioned(
-      left: KSpacing.md,
-      right: KSpacing.md,
-      bottom: KSpacing.md,
-      child: MyRankBar(me: data.me, toNext: data.toNext),
-    );
-    final body = switch (concept) {
-      EventConcept.heroPodium => _heroPodium(context),
-      EventConcept.stage => _stage(context),
-      EventConcept.deck => _deck(context),
-    };
-    return ColoredBox(
-      color: kPageBg,
-      child: Stack(children: [body, bottom]),
-    );
-  }
-
-  List<Widget> _rewards({bool carousel = false}) => [
-    for (final t in data.tiers) ...[
-      if (carousel) RewardTierCarousel(t) else RewardTierCard(t),
-      const SizedBox(height: KSpacing.xl),
-    ],
-  ];
-
-  // 1. Hero + podium ---------------------------------------------------------
-  Widget _heroPodium(BuildContext context) {
-    final l10n = context.l10n;
-    return CustomScrollView(
-      controller: controller,
-      slivers: [
-        SliverToBoxAdapter(
-          child: Stack(
-            children: [
-              EventHero(
-                data: data,
-                countdown: HeroCountdownStyle.flip,
-                height: 452,
-                titleTop: 112,
-              ),
-              const Positioned.fill(child: HeroChrome(ribbonTop: 224)),
-            ],
-          ),
-        ),
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _Pinned(
-            height: 66,
-            child: Container(
-              color: kPageBg.withValues(alpha: .96),
-              padding: const EdgeInsets.fromLTRB(
-                KSpacing.lg,
-                8,
-                KSpacing.lg,
-                8,
-              ),
-              child: GoldTabs(selected: tab),
-            ),
-          ),
-        ),
-        if (tab == 0) ...[
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                const SizedBox(height: KSpacing.sm),
-                OrnamentHeading(l10n.eventsGifts),
-                const SizedBox(height: KSpacing.md),
-                GiftsStrip(data.gifts),
-                const SizedBox(height: KSpacing.xl),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: KSpacing.lg),
-                  child: BoardPills(),
-                ),
-                const SizedBox(height: KSpacing.md),
-                LeaderboardStage(
-                  style: LeaderboardStyle.throne,
-                  entries: data.entries,
-                  rowsLimit: 7,
-                ),
-                const SizedBox(height: 96),
-              ],
-            ),
-          ),
-        ] else
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                const SizedBox(height: KSpacing.md),
-                ..._rewards(),
-                const SizedBox(height: 80),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  // 2. Stage: the hero collapses into a compact header -------------------------
-  Widget _stage(BuildContext context) {
-    final l10n = context.l10n;
-    final top = MediaQuery.paddingOf(context).top;
-    return CustomScrollView(
-      controller: controller,
-      slivers: [
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _StageHeader(data: data, top: top, tab: tab),
-        ),
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _Pinned(
-            height: tab == 0 ? 54 : 0.01,
-            child: tab == 0
-                ? Container(
-                    color: kPageBg,
-                    padding: const EdgeInsets.fromLTRB(
-                      KSpacing.lg,
-                      6,
-                      KSpacing.lg,
-                      12,
-                    ),
-                    child: const BoardPills(),
-                  )
-                : const SizedBox(),
-          ),
-        ),
-        if (tab == 0)
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                const SizedBox(height: KSpacing.sm),
-                LeaderboardStage(
-                  style: LeaderboardStyle.cardsRow,
-                  entries: data.entries,
-                  rowsLimit: 7,
-                ),
-                const SizedBox(height: KSpacing.lg),
-                OrnamentHeading(l10n.eventsGifts),
-                const SizedBox(height: KSpacing.md),
-                GiftsStrip(data.gifts),
-                const SizedBox(height: 96),
-              ],
-            ),
-          )
-        else
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                const SizedBox(height: KSpacing.lg),
-                ..._rewards(),
-                const SizedBox(height: 80),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  // 3. Cards deck ----------------------------------------------------------------
-  Widget _deck(BuildContext context) {
-    final l10n = context.l10n;
-    final boards = [
-      l10n.eventsBoardSenders,
-      l10n.eventsBoardReceivers,
-      l10n.eventsBoardCp,
-    ];
-    return CustomScrollView(
-      controller: controller,
-      slivers: [
-        SliverToBoxAdapter(
-          child: Stack(
-            children: [
-              EventHero(
-                data: data,
-                countdown: HeroCountdownStyle.ribbon,
-                height: 440,
-                titleTop: 112,
-              ),
-              const Positioned.fill(child: HeroChrome(ribbonTop: 224)),
-            ],
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Column(
-            children: [
-              OrnamentHeading(l10n.eventsGifts),
-              const SizedBox(height: KSpacing.md),
-              GiftsStrip(data.gifts),
-              const SizedBox(height: KSpacing.lg),
-            ],
-          ),
-        ),
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _Pinned(
-            height: 60,
-            child: Container(
-              color: kPageBg.withValues(alpha: .96),
-              padding: const EdgeInsets.fromLTRB(
-                KSpacing.lg,
-                6,
-                KSpacing.lg,
-                10,
-              ),
-              child: GoldTabs(selected: tab, compact: true),
-            ),
-          ),
-        ),
-        if (tab == 0)
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 500,
-              child: PageView.builder(
-                controller: PageController(viewportFraction: .88),
-                itemCount: 3,
-                padEnds: true,
-                itemBuilder: (context, i) => Padding(
-                  padding: const EdgeInsets.fromLTRB(5, KSpacing.md, 5, 0),
-                  child: _BoardCard(title: boards[i], data: data, index: i),
-                ),
-              ),
-            ),
-          )
-        else
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                const SizedBox(height: KSpacing.md),
-                ..._rewards(carousel: true),
-              ],
-            ),
-          ),
-        const SliverToBoxAdapter(child: SizedBox(height: 96)),
-      ],
-    );
-  }
-}
-
-/// A board as one card of the deck: mini top three + rows 4–6.
-class _BoardCard extends StatelessWidget {
-  const _BoardCard({
-    required this.title,
-    required this.data,
-    required this.index,
-  });
-
   final String title;
-  final EventShowcase data;
-  final int index;
+  final List<LbEntry> entries;
+  final int rows;
+  final bool loading;
+  final ImageProvider? background;
 
   @override
   Widget build(BuildContext context) {
     final ts = context.textStyles;
-    final e = data.entries;
+    LbEntry? at(int rank) => entries.where((e) => e.rank == rank).firstOrNull;
     return Container(
       padding: const EdgeInsets.all(1.6),
       decoration: BoxDecoration(
@@ -1316,71 +1471,105 @@ class _BoardCard extends StatelessWidget {
                 style: LeaderboardStyle.podium,
                 t: 0,
                 motion: false,
+                image: background,
               ),
             ),
-            Column(
-              children: [
-                const SizedBox(height: KSpacing.md),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.emoji_events_rounded,
-                      color: kGold,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      title,
-                      style: ts.title.copyWith(
-                        color: kGoldLight,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: KSpacing.md),
-                Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: Row(
+            SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  const SizedBox(height: KSpacing.md),
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      for (final r in [2, 1, 3])
-                        SizedBox(
-                          width: 102,
-                          child: Column(
-                            children: [
-                              PodiumFrame(
-                                r,
-                                e[r - 1].photo,
-                                width: r == 1 ? 110 : 88,
-                              ),
-                              Directionality(
-                                textDirection: Directionality.of(context),
-                                child: NameFlag(
-                                  e[r - 1],
-                                  style: ts.caption.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
+                      const Icon(
+                        Icons.emoji_events_rounded,
+                        color: kGold,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: ts.title.copyWith(
+                            color: kGoldLight,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: KSpacing.md),
+                  if (loading)
+                    const Padding(
+                      padding: EdgeInsets.all(KSpacing.xl),
+                      child: CircularProgressIndicator(color: kGold),
+                    )
+                  else ...[
+                    Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          for (final r in [2, 1, 3])
+                            Flexible(
+                              child: SizedBox(
+                                width: 102,
+                                child: Directionality(
+                                  textDirection: Directionality.of(context),
+                                  child: Column(
+                                    children: [
+                                      PodiumFrame(
+                                        r,
+                                        at(r)?.photo,
+                                        width: r == 1 ? 110 : 88,
+                                      ),
+                                      if (at(r) case final e?) ...[
+                                        NameFlag(
+                                          e,
+                                          style: ts.caption.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        ScorePlate(
+                                          e.score,
+                                          metal: rankMetal(r),
+                                        ),
+                                      ] else
+                                        Text(
+                                          context.l10n.eventsSeatOpen,
+                                          style: ts.caption.copyWith(
+                                            color: kGoldLight,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 3),
-                              ScorePlate(e[r - 1].score, metal: rankMetal(r)),
-                            ],
-                          ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: KSpacing.md),
+                    for (final row
+                        in entries.where((e) => e.rank > 3).take(rows))
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          10,
+                          0,
+                          10,
+                          KSpacing.sm,
                         ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: KSpacing.md),
-                for (final row in e.skip(3).take(4))
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 0, 10, KSpacing.sm),
-                    child: RankRow(row),
-                  ),
-              ],
+                        child: RankRow(row),
+                      ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -1389,8 +1578,9 @@ class _BoardCard extends StatelessWidget {
   }
 }
 
-class _Pinned extends SliverPersistentHeaderDelegate {
-  _Pinned({required this.height, required this.child});
+/// A fixed-height pinned header.
+class PinnedBar extends SliverPersistentHeaderDelegate {
+  new({required this.height, required this.child});
 
   final double height;
   final Widget child;
@@ -1405,121 +1595,30 @@ class _Pinned extends SliverPersistentHeaderDelegate {
       SizedBox.expand(child: child);
 
   @override
-  bool shouldRebuild(_Pinned old) => old.child != child || old.height != height;
+  bool shouldRebuild(PinnedBar old) =>
+      old.child != child || old.height != height;
 }
 
-/// Concept 2's header: the full hero that collapses into a bar with the
-/// title, a mini countdown and the tabs.
-class _StageHeader extends SliverPersistentHeaderDelegate {
-  _StageHeader({required this.data, required this.top, required this.tab});
+/// The stage layout's small countdown in the collapsed bar.
+class MiniCountdown extends StatelessWidget {
+  const new({required this.event, this.now, super.key});
 
-  final EventShowcase data;
-  final double top;
-  final int tab;
-
-  static const double tabsH = 58;
-
-  @override
-  double get maxExtent => 470;
-  @override
-  double get minExtent => top + 56 + 52 + tabsH;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlaps) {
-    final t = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Opacity(
-          opacity: 1 - t,
-          child: OverflowBox(
-            alignment: Alignment.topCenter,
-            maxHeight: maxExtent,
-            child: Stack(
-              children: [
-                EventHero(
-                  data: data,
-                  countdown: HeroCountdownStyle.ring,
-                  height: maxExtent - tabsH,
-                  titleTop: 104,
-                ),
-                const Positioned.fill(child: HeroChrome(ribbonTop: 218)),
-              ],
-            ),
-          ),
-        ),
-        // The compact bar.
-        if (t > 0)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: minExtent - tabsH,
-            child: Opacity(
-              opacity: t,
-              child: Container(
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: data.background,
-                    fit: BoxFit.cover,
-                    alignment: const Alignment(0, -.6),
-                    colorFilter: const ColorFilter.mode(
-                      Color(0xB3140206),
-                      BlendMode.srcOver,
-                    ),
-                  ),
-                  border: Border(
-                    bottom: BorderSide(color: kGold.withValues(alpha: .5)),
-                  ),
-                ),
-                padding: EdgeInsets.only(
-                  top: top + 46,
-                  left: KSpacing.lg,
-                  right: KSpacing.lg,
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.arrow_back_rounded, color: Colors.white),
-                    const SizedBox(width: KSpacing.md),
-                    Expanded(child: TitleArt(data.title, size: 24)),
-                    _MiniCountdown(data: data),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: tabsH,
-          child: Container(
-            color: kPageBg,
-            padding: const EdgeInsets.fromLTRB(KSpacing.lg, 6, KSpacing.lg, 6),
-            child: GoldTabs(selected: tab, compact: true),
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  bool shouldRebuild(_StageHeader old) => old.tab != tab || old.top != top;
-}
-
-class _MiniCountdown extends StatelessWidget {
-  const _MiniCountdown({required this.data});
-
-  final EventShowcase data;
+  final EventSummary event;
+  final DateTime Function()? now;
 
   @override
   Widget build(BuildContext context) {
-    final now = (EventHeroCountdown.debugClock ?? DateTime.now)();
-    final left = data.endsAt.difference(now);
+    final l10n = context.l10n;
+    final at = (now ?? EventHeroCountdown.debugClock ?? DateTime.now)();
+    final starts = at.isBefore(event.startsAt);
+    final end = event.endsAt;
+    final left = starts ? event.startsAt.difference(at) : end?.difference(at);
     String two(int v) => v.toString().padLeft(2, '0');
-    final text = left.isNegative
-        ? context.l10n.eventsCountdownEnded
-        : '${left.inDays} ${context.l10n.eventsUnitDays} \u2066'
+    final text = left == null
+        ? l10n.eventsNoEnd
+        : left.isNegative
+        ? l10n.eventsCountdownEnded
+        : '${l10n.eventsDaysShort(left.inDays)} \u2066'
               '${two(left.inHours % 24)}:${two(left.inMinutes % 60)}'
               ':${two(left.inSeconds % 60)}\u2069';
     return Container(

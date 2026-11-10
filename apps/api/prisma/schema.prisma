@@ -1780,7 +1780,8 @@ model MediaAsset {
   id         String    @id @default(uuid(7)) @db.Uuid
   ownerId    String    @map("owner_id") @db.Uuid
   /// `POST_IMAGE`, `STORY_IMAGE`, `LIVE_COVER`, `LIVE_CHAT_IMAGE` or `LIVE_CHAT_VOICE` (the
-  /// upload's kind).
+  /// upload's kind). v1.115-social (D354): `EVENT_BOARD_BG` — an event's leaderboard background (the panel's event media
+  /// kind `board_background`), named by `events.design.leaderboardBackgroundMediaId`.
   kind       String    @default("POST_IMAGE") @db.VarChar(32)
   /// 0 for a `LIVE_CHAT_VOICE` clip (CP-017).
   width      Int
@@ -4431,6 +4432,9 @@ model Event {
   /// v1.105-social (D340, §10.134): «إعلان بملء الشاشة عند البدء» — the app shows the start full screen once per person.
   /// True for every event made after migration 20270412090000; false for the older ones.
   announceFullscreen  Boolean       @default(true) @map("announce_fullscreen")
+  /// v1.115-social (D354, §10.150; CHECK `events_design_shape`): the page design `EventPageDesign` (`event-design.ts`),
+  /// version `v` 1; null = today's page (every event made before migration 20270420090000).
+  design              Json?
   createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
