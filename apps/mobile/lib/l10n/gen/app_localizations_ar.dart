@@ -17102,15 +17102,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get eventsNotQualifiedYou => 'لم تتأهل';
 
   @override
-  String get livePartyKindAudio => 'صوتي';
-
-  @override
-  String get livePartyKindPodcast => 'بودكاست';
-
-  @override
-  String get livePartyKindMulti => 'متعدد';
-
-  @override
   String get livePartyEmptyTitle => 'لا غرف في الحفلة الآن';
 
   @override
@@ -17658,4 +17649,19 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get eventPreviewSampleLabel => 'معاينة · بيانات المتصدرين تجريبية';
+
+  @override
+  String get liveTypeTagVoice => 'Voice';
+
+  @override
+  String get liveTypeTagCam => 'Live Cam';
+
+  @override
+  String get liveTypeTagPodcast => 'Podcast';
+
+  @override
+  String get liveTypeTagStreamer => 'Streamer';
+
+  @override
+  String get liveTypeTagMulti => 'Multi';
 }

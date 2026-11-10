@@ -26,7 +26,7 @@ import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart'
 import 'package:kabso_live/features/live/presentation/hub/podcast_hub.dart';
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
-import 'package:kabso_live/features/live/presentation/widgets/party_kind_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/gen/app_localizations.dart';
@@ -257,7 +257,7 @@ void main() {
         expect(
           find.descendant(
             of: find.byKey(VoiceRoomList.rowKey(i)),
-            matching: find.byKey(PartyKindBadge.keyOf(kind)),
+            matching: find.byKey(LiveTypeTag.keyOf(kind.cardKind)),
           ),
           findsOneWidget,
           reason: kind.name,
@@ -270,7 +270,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(live.requests.last.tab, LiveRoomsTab.following);
       expect(live.requests.last.kind, LiveRoomsKind.partyAll);
-      expect(find.byKey(PartyKindBadge.keyOf(PartyKind.podcast)), findsOne);
+      expect(
+        find.byKey(LiveTypeTag.keyOf(PartyKind.podcast.cardKind)),
+        findsOne,
+      );
       expect(tester.takeException(), isNull);
       await _close(tester);
     });
@@ -298,12 +301,13 @@ void main() {
       expect(
         find.descendant(
           of: card,
-          matching: find.byKey(PartyKindBadge.keyOf(PartyKind.podcast)),
+          matching: find.byKey(LiveTypeTag.keyOf(PartyKind.podcast.cardKind)),
         ),
         findsOneWidget,
       );
       expect(
-        find.descendant(of: card, matching: find.text('بودكاست')),
+        // D362: the owner's English tag, in Arabic too.
+        find.descendant(of: card, matching: find.text('Podcast')),
         findsOneWidget,
       );
       expect(

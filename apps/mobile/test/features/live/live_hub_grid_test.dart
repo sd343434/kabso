@@ -27,6 +27,7 @@ import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_room_swipe.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
@@ -139,14 +140,21 @@ void main() {
       await _pumpHub(tester, rooms: 1);
       expect(
         tester
-            .widget<Text>(
+            .widget<LiveTypeTag>(
               find.descendant(
                 of: find.byKey(LiveHubGrid.cardKey(0)),
                 matching: find.byKey(KLiveGridCard.typeKey),
               ),
             )
-            .data,
-        l10n.liveCategoryLive,
+            .kind,
+        LiveCardKind.live,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(LiveHubGrid.cardKey(0)),
+          matching: find.text(l10n.liveTypeTagCam),
+        ),
+        findsOneWidget,
       );
       expect(
         find.descendant(
@@ -184,7 +192,7 @@ void main() {
         ),
       );
       expect(find.text(l10n.pkBadge), findsOneWidget);
-      expect(find.text(l10n.liveCategoryMulti), findsOneWidget);
+      expect(find.text(l10n.liveTypeTagMulti), findsOneWidget);
     });
   });
 

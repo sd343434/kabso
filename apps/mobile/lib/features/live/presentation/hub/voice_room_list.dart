@@ -5,8 +5,8 @@ import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
-import 'package:kabso_live/features/live/presentation/widgets/party_kind_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -50,9 +50,9 @@ abstract final class KVoiceRoomRow {
   static const double chipFont = 10;
 
   /// The cover's kind mark: 6.4 lp in, 4.5 lp up (M). D342b: the live
-  /// mark stays there; the kind's chip ([PartyKindBadge]) sits in the
-  /// cover's top start corner, [badgeInset] from both edges (the same
-  /// corner as on the grid cards).
+  /// mark stays there; the kind (D362: [LiveTypeTag], the owner's glyph
+  /// and tag) sits in the cover's top start corner, [badgeInset] from both
+  /// edges.
   static const double markStart = 6.4;
   static const double markBottom = 4.5;
   static const double badgeInset = 4;
@@ -177,8 +177,9 @@ abstract final class VoiceRoomList {
 
 /// One room as a party-page card (D246, the owner's reference): the cover
 /// square at the reading start, rounded, with the live mark and the room's
-/// kind — D342: the kind's own chip ([PartyKindBadge], D342b: small dark
-/// glass) in its top start corner, the live mark at its bottom start, since
+/// kind — D342: the kind's own mark (D362: [LiveTypeTag], the owner's
+/// animated glyph and tiny tag) in its top start corner, the live mark at
+/// its bottom start, since
 /// the three kinds share one list; the host's country flag and the title
 /// in bold (two lines when there is no topic), the host's topic in grey
 /// under it (D342: a podcast without one, its episode and topic); one line
@@ -211,7 +212,6 @@ class VoiceRoomRow extends StatelessWidget {
     final light = Theme.of(context).brightness == Brightness.light;
     final ink = light ? KVoiceRoomRow.lightInk : p.textPrimary;
     final grey = light ? KVoiceRoomRow.lightSubtitle : p.textSecondary;
-    final white = KPalette.dark.textPrimary;
     final isNew = room.viewerCount < 1;
     final viewers = isNew
         ? l10n.liveCardNew
@@ -311,7 +311,12 @@ class VoiceRoomRow extends StatelessWidget {
                                 child: Align(
                                   key: kindKey,
                                   alignment: AlignmentDirectional.centerStart,
-                                  child: PartyKindBadge(kind: partyKind),
+                                  // D362: the owner's glyph and tag.
+                                  child: LiveTypeTag(
+                                    kind: LiveCardKind.of(room, withPk: false),
+                                    iconSize: 12,
+                                    fontSize: 9,
+                                  ),
                                 ),
                               ),
                             ] else
@@ -329,22 +334,13 @@ class VoiceRoomRow extends StatelessWidget {
                                       ),
                                       const SizedBox(width: 3),
                                       Flexible(
-                                        child: Text(
-                                          kind,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: t.caption.copyWith(
-                                            color: white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                            height: 1.1,
-                                            shadows: const [
-                                              Shadow(
-                                                color: Color(0x66000000),
-                                                blurRadius: 3,
-                                              ),
-                                            ],
+                                        child: LiveTypeTag(
+                                          kind: LiveCardKind.of(
+                                            room,
+                                            withPk: false,
                                           ),
+                                          iconSize: 12,
+                                          fontSize: 9,
                                         ),
                                       ),
                                     ],

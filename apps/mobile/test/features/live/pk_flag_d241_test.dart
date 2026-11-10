@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -49,7 +50,15 @@ Future<String?> _tag(
     ),
     language: language,
   );
-  return tester.widget<Text>(find.byKey(KLiveGridCard.typeKey)).data;
+  // D362: the tag beside the owner's glyph.
+  return tester
+      .widget<Text>(
+        find.descendant(
+          of: find.byKey(KLiveGridCard.typeKey),
+          matching: find.byKey(LiveTypeTag.textKey),
+        ),
+      )
+      .data;
 }
 
 void main() {
@@ -67,14 +76,14 @@ void main() {
       expect(await _tag(tester, _room(inPk: true), language), l10n.pkBadge);
     });
 
-    testWidgets('a SOLO room not in a PK says «بث مباشر» (${language.name})', (
+    testWidgets('a SOLO room not in a PK says «Live Cam» (${language.name})', (
       tester,
     ) async {
       expect(
         await _tag(tester, _room(inPk: false), language),
-        l10n.liveCategoryLive,
+        l10n.liveTypeTagCam,
       );
-      expect(await _tag(tester, _room(), language), l10n.liveCategoryLive);
+      expect(await _tag(tester, _room(), language), l10n.liveTypeTagCam);
     });
 
     testWidgets('the legacy mode PK says «PK» (${language.name})', (

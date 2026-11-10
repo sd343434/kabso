@@ -28894,24 +28894,6 @@ abstract class AppLocalizations {
   /// **'لم تتأهل'**
   String get eventsNotQualifiedYou;
 
-  /// D342: the badge on a party card's picture: an audio room (short; the card's screen-reader label says «بث صوتي»).
-  ///
-  /// In ar, this message translates to:
-  /// **'صوتي'**
-  String get livePartyKindAudio;
-
-  /// D342: the badge on a party card's picture: a podcast (short).
-  ///
-  /// In ar, this message translates to:
-  /// **'بودكاست'**
-  String get livePartyKindPodcast;
-
-  /// D342: the badge on a party card's picture: a multi-guest live (short).
-  ///
-  /// In ar, this message translates to:
-  /// **'متعدد'**
-  String get livePartyKindMulti;
-
   /// D342: the party page's one mixed list (audio, podcast, multi) is empty.
   ///
   /// In ar, this message translates to:
@@ -29751,6 +29733,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'معاينة · بيانات المتصدرين تجريبية'**
   String get eventPreviewSampleLabel;
+
+  /// D362: the tiny type tag beside the animated glyph on a live card: an AUDIO room. The owner's short English tag, deliberately the same in Arabic and English (his file: short English tag next to the small icon); screen readers hear the full Arabic type name instead.
+  ///
+  /// In ar, this message translates to:
+  /// **'Voice'**
+  String get liveTypeTagVoice;
+
+  /// D362: the tiny type tag beside the animated glyph on a live card: a SOLO camera live. The owner's short English tag, deliberately the same in Arabic and English (his file: short English tag next to the small icon); screen readers hear the full Arabic type name instead.
+  ///
+  /// In ar, this message translates to:
+  /// **'Live Cam'**
+  String get liveTypeTagCam;
+
+  /// D362: the tiny type tag beside the animated glyph on a live card: a PODCAST. The owner's short English tag, deliberately the same in Arabic and English (his file: short English tag next to the small icon); screen readers hear the full Arabic type name instead.
+  ///
+  /// In ar, this message translates to:
+  /// **'Podcast'**
+  String get liveTypeTagPodcast;
+
+  /// D362: the tiny type tag beside the animated glyph on a live card: a STREAMER live. The owner's short English tag, deliberately the same in Arabic and English (his file: short English tag next to the small icon); screen readers hear the full Arabic type name instead.
+  ///
+  /// In ar, this message translates to:
+  /// **'Streamer'**
+  String get liveTypeTagStreamer;
+
+  /// D362: the tiny type tag beside the animated glyph on a live card: a MULTI (multi-guest) live. The owner's short English tag, deliberately the same in Arabic and English (his file: short English tag next to the small icon); screen readers hear the full Arabic type name instead.
+  ///
+  /// In ar, this message translates to:
+  /// **'Multi'**
+  String get liveTypeTagMulti;
 }
 
 class _AppLocalizationsDelegate

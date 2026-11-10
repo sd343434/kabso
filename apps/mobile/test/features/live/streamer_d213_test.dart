@@ -28,6 +28,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/streamer/streamer_widgets.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
@@ -1192,8 +1193,16 @@ void main() {
           language: language,
         );
         expect(
-          tester.widget<Text>(find.byKey(KLiveGridCard.typeKey)).data,
-          language == AppLanguage.ar ? 'ستريمر' : 'Streamer',
+          tester
+              .widget<Text>(
+                find.descendant(
+                  of: find.byKey(KLiveGridCard.typeKey),
+                  matching: find.byKey(LiveTypeTag.textKey),
+                ),
+              )
+              .data,
+          // D362: the owner's English tag in both languages.
+          'Streamer',
         );
       });
     }

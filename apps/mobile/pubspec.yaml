@@ -60,6 +60,9 @@ dependencies:
   livekit_client: 2.13.1
   lottie: ^3.3.1
   material_ui: ^1.7.0
+  # D362 the owner's live-card glyphs (SVG path data → Path). Already in the
+  # lockfile (via flutter_svga); promoted to direct, same version. MIT.
+  path_drawing: 1.0.1
   # D126 the gift art disk cache directory.
   path_provider: ^2.1.6
   photo_manager: ^3.12.0

@@ -4,8 +4,8 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
-import 'package:kabso_live/features/live/presentation/widgets/party_kind_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -51,15 +51,15 @@ abstract final class KLiveGrid {
 /// - Picture: the live cover (CP-015); else the host's photo filling the
 ///   card; else the host's initial on the brand gradient. A picture that
 ///   fails to load falls back the same way, with no error text (VG-13).
-/// - Top start: the animated live mark ([KLiveEqualizer], teal) and, for
-///   PK and multi-guest lives, the room type (ref 165 labels only those).
-///   Top end: the viewer count with a person icon (owner 2026-11-08: «المعلومات
-///   على بطاقة البث كثيرة» — one type and the viewers; the «جديد» chip is
-///   gone, 0 is shown as 0: the real count, never invented).
-/// - D342: a party room (audio, podcast, multi — the party page's grid,
-///   where the three kinds share one list) shows its kind as a chip
-///   ([PartyKindBadge], D342b: small dark glass, its icon in the kind's
-///   colour) in the top start corner, before the live mark.
+/// - Top start: the animated live mark ([KLiveEqualizer], teal) and the
+///   room type — D362 (owner: «ايقونة تكون ببطاقة البث من الخارج حسب نوع
+///   البث بخط صغير جداً»): the owner's animated white glyph and its tiny
+///   English tag ([LiveTypeTag], [LiveCardKind.of]: PK, streamer, podcast,
+///   audio, multi or a camera live), the same for every kind (it replaced
+///   the type text and D342b's party chip). Top end: the viewer count with
+///   a person icon (owner 2026-11-08: «المعلومات على بطاقة البث كثيرة» —
+///   one type and the viewers; the «جديد» chip is gone, 0 is shown as 0:
+///   the real count, never invented).
 /// - A content creator's live: the small creator mark ([CreatorLiveBadge]
 ///   `iconOnly`) under the type.
 /// - Bottom, over a scrim: only the title the host set (the host's name when
@@ -114,8 +114,8 @@ class KLiveGridCard extends StatelessWidget {
         : room.isMulti
         ? l10n.liveCategoryMulti
         : l10n.liveCategoryLive;
-    // D342: a party room's badge (a PK keeps «PK»).
-    final party = room.inPk ? null : PartyKind.of(room);
+    // D362: the same kind drawn as the owner's glyph and tag.
+    final kind = LiveCardKind.of(room);
     final title = room.title.trim().isEmpty ? room.hostName : room.title;
     final base = l10n.liveCardSemantics(
       room.hostName,
@@ -158,54 +158,26 @@ class KLiveGridCard extends StatelessWidget {
                   // down; the count's end 9.4 pt in.
                   PositionedDirectional(
                     top: 6,
-                    // D342b: a party room's chip in the top start corner.
-                    start: party != null ? 6 : 10,
+                    start: 10,
                     end: 9,
                     child: SizedBox(
                       height: 18,
                       child: Row(
                         children: [
-                          if (party != null) ...[
-                            // D342b: the kind's chip first, then the live
-                            // mark; the count keeps the end.
-                            // A narrow card shrinks the chip (never the
-                            // count), never cuts it.
-                            Flexible(
-                              flex: 4,
-                              child: PartyKindBadge(key: typeKey, kind: party),
+                          const KLiveEqualizer(
+                            color: KLiveGrid.liveMark,
+                            size: 10,
+                          ),
+                          const SizedBox(width: KSpacing.xs),
+                          // D362: the owner's animated type glyph and its
+                          // tiny tag take the room the count leaves (a
+                          // narrow card shrinks them, never the count).
+                          Expanded(
+                            child: Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: LiveTypeTag(key: typeKey, kind: kind),
                             ),
-                            const SizedBox(width: KSpacing.xs + 1),
-                            const KLiveEqualizer(
-                              color: KLiveGrid.liveMark,
-                              size: 10,
-                            ),
-                            const Spacer(),
-                          ] else ...[
-                            const KLiveEqualizer(
-                              color: KLiveGrid.liveMark,
-                              size: 10,
-                            ),
-                            const SizedBox(width: KSpacing.xs),
-                            // D237: the kind takes the room the count leaves
-                            // (not half of it).
-                            Expanded(
-                              child: Align(
-                                alignment: AlignmentDirectional.centerStart,
-                                child: Text(
-                                  type,
-                                  key: typeKey,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: t.caption.copyWith(
-                                    color: white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    shadows: shadows,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                           const SizedBox(width: KSpacing.xs),
                           Row(
                             key: viewersKey,

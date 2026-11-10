@@ -10741,6 +10741,23 @@ numbers reserved for the in-flight D339–D341 branches (§10.132–§10.140).
   is drawn at ≈ 0.9×). The label is kept in the grid too (there is room beside the count; an icon alone would ask
   people to learn three glyphs). Screen readers hear the card's full kind («بث صوتي», «بث بودكاست», «بث متعدد») in its
   label. A podcast row without a topic shows «الحلقة N · <topic>» under its title.
+- **D362 (owner: «ايقونة تكون ببطاقة البث من الخارج حسب نوع البث بخط صغير جداً لكي لا تأخذ مساحة») — the room type
+  on every hub card is the owner's animated glyph and a tiny tag** (`LiveTypeTag`, `LiveCardKind.of(room)`;
+  `kabso_live_icon.dart`, the owner's file: Phosphor glyphs, MIT, `apps/mobile/THIRD_PARTY_NOTICES.md`, and his «PK»
+  lettermark). It replaces D342b's chip (`PartyKindBadge` is gone) and the grid's worded type, in the list and the
+  grid alike. **Mapping, from the wire only:** `inPk` or mode `PK` → bolt «PK»; `STREAMER` → game controller
+  «Streamer»; `PODCAST` → headphones «Podcast»; `AUDIO` → microphone «Voice»; `MULTI` → camera «Multi»; `SOLO` →
+  camera «Live Cam». The party list passes `withPk: false` (its own «PK» pill stays). The owner's other glyphs (the
+  P⚡K lettermark, team PK, PK penalty, video podcast) are kept in the file but drawn nowhere: no team PK, PK penalty
+  or camera podcast exists on `LiveRoomSummary`. **Look:** no pill — a 13 lp white glyph (12 on the list's cover)
+  and a 9.5 sp (9) weight-800 white tag, both with a soft black shadow; the tag is the owner's short English word,
+  the same in Arabic and English (`liveTypeTag*`, «PK» is `pkBadge`), and screen readers hear the full type in the
+  app's language (the card's label). Grid: after the live equaliser at the top start, the count keeps the end;
+  list: the cover's top start corner, 4 lp in. The pair follows the reading direction; the glyphs are painted and
+  never mirrored. Never taller than 18 lp, not scaled with the text, shrinks to fit (never cut); the card's size is
+  unchanged. **Motion:** each glyph loops (its own period) only while its tag is on screen (`VisibilityDetector`;
+  off-screen and cached cards are still), never with reduce motion, paused with `TickerMode`; the still frame is
+  the loop's start (the PK bolt at 5 %, lit).
 - **Honest states.** Empty: «لا غرف في الحفلة الآن» / "No party rooms right now" with Try again (Popular also offers
   Explore); loading, error, unavailable and Nearby without a country are the shared ones.
 

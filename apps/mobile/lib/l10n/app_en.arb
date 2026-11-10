@@ -5337,9 +5337,6 @@
   "eventsAnnounceResults": "See the results",
   "eventsAnnounceClose": "Close the announcement",
   "eventsNotQualifiedYou": "Not qualified",
-  "livePartyKindAudio": "Audio",
-  "livePartyKindPodcast": "Podcast",
-  "livePartyKindMulti": "Multi",
   "livePartyEmptyTitle": "No party rooms right now",
   "livePartyEmptyBody": "Check back later or try another tab.",
   "signupCodeToggle": "Have an invite code?",
@@ -5479,5 +5476,10 @@
   "eventsNoEnd": "No end",
   "eventsMilestonesTitle": "Milestones",
   "eventsMilestoneAt": "At {points} points",
-  "eventPreviewSampleLabel": "Preview · sample leaderboard data"
+  "eventPreviewSampleLabel": "Preview · sample leaderboard data",
+  "liveTypeTagVoice": "Voice",
+  "liveTypeTagCam": "Live Cam",
+  "liveTypeTagPodcast": "Podcast",
+  "liveTypeTagStreamer": "Streamer",
+  "liveTypeTagMulti": "Multi"
 }

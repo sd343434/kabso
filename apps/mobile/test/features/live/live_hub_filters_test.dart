@@ -28,8 +28,9 @@ import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_nearby_country.dart';
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_live_icon.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
-import 'package:kabso_live/features/live/presentation/widgets/party_kind_badge.dart';
 import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:material_ui/material_ui.dart';
@@ -345,16 +346,17 @@ void main() {
           find.byType(KLiveGridCard),
         ))
           card.room.roomId: tester
-              .widget<Text>(
+              .widget<LiveTypeTag>(
                 find.descendant(
                   of: find.byWidget(card),
                   matching: find.byKey(KLiveGridCard.typeKey),
                 ),
               )
-              .data,
+              .kind,
       };
       expect(types.values, everyElement(isNotNull));
-      expect(types.values.toSet(), {en.liveCategoryLive, en.pkBadge});
+      // D362: drawn as the owner's glyph and tag.
+      expect(types.values.toSet(), {LiveCardKind.live, LiveCardKind.pk});
     });
 
     testWidgets('D239: a «مميز» (rocket) audio or multi room is not pinned '
@@ -528,7 +530,7 @@ void main() {
         expect(
           find.descendant(
             of: row,
-            matching: find.byKey(PartyKindBadge.keyOf(kind)),
+            matching: find.byKey(LiveTypeTag.keyOf(kind.cardKind)),
           ),
           findsOneWidget,
           reason: 'row $i (room $n)',
@@ -537,14 +539,14 @@ void main() {
           expect(
             find.descendant(
               of: row,
-              matching: find.byKey(PartyKindBadge.keyOf(other)),
+              matching: find.byKey(LiveTypeTag.keyOf(other.cardKind)),
             ),
             findsNothing,
           );
         }
       }
       for (final kind in PartyKind.values) {
-        expect(find.byKey(PartyKindBadge.keyOf(kind)), findsWidgets);
+        expect(find.byKey(LiveTypeTag.keyOf(kind.cardKind)), findsWidgets);
       }
       // The voice rooms (0–3) have seats; the first's 1/8.
       expect(find.text('1/8'), findsOneWidget);
@@ -647,14 +649,14 @@ void main() {
         };
         expect(
           tester
-              .widget<PartyKindBadge>(
+              .widget<LiveTypeTag>(
                 find.descendant(
                   of: find.byWidget(card),
                   matching: find.byKey(KLiveGridCard.typeKey),
                 ),
               )
               .kind,
-          kind,
+          kind.cardKind,
           reason: 'room $n',
         );
       }
@@ -744,14 +746,19 @@ void main() {
       expect(inCard('a', find.byKey(VoiceRoomRow.pkKey)), findsOneWidget);
       expect(inCard('a', find.byKey(VoiceRoomRow.featuredKey)), findsOneWidget);
       expect(inCard('a', find.text('welcome')), findsOneWidget);
-      // D342: each kind its own badge (icon and colour) on the picture.
+      // D342: each kind its own mark on the picture (D362: the owner's
+      // glyph and tag).
       expect(
-        inCard('a', find.byKey(PartyKindBadge.keyOf(PartyKind.audio))),
+        inCard('a', find.byKey(LiveTypeTag.keyOf(PartyKind.audio.cardKind))),
         findsOneWidget,
       );
-      expect(inCard('a', find.text(en.livePartyKindAudio)), findsOneWidget);
-      // The badge's mic and the count's mic.
-      expect(inCard('a', find.byIcon(Icons.mic_rounded)), findsNWidgets(2));
+      expect(inCard('a', find.text(en.liveTypeTagVoice)), findsOneWidget);
+      KabsoLiveType glyphIn(String k) => tester
+          .widget<KabsoLiveIcon>(inCard(k, find.byType(KabsoLiveIcon)))
+          .type;
+      expect(glyphIn('a'), KabsoLiveType.voice);
+      // The count's mic (the tag's glyph is painted, not an icon).
+      expect(inCard('a', find.byIcon(Icons.mic_rounded)), findsOneWidget);
       // D246 (v1.58-live): «رائج», the host's level and flag — from the API.
       expect(inCard('a', find.byKey(VoiceRoomRow.popularKey)), findsOneWidget);
       expect(inCard('a', find.text(en.liveCardPopular)), findsOneWidget);
@@ -782,65 +789,56 @@ void main() {
       expect(inCard('m', find.byKey(VoiceRoomRow.topicKey)), findsNothing);
       expect(inCard('m', find.byKey(VoiceRoomRow.seatsKey)), findsNothing);
       expect(
-        inCard('m', find.byKey(PartyKindBadge.keyOf(PartyKind.multi))),
+        inCard('m', find.byKey(LiveTypeTag.keyOf(PartyKind.multi.cardKind))),
         findsOneWidget,
       );
-      expect(inCard('m', find.byIcon(Icons.groups_rounded)), findsOneWidget);
+      expect(glyphIn('m'), KabsoLiveType.cam);
+      expect(inCard('m', find.text(en.liveTypeTagMulti)), findsOneWidget);
       expect(inCard('m', find.byIcon(Icons.videocam_rounded)), findsOneWidget);
       // A podcast: its badge, and its episode and topic under the title.
       expect(
-        inCard('p', find.byKey(PartyKindBadge.keyOf(PartyKind.podcast))),
+        inCard('p', find.byKey(LiveTypeTag.keyOf(PartyKind.podcast.cardKind))),
         findsOneWidget,
       );
-      expect(inCard('p', find.byIcon(Icons.podcasts_rounded)), findsOneWidget);
+      expect(glyphIn('p'), KabsoLiveType.podcastVoice);
+      expect(inCard('p', find.text(en.liveTypeTagPodcast)), findsOneWidget);
       expect(
-        inCard('p', find.byKey(PartyKindBadge.keyOf(PartyKind.audio))),
+        inCard('p', find.byKey(LiveTypeTag.keyOf(PartyKind.audio.cardKind))),
         findsNothing,
       );
       expect(inCard('p', find.text('Episode 12 · Business')), findsOneWidget);
-      // D342b: one dark glass chip for every kind, 18 lp tall; the icon
-      // carries the kind's colour (tokens), the label is white.
-      for (final (k, tint) in [
-        (PartyKind.audio, KPalette.dark.info),
-        (PartyKind.podcast, KBrandColors.gold),
-        (PartyKind.multi, KPalette.dark.success),
-      ]) {
-        final chip = find.descendant(
-          of: find.byKey(PartyKindBadge.keyOf(k)),
-          matching: find.byType(Container),
-        );
-        final box = tester.widget<Container>(chip).decoration! as BoxDecoration;
-        expect(box.color, PartyKindBadge.glass);
-        expect(box.border, Border.all(color: PartyKindBadge.edge, width: 0.5));
-        expect(tester.getSize(chip).height, PartyKindBadge.height);
+      // D362: no chip — a 12 lp white glyph and a 9 sp weight-800 white
+      // tag with a soft shadow, never taller than the old 18 lp chip.
+      for (final k in PartyKind.values) {
+        final tag = find.byKey(LiveTypeTag.keyOf(k.cardKind));
         expect(
-          tester
-              .widget<Icon>(
-                find.descendant(
-                  of: find.byKey(PartyKindBadge.keyOf(k)),
-                  matching: find.byType(Icon),
-                ),
-              )
-              .color,
-          tint,
+          find.descendant(of: tag, matching: find.byType(Container)),
+          findsNothing,
         );
-        expect(
-          tester
-              .widget<Text>(
-                find.descendant(
-                  of: find.byKey(PartyKindBadge.keyOf(k)),
-                  matching: find.byType(Text),
-                ),
-              )
-              .style!
-              .color,
-          const Color(0xFFFFFFFF),
+        expect(tester.getSize(tag).height, lessThanOrEqualTo(18));
+        final glyph = tester.widget<KabsoLiveIcon>(
+          find.descendant(of: tag, matching: find.byType(KabsoLiveIcon)),
         );
+        expect(glyph.type, k.cardKind.glyph);
+        expect(glyph.size, 12);
+        expect(glyph.color, const Color(0xFFFFFFFF));
+        final style = tester
+            .widget<Text>(
+              find.descendant(
+                of: tag,
+                matching: find.byKey(LiveTypeTag.textKey),
+              ),
+            )
+            .style!;
+        expect(style.color, const Color(0xFFFFFFFF));
+        expect(style.fontSize, 9);
+        expect(style.fontWeight, FontWeight.w800);
+        expect(style.shadows, LiveTypeTag.shadows);
       }
       // In the cover's top start corner.
       final cover = tester.getRect(find.byKey(const Key('a')));
       final badge = tester.getRect(
-        find.byKey(PartyKindBadge.keyOf(PartyKind.audio)),
+        find.byKey(LiveTypeTag.keyOf(PartyKind.audio.cardKind)),
       );
       expect(badge.top - cover.top, closeTo(KVoiceRoomRow.badgeInset, 0.5));
       expect(badge.left - cover.left, closeTo(KVoiceRoomRow.badgeInset, 0.5));
@@ -869,11 +867,12 @@ void main() {
       expect(find.byKey(const Key('voiceRooms.live')), findsNothing);
       expect(find.byKey(const Key('voiceRooms.kinds')), findsNothing);
       for (final (kind, label) in [
-        (PartyKind.audio, ar.livePartyKindAudio),
-        (PartyKind.podcast, ar.livePartyKindPodcast),
-        (PartyKind.multi, ar.livePartyKindMulti),
+        // D362: the owner's short English tags in Arabic too.
+        (PartyKind.audio, ar.liveTypeTagVoice),
+        (PartyKind.podcast, ar.liveTypeTagPodcast),
+        (PartyKind.multi, ar.liveTypeTagMulti),
       ]) {
-        final badge = find.byKey(PartyKindBadge.keyOf(kind)).first;
+        final badge = find.byKey(LiveTypeTag.keyOf(kind.cardKind)).first;
         expect(
           find.descendant(of: badge, matching: find.text(label)),
           findsOneWidget,
@@ -882,7 +881,7 @@ void main() {
       // RTL: the cover (and its badge) at the right of the card.
       final row = tester.getRect(find.byKey(VoiceRoomList.rowKey(1)));
       final badge = tester.getRect(
-        find.byKey(PartyKindBadge.keyOf(PartyKind.podcast)).first,
+        find.byKey(LiveTypeTag.keyOf(PartyKind.podcast.cardKind)).first,
       );
       expect(badge.right, lessThanOrEqualTo(row.right));
       expect(badge.left, greaterThan(row.right - KVoiceRoomRow.height));
