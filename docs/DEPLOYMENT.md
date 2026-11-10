@@ -1882,20 +1882,20 @@ CONVENTIONS §10.152. The panel's design step embeds the app's real Flutter even
 - **Build:** `apps/mobile/tool/build_event_preview.sh OUT` (`flutter build web --release -t lib/preview_main.dart
   --no-web-resources-cdn --base-href /event-preview/`, then trimmed: the CanvasKit renderer only (no skwasm / wimp /
   webparagraph, no `.symbols`), no service worker, and the asset folders the event page never draws — live rooms, PK,
-  sounds, splash …). **Size:** 28 MB on disk (main.dart.js 3.6 MB, CanvasKit 13 MB with its Chromium variant, assets
+  sounds, splash … — and the debug-only development photos `assets/preview/`). **Size:** 28 MB on disk (main.dart.js 3.6 MB, CanvasKit 13 MB with its Chromium variant, assets
   12 MB incl. fonts), **14 MB** as `kabso-event-preview.tar.gz`; untrimmed it was 79 MB. A browser fetches only what
   the page uses — compressed by Caddy, main.dart.js ~1.1 MB and the Chromium CanvasKit ~2.1 MB (gzip), plus the fonts
   and pictures drawn — then revalidates (304).
 - **CI** (`.github/workflows/ci.yml`): job **`event-preview`** (when `apps/mobile` or `apps/admin` changed) builds the
   bundle and the panel, installs Chromium (Playwright) and runs `apps/admin/e2e-preview/event-preview.spec.ts` (the
   bundle answers, draws a posted design, rejects a bad message; the design step updates live and falls back), then
-  uploads `kabso-event-preview.tar.gz` + `kabso-event-preview.txt` (commit, `protocol=1`, sha256, size, built) as the
+  uploads `kabso-event-preview.tar.gz` + `kabso-event-preview.txt` (commit, `protocol=2`, sha256, size, built) as the
   run's artifact (14 days). It is in `ci-ok`. Job **`event-preview-release`** (a green push to `staging` only; the one
   job with `contents: write`, no checkout) puts both on the rolling prerelease **`staging-latest`** (with the APK).
 - **Server:** `infra/deploy/mirror-event-preview.sh`, run by `update.sh` at the end of every timer run next to
   `mirror-apk.sh` (best effort, 600 s limit, never fails the deploy). It fetches the manifest, skips when the served
   sha256 is the same, otherwise downloads the archive and checks its size (3–120 MB) and sha256, that it holds only
-  plain files and folders with safe relative paths, the files the page needs and `protocol=1`, then swaps it into
+  plain files and folders with safe relative paths, the files the page needs and `protocol=2`, then swaps it into
   `infra/deploy/event-preview/current` with renames (git-ignored; Caddy mounts `./event-preview` at
   `/srv/event-preview` read-only — **a compose change: `docker compose up -d caddy` once after this lands**). Variables
   (all optional): `KABSO_PREVIEW_REPO` (default the APK's repo), `KABSO_PREVIEW_TAG` (`staging-latest`),
@@ -1908,7 +1908,7 @@ CONVENTIONS §10.152. The panel's design step embeds the app's real Flutter even
   `Cache-Control: no-cache` (file names are not hashed). `KABSO_ADMIN_ALLOW_IPS` covers it like the rest of the panel.
 - **Order / compatibility:** none needed — no API or contract change. Without a bundle (first deploy, a failed mirror)
   the step shows the sketch preview with a notice after 20 s; an older bundle with a newer panel (or the reverse) still
-  works while both speak protocol 1 (the mirror refuses another protocol and keeps the bundle it has).
+  works while both speak protocol 2 (the mirror refuses another protocol and keeps the bundle it has).
 - **Rollback:** remove `infra/deploy/event-preview/current` (the sketch preview shows), or `--force` an older manifest.
 - **Check after deploy:** `curl -sI https://admin.<domain>/event-preview/` → 200 with the preview CSP and `SAMEORIGIN`;
   `…/event-preview/kabso-event-preview.txt` names the commit; the design step's preview shows «معاينة ·

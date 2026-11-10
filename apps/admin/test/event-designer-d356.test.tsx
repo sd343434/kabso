@@ -40,6 +40,7 @@ import {
   tiersFromLines,
   type DesignForm,
 } from '../src/event-design';
+import { SAMPLE_MY_RANK, sampleLeaderboards } from '../src/event-preview-sample';
 import { formFromServer, giftEventBody, type BoardForm, type EventOptions, type GiftEventFormState } from '../src/gift-events';
 import { translate, type Lang } from '../src/i18n';
 import { EventEditor, newDraft } from '../src/pages/Events';
@@ -287,27 +288,45 @@ describe('the live preview', () => {
     const s = { language: 'en', theme: 'light', state: 'FINAL_HOUR', device: 'android', reduceMotion: true } as const;
     const a = JSON.parse(previewMessage({ id: 'x' }, s)) as Record<string, unknown>;
     const b = JSON.parse(previewMessage({ id: 'x' }, s)) as Record<string, unknown>;
-    expect(a).toMatchObject({ type: PREVIEW_RENDER, v: 1, language: 'en', theme: 'light', state: 'FINAL_HOUR', reduceMotion: true, event: { id: 'x' } });
+    expect(a).toMatchObject({ type: PREVIEW_RENDER, v: 2, language: 'en', theme: 'light', state: 'FINAL_HOUR', reduceMotion: true, event: { id: 'x' }, leaderboards: {} });
     expect(a).not.toHaveProperty('device');
     expect(Number(b.seq)).toBe(Number(a.seq) + 1);
+  });
+
+  it('the sample boards: labelled sample data, the API’s shape, no photo, one per board of the draft', () => {
+    const e = { boards: [{ kind: 'SENDERS', minPoints: 1000 }, { kind: 'CP', minPoints: 0 }, { kind: 'AGENCIES' }] };
+    const boards = sampleLeaderboards(e, 'ar', 'ENDED');
+    expect(Object.keys(boards)).toEqual(['SENDERS', 'CP', 'AGENCIES']);
+    const s = boards.SENDERS!;
+    expect(s).toMatchObject({ board: 'SENDERS', minPoints: 1000, final: true, me: { rank: SAMPLE_MY_RANK, prize: [] } });
+    expect(s.data).toHaveLength(12);
+    expect(s.data.every((r) => r.user.avatarUrl === null && r.score >= 1000 && r.user.id.startsWith('sample-'))).toBe(true);
+    expect(s.me.score).toBe(s.data[SAMPLE_MY_RANK - 1]!.score);
+    expect(boards.CP!.data[0]).toHaveProperty('partner');
+    expect(boards.AGENCIES!.data[0]).toMatchObject({ agency: { name: 'وكالة سارة' } });
+    expect(sampleLeaderboards(e, 'en', 'RUNNING').SENDERS!.final).toBe(false);
+    const sent = JSON.parse(previewMessage(e, { language: 'en', theme: 'dark', state: 'RUNNING', device: 'phone', reduceMotion: false })) as {
+      leaderboards: Record<string, { data: { user: { displayName: string } }[] }>;
+    };
+    expect(sent.leaderboards.SENDERS!.data[0]!.user.displayName).toBe('Sara');
   });
 
   it('reads replies only from the preview’s own window and origin', () => {
     const win = {};
     const ok = { origin: 'https://admin.example.test', window: win };
     const msg = (data: unknown, origin = ok.origin, source: unknown = win) => previewReply({ data, origin, source }, ok);
-    expect(msg(JSON.stringify({ type: PREVIEW_READY, v: 1 }))).toEqual({ type: PREVIEW_READY });
-    expect(msg(JSON.stringify({ type: 'kabso.eventPreview.rendered', v: 1, seq: 4, designed: true }))).toEqual({
+    expect(msg(JSON.stringify({ type: PREVIEW_READY, v: 2 }))).toEqual({ type: PREVIEW_READY });
+    expect(msg(JSON.stringify({ type: 'kabso.eventPreview.rendered', v: 2, seq: 4, designed: true }))).toEqual({
       type: 'kabso.eventPreview.rendered',
       seq: 4,
       designed: true,
     });
-    expect(msg(JSON.stringify({ type: 'kabso.eventPreview.error', v: 1, seq: 5, reason: 'no event' }))).toMatchObject({ reason: 'no event' });
-    expect(msg(JSON.stringify({ type: PREVIEW_READY, v: 1 }), 'https://evil.test')).toBeNull();
-    expect(msg(JSON.stringify({ type: PREVIEW_READY, v: 1 }), ok.origin, {})).toBeNull();
-    expect(msg(JSON.stringify({ type: PREVIEW_READY, v: 2 }))).toBeNull();
+    expect(msg(JSON.stringify({ type: 'kabso.eventPreview.error', v: 2, seq: 5, reason: 'no event' }))).toMatchObject({ reason: 'no event' });
+    expect(msg(JSON.stringify({ type: PREVIEW_READY, v: 2 }), 'https://evil.test')).toBeNull();
+    expect(msg(JSON.stringify({ type: PREVIEW_READY, v: 2 }), ok.origin, {})).toBeNull();
+    expect(msg(JSON.stringify({ type: PREVIEW_READY, v: 1 }))).toBeNull();
     expect(msg('{not json')).toBeNull();
-    expect(msg({ type: PREVIEW_READY, v: 1 })).toBeNull();
+    expect(msg({ type: PREVIEW_READY, v: 2 })).toBeNull();
     expect(previewReply({ data: '', origin: ok.origin, source: null }, { origin: ok.origin, window: null })).toBeNull();
   });
 

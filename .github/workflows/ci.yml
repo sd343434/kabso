@@ -557,7 +557,7 @@ jobs:
           [ "$size" -gt 3000000 ] && [ "$size" -lt 120000000 ]
           {
             echo "commit=$GITHUB_SHA"
-            echo "protocol=1"
+            echo "protocol=2"
             echo "sha256=$(sha256sum "$dir/kabso-event-preview.tar.gz" | cut -d' ' -f1)"
             echo "size=$size"
             echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)"

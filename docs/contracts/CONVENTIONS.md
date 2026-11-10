@@ -11544,7 +11544,7 @@ Beside the banner, the full-screen announcement and the art uploads (D303 / D325
 - **Pickers with thumbnails** for the layout (3), the leaderboard (5), the countdown (6), the cards preset «طابع البطاقات
   والصناديق» (6) and the rules button (none + 6, then the edge START / END — START is right in Arabic; GOLD_PILL and
   APP_BAR_LINK say the edge does not apply). Only the values `EventOptions.designChoices` lists are offered (an older
-  server lists none of a newer value). The thumbnails are captures of the **real page** (the preview bundle, sample data,
+  server lists none of a newer value). The thumbnails are captures of the **real page** (the preview bundle, the panel's sample data, default pictures,
   no event art: `apps/admin/e2e-preview/thumbnails.spec.ts` + `thumbnails.py` → `src/assets/event-design/*.webp`,
   27 files, ~115 KB); regenerate them when a style's look changes.
 - **The sections**: drag to reorder (HTML5 drag and drop) or ↑ / ↓; a «ظاهر» switch each. The server's rules are applied
@@ -11579,10 +11579,11 @@ and anything else today's page — built for the web from `apps/mobile/lib/previ
 height), with switches: language ar / en, theme dark / light, state UPCOMING / RUNNING / FINAL_HOUR / ENDED, device
 393 × 852 / 360 × 800, reduce motion.
 
-- **Protocol v1** (`window.postMessage`, JSON **text**): panel → preview `{type: "kabso.eventPreview.render", v: 1, seq,
-  language, theme, state, reduceMotion, event}` where `event` is the draft as the app's `EventDetail` (titles, rules,
-  gifts with their points, boards with «عدد المعروضين» and prize lines whose items carry the catalogue's names /
-  categories / pictures, milestones, the uploaded art's URLs, `design` + `leaderboardBackgroundUrl`); preview → panel
+- **Protocol v2** (`window.postMessage`, JSON **text**): panel → preview `{type: "kabso.eventPreview.render", v: 2, seq,
+  language, theme, state, reduceMotion, event, leaderboards}` where `event` is the draft as the app's `EventDetail`
+  (titles, rules, gifts with their points, boards with «عدد المعروضين» and prize lines whose items carry the catalogue's
+  names / categories / pictures, milestones, the uploaded art's URLs, `design` + `leaderboardBackgroundUrl`) and
+  `leaderboards` maps each board kind to an `EventLeaderboard` (the API's JSON shape) of SAMPLE rows; preview → panel
   `kabso.eventPreview.ready` (once loaded), `kabso.eventPreview.rendered {seq, designed}`, `kabso.eventPreview.error
   {seq?, reason}`. The panel posts 250 ms after the last change. **Origins:** the preview listens only to its own
   origin (the panel's) and only to its parent window, and answers only that origin (never `*`); a development build may
@@ -11590,11 +11591,15 @@ height), with switches: language ar / en, theme dark / light, state UPCOMING / R
   window and the bundle's origin.
 - **What the preview draws:** the posted event, its dates and status moved around «now» for the chosen state (upcoming:
   starts in 2 days; running: ends in 3 days 5 h; final hour: ends in 42 min; ended: ended 2 h ago, final boards); the
-  leaderboards are **sample rows** made in the preview (12 made-up names, Kabso's development photos on the first five,
-  the viewer 8th) and the page says so at the top: «معاينة · بيانات المتصدرين تجريبية» (`eventPreviewSampleLabel`, the
+  leaderboards are **sample rows made by the panel** in its clearly labelled sample-data module
+  (`apps/admin/src/event-preview-sample.ts`: 12 made-up names, no photo — the app draws Kabso's default picture
+  (D337) — the viewer 8th, final when ended), read in the preview with the app's own `EventLeaderboard.fromJson`
+  (no model is built by hand in `lib/`, the G-26 / KL-038 guard; a board without a sample is an empty board), and
+  the page says so at the top: «معاينة · بيانات المتصدرين تجريبية» (`eventPreviewSampleLabel`, the
   preview only). **No sign-in, no API call** (the repository is the posted draft; any other call throws), **no
   navigation away** (one route; «اذهب إلى البث» and the like land back on the page). Semantics are on (screen readers;
-  the smoke test reads the text). A broken message (not JSON, another version, no `EventDetail`) → an error reply, the
+  the smoke test reads the text). A broken message (not JSON, another version — v1, whose boards were made in the
+  app, is refused —, no `EventDetail`, leaderboards not in the API's shape) → an error reply, the
   last page stays; an unknown design version or layout → today's page (§10.150.6). A new section order reopens the
   page (it picks its first tab when it opens, as a phone does); other changes redraw in place.
 - **Fallback:** no `ready` within 20 s (the bundle missing, blocked or broken) → the old sketch preview
@@ -11602,7 +11607,10 @@ height), with switches: language ar / en, theme dark / light, state UPCOMING / R
 - **Images:** the art is loaded like any URL; on the web an art host without CORS headers still shows (an `<img>`
   element, `WebHtmlElementStrategy.fallback` in `GiftEventBackdrop.image`; the phone ignores it).
 - **Not in the phone app:** `lib/main.dart` never imports `lib/preview/`; the APK / IPA are unchanged but for one ARB
-  string. The only web shell is `apps/mobile/web/index.html` (no inline script, no CDN).
+  string. The only web shell is `apps/mobile/web/index.html` (no inline script, no CDN); `analysis_options.yaml` excludes
+  `web/**` (what `flutter pub get` writes once a web folder exists). The bundle is a release build served in
+  production, so it carries none of the debug-only development photos (`assets/preview/` is trimmed out,
+  docs/design/PREVIEW_ASSETS.md).
 
 #### 10.152.3 Tests
 

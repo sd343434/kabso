@@ -25,12 +25,9 @@ class EventPreviewController extends ValueNotifier<PreviewRequest?> {
   new() : super(null);
 }
 
-/// The draft as the page's repository: the event as posted, SAMPLE boards.
+/// The draft as the page's repository: the event and the panel's SAMPLE
+/// boards, as posted.
 class PreviewProgramsRepository implements ProgramsRepository {
-  new({this.photos = true});
-
-  /// Sample photos on the boards (off in VM tests: no network images).
-  final bool photos;
   PreviewRequest? request;
 
   PreviewRequest get _r => request ?? (throw StateError('no preview yet'));
@@ -45,13 +42,12 @@ class PreviewProgramsRepository implements ProgramsRepository {
         EventBoardKind.fromWire(board) ??
         (e.boards.isEmpty ? EventBoardKind.senders : e.boards.first.kind);
     final info = e.boards.where((b) => b.kind == kind).firstOrNull;
-    return previewLeaderboard(
-      kind,
-      ar: _r.language == AppLanguage.ar,
-      ended: _r.state == PreviewState.ended,
-      minPoints: info?.minPoints ?? 0,
-      photos: photos,
-    );
+    return _r.leaderboards[kind] ??
+        previewEmptyBoard(
+          kind,
+          ended: _r.state == PreviewState.ended,
+          minPoints: info?.minPoints ?? 0,
+        );
   }
 
   // The page reads only the event and its boards; anything else is a bug
@@ -81,14 +77,12 @@ class EventPreviewApp extends StatefulWidget {
   const new({
     required this.controller,
     required this.prefs,
-    this.photos = true,
     this.onRendered,
     super.key,
   });
 
   final EventPreviewController controller;
   final SharedPreferences prefs;
-  final bool photos;
 
   /// After each request is on screen (the bridge tells the panel).
   final void Function(PreviewRequest request, {required bool designed})?
@@ -102,9 +96,7 @@ class EventPreviewApp extends StatefulWidget {
 }
 
 class _EventPreviewAppState extends State<EventPreviewApp> {
-  late final PreviewProgramsRepository _repo = PreviewProgramsRepository(
-    photos: widget.photos,
-  );
+  late final PreviewProgramsRepository _repo = PreviewProgramsRepository();
   late final _PreviewLanguage _language = _PreviewLanguage(
     widget.controller.value?.language ?? AppLanguage.ar,
   );

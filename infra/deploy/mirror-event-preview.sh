@@ -9,7 +9,7 @@
 # kabso-event-preview.tar.gz + kabso-event-preview.txt (commit, protocol, sha256, size, built) of the rolling
 # prerelease `staging-latest` (the same release as the staging APK, D330). No Flutter on the server: this script
 # fetches the small manifest (no token, no GitHub API), downloads the archive only when its sha256 differs from the
-# one served, checks it (size bounds, sha256, safe paths, the files the page needs, protocol 1), and swaps it into
+# one served, checks it (size bounds, sha256, safe paths, the files the page needs, protocol 2), and swaps it into
 # infra/deploy/event-preview/current with renames (Caddy mounts the folder read-only at /srv/event-preview). Only the
 # latest bundle is kept. Without one, the panel shows its sketch preview with a notice.
 set -euo pipefail
@@ -42,7 +42,7 @@ sha=$(field sha256)
 size=$(field size)
 built=$(field built)
 [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "event preview manifest: bad commit" >&2; exit 1; }
-[ "$protocol" = 1 ] || { echo "event preview manifest: protocol ${protocol:-?}, this panel speaks 1" >&2; exit 1; }
+[ "$protocol" = 2 ] || { echo "event preview manifest: protocol ${protocol:-?}, this panel speaks 2" >&2; exit 1; }
 [[ "$sha" =~ ^[0-9a-f]{64}$ ]] || { echo "event preview manifest: bad sha256" >&2; exit 1; }
 [[ "$built" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] || { echo "event preview manifest: bad date" >&2; exit 1; }
 [[ "$size" =~ ^[0-9]{1,10}$ ]] && [ "$size" -ge "$MIN_SIZE" ] && [ "$size" -le "$MAX_SIZE" ] ||

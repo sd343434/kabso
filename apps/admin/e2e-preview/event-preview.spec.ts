@@ -7,7 +7,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Frame, type Page } from '@playwright/test';
-import { DESIGN, sampleEvent } from './fixture';
+import { DESIGN, render, sampleEvent } from './fixture';
 import { BRIGHT_PNG, mockApi } from './mock-api';
 
 const captureDir = process.env.KABSO_CAPTURE_DIR;
@@ -34,31 +34,36 @@ test.describe('the preview bundle alone', () => {
       if (/Unable to load asset|Refused to/.test(m.text())) errors.push(m.text());
     });
     await page.goto('/__harness.html');
-    await expect.poll(() => harnessReplies(page), { timeout: 60_000 }).toContainEqual({ type: 'kabso.eventPreview.ready', v: 1 });
+    await expect.poll(() => harnessReplies(page), { timeout: 60_000 }).toContainEqual({ type: 'kabso.eventPreview.ready', v: 2 });
     const frame = page.frame({ url: /\/event-preview\// })!;
     const post = (m: unknown) => page.evaluate((x) => (window as unknown as { __post: (m: unknown) => void }).__post(x), m);
 
-    await post({ type: 'kabso.eventPreview.render', v: 1, seq: 1, language: 'ar', theme: 'dark', state: 'RUNNING', reduceMotion: true, event: sampleEvent(DESIGN) });
-    await expect.poll(() => harnessReplies(page)).toContainEqual({ type: 'kabso.eventPreview.rendered', v: 1, seq: 1, designed: true });
+    await post(render({ seq: 1, language: 'ar', theme: 'dark', state: 'RUNNING', reduceMotion: true, event: sampleEvent(DESIGN) }));
+    await expect.poll(() => harnessReplies(page)).toContainEqual({ type: 'kabso.eventPreview.rendered', v: 2, seq: 1, designed: true });
     await untilText(frame, /ملك الهدايا/);
     await untilText(frame, /بيانات المتصدرين تجريبية/);
+    // The panel's sample rows (event-preview-sample.ts), read by the app's fromJson.
+    await untilText(frame, /سارة/);
     // GOLD_PILL: the rules button under the countdown.
     await untilText(frame, /القواعد/);
 
     // English, ended, no design: today's page.
-    await post({ type: 'kabso.eventPreview.render', v: 1, seq: 2, language: 'en', theme: 'light', state: 'ENDED', reduceMotion: true, event: sampleEvent(null, false) });
-    await expect.poll(() => harnessReplies(page)).toContainEqual({ type: 'kabso.eventPreview.rendered', v: 1, seq: 2, designed: false });
+    await post(render({ seq: 2, language: 'en', theme: 'light', state: 'ENDED', reduceMotion: true, event: sampleEvent(null, false) }));
+    await expect.poll(() => harnessReplies(page)).toContainEqual({ type: 'kabso.eventPreview.rendered', v: 2, seq: 2, designed: false });
     await untilText(frame, /Gift King/);
     await untilText(frame, /Preview · sample leaderboard data/);
 
     // An unknown design version is today's page too.
-    await post({ type: 'kabso.eventPreview.render', v: 1, seq: 3, language: 'ar', theme: 'dark', state: 'RUNNING', reduceMotion: true, event: sampleEvent({ ...DESIGN, v: 2 }) });
-    await expect.poll(() => harnessReplies(page)).toContainEqual({ type: 'kabso.eventPreview.rendered', v: 1, seq: 3, designed: false });
+    await post(render({ seq: 3, language: 'ar', theme: 'dark', state: 'RUNNING', reduceMotion: true, event: sampleEvent({ ...DESIGN, v: 2 }) }));
+    await expect.poll(() => harnessReplies(page)).toContainEqual({ type: 'kabso.eventPreview.rendered', v: 2, seq: 3, designed: false });
 
     // A broken event: an error reply, the last page stays.
-    await post({ type: 'kabso.eventPreview.render', v: 1, seq: 4, event: { title: 5 } });
+    await post(render({ seq: 4, event: { title: 5 } }));
     await expect.poll(() => harnessReplies(page)).toContainEqual(expect.objectContaining({ type: 'kabso.eventPreview.error', seq: 4 }));
     await untilText(frame, /ملك الهدايا/);
+    // Protocol v1 (boards made in the app) is refused.
+    await post({ type: 'kabso.eventPreview.render', v: 1, seq: 5, event: sampleEvent(DESIGN) });
+    await expect.poll(() => harnessReplies(page)).toContainEqual(expect.objectContaining({ type: 'kabso.eventPreview.error', seq: 5 }));
     // Another message type: nothing at all.
     const before = (await harnessReplies(page)).length;
     await post({ type: 'something.else', v: 1 });
