@@ -249,6 +249,13 @@ export const giftEventInputSchema = z
     /** v1.101-social (D325): the Live home banner (a `banner` upload's media id), made a banner at publish. */
     bannerMediaId: z.uuid().nullable().optional(),
     /**
+     * v1.119-social (D359, §10.154): «بانر صفحة البث» on / off (off: no banner, the picture kept) and «يظهر قبل البداية»
+     * (shown from the publish time, not the start). Absent: true / false on a create (the columns' defaults), kept on an
+     * edit. Display settings: they may change while the event runs.
+     */
+    bannerEnabled: z.boolean().optional(),
+    bannerBeforeStart: z.boolean().optional(),
+    /**
      * v1.105-social (D340, §10.134): «إعلان بملء الشاشة عند البدء» — the start shown full screen in the app once per person.
      * Absent: true on a create (the column's default), kept on an edit. A display setting: it may change while running.
      */
@@ -654,6 +661,8 @@ function rowFields(input: GiftEventInput, startsAt: Date | null, endsAt: Date | 
           design: input.design === null ? Prisma.DbNull : (designJson(input.design) as Prisma.InputJsonValue),
         }
       : {}),
+    ...(input.bannerEnabled !== undefined ? { bannerEnabled: input.bannerEnabled } : {}),
+    ...(input.bannerBeforeStart !== undefined ? { bannerBeforeStart: input.bannerBeforeStart } : {}),
   };
 }
 
@@ -782,6 +791,8 @@ function auditMeta(input: GiftEventInput, by: AdminVia) {
     scoring: input.scoring,
     countedGifts: input.countedGifts,
     ...(input.announceFullscreen !== undefined ? { announceFullscreen: input.announceFullscreen } : {}),
+    ...(input.bannerEnabled !== undefined ? { bannerEnabled: input.bannerEnabled } : {}),
+    ...(input.bannerBeforeStart !== undefined ? { bannerBeforeStart: input.bannerBeforeStart } : {}),
     gifts: input.gifts.map((g) => `${g.giftCode}:${String(g.pointsPerCoin)}/${String(g.pointsPerGift)}`),
     boards: input.boards.map((b) => ({
       kind: b.kind,
@@ -801,12 +812,17 @@ function auditMeta(input: GiftEventInput, by: AdminVia) {
  * The steps of publishing (in the caller's transaction, the event row written): the first period of a recurring event,
  * the publish time, and the Live home banner made from the event's banner picture (once; any audience since D334).
  */
-async function publishStepsIn(tx: Tx, eventId: string, now: Date): Promise<void> {
-  const e = await tx.event.findUniqueOrThrow({ where: { id: eventId } });
+async function publishStepsIn(
+  tx: Tx,
+  eventId: string,
+  now: Date,
+  previousBannerMediaId: string | null,
+): Promise<void> {
+  let e = await tx.event.findUniqueOrThrow({ where: { id: eventId } });
   if (e.publishedAt === null) {
-    await tx.event.update({ where: { id: eventId }, data: { publishedAt: now } });
+    e = await tx.event.update({ where: { id: eventId }, data: { publishedAt: now } });
   }
-  await syncEventBannerIn(tx, e);
+  await syncEventBannerIn(tx, e, now, previousBannerMediaId);
 }
 
 /**
@@ -835,20 +851,37 @@ async function firstPeriodIn(
  * v1.101-social (D325): the event's Live home banner — one HOME banner opening the event, from its banner picture, shown
  * from its start to its end. A new picture replaces it. v1.102-social (D334, owner): an event of ANY audience may have
  * one; `GET /home/banners` lists it to that event's audience only (`HomeService.listBanners`).
+ * v1.119-social (D359, §10.154): the banner goes when the picture is removed (`bannerMediaId` null) or «بانر صفحة البث»
+ * is off (`bannerEnabled` false; the picture kept, the banner re-made when it is on again); `bannerBeforeStart` shows it
+ * from the publish time. Only the event's own banner (its current or `previousMediaId` picture) is touched: a banner an
+ * admin linked to the event from «البانرات» keeps its own picture, window and order.
  */
-export async function syncEventBannerIn(tx: Tx, e: Event): Promise<void> {
-  if (e.status !== 'PUBLISHED' || e.bannerMediaId === null || e.startsAt === null) {
+export async function syncEventBannerIn(
+  tx: Tx,
+  e: Event,
+  now: Date,
+  previousMediaId: string | null = null,
+): Promise<void> {
+  const own = [...new Set([previousMediaId, e.bannerMediaId].filter((id): id is string => id !== null))];
+  const existing =
+    own.length === 0
+      ? []
+      : await tx.homeBanner.findMany({ where: { eventId: e.id, placement: 'HOME', mediaId: { in: own } } });
+  const keep = existing.find((b) => b.mediaId === e.bannerMediaId);
+  const stale = existing.filter((b) => b !== keep);
+  if (stale.length > 0) await tx.homeBanner.deleteMany({ where: { id: { in: stale.map((b) => b.id) } } });
+  if (e.status !== 'PUBLISHED' || e.bannerMediaId === null || e.startsAt === null || !e.bannerEnabled) {
+    if (keep) await tx.homeBanner.delete({ where: { id: keep.id } });
     return;
   }
-  const existing = await tx.homeBanner.findFirst({ where: { eventId: e.id, placement: 'HOME' } });
-  const window = { startsAt: e.startsAt, endsAt: e.endsAt };
-  if (existing && existing.mediaId === e.bannerMediaId) {
-    await tx.homeBanner.update({ where: { id: existing.id }, data: window });
+  const shownFrom = e.bannerBeforeStart ? (e.publishedAt ?? now) : e.startsAt;
+  const window = { startsAt: shownFrom < e.startsAt ? shownFrom : e.startsAt, endsAt: e.endsAt };
+  if (keep) {
+    await tx.homeBanner.update({ where: { id: keep.id }, data: window });
     return;
   }
   const media = await tx.mediaAsset.findUnique({ where: { id: e.bannerMediaId } });
   if (!media) return;
-  if (existing) await tx.homeBanner.delete({ where: { id: existing.id } });
   await tx.homeBanner.create({
     data: {
       mediaId: media.id,
@@ -891,7 +924,7 @@ export async function createGiftEventIn(
     select: { id: true },
   });
   await writeStructureIn(tx, row.id, input);
-  if (input.status === 'PUBLISHED') await publishStepsIn(tx, row.id, now);
+  if (input.status === 'PUBLISHED') await publishStepsIn(tx, row.id, now, null);
   await tx.auditLog.create({
     data: {
       ...auditBy(by),
@@ -981,7 +1014,7 @@ export async function updateGiftEventIn(
     }
   }
   if (input.status === 'PUBLISHED') {
-    if (!running) await publishStepsIn(tx, eventId, now);
+    if (!running) await publishStepsIn(tx, eventId, now, event.bannerMediaId);
     else {
       // A later end of a running recurring event: the current period may now run to its full length.
       const e = await tx.event.findUniqueOrThrow({ where: { id: eventId } });
@@ -997,7 +1030,7 @@ export async function updateGiftEventIn(
           data: { periodEndsAt: e.endsAt !== null && e.endsAt < full ? e.endsAt : full },
         });
       }
-      await syncEventBannerIn(tx, e);
+      await syncEventBannerIn(tx, e, now, event.bannerMediaId);
     }
   }
   await tx.auditLog.create({
@@ -1047,6 +1080,8 @@ export async function inputOfIn(tx: Tx, eventId: string, reason: string): Promis
     audience: e.audience,
     bannerMediaId: e.bannerMediaId,
     announceFullscreen: e.announceFullscreen,
+    bannerEnabled: e.bannerEnabled,
+    bannerBeforeStart: e.bannerBeforeStart,
     regions: e.regions.map((r) => r.trim()),
     featured: e.featured,
     backgroundKey: e.backgroundKey,
@@ -1122,7 +1157,10 @@ export async function lifecycleIn(
       throw new EventAdminError('The event has started; end it or hold its payout instead.');
     }
     // The banner made from the event's picture goes; the picture stays with the draft (re-made at the next publish).
-    await tx.homeBanner.deleteMany({ where: { eventId, placement: 'HOME' } });
+    // v1.119-social (D359): only that one — a banner linked from «البانرات» is hidden by the draft anyway.
+    if (e.bannerMediaId !== null) {
+      await tx.homeBanner.deleteMany({ where: { eventId, placement: 'HOME', mediaId: e.bannerMediaId } });
+    }
     await tx.event.update({
       where: { id: eventId },
       data: { status: 'DRAFT', periodStartsAt: null, periodEndsAt: null, period: 0, startNotifiedAt: null },

@@ -1920,6 +1920,16 @@ CONVENTIONS §10.152. The panel's design step embeds the app's real Flutter even
   without `frame-ancestors 'self'`, `VITE_EVENT_PREVIEW_URL` points there and the bundle is built with
   `--dart-define=PREVIEW_PARENT_ORIGINS=http://localhost:5180`.
 
+### 11.15 Event banners on the «البث» hub (D359; migration `20270423090000_event_banner_options`) — [IMPLEMENTED, draft contract v1.119-social; not deployed, not device-tested]
+
+- **Migration:** `ALTER TABLE events ADD COLUMN banner_enabled BOOLEAN NOT NULL DEFAULT true, ADD COLUMN
+  banner_before_start BOOLEAN NOT NULL DEFAULT false` — constant defaults, metadata-only (no rewrite), no GRANT (an
+  existing table). Older events keep their banner and window.
+- **Behaviour change at deploy:** `GET /home/banners` drops an event banner once its event has ended (before, a banner
+  with a later or no end of its own stayed) and lists running events' banners first. No config, no sweeper.
+- **Rollback:** the previous API ignores the two columns; drop them only after rolling back.
+- **Check after deploy:** CONVENTIONS §10.154 / PRE_PRODUCTION_CHECKLIST PP-90.
+
 ### 5.25 Video posts and reels (migration `20261211090000_video_posts_reels`; D162) — [IMPLEMENTED, draft contract v1.41-social; not deployed, not device-tested]
 
 Video in «منشور جديد» (the «فيديو» tab), reels («ريلز») in «لحظات» and the ➕ menu (CONVENTIONS

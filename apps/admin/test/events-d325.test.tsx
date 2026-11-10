@@ -283,7 +283,9 @@ describe('D325 the step-by-step editor', () => {
   it('milestones, design (banner and art with their specs) and the review', () => {
     expect(editor('ar', 'evStepMilestones')).toContain('إضافة مرحلة');
     const d = editor('ar', 'evStepDesign');
-    expect(d).toContain('بانر الصفحة الرئيسية للبث (1500 × 300)');
+    // D359: the banner field is «بانر صفحة البث» with its 1500 × 300 guidance.
+    expect(d).toContain('بانر صفحة البث');
+    expect(d).toContain('1500 × 300 بكسل');
     // D356: the real preview (the app's page) replaces the sketch, which stays as its fallback.
     expect(d).toContain('معاينة حقيقية');
     const r = editor('ar', 'evStepReview');

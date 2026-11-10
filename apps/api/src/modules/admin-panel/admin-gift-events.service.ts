@@ -424,6 +424,9 @@ export class AdminGiftEventsService {
         bannerMediaId: e.bannerMediaId,
         // v1.105-social (D340): «إعلان بملء الشاشة عند البدء».
         announceFullscreen: e.announceFullscreen,
+        // v1.119-social (D359): «بانر صفحة البث» on / off and «يظهر قبل البداية».
+        bannerEnabled: e.bannerEnabled,
+        bannerBeforeStart: e.bannerBeforeStart,
         audience: e.audience,
         regions: e.regions.map((r) => r.trim()),
         featured: e.featured,

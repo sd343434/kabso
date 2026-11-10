@@ -107,6 +107,12 @@ export interface GiftEventFormState {
   bannerMediaId: string;
   /** v1.105-social (D340, §10.134): «إعلان بملء الشاشة عند البدء» (on by default; editable while running). */
   announceFullscreen: boolean;
+  /**
+   * v1.119-social (D359, §10.154): «بانر صفحة البث» shown (on by default; off keeps the picture) and «يظهر قبل البداية»
+   * (from the publish time; off by default). Display settings: editable while running.
+   */
+  bannerEnabled: boolean;
+  bannerBeforeStart: boolean;
   milestones: MilestoneForm[];
   bannerUrl: string;
   /** D303 follow-ups: the uploaded page art (keys from `POST /admin/event-uploads`), "" for none. */
@@ -249,6 +255,8 @@ export function emptyGiftEvent(timeZone: string): GiftEventFormState {
     countedGifts: 'EVENT_GIFTS',
     bannerMediaId: '',
     announceFullscreen: true,
+    bannerEnabled: true,
+    bannerBeforeStart: false,
     milestones: [],
     bannerUrl: '',
     gifts: [{ giftCode: '', pointsPerCoin: '1', pointsPerGift: '0' }],
@@ -333,6 +341,8 @@ export function giftEventBody(f: GiftEventFormState) {
     countedGifts: f.countedGifts,
     bannerMediaId: f.bannerMediaId || null,
     announceFullscreen: f.announceFullscreen,
+    bannerEnabled: f.bannerEnabled,
+    bannerBeforeStart: f.bannerBeforeStart,
     milestones: f.milestones.map((m) => ({ board: m.board, points: int(m.points), prizes: m.items.map(prizeItemBody) })),
     titleAr: f.titleAr.trim(),
     titleEn: f.titleEn.trim(),
@@ -392,6 +402,8 @@ export function formFromServer(
     countedGifts?: string;
     bannerMediaId?: string | null;
     announceFullscreen?: boolean;
+    bannerEnabled?: boolean;
+    bannerBeforeStart?: boolean;
     milestones?: { board: string; points: number; prizes: Record<string, unknown>[] }[];
     backgroundKey?: string | null;
     backgroundPosterKey?: string | null;
@@ -434,6 +446,9 @@ export function formFromServer(
     bannerMediaId: form.bannerMediaId ?? '',
     // v1.105-social (D340): absent (an older server) reads as the default.
     announceFullscreen: form.announceFullscreen ?? true,
+    // v1.119-social (D359): absent (an older server) reads as the defaults.
+    bannerEnabled: form.bannerEnabled ?? true,
+    bannerBeforeStart: form.bannerBeforeStart ?? false,
     milestones: (form.milestones ?? []).map((m) => ({
       board: m.board as BoardKind,
       points: String(m.points),

@@ -4435,6 +4435,10 @@ model Event {
   /// v1.115-social (D354, §10.150; CHECK `events_design_shape`): the page design `EventPageDesign` (`event-design.ts`),
   /// version `v` 1; null = today's page (every event made before migration 20270420090000).
   design              Json?
+  /// v1.119-social (D359, §10.154): «بانر صفحة البث» — the Live home banner made from `bannerMediaId` is shown (true) or
+  /// taken down with the picture kept (false); `bannerBeforeStart` shows it from the publish time instead of the start.
+  bannerEnabled       Boolean       @default(true) @map("banner_enabled")
+  bannerBeforeStart   Boolean       @default(false) @map("banner_before_start")
   createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 

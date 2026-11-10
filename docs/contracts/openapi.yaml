@@ -540,6 +540,13 @@ info:
     included) — how many «اقترح ميزة / أبلغ» submissions (`createOwnerFeedback`, both kinds, the ones still kept) the
     founder has received; one number for every viewer, cached 60 s (a new submission or a panel deletion drops the
     cache); never who sent them or what they say. Additive.
+    **D359 (DRAFT v1.119-social)** event banners on the Live hub, only through the existing home carousel (CONVENTIONS
+    §10.154; owner decision: events reach the «البث» hub only through the existing home banner carousel): `GiftEventForm.bannerEnabled` («بانر صفحة البث» on /
+    off, the picture kept) and `bannerBeforeStart` («يظهر قبل البداية», shown from the publish time), optional (absent:
+    true / false on a create, kept on an edit; migration `20270423090000_event_banner_options`); `bannerMediaId` null
+    now removes the event's banner. `listHomeBanners` leaves out an event banner once its event has ended (query time)
+    and lists running events' banners first, then the rest, each group in the admin's order. Additive in shape;
+    **behaviour change** in the order only.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -8410,6 +8417,14 @@ paths:
         `getRunningEvents`): a signed-in caller gets the banners of the events they may see (older apps too: they sign
         in); a caller without a token (`placement=room`) gets only the banners of EVERYONE events. A banner without an
         event is everyone's. The event's regions do not filter its banner.
+        *(v1.119-social, D359, §10.154; owner: events reach the Live hub ONLY through this carousel)* An event banner is
+        also left out once its event has ended (`endsAt` passed, an early «إنهاء» included), whatever the banner's own
+        window says — decided at the time of the request (no sweeper). **Order:** the banners of events that are running
+        now (started, not ended) come first, then every other banner (upcoming events' banners shown before their start
+        with `bannerBeforeStart`, banners without an event); each group keeps the order above (`sortOrder`, latest
+        `startsAt`, `id`); at most 10 after that order. The event's own banner is managed in the event
+        (`GiftEventForm.bannerMediaId`, `bannerEnabled`, `bannerBeforeStart`); a banner linked to an event from the
+        banners page (`createAdminBanner` `eventId`) follows the same rules. The app opens `/events/{eventId}` on a tap.
       parameters:
         - name: placement
           in: query
@@ -29063,7 +29078,9 @@ components:
         scoring: { type: string, enum: [COINS, MULTIPLIER], default: MULTIPLIER, description: "(v1.101-social, §10.127.2) COINS — points = the coins of each counted gift; MULTIPLIER — each event gift's `pointsPerCoin` (a decimal multiplier, e.g. 1.2) plus `pointsPerGift`." }
         countedGifts: { type: string, enum: [EVENT_GIFTS, ALL_GIFTS], default: EVENT_GIFTS, description: "(v1.101-social) EVENT_GIFTS — only the event's gifts score; ALL_GIFTS — every gift (a gift not listed counts its coins × 1)." }
         announceFullscreen: { type: boolean, description: "(v1.105-social, D340, §10.134) «إعلان بملء الشاشة عند البدء» — when the event starts the app shows it full screen once to each person who may see it (`getEventAnnouncements` `EVENT_START`). Absent on a create: true; absent on an edit: kept. A display setting: it may change while the event runs. False on every event made before D340. The winners' announcement is always on." }
-        bannerMediaId: { type: [string, 'null'], format: uuid, description: "(v1.101-social) The Live home banner — an `uploadAdminEventMedia` kind `banner` media id; made a banner opening the event at publish, shown from the start to the end. (v1.102-social, D334) For every audience: `listHomeBanners` lists it to the event's audience only." }
+        bannerMediaId: { type: [string, 'null'], format: uuid, description: "(v1.101-social) The Live home banner — an `uploadAdminEventMedia` kind `banner` media id; made a banner opening the event at publish, shown from the start to the end. (v1.102-social, D334) For every audience: `listHomeBanners` lists it to the event's audience only. (v1.119-social, D359, §10.154) null removes the banner (and its picture from the event)." }
+        bannerEnabled: { type: boolean, description: "(v1.119-social, D359, §10.154) «بانر صفحة البث» — the Live home banner made from `bannerMediaId` is shown (true) or taken down with the picture kept (false; made again when true). Absent: true on a create, kept on an edit. A display setting: it may change while the event runs." }
+        bannerBeforeStart: { type: boolean, description: "(v1.119-social, D359, §10.154) «يظهر قبل البداية» — the banner is shown from the publish time (an upcoming event announced) instead of from `startsAt`. Absent: false on a create, kept on an edit. A display setting: it may change while the event runs. Either way it goes when the event ends." }
         milestones:
           type: array
           maxItems: 10
