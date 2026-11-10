@@ -52,6 +52,7 @@ import {
 import { activeDeviceBanOf, deviceBannedError } from '../auth/device-bans.js';
 import { assertNotRestricted } from '../users/account-control.js';
 import { refuseLimitedStaff, watchStaffSql } from './live-staff.js';
+import { founderSql } from '../owner-profile/founder-levels.js';
 import { LiveCapacityGuard } from './live-capacity.js';
 import type { VerificationBadgeValue } from '../verification/verification-rules.js';
 
@@ -454,8 +455,10 @@ export interface RoomRow {
  * published ladder the points reach (plus carried points, D194), or the level kept from that same
  * version if higher.
  */
+// v1.121-social (D361, §10.156): null in the founder's lives (he shows no level, the room cards no «Lv.N»).
 const ROOM_LEVEL_SQL = Prisma.sql`(
-         SELECT CASE WHEN lc.is_enabled AND lc.published_version_id IS NOT NULL THEN
+         SELECT CASE WHEN ${founderSql(Prisma.sql`r.host_user_id`)} THEN NULL
+                     WHEN lc.is_enabled AND lc.published_version_id IS NOT NULL THEN
                   GREATEST(
                     (SELECT max(ld.level_number) FROM level_definitions ld
                       WHERE ld.version_id = lc.published_version_id

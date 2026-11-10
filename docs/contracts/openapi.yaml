@@ -559,6 +559,13 @@ info:
     `support.whatsapp`; transfer targets and `get…WhatsAppAgents` are REPLY+ only; lowering a level below REPLY (or a
     revoke that does) releases the person's assigned conversations. Migration `20270425090000_whatsapp_staff_access`.
     Additive (no behaviour change until a level is set).
+    **D361 (DRAFT v1.121-social)** the founder has no level «المؤسس ليس له ليفيل» (CONVENTIONS §10.156): for the
+    app owner (an ACTIVE account holding OWNER, `PublicProfile.kabsoOwner`) `getUserLevels` answers `data: []` for
+    every viewer, `LiveRoom.roomLevel` / `LiveRoomSummary.roomLevel` are null in his lives,
+    `LiveChatAuthorBadges.charmLevel` / `supportLevel` and `HostSupporter.supportLevel` are null for him, and his
+    level-ups are never sent on the `level` ticker topic. His own `getMyLevels` is unchanged (private; the app shows
+    him a neutral state). Nothing is deleted. Shapes unchanged (all nullable / lists already); behaviour change for
+    the founder only.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -5846,6 +5853,8 @@ paths:
         not content). The same 404 as `GET /users/{username}` for a malformed, unknown,
         SUSPENDED or DELETED username. Four items, in the order of `GET /levels/me` — or **none**
         (v1.72-live, D283, §10.96.10) for a limited Kabso Team account, which shows no levels.
+        **None** too (v1.121-social, D361, §10.156; owner: «المؤسس ليس له ليفيل») for the founder (the app owner: an
+        ACTIVE account holding OWNER, `PublicProfile.kabsoOwner`), for every viewer, himself included.
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -33018,7 +33027,7 @@ components:
         roomLevel:
           type: [integer, 'null']
           minimum: 1
-          description: "CP-016 D (v1.17-live, CONVENTIONS §10.18): the host's charm (ATTRACTIVENESS) level, the same in every live of that host. Null while the charm category is unavailable. v1.58-live (D246, §10.89): in every summary (lists, boosts), the room cards' «Lv.N»; before, only `LiveRoom` carried it. A missing field reads as null."
+          description: "CP-016 D (v1.17-live, CONVENTIONS §10.18): the host's charm (ATTRACTIVENESS) level, the same in every live of that host. Null while the charm category is unavailable. (v1.121-social, D361, §10.156) Always null in the founder's lives (the app owner shows no level). v1.58-live (D246, §10.89): in every summary (lists, boosts), the room cards' «Lv.N»; before, only `LiveRoom` carried it. A missing field reads as null."
         popular:
           type: boolean
           description: "v1.58-live (D246, CONVENTIONS §10.89) — «رائج»: the live is among the first `LIVE_POPULAR_TOP_N` (default 10) listable lives (LIVE, fresh, ACTIVE host) of its kind — audio (`AUDIO`), podcast (`PODCAST`), multi (`MULTI`), video (`SOLO`, `PK`) — in the `popular` order (score, startedAt, id, all descending), as of the request. The same for every viewer. A missing field reads as false."
@@ -33614,7 +33623,7 @@ components:
           type: [integer, 'null']
           minimum: 1
           maximum: 200
-          description: "D199b: their `SUPPORT` level number; null while that category is unavailable."
+          description: "D199b: their `SUPPORT` level number; null while that category is unavailable. (v1.121-social, D361, §10.156) Always null for the founder."
     HostSupporterRank:
       type: object
       description: "D199b: the caller's own place in a supporters list today."
@@ -34290,12 +34299,12 @@ components:
           type: [integer, 'null']
           minimum: 1
           maximum: 200
-          description: The author's charm (`ATTRACTIVENESS`) level number; null while that category is unavailable (CP-005).
+          description: The author's charm (`ATTRACTIVENESS`) level number; null while that category is unavailable (CP-005). (v1.121-social, D361, §10.156) Always null for the founder (the app owner shows no level).
         supportLevel:
           type: [integer, 'null']
           minimum: 1
           maximum: 200
-          description: The author's `SUPPORT` level number; null while that category is unavailable (CP-005).
+          description: The author's `SUPPORT` level number; null while that category is unavailable (CP-005). (v1.121-social, D361, §10.156) Always null for the founder.
         family:
           description: The author's family (CP-018), or null.
           oneOf:

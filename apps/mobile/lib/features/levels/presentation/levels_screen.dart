@@ -7,6 +7,8 @@ import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/levels/presentation/level_category_card.dart';
 import 'package:kabso_live/features/levels/presentation/level_detail_screen.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart'
+    show isKabsoOwnerProvider;
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -45,6 +47,9 @@ class LevelsScreen extends ConsumerStatefulWidget {
   static const tabBarKey = Key('levels.tabs');
   static const headerKey = Key('levels.header');
   static const preparingKey = Key('levels.preparing');
+
+  /// D361 (§10.156): the founder's neutral state «المؤسس ليس له مستوى».
+  static const founderKey = Key('levels.founder');
 
   /// The category to open on: the caller's highest active level (the first
   /// in order on a tie), else Attractiveness.
@@ -98,6 +103,10 @@ class _LevelsScreenState extends ConsumerState<LevelsScreen> {
     final l10n = context.l10n;
     final p = context.palette;
     final load = ref.watch(myLevelsProvider);
+    // D361 (§10.156; owner: «المؤسس ليس له ليفيل»): decision — the founder's
+    // own levels page shows a neutral state, never his levels (a deep link
+    // to a category lands here too).
+    final founder = ref.watch(isKabsoOwnerProvider);
     return Scaffold(
       backgroundColor: p.background,
       appBar: KAppBar(
@@ -106,6 +115,12 @@ class _LevelsScreenState extends ConsumerState<LevelsScreen> {
         title: Text(l10n.levelsTitle),
       ),
       body: switch (load) {
+        _ when founder => KEmptyState(
+          key: LevelsScreen.founderKey,
+          icon: Icons.workspace_premium_outlined,
+          title: l10n.levelsFounderTitle,
+          message: l10n.levelsFounderBody,
+        ),
         AsyncValue(:final value?) when value.isNotEmpty => () {
           final pages = _controller(value);
           final selected = _selected ?? value.first.category;

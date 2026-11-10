@@ -12,6 +12,8 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_room_stats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_data_center_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart'
+    show isKabsoOwnerProvider;
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -209,13 +211,17 @@ class _LiveDataNowPageState extends ConsumerState<LiveDataNowPage> {
                   chevron: true,
                   onTap: () => unawaited(showLiveDataCenter(context)),
                 ),
-                const SizedBox(height: 10.6),
-                _row(
-                  key: LiveDataNowPage.levelKey,
-                  icon: CharmLevelBadge(level: widget.level ?? 0, height: 16),
-                  label: l10n.liveDataLevel('${widget.level ?? 0}'),
-                  help: l10n.liveDataLevelHelp,
-                ),
+                // D361 (§10.156; owner: «المؤسس ليس له ليفيل»): no level
+                // row for the founder (never «Lv 0»).
+                if (!ref.watch(isKabsoOwnerProvider)) ...[
+                  const SizedBox(height: 10.6),
+                  _row(
+                    key: LiveDataNowPage.levelKey,
+                    icon: CharmLevelBadge(level: widget.level ?? 0, height: 16),
+                    label: l10n.liveDataLevel('${widget.level ?? 0}'),
+                    help: l10n.liveDataLevelHelp,
+                  ),
+                ],
                 const SizedBox(height: 24),
               ],
             ),

@@ -589,7 +589,10 @@ class _Body extends ConsumerWidget {
     final scope = this.scope;
     // D258: on the VIP card art, the colours measured for it.
     final look = _LookScope.maybeOf(context) ?? this.look;
-    final levels = ref.watch(profileLevelsProvider(username)).value ?? const [];
+    // D361 (§10.156): the founder shows no level (the server sends none too).
+    final levels = profile.kabsoOwner
+        ? const <PublicLevel>[]
+        : ref.watch(profileLevelsProvider(username)).value ?? const [];
     final shown = [
       for (final l in levels)
         if (l.level != null) l,

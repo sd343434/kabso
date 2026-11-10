@@ -48,8 +48,10 @@ AccountCategory? accountCategoryFromJson(Object? json) =>
     AccountCategory.fromWire(json);
 String? accountCategoryToJson(AccountCategory? category) => category?.wire;
 
-/// `ProfileLinkPlatform`: the server names the known domains; the app opens
-/// those directly and warns before any [other] link.
+/// `ProfileLinkPlatform`: the server names the known domains. The app opens
+/// TikTok, YouTube and X directly and shows «أنت تغادر Kabso» before every
+/// other link — Instagram, Facebook, WhatsApp and Snapchat included (D361,
+/// owner: D357 had opened those four directly without his approval).
 enum ProfileLinkPlatform {
   instagram('INSTAGRAM'),
   tiktok('TIKTOK'),
@@ -71,8 +73,13 @@ enum ProfileLinkPlatform {
   static ProfileLinkPlatform fromWire(Object? wire) =>
       values.where((p) => p.wire == wire).firstOrNull ?? other;
 
-  /// Opened without the «أنت تغادر Kabso» warning.
+  /// A platform the server names (not [other]).
   bool get known => this != other;
+
+  /// Opened without the «أنت تغادر Kabso» warning (D175's sheet for every
+  /// other link). D361: never Instagram, Facebook, WhatsApp or Snapchat —
+  /// they ask first, the founder's social row too.
+  bool get opensDirectly => this == tiktok || this == youtube || this == x;
 }
 
 /// `ProfileLink`.

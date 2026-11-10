@@ -2275,6 +2275,13 @@ class AppLocalizationsAr extends AppLocalizations {
       'المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.';
 
   @override
+  String get levelsFounderTitle => 'المؤسس ليس له مستوى';
+
+  @override
+  String get levelsFounderBody =>
+      'حساب مؤسس كابسو لا يحمل مستوى، ولا يظهر له مستوى في أي مكان: الملف الشخصي والبث والدردشة والقوائم.';
+
+  @override
   String get levelsUnavailable => 'غير مفعّل بعد';
 
   @override

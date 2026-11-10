@@ -14,8 +14,9 @@ import 'package:url_launcher/url_launcher.dart' as launcher;
 /// D175 (owner, contract v1.47-social, CONVENTIONS §10.47): how the profile
 /// fields read and behave — the gender and category names, the gender
 /// choice of Register and Edit profile, the line under the name, the links
-/// row and opening a link (known platforms directly; any other link only
-/// after «أنت تغادر Kabso» with the full URL).
+/// row and opening a link (TikTok, YouTube and X directly; any other link —
+/// Instagram, Facebook, WhatsApp and Snapchat too since D361 — only after
+/// «أنت تغادر Kabso» with the full URL).
 
 String genderLabel(AppLocalizations l10n, Gender gender) => switch (gender) {
   Gender.male => l10n.genderMale,
@@ -236,9 +237,10 @@ class ProfileLinksRow extends ConsumerWidget {
   }
 }
 
-/// Opens [link]: a known platform (Instagram, TikTok, YouTube, Facebook, X)
-/// at once; any other link only after «أنت تغادر Kabso» shows the full URL
-/// and the person confirms (owner, D175).
+/// Opens [link]: TikTok, YouTube or X at once; any other link only after
+/// «أنت تغادر Kabso» shows the full URL and the person confirms (owner, D175).
+/// D361 (owner: D357's direct opening was not approved): Instagram, Facebook,
+/// WhatsApp and Snapchat ask first too — the founder's social row included.
 Future<void> openProfileLink(
   BuildContext context,
   WidgetRef ref,
@@ -246,7 +248,7 @@ Future<void> openProfileLink(
   required bool reportable,
 }) async {
   final l10n = context.l10n;
-  if (!link.platform.known) {
+  if (!link.platform.opensDirectly) {
     final choice = await showModalBottomSheet<_Leaving>(
       context: context,
       isScrollControlled: true,
