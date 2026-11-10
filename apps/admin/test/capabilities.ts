@@ -102,4 +102,6 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'store_iap.unban': ['OWNER'],
   'support.whatsapp': ['OWNER', 'MODERATION', 'SUPPORT'],
   'support.whatsapp.manage': ['OWNER', 'MODERATION'],
+  // D360: the default when no WhatsApp level is set for the person (exactly D355).
+  'support.whatsapp.view': ['OWNER', 'MODERATION', 'SUPPORT'],
 };

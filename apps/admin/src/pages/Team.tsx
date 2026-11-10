@@ -28,6 +28,110 @@ export interface Member {
   staffId?: string | null;
   /** D285: how many recruits the person has, by type (absent from an older API). */
   recruits?: RecruitCounts;
+  /** D360: the WhatsApp level «مستوى واتساب» (absent from an older API). */
+  whatsapp?: TeamWhatsApp;
+}
+
+/** D360 (v1.120-social, §10.155): a staff member's WhatsApp level. */
+export type WhatsAppLevel = 'NONE' | 'VIEW' | 'REPLY' | 'MANAGE';
+export const WHATSAPP_LEVELS: WhatsAppLevel[] = ['NONE', 'VIEW', 'REPLY', 'MANAGE'];
+export interface TeamWhatsApp {
+  level: WhatsAppLevel;
+  /** The level set for the person; null — the roles' default applies. */
+  setLevel: WhatsAppLevel | null;
+  defaultLevel: WhatsAppLevel;
+  /** An OWNER: always MANAGE. */
+  locked: boolean;
+}
+
+/** D360: set a level (or null: back to the roles' default) — team.manage, the reason and a fresh code; audited. */
+export const setStaffWhatsApp = (userId: string, level: WhatsAppLevel | null, reason: string, totpCode: string) =>
+  api.put<{ userId: string; before: WhatsAppLevel; whatsapp: TeamWhatsApp; released: number }>(
+    `/admin/team/${userId}/whatsapp`,
+    { level, reason, totpCode },
+  );
+
+/** D360: the level row of a member card — the level, «افتراضي» when none is set, and what it allows. */
+export function WhatsAppLevelRow({ wa, onEdit }: { wa: TeamWhatsApp; onEdit?: () => void }) {
+  const { t } = useApp();
+  return (
+    <>
+      <dt>{t('waLevel')}</dt>
+      <dd data-wa-level={wa.level} data-wa-level-set={wa.setLevel ?? ''}>
+        <span className={`badge ${wa.level === 'NONE' ? '' : wa.level === 'VIEW' ? 'warn' : 'info'}`}>
+          {t(`waLevel${wa.level}`)}
+        </span>{' '}
+        {wa.locked ? (
+          <span className="muted small">{t('waLevelOwner')}</span>
+        ) : wa.setLevel === null ? (
+          <span className="badge">{t('waLevelDefaultTag')}</span>
+        ) : null}
+        <div className="muted small">{t(`waLevel${wa.level}Hint`)}</div>
+        {!wa.locked && onEdit && (
+          <button className="btn small" data-edit-wa-level onClick={onEdit}>
+            {t('waLevelEdit')}
+          </button>
+        )}
+      </dd>
+    </>
+  );
+}
+
+/** D360: pick the level (or the roles' default), then the reason and the code. */
+export function WhatsAppLevelDialog({
+  member,
+  onClose,
+  onDone,
+}: {
+  member: Member & { whatsapp: TeamWhatsApp };
+  onClose: () => void;
+  onDone: (released: number) => void;
+}) {
+  const { t } = useApp();
+  const wa = member.whatsapp;
+  const [picked, setPicked] = useState<WhatsAppLevel | 'DEFAULT'>(wa.setLevel ?? 'DEFAULT');
+  const released = useRef(0);
+  const options: (WhatsAppLevel | 'DEFAULT')[] = ['DEFAULT', ...WHATSAPP_LEVELS];
+  return (
+    <FormDialog
+      title={t('waLevelTitle', { name: member.displayName || `@${member.username}` })}
+      intro={
+        <>
+          <p className="muted small">{t('waLevelIntro')}</p>
+          <div className="wa-level-picks" role="radiogroup" aria-label={t('waLevel')}>
+            {options.map((o) => (
+              <label key={o} className="check-row" data-wa-level-option={o}>
+                <input
+                  type="radio"
+                  name="wa-level"
+                  checked={picked === o}
+                  onChange={() => setPicked(o)}
+                />{' '}
+                <span className="strong">
+                  {o === 'DEFAULT' ? t('waLevelDefault', { level: t(`waLevel${wa.defaultLevel}`) }) : t(`waLevel${o}`)}
+                </span>
+                <span className="muted small"> — {t(`waLevel${o === 'DEFAULT' ? wa.defaultLevel : o}Hint`)}</span>
+              </label>
+            ))}
+          </div>
+        </>
+      }
+      fields={[reasonField(t), stepField(t)]}
+      confirmLabel={t('save')}
+      submit={async (v) => {
+        const r = await setStaffWhatsApp(
+          member.id,
+          picked === 'DEFAULT' ? null : picked,
+          v.reason ?? '',
+          v.totpCode ?? '',
+        );
+        released.current = r.released;
+        return r;
+      }}
+      onClose={onClose}
+      onDone={() => onDone(released.current)}
+    />
+  );
 }
 
 /**
@@ -217,6 +321,7 @@ export function MemberCard({
   onRevoke,
   onReset,
   onRegions,
+  onWhatsApp,
 }: {
   m: Member;
   selfId: string | undefined;
@@ -225,6 +330,8 @@ export function MemberCard({
   onReset: () => void;
   /** D283: edit the regions (MODERATION / SUPPORT only). */
   onRegions?: () => void;
+  /** D360: change the WhatsApp level (never an OWNER's). */
+  onWhatsApp?: () => void;
 }) {
   const { t, lang } = useApp();
   const self = m.id === selfId;
@@ -305,6 +412,7 @@ export function MemberCard({
             </dd>
           </>
         )}
+        {m.whatsapp && <WhatsAppLevelRow wa={m.whatsapp} onEdit={onWhatsApp} />}
         {m.lockedUntil && (
           <>
             <dt>{t('teamLocked')}</dt>
@@ -345,7 +453,13 @@ export function Team() {
   const { t, session, toast } = useApp();
   const { data, error, reload } = useAsync(() => api.get<{ data: Member[] }>('/admin/team'), []);
   const [dialog, setDialog] = useState<
-    'grant' | { revoke: Member } | { reset: Member } | { next: GrantResult } | { regions: Member } | null
+    | 'grant'
+    | { revoke: Member }
+    | { reset: Member }
+    | { next: GrantResult }
+    | { regions: Member }
+    | { whatsapp: Member & { whatsapp: TeamWhatsApp } }
+    | null
   >(null);
   const [revokeRole, setRevokeRole] = useState<PanelRole | null>(null);
   const [query, setQuery] = useState('');
@@ -405,6 +519,7 @@ export function Team() {
             onRevoke={() => setDialog({ revoke: m })}
             onReset={() => setDialog({ reset: m })}
             onRegions={() => setDialog({ regions: m })}
+            onWhatsApp={m.whatsapp ? () => setDialog({ whatsapp: m as Member & { whatsapp: TeamWhatsApp } }) : undefined}
           />
         ))}
       </div>
@@ -457,6 +572,16 @@ export function Team() {
             setRevokeRole(null);
           }}
           onDone={done}
+        />
+      )}
+      {dialog && dialog !== 'grant' && 'whatsapp' in dialog && (
+        <WhatsAppLevelDialog
+          member={dialog.whatsapp}
+          onClose={() => setDialog(null)}
+          onDone={(released) => {
+            done();
+            if (released > 0) toast(t('waLevelReleased', { n: released }));
+          }}
         />
       )}
       {dialog && dialog !== 'grant' && 'regions' in dialog && (

@@ -43,7 +43,12 @@ import { AdminProgramsService } from './admin-programs.service.js';
 import { AdminSessionGuard, CurrentAdmin, RequireCapability } from './admin-session.guard.js';
 import { AdminStatsService } from './admin-stats.service.js';
 import { sendTable, type TableQuery } from './admin-tables.js';
-import { AdminTeamService, type AuditQuery, type TeamGrantBody } from './admin-team.service.js';
+import {
+  AdminTeamService,
+  type AuditQuery,
+  type TeamGrantBody,
+  type TeamWhatsAppBody,
+} from './admin-team.service.js';
 import { AdminStaffShiftsService } from './admin-staff-shifts.service.js';
 import {
   agenciesQuery,
@@ -85,6 +90,7 @@ import {
   teamGrantBody,
   teamResetBody,
   teamRegionsBody,
+  teamWhatsAppBody,
   type TeamRegionsBody,
   teamRevokeBody,
   updateGiftBody,
@@ -985,6 +991,19 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
   ) {
     return this.team.setRegions(pathUuid(id), body, admin);
+  }
+
+  /** v1.120-social (D360, §10.155): a staff member's WhatsApp level (team.manage, code + reason, audited). */
+  @Put('team/:userId/whatsapp')
+  @HttpCode(200)
+  @TEAM_LIMIT
+  @RequireCapability('team.manage')
+  teamWhatsApp(
+    @Param('userId') id: string,
+    @Body(new ZodValidationPipe(teamWhatsAppBody)) body: TeamWhatsAppBody,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.team.setWhatsApp(pathUuid(id), body, admin);
   }
 
   @Post('team/:userId/reset-2fa')

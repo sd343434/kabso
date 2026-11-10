@@ -10,7 +10,7 @@ import { LiveKicksService } from '../live/live-kicks.service.js';
 import { WATCH_STAFF_ROLES } from '../live/live-staff.js';
 import { openLiveReportsByRoom } from '../live/live-reports.js';
 import { AdminAuthService, type AdminContext, type AdminMeta } from './admin-auth.service.js';
-import { capabilitiesOf, type Capability } from './admin-permissions.js';
+import type { Capability } from './admin-permissions.js';
 import { refused } from './admin-users.service.js';
 import {
   countriesOfRegions,
@@ -45,6 +45,8 @@ export const STAFF_APP_CAPABILITIES = [
   // v1.116-social (D355, §10.151): «واتساب» — the shared WhatsApp inbox and its quick replies.
   'support.whatsapp',
   'support.whatsapp.manage',
+  // v1.120-social (D360, §10.155): VIEW — «مشاهدة فقط» (the inbox read only). The three come from the person's level.
+  'support.whatsapp.view',
 ] as const satisfies readonly Capability[];
 
 /** `StaffStatus` (v1.68-live, D273). */
@@ -114,7 +116,7 @@ export class StaffAppService {
 
   /** `GET /staff/me`: any signed-in user (a non-staff account reads `isStaff` false and nothing else). */
   async status(userId: string, sessionId: string): Promise<StaffStatusDto> {
-    const roles = await this.adminAuth.rolesOf(userId);
+    const { roles, capabilities } = await this.adminAuth.accessOf(userId);
     if (roles.length === 0) {
       return {
         isStaff: false,
@@ -127,9 +129,7 @@ export class StaffAppService {
         onShift: false,
       };
     }
-    const caps = capabilitiesOf(roles).filter((c) =>
-      (STAFF_APP_CAPABILITIES as readonly string[]).includes(c),
-    );
+    const caps = capabilities.filter((c) => (STAFF_APP_CAPABILITIES as readonly string[]).includes(c));
     const isStaff = roles.some((r) => (WATCH_STAFF_ROLES as readonly string[]).includes(r));
     const now = this.clock.now();
     const [second, shift] = await Promise.all([

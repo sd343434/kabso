@@ -345,6 +345,8 @@ export enum AuditAction {
   WHATSAPP_TEST = 'whatsapp.connection.test',
   WHATSAPP_WEBHOOK_REFUSED = 'whatsapp.webhook.refused',
   WHATSAPP_PURGE = 'whatsapp.retention.purge',
+  /** v1.120-social (D360, §10.155): a staff member's WhatsApp level set or reset {before, after, released, reason}. */
+  WHATSAPP_LEVEL = 'admin.team.whatsapp',
   TOPUP_EVENT_UNMATCHED = 'topup.event.unmatched',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',

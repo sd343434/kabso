@@ -17517,6 +17517,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get waDetails => 'تفاصيل العميل';
 
   @override
+  String get waViewOnly => 'مشاهدة فقط';
+
+  @override
+  String get waViewOnlyHint =>
+      'مستواك في واتساب «مشاهدة فقط»: تقرأ المحادثة وتفاصيل العميل، ولا يمكنك الرد أو اتخاذ إجراء.';
+
+  @override
   String eventsUnitDays(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

@@ -5458,6 +5458,8 @@
   "waErrSend": "WhatsApp did not accept the message.",
   "waErrOff": "WhatsApp is not on on the server.",
   "waDetails": "Customer details",
+  "waViewOnly": "View only",
+  "waViewOnlyHint": "Your WhatsApp level is View only: you read the conversation and the customer details, and cannot reply or act.",
   "eventsUnitDays": "{count, plural, =1{Day} other{Days}}",
   "eventsUnitHours": "{count, plural, =1{Hour} other{Hours}}",
   "eventsUnitMinutes": "{count, plural, =1{Min} other{Min}}",

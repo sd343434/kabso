@@ -119,7 +119,9 @@ export type Capability =
   | 'store_iap.unban'
   // v1.116-social (D355): «واتساب».
   | 'support.whatsapp'
-  | 'support.whatsapp.manage';
+  | 'support.whatsapp.manage'
+  // v1.120-social (D360): «مشاهدة فقط» — the WhatsApp level VIEW (the three come from the staff member's level).
+  | 'support.whatsapp.view';
 
 /** v1.90-social (D293, §10.105): the automatic verification badge, highest first. */
 export const VERIFICATION_BADGES = ['OWNER', 'STAFF', 'RECHARGE_AGENT', 'HOST_AGENT', 'CREATOR', 'VERIFIED_HOST'] as const;

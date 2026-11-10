@@ -11,7 +11,7 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { clientIp, type AppRequest } from '../../common/http/request-context.js';
 import { getRequestId } from '../../common/request-id/request-id.js';
 import { ADMIN_COOKIE, AdminAuthService, CSRF_HEADER, type AdminContext } from './admin-auth.service.js';
-import { can, type Capability } from './admin-permissions.js';
+import type { Capability } from './admin-permissions.js';
 import type { AdminSession } from '../../generated/prisma/client.js';
 
 const CAPABILITY_KEY = 'kabso:admin-capability';
@@ -82,7 +82,8 @@ export class AdminSessionGuard implements CanActivate {
     if (wantStage === 'PASSWORD') return true;
     const cap = this.reflector.get<Capability | '*' | undefined>(CAPABILITY_KEY, context.getHandler());
     if (!cap) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
-    if (cap !== '*' && !can(ctx.roles, cap)) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+    // `capabilities` = the roles' plus the WhatsApp level's (D360): the same answer as the roles for every other one.
+    if (cap !== '*' && !ctx.capabilities.includes(cap)) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
     return true;
   }
 }

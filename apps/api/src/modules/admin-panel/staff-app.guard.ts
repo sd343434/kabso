@@ -12,7 +12,7 @@ import { clientIp, type AppRequest } from '../../common/http/request-context.js'
 import { getRequestId } from '../../common/request-id/request-id.js';
 import { LiveStaffAssignmentService } from '../live/live-staff-assignment.service.js';
 import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
-import { can, capabilitiesOf, type Capability } from './admin-permissions.js';
+import type { Capability } from './admin-permissions.js';
 
 const STAFF_CAPABILITY_KEY = 'kabso:staff-app-capability';
 const STAFF_NOT_WORK_KEY = 'kabso:staff-app-not-work';
@@ -54,14 +54,15 @@ export class StaffAppGuard implements CanActivate {
     this.auth.requireOn();
     const cap = this.reflector.get<Capability | undefined>(STAFF_CAPABILITY_KEY, context.getHandler());
     if (!cap) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
-    const roles = await this.auth.rolesOf(req.auth.userId);
-    if (roles.length === 0 || !can(roles, cap)) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+    // The roles held now and their capabilities, the WhatsApp ones from the person's level (D360, §10.155).
+    const { roles, capabilities } = await this.auth.accessOf(req.auth.userId);
+    if (roles.length === 0 || !capabilities.includes(cap)) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
     req.staff = {
       sessionId: req.auth.sessionId,
       userId: req.auth.userId,
       stage: 'ACTIVE',
       roles,
-      capabilities: capabilitiesOf(roles),
+      capabilities,
       ip: clientIp(req),
       requestId: getRequestId(req),
       via: 'app',
