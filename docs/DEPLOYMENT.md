@@ -1767,8 +1767,8 @@ staging keeps going live exactly as before.
 
 ### 11.12 The event page designer (D354; migration `20270420090000_event_page_design`) — [IMPLEMENTED phase 1, draft contract v1.115-social; not deployed, not device-tested]
 
-CONVENTIONS §10.150 (owner 2026-11-10 «اجعل كل الخيارات متاحة»). §11.9–§11.11 are left for in-flight work (D350, D351,
-D353).
+CONVENTIONS §10.150 (owner 2026-11-10 «اجعل كل الخيارات متاحة»). §11.9 and §11.10 are D350 / D351; §11.11 is
+unused.
 
 - **Migration:** `20270420090000_event_page_design` adds `events.design JSONB` (nullable, no default — metadata only, no
   rewrite) with CHECK `events_design_shape` (null, or an object whose `v` is 1), and re-creates
