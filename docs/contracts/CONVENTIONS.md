@@ -5605,6 +5605,11 @@ false (and the post is not the caller's), and «مقترح لك» under the name
   (system), `admin.cover.remove` is audited with the reason, the files are deleted after commit. No cover → the
   panel answers 409 `ADMIN_ACTION_REFUSED`, the CLI changes nothing.
 - **Account deletion** clears the cover with the photo (§10.56).
+- **The app (D353).** «صورة الغلاف» opens from «تعديل الملف» and from the own profile page's cover tap (D335):
+  library / camera / remove → the picture whole (JPEG / PNG / WebP by its bytes, ≤ 15 MiB) uploaded as a
+  `PROFILE_COVER` → `PUT /me/cover` → shown at once. The flow keeps its (auto-disposed) controller alive from the
+  sheet to the answer, whichever screen started it; before D353 the profile page's tap lost it while the picker
+  was open and every pick ended in «حدث خطأ غير متوقع» with nothing uploaded (no wire change).
 
 #### 10.73.4 The profile's facts row
 

@@ -521,6 +521,12 @@ Future<void> changeProfileCover(
     ),
   );
   if (!context.mounted || action == null) return;
+  // D353: the controller is auto-disposed. «تعديل الملف» watches it, but the
+  // own profile page's cover tap (D335) does not: read alone, it was disposed
+  // while the picker was open, and `change` then threw (Riverpod 3:
+  // `UnmountedRefException`) — «حدث خطأ» and nothing uploaded. Keep it alive
+  // for the whole pick → upload → `PUT /me/cover`.
+  final keepAlive = ref.listenManual(profileCoverControllerProvider, (_, _) {});
   final controller = ref.read(profileCoverControllerProvider.notifier);
   try {
     switch (action) {
@@ -558,6 +564,8 @@ Future<void> changeProfileCover(
     if (context.mounted) {
       KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
     }
+  } finally {
+    keepAlive.close();
   }
 }
 
