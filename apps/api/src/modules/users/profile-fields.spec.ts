@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { updateMeSchema } from '../auth/auth.schemas.js';
 import {
+  FOUNDER_SOCIAL_PLATFORMS,
   keptProfileTagIcons,
   linkPlatform,
+  MAX_FOUNDER_PROFILE_LINKS,
+  MAX_PROFILE_LINKS,
   PROFILE_TAG_ICONS,
   profileTagIconsOf,
   profileTagIconsSchema,
@@ -12,6 +15,7 @@ import {
   profileTagsOf,
   profileTagsSchema,
   publicGender,
+  whatsAppLinkOf,
 } from './profile-fields.js';
 
 describe('profile links (v1.47-social, D175, §10.47)', () => {
@@ -81,8 +85,33 @@ describe('profile links (v1.47-social, D175, §10.47)', () => {
       ['https://notinstagram.com/a', 'OTHER'],
       ['https://myx.com/a', 'OTHER'],
       ['https://example.com/instagram.com', 'OTHER'],
+      // v1.118-social (D357): the founder row's WhatsApp and Snapchat.
+      ['https://wa.me/966501234567', 'WHATSAPP'],
+      ['https://api.whatsapp.com/send?phone=966501234567', 'WHATSAPP'],
+      ['https://whatsapp.com/channel/abc', 'WHATSAPP'],
+      ['https://snapchat.com/add/kabso', 'SNAPCHAT'],
+      ['https://www.snapchat.com/add/kabso', 'SNAPCHAT'],
+      ['https://wa.me.evil.example/1', 'OTHER'],
+      ['https://notsnapchat.com/a', 'OTHER'],
     ];
     for (const [url, platform] of cases) expect([url, linkPlatform(url)]).toEqual([url, platform]);
+  });
+
+  it('D357: a bare phone number becomes a wa.me link; national, short or odd input does not', () => {
+    expect(whatsAppLinkOf('+966 50 123 4567')).toBe('https://wa.me/966501234567');
+    expect(whatsAppLinkOf('00966501234567')).toBe('https://wa.me/966501234567');
+    expect(whatsAppLinkOf('966-50-123-4567')).toBe('https://wa.me/966501234567');
+    expect(whatsAppLinkOf('0501234567')).toBeNull(); // no country code
+    expect(whatsAppLinkOf('+1234567')).toBeNull(); // 7 digits
+    expect(whatsAppLinkOf('+1234567890123456')).toBeNull(); // 16 digits
+    expect(whatsAppLinkOf('+966 50 abc')).toBeNull();
+    expect(whatsAppLinkOf('https://wa.me/1')).toBeNull();
+    expect(normalizeProfileLink(' +966 50 123 4567 ')).toEqual({ value: 'https://wa.me/966501234567' });
+    expect(linkPlatform('https://wa.me/966501234567')).toBe('WHATSAPP');
+    // Everything else keeps the https-only rule.
+    expect(normalizeProfileLink('wa.me/966501234567')).toEqual({ issue: 'invalid_format' });
+    expect(normalizeProfileLink('http://instagram.com/kabso')).toEqual({ issue: 'invalid_format' });
+    expect(FOUNDER_SOCIAL_PLATFORMS).toEqual(['INSTAGRAM', 'FACEBOOK', 'WHATSAPP', 'SNAPCHAT']);
   });
 
   it('accepts 0–3 links, refuses a fourth and duplicates after normalisation', () => {
@@ -98,7 +127,13 @@ describe('profile links (v1.47-social, D175, §10.47)', () => {
       { url: 'https://b.co/', label: 'B' },
       { url: 'https://c.co/', label: null },
     ]);
-    expect(profileLinksSchema.safeParse([...three, { url: 'https://d.co' }]).success).toBe(false);
+    // D357: the schema takes up to 7 (the app owner's); a 4th for anyone else is refused by the service
+    // (`links` / `too_many`, the d175 / d357 e2e); an 8th is refused here for everyone.
+    expect(MAX_PROFILE_LINKS).toBe(3);
+    expect(MAX_FOUNDER_PROFILE_LINKS).toBe(7);
+    const seven = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((h) => ({ url: `https://${h}.co` }));
+    expect(profileLinksSchema.safeParse(seven).success).toBe(true);
+    expect(profileLinksSchema.safeParse([...seven, { url: 'https://h.co' }]).success).toBe(false);
     const dup = profileLinksSchema.safeParse([{ url: 'https://A.co' }, { url: 'https://a.co/#x' }]);
     expect(dup.success).toBe(false);
     expect(dup.error?.issues[0]?.path).toEqual([1, 'url']);

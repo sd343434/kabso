@@ -6,7 +6,10 @@
  * when several apply the highest of this order wins (the owner also expects a person to qualify for one at most —
  * the order only makes an overlap deterministic):
  *
- *  1. OWNER — black seal, gold rim: the app owner (the panel role OWNER);
+ *  1. OWNER — RESERVED since v1.118-social (D357, owner 2026-11-10: «ازيلها»): the app owner (the panel role OWNER)
+ *     shows NO seal at all — holding OWNER suppresses every other badge (`pickBadge` → null), so the founder's only
+ *     mark is the app's red photo seal on his own profile. The value stays in the enum (older apps still parse it;
+ *     the panel's holders count reads 0) but is never stored or sent;
  *  2. STAFF — red: the Kabso Team (MODERATION, SUPPORT, FINANCE, BD; D283's limited staff);
  *  3. RECHARGE_AGENT — gold: an ACTIVE recharge agent who sold more than N coins AND bought more than M
  *     cherries from hosts in the window (the agent's employees' work counts on the agent's account, D287);
@@ -60,9 +63,13 @@ export function exceeds(value: bigint, threshold: bigint): boolean {
   return value > threshold;
 }
 
-/** The highest badge of `held` by the owner's priority, or null when none applies. */
+/**
+ * The highest badge of `held` by the owner's priority, or null when none applies. D357: the app owner (OWNER held)
+ * shows none — not OWNER, and not a lower one (STAFF, CREATOR…) he may also qualify for.
+ */
 export function pickBadge(held: Iterable<VerificationBadgeValue>): VerificationBadgeValue | null {
   const set = new Set(held);
+  if (set.has('OWNER')) return null;
   for (const b of VERIFICATION_BADGES) if (set.has(b)) return b;
   return null;
 }

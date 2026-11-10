@@ -689,7 +689,8 @@ class MeHubScreen extends ConsumerWidget {
                     ),
                   // D293: my automatic verification badge right after the
                   // name.
-                  if (user?.verification case final badge?)
+                  // D357: never the OWNER seal beside the founder's name.
+                  if (shownVerification(user?.verification) case final badge?)
                     ProfileVerificationBadge(
                       key: verificationBadgeKey,
                       badge: badge,

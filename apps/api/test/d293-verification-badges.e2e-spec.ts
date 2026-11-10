@@ -2,7 +2,9 @@
  * D293 (owner, contract v1.90-social, CONVENTIONS §10.105): automatic verification badges «شارة التوثيق», end to end
  * against PostgreSQL + Redis:
  *
- *  - each of the six badges granted (OWNER, STAFF, RECHARGE_AGENT, HOST_AGENT, CREATOR, VERIFIED_HOST);
+ *  - each of the five badges granted (STAFF, RECHARGE_AGENT, HOST_AGENT, CREATOR, VERIFIED_HOST); D357 (owner
+ *    2026-11-10: «ازيلها»): the app owner (OWNER) gets NO badge — not OWNER, not a lower one he also holds — and a
+ *    stored OWNER row is removed at his next recompute (and by the D357 migration at deploy);
  *  - at once on a panel role, a creator approval and an identity-check approval (no sweep);
  *  - one badge per person, the highest by the owner's priority when several apply;
  *  - "more than": exactly 300 000 000 does not qualify, 300 000 001 does (coins sold, cherries bought, agency
@@ -357,17 +359,16 @@ describe('D293 verification badges', { timeout: 600_000 }, () => {
     expect(res.body.windowDays).toBe(30);
   });
 
-  it('OWNER and STAFF are granted at once with the role and removed with it (D293)', async () => {
-    // The OWNER's grant (makeAdmin) already gave the badge — no sweep ran.
+  it('STAFF is granted at once with the role and removed with it; the OWNER gets no badge (D293, D357)', async () => {
+    // D357: the OWNER's grant (makeAdmin) gives no badge — not in /me, not on his public profile, nothing stored.
     const ownerUser = {
       ...owner,
       username: (await ctx.prisma.userProfile.findUniqueOrThrow({ where: { userId: owner.id } })).username,
     };
-    expect(await meBadge(ownerUser)).toBe('OWNER');
-    expect(await publicBadge(ownerUser)).toBe('OWNER');
-    expect(await audits(owner.id)).toEqual([
-      { before: null, after: 'OWNER', change: 'granted', cause: 'role' },
-    ]);
+    expect(await meBadge(ownerUser)).toBeNull();
+    expect(await publicBadge(ownerUser)).toBeNull();
+    expect(await badgeOf(owner.id)).toBeNull();
+    expect(await audits(owner.id)).toEqual([]);
 
     // Every Kabso Team role is STAFF (red).
     for (const role of ['MODERATION', 'SUPPORT', 'FINANCE', 'BD']) {
@@ -388,16 +389,17 @@ describe('D293 verification badges', { timeout: 600_000 }, () => {
       }
     }
 
-    // OWNER + STAFF on one account: OWNER (priority 1).
+    // OWNER + STAFF on one account: D357 — no badge at all while OWNER is held (the STAFF seal goes, audited).
     const both = await signup();
     await grant(both.email, 'SUPPORT');
     expect(await meBadge(both)).toBe('STAFF');
     await grant(both.email, 'OWNER');
-    expect(await meBadge(both)).toBe('OWNER');
+    expect(await meBadge(both)).toBeNull();
+    expect(await publicBadge(both)).toBeNull();
     expect((await audits(both.id)).at(-1)).toEqual({
       before: 'STAFF',
-      after: 'OWNER',
-      change: 'changed',
+      after: null,
+      change: 'removed',
       cause: 'role',
     });
     // The OWNER role taken back: STAFF again at once.
@@ -636,11 +638,19 @@ describe('D293 verification badges', { timeout: 600_000 }, () => {
     await grant(staffHost.email, 'MODERATION');
     expect(await badgeOf(staffHost.id)).toBe('STAFF');
 
-    // OWNER + CREATOR → OWNER.
+    // OWNER + CREATOR → none (D357: the app owner shows no seal at all).
     const ownerCreator = await signup();
     await approveCreator(ownerCreator.id);
+    expect(await badgeOf(ownerCreator.id)).toBe('CREATOR');
     await grant(ownerCreator.email, 'OWNER');
-    expect(await badgeOf(ownerCreator.id)).toBe('OWNER');
+    expect(await badgeOf(ownerCreator.id)).toBeNull();
+
+    // A stored OWNER row from before D357 (an older server wrote it) is removed at the next sweep and never sent.
+    await ctx.prisma.userVerificationBadge.create({
+      data: { userId: ownerCreator.id, badge: 'OWNER', since: new Date(), computedAt: new Date() },
+    });
+    await sweep();
+    expect(await badgeOf(ownerCreator.id)).toBeNull();
 
     // RECHARGE_AGENT + CREATOR → RECHARGE_AGENT; when the sales stop → CREATOR (the next one). Since D295 a creator
     // cannot also be a host (the trigger refuses another hosting source) and the membership's own permission (source

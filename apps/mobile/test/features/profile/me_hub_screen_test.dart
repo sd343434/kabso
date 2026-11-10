@@ -3,6 +3,9 @@
 // built feature opens its real screen, every unbuilt one is faded with
 // "Soon" and does nothing, RTL/LTR and small screens.
 
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +28,7 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
@@ -229,7 +233,7 @@ void main() {
         language: language,
         viewport: GoldenViewport.android,
         textScale: 1.3,
-        user: testUser().copyWith(verification: VerificationBadge.owner),
+        user: testUser().copyWith(verification: VerificationBadge.staff),
       );
       expect(tester.takeException(), isNull);
       final name = tester.getRect(find.byKey(MeHubScreen.nameKey));
@@ -238,6 +242,52 @@ void main() {
       expect(seal.right, lessThanOrEqualTo(360));
       expect(seal.center.dy, moreOrLessEquals(name.center.dy, epsilon: 4));
     });
+  }
+
+  testWidgets('D357: never the OWNER seal beside the name (owner: «ازيلها»)', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      user: testUser().copyWith(verification: VerificationBadge.owner),
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(MeHubScreen.nameKey), findsOneWidget);
+    expect(find.byKey(MeHubScreen.verificationBadgeKey), findsNothing);
+    expect(find.byType(ProfileVerificationBadge), findsNothing);
+    expect(find.bySemanticsLabel('Verified: app owner'), findsNothing);
+  });
+
+  // D357: the founder's own Me tab — his name with no seal beside it.
+  final founderDir = Platform.environment['D357_CAPTURE_DIR'];
+  for (final language in AppLanguage.values) {
+    testWidgets(
+      'D357 capture: the founder Me tab, no seal '
+      '(${language.name})',
+      skip: founderDir == null,
+      (tester) async {
+        final ar = language == AppLanguage.ar;
+        await _pump(
+          tester,
+          language: language,
+          user: testUser().copyWith(
+            displayName: ar ? 'مؤسس كابسو' : 'Kabso Founder',
+            verification: VerificationBadge.owner,
+          ),
+          extra: [isKabsoOwnerProvider.overrideWithValue(true)],
+        );
+        expect(find.byKey(MeHubScreen.verificationBadgeKey), findsNothing);
+        expect(find.byType(ProfileVerificationBadge), findsNothing);
+        await precacheImages(tester);
+        await tester.runAsync(() async {
+          final element = find.byType(MaterialApp).evaluate().first;
+          final image = await captureImage(element);
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          await File('${founderDir!}/founder.me_tab.${language.name}.light.png')
+              .writeAsBytes(bytes!.buffer.asUint8List());
+        });
+      },
+    );
   }
 
   testWidgets('D293: no verification badge without one', (tester) async {

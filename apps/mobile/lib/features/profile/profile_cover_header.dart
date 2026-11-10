@@ -50,6 +50,7 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
 import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
 import 'package:kabso_live/features/owner_profile/presentation/founder_badge.dart';
+import 'package:kabso_live/features/owner_profile/presentation/founder_socials.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_badge_wrap.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
@@ -230,11 +231,34 @@ abstract final class KPublicProfile {
   static const double factIcon = 16;
 
   /// D357 (founder page only): the name under the centred photo (E 24 dp,
-  /// bold, Kabso red), the red seal 8 dp under it, the bio 10 dp under the
-  /// seal, centred.
+  /// bold, Kabso red), the bio 10 dp under it, centred.
   static const double founderNameFont = 24;
-  static const double founderBadgeGap = 8;
   static const double founderBioGap = 10;
+
+  /// D357: the social row 12 dp under the bio.
+  static const double founderSocialGap = KSpacing.md;
+
+  /// D357 (owner: «بجانب اسم المؤسس ازل الشارة»): his red seal at the
+  /// bottom centre of the photo — 0.28 of the photo's diameter (the owner's
+  /// 0.26–0.30), never under 20 lp — on a [founderSealRing] ring, its
+  /// centre [founderSealRise] of the badge above the photo's bottom rim, so
+  /// it overlaps the rim and hangs [founderSealOverhang] below it.
+  static const double founderSealShare = 0.28;
+  static const double founderSealMin = 20;
+  static const double founderSealRing = 2.5;
+  static const double founderSealRise = 0.15;
+
+  /// The seal (ring excluded) on a photo [diameter] across.
+  static double founderSealFor(double diameter) =>
+      math.max(founderSealMin, (diameter * founderSealShare).roundToDouble());
+
+  /// The badge (ring included) on a photo [diameter] across.
+  static double founderSealOuterFor(double diameter) =>
+      founderSealFor(diameter) + 2 * founderSealRing;
+
+  /// How far the badge hangs below the photo's bottom rim.
+  static double founderSealOverhang(double diameter) =>
+      founderSealOuterFor(diameter) * (0.5 - founderSealRise);
 }
 
 /// D335: the top bar of the profile pages over the full-bleed cover — back
@@ -708,7 +732,8 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
                 KPublicProfile.inset,
                 box.height / 2 -
                     KPublicProfile.avatarLift +
-                    KPublicProfile.nameGap,
+                    KPublicProfile.nameGap +
+                    (founder ? _founderSealClearance(framed: framed) : 0),
                 KPublicProfile.inset,
                 KPublicProfile.bottomGap,
               ),
@@ -739,6 +764,18 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
           ),
       ],
     );
+  }
+
+  /// D357: the room the founder's photo seal needs under the photo's box
+  /// (a frame's taller box may already hold it).
+  double _founderSealClearance({required bool framed}) {
+    final diameter = framed ? KProfile.avatar : KPublicProfile.avatarOuter;
+    final boxHalf = framed
+        ? KPublicProfile.avatarSlot.height / 2
+        : KPublicProfile.avatarOuter / 2;
+    final below =
+        diameter / 2 + KPublicProfile.founderSealOverhang(diameter) - boxHalf;
+    return math.max(0, below);
   }
 
   /// The cover: the person's picture, a staff region's team cover (D283),
@@ -924,9 +961,12 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
               clipBehavior: Clip.none,
               children: [
                 Positioned.fill(child: picture),
-                // D357: the founder wears his red badge under the name
-                // instead of the seal on the photo.
-                if (profile.verification case final badge?
+                // D357: the founder's red seal at the photo's bottom centre,
+                // over its rim (never beside his name), on a white / surface
+                // ring that parts it from the photo and any frame.
+                if (profile.kabsoOwner) _founderSeal(context, c, radius),
+                // D357: the founder never wears the D293 seal.
+                if (shownVerification(profile.verification) case final badge?
                     when !profile.kabsoOwner)
                   PositionedDirectional(
                     start: c.dx + d - seal / 2,
@@ -970,6 +1010,27 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
             );
           },
         ),
+      ),
+    );
+  }
+
+  /// D357: the founder's photo seal, centred on the photo of [radius]
+  /// around [c], its centre a little above the bottom rim.
+  Widget _founderSeal(BuildContext context, Offset c, double radius) {
+    final diameter = 2 * radius;
+    final size = KPublicProfile.founderSealFor(diameter);
+    final outer = KPublicProfile.founderSealOuterFor(diameter);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final centreY = c.dy + radius - outer * KPublicProfile.founderSealRise;
+    return Positioned(
+      left: c.dx - outer / 2,
+      top: centreY - outer / 2,
+      width: outer,
+      height: outer,
+      child: FounderBadge(
+        size: size,
+        ring: dark ? context.palette.surface : const Color(0xFFFFFFFF),
+        ringWidth: KPublicProfile.founderSealRing,
       ),
     );
   }
@@ -1088,9 +1149,10 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
   }
 
   /// D357: the founder's centred block under the centred photo — the name
-  /// in Kabso red, his red seal under it, the other badges, the worn medals,
-  /// the bio, the tags and links (all centred), the two numbers, the buttons
-  /// and the bonds section (as [_info]).
+  /// in Kabso red (no seal beside or under it: his seal is on the photo),
+  /// the other badges, the worn medals, the bio, the tags and links (all
+  /// centred), the two numbers, the buttons and the bonds section (as
+  /// [_info]).
   Widget _founderInfo(BuildContext context) {
     final p = context.palette;
     final t = context.textStyles;
@@ -1098,13 +1160,11 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
     final bonds = ProfileCoverHeader.hasBonds(profile);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final badges = _badges(context);
-    final badge = Center(
-      child: FounderBadge(
-        size: ProfileVerificationBadge.sizeForFont(
-          KPublicProfile.founderNameFont,
-        ),
-      ),
-    );
+    final socials = FounderSocialRow.shown(profile.links);
+    final otherLinks = [
+      for (final l in profile.links)
+        if (!socials.contains(l)) l,
+    ];
     final bondsSection = _bondsOpen
         ? Padding(
             key: ProfileCoverHeader.bondsKey,
@@ -1151,8 +1211,6 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
                   ),
               ],
             ),
-            const SizedBox(height: KPublicProfile.founderBadgeGap),
-            badge,
             if (badges.isNotEmpty) ...[
               const SizedBox(height: KSpacing.xs),
               ProfileBadgeWrap(
@@ -1199,6 +1257,18 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
               ),
             ),
           ),
+        // D357: his social row right under the bio (his Instagram,
+        // Facebook, WhatsApp and Snapchat links; none → no row).
+        if (socials.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(
+              top: KPublicProfile.founderSocialGap,
+            ),
+            child: FounderSocialRow(
+              links: profile.links,
+              reportable: !profile.isSelf,
+            ),
+          ),
         if (profile.tags.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: KSpacing.sm),
@@ -1208,11 +1278,12 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
               alignment: WrapAlignment.center,
             ),
           ),
-        if (profile.links.isNotEmpty)
+        // His other links as chips (the row's links are not repeated).
+        if (otherLinks.isNotEmpty)
           KeyedSubtree(
             key: ProfileCoverHeader.linksKey,
             child: ProfileLinksRow(
-              links: profile.links,
+              links: otherLinks,
               reportable: !profile.isSelf,
               alignment: WrapAlignment.center,
             ),
@@ -1330,7 +1401,8 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
                         ),
                       ),
                       // D293: the verification seal right after the name.
-                      if (profile.verification case final badge?) ...[
+                      if (shownVerification(profile.verification)
+                          case final badge?) ...[
                         const SizedBox(width: KPublicProfile.sealGap),
                         ProfileVerificationBadge(
                           badge: badge,

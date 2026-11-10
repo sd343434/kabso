@@ -158,6 +158,7 @@ Future<FakeOwnerProfileRepository> pumpOwnerVisitor(
   FakeInlineVideos? videos,
   bool still = true,
   GoldenViewport viewport = GoldenViewport.phone,
+  List<Override> overrides = const [],
 }) async {
   final ar = language == AppLanguage.ar;
   final r = repo ?? d301Repo(ar: ar);
@@ -176,6 +177,7 @@ Future<FakeOwnerProfileRepository> pumpOwnerVisitor(
           FakeProfileRepository(profile ?? ownerProfile(ar: ar)),
         ),
         ..._common(r),
+        ...overrides,
       ],
     );
     await tester.pumpAndSettle();
@@ -808,9 +810,9 @@ void main() {
       for (final language in AppLanguage.values) {
         for (final viewport in GoldenViewport.values) {
           testD301('D357 ${language.name} ${viewport.name}: the photo '
-              "centred over the cover's edge, the name and the red badge "
-              'centred under it; a long name is cut with «…» on two lines, '
-              'nothing overflows', (tester) async {
+              "centred over the cover's edge, the red seal at the photo's "
+              'bottom centre, the name centred under it; a long name is '
+              'cut with «…» on two lines, nothing overflows', (tester) async {
             final ar = language == AppLanguage.ar;
             await pumpOwnerVisitor(
               tester,
@@ -845,13 +847,16 @@ void main() {
               find.byKey(const Key('profile.displayName')),
             );
             expect(nameRect.center.dx, closeTo(width / 2, 0.5));
-            // D357: no blue seal (after the name or on the photo); his red
-            // badge centred under the name.
+            // D357: no D293 seal (after the name or on the photo); his red
+            // seal at the photo's bottom centre, over its rim, above the
+            // name (owner: «بجانب اسم المؤسس ازل الشارة»).
             expect(find.byType(ProfileVerificationBadge), findsNothing);
             expect(find.byKey(ProfileCoverHeader.avatarBadgeKey), findsNothing);
             final badge = tester.getRect(find.byKey(FounderBadge.badgeKey));
             expect(badge.center.dx, closeTo(width / 2, 0.5));
-            expect(badge.top, greaterThanOrEqualTo(nameRect.bottom));
+            expect(badge.top, lessThan(photo.bottom));
+            expect(badge.bottom, greaterThan(photo.bottom));
+            expect(badge.bottom, lessThanOrEqualTo(line.top));
             // The name is cut on two lines at most, centred.
             final name = tester.widget<Text>(
               find.byKey(const Key('profile.displayName')),

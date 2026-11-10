@@ -456,7 +456,7 @@ enum AccountCategory {
 }
 
 /// v1.47-social (D175, CONVENTIONS §10.47): a profile link (https only, normalised by the API).
-/// At most 3 per user (`position` 0–2, CHECK `user_profile_links_position`). `PATCH /me` replaces
+/// At most 3 per user (D357: 7 for the app owner; `position` 0–6, CHECK `user_profile_links_position`). `PATCH /me` replaces
 /// the whole set.
 model UserProfileLink {
   id        String   @id @default(uuid(7)) @db.Uuid

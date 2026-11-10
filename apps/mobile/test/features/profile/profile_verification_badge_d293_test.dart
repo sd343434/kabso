@@ -45,8 +45,9 @@ const Map<VerificationBadge, (String, String)> _labels = {
   ),
 };
 
-/// The six seals, each after a sample name in the profile header's style
-/// (the badge row), and the six seals large side by side.
+/// The seals a name can show (D357: never OWNER's), each after a sample
+/// name in the profile header's style (the badge row), and the same seals
+/// large side by side.
 class _BadgeRows extends StatelessWidget {
   const new({required this.ar});
 
@@ -65,7 +66,7 @@ class _BadgeRows extends StatelessWidget {
       key: const Key('d293.rows'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final b in VerificationBadge.values)
+        for (final b in _shown)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: KSpacing.xs),
             child: Row(
@@ -87,7 +88,7 @@ class _BadgeRows extends StatelessWidget {
           key: const Key('d293.seals'),
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final b in VerificationBadge.values)
+            for (final b in _shown)
               Padding(
                 padding: const EdgeInsetsDirectional.only(end: KSpacing.md),
                 child: ProfileVerificationBadge(badge: b, size: 44),
@@ -98,6 +99,13 @@ class _BadgeRows extends StatelessWidget {
     );
   }
 }
+
+/// D357 (owner 2026-11-10: «ازيلها»): every badge but OWNER, which is never
+/// drawn.
+final List<VerificationBadge> _shown = [
+  for (final b in VerificationBadge.values)
+    if (b != VerificationBadge.owner) b,
+];
 
 Future<void> _pumpBadge(
   WidgetTester tester,
@@ -166,7 +174,55 @@ void main() {
     expect(path.contains(outside), isFalse);
   });
 
-  for (final badge in VerificationBadge.values) {
+  testWidgets('D357: the OWNER seal is never drawn (no paint, no label), '
+      'wherever it is placed', (tester) async {
+    expect(shownVerification(VerificationBadge.owner), isNull);
+    expect(shownVerification(null), isNull);
+    for (final b in _shown) {
+      expect(shownVerification(b), b);
+    }
+    await _pumpBadge(tester, VerificationBadge.owner);
+    expect(
+      find.descendant(
+        of: find.byType(ProfileVerificationBadge),
+        matching: find.byType(CustomPaint),
+      ),
+      findsNothing,
+    );
+    expect(find.byKey(ProfileVerificationBadge.badgeKey), findsNothing);
+    expect(
+      find.bySemanticsLabel(_labels[VerificationBadge.owner]!.$2),
+      findsNothing,
+    );
+    // The small seal after a name and the name-with-seal row: nothing, and
+    // no gap before it.
+    await pumpGolden(
+      tester,
+      const Align(
+        alignment: AlignmentDirectional.topStart,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            VerificationSeal(VerificationBadge.owner, fontSize: 16),
+            NameWithSeal(
+              key: Key('nws'),
+              name: Text('Founder', key: Key('nws.name')),
+              badge: VerificationBadge.owner,
+            ),
+          ],
+        ),
+      ),
+      language: AppLanguage.en,
+    );
+    expect(tester.getSize(find.byType(VerificationSeal)), Size.zero);
+    expect(find.byType(ProfileVerificationBadge), findsNothing);
+    expect(
+      tester.getSize(find.byKey(const Key('nws'))),
+      tester.getSize(find.byKey(const Key('nws.name'))),
+    );
+  });
+
+  for (final badge in _shown) {
     testWidgets('${badge.wire}: its icon, colour and label', (tester) async {
       await _pumpBadge(tester, badge);
       final icon = tester.widget<Icon>(
@@ -266,7 +322,7 @@ void main() {
         await pumpOther(
           tester,
           otherProfile(ar: language == AppLanguage.ar)
-              .copyWith(verification: VerificationBadge.owner),
+              .copyWith(verification: VerificationBadge.staff),
           language: language,
           viewport: GoldenViewport.android,
         );
@@ -286,6 +342,20 @@ void main() {
         expect(seal.center.dy, moreOrLessEquals(name.center.dy, epsilon: 4));
       });
     }
+
+    testWidgets('D357: no OWNER seal after the name or on the photo', (
+      tester,
+    ) async {
+      await pumpOther(
+        tester,
+        otherProfile(ar: true).copyWith(verification: VerificationBadge.owner),
+        language: AppLanguage.ar,
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(ProfileVerificationBadge.badgeKey), findsNothing);
+      expect(find.byKey(ProfileCoverHeader.avatarBadgeKey), findsNothing);
+      expect(find.byKey(ProfileCoverHeader.nameRowKey), findsOneWidget);
+    });
 
     testWidgets('no badge without one', (tester) async {
       await pumpOther(tester, otherProfile(ar: true), language: AppLanguage.ar);
@@ -350,15 +420,15 @@ void main() {
         await pumpOther(
           tester,
           otherProfile(ar: true)
-              .copyWith(verification: VerificationBadge.owner),
+              .copyWith(verification: VerificationBadge.staff),
           language: AppLanguage.ar,
           brightness: brightness,
           viewport: GoldenViewport.android,
         );
-        await capture(tester, 'header.ar.360x1_3.${brightness.name}.owner');
+        await capture(tester, 'header.ar.360x1_3.${brightness.name}.staff');
       });
       for (final badge in [
-        VerificationBadge.owner,
+        VerificationBadge.staff,
         VerificationBadge.rechargeAgent,
         VerificationBadge.verifiedHost,
       ]) {

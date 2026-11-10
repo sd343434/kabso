@@ -28,11 +28,31 @@ export const ACCOUNT_CATEGORIES = [
 ] as const;
 export type AccountCategory = (typeof ACCOUNT_CATEGORIES)[number];
 
-/** `ProfileLinkPlatform`: the known domains the app opens without a warning. */
-export type ProfileLinkPlatform = 'INSTAGRAM' | 'TIKTOK' | 'YOUTUBE' | 'FACEBOOK' | 'X' | 'OTHER';
+/**
+ * `ProfileLinkPlatform`: the known domains the app opens without a warning. v1.118-social (D357): `WHATSAPP` and
+ * `SNAPCHAT` added (additive; an older app reads them as `OTHER`).
+ */
+export type ProfileLinkPlatform =
+  | 'INSTAGRAM'
+  | 'TIKTOK'
+  | 'YOUTUBE'
+  | 'FACEBOOK'
+  | 'X'
+  | 'WHATSAPP'
+  | 'SNAPCHAT'
+  | 'OTHER';
 
 /** At most 3 links per profile. */
 export const MAX_PROFILE_LINKS = 3;
+/**
+ * v1.118-social (D357, owner: «تحت البايو ضع اشارة السوشل ميديا مثل انستقرام وفيسبوك وواتساب وسناب شات»): the app
+ * owner's profile may hold up to 7 — his 3 as everyone's plus one per social platform of his page's icon row
+ * (Instagram, Facebook, WhatsApp, Snapchat). Everyone else keeps 3 (`links` / `too_many`, checked in the service,
+ * which knows who the caller is).
+ */
+export const MAX_FOUNDER_PROFILE_LINKS = 7;
+/** D357: the platforms of the founder page's icon row, in its order (the same in RTL and LTR). */
+export const FOUNDER_SOCIAL_PLATFORMS = ['INSTAGRAM', 'FACEBOOK', 'WHATSAPP', 'SNAPCHAT'] as const;
 /** A normalised link is at most 500 characters; raw input over 2 048 is refused before parsing. */
 export const LINK_MAX_LENGTH = 500;
 export const LINK_RAW_MAX = 2048;
@@ -49,7 +69,26 @@ const PLATFORM_DOMAINS: ReadonlyArray<readonly [string, ProfileLinkPlatform]> = 
   ['fb.com', 'FACEBOOK'],
   ['x.com', 'X'],
   ['twitter.com', 'X'],
+  // v1.118-social (D357).
+  ['wa.me', 'WHATSAPP'],
+  ['whatsapp.com', 'WHATSAPP'],
+  ['snapchat.com', 'SNAPCHAT'],
 ];
+
+/**
+ * D357: a bare phone number for WhatsApp (`+966 50 123 4567`, `00966501234567`, `966-50-123-4567`): 8–15 digits in
+ * international form, with an optional `+` or `00` and the usual separators — normalised to `https://wa.me/<digits>`
+ * (WhatsApp's own click-to-chat form; no `+`, no zeros in front). Null when `raw` is not such a number.
+ */
+export function whatsAppLinkOf(raw: string): string | null {
+  const t = raw.trim();
+  if (!/^(?:\+|00)?[0-9][0-9 ().-]*[0-9]$/.test(t)) return null;
+  let digits = t.replace(/[^0-9]/g, '');
+  if (t.startsWith('00')) digits = digits.slice(2);
+  if (digits.startsWith('0')) return null; // a national number: the country code is needed
+  if (digits.length < 8 || digits.length > 15) return null;
+  return `https://wa.me/${digits}`;
+}
 
 /** The platform of a normalised link's host (`OTHER` for every other domain). */
 export function linkPlatform(url: string): ProfileLinkPlatform {
@@ -81,7 +120,8 @@ const LINK_FORBIDDEN =
 export function normalizeProfileLink(
   raw: string,
 ): { value: string } | { issue: 'invalid_format' | 'too_long' } {
-  const trimmed = raw.trim();
+  const phone = whatsAppLinkOf(raw);
+  const trimmed = phone ?? raw.trim();
   if (trimmed.length === 0 || LINK_FORBIDDEN.test(trimmed)) return { issue: 'invalid_format' };
   if (!/^https:\/\//i.test(trimmed)) return { issue: 'invalid_format' };
   let url: URL;
@@ -139,12 +179,12 @@ export const profileLinkInputSchema = z.strictObject({
 });
 
 /**
- * `UpdateMeRequest.links`: 0–3 links (an empty array clears them); the same link twice →
- * `links.<i>.url` / `invalid_value`.
+ * `UpdateMeRequest.links`: 0–3 links (an empty array clears them; D357: up to 7 for the app owner, checked by the
+ * service); the same link twice → `links.<i>.url` / `invalid_value`.
  */
 export const profileLinksSchema = z
   .array(profileLinkInputSchema)
-  .max(MAX_PROFILE_LINKS)
+  .max(MAX_FOUNDER_PROFILE_LINKS)
   .superRefine((links, ctx) => {
     const seen = new Set<string>();
     links.forEach((link, i) => {

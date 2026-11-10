@@ -153,6 +153,36 @@ void main() {
     });
   }
 
+  testWidgets('D357 (owner «ازيلها»): never the OWNER seal — chat line, DM '
+      'row, post author', (tester) async {
+    for (final language in AppLanguage.values) {
+      final ar = language == AppLanguage.ar;
+      await pumpGolden(
+        tester,
+        Column(
+          children: [
+            _chatLine(VerificationBadge.owner, ar: ar),
+            _dmRow(VerificationBadge.owner, ar: ar),
+            Expanded(child: _postAuthor(VerificationBadge.owner, ar: ar)),
+          ],
+        ),
+        language: language,
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byType(ProfileVerificationBadge), findsNothing);
+      expect(find.byKey(ProfileVerificationBadge.badgeKey), findsNothing);
+      // The DM row keeps its (empty) seal slot: nothing drawn, no width.
+      expect(
+        tester.getSize(find.byKey(DmInboxScreen.sealKey('layla.k'))),
+        Size.zero,
+      );
+      expect(
+        find.bySemanticsLabel(RegExp(ar ? 'مالك التطبيق' : 'app owner')),
+        findsNothing,
+      );
+    }
+  });
+
   testWidgets('no seal anywhere without a badge', (tester) async {
     await pumpGolden(
       tester,
@@ -160,6 +190,78 @@ void main() {
       language: AppLanguage.ar,
     );
     expect(find.byType(ProfileVerificationBadge), findsNothing);
+  });
+
+  // D357: the founder's name in a chat line and a DM row with no seal.
+  final founderDir = Platform.environment['D357_CAPTURE_DIR'];
+  group('D357 no-seal captures', skip: founderDir == null, () {
+    for (final (language, brightness) in [
+      (AppLanguage.ar, Brightness.light),
+      (AppLanguage.ar, Brightness.dark),
+      (AppLanguage.en, Brightness.light),
+    ]) {
+      final ar = language == AppLanguage.ar;
+      final tag = '${language.name}.${brightness.name}';
+      testWidgets('founder rows $tag', (tester) async {
+        final founder = UserSummary(
+          id: 'owner-0',
+          username: 'kabso',
+          displayName: ar ? 'مؤسس كابسو' : 'Kabso Founder',
+          avatarUrl: null,
+          verification: VerificationBadge.owner,
+        );
+        await pumpGolden(
+          tester,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ColoredBox(
+                color: const Color(0xFF3A2A4A),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Align(
+                    alignment: AlignmentDirectional.topStart,
+                    child: LiveChatAuthoredLine(
+                      name: founder.displayName,
+                      verification: founder.verification,
+                      avatarUrl: null,
+                      label: 'line',
+                      message: Text(
+                        ar ? 'أهلاً بكم في كابسو' : 'Welcome to Kabso',
+                      ),
+                      maxWidth: 320,
+                      color: const Color(0x66000000),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DmConversationRow(
+                item: DmConversation(
+                  id: 'c1',
+                  peer: founder,
+                  status: DmConversationStatus.accepted,
+                  lastActivityAt: DateTime.utc(2026, 11, 6, 10),
+                ),
+              ),
+            ],
+          ),
+          language: language,
+          brightness: brightness,
+          padding: EdgeInsets.zero,
+        );
+        expect(find.byType(ProfileVerificationBadge), findsNothing);
+        await precacheImages(tester);
+        await tester.runAsync(() async {
+          final element = find.byType(MaterialApp).evaluate().first;
+          final image = await captureImage(element);
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          await File('${founderDir!}/founder.no_seal.chat_dm.$tag.png')
+              .writeAsBytes(bytes!.buffer.asUint8List());
+        });
+      });
+    }
   });
 
   final captureDir = Platform.environment['D293_CAPTURE_DIR'];

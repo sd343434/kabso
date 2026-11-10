@@ -1676,11 +1676,13 @@ paths:
                     - type: 'null'
                 links:
                   type: array
-                  maxItems: 3
+                  maxItems: 7
                   description: |
                     v1.47-social (D175, CONVENTIONS §10.47). The whole set, in order (an empty array clears
-                    them); more than 3 → `links` / `too_many`; the same link twice → `links.<i>.url` /
+                    them); more than 3 → `links` / `too_many` (v1.118-social, D357: more than 7 for the app owner, whose page shows a social row from them); the same link twice → `links.<i>.url` /
                     `invalid_value`; each link's issues on `links.<i>.url` / `links.<i>.label`.
+                    v1.118-social (D357): a bare phone number in international form (`+966 50 123 4567`, `00966…`, 8–15
+                    digits) is stored as `https://wa.me/<digits>`.
                   items: { $ref: '#/components/schemas/ProfileLinkInput' }
                 tags:
                   type: array
@@ -23540,7 +23542,9 @@ components:
       enum: [OWNER, STAFF, RECHARGE_AGENT, HOST_AGENT, CREATOR, VERIFIED_HOST]
       description: |
         (v1.90-social, D293, CONVENTIONS §10.105) The automatic verification badge «شارة التوثيق» beside the name, in
-        priority order (one per person, the first that applies): `OWNER` the app owner (black seal, gold rim),
+        priority order (one per person, the first that applies): `OWNER` **reserved since v1.118-social (D357,
+        owner «ازيلها»): never sent** — the app owner has no badge at all (kept in the enum so older clients still
+        parse; clients draw nothing for it); formerly the app owner (black seal, gold rim),
         `STAFF` the Kabso Team (red), `RECHARGE_AGENT` a top recharge agent (gold), `HOST_AGENT` a top host agent
         (green), `CREATOR` a creator-programme member (purple), `VERIFIED_HOST` a host whose identity check is approved
         (blue). Every seal carries the same check mark; the colour tells them apart. Clients show an unknown value as no
@@ -31747,8 +31751,8 @@ components:
             - type: 'null'
         links:
           type: array
-          maxItems: 3
-          description: v1.47-social (D175). The profile links, in order.
+          maxItems: 7
+          description: v1.47-social (D175). The profile links, in order. Up to 3; v1.118-social (D357) up to 7 for the app owner.
           items: { $ref: '#/components/schemas/ProfileLink' }
         tags:
           type: array
@@ -32431,8 +32435,8 @@ components:
             - type: 'null'
         links:
           type: array
-          maxItems: 3
-          description: v1.47-social (D175). The profile links, in order (also on a private account's profile).
+          maxItems: 7
+          description: v1.47-social (D175). The profile links, in order (also on a private account's profile). Up to 3; v1.118-social (D357) up to 7 on the app owner's profile (his social row).
           items: { $ref: '#/components/schemas/ProfileLink' }
         tags:
           type: array
@@ -32551,12 +32555,13 @@ components:
       description: "v1.47-social (D175). Shown under the name: مغنٍّ، موسيقي، شاعر، مقدّم برامج، لاعب ألعاب، صانع محتوى، رياضي، فنان، مدوّن، شخصية عامة، أخرى. The app names them in its own language."
     ProfileLinkPlatform:
       type: string
-      enum: [INSTAGRAM, TIKTOK, YOUTUBE, FACEBOOK, X, OTHER]
+      enum: [INSTAGRAM, TIKTOK, YOUTUBE, FACEBOOK, X, WHATSAPP, SNAPCHAT, OTHER]
       description: |
         v1.47-social (D175). From the link's host: instagram.com, tiktok.com, youtube.com / youtu.be,
         facebook.com / fb.com, x.com / twitter.com or any subdomain of them; OTHER for every other host
         (the app warns «أنت تغادر Kabso» with the full URL before opening it). Clients treat values they
-        do not know as OTHER.
+        do not know as OTHER. v1.118-social (D357, additive): WHATSAPP (wa.me, whatsapp.com) and SNAPCHAT
+        (snapchat.com); the founder page's social row shows INSTAGRAM, FACEBOOK, WHATSAPP and SNAPCHAT.
     ProfileTagIcon:
       type: string
       maxLength: 24

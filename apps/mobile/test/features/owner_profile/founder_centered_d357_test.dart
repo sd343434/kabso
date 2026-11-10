@@ -8,8 +8,10 @@
 //    centred under it in Kabso red, bold;
 //  - his badge (owner: «الشارة مثلما كانت لكن بدل ما بداخلها صح يصبح مثلث»):
 //    the D293 rosette seal in Kabso red with a white play triangle instead
-//    of the check («مؤسس Kabso Live»), the size of the seal beside a name,
-//    centred under the name; the blue seal gone (photo and name line);
+//    of the check («مؤسس Kabso Live»); owner, the same day: «بجانب اسم
+//    المؤسس ازل الشارة» — nothing beside or under his name: one seal at the
+//    bottom centre of his photo (0.28 of it, ≥ 20 lp) over its rim, on a
+//    white / surface ring; no D293 seal anywhere (photo, name, «ازيلها»);
 //  - the bio centred; only two numbers — «المتابِعون» and «الاقتراحات
 //    والشكاوى» (`founderFeedbackCount`, «–» when the server sends none);
 //  - the follow and «اقترح ميزة / أبلغ» buttons, the own «تعديل الملف»;
@@ -22,12 +24,15 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/owner_profile/presentation/founder_badge.dart';
+import 'package:kabso_live/features/owner_profile/presentation/founder_socials.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_actions.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_cover_video.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
+import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -42,6 +47,17 @@ import 'owner_profile_d301_test.dart'
     show d301Poster, pumpOwnerOwn, pumpOwnerVisitor;
 
 Rect _r(WidgetTester tester, Key key) => tester.getRect(find.byKey(key));
+
+class _Opener implements ExternalLinkOpener {
+  final List<Uri> opened = [];
+  bool ok = true;
+
+  @override
+  Future<bool> open(Uri url) async {
+    opened.add(url);
+    return ok;
+  }
+}
 
 Future<void> _end(WidgetTester tester) => tester.pumpWidget(const SizedBox());
 
@@ -119,16 +135,29 @@ void main() {
         final style = tester.widget<Text>(nameFinder).style!;
         expect(style.color, KBrandColors.red500);
         expect(style.fontWeight, FontWeight.w800);
-        // The badge: centred under the name, read as the founder, the size
-        // of the D293 seal beside a name of the same font (28 lp for 24 pt).
+        // The badge: at the photo's bottom centre, over its rim (part on
+        // the photo, part below it), above the name — never beside or under
+        // it; 0.28 of the 114 dp photo (32) + a 2.5 dp ring each side.
         final badge = _r(tester, FounderBadge.badgeKey);
         expect(badge.center.dx, moreOrLessEquals(w / 2, epsilon: 0.5));
-        expect(badge.top, greaterThanOrEqualTo(name.bottom));
-        final seal = ProfileVerificationBadge.sizeForFont(
-          KPublicProfile.founderNameFont,
+        expect(badge.top, lessThan(photo.bottom));
+        expect(badge.bottom, greaterThan(photo.bottom));
+        expect(badge.center.dy, lessThan(photo.bottom));
+        expect(badge.bottom, lessThanOrEqualTo(name.top));
+        final seal = KPublicProfile.founderSealFor(KPublicProfile.avatarOuter);
+        expect(seal, 32);
+        expect(seal / KPublicProfile.avatarOuter, inInclusiveRange(0.26, 0.30));
+        expect(
+          badge.size,
+          Size.square(seal + 2 * KPublicProfile.founderSealRing),
         );
-        expect(seal, 28);
-        expect(badge.size, Size.square(seal));
+        // The thin ring: white on the light page.
+        final ring = tester.widget<FounderBadge>(find.byType(FounderBadge));
+        expect(ring.ring, const Color(0xFFFFFFFF));
+        expect(ring.size, seal);
+        // Nothing on the name's line or under it.
+        final line = _r(tester, ProfileCoverHeader.nameLineKey);
+        expect(badge.bottom, lessThanOrEqualTo(line.top));
         // The D293 rosette itself (one painter, no copied path) in the
         // brand red, and the white triangle drawn over it.
         final paint = tester.widget<CustomPaint>(
@@ -174,12 +203,12 @@ void main() {
           ),
           findsNothing,
         );
-        // The bio: centred, under the badge, up to four lines.
+        // The bio: centred, under the name, up to four lines.
         final bioFinder = find.byKey(ProfileCoverHeader.bioKey);
         final bio = tester.widget<Text>(bioFinder);
         expect(bio.textAlign, TextAlign.center);
         expect(bio.maxLines, KPublicProfile.ownerBioLines);
-        expect(tester.getRect(bioFinder).top, greaterThan(badge.bottom));
+        expect(tester.getRect(bioFinder).top, greaterThan(name.bottom));
         // Only two numbers: followers and suggestions + complaints.
         final stats = find.byKey(ProfileScreen.statsKey);
         expect(
@@ -247,6 +276,34 @@ void main() {
             .widget<Text>(find.byKey(const Key('profile.displayName')))
             .style!;
         expect(style.color, KBrandColors.red400);
+        // The seal's ring: the dark surface (never a white halo at night).
+        expect(
+          tester.widget<FounderBadge>(find.byType(FounderBadge)).ring,
+          KPalette.dark.surface,
+        );
+        await _end(tester);
+      });
+
+      testWidgets("in a frame (live ring): the seal stays at the photo's "
+          'bottom centre, ≥ 20 lp, clear of the name', (tester) async {
+        await pumpOwnerVisitor(
+          tester,
+          language: language,
+          profile: ownerProfile(ar: ar).copyWith(liveRoomId: 'room-1'),
+        );
+        expect(tester.takeException(), isNull);
+        final photo = _r(tester, ProfileCoverHeader.photoKey);
+        final badge = _r(tester, FounderBadge.badgeKey);
+        final line = _r(tester, ProfileCoverHeader.nameLineKey);
+        expect(badge.center.dx, moreOrLessEquals(photo.center.dx, epsilon: .5));
+        final seal = tester.widget<FounderBadge>(find.byType(FounderBadge));
+        expect(seal.size, greaterThanOrEqualTo(KPublicProfile.founderSealMin));
+        expect(seal.size, KPublicProfile.founderSealFor(KProfile.avatar));
+        // On the photo circle's bottom rim (inside the frame's box).
+        final rim = photo.center.dy + KProfile.avatar / 2;
+        expect(badge.top, lessThan(rim));
+        expect(badge.bottom, greaterThan(rim));
+        expect(badge.bottom, lessThanOrEqualTo(line.top));
         await _end(tester);
       });
 
@@ -324,6 +381,157 @@ void main() {
     });
   }
 
+  group('D357 social row', () {
+    test('the app-side link rules: phone numbers for WhatsApp, https else', () {
+      expect(ProfileLinkRules.isWhatsAppNumber('+966 50 123 4567'), isTrue);
+      expect(ProfileLinkRules.isWhatsAppNumber('00966501234567'), isTrue);
+      expect(ProfileLinkRules.isWhatsAppNumber('0501234567'), isFalse);
+      expect(ProfileLinkRules.isWhatsAppNumber('+1234567'), isFalse);
+      expect(ProfileLinkRules.issue('+966 50 123 4567'), isNull);
+      expect(
+        ProfileLinkRules.issue('http://instagram.com/k'),
+        'invalid_format',
+      );
+      expect(ProfileLinkRules.maxFounderLinks, 7);
+      expect(
+        ProfileLinkPlatform.fromWire('WHATSAPP'),
+        ProfileLinkPlatform.whatsapp,
+      );
+      expect(
+        ProfileLinkPlatform.fromWire('SNAPCHAT'),
+        ProfileLinkPlatform.snapchat,
+      );
+      expect(ProfileLinkPlatform.snapchat.known, isTrue);
+      for (final p in ProfileLinkRules.founderSocials) {
+        final f = File(FounderSocialRow.assetOf(p));
+        expect(f.existsSync(), isTrue, reason: f.path);
+        // The unaltered Simple Icons file (one path, the 24-unit box).
+        expect(f.readAsStringSync(), contains('viewBox="0 0 24 24"'));
+      }
+    });
+
+    for (final language in AppLanguage.values) {
+      final ar = language == AppLanguage.ar;
+      testWidgets("${language.name}: all four under the bio, in the owner's "
+          'order in both directions, 48 dp targets, spoken names', (
+        tester,
+      ) async {
+        await pumpOwnerVisitor(tester, language: language);
+        expect(tester.takeException(), isNull);
+        final row = _r(tester, FounderSocialRow.rowKey);
+        final bio = _r(tester, ProfileCoverHeader.bioKey);
+        expect(row.top, greaterThan(bio.bottom));
+        expect(row.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
+        final order = [
+          for (final p in ProfileLinkRules.founderSocials)
+            _r(tester, FounderSocialRow.buttonKey(p)),
+        ];
+        for (var i = 1; i < order.length; i++) {
+          // Left to right in Arabic too (the owner's list order).
+          expect(order[i].left, greaterThan(order[i - 1].right));
+        }
+        for (final r in order) {
+          expect(r.width, greaterThanOrEqualTo(48));
+          expect(r.height, greaterThanOrEqualTo(48));
+        }
+        final names = ar
+            ? ['إنستغرام', 'فيسبوك', 'واتساب', 'سناب شات']
+            : ['Instagram', 'Facebook', 'WhatsApp', 'Snapchat'];
+        for (final n in names) {
+          expect(find.bySemanticsLabel(n), findsOneWidget, reason: n);
+        }
+        // The other link stays a chip; the four are not repeated as chips.
+        final chips = tester.widget<ProfileLinksRow>(
+          find.byType(ProfileLinksRow),
+        );
+        expect(chips.links.map((l) => l.id), ['l-web']);
+        // The numbers are still under it all.
+        expect(
+          _r(tester, ProfileHeaderView.followersKey).top,
+          greaterThan(row.bottom),
+        );
+        await _end(tester);
+      });
+    }
+
+    testWidgets('a tap opens the link outside the app; a failure says so', (
+      tester,
+    ) async {
+      final opener = _Opener();
+      await pumpOwnerVisitor(
+        tester,
+        language: AppLanguage.ar,
+        overrides: [externalLinkOpenerProvider.overrideWithValue(opener)],
+      );
+      await tester.tap(
+        find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.whatsapp)),
+      );
+      await tester.pumpAndSettle();
+      expect(opener.opened, [Uri.parse('https://wa.me/966500000000')]);
+      // No «أنت تغادر Kabso» sheet for these platforms.
+      expect(find.byKey(ProfileLinkKeys.leavingSheet), findsNothing);
+      opener.ok = false;
+      await tester.tap(
+        find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.snapchat)),
+      );
+      await tester.pump();
+      expect(opener.opened.last.host, 'www.snapchat.com');
+      expect(find.text('تعذّر فتح الرابط'), findsOneWidget);
+      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await _end(tester);
+    });
+
+    testWidgets('only the platforms he linked; none → no row', (tester) async {
+      await pumpOwnerVisitor(
+        tester,
+        language: AppLanguage.en,
+        profile: ownerProfile(
+          ar: false,
+          links: [
+            for (final l in ownerSocialLinks)
+              if (l.platform == ProfileLinkPlatform.whatsapp ||
+                  l.platform == ProfileLinkPlatform.other)
+                l,
+          ],
+        ),
+      );
+      expect(find.byKey(FounderSocialRow.rowKey), findsOneWidget);
+      expect(
+        find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.whatsapp)),
+        findsOneWidget,
+      );
+      for (final p in [
+        ProfileLinkPlatform.instagram,
+        ProfileLinkPlatform.facebook,
+        ProfileLinkPlatform.snapchat,
+      ]) {
+        expect(find.byKey(FounderSocialRow.buttonKey(p)), findsNothing);
+      }
+      await _end(tester);
+      await pumpOwnerVisitor(
+        tester,
+        language: AppLanguage.en,
+        profile: ownerProfile(ar: false, links: const []),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(FounderSocialRow.rowKey), findsNothing);
+      expect(find.byType(ProfileLinksRow), findsNothing);
+      await _end(tester);
+    });
+
+    testWidgets('a regular user has no social row (his links stay chips)', (
+      tester,
+    ) async {
+      await pumpOther(
+        tester,
+        d335Rich(ar: false).copyWith(links: ownerSocialLinks),
+        language: AppLanguage.en,
+      );
+      expect(find.byKey(FounderSocialRow.rowKey), findsNothing);
+      await _end(tester);
+    });
+  });
+
   final captureDir = Platform.environment['D357_CAPTURE_DIR'];
   group('D357 captures', skip: captureDir == null, () {
     Future<void> save(WidgetTester tester, Finder of, String name) async {
@@ -374,9 +582,7 @@ void main() {
       testWidgets('badge 4× ${brightness.name}', (tester) async {
         setViewport(tester, GoldenViewport.phone);
         const key = Key('zoom');
-        final seal = ProfileVerificationBadge.sizeForFont(
-          KPublicProfile.founderNameFont,
-        );
+        final seal = KPublicProfile.founderSealFor(KPublicProfile.avatarOuter);
         await tester.pumpWidget(
           MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -392,7 +598,13 @@ void main() {
                       : KPalette.light.background,
                   child: Padding(
                     padding: const EdgeInsets.all(12),
-                    child: FounderBadge(size: seal * 4),
+                    child: FounderBadge(
+                      size: seal * 4,
+                      ring: brightness == Brightness.dark
+                          ? KPalette.dark.surface
+                          : const Color(0xFFFFFFFF),
+                      ringWidth: KPublicProfile.founderSealRing * 4,
+                    ),
                   ),
                 ),
               ),

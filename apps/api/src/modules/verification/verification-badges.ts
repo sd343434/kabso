@@ -20,6 +20,8 @@ import {
  * Every condition is read from the data as it is NOW, in the caller's transaction (so a role grant sees itself):
  *
  *  - OWNER / STAFF: an ACTIVE `users.role = ADMIN` account holding OWNER / a limited staff role (D283, `live-staff`);
+ *    D357: OWNER is still read here but only to SUPPRESS — `pickBadge` gives the app owner no badge, so a stored
+ *    OWNER (or a STAFF he also holds) is removed at his next recompute;
  *  - RECHARGE_AGENT: an ACTIVE recharge agent (`recharge_agents.status`, the `rechargeAgent` tag's rule) whose coins
  *    sold in the window — direct sales (`recharge_sales`, the agent's and the employees' sales) plus the coin orders
  *    closed COMPLETED / COMPLETED_BY_ADMIN (`recharge_orders.closed_at`, whoever of the agent's side owned them) — are

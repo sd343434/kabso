@@ -14,6 +14,7 @@ import { MediaService } from '../media/media.service.js';
 import { containsReservedTerm } from './confusables.js';
 import {
   keptProfileTagIcons,
+  MAX_PROFILE_LINKS,
   profileTagIconsOf,
   type AccountCategory,
   type Gender,
@@ -21,6 +22,7 @@ import {
 } from './profile-fields.js';
 import { UsersService, type MeDto } from './users.service.js';
 import { refuseLimitedStaff } from '../live/live-staff.js';
+import { isKabsoOwner } from '../owner-profile/owner-core.js';
 
 /** Request metadata for audit records. */
 export interface ProfileEditMeta {
@@ -91,6 +93,14 @@ export class ProfileEditService {
     }
     // v1.72-live (D283b, §10.96.10): a Kabso Team account's bio is the app's fixed official text — 403 `bio`.
     if (input.bio !== undefined) await refuseLimitedStaff(this.prisma, userId, 'bio');
+    // v1.118-social (D357): more than 3 links only for the app owner (his page's social row; up to 7).
+    if (
+      input.links !== undefined &&
+      input.links.length > MAX_PROFILE_LINKS &&
+      !(await isKabsoOwner(this.prisma, userId))
+    ) {
+      throw AppException.validation([{ field: 'links', issue: 'too_many' }]);
+    }
     const found = await this.prisma.$transaction(async (tx) => {
       const [before] = await tx.$queryRaw<
         {

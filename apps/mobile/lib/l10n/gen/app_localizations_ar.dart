@@ -15964,6 +15964,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get founderBadgeLabel => 'مؤسس Kabso Live';
 
   @override
+  String get founderSocialInstagram => 'إنستغرام';
+
+  @override
+  String get founderSocialFacebook => 'فيسبوك';
+
+  @override
+  String get founderSocialWhatsApp => 'واتساب';
+
+  @override
+  String get founderSocialSnapchat => 'سناب شات';
+
+  @override
   String get founderFeedbackStat => 'الاقتراحات والشكاوى';
 
   @override

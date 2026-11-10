@@ -298,7 +298,7 @@ class LiveChatFlatLine extends ConsumerWidget {
           ),
         ),
       ),
-      seal: verification == null
+      seal: shownVerification(verification) == null
           ? null
           : VerificationSeal(verification, fontSize: KChat.nameSize),
       // A long line fades at its end instead of wrapping.
