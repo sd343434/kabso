@@ -17,7 +17,6 @@ import 'package:kabso_live/features/live/presentation/go_live/live_cp_mic_effect
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seat_fx.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/battle_emoji.dart';
-import 'package:kabso_live/features/live/presentation/widgets/kabso_live_icon.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_interruption.dart';
@@ -78,8 +77,6 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   AudioplayersNotificationSounds.enabled = false;
   DevicePushPermissions.enabled = false;
   KLiveEqualizer.animate = false;
-  // D362: the live cards' type glyphs loop forever (still in tests).
-  KabsoLiveIcon.animationsEnabled = false;
   // D233: the hub cards' rocket frame turns forever.
   KBoostFrame.animate = false;
   // D216: the interruption arc turns and the quip art loops forever.

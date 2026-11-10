@@ -52,11 +52,12 @@ abstract final class KLiveGrid {
 ///   card; else the host's initial on the brand gradient. A picture that
 ///   fails to load falls back the same way, with no error text (VG-13).
 /// - Top start: the animated live mark ([KLiveEqualizer], teal) and the
-///   room type — D362 (owner: «ايقونة تكون ببطاقة البث من الخارج حسب نوع
-///   البث بخط صغير جداً»): the owner's animated white glyph and its tiny
-///   English tag ([LiveTypeTag], [LiveCardKind.of]: PK, streamer, podcast,
-///   audio, multi or a camera live), the same for every kind (it replaced
-///   the type text and D342b's party chip). Top end: the viewer count with
+///   room type right beside it — D362 (owner: «ايقونة تكون ببطاقة البث من
+///   الخارج حسب نوع البث بخط صغير جداً», then 2026-11-10: «لا ازل الايقونات
+///   فقط جنبي موجة الكلمة بتصنيف لايف»): the tiny English tag only, no glyph
+///   ([LiveTypeTag], [LiveCardKind.of]: PK, streamer, podcast, audio, multi
+///   or a camera live), the same for every kind (it replaced the type text
+///   and D342b's party chip). Top end: the viewer count with
 ///   a person icon (owner 2026-11-08: «المعلومات على بطاقة البث كثيرة» —
 ///   one type and the viewers; the «جديد» chip is gone, 0 is shown as 0:
 ///   the real count, never invented).
@@ -114,7 +115,7 @@ class KLiveGridCard extends StatelessWidget {
         : room.isMulti
         ? l10n.liveCategoryMulti
         : l10n.liveCategoryLive;
-    // D362: the same kind drawn as the owner's glyph and tag.
+    // D362: the same kind as a tiny tag beside the live wave.
     final kind = LiveCardKind.of(room);
     final title = room.title.trim().isEmpty ? room.hostName : room.title;
     final base = l10n.liveCardSemantics(
@@ -169,9 +170,9 @@ class KLiveGridCard extends StatelessWidget {
                             size: 10,
                           ),
                           const SizedBox(width: KSpacing.xs),
-                          // D362: the owner's animated type glyph and its
-                          // tiny tag take the room the count leaves (a
-                          // narrow card shrinks them, never the count).
+                          // D362: the type's tiny tag, right beside the
+                          // wave, takes the room the count leaves (a
+                          // narrow card shrinks it, never the count).
                           Expanded(
                             child: Align(
                               alignment: AlignmentDirectional.centerStart,
