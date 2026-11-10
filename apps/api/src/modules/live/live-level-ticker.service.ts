@@ -142,11 +142,21 @@ export class LiveLevelTickerService implements OnModuleDestroy {
   async offerAll(offers: readonly LevelUpOffer[]): Promise<void> {
     if (offers.length === 0) return;
     const minLevel = await readLevelTickerMinLevel(this.prisma);
-    // v1.121-social (D361, §10.156): the founder's level-ups are never announced (he shows no level).
-    const founders = await foundersAmong(
-      this.prisma,
-      offers.map((o) => o.userId),
-    );
+    // v1.121-social (D361, §10.156): the founder's level-ups are never announced (he shows no level). Best effort
+    // like the banner itself: the lookup failing announces nothing (never a founder's level by mistake).
+    let founders: Set<string>;
+    try {
+      founders = await foundersAmong(
+        this.prisma,
+        offers.map((o) => o.userId),
+      );
+    } catch (err) {
+      this.logger.warn(
+        { error: safeErrorLog(err) },
+        'Level ticker: could not check the founder; nothing told',
+      );
+      return;
+    }
     for (const offer of offers) {
       if (founders.has(offer.userId)) continue;
       if (!announcesLevelUp(offer.previousLevel, offer.level, minLevel)) continue;

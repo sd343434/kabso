@@ -14,7 +14,16 @@ const person = (id: string) => ({
   profile: { username: `u_${id}`, displayName: `Name ${id}`, avatarUrl: null },
 });
 
-function setup(opts: { minLevel?: unknown; reply?: unknown; status?: string; evalFails?: boolean } = {}) {
+function setup(
+  opts: {
+    minLevel?: unknown;
+    reply?: unknown;
+    status?: string;
+    evalFails?: boolean;
+    founders?: string[];
+    founderFails?: boolean;
+  } = {},
+) {
   const evals: unknown[][] = [];
   const redis = {
     eval: vi.fn(async (...args: unknown[]) => {
@@ -45,6 +54,13 @@ function setup(opts: { minLevel?: unknown; reply?: unknown; status?: string; eva
       findMany: async () => [{ id: 'room-2' }, { id: 'room-bad' }, { id: 'room-3' }],
     },
     user: { findUnique: async () => person('sender') },
+    // D361: who holds OWNER (the founder) among the offers' people.
+    userAdminPermission: {
+      findMany: async () => {
+        if (opts.founderFails) throw new Error('db down');
+        return (opts.founders ?? []).map((userId) => ({ userId }));
+      },
+    },
   } as unknown as PrismaService;
   const background = { run: vi.fn() } as unknown as BackgroundTasks;
   const service = new LiveLevelTickerService(prisma, redis as never, media, background);
@@ -90,6 +106,16 @@ describe('D254 level ticker', () => {
       },
       room: { id: 'room-1', title: 'Evening', host: expect.objectContaining({ id: 'host' }) },
     });
+  });
+
+  it('D361: the founder’s level-ups are never told; a failed founder check tells nothing', async () => {
+    const f = setup({ founders: ['owner'] });
+    await f.service.offerAll([offer({ userId: 'owner' }), offer()]);
+    expect(f.evals).toHaveLength(1);
+    expect(f.evals[0]![4]).toBe('level:ticker:seen:sender:SUPPORT:30');
+    const down = setup({ founderFails: true });
+    await down.service.offerAll([offer()]);
+    expect(down.evals).toHaveLength(0);
   });
 
   it('below the threshold, or not a rise, nothing is offered', async () => {
