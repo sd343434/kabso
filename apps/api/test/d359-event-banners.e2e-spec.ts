@@ -131,7 +131,7 @@ describe('D359 event banners on the Live hub', { timeout: 600_000 }, () => {
         nameAr: 'd359_rose',
         nameEn: 'd359_rose',
         priceCoins: 100,
-        assetKey: 'gift_d359_rose',
+        assetKey: 'gift_d359_rose', // gitleaks:allow (an asset name)
         animationKey: null,
         sortOrder: 0,
         badge: 'NONE',

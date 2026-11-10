@@ -27,3 +27,8 @@ b861685c7a3ec1b1f941921f3f05a5214b06a8d6:apps/api/src/modules/gifts/quips.spec.t
 cb6a01cbf824de23434924f02442d5a517efce42:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
 80be062f333bd7d6dc9ca3b8b4c821ee84b8eacd:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
 a1a67abd78a47b7ed2e5936f161ef9f0c0dc9754:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+# Same exception pattern (D359, integration int22): the D359 e2e's test gift asset key ('gift_d359_rose') matched
+# generic-api-key by its shape. It is an asset name, not a secret; the line now carries gitleaks:allow.
+6ea08e530fcfeb72be964353a3366c07f292e02b:apps/api/test/d359-event-banners.e2e-spec.ts:generic-api-key:134
+# The same line as seen through the int22 merge commit's diff (gitleaks git --log-opts="-m …").
+a70a876d0acb2b334490e71ef104e39f310a8a81:apps/api/test/d359-event-banners.e2e-spec.ts:generic-api-key:134
