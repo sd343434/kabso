@@ -2279,7 +2279,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get levelsFounderBody =>
-      'حساب مؤسس كابسو لا يحمل مستوى، ولا يظهر له مستوى في أي مكان: الملف الشخصي والبث والدردشة والقوائم.';
+      'حساب مؤسس Kabso Live لا يحمل مستوى، ولا يظهر له مستوى في أي مكان: الملف الشخصي والبث والدردشة والقوائم.';
 
   @override
   String get levelsUnavailable => 'غير مفعّل بعد';
