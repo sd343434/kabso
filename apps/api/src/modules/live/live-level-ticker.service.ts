@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { REDIS } from '../../redis/redis.module.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { announcesLevelUp, readLevelTickerMinLevel } from '../site-settings/level-ticker.rules.js';
+import { foundersAmong } from '../owner-profile/founder-levels.js';
 import type { UserSummaryDto } from './live-rooms.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 
@@ -141,7 +142,13 @@ export class LiveLevelTickerService implements OnModuleDestroy {
   async offerAll(offers: readonly LevelUpOffer[]): Promise<void> {
     if (offers.length === 0) return;
     const minLevel = await readLevelTickerMinLevel(this.prisma);
+    // v1.121-social (D361, §10.156): the founder's level-ups are never announced (he shows no level).
+    const founders = await foundersAmong(
+      this.prisma,
+      offers.map((o) => o.userId),
+    );
     for (const offer of offers) {
+      if (founders.has(offer.userId)) continue;
       if (!announcesLevelUp(offer.previousLevel, offer.level, minLevel)) continue;
       await this.offer(offer);
     }

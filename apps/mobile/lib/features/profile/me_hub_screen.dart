@@ -707,7 +707,10 @@ class MeHubScreen extends ConsumerWidget {
                     // D292 / D299i: large enough for its name to read (44 pt;
                     // the wrap puts it on its own line when the row is full).
                     const KabsoTeamBadge(height: KabsoTeamBadge.profileHeight)
-                  else
+                  // D361 (§10.156; owner: «المؤسس ليس له ليفيل»): no level
+                  // card for the founder — decision: hidden (his levels page
+                  // shows the neutral state instead).
+                  else if (!founder)
                     // D163: the level badge beside the name.
                     ProfileLevels(
                       onOpen: () => push(AppRoutes.levels),

@@ -782,6 +782,8 @@
   "levelsTitle": "My levels",
   "levelsPreparing": "Levels are on their way. Your points will show here once gifts and games are switched on.",
   "levelsUnavailable": "Not active yet",
+  "levelsFounderTitle": "The founder has no level",
+  "levelsFounderBody": "The Kabso founder's account carries no level and shows none anywhere: the profile, lives, the chat and the lists.",
   "levelsUnavailableBody": "This level isn't active yet. Your points and level will show here once it is.",
   "levelsNoLevel": "No level yet",
   "levelsLevelNumber": "Level {number}",

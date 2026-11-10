@@ -24,6 +24,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
+import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
@@ -83,6 +84,7 @@ Future<void> _pump(
   bool statsFail = false,
   List<Override> extra = const [],
   User? user,
+  Brightness brightness = Brightness.light,
 }) async {
   final router = GoRouter(
     initialLocation: AppRoutes.profile,
@@ -144,10 +146,7 @@ Future<void> _pump(
           AppLocalizations.delegate,
           ...GlobalMaterialLocalizations.delegates,
         ],
-        theme: buildAppTheme(
-          brightness: Brightness.light,
-          locale: language.locale,
-        ),
+        theme: buildAppTheme(brightness: brightness, locale: language.locale),
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
               .copyWith(textScaler: TextScaler.linear(textScale)),
@@ -285,6 +284,64 @@ void main() {
           final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
           await File('${founderDir!}/founder.me_tab.${language.name}.light.png')
               .writeAsBytes(bytes!.buffer.asUint8List());
+        });
+      },
+    );
+  }
+
+  // D361 (owner: «المؤسس ليس له ليفيل»): decision — no level card on the
+  // founder's Me tab (his levels page shows the neutral state).
+  testWidgets('D361: anyone but the founder has the level card', (
+    tester,
+  ) async {
+    await _pump(tester);
+    expect(find.byType(ProfileLevels), findsOneWidget);
+    expect(find.byType(KLevelBadge), findsWidgets);
+  });
+
+  testWidgets("D361: the founder's Me tab has no level", (tester) async {
+    await _pump(
+      tester,
+      user: testUser().copyWith(displayName: 'Kabso Founder'),
+      extra: [isKabsoOwnerProvider.overrideWithValue(true)],
+    );
+    expect(find.byType(ProfileLevels), findsNothing);
+    expect(find.byType(KLevelBadge), findsNothing);
+  });
+
+  final d361Dir = Platform.environment['D361_CAPTURE_DIR'];
+  for (final (language, brightness) in [
+    (AppLanguage.ar, Brightness.light),
+    (AppLanguage.ar, Brightness.dark),
+    (AppLanguage.en, Brightness.light),
+    (AppLanguage.en, Brightness.dark),
+  ]) {
+    testWidgets(
+      'D361 capture: the founder Me tab, no level '
+      '(${language.name} ${brightness.name})',
+      skip: d361Dir == null,
+      (tester) async {
+        final ar = language == AppLanguage.ar;
+        await _pump(
+          tester,
+          language: language,
+          brightness: brightness,
+          user: testUser().copyWith(
+            displayName: ar ? 'مؤسس كابسو' : 'Kabso Founder',
+          ),
+          extra: [isKabsoOwnerProvider.overrideWithValue(true)],
+        );
+        expect(find.byType(ProfileLevels), findsNothing);
+        await precacheImages(tester);
+        await tester.runAsync(() async {
+          final element = find.byType(MaterialApp).evaluate().first;
+          final image = await captureImage(element);
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          final file = File(
+            '${d361Dir!}/founder.me_tab.${language.name}.${brightness.name}.png',
+          );
+          await file.parent.create(recursive: true);
+          await file.writeAsBytes(bytes!.buffer.asUint8List());
         });
       },
     );

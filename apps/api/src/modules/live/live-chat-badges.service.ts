@@ -5,6 +5,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { limitedStaffSql } from './live-staff.js';
+import { founderSql } from '../owner-profile/founder-levels.js';
 
 /** `LiveChatAuthorFamily` (v1.24.3-live, D119). */
 export interface LiveChatAuthorFamilyDto {
@@ -62,8 +63,10 @@ export const NO_BADGES: LiveChatAuthorBadgesDto = Object.freeze({
  * statement (also the D199b supporters lists).
  */
 export function levelSql(code: 'ATTRACTIVENESS' | 'SUPPORT'): Prisma.Sql {
+  // v1.121-social (D361, §10.156): the founder shows no level — null, as for an unavailable category.
   return Prisma.sql`(
-         SELECT CASE WHEN lc.is_enabled AND lc.published_version_id IS NOT NULL THEN
+         SELECT CASE WHEN ${founderSql(Prisma.sql`a.id`)} THEN NULL
+                     WHEN lc.is_enabled AND lc.published_version_id IS NOT NULL THEN
                   GREATEST(
                     (SELECT max(ld.level_number) FROM level_definitions ld
                       WHERE ld.version_id = lc.published_version_id

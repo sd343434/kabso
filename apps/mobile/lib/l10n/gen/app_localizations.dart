@@ -4010,6 +4010,18 @@ abstract class AppLocalizations {
   /// **'المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.'**
   String get levelsPreparing;
 
+  /// D361 (§10.156; owner: «المؤسس ليس له ليفيل»): the founder's own levels page — the neutral state instead of his levels.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤسس ليس له مستوى'**
+  String get levelsFounderTitle;
+
+  /// D361 (§10.156): the line under «المؤسس ليس له مستوى».
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب مؤسس كابسو لا يحمل مستوى، ولا يظهر له مستوى في أي مكان: الملف الشخصي والبث والدردشة والقوائم.'**
+  String get levelsFounderBody;
+
   /// D72: levels (CP-005).
   ///
   /// In ar, this message translates to:

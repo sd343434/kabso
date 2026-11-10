@@ -1477,7 +1477,8 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
           height: KPublicProfile.nameBadge,
         ),
       // D283: a Kabso Team account shows no levels.
-      if (profile.staff == null)
+      // D361 (§10.156; owner: «المؤسس ليس له ليفيل»): nor does the founder.
+      if (profile.staff == null && !profile.kabsoOwner)
         ProfileLevels(
           key: ProfileCoverHeader.levelsKey,
           username: profile.isSelf ? null : profile.username,

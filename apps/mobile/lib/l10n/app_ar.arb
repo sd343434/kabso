@@ -2279,6 +2279,10 @@
     "description": "D72: levels (CP-005)."
   },
   "levelsPreparing": "المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.",
+  "levelsFounderTitle": "المؤسس ليس له مستوى",
+  "@levelsFounderTitle": {"description": "D361 (§10.156; owner: «المؤسس ليس له ليفيل»): the founder's own levels page — the neutral state instead of his levels."},
+  "levelsFounderBody": "حساب مؤسس كابسو لا يحمل مستوى، ولا يظهر له مستوى في أي مكان: الملف الشخصي والبث والدردشة والقوائم.",
+  "@levelsFounderBody": {"description": "D361 (§10.156): the line under «المؤسس ليس له مستوى»."},
   "@levelsPreparing": {
     "description": "D72: levels (CP-005)."
   },

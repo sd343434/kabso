@@ -18,6 +18,7 @@ import { categoryFromSlug } from './levels.constants.js';
 import { LevelsQueryService, type PublicLevelDto } from './levels-query.service.js';
 import { myLevelsListQuerySchema, type MyLevelsListQuery } from './levels.schemas.js';
 import { isLimitedStaff } from '../live/live-staff.js';
+import { isKabsoOwner } from '../owner-profile/owner-core.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 /** A path category that is not one of the four (lower case) is 404. */
@@ -106,6 +107,8 @@ export class UserLevelsController {
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     // v1.72-live (D283, §10.96.10): a Kabso Team account shows no levels anywhere — an empty list.
     if (await isLimitedStaff(this.prisma, user.id)) return { data: [] };
+    // v1.121-social (D361, §10.156; owner: «المؤسس ليس له ليفيل»): neither does the founder.
+    if (await isKabsoOwner(this.prisma, user.id)) return { data: [] };
     const lang =
       languageFromAcceptLanguage(req.headers['accept-language']) ?? (await this.users.getLocale(auth.userId));
     return { data: await this.levels.publicLevels(user.id, lang) };

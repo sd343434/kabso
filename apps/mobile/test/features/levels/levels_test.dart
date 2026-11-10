@@ -114,6 +114,9 @@ Future<void> _pumpRouted(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        // D361: the levels read whether the caller is the founder (from the
+        // session's user) — no platform secure storage in a test.
+        secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
         levelsRepositoryProvider.overrideWithValue(repo),
       ],
       child: MaterialApp.router(

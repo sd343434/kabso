@@ -2241,6 +2241,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Levels are on their way. Your points will show here once gifts and games are switched on.';
 
   @override
+  String get levelsFounderTitle => 'The founder has no level';
+
+  @override
+  String get levelsFounderBody =>
+      'The Kabso founder\'s account carries no level and shows none anywhere: the profile, lives, the chat and the lists.';
+
+  @override
   String get levelsUnavailable => 'Not active yet';
 
   @override
