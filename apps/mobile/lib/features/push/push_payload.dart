@@ -20,6 +20,10 @@ class PushPayload {
   /// (`groupId`, `messageId` for a message, `senderUsername`).
   static const kindDmGroup = 'dm_group';
 
+  /// v1.116-social (D355, §10.151.5): a customer's WhatsApp message
+  /// (`conversationId`; channel `staff`).
+  static const kindWhatsApp = 'whatsapp';
+
   String? get kind => data['kind'];
 
   /// The chat a `messages` push belongs to (the same id the open chat
@@ -45,6 +49,9 @@ class PushPayload {
   /// A direct or (D339) group message: the Messages badge and lists read
   /// the server again.
   bool get isDirectMessage => kind == kindDm || kind == kindDmGroup;
+
+  /// v1.116-social (D355): a customer's WhatsApp message for the staff.
+  bool get isWhatsApp => kind == kindWhatsApp;
 
   /// v1.78-live (D288): a new report in the shared queue (channel `staff`).
   bool get isStaffReport =>
@@ -72,6 +79,11 @@ class PushPayload {
             : AppRoutes.groupChat(group);
       case kindNotification:
         return _notificationRoute() ?? AppRoutes.notifications;
+      case kindWhatsApp:
+        final c = data['conversationId'];
+        return c == null || c.isEmpty
+            ? AppRoutes.staffWhatsApp
+            : AppRoutes.staffWhatsAppChat(c);
       default:
         return null;
     }

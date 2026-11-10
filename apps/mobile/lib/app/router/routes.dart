@@ -51,6 +51,14 @@ abstract final class AppRoutes {
   /// staff Me tab, MODERATION / SUPPORT); [staffReportsFor] opens it on one
   /// report (a `STAFF_REPORT_NEW` tap).
   static const staffReports = '/me/staff/reports';
+
+  /// v1.116-social (D355, §10.151): «واتساب» — the official number's inbox
+  /// (OWNER, MODERATION, SUPPORT) and one conversation ([staffWhatsAppChat],
+  /// also a `whatsapp` push's target).
+  static const staffWhatsApp = '/me/staff/whatsapp';
+  static const staffWhatsAppChatPattern = '/me/staff/whatsapp/:conversationId';
+  static String staffWhatsAppChat(String conversationId) =>
+      '$staffWhatsApp/${Uri.encodeComponent(conversationId)}';
   static String staffReportsFor(String reportId) =>
       '$staffReports?report=${Uri.encodeQueryComponent(reportId)}';
 

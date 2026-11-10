@@ -17255,4 +17255,225 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get walletReasonStoreIapReversal =>
       'استرداد عبر المتجر (سُحبت العملات)';
+
+  @override
+  String get waRow => 'واتساب';
+
+  @override
+  String waRowBadge(int count) {
+    return '$count محادثة بانتظار الرد';
+  }
+
+  @override
+  String get waTitle => 'واتساب';
+
+  @override
+  String get waTabUnassigned => 'غير مسندة';
+
+  @override
+  String get waTabMine => 'محادثاتي';
+
+  @override
+  String get waTabAll => 'الكل';
+
+  @override
+  String get waTabClosed => 'مغلقة';
+
+  @override
+  String get waSearch => 'ابحث بالاسم أو الرقم';
+
+  @override
+  String get waEmpty => 'لا توجد محادثات هنا';
+
+  @override
+  String get waEmptyHint => 'تظهر هنا رسائل العملاء إلى رقم Kabso الرسمي.';
+
+  @override
+  String get waOff => 'واتساب غير مفعّل بعد';
+
+  @override
+  String get waOffHint => 'يضبطه المالك بعد إنشاء حساب Meta للأعمال.';
+
+  @override
+  String waUnreadCount(int count) {
+    return '$count غير مقروءة';
+  }
+
+  @override
+  String get waAssignedToMe => 'معي';
+
+  @override
+  String waAssignedTo(String name) {
+    return 'مع $name';
+  }
+
+  @override
+  String get waUnassigned => 'غير مسندة';
+
+  @override
+  String get waClosed => 'مغلقة';
+
+  @override
+  String get waClaim => 'استلام';
+
+  @override
+  String get waRelease => 'إرجاع للقائمة';
+
+  @override
+  String get waTransfer => 'تحويل';
+
+  @override
+  String get waTransferTo => 'تحويل إلى';
+
+  @override
+  String get waClose => 'إغلاق';
+
+  @override
+  String get waReopen => 'إعادة فتح';
+
+  @override
+  String waWindowOpen(String time) {
+    return 'نافذة الرد مفتوحة حتى $time';
+  }
+
+  @override
+  String get waWindowClosed =>
+      'مرّت 24 ساعة على آخر رسالة من العميل: يمكنك فقط إرسال قالب معتمد.';
+
+  @override
+  String get waWindowNever =>
+      'لم يرسل العميل رسالة بعد: يمكنك فقط إرسال قالب معتمد.';
+
+  @override
+  String get waComposerHint => 'اكتب ردك…';
+
+  @override
+  String get waSend => 'إرسال';
+
+  @override
+  String get waSendTemplate => 'إرسال قالب';
+
+  @override
+  String waTemplateParam(int n) {
+    return 'المتغيّر $n';
+  }
+
+  @override
+  String get waNoTemplates => 'لا توجد قوالب معتمدة بعد.';
+
+  @override
+  String get waAttach => 'إرفاق';
+
+  @override
+  String get waQuickReplies => 'ردود سريعة';
+
+  @override
+  String get waNoQuickReplies => 'لا توجد ردود سريعة.';
+
+  @override
+  String get waVoice => 'رسالة صوتية';
+
+  @override
+  String get waPlay => 'تشغيل';
+
+  @override
+  String get waPause => 'إيقاف';
+
+  @override
+  String get waOpenFile => 'فتح الملف';
+
+  @override
+  String get waMediaTooLarge => 'الملف أكبر من الحد المسموح ولم يُحفظ.';
+
+  @override
+  String get waMediaRefused => 'نوع الملف غير مسموح ولم يُحفظ.';
+
+  @override
+  String get waMediaFailed => 'تعذّر جلب الملف من واتساب.';
+
+  @override
+  String get waLocation => 'موقع';
+
+  @override
+  String get waUnsupported => 'رسالة من نوع غير مدعوم بعد.';
+
+  @override
+  String waTemplateTag(String name) {
+    return 'قالب: $name';
+  }
+
+  @override
+  String get waStatusSent => 'أُرسلت';
+
+  @override
+  String get waStatusDelivered => 'وصلت';
+
+  @override
+  String get waStatusRead => 'قُرئت';
+
+  @override
+  String get waStatusFailed => 'فشل الإرسال';
+
+  @override
+  String waSentBy(String name) {
+    return 'أرسلها $name';
+  }
+
+  @override
+  String get waCustomer => 'العميل';
+
+  @override
+  String get waAccount => 'حساب Kabso';
+
+  @override
+  String get waNoAccount =>
+      'غير مربوط بحساب. اطلب من العميل اسم المستخدم ثم اربطه.';
+
+  @override
+  String get waLink => 'ربط بحساب';
+
+  @override
+  String get waUnlink => 'إلغاء الربط';
+
+  @override
+  String get waUsername => 'اسم المستخدم';
+
+  @override
+  String get waNotes => 'ملاحظات داخلية';
+
+  @override
+  String get waNotesHint => 'لا تُرسل إلى العميل أبداً.';
+
+  @override
+  String get waAddNote => 'إضافة ملاحظة';
+
+  @override
+  String get waNoNotes => 'لا توجد ملاحظات.';
+
+  @override
+  String get waHistory => 'سجل الإسناد';
+
+  @override
+  String get waSomeone => 'موظف';
+
+  @override
+  String get waMute => 'كتم إشعارات واتساب';
+
+  @override
+  String get waErrWindow => 'انتهت نافذة الـ24 ساعة: أرسل قالباً معتمداً.';
+
+  @override
+  String get waErrAssigned => 'المحادثة مع موظف آخر.';
+
+  @override
+  String get waErrClosed => 'المحادثة مغلقة. أعد فتحها أولاً.';
+
+  @override
+  String get waErrSend => 'لم يقبل واتساب الرسالة.';
+
+  @override
+  String get waErrOff => 'واتساب غير مفعّل على الخادم.';
+
+  @override
+  String get waDetails => 'تفاصيل العميل';
 }

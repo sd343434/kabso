@@ -29139,6 +29139,414 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'استرداد عبر المتجر (سُحبت العملات)'**
   String get walletReasonStoreIapReversal;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'واتساب'**
+  String get waRow;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} محادثة بانتظار الرد'**
+  String waRowBadge(int count);
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'واتساب'**
+  String get waTitle;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مسندة'**
+  String get waTabUnassigned;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'محادثاتي'**
+  String get waTabMine;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get waTabAll;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'مغلقة'**
+  String get waTabClosed;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث بالاسم أو الرقم'**
+  String get waSearch;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد محادثات هنا'**
+  String get waEmpty;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر هنا رسائل العملاء إلى رقم Kabso الرسمي.'**
+  String get waEmptyHint;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'واتساب غير مفعّل بعد'**
+  String get waOff;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'يضبطه المالك بعد إنشاء حساب Meta للأعمال.'**
+  String get waOffHint;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} غير مقروءة'**
+  String waUnreadCount(int count);
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'معي'**
+  String get waAssignedToMe;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'مع {name}'**
+  String waAssignedTo(String name);
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مسندة'**
+  String get waUnassigned;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'مغلقة'**
+  String get waClosed;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'استلام'**
+  String get waClaim;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'إرجاع للقائمة'**
+  String get waRelease;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحويل'**
+  String get waTransfer;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحويل إلى'**
+  String get waTransferTo;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق'**
+  String get waClose;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة فتح'**
+  String get waReopen;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'نافذة الرد مفتوحة حتى {time}'**
+  String waWindowOpen(String time);
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'مرّت 24 ساعة على آخر رسالة من العميل: يمكنك فقط إرسال قالب معتمد.'**
+  String get waWindowClosed;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يرسل العميل رسالة بعد: يمكنك فقط إرسال قالب معتمد.'**
+  String get waWindowNever;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب ردك…'**
+  String get waComposerHint;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال'**
+  String get waSend;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال قالب'**
+  String get waSendTemplate;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'المتغيّر {n}'**
+  String waTemplateParam(int n);
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد قوالب معتمدة بعد.'**
+  String get waNoTemplates;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'إرفاق'**
+  String get waAttach;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'ردود سريعة'**
+  String get waQuickReplies;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ردود سريعة.'**
+  String get waNoQuickReplies;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة صوتية'**
+  String get waVoice;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل'**
+  String get waPlay;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف'**
+  String get waPause;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الملف'**
+  String get waOpenFile;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'الملف أكبر من الحد المسموح ولم يُحفظ.'**
+  String get waMediaTooLarge;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع الملف غير مسموح ولم يُحفظ.'**
+  String get waMediaRefused;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر جلب الملف من واتساب.'**
+  String get waMediaFailed;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'موقع'**
+  String get waLocation;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة من نوع غير مدعوم بعد.'**
+  String get waUnsupported;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'قالب: {name}'**
+  String waTemplateTag(String name);
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت'**
+  String get waStatusSent;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت'**
+  String get waStatusDelivered;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'قُرئت'**
+  String get waStatusRead;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'فشل الإرسال'**
+  String get waStatusFailed;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسلها {name}'**
+  String waSentBy(String name);
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'العميل'**
+  String get waCustomer;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب Kabso'**
+  String get waAccount;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مربوط بحساب. اطلب من العميل اسم المستخدم ثم اربطه.'**
+  String get waNoAccount;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'ربط بحساب'**
+  String get waLink;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الربط'**
+  String get waUnlink;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم'**
+  String get waUsername;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظات داخلية'**
+  String get waNotes;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا تُرسل إلى العميل أبداً.'**
+  String get waNotesHint;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة ملاحظة'**
+  String get waAddNote;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ملاحظات.'**
+  String get waNoNotes;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'سجل الإسناد'**
+  String get waHistory;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'موظف'**
+  String get waSomeone;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم إشعارات واتساب'**
+  String get waMute;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت نافذة الـ24 ساعة: أرسل قالباً معتمداً.'**
+  String get waErrWindow;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'المحادثة مع موظف آخر.'**
+  String get waErrAssigned;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'المحادثة مغلقة. أعد فتحها أولاً.'**
+  String get waErrClosed;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يقبل واتساب الرسالة.'**
+  String get waErrSend;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'واتساب غير مفعّل على الخادم.'**
+  String get waErrOff;
+
+  /// D355: «واتساب» — the official Kabso WhatsApp number (§10.151).
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاصيل العميل'**
+  String get waDetails;
 }
 
 class _AppLocalizationsDelegate
