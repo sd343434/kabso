@@ -680,6 +680,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.90-live)* Tables `gift_coins_sent_hourly`, `gift_coins_sent_monthly` (CHECKs `…_coins` ≥ 0) | Backend — `live` module (`addGiftCoinsSentIn` from the live / DM sends and `couples` CP gifts; `takeBackGiftCoinsSentIn` from `economy` `reverseGiftCherriesIn`; the board; the sweeper) | CTO |
 | *(v1.101-social)* Enum `event_audience` (`events.audience`, was `program_audience`: + AGENCIES, CP); columns `events.status`, `recurrence`, `period`, `period_starts_at`, `period_ends_at`, `scoring`, `counted_gifts`, `banner_media_id`, `start_notified_at`, `published_at` (CHECKs `events_shape` — a draft may have no dates —, `events_v2_shape`, `events_audience_not_creators`, `events_art_keys`); `event_gifts.points_per_coin` NUMERIC(7,2); `event_results.period` (unique keys with the period); tables `event_periods`, `event_milestones`, `event_milestone_grants`; columns `gifts.event_id` (CHECK `gifts_event_plain`), `store_items.event_id` (CHECK `store_items_event_exclusive`); notification `EVENT_STARTED` (unique `notifications_event_started_once`) | Backend — `programs` module (`gift-events.ts` the only writer of the event structure, periods, milestones and payouts; `events.service.ts` the sweeper and the reads); `gifts` / `live` (an event gift's listing and sale), `store` (event items) | CTO; Security (money: automatic prizes and free gift pieces; mass start notification) |
 | *(v1.102-social)* Columns `events.creators_as_hosts` (existing rows false, default true) and `event_boards.shown` (CHECK `event_boards_shown`, 1–100, default 20) | Backend — `programs` module (`event-audience.ts`, `gift-events.ts`, `events.service.ts`), `home` (banners) | CTO |
+| *(v1.115-social)* Column `events.design` (JSONB, nullable; CHECK `events_design_shape`: an object of `v` 1); media asset kind `EVENT_BOARD_BG` (CHECK `media_assets_kind_known`) | Backend — `programs` module (`event-design.ts` — the only shape and rules of a design; `gift-events.ts` writes it; `events.service.ts` reads it; `event-media.ts` stores the background), `admin-panel` (`AdminGiftEventsService`: upload, form, options) | CTO |
 
 ## 9. Contract change log
 
@@ -773,6 +774,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
 | v1.116-social (draft) | 2026-11-10 | **D355 (owner: «ربط رقم واتساب رسمي واحد … زر واتساب في التطبيق وفي لوحة الإدارة، عداد غير مقروء، إشعار، والرد على العميل»):** «واتساب» on the WhatsApp Business Platform Cloud API, off until configured. Tag `staff` — `getStaffWhatsAppSummary`, `getStaffWhatsAppConversations`, `getStaffWhatsAppConversation`, `getStaffWhatsAppMessages`, `sendStaffWhatsAppMessage`, `sendStaffWhatsAppMedia`, `getStaffWhatsAppMedia`, `markStaffWhatsAppRead`, `claim…` / `release…` / `transfer…` / `close…` / `reopenStaffWhatsAppConversation`, `getStaffWhatsAppAssignments`, `getStaffWhatsAppNotes`, `addStaffWhatsAppNote`, `link…` / `unlinkStaffWhatsAppConversation`, `getStaffWhatsAppTemplates`, `getStaffWhatsAppAgents`, quick replies (`getStaffWhatsAppQuickReplies`, `create…` / `update…` / `deleteStaffWhatsAppQuickReply`), `getStaffWhatsAppMySettings` / `updateStaffWhatsAppMySettings`; tag `admin-panel` — the same as `…AdminWhatsApp…` plus `getAdminWhatsAppStatus` and `testAdminWhatsAppConnection`; tag `whatsapp` — `verifyWhatsAppWebhook`, `receiveWhatsAppWebhook`. Capabilities `support.whatsapp` (OWNER, MODERATION, SUPPORT), `support.whatsapp.manage` (OWNER, MODERATION); codes `WHATSAPP_UNAVAILABLE` (503), `WHATSAPP_WINDOW_CLOSED`, `WHATSAPP_CONVERSATION_ASSIGNED`, `WHATSAPP_CONVERSATION_CLOSED` (409), `WHATSAPP_SEND_FAILED` (502); data-export section `whatsapp`; audit `whatsapp.*`; migration `20270421090000_whatsapp_inbox`. §4, §10.151. | **Additive** (new operations, codes, capabilities, export section; `StaffStatus.capabilities` gains the two for the staff who hold them). Off until the owner places the WHATSAPP_* settings. |
+| v1.115-social (draft) | 2026-11-10 | **D354 (owner «اجعل كل الخيارات متاحة»: every option of the event page designer selectable per event):** schemas `EventPageDesignInput` (`GiftEventForm.design`, nullable; absent on an edit = kept), `EventPageDesign` (`EventDetail.design`, nullable, with `leaderboardBackgroundUrl`), `EventPageLayout`, `EventLeaderboardStyle`, `EventCountdownStyle`, `EventCardPreset`, `EventRulesButton`, `EventPageSection`, `EventRewardTiers`, `EventRewardTier`, `EventPageMotion`; `EventOptions.designChoices`; `AdminGiftEvent.artUrls.leaderboardBackground`; event media kind `board_background` (`uploadAdminEventMedia` / `uploadStaffEventMedia`, `EventMediaSpec`) → media asset kind `EVENT_BOARD_BG`; 400 `VALIDATION_FAILED` issues `design_sections`, `design_rules_unreachable`, `design_boards_required`, `design_tier_board`, `design_tier_range`, `design_tier_overlap`, `design_tier_prize`, `design_tier_featured` (and `design.leaderboardBackgroundMediaId` / `invalid_value`); audit `event.create` / `event.update` metadata `design` (+ `designChanged`); migration `20270420090000_event_page_design`. §8, §10.150. | **Additive**: a new optional request field and a new nullable response field (older apps ignore it; null = today's page); a new upload kind. |
 | v1.113-live (draft) | 2026-11-10 | **D351 (owner approved 2026-11-10: build the live capacity guard «حد الامتلاء» designed in D350's SURGE_AND_OVERFLOW_PLAN §6):** code `LIVE_CAPACITY_FULL` (503, `Retry-After`) on `startLiveRoom` — the one operation every go-live path uses (solo, PK host, multi-guest, audio, podcast, streamer, the web studio). Server settings `LIVE_CAPACITY_MAX_ROOMS` (**0 = off, the default**), `LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT` (100), `LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT` (25), `LIVE_CAPACITY_RETRY_AFTER_SECONDS` (60), `LIVE_CAPACITY_BYPASS_USER_IDS` (empty). Checked last, right before the room is created (every older refusal keeps its answer and order); race-safe through one transaction-scoped advisory lock. No new field, no migration. §4, §10.3, §10.148. | **Additive** (a new error code on one operation; with the default 0 nothing changes; an older app shows its generic error for the unknown code, CONVENTIONS v1.3 note). |
 | v1.112-social (draft) | 2026-11-09 | **int21 (owner «موافق على الاقتراحات» on D345 #7 + D344): «الشحن من الموقع» only in the direct APK.** `InstallSource` {PLAY, APP_STORE, SIDELOAD} in `DeviceInfo.installSource` (sign-in) and the `refresh` body, kept on the session (`sessions.install_source`, migration `20270418090100_session_install_source`); `RechargePackages.websiteTopupUrl` and `createTopupWebsiteSession` follow `TOPUP_APP_LINK_SOURCES` (default SIDELOAD) on top of `TOPUP_APP_LINK_PLATFORMS`. Also (D345 #5): a store refund bans every device seen for the account (no shape change). §10.143.3, §10.144. | **Additive** in shape; **behaviour change**: a session that reported no install source (an app older than this) no longer gets the website link; a refund bans more devices. |
 | v1.111-live (draft) | 2026-11-09 | **D347 (owner: «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»):** the global lucky banner — the data message `lucky-ticker` (topic `lucky`) goes to every other LIVE room (every mode) only for a send whose best win is in the server set `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (default `250,500,1000`; was every win ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`, 100); it gains `gift` `{code, assetKey, imageUrl}` and `room.mode`; the gap `LUCKY_GLOBAL_BANNER_GAP_SECONDS` (10) is configurable; a waiting win whose live ended is dropped. The app draws it as the room's win banner with the live's name and a tap target. *Follow-up (owner «نعم موافق»):* `GlobalStripsSettings.luckyGlobalMultipliers` / `luckyGlobalGapSeconds` (the panel, optional in `UpdateGlobalStripsRequest`, 400 `luckyGlobalMultipliers` / `invalid_value`), `NotificationSettings.luckyStrip` («إخفاء أشرطة الفوز»); migration `20270418090000_lucky_strip_setting`. §10.27, §10.146, §10.146.1. | **Additive** (new message fields older apps ignore); **behaviour change**: ×100 wins are no longer told to other lives. New fields are additive. |
@@ -11236,6 +11238,7 @@ Owner (2026-11-09): «الافيهات الموجودة فيها افيهات م
   generic Kabi «sing» art for the unknown `quips/gulf` / `quips/jordan` keys) and, when one plays, shows the strip and
   chat line with the words; loading the missing sound fails inside `AudioplayersQuipAudio.play`, which catches it (no
   sound, no crash).
+
 ### 10.148 The live capacity guard «حد الامتلاء» *(v1.113-live, DRAFT — D351)*
 
 The owner approved (2026-11-10) the guard designed in D350 (`docs/infrastructure/SURGE_AND_OVERFLOW_PLAN.md` §6): when
@@ -11277,6 +11280,107 @@ node limits would otherwise refuse new viewers of the lives already running).
   setup and shows a sheet «البث مزدحم الآن، حاول بعد قليل» / "Live is busy right now, please try again shortly" with
   «حاول مجددًا» / "Try again", disabled with a countdown until `Retry-After` has passed (60 s without the header); not
   an error toast. The web studio shows the same words with the same button. An older app shows its generic error.
+
+### 10.150 The event page designer «مصمم صفحة الفعالية» *(v1.115-social, DRAFT — D354)*
+
+Owner (2026-11-10), after the KL-352 option rounds (D352): **«اجعل كل الخيارات متاحة»** — every option is selectable
+per event by the team, nothing is fixed for all events. Approved earlier: sections can be reordered and hidden, the
+rules can be a button, a rewards tab by rank tiers. **Phase 1** (this section): the contract, the server (stored,
+validated, audited, returned) and the app (every option drawn from real data). **Phase 2** (later): the panel's designer
+UI and its live preview (Flutter web); until then a design is set through the API (`PUT /admin/gift-events/{id}` with
+`design`), the staff app's event editor or a script.
+
+#### 10.150.1 The design (version 1)
+
+`GiftEventForm.design` / `EventDetail.design` — `null` (every event made before D354, every D166 metric event, any
+event not designed) is **today's page, unchanged**. Otherwise an object, `v: 1`:
+
+| Field | Values (default) | What the app draws |
+|---|---|---|
+| `layout` (required) | `HERO_PODIUM`, `STAGE`, `DECK` | HERO_PODIUM: a full-bleed hero (the event's background, title art, dates, countdown), then the page; STAGE: the hero collapses into a pinned bar with the title, a small countdown and the tabs; DECK: the hero, then the boards as a deck of swipeable cards (one per board) and the rewards as carousels. |
+| `leaderboard` | `THRONE`, `PODIUM`, `CARDS_ROW`, `SPOTLIGHT`, `SHIELD_CREST` (THRONE) | How the top three stand; the rows below are the same in every style. |
+| `countdown` | `CLASSIC`, `FLIP`, `RING`, `COINS`, `NEON`, `RIBBON` (CLASSIC) | CLASSIC is today's pill; the others are the large hero countdowns (units agree with their numbers in Arabic). An event without an end shows the pill. |
+| `preset` | `CLASSIC`, `LUXURY_GOLD`, `GLASS`, `DARK_MINIMAL`, `NEON`, `KABSO_RED` (CLASSIC) | The cards' look (gifts tiles, rules, rewards tiers, milestones, tabs, the «مركزي» bar — CLASSIC: the gold bar). The hero, the countdown and the leaderboard keep their own art. |
+| `rulesButton` | null, or `{style: EDGE_RIBBON \| ROUND_ICON \| GOLD_PILL \| GLASS_CHIP \| SIDE_TAB \| APP_BAR_LINK, edge: START \| END}` (null; edge END) | The rules open in a sheet (the event's rules + the standard lines). `edge` is logical: START is right in Arabic, left in English; GOLD_PILL sits under the countdown and APP_BAR_LINK in the top bar, so they ignore it. |
+| `sections` | the five ids `GIFTS`, `RULES`, `BOARDS`, `REWARDS`, `MILESTONES`, each once, with `visible` (all, in that order) | The page in that order; hidden ones left out; a visible section with nothing to show (no gifts, no milestones) is left out too. REWARDS visible (and a board with prizes) = the gold tabs «الترتيب \| الجوائز»; REWARDS before BOARDS = the rewards tab comes first and opens. |
+| `leaderboardBackgroundMediaId` | null or an `EVENT_BOARD_BG` media id (null) | Behind the leaderboard under a dark scrim (returned as `leaderboardBackgroundUrl`); null: the style's own background. |
+| `rewards` | null or `{tiers: [EventRewardTier]}` (null) | The rewards tab — §10.150.4. Null: one tier per prize line of each board. |
+| `motion` | `entrance` FADE \| SLIDE \| SCALE \| NONE (FADE), `durationMs` 0–1500 (450), `shimmer` (true), `pulseFirst` (true), `overlaySpeed` 0.25–2 (1), `overlayOpacity` 0–1 (1) | How the sections come in; the light sweep on frames; the first place's pulse; the event overlay's speed and opacity. **The system's reduce-motion setting stops all of it** (sections appear at once, no ticker, no overlay). |
+
+The response always carries every field (defaults written out). Unknown fields are a 400 (`unknown_field`). A client
+draws today's page for an unknown `v` or `layout`, and falls back to a choice's default for any other unknown value.
+
+#### 10.150.2 Saving it
+
+- On `createAdminGiftEvent` / `updateAdminGiftEvent` and the staff app's create / edit (the same `GiftEventInput`).
+  Absent on a create: none; **absent on an edit: kept**; `null`: back to today's page.
+- **A display setting**: it may change while the event runs (like `announceFullscreen` and «عدد المعروضين»), with the
+  edit's `reason`; the event's structure stays locked as D303 (a structure change is still 409). Audited in
+  `event.create` / `event.update`: `design` (a short summary: layout, styles, rules button, sections, tier ranges,
+  motion) and, on an edit, `designChanged`.
+- Publishing a draft (`publishAdminEvent`) re-runs every rule, the design's too; the design is kept.
+
+#### 10.150.3 The rules (server, 400 `VALIDATION_FAILED`, the issue in `details`)
+
+| Issue | Field | When |
+|---|---|---|
+| `design_sections` | `design.sections` | a section listed twice (five entries, each id once) |
+| `design_rules_unreachable` | `design.rulesButton` | RULES hidden without a rules button — the rules must stay reachable |
+| `design_boards_required` | `design.sections` | BOARDS hidden while the event has boards (a draft without boards may hide it) |
+| `design_tier_board` | `design.rewards.tiers.N` | a tier on a board the event does not have |
+| `design_tier_range` | `design.rewards.tiers.N` | `to` < `from`, or `to` beyond the board's «عدد المعروضين» (the body's, else the stored one, else 20) |
+| `design_tier_overlap` | `design.rewards.tiers.N` | tiers of one board out of order or overlapping |
+| `design_tier_prize` | `design.rewards.tiers.N` | a tier not inside ONE prize line of its board |
+| `design_tier_featured` | `design.rewards.tiers.N` | a featured index not an item of that line, or listed twice |
+| `invalid_value` | `design.leaderboardBackgroundMediaId` | not an uploaded `EVENT_BOARD_BG` asset |
+
+An edit that leaves the design out but changes the boards so the stored design no longer fits (before the start) is
+the same 400 with «Send the design again». Text contrast over the uploaded art is the app's job (the panel's preview
+in phase 2 will warn); the server does not judge pictures.
+
+#### 10.150.4 The rewards tiers — no second copy of the prizes
+
+A tier is `{board, from, to, labelAr?, labelEn?, featured: [index]}`: a rank range of one board (e.g. 1, 2, 3, 4–10)
+and which of its prizes are shown large. **Its prizes are the board's own prize line covering the range**
+(`event_boards.prizes`, the D303 / D325 prize table — what is really paid), never copied into the design: a tier must lie
+inside one line, so its prizes are unambiguous, and a line may be split into narrower tiers (1–3 as 1, 2, 3).
+*Why:* the prize table already describes every item (type, item code, days or permanent, quantity, display picture),
+and the payout reads it; a second list in the design would drift from what is paid. The prize **kind** the page shows
+(frame, entrance, badge, gift pieces, coins, cherries, other) is read from the item (`type`, a bag item's `category`:
+AVATAR_FRAME → frame, ENTRY_EFFECT / ENTRY_BANNER → entrance; BADGE; GIFT_PIECES; COINS; CHERRIES / CP_MONEY; VIP and
+the other categories → other). A «name bar» prize is not an item type yet (none is drawn). Featured `index` = the
+item's 0-based place in that line (≤ 3 per tier). A board without designed tiers shows one tier per prize line.
+
+#### 10.150.5 The leaderboard background
+
+Upload `uploadAdminEventMedia` (or the staff app's) **kind `board_background`**: PNG / JPEG / WebP still, ≤ 2 MB,
+1 080 × 1 440 (3:4, or larger with the same shape ±1 %); stored as a WebP media asset of kind **`EVENT_BOARD_BG`**
+(`media/<id>/1080.webp` and a 240 × 320 thumbnail), the result's `mediaId` goes in `design.leaderboardBackgroundMediaId`.
+Safe zone: the top half is behind the top three (keep the middle third calm), the rest behind the rows under a scrim.
+Unnamed it is swept after 24 hours like any unattached upload; naming it in a saved design marks it attached. A
+replaced background is kept (attached) — the sweeper does not see JSON references; the leftover is a few hundred KB per
+change (CTO; a cleanup can come with phase 2).
+
+#### 10.150.6 Older apps and the D303 page
+
+Additive. An app before D354 ignores `design` and draws today's page; the server never requires it. The app draws a
+designed page only for a gift event (`EVENT_GIFTS`) with a design it understands; everything on it is the event's real
+data: the hero is the event's background and title art (the title in gold without art), the gifts are the event's
+gifts (a tap explains how to send them), the boards are `getEventLeaderboard` (reloaded every 30 s while running, the
+caller's gold «مركزي» bar with D340's final-result lines), the milestones are `EventDetail.milestones`, the rewards are
+the prize lines. The Kabso Live logo (owner art, `assets/brand/`, D352) closes the page.
+
+#### 10.150.7 Tests
+
+API: `event-design.spec.ts` (every option, defaults, each rule), e2e `d354-event-page-design` (migration, create /
+update / keep / clear / stale / publish / running edit with audit, every 400, the media kind). App:
+`event_design_d354_test.dart` — the model (null / unknown → today's page), every layout, leaderboard style, countdown,
+rules button × edge (RTL / LTR), preset, the sections' order, the rewards tab (team tiers, featured, a board without
+tiers), the background, motion (reduce-motion stops it, the switches), 360 × 800 at 1.3 in Arabic and English; goldens
+(a representative matrix — each option appears at least once, not every combination): `heroPodium.throne.flip.
+luxuryGold.ribbonStart` (ar, en), `stage.cardsRow.ring.glass.roundIcon`, `deck.podium.ribbon.kabsoRed.goldPill`,
+`heroPodium.spotlight.coins.neon.glassChip`, `stage.shieldCrest.neon.darkMinimal.sideTab`,
+`heroPodium.classic.appBarLink.boardsFirst`, `rewards` (ar, en), `boards`, `stage.scale13` (360 × 800, 1.3).
 
 ### 10.151 «واتساب» — the official Kabso WhatsApp number answered by the staff *(v1.116-social, DRAFT — D355)*
 

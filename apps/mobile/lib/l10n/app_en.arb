@@ -5451,5 +5451,22 @@
   "waErrClosed": "This conversation is closed. Reopen it first.",
   "waErrSend": "WhatsApp did not accept the message.",
   "waErrOff": "WhatsApp is not on on the server.",
-  "waDetails": "Customer details"
+  "waDetails": "Customer details",
+  "eventsUnitDays": "{count, plural, =1{Day} other{Days}}",
+  "eventsUnitHours": "{count, plural, =1{Hour} other{Hours}}",
+  "eventsUnitMinutes": "{count, plural, =1{Min} other{Min}}",
+  "eventsUnitSeconds": "{count, plural, =1{Sec} other{Sec}}",
+  "eventsTabRanking": "Ranking",
+  "eventsTabRewards": "Rewards",
+  "eventsRewardPermanent": "Permanent",
+  "eventsRewardPreview": "Preview",
+  "eventsRewardFeatured": "Grand prize",
+  "eventsSeatOpen": "Open seat",
+  "eventsToPrevRank": "{points} to place {rank}",
+  "eventsLastHour": "Final hour",
+  "eventsRewardDays": "{days, plural, =1{1 day} other{{days} days}}",
+  "eventsDaysShort": "{days, plural, =1{1 day} other{{days} days}}",
+  "eventsNoEnd": "No end",
+  "eventsMilestonesTitle": "Milestones",
+  "eventsMilestoneAt": "At {points} points"
 }

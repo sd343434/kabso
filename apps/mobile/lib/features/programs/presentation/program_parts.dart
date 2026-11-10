@@ -1,6 +1,7 @@
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/programs/presentation/event_page_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Shared parts of the Me hub's program screens (D166): the Task Center,
@@ -52,6 +53,65 @@ class ProgramSection extends StatelessWidget {
     final subtitle = this.subtitle;
     final trailing = this.trailing;
     final gold = ProgramGoldFrame.of(context);
+    // KL-352 prototype: an event page theme draws the card.
+    final et = EventPageTheme.of(context);
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 18,
+              decoration: BoxDecoration(
+                color: et == null ? KBrandColors.gold : null,
+                gradient: et?.accent,
+                borderRadius: BorderRadius.circular(KRadius.pill),
+              ),
+            ),
+            const SizedBox(width: KSpacing.sm),
+            Expanded(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: t.title.copyWith(
+                    color:
+                        et?.title ?? (gold ? kProgramFrameGold : p.textPrimary),
+                    fontWeight: gold || et != null
+                        ? FontWeight.w800
+                        : FontWeight.w700,
+                    shadows: et?.titleShadow,
+                  ),
+                ),
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: KSpacing.xs),
+          Text(subtitle, style: t.caption.copyWith(color: p.textSecondary)),
+        ],
+        const SizedBox(height: KSpacing.md),
+        child,
+      ],
+    );
+    if (et != null) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: KSpacing.md),
+        child: EventFrame(
+          fill: et.cardFill,
+          border: et.cardBorder,
+          borderWidth: et.cardBorderWidth,
+          radius: et.radius,
+          blur: et.blur,
+          glow: et.glow,
+          padding: const EdgeInsets.all(KSpacing.lg),
+          child: content,
+        ),
+      );
+    }
     return Container(
       margin: const EdgeInsets.only(bottom: KSpacing.md),
       padding: const EdgeInsets.all(KSpacing.lg),
@@ -63,43 +123,7 @@ class ProgramSection extends StatelessWidget {
           width: gold ? 1.2 : 1,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 4,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: KBrandColors.gold,
-                  borderRadius: BorderRadius.circular(KRadius.pill),
-                ),
-              ),
-              const SizedBox(width: KSpacing.sm),
-              Expanded(
-                child: Semantics(
-                  header: true,
-                  child: Text(
-                    title,
-                    style: t.title.copyWith(
-                      color: gold ? kProgramFrameGold : p.textPrimary,
-                      fontWeight: gold ? FontWeight.w800 : FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-              ?trailing,
-            ],
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: KSpacing.xs),
-            Text(subtitle, style: t.caption.copyWith(color: p.textSecondary)),
-          ],
-          const SizedBox(height: KSpacing.md),
-          child,
-        ],
-      ),
+      child: content,
     );
   }
 }

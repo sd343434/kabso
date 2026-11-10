@@ -6,6 +6,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/event_center_screen.dart';
+import 'package:kabso_live/features/programs/presentation/event_designed_page.dart';
 import 'package:kabso_live/features/programs/presentation/gift_event_sections.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -74,6 +75,20 @@ class EventDetailScreen extends ConsumerWidget {
       } on Object {
         // The page shows the failure with a retry.
       }
+    }
+
+    // v1.115-social (D354, §10.150): a gift event the team designed is drawn
+    // as designed; no design (or one this app does not know) is today's page.
+    final designed = detail.value;
+    final design = designed?.design;
+    if (designed != null && designed.isGiftEvent && design != null) {
+      return EventDesignedPage(
+        key: ValueKey('event.design.${designed.id}'),
+        event: designed,
+        design: design,
+        onRefresh: refresh,
+        now: countdownClock,
+      );
     }
 
     final children = switch (detail) {

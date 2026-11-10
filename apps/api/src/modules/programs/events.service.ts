@@ -33,6 +33,8 @@ import {
   type PrizeItemWithDisplay,
 } from './gift-events.js';
 import { EVENT_LEADERBOARD_MAX, parseEventPrizes, prizeForRank, type EventPrize } from './programs-rules.js';
+import { parseStoredDesign, type EventDesign } from './event-design.js';
+import { EVENT_BOARD_BG_KIND } from './event-media.js';
 import {
   audienceSql,
   eventAudienceWhere,
@@ -218,6 +220,11 @@ export interface EventDetailDto extends EventSummaryDto {
   /** The current period (recurring: the running one; NONE: the event's dates) and whether a previous one exists. */
   period?: { index: number; startsAt: string; endsAt: string | null; hasPrevious: boolean };
   milestones?: Omit<EventMilestoneDto, 'score' | 'reached' | 'granted'>[];
+  /**
+   * v1.115-social (D354, §10.150): the page design chosen in the panel, with its leaderboard background's URL; null =
+   * today's page (every D166 event, every event made before D354, and any event the team did not design).
+   */
+  design: (EventDesign & { leaderboardBackgroundUrl: string | null }) | null;
 }
 
 /** `EventLeaderboardEntry`. */
@@ -589,6 +596,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       prizes: parseEventPrizes(e.prizes) ?? [],
       timeZone: e.timeZone ?? this.zone,
       art: this.artOf(e),
+      design: gift ? await this.designOf(e) : null,
       gifts: gifts.map((g) => {
         const multiplier = coinsOnly ? 1 : Number(g.pointsPerCoin);
         return {
@@ -830,6 +838,22 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     return {
       titleUrl: art.titleFormat === 'LOTTIE' ? null : art.titleUrl,
       backgroundUrl: bg ? (bg.kind === 'VIDEO' ? bg.posterUrl : bg.url) : null,
+    };
+  }
+
+  /** v1.115-social (D354): the stored design (null when none or no longer valid) and its background's URL. */
+  private async designOf(e: Event): Promise<EventDetailDto['design']> {
+    const design = parseStoredDesign(e.design);
+    if (design === null) return null;
+    const id = design.leaderboardBackgroundMediaId;
+    const asset = id
+      ? await this.prisma.mediaAsset.findFirst({ where: { id, kind: EVENT_BOARD_BG_KIND } })
+      : null;
+    return {
+      ...design,
+      leaderboardBackgroundUrl: asset
+        ? giftArtUrl(this.storageSettings.current().publicBaseUrl, asset.largeKey)
+        : null,
     };
   }
 

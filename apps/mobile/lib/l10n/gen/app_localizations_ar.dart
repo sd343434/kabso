@@ -17497,4 +17497,130 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get waDetails => 'تفاصيل العميل';
+
+  @override
+  String eventsUnitDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'يوم',
+      many: 'يومًا',
+      few: 'أيام',
+      two: 'يومان',
+      one: 'يوم',
+      zero: 'يوم',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String eventsUnitHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'ساعة',
+      many: 'ساعة',
+      few: 'ساعات',
+      two: 'ساعتان',
+      one: 'ساعة',
+      zero: 'ساعة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String eventsUnitMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'دقيقة',
+      many: 'دقيقة',
+      few: 'دقائق',
+      two: 'دقيقتان',
+      one: 'دقيقة',
+      zero: 'دقيقة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String eventsUnitSeconds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'ثانية',
+      many: 'ثانية',
+      few: 'ثوانٍ',
+      two: 'ثانيتان',
+      one: 'ثانية',
+      zero: 'ثانية',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get eventsTabRanking => 'الترتيب';
+
+  @override
+  String get eventsTabRewards => 'الجوائز';
+
+  @override
+  String get eventsRewardPermanent => 'دائم';
+
+  @override
+  String get eventsRewardPreview => 'معاينة';
+
+  @override
+  String get eventsRewardFeatured => 'الجائزة الكبرى';
+
+  @override
+  String get eventsSeatOpen => 'المركز متاح';
+
+  @override
+  String eventsToPrevRank(String points, String rank) {
+    return 'باقي $points للمركز $rank';
+  }
+
+  @override
+  String get eventsLastHour => 'الساعة الأخيرة';
+
+  @override
+  String eventsRewardDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يوم',
+      many: '$days يوماً',
+      few: '$days أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String eventsDaysShort(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يوم',
+      many: '$days يومًا',
+      few: '$days أيام',
+      two: 'يومان',
+      one: 'يوم',
+      zero: '0 يوم',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get eventsNoEnd => 'بلا نهاية';
+
+  @override
+  String get eventsMilestonesTitle => 'المراحل';
+
+  @override
+  String eventsMilestoneAt(String points) {
+    return 'عند $points نقطة';
+  }
 }

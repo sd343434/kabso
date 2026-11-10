@@ -338,6 +338,8 @@ describe('D303 gift events', { timeout: 600_000 }, () => {
       ['badge', 512],
       // v1.101-social (D325): a prize's display picture.
       ['prize', 512],
+      // v1.115-social (D354): the leaderboard background.
+      ['board_background', 1080],
     ]);
     // Wrong shape, no transparency, too long a video, not an overlay, another role.
     const wrong = await eventUpload('banner', await picture(1500, 500));

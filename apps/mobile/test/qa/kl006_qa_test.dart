@@ -315,7 +315,10 @@ void main() {
           m.keys.where((k) => !k.startsWith('@')).toSet();
       expect(keys(ar), keys(en));
 
-      final placeholder = RegExp(r'\{(\w+)');
+      // A placeholder `{name` — not the text of a plural / select branch
+      // (`=1{Day}`, `other{Days}`), which an English branch starts with a
+      // word (D354: the countdown units agree with their numbers).
+      final placeholder = RegExp(r'(?<![=\w])\{(\w+)');
       for (final key in keys(en)) {
         Set<String> names(Object? v) =>
             placeholder.allMatches('$v').map((m) => m.group(1)!).toSet();

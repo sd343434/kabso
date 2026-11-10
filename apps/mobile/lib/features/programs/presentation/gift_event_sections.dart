@@ -11,6 +11,9 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
+import 'package:kabso_live/features/programs/presentation/event_leaderboard_styles.dart'
+    show MyRankBar;
+import 'package:kabso_live/features/programs/presentation/event_page_theme.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:lottie/lottie.dart';
@@ -92,10 +95,9 @@ class EventPrizeChips extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: Color.alphaBlend(
-                    gold.withValues(alpha: 0.14),
-                    p.surface,
-                  ),
+                  color:
+                      EventPageTheme.of(context)?.chipFill ??
+                      Color.alphaBlend(gold.withValues(alpha: 0.14), p.surface),
                   borderRadius: BorderRadius.circular(KRadius.pill),
                 ),
                 child: i.type == 'COINS'
@@ -165,6 +167,11 @@ class EventGiftsSection extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: p.surfaceRaised,
                         borderRadius: BorderRadius.circular(KRadius.md),
+                        border: EventPageTheme.of(context)?.tileBorder == null
+                            ? null
+                            : Border.all(
+                                color: EventPageTheme.of(context)!.tileBorder!,
+                              ),
                       ),
                       child: Column(
                         children: [
@@ -268,6 +275,10 @@ class GiftEventBoards extends ConsumerStatefulWidget {
       _selection.putIfAbsent(eventId, () => ValueNotifier(0));
   static final _selection = <String, ValueNotifier<int>>{};
 
+  /// v1.115-social (D354): the designed page forgets its tab choice as
+  /// today's page does when it goes.
+  static void release(String eventId) => _selection.remove(eventId)?.dispose();
+
   /// How often a shown, running board reloads.
   static const refreshEvery = Duration(seconds: 30);
 
@@ -349,25 +360,36 @@ class _GiftEventBoardsState extends ConsumerState<GiftEventBoards> {
                           key: GiftEventBoards.tabKey(boards[i].kind),
                           borderRadius: BorderRadius.circular(KRadius.pill),
                           onTap: () => setState(() => _selected = i),
-                          child: Container(
-                            constraints: const BoxConstraints(
-                              minHeight: KSizes.minTouchTarget,
-                            ),
-                            alignment: Alignment.center,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: KSpacing.md,
-                            ),
-                            decoration: BoxDecoration(
-                              color: i == index ? p.primary : p.surfaceRaised,
-                              borderRadius: BorderRadius.circular(KRadius.pill),
-                            ),
-                            child: Text(
-                              eventBoardLabel(l10n, boards[i].kind),
-                              style: t.label.copyWith(
-                                color: i == index ? p.onPrimary : p.textPrimary,
-                              ),
-                            ),
-                          ),
+                          child: EventPageTheme.of(context) != null
+                              ? _ThemedTab(
+                                  label: eventBoardLabel(l10n, boards[i].kind),
+                                  selected: i == index,
+                                )
+                              : Container(
+                                  constraints: const BoxConstraints(
+                                    minHeight: KSizes.minTouchTarget,
+                                  ),
+                                  alignment: Alignment.center,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: KSpacing.md,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: i == index
+                                        ? p.primary
+                                        : p.surfaceRaised,
+                                    borderRadius: BorderRadius.circular(
+                                      KRadius.pill,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    eventBoardLabel(l10n, boards[i].kind),
+                                    style: t.label.copyWith(
+                                      color: i == index
+                                          ? p.onPrimary
+                                          : p.textPrimary,
+                                    ),
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -476,10 +498,9 @@ class _BoardRows extends StatelessWidget {
           key: GiftEventBoards.meKey,
           padding: const EdgeInsets.all(KSpacing.sm),
           decoration: BoxDecoration(
-            color: Color.alphaBlend(
-              p.primary.withValues(alpha: 0.10),
-              p.surface,
-            ),
+            color:
+                EventPageTheme.of(context)?.meFill ??
+                Color.alphaBlend(p.primary.withValues(alpha: 0.10), p.surface),
             borderRadius: BorderRadius.circular(KRadius.sm),
           ),
           child: Column(
@@ -675,9 +696,18 @@ const Color kEventGold = kProgramFrameGold;
 /// legibility, with the title art on top and the Lottie overlay playing over
 /// the page — paused with reduced motion and when the page is hidden.
 class GiftEventBackdrop extends StatelessWidget {
-  const new({required this.art, super.key});
+  const new({
+    required this.art,
+    super.key,
+    this.overlaySpeed = 1,
+    this.overlayOpacity = 1,
+  });
 
   final EventArt art;
+
+  /// v1.115-social (D354): the design's overlay speed and opacity.
+  final double overlaySpeed;
+  final double overlayOpacity;
 
   static const overlayKey = Key('event.art.overlay');
   static const backgroundKey = Key('event.art.background');
@@ -712,23 +742,73 @@ class GiftEventBackdrop extends StatelessWidget {
             errorBuilder: (_, _, _) =>
                 const ColoredBox(color: Color(0xFF1A1208)),
           ),
-        const DecoratedBox(
+        DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0x33000000), Color(0x99000000), Color(0xCC000000)],
+              colors:
+                  EventPageTheme.of(context)?.scrim ??
+                  const [
+                    Color(0x33000000),
+                    Color(0x99000000),
+                    Color(0xCC000000),
+                  ],
             ),
           ),
         ),
-        if (overlay != null && art.overlayFormat == 'LOTTIE' && motion)
+        if (overlay != null &&
+            art.overlayFormat == 'LOTTIE' &&
+            motion &&
+            overlayOpacity > 0)
           IgnorePointer(
             key: overlayKey,
-            child: Lottie.network(overlay, repeat: true, fit: BoxFit.cover),
+            child: Opacity(
+              opacity: overlayOpacity.clamp(0.0, 1.0),
+              child: overlaySpeed == 1
+                  ? Lottie.network(overlay, repeat: true, fit: BoxFit.cover)
+                  : _PacedLottie(url: overlay, speed: overlaySpeed),
+            ),
           ),
       ],
     );
   }
+}
+
+/// A looping Lottie at [speed] × its own pace (D354 motion settings).
+class _PacedLottie extends StatefulWidget {
+  const new({required this.url, required this.speed});
+
+  final String url;
+  final double speed;
+
+  @override
+  State<_PacedLottie> createState() => _PacedLottieState();
+}
+
+class _PacedLottieState extends State<_PacedLottie>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Lottie.network(
+    widget.url,
+    controller: _c,
+    fit: BoxFit.cover,
+    onLoaded: (composition) {
+      final ms =
+          composition.duration.inMilliseconds / widget.speed.clamp(0.25, 2);
+      _c
+        ..duration = Duration(milliseconds: ms.round().clamp(1, 600000))
+        ..repeat();
+    },
+  );
 }
 
 /// Kabso's own crown (a simple drawing, no third-party art) for ranks 1–3.
@@ -846,6 +926,32 @@ class _EventCountdownState extends State<EventCountdown> {
         : end != null && now.isBefore(end)
         ? l10n.eventsCountdownEnds(_span(end.difference(now)))
         : l10n.eventsCountdownEnded;
+    final et = EventPageTheme.of(context);
+    final label = Text(
+      text,
+      textAlign: TextAlign.center,
+      style: context.textStyles.label.copyWith(
+        color: et?.countdownText ?? kEventGold,
+        fontWeight: et == null ? null : FontWeight.w700,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+    if (et != null) {
+      return EventFrame(
+        key: EventCountdown.countdownKey,
+        fill: et.countdownFill,
+        border: et.countdownBorder,
+        borderWidth: et.cardBorderWidth.clamp(1, 1.6),
+        radius: 999,
+        blur: et.blur,
+        glow: et.glow,
+        padding: const EdgeInsets.symmetric(
+          horizontal: KSpacing.lg,
+          vertical: KSpacing.xs + 2,
+        ),
+        child: label,
+      );
+    }
     return Container(
       key: EventCountdown.countdownKey,
       padding: const EdgeInsets.symmetric(
@@ -857,14 +963,7 @@ class _EventCountdownState extends State<EventCountdown> {
         borderRadius: BorderRadius.circular(KRadius.pill),
         border: Border.all(color: kEventGold),
       ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: context.textStyles.label.copyWith(
-          color: kEventGold,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-      ),
+      child: label,
     );
   }
 }
@@ -872,9 +971,12 @@ class _EventCountdownState extends State<EventCountdown> {
 /// The sticky «مركزي» bar: the caller's place and points on the selected
 /// board, and what is missing — to the next rank, or to the minimum.
 class GiftEventMyBar extends ConsumerWidget {
-  const new({required this.event, super.key});
+  const new({required this.event, super.key, this.gold = false});
 
   final EventDetail event;
+
+  /// v1.115-social (D354): the designed page's gold bar (same lines).
+  final bool gold;
 
   static const barKey = Key('event.myBar');
 
@@ -933,6 +1035,85 @@ class GiftEventMyBar extends ConsumerWidget {
                   '${above.rank}',
                 )
               : l10n.eventsQualified;
+        }
+        final et = EventPageTheme.of(context);
+        if (et != null) {
+          return SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                KSpacing.md,
+                0,
+                KSpacing.md,
+                KSpacing.sm,
+              ),
+              child: EventFrame(
+                key: barKey,
+                fill: et.barFill,
+                border: et.barBorder,
+                borderWidth: et.cardBorderWidth,
+                radius: et.radius,
+                blur: et.blur,
+                glow: et.glow,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: KSpacing.md,
+                  vertical: KSpacing.sm + 2,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: context.textStyles.bodyStrong.copyWith(
+                          color: et.barText,
+                        ),
+                      ),
+                    ),
+                    if (hint != null)
+                      Flexible(
+                        child: Text(
+                          hint,
+                          textAlign: TextAlign.end,
+                          style: context.textStyles.caption.copyWith(
+                            color: et.barHint,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        if (gold) {
+          final mine = rank == null
+              ? null
+              : b.giftRows.where((r) => r.rank == rank).firstOrNull;
+          final photo = mine?.user.avatarUrl;
+          return SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                KSpacing.md,
+                0,
+                KSpacing.md,
+                KSpacing.sm,
+              ),
+              child: Semantics(
+                container: true,
+                label: [label, ?hint].join('، '),
+                excludeSemantics: true,
+                child: MyRankBar(
+                  key: barKey,
+                  rank: rank,
+                  photo: photo == null ? null : GiftEventBackdrop.image(photo),
+                  label: label,
+                  hint: hint,
+                ),
+              ),
+            ),
+          );
         }
         return SafeArea(
           top: false,
@@ -1061,3 +1242,37 @@ Future<void> showEventPrizeSheet(BuildContext context, EventPrizeItem item) =>
         );
       },
     );
+
+/// KL-352 prototype: a board tab drawn with the event page theme.
+class _ThemedTab extends StatelessWidget {
+  const new({required this.label, required this.selected});
+
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final et = EventPageTheme.of(context)!;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
+      child: EventFrame(
+        fill: selected ? et.tabSelectedFill : et.tabFill,
+        border: selected ? et.tabSelectedBorder : et.tabBorder,
+        borderWidth: et.cardBorderWidth.clamp(1, 1.6),
+        radius: 999,
+        glow: selected ? et.glow : const [],
+        padding: const EdgeInsets.symmetric(
+          horizontal: KSpacing.md,
+          vertical: 12,
+        ),
+        child: Text(
+          label,
+          style: context.textStyles.label.copyWith(
+            color: selected ? et.tabSelectedText : et.tabText,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}

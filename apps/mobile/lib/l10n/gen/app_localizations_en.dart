@@ -17509,4 +17509,107 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get waDetails => 'Customer details';
+
+  @override
+  String eventsUnitDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Days',
+      one: 'Day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String eventsUnitHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Hours',
+      one: 'Hour',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String eventsUnitMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Min',
+      one: 'Min',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String eventsUnitSeconds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sec',
+      one: 'Sec',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get eventsTabRanking => 'Ranking';
+
+  @override
+  String get eventsTabRewards => 'Rewards';
+
+  @override
+  String get eventsRewardPermanent => 'Permanent';
+
+  @override
+  String get eventsRewardPreview => 'Preview';
+
+  @override
+  String get eventsRewardFeatured => 'Grand prize';
+
+  @override
+  String get eventsSeatOpen => 'Open seat';
+
+  @override
+  String eventsToPrevRank(String points, String rank) {
+    return '$points to place $rank';
+  }
+
+  @override
+  String get eventsLastHour => 'Final hour';
+
+  @override
+  String eventsRewardDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String eventsDaysShort(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get eventsNoEnd => 'No end';
+
+  @override
+  String get eventsMilestonesTitle => 'Milestones';
+
+  @override
+  String eventsMilestoneAt(String points) {
+    return 'At $points points';
+  }
 }

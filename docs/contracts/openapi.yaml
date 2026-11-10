@@ -505,6 +505,19 @@ info:
     `luckyGlobalGapSeconds`, optional in `UpdateGlobalStripsRequest`; 400 `luckyGlobalMultipliers` / `invalid_value`;
     audited; the env values are the defaults), and a viewer hides the banner with `NotificationSettings.luckyStrip`
     (false = «إخفاء أشرطة الفوز»; migration `20270418090000_lucky_strip_setting`). Additive.
+    **D354 (DRAFT v1.115-social)** the event page designer «مصمم صفحة الفعالية» (CONVENTIONS §10.150; owner
+    2026-11-10 «اجعل كل الخيارات متاحة»): `GiftEventForm.design` / `EventDetail.design` — `EventPageDesign` version 1
+    (layout HERO_PODIUM | STAGE | DECK; leaderboard THRONE | PODIUM | CARDS_ROW | SPOTLIGHT | SHIELD_CREST; countdown
+    CLASSIC | FLIP | RING | COINS | NEON | RIBBON; preset CLASSIC | LUXURY_GOLD | GLASS | DARK_MINIMAL | NEON | KABSO_RED;
+    rules button (6 styles, edge START | END) or none; the five sections GIFTS, RULES, BOARDS, REWARDS, MILESTONES in
+    order with visibility; `leaderboardBackgroundMediaId` (new event media kind `board_background` → media asset kind
+    `EVENT_BOARD_BG`, 1 080 × 1 440 still); rewards tiers — a rank range of one board + the featured items of the prize
+    line covering it, no prize data copied; motion). Absent on an edit: kept; null: today's page (every older event).
+    A display setting: editable while running, audited. 400 `VALIDATION_FAILED` with issues `design_sections`,
+    `design_rules_unreachable`, `design_boards_required`, `design_tier_board`, `design_tier_range`, `design_tier_overlap`,
+    `design_tier_prize`, `design_tier_featured`; `design.leaderboardBackgroundMediaId` / `invalid_value`.
+    `EventOptions.designChoices`, `AdminGiftEvent.artUrls.leaderboardBackground`; migration
+    `20270420090000_event_page_design`. Additive: older apps ignore `design`.
     **int21 (DRAFT v1.112-social)** «الشحن من الموقع» only in the direct APK (CONVENTIONS §10.143.3; owner «موافق على
     الاقتراحات», D345 #7 + D344): `InstallSource` {PLAY, APP_STORE, SIDELOAD} in `DeviceInfo.installSource` (sign-in)
     and in the `refresh` body (kept on the session; migration `20270418090100_session_install_source`);
@@ -15240,12 +15253,12 @@ paths:
       tags: [staff]
       operationId: uploadStaffEventMedia
       summary: "(v1.97-social, D303 follow-ups) Uploads one piece of an event's art — raw bytes, checked against the published spec (events.manage)"
-      description: "CONVENTIONS §10.114.9. `kind` banner (1 500 × 300, 5:1 — the carousel's real shape), banner_video, background (1 080 × 1 920), background_video, title (1 080 × 480, transparent), overlay (SVGA 2.x / Lottie JSON), badge (512 × 512, transparent); sizes, formats, lengths and alpha as in `EventOptions.specs`. A file outside the spec → 409 `ADMIN_ACTION_REFUSED` with `details[0]` {field: file, issue: event_media_format | event_media_size | event_media_bytes | event_media_duration | event_media_transparency | event_media_codec} and a message saying what is wrong."
+      description: "CONVENTIONS §10.114.9. `kind` banner (1 500 × 300, 5:1 — the carousel's real shape), banner_video, background (1 080 × 1 920), background_video, title (1 080 × 480, transparent), overlay (SVGA 2.x / Lottie JSON), badge (512 × 512, transparent), (v1.115-social, D354) board_background (1 080 × 1 440, PNG / JPEG / WebP still ≤ 2 MB → an `EVENT_BOARD_BG` media asset: `mediaId` for `design.leaderboardBackgroundMediaId`, kept 24 h unless a design names it); sizes, formats, lengths and alpha as in `EventOptions.specs`. A file outside the spec → 409 `ADMIN_ACTION_REFUSED` with `details[0]` {field: file, issue: event_media_format | event_media_size | event_media_bytes | event_media_duration | event_media_transparency | event_media_codec} and a message saying what is wrong."
       parameters:
         - name: kind
           in: query
           required: true
-          schema: { type: string, enum: [banner, banner_video, background, background_video, title, overlay, badge, prize] }
+          schema: { type: string, enum: [banner, banner_video, background, background_video, title, overlay, badge, prize, board_background] }
       requestBody:
         required: true
         content:
@@ -18506,7 +18519,7 @@ paths:
       tags: [admin-panel]
       operationId: uploadAdminEventMedia
       summary: "(v1.97-social, D303 follow-ups) Uploads one piece of an event's art — raw bytes, checked against the published spec (events.manage)"
-      description: "CONVENTIONS §10.114.9. `kind` banner (1 500 × 300, 5:1 — the carousel's real shape), banner_video, background (1 080 × 1 920), background_video, title (1 080 × 480, transparent), overlay (SVGA 2.x / Lottie JSON), badge (512 × 512, transparent); sizes, formats, lengths and alpha as in `EventOptions.specs`. A file outside the spec → 409 `ADMIN_ACTION_REFUSED` with `details[0]` {field: file, issue: event_media_format | event_media_size | event_media_bytes | event_media_duration | event_media_transparency | event_media_codec} and a message saying what is wrong."
+      description: "CONVENTIONS §10.114.9. `kind` banner (1 500 × 300, 5:1 — the carousel's real shape), banner_video, background (1 080 × 1 920), background_video, title (1 080 × 480, transparent), overlay (SVGA 2.x / Lottie JSON), badge (512 × 512, transparent), (v1.115-social, D354) board_background (1 080 × 1 440, PNG / JPEG / WebP still ≤ 2 MB → an `EVENT_BOARD_BG` media asset: `mediaId` for `design.leaderboardBackgroundMediaId`, kept 24 h unless a design names it); sizes, formats, lengths and alpha as in `EventOptions.specs`. A file outside the spec → 409 `ADMIN_ACTION_REFUSED` with `details[0]` {field: file, issue: event_media_format | event_media_size | event_media_bytes | event_media_duration | event_media_transparency | event_media_codec} and a message saying what is wrong."
       security:
         - adminSession: []
       parameters:
@@ -18514,7 +18527,7 @@ paths:
         - name: kind
           in: query
           required: true
-          schema: { type: string, enum: [banner, banner_video, background, background_video, title, overlay, badge, prize] }
+          schema: { type: string, enum: [banner, banner_video, background, background_video, title, overlay, badge, prize, board_background] }
       requestBody:
         required: true
         content:
@@ -29051,6 +29064,11 @@ components:
           maxItems: 10
           description: (v1.101-social) Optional milestones «مراحل».
           items: { $ref: '#/components/schemas/EventMilestoneInput' }
+        design:
+          description: "(v1.115-social, D354, §10.150) The page design. Absent on a create: none; absent on an edit: kept (re-checked against the boards — a stale one is a 400 asking for it again); null: today's page. A display setting: it may change while the event runs (audited `event.update` with `design` and `designChanged`). A named `leaderboardBackgroundMediaId` must be a `board_background` upload (400 `design.leaderboardBackgroundMediaId` / `invalid_value`)."
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/EventPageDesignInput'
         titleAr: { type: string, minLength: 1, maxLength: 120 }
         titleEn: { type: string, minLength: 1, maxLength: 120 }
         rulesAr: { type: string, maxLength: 4000 }
@@ -29111,6 +29129,128 @@ components:
                       minItems: 1
                       maxItems: 6
                       items: { $ref: '#/components/schemas/PrizeItemInput' }
+    EventPageDesignInput:
+      type: object
+      additionalProperties: false
+      description: "(v1.115-social, D354, §10.150) An event page design, version 1, as sent (defaults filled in). Cross-field rules (400 `VALIDATION_FAILED`, the issue in `details`): every section listed once (`design_sections`); RULES hidden only with a `rulesButton` (`design_rules_unreachable`); BOARDS visible when the event has boards (`design_boards_required`); each tier on a board of the event (`design_tier_board`), `from` ≤ `to` ≤ the board's «عدد المعروضين» (`design_tier_range`), in order without overlap per board (`design_tier_overlap`), inside ONE prize line of the board (`design_tier_prize`), `featured` indexes into that line's items, each once (`design_tier_featured`). Text contrast over the art is the app's job."
+      required: [v, layout]
+      properties:
+        v: { type: integer, enum: [1], description: The design version; a client draws only versions it knows (else today's page). }
+        layout: { $ref: '#/components/schemas/EventPageLayout' }
+        leaderboard: { $ref: '#/components/schemas/EventLeaderboardStyle' }
+        countdown: { $ref: '#/components/schemas/EventCountdownStyle' }
+        preset: { $ref: '#/components/schemas/EventCardPreset' }
+        rulesButton:
+          description: "The rules button (the rules open in a sheet) or null (default) for none."
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/EventRulesButton'
+        sections:
+          type: array
+          minItems: 5
+          maxItems: 5
+          description: "The page's sections in order, each once (default: GIFTS, RULES, BOARDS, REWARDS, MILESTONES, all visible). REWARDS visible = the «الترتيب | الجوائز» tabs (its place before or after BOARDS decides which tab comes first); a visible section with nothing to show is left out by the app (no gifts, no milestones, no tiers)."
+          items: { $ref: '#/components/schemas/EventPageSection' }
+        leaderboardBackgroundMediaId: { type: [string, 'null'], format: uuid, default: null, description: "An `uploadAdminEventMedia` kind `board_background` media id (an `EVENT_BOARD_BG` asset) shown behind the leaderboard under a scrim; null: the style's own background." }
+        rewards:
+          description: "The rewards tab's tiers, or null (default): the app shows each prize line of each board as a tier."
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/EventRewardTiers'
+        motion: { $ref: '#/components/schemas/EventPageMotion' }
+    EventPageDesign:
+      type: object
+      additionalProperties: false
+      description: "(v1.115-social, D354, §10.150) The page design as returned — `EventPageDesignInput` with every default written out — and its background's URL."
+      required: [v, layout, leaderboard, countdown, preset, rulesButton, sections, leaderboardBackgroundMediaId, rewards, motion, leaderboardBackgroundUrl]
+      properties:
+        v: { type: integer, enum: [1] }
+        layout: { $ref: '#/components/schemas/EventPageLayout' }
+        leaderboard: { $ref: '#/components/schemas/EventLeaderboardStyle' }
+        countdown: { $ref: '#/components/schemas/EventCountdownStyle' }
+        preset: { $ref: '#/components/schemas/EventCardPreset' }
+        rulesButton:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/EventRulesButton'
+        sections:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items: { $ref: '#/components/schemas/EventPageSection' }
+        leaderboardBackgroundMediaId: { type: [string, 'null'], format: uuid }
+        leaderboardBackgroundUrl: { type: [string, 'null'], format: uri, description: "The background's picture (null without one, or when the asset is gone)." }
+        rewards:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/EventRewardTiers'
+        motion: { $ref: '#/components/schemas/EventPageMotion' }
+    EventPageLayout:
+      type: string
+      enum: [HERO_PODIUM, STAGE, DECK]
+      description: "(v1.115-social) HERO_PODIUM — a full hero (art, title, dates, countdown) then the page; STAGE — the hero collapses into a pinned bar with the title, a small countdown and the tabs; DECK — the boards as a deck of swipeable cards. Clients draw today's page for a value they do not know."
+    EventLeaderboardStyle:
+      type: string
+      enum: [THRONE, PODIUM, CARDS_ROW, SPOTLIGHT, SHIELD_CREST]
+      default: THRONE
+      description: (v1.115-social) How the top three stand (throne seats, a three-step podium, a row of cards, a spotlight on the first, crest shields); the rows below are the same.
+    EventCountdownStyle:
+      type: string
+      enum: [CLASSIC, FLIP, RING, COINS, NEON, RIBBON]
+      default: CLASSIC
+      description: (v1.115-social) CLASSIC — today's small pill; the others are the large hero countdowns (split-flap cards, a depleting ring, spinning coins, seven-segment neon, a ribbon with odometer digits). All still with reduced motion.
+    EventCardPreset:
+      type: string
+      enum: [CLASSIC, LUXURY_GOLD, GLASS, DARK_MINIMAL, NEON, KABSO_RED]
+      default: CLASSIC
+      description: (v1.115-social) The cards' look (gifts, rules, rewards, milestones, tabs, the «مركزي» bar); CLASSIC — today's cards. Kabso tokens only.
+    EventRulesButton:
+      type: object
+      additionalProperties: false
+      required: [style]
+      properties:
+        style: { type: string, enum: [EDGE_RIBBON, ROUND_ICON, GOLD_PILL, GLASS_CHIP, SIDE_TAB, APP_BAR_LINK], description: "An edge ribbon tab, a round icon button, a gold pill under the countdown, a frosted chip, a vertical side tab, or a link in the app bar." }
+        edge: { type: string, enum: [START, END], default: END, description: "The screen edge of EDGE_RIBBON, ROUND_ICON, GLASS_CHIP and SIDE_TAB (logical: START is right in Arabic)." }
+    EventPageSection:
+      type: object
+      additionalProperties: false
+      required: [id, visible]
+      properties:
+        id: { type: string, enum: [GIFTS, RULES, BOARDS, REWARDS, MILESTONES] }
+        visible: { type: boolean }
+    EventRewardTiers:
+      type: object
+      additionalProperties: false
+      required: [tiers]
+      properties:
+        tiers:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items: { $ref: '#/components/schemas/EventRewardTier' }
+    EventRewardTier:
+      type: object
+      additionalProperties: false
+      description: "(v1.115-social, §10.150.4) A rank range of one board (e.g. 1, 2, 3, 4–10). Its prizes are that board's prize line covering the range (`EventBoard.prizes`) — never copied here; `featured` marks which of them are shown large."
+      required: [board, from, to]
+      properties:
+        board: { $ref: '#/components/schemas/EventBoardKind' }
+        from: { type: integer, minimum: 1, maximum: 100 }
+        to: { type: integer, minimum: 1, maximum: 100 }
+        labelAr: { type: [string, 'null'], minLength: 1, maxLength: 24, description: "A heading instead of «المركز N» / «المراكز N–M»." }
+        labelEn: { type: [string, 'null'], minLength: 1, maxLength: 24 }
+        featured: { type: array, maxItems: 3, default: [], items: { type: integer, minimum: 0, maximum: 5 }, description: "0-based indexes into the items of the prize line covering the tier." }
+    EventPageMotion:
+      type: object
+      additionalProperties: false
+      description: "(v1.115-social) The page's motion — all of it off with the system's reduce-motion setting."
+      properties:
+        entrance: { type: string, enum: [FADE, SLIDE, SCALE, NONE], default: FADE, description: How the sections come in. }
+        durationMs: { type: integer, minimum: 0, maximum: 1500, default: 450 }
+        shimmer: { type: boolean, default: true, description: The light sweep over frames and plates. }
+        pulseFirst: { type: boolean, default: true, description: The first place's gentle pulse. }
+        overlaySpeed: { type: number, minimum: 0.25, maximum: 2, default: 1, description: The event overlay's playback speed. }
+        overlayOpacity: { type: number, minimum: 0, maximum: 1, default: 1 }
     GiftEventInput:
       description: (v1.97-social, D303) The body of a create or a full edit (panel and app).
       allOf:
@@ -29123,7 +29263,7 @@ components:
       type: object
       required: [kind, width, height, formats, maxStillBytes, maxAnimatedBytes, maxDurationMs, transparent, safeZone]
       properties:
-        kind: { type: string, enum: [banner, banner_video, background, background_video, title, overlay, badge, prize] }
+        kind: { type: string, enum: [banner, banner_video, background, background_video, title, overlay, badge, prize, board_background] }
         width: { type: [integer, 'null'] }
         height: { type: [integer, 'null'] }
         formats: { type: array, items: { type: string } }
@@ -29215,6 +29355,21 @@ components:
         scorings: { type: array, items: { type: string, enum: [COINS, MULTIPLIER] } }
         countedGifts: { type: array, items: { type: string, enum: [EVENT_GIFTS, ALL_GIFTS] } }
         prizeTypes: { type: array, items: { type: string } }
+        designChoices:
+          type: object
+          description: "(v1.115-social, D354) Every choice and limit of a version-1 `EventPageDesignInput` (the panel's pickers)."
+          required: [v, layouts, leaderboards, countdowns, presets, rulesButtons, edges, sections, entrances, limits]
+          properties:
+            v: { type: integer }
+            layouts: { type: array, items: { $ref: '#/components/schemas/EventPageLayout' } }
+            leaderboards: { type: array, items: { $ref: '#/components/schemas/EventLeaderboardStyle' } }
+            countdowns: { type: array, items: { $ref: '#/components/schemas/EventCountdownStyle' } }
+            presets: { type: array, items: { $ref: '#/components/schemas/EventCardPreset' } }
+            rulesButtons: { type: array, items: { type: string } }
+            edges: { type: array, items: { type: string, enum: [START, END] } }
+            sections: { type: array, items: { type: string } }
+            entrances: { type: array, items: { type: string } }
+            limits: { type: object, additionalProperties: { type: number } }
         giftCategories:
           type: array
           description: (v1.101-social) The ordinary gift tabs an event's own gift may go in.
@@ -29355,6 +29510,7 @@ components:
             backgroundPoster: { type: [string, 'null'] }
             title: { type: [string, 'null'] }
             overlay: { type: [string, 'null'] }
+            leaderboardBackground: { type: [string, 'null'], description: "(v1.115-social, D354) The design's leaderboard background." }
         form: { $ref: '#/components/schemas/GiftEventForm' }
         results:
           type: array
@@ -38427,6 +38583,11 @@ components:
         - type: object
           required: [rules, prizes, timeZone, art, gifts, boards, frozenAt, payoutDueAt, paidAt]
           properties:
+            design:
+              description: "(v1.115-social, D354, §10.150) The page design chosen in the panel; null (D166 events, every event made before D354, any event not designed): today's page. Clients ignore an unknown `v` or layout and draw today's page; older apps ignore the field."
+              oneOf:
+                - type: 'null'
+                - $ref: '#/components/schemas/EventPageDesign'
             rules: { type: string }
             timeZone: { type: string, description: "v1.97-social (D303): the IANA zone the app shows the dates in (the event's own, else the server's)." }
             art:
