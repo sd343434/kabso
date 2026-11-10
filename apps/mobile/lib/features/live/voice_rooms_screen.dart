@@ -80,8 +80,8 @@ abstract final class KVoiceRoomsHeader {
 /// - One list of every party room — audio, podcast and multi mixed, in the
 ///   selected filter's own order: one server list (`kind=party_all`,
 ///   v1.107-live) paged by one cursor, never three lists merged here; each
-///   card says its kind with its own badge (`PartyKindBadge`: icon and
-///   colour) on its picture. The announced podcasts (D212) stay above
+///   card says its kind on its picture (D362: `LiveTypeTag`, the owner's
+///   animated glyph and tiny tag). The announced podcasts (D212) stay above
 ///   "Rooms" when there are any.
 ///
 /// D246 (owner, a reference: «اجعله بتصميم مطابق من حيث الأيقونات والحجم،

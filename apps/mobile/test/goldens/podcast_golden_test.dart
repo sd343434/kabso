@@ -37,7 +37,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/podcast_hub.dart';
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
-import 'package:kabso_live/features/live/presentation/widgets/party_kind_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -596,11 +596,11 @@ void main() {
       await hub(tester, podcast: true);
       await _capture(tester, 'hub_podcasts.${language.name}@3x');
       expect(
-        find.byKey(PartyKindBadge.keyOf(PartyKind.podcast)),
+        find.byKey(LiveTypeTag.keyOf(PartyKind.podcast.cardKind)),
         findsNWidgets(2),
       );
-      expect(find.byKey(PartyKindBadge.keyOf(PartyKind.audio)), findsOne);
-      expect(find.byKey(PartyKindBadge.keyOf(PartyKind.multi)), findsOne);
+      expect(find.byKey(LiveTypeTag.keyOf(PartyKind.audio.cardKind)), findsOne);
+      expect(find.byKey(LiveTypeTag.keyOf(PartyKind.multi.cardKind)), findsOne);
       expect(find.byType(ScheduledPodcastCard), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(seconds: 12));

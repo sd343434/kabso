@@ -20,7 +20,7 @@ import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
-import 'package:kabso_live/features/live/presentation/widgets/party_kind_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -158,7 +158,7 @@ void main() {
         // One list of every party kind.
         expect(live.requests.last.kind, LiveRoomsKind.partyAll);
         for (final kind in PartyKind.values) {
-          expect(find.byKey(PartyKindBadge.keyOf(kind)), findsWidgets);
+          expect(find.byKey(LiveTypeTag.keyOf(kind.cardKind)), findsWidgets);
         }
         // D322: the bar's «البث» tab is the way to the hub.
         await tester.tap(find.byKey(const Key('nav.home')));
@@ -181,7 +181,7 @@ void main() {
           expect(
             find.descendant(
               of: row,
-              matching: find.byKey(PartyKindBadge.keyOf(_kindOf(mode))),
+              matching: find.byKey(LiveTypeTag.keyOf(_kindOf(mode).cardKind)),
             ),
             findsOneWidget,
           );
@@ -231,12 +231,12 @@ void main() {
           final badge = tester.getRect(
             find.descendant(
               of: find.byKey(VoiceRoomList.rowKey(i)),
-              matching: find.byType(PartyKindBadge),
+              matching: find.byType(LiveTypeTag),
             ),
           );
-          // On the cover, in its top start corner; D342b: the decorative
-          // chip keeps its 18 lp at text ×1.3.
-          expect(badge.height, lessThanOrEqualTo(PartyKindBadge.height));
+          // On the cover, in its top start corner; D362: the decorative
+          // tag stays within 18 lp at text ×1.3.
+          expect(badge.height, lessThanOrEqualTo(LiveTypeTag.maxHeight));
           expect(badge.top - row.top, closeTo(4, 0.5));
           if (language == AppLanguage.ar) {
             expect(badge.right, lessThanOrEqualTo(row.right));
@@ -249,11 +249,11 @@ void main() {
         await tester.tap(find.byKey(VoiceRoomsScreen.layoutKey));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        expect(find.byType(PartyKindBadge), findsWidgets);
-        for (final chip in find.byType(PartyKindBadge).evaluate()) {
+        expect(find.byType(LiveTypeTag), findsWidgets);
+        for (final chip in find.byType(LiveTypeTag).evaluate()) {
           expect(
             tester.getSize(find.byWidget(chip.widget)).height,
-            lessThanOrEqualTo(PartyKindBadge.height),
+            lessThanOrEqualTo(LiveTypeTag.maxHeight),
           );
         }
         await _close(tester);

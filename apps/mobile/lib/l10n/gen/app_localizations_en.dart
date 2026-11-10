@@ -17097,15 +17097,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eventsNotQualifiedYou => 'Not qualified';
 
   @override
-  String get livePartyKindAudio => 'Audio';
-
-  @override
-  String get livePartyKindPodcast => 'Podcast';
-
-  @override
-  String get livePartyKindMulti => 'Multi';
-
-  @override
   String get livePartyEmptyTitle => 'No party rooms right now';
 
   @override
@@ -17633,4 +17624,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get eventPreviewSampleLabel => 'Preview · sample leaderboard data';
+
+  @override
+  String get liveTypeTagVoice => 'Voice';
+
+  @override
+  String get liveTypeTagCam => 'Live Cam';
+
+  @override
+  String get liveTypeTagPodcast => 'Podcast';
+
+  @override
+  String get liveTypeTagStreamer => 'Streamer';
+
+  @override
+  String get liveTypeTagMulti => 'Multi';
 }
