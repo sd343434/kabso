@@ -9,7 +9,6 @@ import 'package:kabso_live/features/staff/application/staff_providers.dart';
 import 'package:kabso_live/features/staff/domain/staff_models.dart';
 import 'package:kabso_live/features/whatsapp/application/wa_providers.dart';
 import 'package:kabso_live/features/whatsapp/data/wa_repository.dart';
-import 'package:kabso_live/features/whatsapp/domain/wa_models.dart';
 import 'package:kabso_live/features/whatsapp/presentation/wa_screens.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -25,11 +24,11 @@ StaffStatus d360Status(List<String> capabilities) => StaffStatus(
   onShift: false,
 );
 
-const d360View = [WaCapability.view];
-const d360Reply = [WaCapability.view, WaCapability.reply];
+const List<String> d360View = [WaCapability.view];
+const List<String> d360Reply = [WaCapability.view, WaCapability.reply];
 
 class FixedStaffStatus extends StaffStatusController {
-  FixedStaffStatus(this.status);
+  new(this.status);
 
   final StaffStatus status;
 
