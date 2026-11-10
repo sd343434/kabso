@@ -1067,3 +1067,33 @@ export class LiveMediaWebhookController {
     return { ok: true };
   }
 }
+
+/**
+ * D350: the same signed webhook on a PUBLIC path (`POST /livekit/webhook`, outside `/api/v1`; not public API), for a
+ * media node that is not on the API's docker network (a dedicated LiveKit server). Served only while
+ * LIVEKIT_PUBLIC_WEBHOOK_ENABLED=true; otherwise 404 NOT_FOUND, as an unknown route. Same handler, same check: the
+ * JWT in Authorization signed with the API secret (issuer = the API key, `exp` required) carrying the sha256 of the
+ * raw body; anything else is 401.
+ */
+@Controller('livekit')
+export class LiveMediaPublicWebhookController {
+  constructor(
+    private readonly media: LiveMediaService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+  ) {}
+
+  @Post('webhook')
+  @HttpCode(200)
+  @Public()
+  @SkipRateLimit()
+  async webhook(
+    @Req() req: AppRequest,
+    @Headers('authorization') authorization: string | undefined,
+  ): Promise<{ ok: true }> {
+    if (!this.config.live.publicWebhookEnabled) throw new AppException(ErrorCode.NOT_FOUND);
+    const body: unknown = req.body;
+    if (!Buffer.isBuffer(body)) throw AppException.validation([{ field: 'body', issue: 'invalid_type' }]);
+    await this.media.webhook(body.toString('utf8'), authorization);
+    return { ok: true };
+  }
+}

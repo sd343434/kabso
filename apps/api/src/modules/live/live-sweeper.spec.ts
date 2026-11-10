@@ -8,6 +8,7 @@ import type { UsersService } from '../users/users.service.js';
 import type { LiveCategoriesService } from './live-categories.service.js';
 import type { LiveRankingsService } from './live-rankings.service.js';
 import type { LiveScheduleService } from './live-schedule.service.js';
+import type { LiveCapacityGuard } from './live-capacity.js';
 import { errorClassAndCode, LIVE_TX_OPTIONS, LiveRoomsService } from './live-rooms.service.js';
 
 class FixedClock extends Clock {
@@ -72,6 +73,7 @@ function service(prisma: unknown, batchSize = 10) {
     {} as LiveRankingsService,
     {} as LiveScheduleService,
     {} as StorageSettingsStore,
+    {} as LiveCapacityGuard,
   );
   return { rooms, audit };
 }

@@ -851,14 +851,17 @@ class LiveHostController extends Notifier<GoLiveState> {
       }
       if (streamer != null) {
         // D346: every failed streamer start keeps its precise failure and
-        // the «نسخ تقرير المشكلة» report.
-        await streamer.recordFailure(
-          StreamerFailure.of(switch (stage) {
-            'service' => StreamerStep.service,
-            'screen' => StreamerStep.capture,
-            _ => StreamerStep.room,
-          }, e),
-        );
+        // the «نسخ تقرير المشكلة» report — except D351's «البث مزدحم»
+        // (a busy server, not a problem of the phone: its own sheet says so).
+        if (failure.code != ErrorCode.liveCapacityFull) {
+          await streamer.recordFailure(
+            StreamerFailure.of(switch (stage) {
+              'service' => StreamerStep.service,
+              'screen' => StreamerStep.capture,
+              _ => StreamerStep.room,
+            }, e),
+          );
+        }
         _keeper.release(this);
         await streamer.finish();
       }

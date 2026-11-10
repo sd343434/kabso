@@ -524,6 +524,10 @@ a `CONNECTION LIMIT`.
   also needs the hosting permission (`PUT /api/v1/admin/live/hosts/{username}`, admin permission
   `LIVE_HOSTS`); keep `LIVE_HOSTING_ENABLED=false` in production until L1b (agencies and identity
   checks) is done. Locally: `livekit-server --dev --bind 127.0.0.1` with the `.env.example` values.
+  *(D350)* For a dedicated media node (`infra/media`, §11.9): `LIVEKIT_API_URL` (optional; where the API calls
+  LiveKit, default `LIVEKIT_URL`) and `LIVEKIT_PUBLIC_WEBHOOK_ENABLED=true`, which serves the same signed webhook on
+  `POST https://api.<domain>/livekit/webhook` (the Caddy `api.` site already proxies it; `/internal/*` stays hidden).
+  Both default to the previous behaviour.
   *(D123)* A live keeps running in the background through an Android foreground service (types
   `microphone` and `mediaPlayback`): the Play Console's foreground-service declaration must list
   both, with a short video of going live, leaving the app and the ongoing notification. Keep
@@ -1718,6 +1722,48 @@ answers 404 and the mirror does nothing (silently); `/app/` answers 404 until th
 (installing over the previous staging build needs the same signing key; CI signs the profile build with the runner's
 debug key, which can differ between runs — if Android answers "App not installed" / a package conflict, uninstall the
 old staging app first, as with the artifact before).
+
+### 11.9 Dedicated LiveKit media node (D350, Phase 1: one Hetzner EX44) — [PREPARED; validated locally (LiveKit 1.13.11, caddy-l4 2.11.3), no server exists yet]
+
+A standalone bundle in `infra/media/` (compose with host networking, LiveKit v1.13.11 + embedded TURN, LiveKit's
+caddy-l4 front on 443 splitting `media1.` signalling and `turn1.` TURN/TLS by SNI, node_exporter, ufw, health timer,
+drain-safe manual updates — **no** 5-minute auto-update). Staging is unchanged: it keeps its own LiveKit v1.9.1 behind
+`live.<domain>` until `LIVEKIT_URL` (+ key pair) in `/etc/kabso/kabso.env` is switched by hand; switching back is the
+rollback. Runbook: [`docs/infrastructure/LIVEKIT_SINGLE_NODE_DEPLOYMENT.md`](infrastructure/LIVEKIT_SINGLE_NODE_DEPLOYMENT.md);
+ports and TLS: [`TURN_NETWORK_DESIGN.md`](infrastructure/TURN_NETWORK_DESIGN.md); surge plan:
+[`SURGE_AND_OVERFLOW_PLAN.md`](infrastructure/SURGE_AND_OVERFLOW_PLAN.md). API settings for the switch: `LIVEKIT_URL` =
+`wss://media1.<domain>`, `LIVEKIT_PUBLIC_WEBHOOK_ENABLED=true` (the node posts to `https://api.<domain>/livekit/webhook`),
+and the admin/studio CSP origins `KABSO_ADMIN_MEDIA_ORIGINS` / `KABSO_STUDIO_MEDIA_ORIGINS` =
+`"wss://media1.<domain> https://media1.<domain>"`.
+
+### 11.10 The live capacity guard «حد الامتلاء» (D351) — [IMPLEMENTED, draft contract v1.113-live; off by default, not deployed]
+
+The API refuses a NEW live (every mode, the web studio too) with 503 `LIVE_CAPACITY_FULL` + `Retry-After` when it no
+longer fits next to the lives running (CONVENTIONS §10.148; design `SURGE_AND_OVERFLOW_PLAN.md` §6). Viewers, seats,
+PK and media tokens are never refused. **No migration, no secret, no new host.** With the defaults nothing changes —
+staging keeps going live exactly as before.
+
+| Setting (`/etc/kabso/kabso.env`) | Default | Meaning |
+|---|---|---|
+| `LIVE_CAPACITY_MAX_ROOMS` | `0` (off) | the ceiling, in video-room units (0–100000) |
+| `LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT` | `100` | one SOLO / MULTI / STREAMER live, in percent of a unit (1–1000) |
+| `LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT` | `25` | one AUDIO / PODCAST live (no video), in percent of a unit (1–1000) |
+| `LIVE_CAPACITY_RETRY_AFTER_SECONDS` | `60` | the `Retry-After` the apps wait before «حاول مجددًا» (1–3600) |
+| `LIVE_CAPACITY_BYPASS_USER_IDS` | empty | user ids (UUIDs, comma-separated) never refused; their lives still count |
+
+- **Turning it on:** only after Phase 1 has numbers (`docs/infrastructure/SINGLE_NODE_CAPACITY_RESULTS.md`): set
+  `LIVE_CAPACITY_MAX_ROOMS` to ≈ 80 % of the measured ceiling of the realistic mix × the media nodes in service, and
+  the audio weight from the measured audio / video ratio; restart the API (`docker compose up -d api`). A bad value
+  stops the API at boot with the setting's name (as every setting). Off again: `0` + restart.
+- **Several API instances:** the count is the database's (LIVE rooms with a fresh heartbeat) and the race guard is a
+  Postgres advisory lock, so every instance enforces the same ceiling; set the same values on all of them.
+- **Watching it:** each refusal is a `warn` log line `event: live.capacity.full` (mode, rooms, units used, limit; no
+  user id) and a Redis day counter `<REDIS_KEY_PREFIX>live:capacity:refused:<YYYY-MM-DD>` (UTC, kept 8 days):
+  `redis-cli GET "<prefix>live:capacity:refused:$(date -u +%F)"`. Not in the admin panel yet (needs a contract field);
+  the Phase 4 Prometheus exporter can read the same key. Many refusals = add a media node (surge plan §5), then raise
+  the ceiling.
+- **Rollback:** `LIVE_CAPACITY_MAX_ROOMS=0` (or an older image: it ignores the settings). Older apps show their generic
+  error for the new code.
 
 ### 5.25 Video posts and reels (migration `20261211090000_video_posts_reels`; D162) — [IMPLEMENTED, draft contract v1.41-social; not deployed, not device-tested]
 

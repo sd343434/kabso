@@ -84,6 +84,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_strip_setting
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
+import 'package:kabso_live/features/live/presentation/live_capacity_sheet.dart';
 import 'package:kabso_live/features/live/presentation/live_fx_diagnostics.dart';
 import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
 import 'package:kabso_live/features/live/presentation/streamer/streamer_widgets.dart';
@@ -473,6 +474,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       );
     } on Object catch (e) {
       if (!mounted) return;
+      // D351 (§10.148): «البث مزدحم الآن، حاول بعد قليل» — every mode (video,
+      // multi-guest, audio, podcast, streamer, a PK host's live) comes here.
+      // The setup is kept; «حاول مجددًا» waits out `Retry-After`, then
+      // starts again the same way.
+      final refused = toAppFailure(e);
+      if (refused is ServerFailure && isLiveCapacityFull(refused)) {
+        if (await showLiveCapacitySheet(context, refused) && mounted) {
+          await _start();
+        }
+        return;
+      }
       // D210: the generic message names the failed step and error type.
       final why = _host.lastStartFailure;
       setState(() => _startFailure = why);

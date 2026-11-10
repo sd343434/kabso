@@ -297,7 +297,7 @@ describe.skipIf(!url)('CP-011 seats through the API on a real LiveKit server', (
       expect(tapped.status).toBe(200);
       expect(tapped.body).toEqual({
         accepted: 5,
-        score: { total: 5, tapPoints: 5, supportPoints: 0, hostCherries: 0 },
+        score: { total: 5, tapPoints: 5, supportPoints: 0, hostCherries: 0, roomCherries: 0 },
       });
       expect(await metadata()).toBe('{"seatsVersion":3,"score":5}');
 

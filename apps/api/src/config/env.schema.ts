@@ -339,6 +339,21 @@ const countryList = z
     return Object.freeze([...new Set(codes)]);
   });
 
+/** D351: UUIDs, comma-separated (case-insensitive, stored lower case), possibly none. */
+const uuidList = z
+  .string()
+  .trim()
+  .default('')
+  .transform((value, ctx): readonly string[] => {
+    if (value === '') return Object.freeze([]);
+    const ids = value.split(',').map((p) => p.trim().toLowerCase());
+    if (ids.some((id) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id))) {
+      ctx.addIssue({ code: 'custom', message: `expected user ids (UUIDs), comma-separated, got "${value}"` });
+      return z.NEVER;
+    }
+    return Object.freeze([...new Set(ids)]);
+  });
+
 const ianaTimeZone = (fallback: string) =>
   z
     .string()
@@ -425,6 +440,19 @@ const trustProxy = z
     }
     return entries;
   });
+
+/**
+ * D350: `https://` / `wss://`, or plain `http://` / `ws://` to a private IPv4 literal (10/8, 172.16/12, 192.168/16) —
+ * the media node's vSwitch address, never a public host.
+ */
+export function isSecureOrPrivateUrl(value: string): boolean {
+  const url = new URL(value);
+  if (url.protocol === 'https:' || url.protocol === 'wss:') return true;
+  const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(url.hostname)?.slice(1).map(Number);
+  if (!octets || octets.some((o) => o > 255)) return false;
+  const [a, b] = octets as [number, number, number, number];
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
 
 export const envSchema = z
   .object({
@@ -681,6 +709,24 @@ export const envSchema = z
     LIVE_HOST_AWAY_TIMEOUT_SECONDS: intSetting(300, 30, 86400),
     // v1.45-live (D201, §10.63): how long a second-camera pairing code can be redeemed.
     LIVE_SECOND_CAMERA_CODE_SECONDS: intSetting(120, 30, 600),
+    /**
+     * v1.113-live (D351, CONVENTIONS §10.148): the capacity guard «حد الامتلاء». Starting a NEW live (`startLiveRoom`,
+     * every mode, the web studio too) is refused with 503 LIVE_CAPACITY_FULL + `Retry-After` while the LIVE rooms with
+     * a fresh heartbeat already use the capacity. Counted in video-room units: a video room (SOLO, MULTI, STREAMER,
+     * legacy PK) weighs LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT / 100, an AUDIO or PODCAST room
+     * LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT / 100; a new room is refused when it does not fit any more. 0 = off (the
+     * default: nothing is counted, no lock is taken). Viewers, guests, seats, PK and media tokens are never checked.
+     */
+    LIVE_CAPACITY_MAX_ROOMS: intSetting(0, 0, 100_000),
+    LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT: intSetting(100, 1, 1000),
+    LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT: intSetting(25, 1, 1000),
+    /** D351: the `Retry-After` (seconds) of LIVE_CAPACITY_FULL. */
+    LIVE_CAPACITY_RETRY_AFTER_SECONDS: intSetting(60, 1, 3600),
+    /**
+     * D351: user ids (UUIDs, comma-separated) whose go-live is never refused by the guard (their room still counts).
+     * Empty by default: nobody bypasses it, the owner included.
+     */
+    LIVE_CAPACITY_BYPASS_USER_IDS: uuidList,
     /**
      * v1.43-live (D195, CONVENTIONS §10.58): PK 1 v 1 between two SOLO video lives. Every value is an
      * owner-confirmable default. PK_ENABLED off refuses new PKs and booster gifts (running ones end
@@ -1015,6 +1061,28 @@ export const envSchema = z
       .optional(),
     LIVEKIT_API_KEY: z.string().min(1).max(128).optional(),
     LIVEKIT_API_SECRET: z.string().min(1).max(512).optional(),
+    /**
+     * D350: where the API makes its server calls to LiveKit (RoomService: permissions, data, participant lists).
+     * LIVEKIT_URL stays the PUBLIC URL every client receives in its media token response. Unset (the default) = the
+     * API also uses LIVEKIT_URL, exactly as before. Set it when the media node is reachable on a closer address
+     * (Phase 2: its private vSwitch address, e.g. http://10.0.1.11:7880). `ws`/`wss` are mapped to `http`/`https`.
+     * Production: https/wss, or plain http to a private IPv4 address only.
+     */
+    LIVEKIT_API_URL: z
+      .string()
+      .url({ protocol: /^(https?|wss?)$/ })
+      .transform((v) => v.replace(/\/+$/, ''))
+      .optional(),
+    /**
+     * D350: also accept LiveKit's signed webhook on the PUBLIC path `POST /livekit/webhook`, for a media node that is
+     * not on the API's docker network (the internal `POST /internal/livekit/webhook` stays as it is and is still
+     * hidden by Caddy). The signature over the raw body is the authentication on both paths. Default off: the public
+     * path then answers 404 NOT_FOUND like any unknown route.
+     */
+    LIVEKIT_PUBLIC_WEBHOOK_ENABLED: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('false')
+      .transform((v) => v === 'true'),
 
     /**
      * v1.5-social (CONVENTIONS §11.1, B12): uploads are refused with 503
@@ -1929,6 +1997,13 @@ export const envSchema = z
     if (env.NODE_ENV === 'production') {
       if (env.LIVEKIT_URL !== undefined && !env.LIVEKIT_URL.startsWith('wss://')) {
         ctx.addIssue({ code: 'custom', path: ['LIVEKIT_URL'], message: 'must use wss in production' });
+      }
+      if (env.LIVEKIT_API_URL !== undefined && !isSecureOrPrivateUrl(env.LIVEKIT_API_URL)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['LIVEKIT_API_URL'],
+          message: 'must use https/wss in production (plain http only to a private IPv4 address)',
+        });
       }
       if (env.STRIPE_SECRET_KEY !== undefined && /^(sk|rk)_test_/.test(env.STRIPE_SECRET_KEY)) {
         if (!env.STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION) {

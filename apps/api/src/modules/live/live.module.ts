@@ -33,6 +33,7 @@ import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { LiveStatsService } from './live-stats.service.js';
 import { LiveRankingsService } from './live-rankings.service.js';
 import { LiveRoomsService } from './live-rooms.service.js';
+import { LiveCapacityGuard } from './live-capacity.js';
 import { LiveScheduleService } from './live-schedule.service.js';
 import { LiveSeatsService } from './live-seats.service.js';
 import { LiveTapsService } from './live-taps.service.js';
@@ -42,6 +43,7 @@ import {
   LiveController,
   LiveCoverController,
   LiveMediaWebhookController,
+  LiveMediaPublicWebhookController,
   LiveScheduleController,
 } from './live.controller.js';
 import { LivePkController, MyLivePkController } from './live-pk.controller.js';
@@ -73,6 +75,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveScheduleController,
     AdminLiveController,
     LiveMediaWebhookController,
+    // D350: the signed webhook on a public path (LIVEKIT_PUBLIC_WEBHOOK_ENABLED).
+    LiveMediaPublicWebhookController,
     // v1.43-live (D195, §10.58): PK 1 v 1.
     LivePkController,
     MyLivePkController,
@@ -81,6 +85,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
   ],
   providers: [
     LiveCategoriesService,
+    // v1.113-live (D351): the capacity guard on going live.
+    LiveCapacityGuard,
     LiveRoomsService,
     LiveMediaService,
     // v1.64-live (D260): every live assigned to a staff member on shift (§10.96).
@@ -135,6 +141,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
               config.live.livekit.url,
               config.live.livekit.apiKey,
               config.live.livekit.apiSecret,
+              config.live.livekit.apiUrl,
             )
           : new UnconfiguredMediaProvider(),
     },

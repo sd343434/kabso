@@ -52,6 +52,7 @@ import {
 import { activeDeviceBanOf, deviceBannedError } from '../auth/device-bans.js';
 import { assertNotRestricted } from '../users/account-control.js';
 import { refuseLimitedStaff, watchStaffSql } from './live-staff.js';
+import { LiveCapacityGuard } from './live-capacity.js';
 import type { VerificationBadgeValue } from '../verification/verification-rules.js';
 
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
@@ -756,6 +757,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     private readonly rankings: LiveRankingsService,
     private readonly schedule: LiveScheduleService,
     private readonly storageSettings: StorageSettingsStore,
+    // v1.113-live (D351, §10.148): the capacity guard «حد الامتلاء» (off unless LIVE_CAPACITY_MAX_ROOMS > 0).
+    private readonly capacity: LiveCapacityGuard,
   ) {
     this.cursors = new LiveCursorCodec(config.live.cursorKey);
   }
@@ -1623,9 +1626,13 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         const [host] = await tx.$queryRaw<{ cover_url: string | null }[]>`
           SELECT cover_url FROM live_hosts WHERE user_id = ${callerId}::uuid FOR SHARE`;
         if (!host) throw new AppException(ErrorCode.LIVE_HOSTING_NOT_ALLOWED);
+        const mode = input.mode ?? 'SOLO';
+        // v1.113-live (D351, §10.148): the capacity guard, last before the insert (every earlier refusal keeps its
+        // own answer). With the guard on it holds the cluster-wide advisory lock until this transaction ends, so
+        // concurrent go-lives cannot overshoot the ceiling; off (the default) it does nothing.
+        await this.capacity.assertFits(tx, callerId, mode, this.cutoff(now), now);
         // v1.47-live (D212, §10.69): a podcast episode is numbered per host (the host's lives are
         // serialized by the user lock above and the one-live-per-host index).
-        const mode = input.mode ?? 'SOLO';
         const podcast =
           mode === 'PODCAST' && input.podcast
             ? {

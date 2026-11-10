@@ -29139,6 +29139,42 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'استرداد عبر المتجر (سُحبت العملات)'**
   String get walletReasonStoreIapReversal;
+
+  /// LIVE_CAPACITY_FULL (503, v1.113-live, D351): a new live does not fit on the servers now; the owner's words. Transient (Retry-After).
+  ///
+  /// In ar, this message translates to:
+  /// **'البث مزدحم الآن، حاول بعد قليل'**
+  String get errorLiveCapacityFull;
+
+  /// D351: the live capacity guard «حد الامتلاء» (LIVE_CAPACITY_FULL, CONVENTIONS §10.148) — the sheet after a refused go-live.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث مزدحم'**
+  String get liveCapacityTitle;
+
+  /// D351: the live capacity guard «حد الامتلاء» (LIVE_CAPACITY_FULL, CONVENTIONS §10.148) — the sheet after a refused go-live.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعداداتك محفوظة، يمكنك المحاولة مجددًا بعد انتهاء العدّ.'**
+  String get liveCapacityHint;
+
+  /// D351: the live capacity guard «حد الامتلاء» (LIVE_CAPACITY_FULL, CONVENTIONS §10.148) — the sheet after a refused go-live.
+  ///
+  /// In ar, this message translates to:
+  /// **'حاول مجددًا'**
+  String get liveCapacityRetry;
+
+  /// D351: the live capacity guard «حد الامتلاء» (LIVE_CAPACITY_FULL, CONVENTIONS §10.148) — the sheet after a refused go-live. {wait}: m:ss until Retry-After has passed.
+  ///
+  /// In ar, this message translates to:
+  /// **'حاول مجددًا بعد {wait}'**
+  String liveCapacityRetryIn(String wait);
+
+  /// D351: the live capacity guard «حد الامتلاء» (LIVE_CAPACITY_FULL, CONVENTIONS §10.148) — the sheet after a refused go-live.
+  ///
+  /// In ar, this message translates to:
+  /// **'لاحقًا'**
+  String get liveCapacityClose;
 }
 
 class _AppLocalizationsDelegate

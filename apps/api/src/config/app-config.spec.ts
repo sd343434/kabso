@@ -376,6 +376,7 @@ describe('loadConfig', () => {
       }
       expect(loadConfig({ ...base, ...LIVEKIT }).live.livekit).toEqual({
         url: 'ws://127.0.0.1:7880',
+        apiUrl: 'ws://127.0.0.1:7880',
         apiKey: 'devkey',
         apiSecret: 'secret',
       });
@@ -393,6 +394,53 @@ describe('loadConfig', () => {
           'LIVEKIT_API_SECRET',
         ),
       ).toHaveLength(1);
+    });
+
+    it('D350: LIVEKIT_API_URL is where the API calls LiveKit (default LIVEKIT_URL); production: https/wss or private http', () => {
+      expect(
+        loadConfig({ ...base, ...LIVEKIT, LIVEKIT_API_URL: 'http://10.0.1.11:7880/' }).live.livekit,
+      ).toEqual({
+        url: 'ws://127.0.0.1:7880',
+        apiUrl: 'http://10.0.1.11:7880',
+        apiKey: 'devkey',
+        apiSecret: 'secret',
+      });
+      expect(problemsFor({ ...base, LIVEKIT_API_URL: 'ftp://x' }, 'LIVEKIT_API_URL')).toHaveLength(1);
+      const live = { LIVEKIT_URL: 'wss://media1.example', LIVEKIT_API_KEY: 'k' };
+      for (const ok of [
+        'https://media1.example',
+        'wss://media1.example',
+        'http://10.0.1.11:7880',
+        'http://172.16.0.5:7880',
+        'http://192.168.1.2:7880',
+      ]) {
+        expect(problemsFor(prod({ ...live, LIVEKIT_API_URL: ok }), 'LIVEKIT_API_URL'), ok).toEqual([]);
+      }
+      for (const bad of [
+        'http://media1.example',
+        'ws://media1.example',
+        'http://8.8.8.8:7880',
+        'http://172.32.0.1:7880',
+      ]) {
+        expect(problemsFor(prod({ ...live, LIVEKIT_API_URL: bad }), 'LIVEKIT_API_URL'), bad).toEqual([
+          'LIVEKIT_API_URL: must use https/wss in production (plain http only to a private IPv4 address)',
+        ]);
+      }
+    });
+
+    it('D350: LIVEKIT_PUBLIC_WEBHOOK_ENABLED is off unless exactly "true"', () => {
+      expect(loadConfig(base).live.publicWebhookEnabled).toBe(false);
+      expect(loadConfig({ ...base, LIVEKIT_PUBLIC_WEBHOOK_ENABLED: 'true' }).live.publicWebhookEnabled).toBe(
+        true,
+      );
+      expect(loadConfig({ ...base, LIVEKIT_PUBLIC_WEBHOOK_ENABLED: 'false' }).live.publicWebhookEnabled).toBe(
+        false,
+      );
+      for (const value of ['1', 'yes', 'TRUE', '']) {
+        expect(
+          problemsFor({ ...base, LIVEKIT_PUBLIC_WEBHOOK_ENABLED: value }, 'LIVEKIT_PUBLIC_WEBHOOK'),
+        ).toHaveLength(1);
+      }
     });
 
     it('heartbeat interval is 5–60 s and the stale window at least twice the interval', () => {

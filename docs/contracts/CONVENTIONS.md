@@ -234,6 +234,7 @@ All non-2xx responses use one envelope:
 | 409 | `STAFF_TOTP_NOT_ENROLLED` | *(v1.68-live, DRAFT, D273)* `createStaffStepUp`: the staff member has not set up the panel authenticator yet; the app sends them to admin.<domain>. §10.96.6. |
 | 403 | `STAFF_ACCOUNT_LIMITED` | *(v1.72-live, DRAFT, D283)* a Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) cannot do this: `details[0] = {field: staff, issue}` with `live` (go live, schedule a live, apply to host), `post_kind` (a post or reel that is not an announcement), `story`, `repost`, `family`, `vip`, `tasks`, `avatar`, `cover`, `bio` (`updateMe` with `bio`, D283b), `frame` (wear another avatar frame), `store`, `recharge_employee` (*v1.87-social, D287*: an employee of a recharge agent who became a Kabso Team account sells, buys cherries or acts on an order — §10.100); or `{field: announcement, issue: announcement}` — an account outside the team asked for an announcement. Nothing changed. §10.96.10. |
 | 400 | `ITEM_BADGES_INVALID` | *(v1.79-live, DRAFT, D289)* The panel's badges for a gift or a store item break a rule: `details: [{field: badges, issue: sound_exclusive \| duplicate_value}]` («بمؤثرات صوتية» with «بدون مؤثرات صوتية», a badge twice) or `[{field: "badges[i].until", issue: until_required \| until_not_allowed \| until_past \| until_too_far \| invalid_format}]`. Nothing changed. §10.102. |
+| 503 | `LIVE_CAPACITY_FULL` | *(v1.113-live, DRAFT, D351)* «حد الامتلاء»: `startLiveRoom` (every mode — solo, multi-guest, audio, podcast, streamer, the web studio) while the lives running now already use the server's capacity `LIVE_CAPACITY_MAX_ROOMS` (counted in video-room units; audio and podcast rooms lighter). **Transient: `Retry-After`** (seconds, `LIVE_CAPACITY_RETRY_AFTER_SECONDS`, default 60). Nothing was created. Never returned to viewers, guests, seats, PK or media tokens of existing lives. The app shows «البث مزدحم الآن، حاول بعد قليل» / "Live is busy right now, please try again shortly" with a retry button that waits out `Retry-After`. §10.148. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -766,6 +767,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.113-live (draft) | 2026-11-10 | **D351 (owner approved 2026-11-10: build the live capacity guard «حد الامتلاء» designed in D350's SURGE_AND_OVERFLOW_PLAN §6):** code `LIVE_CAPACITY_FULL` (503, `Retry-After`) on `startLiveRoom` — the one operation every go-live path uses (solo, PK host, multi-guest, audio, podcast, streamer, the web studio). Server settings `LIVE_CAPACITY_MAX_ROOMS` (**0 = off, the default**), `LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT` (100), `LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT` (25), `LIVE_CAPACITY_RETRY_AFTER_SECONDS` (60), `LIVE_CAPACITY_BYPASS_USER_IDS` (empty). Checked last, right before the room is created (every older refusal keeps its answer and order); race-safe through one transaction-scoped advisory lock. No new field, no migration. §4, §10.3, §10.148. | **Additive** (a new error code on one operation; with the default 0 nothing changes; an older app shows its generic error for the unknown code, CONVENTIONS v1.3 note). |
 | v1.112-social (draft) | 2026-11-09 | **int21 (owner «موافق على الاقتراحات» on D345 #7 + D344): «الشحن من الموقع» only in the direct APK.** `InstallSource` {PLAY, APP_STORE, SIDELOAD} in `DeviceInfo.installSource` (sign-in) and the `refresh` body, kept on the session (`sessions.install_source`, migration `20270418090100_session_install_source`); `RechargePackages.websiteTopupUrl` and `createTopupWebsiteSession` follow `TOPUP_APP_LINK_SOURCES` (default SIDELOAD) on top of `TOPUP_APP_LINK_PLATFORMS`. Also (D345 #5): a store refund bans every device seen for the account (no shape change). §10.143.3, §10.144. | **Additive** in shape; **behaviour change**: a session that reported no install source (an app older than this) no longer gets the website link; a refund bans more devices. |
 | v1.111-live (draft) | 2026-11-09 | **D347 (owner: «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»):** the global lucky banner — the data message `lucky-ticker` (topic `lucky`) goes to every other LIVE room (every mode) only for a send whose best win is in the server set `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (default `250,500,1000`; was every win ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`, 100); it gains `gift` `{code, assetKey, imageUrl}` and `room.mode`; the gap `LUCKY_GLOBAL_BANNER_GAP_SECONDS` (10) is configurable; a waiting win whose live ended is dropped. The app draws it as the room's win banner with the live's name and a tap target. *Follow-up (owner «نعم موافق»):* `GlobalStripsSettings.luckyGlobalMultipliers` / `luckyGlobalGapSeconds` (the panel, optional in `UpdateGlobalStripsRequest`, 400 `luckyGlobalMultipliers` / `invalid_value`), `NotificationSettings.luckyStrip` («إخفاء أشرطة الفوز»); migration `20270418090000_lucky_strip_setting`. §10.27, §10.146, §10.146.1. | **Additive** (new message fields older apps ignore); **behaviour change**: ×100 wins are no longer told to other lives. New fields are additive. |
 | v1.110-social (draft) | 2026-11-09 | **D345 (owner: «بيع العملات عبر المتاجر … الاسترداد احتيال: سحب العملات وحظر الحساب والجهاز تلقائياً … سياسة لمنع الاسترداد وفي حالة الاسترداد النظام يخاطب الجهة»):** tag `store-iap` — `getStoreIapCatalog`, `verifyStorePurchase`, `receiveAppleNotification` (App Store Server Notifications v2), `receiveGoogleRtdn` (Pub/Sub push); tag `admin-panel` — `getAdminStoreIapOverview`, `updateAdminStoreIapSettings`, `listAdminStoreIapProducts`, `createAdminStoreIapProduct`, `updateAdminStoreIapProduct`, `listAdminStoreIapPurchases`, `listAdminStoreIapRefundBans`, `unbanAdminStoreIapRefund`, `syncAdminStoreIapVoided`; capabilities `store_iap.view` (OWNER, MODERATION, SUPPORT, FINANCE), `store_iap.manage`, `store_iap.unban` (OWNER); codes `STORE_IAP_UNAVAILABLE` (503), `STORE_IAP_VERIFICATION_FAILED` (400), `STORE_IAP_PURCHASE_CONFLICT` (409), `STORE_IAP_PENDING` (409); ledger reasons `STORE_IAP`, `STORE_IAP_REVERSAL`; a refund ban is lifted only by the OWNER (the general unban and the device-ban list answer 409 `ADMIN_ACTION_REFUSED`); audit `store_iap.*`; migrations `20270417090000_store_iap_enums`, `20270417090100_store_iap`. §4, §10.144. | **Additive** (new operations, codes, enum values); **behaviour change** only for the panel: a store-refund ban cannot be lifted from the user page or the device-ban list. Off until the owner places the store credentials on the server. |
@@ -964,6 +966,8 @@ until a media provider is wired in.
   - disabled by config → 503 `LIVE_HOSTING_UNAVAILABLE`;
   - unknown or inactive `categorySlug` → 400, `invalid_value`;
   - a fresh LIVE room already exists → 409 `LIVE_ROOM_ALREADY_ACTIVE`.
+  - *(v1.113-live, D351)* the server's live capacity is used up → 503 `LIVE_CAPACITY_FULL` with
+    `Retry-After` (checked last, only with `LIVE_CAPACITY_MAX_ROOMS` > 0; §10.148).
 
   A stale LIVE room is ended (`HEARTBEAT_TIMEOUT`) in the same transaction. The database
   guarantees **at most one LIVE room per host** with a partial unique index; a race loser gets
@@ -1203,6 +1207,9 @@ been live, the viewers, the score and «انضم».
 - **Media server:** LiveKit (D3) behind a `LiveMediaProvider` port. Config `LIVEKIT_URL`,
   `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`: `LIVE_HOSTING_ENABLED=true` requires all three,
   and production requires `wss://`. A LiveKit room is named by the live room's id.
+  *(D350, deployment only — no client-visible change)* `LIVEKIT_URL` is the **public** URL every media token response
+  returns; optional `LIVEKIT_API_URL` is where the API itself calls LiveKit (default `LIVEKIT_URL`; production:
+  `https`/`wss`, or `http` to a private IPv4 only).
 - **Hosting permission** (`live_hosts`, `Me.canHost`):
   - `startLiveRoom` needs it, else 403 `LIVE_HOSTING_NOT_ALLOWED` (checked after
     `LIVE_HOSTING_ENABLED`);
@@ -1233,6 +1240,9 @@ been live, the viewers, the score and «انضم».
 - **Presence and counts:**
   - the media server's signed webhook (`POST /internal/livekit/webhook`, not public API)
     records joins and leaves in `live_room_viewers`, one row per room and identity;
+    *(D350)* the same handler also answers `POST /livekit/webhook` (machine-to-machine, not public API) when
+    `LIVEKIT_PUBLIC_WEBHOOK_ENABLED=true`, for a media node outside the API's network; off by default (404
+    `NOT_FOUND`); on both paths a missing or wrong signature is 401 `AUTH_UNAUTHENTICATED`;
   - the sweeper reconciles with the media server;
   - `viewerCount` = connected identities other than the host, guests included;
   - `popular` orders by it;
@@ -11215,3 +11225,44 @@ Owner (2026-11-09): «الافيهات الموجودة فيها افيهات م
   generic Kabi «sing» art for the unknown `quips/gulf` / `quips/jordan` keys) and, when one plays, shows the strip and
   chat line with the words; loading the missing sound fails inside `AudioplayersQuipAudio.play`, which catches it (no
   sound, no crash).
+### 10.148 The live capacity guard «حد الامتلاء» *(v1.113-live, DRAFT — D351)*
+
+The owner approved (2026-11-10) the guard designed in D350 (`docs/infrastructure/SURGE_AND_OVERFLOW_PLAN.md` §6): when
+the media tier is full, **a new live is refused with a clear message** instead of degrading every live (LiveKit's own
+node limits would otherwise refuse new viewers of the lives already running).
+
+- **Where:** only `startLiveRoom` (`POST /live/rooms`). Every way to go live uses it — solo, a PK host (a PK pairs two
+  rooms that already run, so the invitation itself is never checked), multi-guest, audio, podcast, streamer and the web
+  studio «استوديو البث». **Never checked:** viewers entering, guests taking or being invited to a seat, PK invitations
+  and battles between existing lives, the second camera, heartbeats, media tokens (host, viewer, guest, staff), ending.
+- **Order:** last, right before the room is created — after the hosting switch, the team / permission / restriction /
+  device checks, the body, the verified email, the category and the wish list; and after the caller's own stale room
+  was ended. A caller who already has a fresh LIVE room still gets 409 `LIVE_ROOM_ALREADY_ACTIVE`, not 503.
+- **Rule:** the lives counted are the LIVE rooms with a fresh heartbeat (§10.2 — a room stops counting as soon as it
+  ends, and a crashed host's room at the stale window). Each weighs, in percent of a video room,
+  `LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT` (default 100) for SOLO / MULTI / STREAMER (and the legacy PK mode) and
+  `LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT` (default 25) for AUDIO / PODCAST (no video tracks). A new room of weight *w* is
+  refused when `used + w > LIVE_CAPACITY_MAX_ROOMS × 100` — with video rooms only that is «the live rooms ≥ the limit».
+  `LIVE_CAPACITY_MAX_ROOMS` 0 (**the default**) switches the guard off: nothing is counted, no lock is taken, the
+  behaviour is exactly v1.112's. The production value comes from the Phase 1 measurements
+  (`SINGLE_NODE_CAPACITY_RESULTS.md`, e.g. 80 % of the measured ceiling of the realistic mix × the media nodes).
+- **Answer:** 503 `LIVE_CAPACITY_FULL`, header `Retry-After: <LIVE_CAPACITY_RETRY_AFTER_SECONDS>` (default 60), the
+  usual envelope; nothing was created or audited as a start.
+- **Race safety:** with the guard on, the go-live transaction takes one transaction-scoped Postgres advisory lock
+  (`pg_advisory_xact_lock(hashtext('kabso:live-capacity'))`) before it counts and inserts, so two go-lives on any API
+  instances never interleave: the later one waits for the earlier to commit (and then counts its room) or roll back.
+  The ceiling is never overshot. Chosen over a Redis counter because the count stays the database's truth (every way
+  a live ends — the host, the sweeper, a suspension, the team, the heartbeat timeout — frees capacity with no counter
+  to keep exact), and the lock disappears with the transaction, also if the process dies. Cost: go-lives are
+  serialized for the few milliseconds of their insert (go-lives are rare next to viewers; nothing else takes the lock).
+- **Bypass:** none by default — the owner and the team are refused like anyone (a full media tier is full for them
+  too). `LIVE_CAPACITY_BYPASS_USER_IDS` (comma-separated user ids, empty by default) lists accounts that are never
+  refused (e.g. an official event account); their rooms still count.
+- **Counting the refusals:** each refusal is logged (`event: live.capacity.full`, the mode, the rooms and units used,
+  the limit — no user id) and counted in Redis per UTC day (`live:capacity:refused:<YYYY-MM-DD>`, kept 8 days, best
+  effort: a Redis outage never changes the answer) for a later admin stat or the Phase 4 Prometheus exporter. No panel
+  screen in v1.113 (no contract field for it yet).
+- **Clients:** the app (every go-live path: video, multi-guest, audio, podcast, streamer, a PK host's start) keeps the
+  setup and shows a sheet «البث مزدحم الآن، حاول بعد قليل» / "Live is busy right now, please try again shortly" with
+  «حاول مجددًا» / "Try again", disabled with a countdown until `Retry-After` has passed (60 s without the header); not
+  an error toast. The web studio shows the same words with the same button. An older app shows its generic error.

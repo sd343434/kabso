@@ -613,8 +613,18 @@ export interface AppConfig {
     readonly sweepBatchSize: number;
     /** Source of the cursor HMAC key (HKDF `live-cursor/v1`): LIVE_CURSOR_KEY, else rateLimitKeySecret. */
     readonly cursorKey: string;
-    /** CP-010: the LiveKit media server, or null when not configured (hosting must then be off). */
-    readonly livekit: { readonly url: string; readonly apiKey: string; readonly apiSecret: string } | null;
+    /**
+     * CP-010: the LiveKit media server, or null when not configured (hosting must then be off). `url` is the public
+     * URL clients get; D350 `apiUrl` is where the API's own server calls go (LIVEKIT_API_URL, else `url`).
+     */
+    readonly livekit: {
+      readonly url: string;
+      readonly apiUrl: string;
+      readonly apiKey: string;
+      readonly apiSecret: string;
+    } | null;
+    /** D350: `POST /livekit/webhook` (public, signed) is served (LIVEKIT_PUBLIC_WEBHOOK_ENABLED). */
+    readonly publicWebhookEnabled: boolean;
     /** Source of the guest-number HMAC key (HKDF `live-guest/v1`): rateLimitKeySecret. */
     readonly guestKey: string;
     /** CP-016 A: the popularity boards' time zone (day and week boundaries). */
@@ -623,6 +633,17 @@ export interface AppConfig {
     readonly gamesEnabled: boolean;
     /** v1.45-live (D201, §10.63): a second-camera pairing code's lifetime (LIVE_SECOND_CAMERA_CODE_SECONDS). */
     readonly secondCameraCodeSeconds: number;
+    /**
+     * v1.113-live (D351, §10.148): the capacity guard «حد الامتلاء» on `startLiveRoom`. `maxRooms` 0 = off. Weights are
+     * percent of one video room; `bypassUserIds` (lower-case UUIDs) are never refused (their rooms still count).
+     */
+    readonly capacity: {
+      readonly maxRooms: number;
+      readonly videoWeightPercent: number;
+      readonly audioWeightPercent: number;
+      readonly retryAfterSeconds: number;
+      readonly bypassUserIds: readonly string[];
+    };
   };
   readonly registration: {
     readonly ttlSeconds: number;
@@ -1123,12 +1144,25 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       cursorKey: e.LIVE_CURSOR_KEY ?? rateLimitKeySecret,
       livekit:
         e.LIVEKIT_URL !== undefined && e.LIVEKIT_API_KEY !== undefined && e.LIVEKIT_API_SECRET !== undefined
-          ? { url: e.LIVEKIT_URL, apiKey: e.LIVEKIT_API_KEY, apiSecret: e.LIVEKIT_API_SECRET }
+          ? {
+              url: e.LIVEKIT_URL,
+              apiUrl: e.LIVEKIT_API_URL ?? e.LIVEKIT_URL,
+              apiKey: e.LIVEKIT_API_KEY,
+              apiSecret: e.LIVEKIT_API_SECRET,
+            }
           : null,
+      publicWebhookEnabled: e.LIVEKIT_PUBLIC_WEBHOOK_ENABLED,
       guestKey: rateLimitKeySecret,
       rankingsTimeZone: e.LIVE_RANKINGS_TIME_ZONE,
       gamesEnabled: e.LIVE_GAMES_ENABLED,
       secondCameraCodeSeconds: e.LIVE_SECOND_CAMERA_CODE_SECONDS,
+      capacity: {
+        maxRooms: e.LIVE_CAPACITY_MAX_ROOMS,
+        videoWeightPercent: e.LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT,
+        audioWeightPercent: e.LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT,
+        retryAfterSeconds: e.LIVE_CAPACITY_RETRY_AFTER_SECONDS,
+        bypassUserIds: e.LIVE_CAPACITY_BYPASS_USER_IDS,
+      },
     },
     registration: {
       ttlSeconds: e.REGISTRATION_TTL_SECONDS,

@@ -5377,5 +5377,11 @@
   "errorStoreIapPurchaseConflict": "This purchase belongs to another account.",
   "errorStoreIapPending": "The store is still processing the payment.",
   "walletReasonStoreIap": "Store purchase",
-  "walletReasonStoreIapReversal": "Store refund (coins taken back)"
+  "walletReasonStoreIapReversal": "Store refund (coins taken back)",
+  "errorLiveCapacityFull": "Live is busy right now, please try again shortly.",
+  "liveCapacityTitle": "Live is busy",
+  "liveCapacityHint": "Your setup is kept. You can try again when the countdown ends.",
+  "liveCapacityRetry": "Try again",
+  "liveCapacityRetryIn": "Try again in {wait}",
+  "liveCapacityClose": "Later"
 }

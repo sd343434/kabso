@@ -72,13 +72,18 @@ export class LiveKitMediaProvider implements LiveMediaProvider {
   /** D319: data messages retried through LiveKit's short «room not open / no response» windows. */
   private readonly data: DataRetry;
 
+  /**
+   * @param url the public URL clients connect to (returned in every media token response).
+   * @param apiUrl D350: where the room service is called; defaults to `url`. LiveKit serves its HTTP API and the
+   *   client WebSocket on the same port, so `ws`/`wss` map to `http`/`https`.
+   */
   constructor(
     readonly url: string,
     private readonly apiKey: string,
     private readonly apiSecret: string,
+    apiUrl: string = url,
   ) {
-    // The room service speaks HTTP(S) on the same host as the client WebSocket.
-    this.rooms = new RoomServiceClient(url.replace(/^ws/, 'http'), apiKey, apiSecret);
+    this.rooms = new RoomServiceClient(apiUrl.replace(/^ws/, 'http'), apiKey, apiSecret);
     this.webhooks = new WebhookReceiver(apiKey, apiSecret);
     this.data = new DataRetry((room, topic, payload) =>
       this.rooms
