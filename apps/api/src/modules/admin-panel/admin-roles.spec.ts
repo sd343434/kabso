@@ -330,8 +330,9 @@ describe('admin roles (D271 «الموظفون والصلاحيات»)', () => {
     const { tx, badgeAudits } = fakeTx(w);
     await grantRoleIn(tx, TARGET_ID, 'SUPPORT', PANEL, { reason: 'r' });
     expect(w.badge).toBe('STAFF');
+    // D357 (owner «ازيلها»): holding OWNER means no badge at all — the STAFF seal goes, and comes back on revoke.
     await grantRoleIn(tx, TARGET_ID, 'OWNER', PANEL, { reason: 'r' });
-    expect(w.badge).toBe('OWNER');
+    expect(w.badge).toBeNull();
     await revokeRoleIn(tx, TARGET_ID, 'OWNER', PANEL, { reason: 'r' });
     expect(w.badge).toBe('STAFF');
     await revokeRoleIn(tx, TARGET_ID, 'SUPPORT', PANEL, { reason: 'r' });
@@ -340,6 +341,6 @@ describe('admin roles (D271 «الموظفون والصلاحيات»)', () => {
       badgeAudits
         .filter((a) => a.action === 'verification.badge.change')
         .map((a) => `${String(a.metadata.change)}:${String(a.metadata.after)}:${String(a.metadata.cause)}`),
-    ).toEqual(['granted:STAFF:role', 'changed:OWNER:role', 'changed:STAFF:role', 'removed:null:role']);
+    ).toEqual(['granted:STAFF:role', 'removed:null:role', 'granted:STAFF:role', 'removed:null:role']);
   });
 });
