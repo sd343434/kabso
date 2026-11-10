@@ -767,7 +767,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
 | v1.112-social (draft) | 2026-11-09 | **int21 (owner «موافق على الاقتراحات» on D345 #7 + D344): «الشحن من الموقع» only in the direct APK.** `InstallSource` {PLAY, APP_STORE, SIDELOAD} in `DeviceInfo.installSource` (sign-in) and the `refresh` body, kept on the session (`sessions.install_source`, migration `20270418090100_session_install_source`); `RechargePackages.websiteTopupUrl` and `createTopupWebsiteSession` follow `TOPUP_APP_LINK_SOURCES` (default SIDELOAD) on top of `TOPUP_APP_LINK_PLATFORMS`. Also (D345 #5): a store refund bans every device seen for the account (no shape change). §10.143.3, §10.144. | **Additive** in shape; **behaviour change**: a session that reported no install source (an app older than this) no longer gets the website link; a refund bans more devices. |
-| v1.118-social (draft) | 2026-11-10 | **D357 (owner): the founder's centred page.** `PublicProfile.founderFeedbackCount` / `Me.founderFeedbackCount` (integer ≥ 0, only on the app owner's profile, 0 included): how many «اقترح ميزة / أبلغ» submissions (`createOwnerFeedback`, both kinds, those still kept) the founder has received; one number for everyone, cached 60 s in Redis (`owner:feedback-count:v1`), dropped by a new submission and by the panel's deletion. §10.153. | **Additive**. |
+| v1.118-social (draft) | 2026-11-10 | **D357 (owner): the founder's centred page.** `PublicProfile.founderFeedbackCount` / `Me.founderFeedbackCount` (integer ≥ 0, only on the app owner's profile, 0 included): how many «اقترح ميزة / أبلغ» submissions (`createOwnerFeedback`, both kinds, those still kept) the founder has received; one number for everyone, cached 60 s in Redis (`owner:feedback-count:v1`), dropped by a new submission and by the panel's deletion. §10.153. *Follow-ups the same day (owner):* the founder badge is the D293 seal in red with a white play triangle, at the bottom centre of his photo; **`VerificationBadge.OWNER` reserved — never sent** (the app owner has no badge; migration `20270424090000_owner_seal_removed` deletes the stored rows; §10.105.1); `ProfileLinkPlatform` gains `WHATSAPP`, `SNAPCHAT`; the app owner may keep up to 7 links (`UpdateMeRequest.links` / `PublicProfile.links` / `Me.links` `maxItems` 7; 3 for everyone else as before, `links` / `too_many`); a bare international phone number is stored as a wa.me link; migration `20270424090100_founder_social_links` (position CHECK 0–6). §10.47, §10.105, §10.153. | **Additive** (new enum values: clients read unknown platforms as `OTHER`; OWNER is simply no longer sent, which clients already handle as no badge). |
 | v1.111-live (draft) | 2026-11-09 | **D347 (owner: «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»):** the global lucky banner — the data message `lucky-ticker` (topic `lucky`) goes to every other LIVE room (every mode) only for a send whose best win is in the server set `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (default `250,500,1000`; was every win ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`, 100); it gains `gift` `{code, assetKey, imageUrl}` and `room.mode`; the gap `LUCKY_GLOBAL_BANNER_GAP_SECONDS` (10) is configurable; a waiting win whose live ended is dropped. The app draws it as the room's win banner with the live's name and a tap target. *Follow-up (owner «نعم موافق»):* `GlobalStripsSettings.luckyGlobalMultipliers` / `luckyGlobalGapSeconds` (the panel, optional in `UpdateGlobalStripsRequest`, 400 `luckyGlobalMultipliers` / `invalid_value`), `NotificationSettings.luckyStrip` («إخفاء أشرطة الفوز»); migration `20270418090000_lucky_strip_setting`. §10.27, §10.146, §10.146.1. | **Additive** (new message fields older apps ignore); **behaviour change**: ×100 wins are no longer told to other lives. New fields are additive. |
 | v1.110-social (draft) | 2026-11-09 | **D345 (owner: «بيع العملات عبر المتاجر … الاسترداد احتيال: سحب العملات وحظر الحساب والجهاز تلقائياً … سياسة لمنع الاسترداد وفي حالة الاسترداد النظام يخاطب الجهة»):** tag `store-iap` — `getStoreIapCatalog`, `verifyStorePurchase`, `receiveAppleNotification` (App Store Server Notifications v2), `receiveGoogleRtdn` (Pub/Sub push); tag `admin-panel` — `getAdminStoreIapOverview`, `updateAdminStoreIapSettings`, `listAdminStoreIapProducts`, `createAdminStoreIapProduct`, `updateAdminStoreIapProduct`, `listAdminStoreIapPurchases`, `listAdminStoreIapRefundBans`, `unbanAdminStoreIapRefund`, `syncAdminStoreIapVoided`; capabilities `store_iap.view` (OWNER, MODERATION, SUPPORT, FINANCE), `store_iap.manage`, `store_iap.unban` (OWNER); codes `STORE_IAP_UNAVAILABLE` (503), `STORE_IAP_VERIFICATION_FAILED` (400), `STORE_IAP_PURCHASE_CONFLICT` (409), `STORE_IAP_PENDING` (409); ledger reasons `STORE_IAP`, `STORE_IAP_REVERSAL`; a refund ban is lifted only by the OWNER (the general unban and the device-ban list answer 409 `ADMIN_ACTION_REFUSED`); audit `store_iap.*`; migrations `20270417090000_store_iap_enums`, `20270417090100_store_iap`. §4, §10.144. | **Additive** (new operations, codes, enum values); **behaviour change** only for the panel: a store-refund ban cannot be lifted from the user page or the device-ban list. Off until the owner places the store credentials on the server. |
 | v1.109-social (draft) | 2026-11-09 | **D344 (owner: «زر الشحن من الموقع يدخلك متصفح خارج التطبيق ويطلب اليوزر والباسورد. اريد جعل الشحن من الموقع يفتح من نفس التطبيق ويدخل اليوزر والباسورد تلقائي دون ملاحظة الشخص»; then «اسعار الشحن من الموقع يجب اضافة عليها عمولة stripe»):** tag `topup` — `createTopupWebsiteSession` (`POST /wallet/topup-session`), `exchangeTopupHandoff` (`POST /topup/handoff`, public); schemas `TopupWebsiteSession`, `TopupHandoffRequest`, `TopupHandoffSession`; `RechargePackages.websiteTopupUrl` also per store (`TOPUP_APP_LINK_PLATFORMS`); `TopupPackages.priceMinor` and the Checkout amount include Stripe's fee (gross-up); `AdminPaymentSettings.options` / `effective` `stripeFeeGrossUp`, `stripeFeePercentBps`, `stripeFeeFixedMinor`, `feeCurrency`, and the same three in `UpdateAdminPaymentSettingsRequest`; audit `topup.handoff.mint|exchange|refused`, `topup.fee.exceeded`; migrations `20270416090000_topup_handoffs`, `20270416090100_topup_stripe_fee`. §7, §10.53, §10.143. | **Additive** on the wire (new operations and fields). **Behaviour change**: the website's package prices are higher by Stripe's fee while the gross-up is on (the default); the coins are unchanged. |
@@ -3459,6 +3459,9 @@ The owner's answers (2026-10-30, Arabic) to D168's questions a–g. Written as �
   فنان, `BLOGGER` مدوّن, `PUBLIC_FIGURE` شخصية عامة, `OTHER` أخرى. Optional; `PATCH /me {category: null}`
   clears it. The app names the values in its own language; clients show an unknown value as nothing.
 - **Profile links:** `PATCH /me {links}` replaces the whole set (0–3, in order; `[]` clears them).
+  *(v1.118-social, D357:* the app owner may keep 0–7 — his page's social row, §10.153; `ProfileLink.platform` gains
+  `WHATSAPP` (wa.me, whatsapp.com) and `SNAPCHAT` (snapchat.com); a bare international phone number, 8–15 digits with
+  `+` or `00`, is stored as `https://wa.me/<digits>`.)
   - Each `url` (raw ≤ 2 048 characters): `https://` only; no user name or password; no port (`:443` is
     the default and disappears); a host name — never an IP literal (any IPv4 spelling, e.g. `2130706433` or
     `0x7f.1`, or IPv6), `localhost` or a single label; letters, digits and `-` per label and an alphabetic or
@@ -8069,7 +8072,7 @@ SUSPENDED or a deletion removes it at the next recompute).
 
 | # | Value | Colour, icon | Who (as read by the server) |
 |---|---|---|---|
-| 1 | `OWNER` | black seal, gold rim and gold check | an account with `users.role = ADMIN` holding the panel role **OWNER** (every OWNER, the primary «Kabso» and any other) |
+| 1 | `OWNER` | *reserved since v1.118-social (D357, owner «ازيلها»): never stored or sent* — formerly black seal, gold rim and gold check | an account holding the panel role **OWNER** now has **no badge at all** (holding OWNER suppresses every lower one); the value stays in the enum so older apps still parse it, and apps draw nothing for it |
 | 2 | `STAFF` | red | the **Kabso Team**: an ADMIN account holding MODERATION, SUPPORT, FINANCE or BD (D283's limited staff roles, `LIMITED_STAFF_ROLES`) |
 | 3 | `RECHARGE_AGENT` | gold | an **ACTIVE** recharge agent (the `rechargeAgent` tag's rule) whose **coins sold** in the window are more than `rechargeMinSalesCoins` **and** whose **cherries bought from hosts** in the window are more than `rechargeMinCherries` |
 | 4 | `HOST_AGENT` | green | a **host agent** — the owner of an OPEN agency the team has not suspended, with its host code (the `hostAgent` tag's rule) — whose agency has more than `hostAgentMinHosts` **active hosts now** **and** whose hosts **received** more than `hostAgentMinCherries` cherries in the window |
@@ -11189,9 +11192,10 @@ profile keeps §10.73.7.
 
 - **Layout (app):** the cover (his video, §10.112.1) unchanged; the photo (D335 ring, or a frame's box) **centred** over
   the cover's bottom edge (same height as §10.73.7); under it, centred: the name (24 dp, w800, **Kabso red** —
-  `KBrandColors.red500` on light, `red400` on dark: ≥ 4.5 : 1 on both pages; up to two lines, «…»), **the founder badge**
-  8 dp under the name, then any other badges / worn medals (centred, only when he holds them), the bilingual bio
-  (§10.112.11, four lines, centred), tags and links (centred), the **two numbers**, the buttons (visitors «متابعة
+  `KBrandColors.red500` on light, `red400` on dark: ≥ 4.5 : 1 on both pages; up to two lines, «…») with **nothing beside
+  or under it** (the founder badge is on the photo, below), then any other badges / worn medals (centred, only when he
+  holds them), the bilingual bio (§10.112.11, four lines, centred), **the social row** (below), tags and his other
+  links (centred chips), the **two numbers**, the buttons (visitors «متابعة
   المؤسس» + «اقترح ميزة / أبلغ»; his own view «تعديل الملف»), then the sections of §10.112.6 / §10.112.12.
 - **The badge** (owner, 2026-11-10, a second message: «الشارة مثلما كانت لكن بدل ما بداخلها صح يصبح مثلث»; the preview
   he approved the same day is outside git): widget `FounderBadge` — **the D293 seal itself** (§10.105: the 8-lobe rosette
@@ -11199,11 +11203,40 @@ profile keeps §10.73.7.
   on it 4.8 : 1, over the 3 : 1 a graphic needs), holding a **solid white play triangle** with rounded corners
   (`FounderPlayPainter`: corners 0.30 × 0.34 of the seal, a round-joined stroke 0.045 of it, its box moved 0.035 toward
   the point so it looks centred) **in place of the check mark**. The triangle points right in Arabic and English (a
-  media "play", never mirrored). Sized like the seal beside a name of the same font
-  (`ProfileVerificationBadge.sizeForFont(24)` = 28 dp), centred 8 dp under the name. One semantics label «مؤسس Kabso
-  Live» / "Kabso Live founder" (image), a tooltip. It **replaces the blue D293 seal** on the founder's page (on the photo
-  and after the name); the seal stays everywhere else (search, cards, comments). The earlier shield asset
-  (`founder_badge.svg`, an outlined triangle) and the under-photo comparison placement were removed.
+  media "play", never mirrored). One semantics label «مؤسس Kabso Live» / "Kabso Live founder" (image), a tooltip.
+  - **Placement** (owner, the same day: «بجانب اسم المؤسس ازل الشارة», then the placement decision): **never beside or
+    under his name.** One seal **centred at the bottom of his profile photo**, overlapping the photo's bottom rim like an
+    avatar badge — its centre 0.15 of the badge above the rim, so it hangs ≈ 13 dp below it (the name moves down by
+    what passes the photo's box). Size **0.28 of the photo's diameter** (the owner's 0.26–0.30), never under **20 lp**:
+    32 dp on the D335 ring (114 dp), 25 dp on a framed photo (the 88 dp photo inside the frame's box, on the photo
+    circle's rim, inside the frame's opening). A **2.5 dp ring** — white on a light page, the palette's `surface` on a
+    dark one — parts it from the photo, its gradient ring and any frame. His profile page only (own view and
+    visitors); the Me tab shows no founder badge beside his name.
+  - The earlier shield asset (`founder_badge.svg`, an outlined triangle), the under-name placement and the under-photo
+    comparison switch were removed.
+- **No OWNER seal anywhere** (owner, 2026-11-10: «ازيلها»): the black-and-gold D293 `OWNER` seal is retired — not beside
+  his name (Me tab, comments, chat and DMs, feed and reels, Discover, follow lists, live chat, seats, the person card,
+  the search card) and not on his photo. At the source: the app owner gets **no** verification badge (§10.105.1), the
+  migration `20270424090000_owner_seal_removed` deletes the stored rows, so older installed apps stop drawing it too.
+  In the app, `shownVerification` draws nothing (no seal, no spoken label) for a cached or older `OWNER`.
+- **The social row** (owner, 2026-11-10: «تحت البايو ضع اشارة السوشل ميديا مثل انستقرام وفيسبوك وواتساب وسناب شات
+  لنضيف صفحاتنا عليها»): `FounderSocialRow`, 12 dp under the bio, centred — one round button per platform **in this
+  order in Arabic and English alike**: Instagram, Facebook, WhatsApp, Snapchat. Each is a 44 dp circle (the palette's
+  `surfaceRaised`, a `border` hairline) in a 48 dp target, 12 dp apart, holding the platform's mark (22 dp,
+  `assets/icons/social/`, Simple Icons 15.9.0, CC0, unaltered, **monochrome** in the theme's text colour, as every
+  guideline allows; provenance and trademark note in that folder's README). Spoken and tooltip «إنستغرام» / "Instagram",
+  «فيسبوك», «واتساب», «سناب شات». A tap opens the link outside the app (`url_launcher`, no «أنت تغادر Kabso» sheet for
+  these known platforms); a failure → «تعذّر فتح الرابط».
+  - **Data: his profile links (§10.47), no second store.** The row takes his first link of each platform
+    (`ProfileLink.platform`, from the host: `INSTAGRAM` instagram.com, `FACEBOOK` facebook.com / fb.com, `WHATSAPP`
+    wa.me / whatsapp.com, `SNAPCHAT` snapchat.com — new in v1.118-social, any subdomain; https only as every link). A
+    platform he did not link has no button; none of the four → no row. His other links stay chips under the tags (the
+    row's links are not repeated). He edits them himself in «تعديل الملف» → «الروابط» (the panel has no founder-profile
+    editor); the app owner may keep **up to 7** links (his 3 plus one per platform; everyone else keeps 3 —
+    `links` / `too_many`). A bare phone number in international form (`+966 50 123 4567`, `00966…`, 8–15 digits) is
+    stored as `https://wa.me/<digits>`; a national number (leading 0) is refused (`invalid_format`). Migration
+    `20270424090100_founder_social_links` widens the position CHECK to 0–6. Only the founder's page draws the row;
+    anyone else's links (including the new platforms) stay chips.
 - **The numbers:** only «المتابِعون» (`followerCount`, a tap opens the list) and «الاقتراحات والشكاوى»
   (`founderFeedbackCount`, not a button) side by side, centred; «يتابع» and the money numbers are not shown. A server
   that does not send `founderFeedbackCount` → «–», never a made-up 0.

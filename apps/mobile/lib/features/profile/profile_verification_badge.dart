@@ -47,6 +47,14 @@ abstract final class VerificationBadgeColors {
       b == VerificationBadge.owner ? ownerGold : null;
 }
 
+/// D357 (owner, 2026-11-10: «ازيلها»): the badge a name actually shows —
+/// the OWNER seal (black and gold) is never drawn, beside his name or on his
+/// photo; the founder's only mark is his red photo seal (`FounderBadge`).
+/// The server no longer sends `OWNER` (v1.118-social); this also covers a
+/// cached or older payload.
+VerificationBadge? shownVerification(VerificationBadge? b) =>
+    b == VerificationBadge.owner ? null : b;
+
 /// D293: the icon inside every seal. Owner 2026-11-06: «اجعلها كلها بصح
 /// لكن الألوان مختلفة التي حددناها» — the same check mark in all six; only the
 /// colours tell them apart (and the spoken label / tooltip say which one).
@@ -91,6 +99,8 @@ class ProfileVerificationBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // D357: the OWNER seal is never drawn.
+    if (shownVerification(badge) == null) return const SizedBox.shrink();
     final l10n = context.l10n;
     final label = l10n.verificationBadgeLabel(
       verificationBadgeKind(l10n, badge),
@@ -220,7 +230,7 @@ class VerificationSeal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final b = badge;
+    final b = shownVerification(badge);
     if (b == null) return const SizedBox.shrink();
     final font = fontSize ?? DefaultTextStyle.of(context).style.fontSize ?? 14;
     return Padding(
@@ -252,7 +262,7 @@ class NameWithSeal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (badge == null) return name;
+    if (shownVerification(badge) == null) return name;
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: mainAxisAlignment,

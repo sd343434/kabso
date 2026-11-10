@@ -3,8 +3,10 @@
 // «شارة التوثيق» itself (the 8-lobe rosette of [VerificationSealPainter],
 // not a copy of its maths) in Kabso red ([FounderBadge.fill]), holding a
 // solid white play triangle with rounded corners ([FounderPlayPainter])
-// where the other seals hold their check mark. Replaces the seal on the
-// founder's page only.
+// where the other seals hold their check mark. Owner, the same day: «بجانب
+// اسم المؤسس ازل الشارة» — never beside his name; one small seal at the
+// bottom centre of his profile photo (his profile page only), on a thin ring
+// that parts it from the photo and its frame.
 
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
@@ -12,13 +14,22 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The founder's red seal, read as «مؤسس Kabso Live» / "Kabso Live
-/// founder" (one label; a tooltip on long press).
+/// founder" (one label; a tooltip on long press), on an optional [ring]
+/// [ringWidth] wide around it (the widget is then `size + 2 × ringWidth`).
 class FounderBadge extends StatelessWidget {
-  const new({super.key, this.size = 23});
+  const new({super.key, this.size = 23, this.ring, this.ringWidth = 0});
 
-  /// The seal's width and height. On his page: the D293 seal's size beside
-  /// a name of the same font ([ProfileVerificationBadge.sizeForFont]).
+  /// The seal's width and height (on his photo:
+  /// `KPublicProfile.founderSealFor`).
   final double size;
+
+  /// The ring's colour (white on a light page, the surface on a dark one),
+  /// or null for none.
+  final Color? ring;
+  final double ringWidth;
+
+  /// The whole badge's width and height, ring included.
+  double get outer => ring == null ? size : size + 2 * ringWidth;
 
   /// The seal: the brand red (white on it 4.8 : 1, over the 3 : 1 needed
   /// for a graphic); the same on light and dark pages, like the D293 seals.
@@ -42,10 +53,18 @@ class FounderBadge extends StatelessWidget {
         container: true,
         excludeSemantics: true,
         child: SizedBox.square(
-          dimension: size,
-          child: const CustomPaint(
-            painter: VerificationSealPainter(fill: fill),
-            foregroundPainter: FounderPlayPainter(color: ink),
+          dimension: outer,
+          child: DecoratedBox(
+            decoration: BoxDecoration(shape: BoxShape.circle, color: ring),
+            child: Center(
+              child: SizedBox.square(
+                dimension: size,
+                child: const CustomPaint(
+                  painter: VerificationSealPainter(fill: fill),
+                  foregroundPainter: FounderPlayPainter(color: ink),
+                ),
+              ),
+            ),
           ),
         ),
       ),

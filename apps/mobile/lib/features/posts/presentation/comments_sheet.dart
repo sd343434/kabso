@@ -663,7 +663,7 @@ class _CommentTile extends StatelessWidget {
                       ),
                     ),
                     // D293: the author's verification seal after the name.
-                    if (c.author.verification != null)
+                    if (shownVerification(c.author.verification) != null)
                       VerificationSeal(
                         c.author.verification,
                         fontSize: KCommentsSheet.nameSize,

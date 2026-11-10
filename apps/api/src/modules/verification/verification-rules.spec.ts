@@ -24,7 +24,10 @@ describe('D293 verification badge rules', () => {
     ]);
     expect(pickBadge([])).toBeNull();
     expect(pickBadge(['VERIFIED_HOST', 'CREATOR'])).toBe('CREATOR');
-    expect(pickBadge(['VERIFIED_HOST', 'STAFF', 'OWNER'])).toBe('OWNER');
+    // D357 (owner 2026-11-10: «ازيلها»): the app owner shows no seal at all — not OWNER, not a lower one.
+    expect(pickBadge(['VERIFIED_HOST', 'STAFF', 'OWNER'])).toBeNull();
+    expect(pickBadge(['OWNER'])).toBeNull();
+    expect(pickBadge(['OWNER', 'CREATOR'])).toBeNull();
     expect(pickBadge(['HOST_AGENT', 'RECHARGE_AGENT'])).toBe('RECHARGE_AGENT');
     expect(pickBadge(['HOST_AGENT', 'VERIFIED_HOST'])).toBe('HOST_AGENT');
     expect(pickBadge(new Set(['STAFF', 'CREATOR'] as const))).toBe('STAFF');

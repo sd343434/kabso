@@ -56,6 +56,12 @@ enum ProfileLinkPlatform {
   youtube('YOUTUBE'),
   facebook('FACEBOOK'),
   x('X'),
+
+  /// v1.118-social (D357): wa.me, whatsapp.com.
+  whatsapp('WHATSAPP'),
+
+  /// v1.118-social (D357): snapchat.com.
+  snapchat('SNAPCHAT'),
   other('OTHER');
 
   new(this.wire);
@@ -143,6 +149,30 @@ List<Map<String, dynamic>> profileLinksToJson(List<ProfileLink> links) => [
 /// authoritative.
 abstract final class ProfileLinkRules {
   static const int maxLinks = 3;
+
+  /// v1.118-social (D357): the app owner's limit (his 3 plus one per
+  /// platform of his page's social row).
+  static const int maxFounderLinks = 7;
+
+  /// D357: the platforms of the founder page's social row, in its order
+  /// (the same in Arabic and English).
+  static const List<ProfileLinkPlatform> founderSocials = [
+    ProfileLinkPlatform.instagram,
+    ProfileLinkPlatform.facebook,
+    ProfileLinkPlatform.whatsapp,
+    ProfileLinkPlatform.snapchat,
+  ];
+
+  /// D357: a bare phone number the server stores as `https://wa.me/<digits>`
+  /// (8–15 digits with a `+` or `00` country code; separators allowed).
+  static bool isWhatsAppNumber(String raw) {
+    final t = raw.trim();
+    if (!RegExp(r'^(?:\+|00)?[0-9][0-9 ().-]*[0-9]$').hasMatch(t)) return false;
+    var digits = t.replaceAll(RegExp('[^0-9]'), '');
+    if (t.startsWith('00')) digits = digits.substring(2);
+    return !digits.startsWith('0') && digits.length >= 8 && digits.length <= 15;
+  }
+
   static const int maxLabel = 30;
   static const int maxLength = 500;
 
@@ -157,6 +187,7 @@ abstract final class ProfileLinkRules {
   /// (`invalid_format` or `too_long`), as the server would name it.
   static String? issue(String raw) {
     final value = raw.trim();
+    if (isWhatsAppNumber(value)) return null;
     if (value.isEmpty || _forbidden.hasMatch(value)) return 'invalid_format';
     if (!value.toLowerCase().startsWith('https://')) return 'invalid_format';
     final uri = Uri.tryParse(value);

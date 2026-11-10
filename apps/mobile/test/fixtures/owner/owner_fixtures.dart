@@ -4,6 +4,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/features/owner_profile/domain/owner_models.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
@@ -35,13 +36,46 @@ const OwnerCoverVideo ownerVideos = OwnerCoverVideo(
   ),
 );
 
-/// The app owner «مؤسس كابسو» (the D293 OWNER seal), seen by [self] or not.
+/// D357: the founder's social links in the fixtures (test URLs only), the
+/// row's order shuffled and one other link, as a server could send them.
+const List<ProfileLink> ownerSocialLinks = [
+  ProfileLink(
+    id: 'l-sc',
+    url: 'https://www.snapchat.com/add/kabso.test',
+    platform: ProfileLinkPlatform.snapchat,
+  ),
+  ProfileLink(
+    id: 'l-ig',
+    url: 'https://www.instagram.com/kabso.test',
+    platform: ProfileLinkPlatform.instagram,
+  ),
+  ProfileLink(
+    id: 'l-web',
+    url: 'https://kabso.test/press',
+    label: 'kabso.test',
+    platform: ProfileLinkPlatform.other,
+  ),
+  ProfileLink(
+    id: 'l-wa',
+    url: 'https://wa.me/966500000000',
+    platform: ProfileLinkPlatform.whatsapp,
+  ),
+  ProfileLink(
+    id: 'l-fb',
+    url: 'https://www.facebook.com/kabso.test',
+    platform: ProfileLinkPlatform.facebook,
+  ),
+];
+
+/// The app owner «مؤسس كابسو», seen by [self] or not. His payload still
+/// carries the retired OWNER seal (an older server's, D357: never drawn).
 PublicProfile ownerProfile({
   required bool ar,
   bool self = false,
   OwnerCoverVideo? videos = ownerVideos,
   bool following = false,
   int? feedbackCount = ownerFeedbackCount,
+  List<ProfileLink> links = ownerSocialLinks,
 }) => PublicProfile(
   id: 'owner-0',
   username: 'kabso',
@@ -61,6 +95,7 @@ PublicProfile ownerProfile({
   kabsoOwner: true,
   coverVideo: videos,
   founderFeedbackCount: feedbackCount,
+  links: links,
 );
 
 /// D357: the founder's «الاقتراحات والشكاوى» in the fixtures (shown «1.2K»).

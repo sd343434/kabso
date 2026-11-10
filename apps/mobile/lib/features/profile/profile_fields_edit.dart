@@ -5,6 +5,7 @@ import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_edit_controller.dart';
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
@@ -456,7 +457,11 @@ class _EditLinksScreenState extends ConsumerState<EditLinksScreen> {
               ],
             ),
           ],
-          if (_links.length < ProfileLinkRules.maxLinks) ...[
+          // D357: the app owner keeps up to 7 (his page's social row).
+          if (_links.length <
+              (ref.watch(isKabsoOwnerProvider)
+                  ? ProfileLinkRules.maxFounderLinks
+                  : ProfileLinkRules.maxLinks)) ...[
             const SizedBox(height: KSpacing.lg),
             Align(
               alignment: AlignmentDirectional.centerStart,

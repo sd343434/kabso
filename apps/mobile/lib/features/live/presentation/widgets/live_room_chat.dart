@@ -1004,8 +1004,9 @@ class LiveChatAuthoredLine extends StatelessWidget {
     final badges = this.badges;
     final spoken = [
       label,
-      // D293: the seal is drawn in the line; its meaning is spoken here.
-      if (verification case final v?)
+      // D293: the seal is drawn in the line; its meaning is spoken here
+      // (D357: never the OWNER's, which is not drawn).
+      if (shownVerification(verification) case final v?)
         l10n.verificationBadgeLabel(verificationBadgeKind(l10n, v)),
       if (agentCode case final code?)
         l10n.rechargeAgentBadgeLabel(KFormat.bidiIsolate(code)),
@@ -1106,7 +1107,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
                       ),
                     ),
                   ),
-                  seal: verification == null
+                  seal: shownVerification(verification) == null
                       ? null
                       : VerificationSeal(
                           verification,
@@ -2346,7 +2347,7 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
                       ),
                     ),
               heart: w.cp,
-              seal: name == null || w.verification == null
+              seal: name == null || shownVerification(w.verification) == null
                   ? null
                   : VerificationSeal(w.verification, fontSize: KChat.nameSize),
               badges: badges.isNotEmpty

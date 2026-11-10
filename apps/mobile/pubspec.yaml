@@ -102,6 +102,8 @@ flutter:
     - assets/icons/
     - assets/icons/nav/
     - assets/icons/brand/
+    # D357: the founder's social icons (Simple Icons 15.9.0, CC0; assets/icons/social/README.md).
+    - assets/icons/social/
     # v1.79-live (D289): the nine gift / store badge icons (drawn for Kabso; the panel has the same paths).
     - assets/icons/badges/
     # D72 level emblems (owner-supplied kabso_levels pack, 4 × 11 tiers).

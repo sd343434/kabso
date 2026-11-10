@@ -15963,6 +15963,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get founderBadgeLabel => 'Kabso Live founder';
 
   @override
+  String get founderSocialInstagram => 'Instagram';
+
+  @override
+  String get founderSocialFacebook => 'Facebook';
+
+  @override
+  String get founderSocialWhatsApp => 'WhatsApp';
+
+  @override
+  String get founderSocialSnapchat => 'Snapchat';
+
+  @override
   String get founderFeedbackStat => 'Suggestions & complaints';
 
   @override

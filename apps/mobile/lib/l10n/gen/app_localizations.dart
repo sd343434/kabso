@@ -26896,11 +26896,35 @@ abstract class AppLocalizations {
   /// **'اقترح ميزة / أبلغ'**
   String get ownerFeedbackButton;
 
-  /// D357 (§10.153): the founder's badge (the D293 seal in Kabso red with a white play triangle) under his name — its spoken label and tooltip.
+  /// D357 (§10.153): the founder's badge (the D293 seal in Kabso red with a white play triangle) at the bottom centre of his photo — its spoken label and tooltip.
   ///
   /// In ar, this message translates to:
   /// **'مؤسس Kabso Live'**
   String get founderBadgeLabel;
+
+  /// D357 (§10.153): the spoken label and tooltip of the Instagram button in the founder page's social row.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنستغرام'**
+  String get founderSocialInstagram;
+
+  /// D357: the Facebook button of the founder page's social row.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيسبوك'**
+  String get founderSocialFacebook;
+
+  /// D357: the WhatsApp button of the founder page's social row.
+  ///
+  /// In ar, this message translates to:
+  /// **'واتساب'**
+  String get founderSocialWhatsApp;
+
+  /// D357: the Snapchat button of the founder page's social row.
+  ///
+  /// In ar, this message translates to:
+  /// **'سناب شات'**
+  String get founderSocialSnapchat;
 
   /// D357 (§10.153): the founder's page, the second of its two numbers — how many «اقترح ميزة / أبلغ» submissions (suggestions and complaints together) he has received.
   ///
