@@ -11642,13 +11642,17 @@ profile keeps §10.73.7.
   8 dp under the name, then any other badges / worn medals (centred, only when he holds them), the bilingual bio
   (§10.112.11, four lines, centred), tags and links (centred), the **two numbers**, the buttons (visitors «متابعة
   المؤسس» + «اقترح ميزة / أبلغ»; his own view «تعديل الملف»), then the sections of §10.112.6 / §10.112.12.
-- **The badge:** `assets/icons/founder_badge.svg` (`AppIcons.founderBadge`, widget `FounderBadge`, 30 dp tall) — an
-  original Kabso mark: a rounded **shield** (24 × 26 units, taller than wide) in the brand reds (red400 → red500 →
-  red600) holding an **outlined** (stroke-only, white) play triangle that echoes the play of Kabso's mascot. Not
-  YouTube's logo (a wide rounded rectangle with a filled triangle). One semantics label «مؤسس Kabso Live» / "Kabso Live
-  founder" (image), a tooltip. It **replaces the D293 seal** on the founder's page (on the photo and after the name);
-  the seal stays everywhere else (search, cards, comments). The placement under the photo was captured for comparison;
-  the shipped choice is under the name (the name reads first).
+- **The badge** (owner, 2026-11-10, a second message: «الشارة مثلما كانت لكن بدل ما بداخلها صح يصبح مثلث»; the preview
+  he approved the same day is outside git): widget `FounderBadge` — **the D293 seal itself** (§10.105: the 8-lobe rosette
+  of `VerificationSealPainter`, reused, not redrawn) filled with **`KBrandColors.red500`** on light and dark pages (white
+  on it 4.8 : 1, over the 3 : 1 a graphic needs), holding a **solid white play triangle** with rounded corners
+  (`FounderPlayPainter`: corners 0.30 × 0.34 of the seal, a round-joined stroke 0.045 of it, its box moved 0.035 toward
+  the point so it looks centred) **in place of the check mark**. The triangle points right in Arabic and English (a
+  media "play", never mirrored). Sized like the seal beside a name of the same font
+  (`ProfileVerificationBadge.sizeForFont(24)` = 28 dp), centred 8 dp under the name. One semantics label «مؤسس Kabso
+  Live» / "Kabso Live founder" (image), a tooltip. It **replaces the blue D293 seal** on the founder's page (on the photo
+  and after the name); the seal stays everywhere else (search, cards, comments). The earlier shield asset
+  (`founder_badge.svg`, an outlined triangle) and the under-photo comparison placement were removed.
 - **The numbers:** only «المتابِعون» (`followerCount`, a tap opens the list) and «الاقتراحات والشكاوى»
   (`founderFeedbackCount`, not a button) side by side, centred; «يتابع» and the money numbers are not shown. A server
   that does not send `founderFeedbackCount` → «–», never a made-up 0.

@@ -14141,7 +14141,7 @@
   "ownerFeedbackButton": "اقترح ميزة / أبلغ",
   "@ownerFeedbackButton": {"description": "D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The visitor's button that opens «اقترح ميزة / أبلغ عن موظف»."},
   "founderBadgeLabel": "مؤسس Kabso Live",
-  "@founderBadgeLabel": {"description": "D357 (§10.153): the founder's red badge (an outlined play triangle) under his name — its spoken label and tooltip."},
+  "@founderBadgeLabel": {"description": "D357 (§10.153): the founder's badge (the D293 seal in Kabso red with a white play triangle) under his name — its spoken label and tooltip."},
   "founderFeedbackStat": "الاقتراحات والشكاوى",
   "@founderFeedbackStat": {"description": "D357 (§10.153): the founder's page, the second of its two numbers — how many «اقترح ميزة / أبلغ» submissions (suggestions and complaints together) he has received."},
   "ownerPrivate": "خاص",
