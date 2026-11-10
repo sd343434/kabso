@@ -252,6 +252,13 @@ export const CAPABILITIES = {
   'support.whatsapp': ['OWNER', 'MODERATION', 'SUPPORT'],
   /** The quick replies «ردود سريعة» (create / edit / delete) and the connection status + «اختبار الاتصال». */
   'support.whatsapp.manage': ['OWNER', 'MODERATION'],
+  /**
+   * v1.120-social (D360, CONVENTIONS §10.155): read the inbox only — the conversations, the messages, the customer
+   * panel (account card, notes, history), the badge and the pushes, the push mute. No reply, claim, transfer, close,
+   * reopen, note, link or read receipt. The three WhatsApp capabilities are the staff member's WhatsApp LEVEL
+   * (`whatsappCapabilitiesOf`): these role lists are only the default when no level is set for the person.
+   */
+  'support.whatsapp.view': ['OWNER', 'MODERATION', 'SUPPORT'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;
@@ -267,6 +274,79 @@ export function capabilitiesOf(roles: readonly string[]): Capability[] {
   );
 }
 
+/**
+ * Whether the roles hold `cap`. For the three WhatsApp capabilities this is only the roles' DEFAULT (D360): decide
+ * those with `AdminContext.capabilities` (or {@link effectiveCapabilities}), which carry the person's WhatsApp level.
+ */
 export function can(roles: readonly string[], cap: Capability): boolean {
   return (CAPABILITIES[cap] as readonly string[]).some((r) => roles.includes(r));
+}
+
+// ---- v1.120-social (D360, CONVENTIONS §10.155): the WhatsApp level of each staff member ---------------------------
+
+/**
+ * Owner (D360): «مستوى واتساب لكل موظف» — NONE (no WhatsApp at all), VIEW (read only), REPLY (today's
+ * `support.whatsapp`), MANAGE (REPLY + the quick replies and the settings: today's `support.whatsapp.manage`). Ordered.
+ */
+export const WHATSAPP_LEVELS = ['NONE', 'VIEW', 'REPLY', 'MANAGE'] as const;
+export type WhatsAppLevel = (typeof WHATSAPP_LEVELS)[number];
+
+/** The three capabilities a WhatsApp level decides (never the roles alone once a level is set). */
+export const WHATSAPP_CAPABILITIES = [
+  'support.whatsapp.view',
+  'support.whatsapp',
+  'support.whatsapp.manage',
+] as const satisfies readonly Capability[];
+export type WhatsAppCapability = (typeof WHATSAPP_CAPABILITIES)[number];
+
+export function isWhatsAppCapability(cap: string): cap is WhatsAppCapability {
+  return (WHATSAPP_CAPABILITIES as readonly string[]).includes(cap);
+}
+
+export function whatsAppLevelRank(level: WhatsAppLevel): number {
+  return WHATSAPP_LEVELS.indexOf(level);
+}
+
+/**
+ * The level of a staff member with no level set — exactly the D355 roles: OWNER and MODERATION → MANAGE, SUPPORT →
+ * REPLY, anyone else (FINANCE, BD, no role) → NONE.
+ */
+export function defaultWhatsAppLevel(roles: readonly string[]): WhatsAppLevel {
+  if (roles.includes('OWNER') || roles.includes('MODERATION')) return 'MANAGE';
+  if (roles.includes('SUPPORT')) return 'REPLY';
+  return 'NONE';
+}
+
+/**
+ * The level that applies now: none without a panel role; the OWNER is always MANAGE (a level cannot be set on an
+ * OWNER, §10.155.2); otherwise the level set for the person, else the default of their roles.
+ */
+export function effectiveWhatsAppLevel(roles: readonly string[], set: WhatsAppLevel | null): WhatsAppLevel {
+  if (roles.length === 0) return 'NONE';
+  if (roles.includes('OWNER')) return 'MANAGE';
+  return set ?? defaultWhatsAppLevel(roles);
+}
+
+/** The WhatsApp capabilities of a level (cumulative). */
+export function whatsAppCapabilitiesOf(level: WhatsAppLevel): WhatsAppCapability[] {
+  const rank = whatsAppLevelRank(level);
+  const out: WhatsAppCapability[] = [];
+  if (rank >= 1) out.push('support.whatsapp.view');
+  if (rank >= 2) out.push('support.whatsapp');
+  if (rank >= 3) out.push('support.whatsapp.manage');
+  return out;
+}
+
+/**
+ * Every capability of a staff member: the roles' capabilities with the three WhatsApp ones replaced by those of the
+ * person's WhatsApp level (table order). Every guard and `AdminContext.capabilities` use this, so a level set in the
+ * panel applies on the next request, like a role.
+ */
+export function effectiveCapabilities(roles: readonly string[], set: WhatsAppLevel | null): Capability[] {
+  const wa = new Set<string>(whatsAppCapabilitiesOf(effectiveWhatsAppLevel(roles, set)));
+  return (Object.keys(CAPABILITIES) as Capability[]).filter((cap) =>
+    isWhatsAppCapability(cap)
+      ? wa.has(cap)
+      : (CAPABILITIES[cap] as readonly string[]).some((r) => roles.includes(r)),
+  );
 }

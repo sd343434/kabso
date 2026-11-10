@@ -292,6 +292,7 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
     // v1.78-live (D288): and the shared report queue «بلاغات» (read + «تم حله»), in the table's order.
     // v1.93-social (D296): SUPPORT's temporary lock from a report (`users.lock`, the panel's matrix).
     // v1.116-social (D355): and «واتساب» (the inbox; not its quick-reply management).
+    // v1.120-social (D360): SUPPORT's default WhatsApp level is REPLY — reading (`support.whatsapp.view`) + replying.
     expect(s.body.capabilities).toEqual([
       'reports.view',
       'reports.resolve',
@@ -299,6 +300,7 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
       'lives.watch',
       'lives.reports',
       'support.whatsapp',
+      'support.whatsapp.view',
     ]);
     const m = await sget(mod, '/staff/me');
     expect(m.body.capabilities).toEqual(

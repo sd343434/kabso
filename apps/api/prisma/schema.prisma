@@ -8405,3 +8405,25 @@ model WaAgentSetting {
 
   @@map("wa_agent_settings")
 }
+
+/// D360 (v1.120-social, CONVENTIONS §10.155): a staff member's WhatsApp level «مستوى واتساب».
+enum WaAccessLevel {
+  NONE
+  VIEW
+  REPLY
+  MANAGE
+
+  @@map("wa_access_level")
+}
+
+/// D360: the WhatsApp level set for one staff member (no row: the default of their roles, §10.155.1). Set by
+/// `team.manage` only; no foreign key, like every staff id of the module (accounts are tombstoned, never deleted).
+model WaStaffAccess {
+  userId    String        @id @map("user_id") @db.Uuid
+  level     WaAccessLevel
+  setById   String?       @map("set_by_id") @db.Uuid
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime      @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("wa_staff_access")
+}

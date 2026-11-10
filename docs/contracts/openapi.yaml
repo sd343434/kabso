@@ -547,6 +547,18 @@ info:
     now removes the event's banner. `listHomeBanners` leaves out an event banner once its event has ended (query time)
     and lists running events' banners first, then the rest, each group in the admin's order. Additive in shape;
     **behaviour change** in the order only.
+    **D360 (DRAFT v1.120-social)** a WhatsApp level per staff member «مستوى واتساب لكل موظف» (CONVENTIONS §10.155;
+    owner approved): `WhatsAppLevel` NONE / VIEW / REPLY / MANAGE replaces the D355 role rule for the three WhatsApp
+    capabilities — new capability `support.whatsapp.view` (VIEW+: the inbox, the messages, the customer panel, the
+    badge, the pushes, the push mute), `support.whatsapp` = REPLY+, `support.whatsapp.manage` = MANAGE. No level set
+    = the roles' default, exactly D355 (OWNER / MODERATION MANAGE, SUPPORT REPLY, others NONE); an OWNER is always
+    MANAGE. `setAdminTeamWhatsApp` (`PUT /admin/team/{userId}/whatsapp`, `team.manage`, code + reason, audited
+    `admin.team.whatsapp`; refusals `team_not_member`, `team_whatsapp_owner`); `AdminTeam.data[].whatsapp`
+    (`AdminTeamWhatsApp`); `StaffStatus.capabilities` and the panel session may carry `support.whatsapp.view`. The read
+    operations of `/staff/whatsapp/*` and `/admin/whatsapp/*` need `support.whatsapp.view`, every action
+    `support.whatsapp`; transfer targets and `get…WhatsAppAgents` are REPLY+ only; lowering a level below REPLY (or a
+    revoke that does) releases the person's assigned conversations. Migration `20270425090000_whatsapp_staff_access`.
+    Additive (no behaviour change until a level is set).
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -19217,6 +19229,47 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
+  /api/v1/admin/team/{userId}/whatsapp:
+    put:
+      tags:
+      - admin-panel
+      operationId: setAdminTeamWhatsApp
+      summary: Sets a staff member's WhatsApp level «مستوى واتساب» (code again; reason; audited) (team.manage)
+      description: >-
+        (v1.120-social, DRAFT, D360, §10.155) NONE / VIEW / REPLY / MANAGE, or `null` to go back to the default of the
+        person's roles (OWNER / MODERATION MANAGE, SUPPORT REPLY, others NONE — D355). Applies on the person's next
+        request. 409 `ADMIN_ACTION_REFUSED` with issue `team_not_member` (no panel role) or `team_whatsapp_owner` (an
+        OWNER is always MANAGE). A level below REPLY releases every conversation still assigned to the person (RELEASE
+        in each one's history; `released` counts them). Audited `admin.team.whatsapp` {before, after, setBefore,
+        setAfter, released, reason}. 429 past `RATE_LIMIT_ADMIN_TEAM_IP`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminTeamWhatsAppRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTeamWhatsAppResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
   /api/v1/staff/team-avatar.png:
     get:
       tags: [staff]
@@ -21354,7 +21407,7 @@ paths:
       tags: [staff]
       operationId: getStaffWhatsAppSummary
       summary: "The «واتساب» badge: my and the unassigned conversations with unread messages (never 503: enabled false when off; not staff work)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       responses:
         '200':
           description: OK.
@@ -21369,7 +21422,7 @@ paths:
       tags: [staff]
       operationId: getStaffWhatsAppConversations
       summary: "The shared inbox: unassigned, mine, all open or closed; search by name or phone (newest activity first)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: filter
           in: query
@@ -21404,7 +21457,7 @@ paths:
       tags: [staff]
       operationId: getStaffWhatsAppConversation
       summary: "One conversation with the 24-hour window, the assignee and the linked Kabso account"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21427,7 +21480,7 @@ paths:
       tags: [staff]
       operationId: getStaffWhatsAppMessages
       summary: "The messages, newest first (reactions are shown on the message they react to)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21458,7 +21511,7 @@ paths:
       tags: [staff]
       operationId: sendStaffWhatsAppMessage
       summary: "Reply with text (inside the 24-hour window) or an approved template (any time); an unassigned conversation becomes the caller’s"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21489,7 +21542,7 @@ paths:
       tags: [staff]
       operationId: sendStaffWhatsAppMedia
       summary: "Reply with an image, voice / audio, video or document (raw bytes; inside the 24-hour window; WHATSAPP_MEDIA_MAX_BYTES)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21534,7 +21587,7 @@ paths:
       tags: [staff]
       operationId: getStaffWhatsAppMedia
       summary: "A message’s media file from the private storage (only when `media.state` is STORED)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: messageId
           in: path
@@ -21556,7 +21609,7 @@ paths:
       tags: [staff]
       operationId: markStaffWhatsAppRead
       summary: "The team read it: the unread count goes to 0 and the customer sees the blue ticks"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21579,7 +21632,7 @@ paths:
       tags: [staff]
       operationId: claimStaffWhatsAppConversation
       summary: "Take an unassigned conversation (409 WHATSAPP_CONVERSATION_ASSIGNED when another staff member has it)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21603,7 +21656,7 @@ paths:
       tags: [staff]
       operationId: releaseStaffWhatsAppConversation
       summary: "Give the conversation back to the unassigned queue (the assignee, or support.whatsapp.manage)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21627,7 +21680,7 @@ paths:
       tags: [staff]
       operationId: transferStaffWhatsAppConversation
       summary: "Hand the conversation to another agent (the assignee, an unassigned one, or support.whatsapp.manage)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21657,7 +21710,7 @@ paths:
       tags: [staff]
       operationId: closeStaffWhatsAppConversation
       summary: "Close (resolved); a new customer message reopens it"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21681,7 +21734,7 @@ paths:
       tags: [staff]
       operationId: reopenStaffWhatsAppConversation
       summary: "Reopen a closed conversation (the assignee is kept)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21704,7 +21757,7 @@ paths:
       tags: [staff]
       operationId: getStaffWhatsAppAssignments
       summary: "The assignment history (claim, release, transfer, close, reopen), newest first, at most 100"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21727,7 +21780,7 @@ paths:
       tags: [staff]
       operationId: getStaffWhatsAppNotes
       summary: "The internal notes (never sent to the customer), oldest first, at most 200"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21749,7 +21802,7 @@ paths:
       tags: [staff]
       operationId: addStaffWhatsAppNote
       summary: "Add an internal note (audited; never sent to the customer)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21778,7 +21831,7 @@ paths:
       tags: [staff]
       operationId: linkStaffWhatsAppConversation
       summary: "Link the conversation to the Kabso account the customer named (audited; Kabso has no verified phone to match, §10.151.7)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21806,7 +21859,7 @@ paths:
       tags: [staff]
       operationId: unlinkStaffWhatsAppConversation
       summary: "Remove the account link (audited)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: id
           in: path
@@ -21829,7 +21882,7 @@ paths:
       tags: [staff]
       operationId: getStaffWhatsAppTemplates
       summary: "The approved message templates read from Meta (cached WHATSAPP_TEMPLATE_CACHE_SECONDS)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       parameters:
         - name: refresh
           in: query
@@ -21852,8 +21905,8 @@ paths:
     get:
       tags: [staff]
       operationId: getStaffWhatsAppAgents
-      summary: "The staff who hold support.whatsapp now (for a transfer), with their shift"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      summary: "The staff who hold support.whatsapp now — WhatsApp level REPLY or MANAGE, never VIEW (D360) — for a transfer, with their shift"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       responses:
         '200':
           description: OK.
@@ -21869,7 +21922,7 @@ paths:
       tags: [staff]
       operationId: getStaffWhatsAppQuickReplies
       summary: "The quick replies «ردود سريعة» (by title)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
       responses:
         '200':
           description: OK.
@@ -21948,7 +22001,7 @@ paths:
       tags: [staff]
       operationId: getStaffWhatsAppMySettings
       summary: "My WhatsApp settings: the push mute (not staff work)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       responses:
         '200':
           description: OK.
@@ -21962,7 +22015,7 @@ paths:
       tags: [staff]
       operationId: updateStaffWhatsAppMySettings
       summary: "Mute or unmute my WhatsApp pushes (not staff work)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       requestBody:
         required: true
         content:
@@ -21983,7 +22036,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminWhatsAppSummary
       summary: "The «واتساب» badge: my and the unassigned conversations with unread messages (never 503: enabled false when off; not staff work)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       security: [{ adminSession: [] }]
       responses:
         '200':
@@ -21999,7 +22052,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminWhatsAppConversations
       summary: "The shared inbox: unassigned, mine, all open or closed; search by name or phone (newest activity first)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: filter
@@ -22035,7 +22088,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminWhatsAppConversation
       summary: "One conversation with the 24-hour window, the assignee and the linked Kabso account"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22059,7 +22112,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminWhatsAppMessages
       summary: "The messages, newest first (reactions are shown on the message they react to)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22091,7 +22144,7 @@ paths:
       tags: [admin-panel]
       operationId: sendAdminWhatsAppMessage
       summary: "Reply with text (inside the 24-hour window) or an approved template (any time); an unassigned conversation becomes the caller’s"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22123,7 +22176,7 @@ paths:
       tags: [admin-panel]
       operationId: sendAdminWhatsAppMedia
       summary: "Reply with an image, voice / audio, video or document (raw bytes; inside the 24-hour window; WHATSAPP_MEDIA_MAX_BYTES)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22169,7 +22222,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminWhatsAppMedia
       summary: "A message’s media file from the private storage (only when `media.state` is STORED)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: messageId
@@ -22192,7 +22245,7 @@ paths:
       tags: [admin-panel]
       operationId: markAdminWhatsAppRead
       summary: "The team read it: the unread count goes to 0 and the customer sees the blue ticks"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22216,7 +22269,7 @@ paths:
       tags: [admin-panel]
       operationId: claimAdminWhatsAppConversation
       summary: "Take an unassigned conversation (409 WHATSAPP_CONVERSATION_ASSIGNED when another staff member has it)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22241,7 +22294,7 @@ paths:
       tags: [admin-panel]
       operationId: releaseAdminWhatsAppConversation
       summary: "Give the conversation back to the unassigned queue (the assignee, or support.whatsapp.manage)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22266,7 +22319,7 @@ paths:
       tags: [admin-panel]
       operationId: transferAdminWhatsAppConversation
       summary: "Hand the conversation to another agent (the assignee, an unassigned one, or support.whatsapp.manage)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22297,7 +22350,7 @@ paths:
       tags: [admin-panel]
       operationId: closeAdminWhatsAppConversation
       summary: "Close (resolved); a new customer message reopens it"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22322,7 +22375,7 @@ paths:
       tags: [admin-panel]
       operationId: reopenAdminWhatsAppConversation
       summary: "Reopen a closed conversation (the assignee is kept)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22346,7 +22399,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminWhatsAppAssignments
       summary: "The assignment history (claim, release, transfer, close, reopen), newest first, at most 100"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22370,7 +22423,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminWhatsAppNotes
       summary: "The internal notes (never sent to the customer), oldest first, at most 200"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22393,7 +22446,7 @@ paths:
       tags: [admin-panel]
       operationId: addAdminWhatsAppNote
       summary: "Add an internal note (audited; never sent to the customer)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22423,7 +22476,7 @@ paths:
       tags: [admin-panel]
       operationId: linkAdminWhatsAppConversation
       summary: "Link the conversation to the Kabso account the customer named (audited; Kabso has no verified phone to match, §10.151.7)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22452,7 +22505,7 @@ paths:
       tags: [admin-panel]
       operationId: unlinkAdminWhatsAppConversation
       summary: "Remove the account link (audited)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -22476,7 +22529,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminWhatsAppTemplates
       summary: "The approved message templates read from Meta (cached WHATSAPP_TEMPLATE_CACHE_SECONDS)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       parameters:
         - name: refresh
@@ -22500,8 +22553,8 @@ paths:
     get:
       tags: [admin-panel]
       operationId: getAdminWhatsAppAgents
-      summary: "The staff who hold support.whatsapp now (for a transfer), with their shift"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      summary: "The staff who hold support.whatsapp now — WhatsApp level REPLY or MANAGE, never VIEW (D360) — for a transfer, with their shift"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       responses:
         '200':
@@ -22518,7 +22571,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminWhatsAppQuickReplies
       summary: "The quick replies «ردود سريعة» (by title)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
       security: [{ adminSession: [] }]
       responses:
         '200':
@@ -22601,7 +22654,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminWhatsAppMySettings
       summary: "My WhatsApp settings: the push mute (not staff work)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       security: [{ adminSession: [] }]
       responses:
         '200':
@@ -22616,7 +22669,7 @@ paths:
       tags: [admin-panel]
       operationId: updateAdminWhatsAppMySettings
       summary: "Mute or unmute my WhatsApp pushes (not staff work)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request)."
       security: [{ adminSession: [] }]
       requestBody:
         required: true
@@ -25014,8 +25067,8 @@ components:
           items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE, BD] }
         capabilities:
           type: array
-          description: "The panel capabilities the staff tools use, for the caller's roles (the app shows only these). (v1.78-live, D288) `reports.view` / `reports.resolve`: the «بلاغات» row (the shared queue). (v1.93-social, D296) `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`: the actions from a report. (v1.97-social, D303) `events.manage`: «الفعاليات» (create / edit gift events, hold their payout)."
-          items: { type: string, enum: [lives.watch, lives.watch.hidden, lives.reports, lives.moderate, devices.ban, reports.view, reports.resolve, reports.act, users.restrict, users.lock, users.ban, users.content, users.delete, events.manage] }
+          description: "The panel capabilities the staff tools use, for the caller's roles (the app shows only these). (v1.78-live, D288) `reports.view` / `reports.resolve`: the «بلاغات» row (the shared queue). (v1.93-social, D296) `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`: the actions from a report. (v1.97-social, D303) `events.manage`: «الفعاليات» (create / edit gift events, hold their payout). (v1.116-social, D355) `support.whatsapp` / `support.whatsapp.manage`: «واتساب». (v1.120-social, D360, §10.155) `support.whatsapp.view`: «واتساب» read only — the three are the caller's WhatsApp level (VIEW: only `.view`; the app shows «مشاهدة فقط» and no composer or actions)."
+          items: { type: string, enum: [lives.watch, lives.watch.hidden, lives.reports, lives.moderate, devices.ban, reports.view, reports.resolve, reports.act, users.restrict, users.lock, users.ban, users.content, users.delete, events.manage, support.whatsapp, support.whatsapp.manage, support.whatsapp.view] }
         authenticatorEnrolled: { type: boolean, description: "False: the app says to set it up at admin.<domain> first." }
         lockedUntil: { type: [string, 'null'], format: date-time, description: "Locked after wrong codes (the panel's lockout)." }
         stepUp:
@@ -25505,6 +25558,43 @@ components:
           items: { $ref: '#/components/schemas/StaffRegion' }
         reason: { type: string, minLength: 1, maxLength: 500 }
         totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    WhatsAppLevel:
+      type: string
+      enum: [NONE, VIEW, REPLY, MANAGE]
+      description: "(v1.120-social, D360, §10.155) A staff member's WhatsApp level: NONE (no «واتساب»), VIEW «مشاهدة فقط» (`support.whatsapp.view`), REPLY (+ `support.whatsapp`), MANAGE (+ `support.whatsapp.manage`)."
+    AdminTeamWhatsApp:
+      type: object
+      required: [level, setLevel, defaultLevel, locked]
+      description: (v1.120-social, D360, §10.155) A staff member's WhatsApp level.
+      properties:
+        level: { $ref: '#/components/schemas/WhatsAppLevel' }
+        setLevel:
+          description: The level set for the person; null — none set, the default applies (always null for an OWNER).
+          oneOf:
+          - $ref: '#/components/schemas/WhatsAppLevel'
+          - type: 'null'
+        defaultLevel: { $ref: '#/components/schemas/WhatsAppLevel' }
+        locked: { type: boolean, description: "An OWNER: always MANAGE, no level can be set." }
+    AdminTeamWhatsAppRequest:
+      type: object
+      additionalProperties: false
+      required: [level, reason, totpCode]
+      properties:
+        level:
+          description: The level, or null to go back to the roles' default.
+          oneOf:
+          - $ref: '#/components/schemas/WhatsAppLevel'
+          - type: 'null'
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminTeamWhatsAppResult:
+      type: object
+      required: [userId, before, whatsapp, released]
+      properties:
+        userId: { type: string, format: uuid }
+        before: { $ref: '#/components/schemas/WhatsAppLevel' }
+        whatsapp: { $ref: '#/components/schemas/AdminTeamWhatsApp' }
+        released: { type: integer, minimum: 0, description: "Conversations given back to the unassigned queue (a level below REPLY)." }
     AdminTeamRegionsResult:
       type: object
       required: [userId, regions, before]
@@ -30287,6 +30377,9 @@ components:
               recruits:
                 $ref: '#/components/schemas/StaffRecruitCounts'
                 description: (v1.75-live, D285, §10.96.13) How many recruits the person has, by type.
+              whatsapp:
+                $ref: '#/components/schemas/AdminTeamWhatsApp'
+                description: (v1.120-social, D360, §10.155) The person's WhatsApp level «مستوى واتساب»; set with `setAdminTeamWhatsApp`.
     AdminTeamGrantRequest:
       type: object
       description: (v1.66-live, D271) Exactly one of `account` and `email` (400 `VALIDATION_FAILED` otherwise).

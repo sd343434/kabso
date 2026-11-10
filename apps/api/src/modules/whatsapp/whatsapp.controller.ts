@@ -74,6 +74,9 @@ const STAFF_LIMIT = {
 /**
  * v1.116-social (D355, CONVENTIONS §10.151): «واتساب» in the staff's app — the staff member's own account (bearer);
  * the role and the capability are checked on every request (StaffAppGuard), staff work switches the shift on.
+ * v1.120-social (D360, §10.155): reading needs `support.whatsapp.view` (VIEW and above), every action
+ * `support.whatsapp` (REPLY and above), the quick-reply edits and the settings `support.whatsapp.manage` (MANAGE) —
+ * the staff member's WhatsApp level.
  */
 @Controller('staff/whatsapp')
 @RateLimit(STAFF_LIMIT)
@@ -82,7 +85,7 @@ export class StaffWhatsAppController {
 
   @Get('summary')
   @UseGuards(StaffAppGuard)
-  @StaffCapability('support.whatsapp')
+  @StaffCapability('support.whatsapp.view')
   @NotStaffWork()
   summary(@CurrentStaff() ctx: AdminContext) {
     return this.wa.summary(ctx);
@@ -90,21 +93,21 @@ export class StaffWhatsAppController {
 
   @Get('conversations')
   @UseGuards(StaffAppGuard)
-  @StaffCapability('support.whatsapp')
+  @StaffCapability('support.whatsapp.view')
   list(@CurrentStaff() ctx: AdminContext, @Query(new ZodValidationPipe(listQuery)) q: ListQuery) {
     return this.wa.list(ctx, q);
   }
 
   @Get('conversations/:id')
   @UseGuards(StaffAppGuard)
-  @StaffCapability('support.whatsapp')
+  @StaffCapability('support.whatsapp.view')
   get(@CurrentStaff() ctx: AdminContext, @Param('id') id: string) {
     return this.wa.get(ctx, pathUuid(id));
   }
 
   @Get('conversations/:id/messages')
   @UseGuards(StaffAppGuard)
-  @StaffCapability('support.whatsapp')
+  @StaffCapability('support.whatsapp.view')
   messages(
     @CurrentStaff() ctx: AdminContext,
     @Param('id') id: string,
@@ -142,7 +145,7 @@ export class StaffWhatsAppController {
 
   @Get('messages/:messageId/media')
   @UseGuards(StaffAppGuard)
-  @StaffCapability('support.whatsapp')
+  @StaffCapability('support.whatsapp.view')
   async media(@Param('messageId') id: string, @Res() res: Response): Promise<void> {
     const m = await this.wa.media(pathUuid(id));
     sendMedia(res, m);
@@ -202,14 +205,14 @@ export class StaffWhatsAppController {
 
   @Get('conversations/:id/assignments')
   @UseGuards(StaffAppGuard)
-  @StaffCapability('support.whatsapp')
+  @StaffCapability('support.whatsapp.view')
   assignments(@Param('id') id: string) {
     return this.wa.assignments(pathUuid(id));
   }
 
   @Get('conversations/:id/notes')
   @UseGuards(StaffAppGuard)
-  @StaffCapability('support.whatsapp')
+  @StaffCapability('support.whatsapp.view')
   notes(@Param('id') id: string) {
     return this.wa.notes(pathUuid(id));
   }
@@ -299,7 +302,7 @@ export class StaffWhatsAppController {
 
   @Get('me/settings')
   @UseGuards(StaffAppGuard)
-  @StaffCapability('support.whatsapp')
+  @StaffCapability('support.whatsapp.view')
   @NotStaffWork()
   mySettings(@CurrentStaff() ctx: AdminContext) {
     return this.wa.mySettings(ctx);
@@ -307,7 +310,7 @@ export class StaffWhatsAppController {
 
   @Put('me/settings')
   @UseGuards(StaffAppGuard)
-  @StaffCapability('support.whatsapp')
+  @StaffCapability('support.whatsapp.view')
   @NotStaffWork()
   setMySettings(
     @CurrentStaff() ctx: AdminContext,
@@ -326,25 +329,25 @@ export class AdminWhatsAppController {
   constructor(private readonly wa: WhatsAppService) {}
 
   @Get('summary')
-  @RequireCapability('support.whatsapp')
+  @RequireCapability('support.whatsapp.view')
   summary(@CurrentAdmin() ctx: AdminContext) {
     return this.wa.summary(ctx);
   }
 
   @Get('conversations')
-  @RequireCapability('support.whatsapp')
+  @RequireCapability('support.whatsapp.view')
   list(@CurrentAdmin() ctx: AdminContext, @Query(new ZodValidationPipe(listQuery)) q: ListQuery) {
     return this.wa.list(ctx, q);
   }
 
   @Get('conversations/:id')
-  @RequireCapability('support.whatsapp')
+  @RequireCapability('support.whatsapp.view')
   get(@CurrentAdmin() ctx: AdminContext, @Param('id') id: string) {
     return this.wa.get(ctx, pathUuid(id));
   }
 
   @Get('conversations/:id/messages')
-  @RequireCapability('support.whatsapp')
+  @RequireCapability('support.whatsapp.view')
   messages(
     @CurrentAdmin() ctx: AdminContext,
     @Param('id') id: string,
@@ -379,7 +382,7 @@ export class AdminWhatsAppController {
   }
 
   @Get('messages/:messageId/media')
-  @RequireCapability('support.whatsapp')
+  @RequireCapability('support.whatsapp.view')
   async media(@Param('messageId') id: string, @Res() res: Response): Promise<void> {
     const m = await this.wa.media(pathUuid(id));
     sendMedia(res, m);
@@ -432,13 +435,13 @@ export class AdminWhatsAppController {
   }
 
   @Get('conversations/:id/assignments')
-  @RequireCapability('support.whatsapp')
+  @RequireCapability('support.whatsapp.view')
   assignments(@Param('id') id: string) {
     return this.wa.assignments(pathUuid(id));
   }
 
   @Get('conversations/:id/notes')
-  @RequireCapability('support.whatsapp')
+  @RequireCapability('support.whatsapp.view')
   notes(@Param('id') id: string) {
     return this.wa.notes(pathUuid(id));
   }
@@ -518,13 +521,13 @@ export class AdminWhatsAppController {
   }
 
   @Get('me/settings')
-  @RequireCapability('support.whatsapp')
+  @RequireCapability('support.whatsapp.view')
   mySettings(@CurrentAdmin() ctx: AdminContext) {
     return this.wa.mySettings(ctx);
   }
 
   @Put('me/settings')
-  @RequireCapability('support.whatsapp')
+  @RequireCapability('support.whatsapp.view')
   setMySettings(
     @CurrentAdmin() ctx: AdminContext,
     @Body(new ZodValidationPipe(settingsBody)) body: { pushMuted: boolean },

@@ -378,8 +378,14 @@ class MeHubScreen extends ConsumerWidget {
                 staff.role == StaffLineRole.support)
               [_StaffReportsRow(onTap: () => push(AppRoutes.staffReports))],
             // v1.116-social (D355): «واتساب» — the official number's inbox.
-            if (staff.role == StaffLineRole.moderation ||
-                staff.role == StaffLineRole.support)
+            // v1.120-social (D360, §10.155): shown by the staff member's
+            // WhatsApp level (VIEW and above), the D355 roles until known.
+            if (switch (ref.watch(waAccessProvider)) {
+              null =>
+                staff.role == StaffLineRole.moderation ||
+                    staff.role == StaffLineRole.support,
+              final WaAccess a => a != WaAccess.none,
+            })
               [_StaffWhatsAppRow(onTap: () => push(AppRoutes.staffWhatsApp))],
             // v1.75-live (D285): the recruiters' own recruits and earnings.
             if (staff.role == StaffLineRole.moderation ||

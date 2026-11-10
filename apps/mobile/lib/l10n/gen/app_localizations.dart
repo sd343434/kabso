@@ -29620,6 +29620,18 @@ abstract class AppLocalizations {
   /// **'تفاصيل العميل'**
   String get waDetails;
 
+  /// D360 (§10.155): the label of a staff member whose WhatsApp level is VIEW — reads, never replies or acts.
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاهدة فقط'**
+  String get waViewOnly;
+
+  /// D360 (§10.155): the note in place of the composer for the WhatsApp level VIEW.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستواك في واتساب «مشاهدة فقط»: تقرأ المحادثة وتفاصيل العميل، ولا يمكنك الرد أو اتخاذ إجراء.'**
+  String get waViewOnlyHint;
+
   /// D354 (§10.150): a hero countdown's unit under its number, agreeing with it.
   ///
   /// In ar, this message translates to:

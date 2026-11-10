@@ -17529,6 +17529,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get waDetails => 'Customer details';
 
   @override
+  String get waViewOnly => 'View only';
+
+  @override
+  String get waViewOnlyHint =>
+      'Your WhatsApp level is View only: you read the conversation and the customer details, and cannot reply or act.';
+
+  @override
   String eventsUnitDays(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

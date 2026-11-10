@@ -8,7 +8,6 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AdminContext } from '../admin-panel/admin-auth.service.js';
-import { CAPABILITIES, can } from '../admin-panel/admin-permissions.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
 import { formatStaffId } from '../users/staff-ids.js';
@@ -23,11 +22,9 @@ import {
   previewOf,
   windowOf,
 } from './whatsapp-core.js';
+import { isAtWhatsAppLevel, staffAtLevel } from './whatsapp-access.js';
 
 type Tx = Prisma.TransactionClient;
-
-/** The panel roles that hold `support.whatsapp` (the agents). */
-export const WA_AGENT_ROLES: readonly string[] = CAPABILITIES['support.whatsapp'];
 
 export type WaFilter = 'unassigned' | 'mine' | 'all' | 'closed';
 
@@ -422,6 +419,9 @@ export class WhatsAppService {
   ): Promise<WaMessageDto> {
     const now = this.clock.now();
     const row = await this.prisma.$transaction(async (tx) => {
+      // D360: claimed only if the sender can still answer (their level may have gone down since the guard; then the
+      // message is kept — it was sent — and the conversation stays unassigned). The staff row first (lock order).
+      const claim = conv.assignedToId === null && (await this.canAnswerIn(tx, ctx.userId));
       const msg = await tx.waMessage.create({
         data: {
           ...data,
@@ -433,7 +433,6 @@ export class WhatsAppService {
           createdAt: now,
         },
       });
-      const claim = conv.assignedToId === null;
       await tx.waConversation.update({
         where: { id: conv.id },
         data: {
@@ -638,8 +637,19 @@ export class WhatsAppService {
 
   // ---- assignment -----------------------------------------------------------------------------------------------
 
+  /** MANAGE (D360: the person's WhatsApp level, carried by the guard's context like the roles). */
   private manages(ctx: AdminContext): boolean {
-    return can(ctx.roles, 'support.whatsapp.manage');
+    return ctx.capabilities.includes('support.whatsapp.manage');
+  }
+
+  /**
+   * D360 (§10.155.4): whether `userId` can be given a conversation now (an ACTIVE staff account at REPLY or above).
+   * Their `users` row is share-locked first, so a level change (which locks it for update, then releases their
+   * conversations) runs entirely before or after — never a conversation assigned to someone just lowered to VIEW.
+   */
+  private async canAnswerIn(tx: Tx, userId: string): Promise<boolean> {
+    await tx.$queryRaw`SELECT 1 FROM users WHERE id = ${userId}::uuid FOR SHARE`;
+    return isAtWhatsAppLevel(tx, userId, 'REPLY');
   }
 
   private async assign(
@@ -649,16 +659,20 @@ export class WhatsAppService {
     apply: (
       row: ConvRow,
       tx: Tx,
+      answerer: boolean,
     ) => Promise<{ to: string | null; data: Prisma.WaConversationUpdateInput } | null>,
+    /** The staff member the conversation would go to (checked with {@link canAnswerIn} before the row lock). */
+    to?: string,
   ): Promise<WaConversationDto> {
     this.requireGraph();
     const now = this.clock.now();
     await this.prisma.$transaction(async (tx) => {
+      const answerer = to ? await this.canAnswerIn(tx, to) : false;
       const [locked] = await tx.$queryRaw<{ id: string }[]>`
         SELECT id::text AS id FROM wa_conversations WHERE id = ${id}::uuid AND purge_after IS NULL FOR UPDATE`;
       if (!locked) throw new AppException(ErrorCode.NOT_FOUND);
       const row = (await tx.waConversation.findUnique({ where: { id } }))!;
-      const change = await apply(row, tx);
+      const change = await apply(row, tx, answerer);
       if (!change) return;
       await tx.waConversation.update({ where: { id }, data: { ...change.data, updatedAt: now } });
       await tx.waAssignment.create({
@@ -683,12 +697,19 @@ export class WhatsAppService {
 
   claim(ctx: AdminContext, id: string) {
     const now = this.clock.now();
-    return this.assign(ctx, id, 'CLAIM', async (row) => {
-      if (row.status === 'CLOSED') throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_CLOSED);
-      if (row.assignedToId === ctx.userId) return null;
-      if (row.assignedToId !== null) throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_ASSIGNED);
-      return { to: ctx.userId, data: { assignedToId: ctx.userId, assignedAt: now } };
-    });
+    return this.assign(
+      ctx,
+      id,
+      'CLAIM',
+      async (row, _tx, answerer) => {
+        if (!answerer) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+        if (row.status === 'CLOSED') throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_CLOSED);
+        if (row.assignedToId === ctx.userId) return null;
+        if (row.assignedToId !== null) throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_ASSIGNED);
+        return { to: ctx.userId, data: { assignedToId: ctx.userId, assignedAt: now } };
+      },
+      ctx.userId,
+    );
   }
 
   release(ctx: AdminContext, id: string) {
@@ -703,17 +724,22 @@ export class WhatsAppService {
 
   transfer(ctx: AdminContext, id: string, toUserId: string) {
     const now = this.clock.now();
-    return this.assign(ctx, id, 'TRANSFER', async (row, tx) => {
-      if (row.status === 'CLOSED') throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_CLOSED);
-      if (row.assignedToId !== null && row.assignedToId !== ctx.userId && !this.manages(ctx)) {
-        throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_ASSIGNED);
-      }
-      if (!(await this.isAgent(tx, toUserId))) {
-        throw AppException.validation([{ field: 'toUserId', issue: 'not_an_agent' }]);
-      }
-      if (row.assignedToId === toUserId) return null;
-      return { to: toUserId, data: { assignedToId: toUserId, assignedAt: now } };
-    });
+    return this.assign(
+      ctx,
+      id,
+      'TRANSFER',
+      async (row, _tx, answerer) => {
+        if (row.status === 'CLOSED') throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_CLOSED);
+        if (row.assignedToId !== null && row.assignedToId !== ctx.userId && !this.manages(ctx)) {
+          throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_ASSIGNED);
+        }
+        // D360: only to a staff member at REPLY or MANAGE (never VIEW or NONE).
+        if (!answerer) throw AppException.validation([{ field: 'toUserId', issue: 'not_an_agent' }]);
+        if (row.assignedToId === toUserId) return null;
+        return { to: toUserId, data: { assignedToId: toUserId, assignedAt: now } };
+      },
+      toUserId,
+    );
   }
 
   close(ctx: AdminContext, id: string) {
@@ -759,23 +785,17 @@ export class WhatsAppService {
     };
   }
 
-  /** ACTIVE accounts holding a `support.whatsapp` role now. */
-  private agentWhere(): Prisma.UserWhereInput {
-    return {
-      role: 'ADMIN',
-      status: 'ACTIVE',
-      adminPermissions: { some: { permission: { in: [...WA_AGENT_ROLES] as never[] } } },
-    };
-  }
-
+  /**
+   * The agents: ACTIVE staff whose WhatsApp level is REPLY or MANAGE now (D360, §10.155 — the roles' default when no
+   * level is set). Only they can be given a conversation (transfer); VIEW never.
+   */
   private async isAgent(db: Tx | PrismaService, userId: string): Promise<boolean> {
-    return (await db.user.count({ where: { id: userId, ...this.agentWhere() } })) > 0;
+    return isAtWhatsAppLevel(db, userId, 'REPLY');
   }
 
   async agents() {
     this.requireGraph();
-    const users = await this.prisma.user.findMany({ where: this.agentWhere(), select: { id: true } });
-    const ids = users.map((u) => u.id);
+    const ids = (await staffAtLevel(this.prisma, 'REPLY')).map((a) => a.userId);
     const [staff, shifts] = await Promise.all([
       this.staffRefs(ids),
       this.prisma.adminShift.findMany({
@@ -791,7 +811,11 @@ export class WhatsAppService {
     };
   }
 
-  /** The agents a new message is pushed to (§10.151.5) — exported for the webhook service. */
+  /**
+   * The staff a new message is pushed to (§10.151.5, D360 §10.155.3) — exported for the webhook service. Only staff at
+   * VIEW or above, never a muted one: the assignee if they can still answer (REPLY+); else the VIEW+ staff on shift,
+   * plus every REPLY+ agent when none of those on shift can answer (somebody who can reply is always told).
+   */
   async pushRecipients(conv: { assignedToId: string | null }): Promise<string[]> {
     const muted = new Set(
       (
@@ -801,16 +825,21 @@ export class WhatsAppService {
     if (conv.assignedToId && (await this.isAgent(this.prisma, conv.assignedToId))) {
       return muted.has(conv.assignedToId) ? [] : [conv.assignedToId];
     }
-    const agents = (await this.prisma.user.findMany({ where: this.agentWhere(), select: { id: true } })).map(
-      (u) => u.id,
+    const staff = await staffAtLevel(this.prisma, 'VIEW');
+    const on = new Set(
+      (
+        await this.prisma.adminShift.findMany({
+          where: { userId: { in: staff.map((s) => s.userId) }, onShift: true },
+          select: { userId: true },
+        })
+      ).map((s) => s.userId),
     );
-    const onShift = (
-      await this.prisma.adminShift.findMany({
-        where: { userId: { in: agents }, onShift: true },
-        select: { userId: true },
-      })
-    ).map((s) => s.userId);
-    return (onShift.length > 0 ? onShift : agents).filter((id) => !muted.has(id));
+    const repliers = staff.filter((s) => s.level === 'REPLY' || s.level === 'MANAGE');
+    const onShift = staff.filter((s) => on.has(s.userId));
+    const answerable = onShift.some((s) => s.level === 'REPLY' || s.level === 'MANAGE');
+    const chosen = new Set(onShift.map((s) => s.userId));
+    if (!answerable) for (const r of repliers) chosen.add(r.userId);
+    return staff.map((s) => s.userId).filter((id) => chosen.has(id) && !muted.has(id));
   }
 
   // ---- notes ----------------------------------------------------------------------------------------------------

@@ -405,7 +405,11 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
   }
 
   void _markReadOnce(WaConversation c) {
-    if (_readSent || c.unreadCount == 0) return;
+    // D360: a viewer («مشاهدة فقط») never marks read — the conversation
+    // stays unread for those who can answer, the customer sees no blue ticks.
+    if (_readSent || c.unreadCount == 0 || ref.read(waViewOnlyProvider)) {
+      return;
+    }
     _readSent = true;
     unawaited(
       ref
@@ -436,6 +440,7 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final thread = ref.watch(waThreadProvider(_id));
+    final viewOnly = ref.watch(waViewOnlyProvider);
     final c = thread.value?.conversation;
     if (c != null) _markReadOnce(c);
     return Scaffold(
@@ -466,7 +471,9 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
                 builder: (_) => WaCustomerSheet(conversationId: _id),
               ),
             ),
-          if (c != null)
+          // D360: VIEW reads only — the label instead of the actions.
+          if (c != null && viewOnly) const WaViewOnlyLabel(),
+          if (c != null && !viewOnly)
             PopupMenuButton<String>(
               key: WaChatScreen.menuKey,
               onSelected: (a) => a == 'transfer'
@@ -493,6 +500,7 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
       body: switch (thread) {
         AsyncData(:final value) => WaChatBody(
           thread: value,
+          viewOnly: viewOnly,
           onSent: _reload,
           onClaim: () => unawaited(_run((r) => r.act(_id, 'claim'))),
           onReopen: () => unawaited(_run((r) => r.act(_id, 'reopen'))),
@@ -529,13 +537,20 @@ class WaChatBody extends StatelessWidget {
     required this.onSent,
     required this.onClaim,
     required this.onReopen,
+    this.viewOnly = false,
     super.key,
   });
+
+  static const viewOnlyKey = Key('wa.viewOnly');
 
   final WaThread thread;
   final VoidCallback onSent;
   final VoidCallback onClaim;
   final VoidCallback onReopen;
+
+  /// D360 (§10.155): the WhatsApp level VIEW — no composer, no reopen, the
+  /// «مشاهدة فقط» note instead.
+  final bool viewOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -553,7 +568,9 @@ class WaChatBody extends StatelessWidget {
             itemBuilder: (_, i) => WaBubble(m: thread.messages[i]),
           ),
         ),
-        if (!c.open)
+        if (viewOnly)
+          _BottomNote(key: viewOnlyKey, text: l10n.waViewOnlyHint)
+        else if (!c.open)
           _BottomAction(label: l10n.waReopen, onPressed: onReopen)
         else if (c.takenByOther)
           _BottomNote(text: l10n.waErrAssigned)
@@ -930,7 +947,7 @@ class _BottomAction extends StatelessWidget {
 }
 
 class _BottomNote extends StatelessWidget {
-  const new({required this.text});
+  const new({required this.text, super.key});
 
   final String text;
 
@@ -948,6 +965,54 @@ class _BottomNote extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// v1.120-social (D360, §10.155): «مشاهدة فقط» — the chip in the chat's app
+/// bar for a staff member whose WhatsApp level is VIEW (no actions menu).
+class WaViewOnlyLabel extends StatelessWidget {
+  const new({super.key});
+
+  static const labelKey = Key('wa.viewOnlyLabel');
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: KSpacing.md),
+      child: Center(
+        child: Semantics(
+          label: context.l10n.waViewOnlyHint,
+          excludeSemantics: true,
+          child: Container(
+            key: labelKey,
+            padding: const EdgeInsets.symmetric(
+              horizontal: KSpacing.sm,
+              vertical: KSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: p.warning.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(KRadius.pill),
+              border: Border.all(color: p.warning.withValues(alpha: 0.5)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.visibility_outlined, size: 14, color: p.warning),
+                const SizedBox(width: KSpacing.xs),
+                Text(
+                  context.l10n.waViewOnly,
+                  style: context.textStyles.caption.copyWith(
+                    color: p.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// The composer: text + quick replies + a photo inside the window; outside it
@@ -1377,6 +1442,9 @@ class _WaCustomerSheetState extends ConsumerState<WaCustomerSheet> {
     final t = context.textStyles;
     final locale = Localizations.localeOf(context).toLanguageTag();
     final thread = ref.watch(waThreadProvider(widget.conversationId)).value;
+    // D360: VIEW reads the account and the notes; linking, unlinking and
+    // adding a note need REPLY.
+    final viewOnly = ref.watch(waViewOnlyProvider);
     if (thread == null) {
       return const SizedBox(
         height: 200,
@@ -1405,36 +1473,41 @@ class _WaCustomerSheetState extends ConsumerState<WaCustomerSheet> {
                   '${KFormat.bidiIsolate('@${a.username}')} · '
                   '${KFormat.date(a.createdAt.toLocal(), locale)}',
                 ),
-                trailing: TextButton(
-                  onPressed: () => unawaited(_do((r) => r.unlink(c.id))),
-                  child: Text(l10n.waUnlink),
-                ),
+                trailing: viewOnly
+                    ? null
+                    : TextButton(
+                        onPressed: () => unawaited(_do((r) => r.unlink(c.id))),
+                        child: Text(l10n.waUnlink),
+                      ),
               )
             else ...[
               Text(
                 l10n.waNoAccount,
                 style: t.caption.copyWith(color: p.textSecondary),
               ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _input,
-                      decoration: InputDecoration(
-                        hintText: l10n.waUsername,
-                        isDense: true,
+              if (!viewOnly)
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _input,
+                        decoration: InputDecoration(
+                          hintText: l10n.waUsername,
+                          isDense: true,
+                        ),
                       ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      final u = _input.text.trim();
-                      if (u.isNotEmpty) unawaited(_do((r) => r.link(c.id, u)));
-                    },
-                    child: Text(l10n.waLink),
-                  ),
-                ],
-              ),
+                    TextButton(
+                      onPressed: () {
+                        final u = _input.text.trim();
+                        if (u.isNotEmpty) {
+                          unawaited(_do((r) => r.link(c.id, u)));
+                        }
+                      },
+                      child: Text(l10n.waLink),
+                    ),
+                  ],
+                ),
             ],
             const SizedBox(height: KSpacing.lg),
             Text(l10n.waNotes, style: t.bodyStrong),
@@ -1452,7 +1525,8 @@ class _WaCustomerSheetState extends ConsumerState<WaCustomerSheet> {
                   '${KFormat.time(n.at.toLocal(), locale)}',
                 ),
               ),
-            _NoteInput(onAdd: (body) => _do((r) => r.addNote(c.id, body))),
+            if (!viewOnly)
+              _NoteInput(onAdd: (body) => _do((r) => r.addNote(c.id, body))),
           ],
         ),
       ),

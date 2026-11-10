@@ -263,7 +263,8 @@ export function Shell({
   // v1.78-live (D288): the unresolved reports on «البلاغات».
   const openReports = useOpenReports(can('reports.view'), path);
   // v1.116-social (D355): the WhatsApp conversations waiting for the caller (theirs and the unassigned ones).
-  const waiting = useWhatsAppBadge(can('support.whatsapp'), path);
+  // v1.120-social (D360): every staff member at the WhatsApp level VIEW or above.
+  const waiting = useWhatsAppBadge(can('support.whatsapp.view'), path);
   return (
     <div className="shell">
       <aside className={`side${menuOpen ? ' open' : ''}`} aria-label={t('appName')}>

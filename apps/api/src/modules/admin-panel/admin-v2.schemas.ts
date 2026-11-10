@@ -12,7 +12,7 @@ import {
 } from '../gifts/gift-catalogue.js';
 import { GIFT_CATEGORY_ICON_KEY_PATTERN } from '../gifts/gift-categories.js';
 import { EVENT_METRICS, EVENT_TONES } from '../programs/event-admin-rules.js';
-import { PANEL_ROLES } from './admin-permissions.js';
+import { PANEL_ROLES, WHATSAPP_LEVELS } from './admin-permissions.js';
 import { dayRange, tableQuery } from './admin-tables.js';
 import { STAFF_REGION_CODES, type StaffRegion } from '../live/staff-regions.js';
 import { itemBadgesInput } from '../gifts/item-badges.schemas.js';
@@ -424,6 +424,13 @@ export const teamRegionsBody = z.strictObject({
   totpCode,
 });
 export type TeamRegionsBody = z.output<typeof teamRegionsBody>;
+
+/** v1.120-social (D360, §10.155): a staff member's WhatsApp level; null = back to the roles' default. */
+export const teamWhatsAppBody = z.strictObject({
+  level: z.enum(WHATSAPP_LEVELS).nullable(),
+  reason,
+  totpCode,
+});
 
 export const specialUsernamesQuery = tableQuery(['grantedAt', 'username'], 'grantedAt')
   .extend({

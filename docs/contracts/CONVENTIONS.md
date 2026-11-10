@@ -773,6 +773,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.120-social (draft) | 2026-11-10 | **D360 (owner approved): a WhatsApp level per staff member «مستوى واتساب لكل موظف».** `WhatsAppLevel` NONE / VIEW / REPLY / MANAGE decides the three WhatsApp capabilities — new `support.whatsapp.view` (VIEW+), `support.whatsapp` (REPLY+), `support.whatsapp.manage` (MANAGE); no level set = the roles' default, exactly D355; an OWNER is always MANAGE. `setAdminTeamWhatsApp` (`PUT /admin/team/{userId}/whatsapp`, `team.manage`, code + reason; audited `admin.team.whatsapp`; `ADMIN_ACTION_REFUSED` issues `team_not_member`, `team_whatsapp_owner`); `AdminTeam.data[].whatsapp` (`AdminTeamWhatsApp`); the `/staff/whatsapp/*` and `/admin/whatsapp/*` reads need `.view`, every action `support.whatsapp`; `StaffStatus.capabilities` enum gains the three. Migration `20270425090000_whatsapp_staff_access` (`wa_staff_access`). §10.155. | **Additive** (a new capability and operation, a new optional field). No behaviour change until a level is set; then the level replaces the role rule for that person only. |
 | v1.119-social (draft) | 2026-11-10 | **D359 (owner decision: events reach the «البث» hub ONLY through the existing home banner carousel — no extra strip, icon or floating button):** `GiftEventForm.bannerEnabled` («بانر صفحة البث» on / off, picture kept) and `bannerBeforeStart` («يظهر قبل البداية», from the publish time), optional (absent: true / false on a create, kept on an edit; migration `20270423090000_event_banner_options`); `bannerMediaId` null removes the event's banner; `listHomeBanners` leaves out an event banner once its event has ended (query time) and lists running events' banners first, then the rest, each group in the admin's order. §10.154. |
 | v1.118-social (draft) | 2026-11-10 | **D357 (owner): the founder's centred page.** `PublicProfile.founderFeedbackCount` / `Me.founderFeedbackCount` (integer ≥ 0, only on the app owner's profile, 0 included): how many «اقترح ميزة / أبلغ» submissions (`createOwnerFeedback`, both kinds, those still kept) the founder has received; one number for everyone, cached 60 s in Redis (`owner:feedback-count:v1`), dropped by a new submission and by the panel's deletion. §10.153. *Follow-ups the same day (owner):* the founder badge is the D293 seal in red with a white play triangle, at the bottom centre of his photo; **`VerificationBadge.OWNER` reserved — never sent** (the app owner has no badge; migration `20270424090000_owner_seal_removed` deletes the stored rows; §10.105.1); `ProfileLinkPlatform` gains `WHATSAPP`, `SNAPCHAT`; the app owner may keep up to 7 links (`UpdateMeRequest.links` / `PublicProfile.links` / `Me.links` `maxItems` 7; 3 for everyone else as before, `links` / `too_many`); a bare international phone number is stored as a wa.me link; migration `20270424090100_founder_social_links` (position CHECK 0–6). §10.47, §10.105, §10.153. | **Additive** (new enum values: clients read unknown platforms as `OTHER`; OWNER is simply no longer sent, which clients already handle as no badge). |
 | v1.116-social (draft) | 2026-11-10 | **D355 (owner: «ربط رقم واتساب رسمي واحد … زر واتساب في التطبيق وفي لوحة الإدارة، عداد غير مقروء، إشعار، والرد على العميل»):** «واتساب» on the WhatsApp Business Platform Cloud API, off until configured. Tag `staff` — `getStaffWhatsAppSummary`, `getStaffWhatsAppConversations`, `getStaffWhatsAppConversation`, `getStaffWhatsAppMessages`, `sendStaffWhatsAppMessage`, `sendStaffWhatsAppMedia`, `getStaffWhatsAppMedia`, `markStaffWhatsAppRead`, `claim…` / `release…` / `transfer…` / `close…` / `reopenStaffWhatsAppConversation`, `getStaffWhatsAppAssignments`, `getStaffWhatsAppNotes`, `addStaffWhatsAppNote`, `link…` / `unlinkStaffWhatsAppConversation`, `getStaffWhatsAppTemplates`, `getStaffWhatsAppAgents`, quick replies (`getStaffWhatsAppQuickReplies`, `create…` / `update…` / `deleteStaffWhatsAppQuickReply`), `getStaffWhatsAppMySettings` / `updateStaffWhatsAppMySettings`; tag `admin-panel` — the same as `…AdminWhatsApp…` plus `getAdminWhatsAppStatus` and `testAdminWhatsAppConnection`; tag `whatsapp` — `verifyWhatsAppWebhook`, `receiveWhatsAppWebhook`. Capabilities `support.whatsapp` (OWNER, MODERATION, SUPPORT), `support.whatsapp.manage` (OWNER, MODERATION); codes `WHATSAPP_UNAVAILABLE` (503), `WHATSAPP_WINDOW_CLOSED`, `WHATSAPP_CONVERSATION_ASSIGNED`, `WHATSAPP_CONVERSATION_CLOSED` (409), `WHATSAPP_SEND_FAILED` (502); data-export section `whatsapp`; audit `whatsapp.*`; migration `20270421090000_whatsapp_inbox`. §4, §10.151. | **Additive** (new operations, codes, capabilities, export section; `StaffStatus.capabilities` gains the two for the staff who hold them). Off until the owner places the WHATSAPP_* settings. |
@@ -11426,7 +11427,9 @@ staff work switches the shift on, §10.96.14, except the summary and «me/settin
 | `support.whatsapp` — the inbox, replies, claim / release / transfer / close / reopen, notes, the account link, templates, the agents, my push mute, reading the quick replies | ✓ | ✓ | ✓ | | |
 | `support.whatsapp.manage` — quick replies (create / edit / delete), the settings page and «اختبار الاتصال», and acting on a conversation assigned to someone else (transfer, release, close) | ✓ | ✓ | | | |
 
-The OWNER grants them by granting the role («الموظفون والصلاحيات», §10.96.5) — no new role. Both are in
+The OWNER grants them by granting the role («الموظفون والصلاحيات», §10.96.5) — no new role. **v1.120-social (D360):** these role lists are now only the DEFAULT — each staff member has a WhatsApp
+level (NONE / VIEW / REPLY / MANAGE) set in «الموظفون والصلاحيات», and the read-only `support.whatsapp.view` is added;
+see §10.155. Both are in
 `StaffStatus.capabilities` (the app shows «واتساب» only with `support.whatsapp`).
 
 #### 10.151.3 The webhook (public)
@@ -11721,3 +11724,68 @@ strip, icon, floating button, countdown overlay or auto-generated slide (the D35
    banners first).
 4. **Tap.** The app opens `AppRoutes.event(eventId)` for a banner with an `eventId` (whatever its `link`), else the link.
 5. **Defaults.** `banner_enabled` true and `banner_before_start` false: events made before keep their banner and window.
+
+### 10.155 «مستوى واتساب» — a WhatsApp level per staff member *(v1.120-social, DRAFT — D360)*
+
+Owner (approved): instead of D355's role rule, each staff member gets a WhatsApp level. Table `wa_staff_access`
+(migration `20270425090000_whatsapp_staff_access`): one row per staff member with a level set; **no row = the default**.
+
+#### 10.155.1 The levels and the defaults
+
+| Level | Capabilities | What it allows |
+|---|---|---|
+| NONE «بدون» | — | Nothing: no «واتساب» row in the app, no panel item, every route 403 (even the summary). |
+| VIEW «مشاهدة فقط» | `support.whatsapp.view` | Read the conversations, the messages, the media, the customer panel (account card, notes, history), the badge and the pushes, the own push mute. **No** reply (text, media, template), claim, release, transfer, close, reopen, note, account link / unlink, read receipt (`…/read`), templates, agents, quick replies. |
+| REPLY «رد» | + `support.whatsapp` | D355's `support.whatsapp`. |
+| MANAGE «إدارة» | + `support.whatsapp.manage` | D355's `support.whatsapp.manage` (quick-reply edits, settings, «اختبار الاتصال», acting on someone else's conversation). |
+
+**Default (no level set)** — exactly D355: OWNER and MODERATION → MANAGE, SUPPORT → REPLY, everyone else (FINANCE, BD)
+→ NONE. Deploying D360 changes nothing for anybody until a level is set. An **OWNER is always MANAGE** (no level can be
+set on an OWNER: the owner can never lock himself out of the settings). A level applies only while the person holds a
+panel role (an ACTIVE `ADMIN` account, as every staff check): it can give WhatsApp to a FINANCE or BD staff member, never
+make anyone staff. Every guard (`AdminSessionGuard`, `StaffAppGuard`) and `AdminContext.capabilities` /
+`StaffStatus.capabilities` / the panel session carry the effective capabilities, read on every request (a change applies
+on the person's next request, like a role).
+
+#### 10.155.2 Setting a level
+
+`PUT /api/v1/admin/team/{userId}/whatsapp` `{level: NONE|VIEW|REPLY|MANAGE|null, reason, totpCode}` — capability
+`team.manage` (the staff-management right, OWNER), the authenticator code again and a reason, like the other team
+changes (`RATE_LIMIT_ADMIN_TEAM_IP`). `null` deletes the row (back to the default). 409 `ADMIN_ACTION_REFUSED`
+`team_not_member` (no panel role) / `team_whatsapp_owner` (an OWNER). Under a lock of the person's `users` row. Audited
+`admin.team.whatsapp` {before, after (effective levels), setBefore, setAfter (the rows), released, conversations (≤ 100
+ids), reason, via} with the actor. Answer `{userId, before, whatsapp: AdminTeamWhatsApp, released}`; the team list
+(`listAdminTeam`) carries `whatsapp {level, setLevel, defaultLevel, locked}` for each member.
+
+#### 10.155.3 Badge, pushes, agents
+
+The badge (`…/summary`) is VIEW+ (for VIEW `mine` is always 0). A new customer message is pushed to: the assignee if
+still REPLY+ (and not muted); else the VIEW+ staff **on shift**, plus every REPLY+ agent when none of those on shift can
+answer (somebody who can reply is always told); never a NONE or a muted one. `…/agents` and the transfer target are
+REPLY+ only (else 400 `toUserId` `not_an_agent`); a claim (explicit or by the first reply) needs the claimer at REPLY+
+inside the transaction.
+
+#### 10.155.4 Lowering a level: the conversations are RELEASED (decision)
+
+When a person's effective level goes **below REPLY** (set to VIEW / NONE, or a role revoke that does — e.g. SUPPORT
+revoked → NONE), every conversation still assigned to them (open or closed) goes back to the unassigned queue in the same
+transaction, each with a RELEASE in its history (`from` the person, `by` the one who changed the level), counted in the
+audit and the answer. Chosen over «keep them assigned» because a viewer cannot answer: a kept conversation would wait on
+someone who cannot reply, its pushes would go to them, and only a manager could free it. Safe against races: a claim, a
+transfer to the person and the claim by a reply share-lock the person's `users` row before the conversation row, the
+level change locks it for update first — the two never interleave (a message sent by someone lowered meanwhile is kept,
+it was sent, but does not claim). MANAGE → REPLY keeps everything. Raising a level never assigns anything. Off the team
+entirely (the last role revoked), the person's row in `wa_staff_access` is deleted (a later grant starts from the
+default), audited with `cause: role_revoked`. The CLI's `admin-admin revoke` does not release (a manager can release or
+transfer from the inbox).
+
+#### 10.155.5 Clients
+
+The app shows «واتساب» in the Me tab by the capabilities (VIEW+; the D355 roles until `/staff/me` answers). VIEW:
+«مشاهدة فقط» in the chat's app bar instead of the actions menu, the note «مستواك في واتساب مشاهدة فقط…» instead of the
+composer (also on a closed conversation: no «إعادة فتح»), never `…/read`, the customer sheet without link / unlink / note.
+The panel: the nav item and badge at VIEW+; the chat shows the «مشاهدة فقط» badge, no claim / release / transfer / close /
+reopen, no composer, no read; the customer panel without link / unlink / «إضافة ملاحظة». «الموظفون والصلاحيات»: each card
+shows «مستوى واتساب» (the level, «افتراضي» when none is set, «المالك: إدارة دائماً») and «تغيير المستوى» (the roles'
+default or one of the four, with what each allows, the reason and the code). An app or panel before D360 sees VIEW users
+without `support.whatsapp` (hidden) — safe.

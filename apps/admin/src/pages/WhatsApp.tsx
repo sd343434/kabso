@@ -282,12 +282,21 @@ export function WaChatView({
 }) {
   const { t, can } = useApp();
   const manage = can('support.whatsapp.manage');
+  // v1.120-social (D360): the WhatsApp level VIEW reads only — no action, no composer, «مشاهدة فقط».
+  const reply = can('support.whatsapp');
   const mineOrFree = c.assignedTo === null || c.assignedToMe;
   return (
-    <section className="wa-chat" aria-label={c.name ?? c.phone}>
+    <section className="wa-chat" aria-label={c.name ?? c.phone} data-view-only={reply ? undefined : 'true'}>
       <header className="wa-chat-head">
         <div>
-          <h2>{c.name ?? <Phone value={c.phone} />}</h2>
+          <h2>
+            {c.name ?? <Phone value={c.phone} />}{' '}
+            {!reply && (
+              <span className="badge warn" data-wa-view-only title={t('waViewOnlyHint')}>
+                {t('waViewOnly')}
+              </span>
+            )}
+          </h2>
           <p className="muted small">
             <Phone value={c.phone} /> ·{' '}
             {c.status === 'CLOSED'
@@ -299,6 +308,7 @@ export function WaChatView({
                 : t('waUnassigned')}
           </p>
         </div>
+        {reply && (
         <div className="wa-actions">
           {c.status === 'OPEN' && c.assignedTo === null && (
             <button className="btn primary small" onClick={() => onAction('claim')}>
@@ -326,6 +336,7 @@ export function WaChatView({
             </button>
           )}
         </div>
+        )}
       </header>
       <WindowBanner c={c} />
       <div className="wa-messages" aria-live="polite">
@@ -333,7 +344,13 @@ export function WaChatView({
           <WaBubble key={m.id} m={m} />
         ))}
       </div>
-      {composer}
+      {reply ? (
+        composer
+      ) : (
+        <p className="wa-view-only muted small" role="note">
+          {t('waViewOnlyHint')}
+        </p>
+      )}
     </section>
   );
 }
@@ -583,7 +600,9 @@ export function WaCustomerPanel({
   onUnlink: () => void;
   onNote: () => void;
 }) {
-  const { t, lang } = useApp();
+  const { t, lang, can } = useApp();
+  // D360: VIEW reads the panel; linking, unlinking and notes need REPLY.
+  const reply = can('support.whatsapp');
   const a = c.linkedAccount;
   return (
     <aside className="wa-side">
@@ -610,16 +629,20 @@ export function WaCustomerPanel({
                 <bdi dir="ltr">@{a.username}</bdi> · {a.status} · {t('waJoined', { date: formatDate(a.createdAt, lang) })}
               </p>
             </div>
-            <button className="btn small ghost" onClick={onUnlink}>
-              {t('waUnlink')}
-            </button>
+            {reply && (
+              <button className="btn small ghost" onClick={onUnlink}>
+                {t('waUnlink')}
+              </button>
+            )}
           </div>
         ) : (
           <>
             <p className="muted small">{t('waNoAccount')}</p>
-            <button className="btn small" onClick={onLink}>
-              {t('waLink')}
-            </button>
+            {reply && (
+              <button className="btn small" onClick={onLink}>
+                {t('waLink')}
+              </button>
+            )}
           </>
         )}
       </section>
@@ -637,9 +660,11 @@ export function WaCustomerPanel({
             </li>
           ))}
         </ul>
-        <button className="btn small" onClick={onNote}>
-          {t('waAddNote')}
-        </button>
+        {reply && (
+          <button className="btn small" onClick={onNote}>
+            {t('waAddNote')}
+          </button>
+        )}
       </section>
       <section className="card">
         <h3>{t('waHistory')}</h3>
@@ -756,7 +781,8 @@ function OpenConversation({
   onChange: () => void;
   toast: (s: string) => void;
 }) {
-  const { t } = useApp();
+  const { t, can } = useApp();
+  const reply = can('support.whatsapp');
   const [local, setLocal] = useState(0);
   const conv = useAsync(() => api.get<WaConversation>(`${BASE}/conversations/${id}`), [id, tick, local]);
   const msgs = useAsync(() => api.get<Page<WaMessage>>(`${BASE}/conversations/${id}/messages`, { limit: 50 }), [id, tick, local]);
@@ -768,11 +794,12 @@ function OpenConversation({
     setLocal((x) => x + 1);
     onChange();
   };
-  // Reading the conversation marks it read (the unread count and the customer's blue ticks).
+  // Reading the conversation marks it read (the unread count and the customer's blue ticks) — not for VIEW (D360):
+  // a viewer cannot answer, so the conversation stays unread for those who can and the customer sees no blue ticks.
   const unread = conv.data?.unreadCount ?? 0;
   useEffect(() => {
-    if (unread > 0) void api.post(`${BASE}/conversations/${id}/read`).then(onChange, () => undefined);
-  }, [id, unread, onChange]);
+    if (reply && unread > 0) void api.post(`${BASE}/conversations/${id}/read`).then(onChange, () => undefined);
+  }, [id, unread, onChange, reply]);
   const act = async (a: 'claim' | 'release' | 'close' | 'reopen' | 'transfer') => {
     if (a === 'transfer') return setDialog('transfer');
     setError(null);

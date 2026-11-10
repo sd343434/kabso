@@ -18,7 +18,8 @@ import {
   recoveryCodeHash,
   sha256Hex,
 } from './admin-crypto.js';
-import { capabilitiesOf, isPanelRole, type Capability, type PanelRole } from './admin-permissions.js';
+import { effectiveCapabilities, isPanelRole, type Capability, type PanelRole } from './admin-permissions.js';
+import { setWhatsAppLevelOf } from '../whatsapp/whatsapp-access.js';
 import { matchTotp, newTotpSecret, otpauthUri } from './totp.js';
 import { revokeStaffGrantsIn } from '../live/live-staff.js';
 
@@ -166,15 +167,26 @@ export class AdminAuthService {
     return user.adminPermissions.map((p) => p.permission).filter(isPanelRole);
   }
 
+  /**
+   * The panel roles held now and every capability they give — with the three WhatsApp capabilities from the person's
+   * WhatsApp level (v1.120-social, D360, §10.155): read on every request, like the roles.
+   */
+  async accessOf(userId: string): Promise<{ roles: PanelRole[]; capabilities: Capability[] }> {
+    const roles = await this.rolesOf(userId);
+    if (roles.length === 0) return { roles, capabilities: [] };
+    const level = await setWhatsAppLevelOf(this.prisma, userId);
+    return { roles, capabilities: effectiveCapabilities(roles, level) };
+  }
+
   async context(session: AdminSession, meta: AdminMeta): Promise<AdminContext | null> {
-    const roles = await this.rolesOf(session.userId);
+    const { roles, capabilities } = await this.accessOf(session.userId);
     if (roles.length === 0) return null;
     return {
       sessionId: session.id,
       userId: session.userId,
       stage: session.stage as 'PASSWORD' | 'ACTIVE',
       roles,
-      capabilities: capabilitiesOf(roles),
+      capabilities,
       ip: meta.ip,
       requestId: meta.requestId,
     };

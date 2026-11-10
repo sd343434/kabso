@@ -8,7 +8,16 @@ import { LiveStaffAssignmentService } from '../live/live-staff-assignment.servic
 import { normalizeUsername } from '../users/username.js';
 import { formatStaffId } from '../users/staff-ids.js';
 import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
-import { PANEL_ROLES, type PanelRole } from './admin-permissions.js';
+import {
+  defaultWhatsAppLevel,
+  effectiveWhatsAppLevel,
+  isPanelRole,
+  PANEL_ROLES,
+  whatsAppLevelRank,
+  type PanelRole,
+  type WhatsAppLevel,
+} from './admin-permissions.js';
+import { releaseAssignedIn, setWhatsAppLevelOf } from '../whatsapp/whatsapp-access.js';
 import { AdminRoleError, grantRoleIn, resetSecondFactorIn, revokeRoleIn } from './admin-roles.js';
 import { AUDIT_ROW, auditRowDto } from './admin-people.service.js';
 import { dayBound, tableResult, window, type TableQuery } from './admin-tables.js';
@@ -36,6 +45,25 @@ export interface TeamGrantBody {
   readonly role: PanelRole;
   readonly reason: string;
   readonly totpCode: string;
+}
+
+/** `setAdminTeamWhatsApp` (v1.120-social, D360): a level, or null to go back to the roles' default. */
+export interface TeamWhatsAppBody {
+  readonly level: WhatsAppLevel | null;
+  readonly reason: string;
+  readonly totpCode: string;
+}
+
+/** `AdminTeamWhatsApp` (D360, §10.155): the level that applies, the one set (null: none) and the roles' default. */
+export function teamWhatsAppOf(roles: readonly string[], set: WhatsAppLevel | null) {
+  const owner = roles.includes('OWNER');
+  return {
+    level: effectiveWhatsAppLevel(roles, set),
+    setLevel: owner ? null : set,
+    defaultLevel: owner ? ('MANAGE' as const) : defaultWhatsAppLevel(roles),
+    /** An OWNER is always MANAGE (no level can be set). */
+    locked: owner,
+  };
 }
 
 async function rule<T>(step: () => Promise<T>): Promise<T> {
@@ -179,10 +207,17 @@ export class AdminTeamService {
         staffNumber: { select: { number: true } },
       },
     });
-    const recruitCounts = await recruitCountsOf(
-      this.prisma,
-      rows.map((u) => u.id),
-    );
+    const [recruitCounts, waLevels] = await Promise.all([
+      recruitCountsOf(
+        this.prisma,
+        rows.map((u) => u.id),
+      ),
+      this.prisma.waStaffAccess.findMany({
+        where: { userId: { in: rows.map((u) => u.id) } },
+        select: { userId: true, level: true },
+      }),
+    ]);
+    const waSet = new Map(waLevels.map((w) => [w.userId, w.level]));
     return {
       data: rows.map((u) => ({
         id: u.id,
@@ -208,6 +243,11 @@ export class AdminTeamService {
         staffId: u.staffNumber ? formatStaffId(u.staffNumber.number) : null,
         // v1.75-live (D285, §10.96.13): how many recruits the person has, by type.
         recruits: recruitCounts.get(u.id) ?? emptyRecruitCounts(),
+        // v1.120-social (D360, §10.155): the person's WhatsApp level «مستوى واتساب».
+        whatsapp: teamWhatsAppOf(
+          u.adminPermissions.map((p) => p.permission as string).filter(isPanelRole),
+          waSet.get(u.id) ?? null,
+        ),
       })),
     };
   }
@@ -255,6 +295,67 @@ export class AdminTeamService {
     return { userId, regions, before };
   }
 
+  /**
+   * v1.120-social (D360, CONVENTIONS §10.155) `setAdminTeamWhatsApp`: `team.manage` sets a staff member's WhatsApp level
+   * (NONE / VIEW / REPLY / MANAGE), or null to go back to the roles' default — the code again and a reason, like the
+   * other team changes. Refused for an account on no team role (`team_not_member`) and for an OWNER, who is always
+   * MANAGE (`team_whatsapp_owner`). Lowering below REPLY releases every conversation still assigned to the person
+   * (RELEASE in each one's history; §10.155.4). Audited `admin.team.whatsapp` {before, after, setBefore, setAfter,
+   * released, reason}. Applies on the person's next request (every guard reads it).
+   */
+  async setWhatsApp(userId: string, body: TeamWhatsAppBody, ctx: AdminContext) {
+    await this.auth.reauthenticate(ctx, body.totpCode);
+    const now = new Date();
+    return this.prisma.$transaction(async (tx) => {
+      // The person's row locked (two changes apply one after the other; a claim or a transfer to them waits).
+      await tx.$queryRaw`SELECT 1 FROM users WHERE id = ${userId}::uuid FOR NO KEY UPDATE`;
+      const roles = (
+        await tx.userAdminPermission.findMany({ where: { userId }, select: { permission: true } })
+      )
+        .map((p) => p.permission as string)
+        .filter(isPanelRole);
+      if (roles.length === 0) throw refused('The account is not on the team.', 'team_not_member', 'rule');
+      if (roles.includes('OWNER')) {
+        throw refused('An OWNER always has the MANAGE WhatsApp level.', 'team_whatsapp_owner', 'rule');
+      }
+      const setBefore = await setWhatsAppLevelOf(tx, userId);
+      const before = effectiveWhatsAppLevel(roles, setBefore);
+      if (body.level === null) {
+        await tx.waStaffAccess.deleteMany({ where: { userId } });
+      } else {
+        await tx.waStaffAccess.upsert({
+          where: { userId },
+          create: { userId, level: body.level, setById: ctx.userId, createdAt: now, updatedAt: now },
+          update: { level: body.level, setById: ctx.userId, updatedAt: now },
+        });
+      }
+      const after = effectiveWhatsAppLevel(roles, body.level);
+      const released =
+        whatsAppLevelRank(after) < whatsAppLevelRank('REPLY')
+          ? await releaseAssignedIn(tx, userId, ctx.userId, now)
+          : [];
+      await this.audit.recordIn(tx, {
+        action: AuditAction.WHATSAPP_LEVEL,
+        actorUserId: ctx.userId,
+        targetType: 'user',
+        targetId: userId,
+        metadata: {
+          before,
+          after,
+          setBefore,
+          setAfter: body.level,
+          released: released.length,
+          conversations: released.slice(0, 100),
+          reason: body.reason,
+          via: ctx.via ?? 'panel',
+        },
+        ip: ctx.ip,
+        requestId: ctx.requestId,
+      });
+      return { userId, before, whatsapp: teamWhatsAppOf(roles, body.level), released: released.length };
+    });
+  }
+
   async grant(body: TeamGrantBody, ctx: AdminContext) {
     await this.auth.reauthenticate(ctx, body.totpCode);
     const who = body.account ?? body.email ?? '';
@@ -292,9 +393,49 @@ export class AdminTeamService {
   ) {
     await this.auth.reauthenticate(ctx, body.totpCode);
     const r = await rule(() =>
-      this.prisma.$transaction((tx) =>
-        revokeRoleIn(tx, userId, body.role, viaOf(ctx), { reason: body.reason }),
-      ),
+      this.prisma.$transaction(async (tx) => {
+        const setBefore = await setWhatsAppLevelOf(tx, userId);
+        const held = (
+          await tx.userAdminPermission.findMany({ where: { userId }, select: { permission: true } })
+        )
+          .map((p) => p.permission as string)
+          .filter(isPanelRole);
+        const out = await revokeRoleIn(tx, userId, body.role, viaOf(ctx), { reason: body.reason });
+        // v1.120-social (D360, §10.155.4): a revoke can lower the WhatsApp level too (e.g. SUPPORT gone → NONE): the
+        // person's assigned conversations go back to the queue, as when the level is lowered; off the team
+        // entirely, the level set for them goes (a later grant starts from the roles' default).
+        const before = effectiveWhatsAppLevel(held, setBefore);
+        const after = effectiveWhatsAppLevel(out.left, out.left.length === 0 ? null : setBefore);
+        const now = new Date();
+        const released =
+          whatsAppLevelRank(after) < whatsAppLevelRank('REPLY')
+            ? await releaseAssignedIn(tx, userId, ctx.userId, now)
+            : [];
+        const dropped = out.left.length === 0 && setBefore !== null;
+        if (dropped) await tx.waStaffAccess.deleteMany({ where: { userId } });
+        if (released.length > 0 || dropped) {
+          await this.audit.recordIn(tx, {
+            action: AuditAction.WHATSAPP_LEVEL,
+            actorUserId: ctx.userId,
+            targetType: 'user',
+            targetId: userId,
+            metadata: {
+              before,
+              after,
+              setBefore,
+              setAfter: dropped ? null : setBefore,
+              released: released.length,
+              conversations: released.slice(0, 100),
+              reason: body.reason,
+              cause: 'role_revoked',
+              via: ctx.via ?? 'panel',
+            },
+            ip: ctx.ip,
+            requestId: ctx.requestId,
+          });
+        }
+        return out;
+      }),
     );
     if (r.watchLost) {
       // v1.68-live (D273): no watch role left — no longer «فريق كابسو» in any live (best effort; the

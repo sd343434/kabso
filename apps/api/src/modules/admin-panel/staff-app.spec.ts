@@ -12,6 +12,7 @@ import {
 import { LiveStaffAlertsService } from '../live/live-staff-alerts.service.js';
 import { notificationBody } from '../push/push-texts.js';
 import { NotStaffWork, StaffAppGuard, StaffCapability } from './staff-app.guard.js';
+import { effectiveCapabilities } from './admin-permissions.js';
 
 /** v1.68-live (D273, §10.96.6–§10.96.8): «فريق كابسو» from the app — the pure and mocked parts. */
 
@@ -51,7 +52,12 @@ describe('D273 / D286 the staff guard (role and capability on every request; no 
       getClass: () => Handler,
     }) as unknown as ExecutionContext;
   const guard = (roles: string[]) => {
-    const auth = { requireOn: vi.fn(), rolesOf: vi.fn(async () => roles) };
+    const auth = {
+      requireOn: vi.fn(),
+      rolesOf: vi.fn(async () => roles),
+      // D360: the guard reads the roles and their capabilities (the WhatsApp ones from the level; none set here).
+      accessOf: vi.fn(async () => ({ roles, capabilities: effectiveCapabilities(roles, null) })),
+    };
     const assignments = { staffWorkBestEffort: vi.fn(async () => undefined) };
     return {
       guard: new StaffAppGuard(new Reflector(), auth as never, assignments as never),

@@ -2,8 +2,42 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
+import 'package:kabso_live/features/staff/application/staff_providers.dart';
+import 'package:kabso_live/features/staff/domain/staff_models.dart';
 import 'package:kabso_live/features/whatsapp/data/wa_repository.dart';
 import 'package:kabso_live/features/whatsapp/domain/wa_models.dart';
+
+/// v1.120-social (D360, §10.155): the three WhatsApp capabilities in
+/// `StaffStatus.capabilities` — the staff member's WhatsApp level.
+abstract final class WaCapability {
+  static const view = 'support.whatsapp.view';
+  static const reply = 'support.whatsapp';
+  static const manage = 'support.whatsapp.manage';
+}
+
+/// D360: what the caller may do in «واتساب» — nothing (NONE: no row), read
+/// only (VIEW: «مشاهدة فقط», no composer or actions) or answer (REPLY and
+/// MANAGE). A server before D360 sends only `support.whatsapp`: answer.
+enum WaAccess { none, view, reply }
+
+WaAccess waAccessOf(StaffStatus s) {
+  if (s.can(WaCapability.reply)) return WaAccess.reply;
+  if (s.can(WaCapability.view)) return WaAccess.view;
+  return WaAccess.none;
+}
+
+/// D360: the caller's [WaAccess]; null while the staff status is unknown
+/// (loading or failed — the screens then keep the D355 behaviour and the
+/// server still refuses what the level does not allow).
+final Provider<WaAccess?> waAccessProvider = Provider<WaAccess?>((ref) {
+  final s = ref.watch(staffStatusProvider).value;
+  return s == null ? null : waAccessOf(s);
+});
+
+/// D360: the caller reads only (the WhatsApp level VIEW).
+final Provider<bool> waViewOnlyProvider = Provider<bool>(
+  (ref) => ref.watch(waAccessProvider) == WaAccess.view,
+);
 
 /// v1.116-social (D355, §10.151.5): the «واتساب» row's badge — my and the
 /// unassigned open conversations with unread messages. Read when the Me tab
