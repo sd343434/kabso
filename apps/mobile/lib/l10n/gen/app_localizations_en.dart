@@ -17261,4 +17261,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletReasonStoreIapReversal => 'Store refund (coins taken back)';
+
+  @override
+  String get eventsUnitDays => 'Days';
+
+  @override
+  String get eventsUnitHours => 'Hours';
+
+  @override
+  String get eventsUnitMinutes => 'Min';
+
+  @override
+  String get eventsUnitSeconds => 'Sec';
+
+  @override
+  String get eventsTabRanking => 'Ranking';
+
+  @override
+  String get eventsTabRewards => 'Rewards';
+
+  @override
+  String get eventsRewardPermanent => 'Permanent';
+
+  @override
+  String get eventsRewardPreview => 'Preview';
+
+  @override
+  String get eventsRewardFeatured => 'Grand prize';
+
+  @override
+  String get eventsSeatOpen => 'Open seat';
+
+  @override
+  String eventsToPrevRank(String points, String rank) {
+    return '$points to place $rank';
+  }
+
+  @override
+  String get eventsLastHour => 'Final hour!';
+
+  @override
+  String eventsRewardDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
 }

@@ -17255,4 +17255,56 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get walletReasonStoreIapReversal =>
       'استرداد عبر المتجر (سُحبت العملات)';
+
+  @override
+  String get eventsUnitDays => 'أيام';
+
+  @override
+  String get eventsUnitHours => 'ساعات';
+
+  @override
+  String get eventsUnitMinutes => 'دقائق';
+
+  @override
+  String get eventsUnitSeconds => 'ثوانٍ';
+
+  @override
+  String get eventsTabRanking => 'الترتيب';
+
+  @override
+  String get eventsTabRewards => 'الجوائز';
+
+  @override
+  String get eventsRewardPermanent => 'دائم';
+
+  @override
+  String get eventsRewardPreview => 'معاينة';
+
+  @override
+  String get eventsRewardFeatured => 'الجائزة الكبرى';
+
+  @override
+  String get eventsSeatOpen => 'المركز متاح';
+
+  @override
+  String eventsToPrevRank(String points, String rank) {
+    return 'باقي $points للمركز $rank';
+  }
+
+  @override
+  String get eventsLastHour => 'الساعة الأخيرة!';
+
+  @override
+  String eventsRewardDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يوم',
+      many: '$days يوماً',
+      few: '$days أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
 }
