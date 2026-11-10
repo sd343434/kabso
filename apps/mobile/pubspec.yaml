@@ -137,6 +137,8 @@ flutter:
     - assets/live_top_frames/
     # D159 the owner's tiered lucky-win frames (assets/win_frames/PROVENANCE.md).
     - assets/win_frames/
+    # The official Kabso Live logo, owner-supplied 2026-11-09 (assets/brand/PROVENANCE.md; B8).
+    - assets/brand/
     # D305 the owner's global strips — gifts and games (assets/global_strips/PROVENANCE.md).
     - assets/global_strips/
     # The owner's currency set (assets/currency/PROVENANCE.md): the Kabi coin (D161),

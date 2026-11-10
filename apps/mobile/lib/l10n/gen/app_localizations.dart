@@ -29139,6 +29139,84 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'استرداد عبر المتجر (سُحبت العملات)'**
   String get walletReasonStoreIapReversal;
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'أيام'**
+  String get eventsUnitDays;
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'ساعات'**
+  String get eventsUnitHours;
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'دقائق'**
+  String get eventsUnitMinutes;
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'ثوانٍ'**
+  String get eventsUnitSeconds;
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'الترتيب'**
+  String get eventsTabRanking;
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجوائز'**
+  String get eventsTabRewards;
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'دائم'**
+  String get eventsRewardPermanent;
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'معاينة'**
+  String get eventsRewardPreview;
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجائزة الكبرى'**
+  String get eventsRewardFeatured;
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'المركز متاح'**
+  String get eventsSeatOpen;
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'باقي {points} للمركز {rank}'**
+  String eventsToPrevRank(String points, String rank);
+
+  /// KL-352 event page concepts (prototype).
+  ///
+  /// In ar, this message translates to:
+  /// **'الساعة الأخيرة!'**
+  String get eventsLastHour;
+
+  /// KL-352: a reward's duration.
+  ///
+  /// In ar, this message translates to:
+  /// **'{days, plural, =1{يوم واحد} =2{يومان} few{{days} أيام} many{{days} يوماً} other{{days} يوم}}'**
+  String eventsRewardDays(int days);
 }
 
 class _AppLocalizationsDelegate
