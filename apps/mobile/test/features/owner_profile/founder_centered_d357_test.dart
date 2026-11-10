@@ -6,8 +6,10 @@
 //
 //  - the photo centred over the cover's edge (his video kept), the name
 //    centred under it in Kabso red, bold;
-//  - his red badge (an outlined play triangle; «مؤسس Kabso Live») centred
-//    under the name, the blue seal gone (on the photo and after the name);
+//  - his badge (owner: «الشارة مثلما كانت لكن بدل ما بداخلها صح يصبح مثلث»):
+//    the D293 rosette seal in Kabso red with a white play triangle instead
+//    of the check («مؤسس Kabso Live»), the size of the seal beside a name,
+//    centred under the name; the blue seal gone (photo and name line);
 //  - the bio centred; only two numbers — «المتابِعون» and «الاقتراحات
 //    والشكاوى» (`founderFeedbackCount`, «–» when the server sends none);
 //  - the follow and «اقترح ميزة / أبلغ» buttons, the own «تعديل الملف»;
@@ -19,9 +21,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/owner_profile/presentation/founder_badge.dart';
@@ -30,6 +30,7 @@ import 'package:kabso_live/features/owner_profile/presentation/owner_cover_video
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
+import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/owner/owner_fixtures.dart';
@@ -65,38 +66,40 @@ void main() {
   tearDown(() {
     profileCoverImageFor = NetworkImage.new;
     ownerPosterImageFor = NetworkImage.new;
-    founderBadgePlacement = FounderBadgePlacement.underName;
   });
 
-  test('the badge art: an original shield in the brand reds, the triangle '
-      'only stroked (never a filled YouTube-like play)', () {
-    final svg = File(AppIcons.founderBadge).readAsStringSync();
-    String hex(Color c) {
-      final rgb = (c.toARGB32() & 0xFFFFFF).toRadixString(16);
-      return '#${rgb.padLeft(6, '0').toUpperCase()}';
-    }
-
-    for (final c in [
-      KBrandColors.red400,
-      KBrandColors.red500,
-      KBrandColors.red600,
-    ]) {
-      expect(svg, contains(hex(c)));
-    }
-    // Taller than wide (a shield), unlike a wide rounded rectangle.
-    expect(svg, contains('viewBox="0 0 24 26"'));
-    expect(FounderBadge.aspect, lessThan(1));
-    // The play triangle is the last path: no fill, a white stroke.
-    final paths = RegExp('<path [^>]*/>').allMatches(svg).toList();
-    final play = paths.last.group(0)!;
-    expect(play, contains('fill="none"'));
-    expect(play, contains('stroke="#FFFFFF"'));
+  test('the badge: the D293 rosette in Kabso red, a solid white play '
+      'triangle (≥ 3 : 1), its corners 0.30 × 0.34 of the seal, nudged '
+      'toward the point', () {
+    expect(FounderBadge.fill, KBrandColors.red500);
+    expect(FounderBadge.ink, const Color(0xFFFFFFFF));
+    final contrast =
+        (FounderBadge.ink.computeLuminance() + 0.05) /
+        (FounderBadge.fill.computeLuminance() + 0.05);
+    expect(contrast, greaterThanOrEqualTo(3));
+    const box = Size(100, 100);
+    final c = FounderPlayPainter.corners(box);
+    final xs = c.map((p) => p.dx);
+    final ys = c.map((p) => p.dy);
+    final left = xs.reduce((a, b) => a < b ? a : b);
+    final right = xs.reduce((a, b) => a > b ? a : b);
+    final top = ys.reduce((a, b) => a < b ? a : b);
+    final bottom = ys.reduce((a, b) => a > b ? a : b);
+    expect(right - left, moreOrLessEquals(30));
+    expect(bottom - top, moreOrLessEquals(34));
+    // The point on the right, at mid-height; the box shifted toward it.
+    expect(c[1].dx, right);
+    expect(c[1].dy, moreOrLessEquals(50));
+    expect((left + right) / 2, greaterThan(50));
+    expect((left + right) / 2 - 50, lessThan(5));
+    // The rounding stays inside the seal's inner disc.
+    expect(FounderPlayPainter.round, lessThan(0.08));
   });
 
   for (final language in AppLanguage.values) {
     final ar = language == AppLanguage.ar;
     group('founder visitor ${language.name}', () {
-      testWidgets('centred photo and red name, the red badge under the name '
+      testWidgets('centred photo and red name, the red seal under the name '
           '(no blue seal), centred bio, only the two numbers', (tester) async {
         await pumpOwnerVisitor(tester, language: language);
         expect(tester.takeException(), isNull);
@@ -116,10 +119,45 @@ void main() {
         final style = tester.widget<Text>(nameFinder).style!;
         expect(style.color, KBrandColors.red500);
         expect(style.fontWeight, FontWeight.w800);
-        // The badge: centred under the name, read as the founder.
+        // The badge: centred under the name, read as the founder, the size
+        // of the D293 seal beside a name of the same font (28 lp for 24 pt).
         final badge = _r(tester, FounderBadge.badgeKey);
         expect(badge.center.dx, moreOrLessEquals(w / 2, epsilon: 0.5));
         expect(badge.top, greaterThanOrEqualTo(name.bottom));
+        final seal = ProfileVerificationBadge.sizeForFont(
+          KPublicProfile.founderNameFont,
+        );
+        expect(seal, 28);
+        expect(badge.size, Size.square(seal));
+        // The D293 rosette itself (one painter, no copied path) in the
+        // brand red, and the white triangle drawn over it.
+        final paint = tester.widget<CustomPaint>(
+          find.descendant(
+            of: find.byKey(FounderBadge.badgeKey),
+            matching: find.byType(CustomPaint),
+          ),
+        );
+        expect(
+          paint.painter,
+          isA<VerificationSealPainter>()
+              .having((p) => p.fill, 'fill', KBrandColors.red500)
+              .having((p) => p.rim, 'rim', isNull),
+        );
+        expect(
+          paint.foregroundPainter,
+          isA<FounderPlayPainter>().having(
+            (p) => p.color,
+            'color',
+            const Color(0xFFFFFFFF),
+          ),
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(FounderBadge.badgeKey),
+            matching: find.byType(Icon),
+          ),
+          findsNothing,
+        );
         expect(
           tester.getSemantics(find.byKey(FounderBadge.badgeKey)),
           matchesSemantics(
@@ -209,19 +247,6 @@ void main() {
             .widget<Text>(find.byKey(const Key('profile.displayName')))
             .style!;
         expect(style.color, KBrandColors.red400);
-        await _end(tester);
-      });
-
-      testWidgets('the badge under the photo (the comparison placement)', (
-        tester,
-      ) async {
-        founderBadgePlacement = FounderBadgePlacement.underPhoto;
-        await pumpOwnerVisitor(tester, language: language);
-        final photo = _r(tester, ProfileCoverHeader.photoKey);
-        final badge = _r(tester, FounderBadge.badgeKey);
-        final name = _r(tester, const Key('profile.displayName'));
-        expect(badge.top, greaterThanOrEqualTo(photo.bottom - 0.5));
-        expect(name.top, greaterThanOrEqualTo(badge.bottom));
         await _end(tester);
       });
 
@@ -319,22 +344,15 @@ void main() {
       (AppLanguage.en, Brightness.light),
     ]) {
       final tag = '${language.name}.${brightness.name}';
-      for (final placement in FounderBadgePlacement.values) {
-        testWidgets('visitor $tag ${placement.name}', (tester) async {
-          founderBadgePlacement = placement;
-          await pumpOwnerVisitor(
-            tester,
-            language: language,
-            brightness: brightness,
-          );
-          await save(
-            tester,
-            find.byType(MaterialApp),
-            'founder.visitor.$tag.${placement.name}',
-          );
-          await _end(tester);
-        });
-      }
+      testWidgets('visitor $tag', (tester) async {
+        await pumpOwnerVisitor(
+          tester,
+          language: language,
+          brightness: brightness,
+        );
+        await save(tester, find.byType(MaterialApp), 'founder.visitor.$tag');
+        await _end(tester);
+      });
       testWidgets('own $tag', (tester) async {
         await pumpOwnerOwn(tester, language: language, brightness: brightness);
         await save(tester, find.byType(MaterialApp), 'founder.own.$tag');
@@ -356,20 +374,25 @@ void main() {
       testWidgets('badge 4× ${brightness.name}', (tester) async {
         setViewport(tester, GoldenViewport.phone);
         const key = Key('zoom');
+        final seal = ProfileVerificationBadge.sizeForFont(
+          KPublicProfile.founderNameFont,
+        );
         await tester.pumpWidget(
-          Center(
-            child: RepaintBoundary(
-              key: key,
-              child: ColoredBox(
-                color: brightness == Brightness.dark
-                    ? KPalette.dark.background
-                    : KPalette.light.background,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: SvgPicture.asset(
-                    AppIcons.founderBadge,
-                    height: FounderBadge.defaultHeight * 4,
-                    width: FounderBadge.defaultHeight * 4 * FounderBadge.aspect,
+          MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            // The seal is symmetric and its play never mirrors: one locale.
+            locale: const Locale('en'),
+            home: Center(
+              child: RepaintBoundary(
+                key: key,
+                child: ColoredBox(
+                  color: brightness == Brightness.dark
+                      ? KPalette.dark.background
+                      : KPalette.light.background,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: FounderBadge(size: seal * 4),
                   ),
                 ),
               ),

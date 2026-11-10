@@ -23,11 +23,11 @@
 //
 // D357 (owner, 2026-11-10, the FOUNDER's page only — CONVENTIONS §10.153):
 // the same cover (his video), but the photo CENTRED over the cover's edge,
-// the name centred under it in Kabso red, his red [FounderBadge] (an
-// outlined play triangle) centred under the name in place of the blue
-// seal, the bio centred, and only two numbers — «المتابعون» and «الاقتراحات
-// والشكاوى» (`PublicProfile.founderFeedbackCount`, v1.118-social). Every
-// other profile keeps the D335 layout above.
+// the name centred under it in Kabso red, his [FounderBadge] (the D293
+// seal in Kabso red with a white play triangle) centred under the name in
+// place of the blue seal, the bio centred, and only two numbers —
+// «المتابعون» and «الاقتراحات والشكاوى» (`PublicProfile.founderFeedbackCount`,
+// v1.118-social). Every other profile keeps the D335 layout above.
 
 import 'dart:math' as math;
 
@@ -70,21 +70,6 @@ import 'package:material_ui/material_ui.dart';
 /// How the cover's picture is loaded; tests swap in a [MemoryImage].
 @visibleForTesting
 ImageProvider Function(String src) profileCoverImageFor = NetworkImage.new;
-
-/// D357: where the founder's badge sits on his centred page.
-enum FounderBadgePlacement {
-  /// Under the name (the shipped choice: the name reads first, the badge
-  /// closes the identity block like a seal under a signature).
-  underName,
-
-  /// Right under the photo, above the name (kept for the comparison
-  /// captures the owner asked for).
-  underPhoto,
-}
-
-/// D357: the founder badge's place; captures switch it to compare.
-@visibleForTesting
-FounderBadgePlacement founderBadgePlacement = FounderBadgePlacement.underName;
 
 /// D335: builds the header's button row; [bondsToggle] is the chevron that
 /// opens the family / couple / medals tiles (null when there are none to
@@ -245,11 +230,10 @@ abstract final class KPublicProfile {
   static const double factIcon = 16;
 
   /// D357 (founder page only): the name under the centred photo (E 24 dp,
-  /// bold, Kabso red), the badge 8 dp under it (or 6 dp under the photo),
-  /// the bio 10 dp under the badge, centred.
+  /// bold, Kabso red), the red seal 8 dp under it, the bio 10 dp under the
+  /// seal, centred.
   static const double founderNameFont = 24;
   static const double founderBadgeGap = 8;
-  static const double founderBadgeUnderPhotoGap = 6;
   static const double founderBioGap = 10;
 }
 
@@ -1104,10 +1088,9 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
   }
 
   /// D357: the founder's centred block under the centred photo — the name
-  /// in Kabso red, his red badge (under the name, or under the photo per
-  /// [founderBadgePlacement]), the other badges, the worn medals, the bio,
-  /// the tags and links (all centred), the two numbers, the buttons and the
-  /// bonds section (as [_info]).
+  /// in Kabso red, his red seal under it, the other badges, the worn medals,
+  /// the bio, the tags and links (all centred), the two numbers, the buttons
+  /// and the bonds section (as [_info]).
   Widget _founderInfo(BuildContext context) {
     final p = context.palette;
     final t = context.textStyles;
@@ -1115,9 +1098,13 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
     final bonds = ProfileCoverHeader.hasBonds(profile);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final badges = _badges(context);
-    final underPhoto =
-        founderBadgePlacement == FounderBadgePlacement.underPhoto;
-    const badge = Center(child: FounderBadge());
+    final badge = Center(
+      child: FounderBadge(
+        size: ProfileVerificationBadge.sizeForFont(
+          KPublicProfile.founderNameFont,
+        ),
+      ),
+    );
     final bondsSection = _bondsOpen
         ? Padding(
             key: ProfileCoverHeader.bondsKey,
@@ -1150,10 +1137,6 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
           key: ProfileCoverHeader.founderIdentityKey,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (underPhoto) ...[
-              badge,
-              const SizedBox(height: KPublicProfile.founderBadgeUnderPhotoGap),
-            ],
             Row(
               key: ProfileCoverHeader.nameLineKey,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1168,10 +1151,8 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
                   ),
               ],
             ),
-            if (!underPhoto) ...[
-              const SizedBox(height: KPublicProfile.founderBadgeGap),
-              badge,
-            ],
+            const SizedBox(height: KPublicProfile.founderBadgeGap),
+            badge,
             if (badges.isNotEmpty) ...[
               const SizedBox(height: KSpacing.xs),
               ProfileBadgeWrap(

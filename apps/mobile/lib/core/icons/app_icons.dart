@@ -6,9 +6,9 @@ import 'package:material_ui/material_ui.dart';
 /// `<name>_filled.svg` after, 2-unit round strokes) replaces the earlier
 /// icons wherever it has one; the rest keep their earlier files. Outline
 /// icons draw in `currentColor` and are tinted by [AppIcon]; the multicolour
-/// ones ([createButton], [createButtonLight], [followBadge], [founderBadge])
-/// keep their own colours (`tint: false`). The spending coin is the owner's
-/// Kabi coin art (`KabsoArt.coin`, D161/D182), not an icon of this set.
+/// ones ([createButton], [createButtonLight], [followBadge]) keep their own
+/// colours (`tint: false`). The spending coin is the owner's Kabi coin art
+/// (`KabsoArt.coin`, D161/D182), not an icon of this set.
 abstract final class AppIcons {
   static const String _p = 'assets/icons';
 
@@ -41,12 +41,6 @@ abstract final class AppIcons {
   static const String musicDisc = '$_p/music_disc.svg';
   static const String musicNote = '$_p/music_outline.svg';
   static const String followBadge = '$_p/follow_badge.svg';
-
-  /// D357 (§10.153): the founder's badge — an original Kabso mark, a red
-  /// rounded shield (the brand reds red400 → red500 → red600) holding an
-  /// OUTLINED play triangle (the play of Kabso's mascot). Multicolour (no
-  /// tint); 24 × 26 units. Shown by `FounderBadge`.
-  static const String founderBadge = '$_p/founder_badge.svg';
   static const String repost = '$_p/repost_outline.svg';
   static const String download = '$_p/download.svg';
   static const String link = '$_p/link.svg';

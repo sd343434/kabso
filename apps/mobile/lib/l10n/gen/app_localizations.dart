@@ -26896,7 +26896,7 @@ abstract class AppLocalizations {
   /// **'اقترح ميزة / أبلغ'**
   String get ownerFeedbackButton;
 
-  /// D357 (§10.153): the founder's red badge (an outlined play triangle) under his name — its spoken label and tooltip.
+  /// D357 (§10.153): the founder's badge (the D293 seal in Kabso red with a white play triangle) under his name — its spoken label and tooltip.
   ///
   /// In ar, this message translates to:
   /// **'مؤسس Kabso Live'**
