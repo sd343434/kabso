@@ -11,7 +11,8 @@
 # Trimming (the bundle is served, not installed, so only what the page can load is kept):
 #   - canvaskit: the CanvasKit renderer only (canvaskit.{js,wasm} and the Chromium variant); the skwasm / wimp /
 #     webparagraph renderers are for --wasm or experimental builds, the .symbols files for debugging;
-#   - assets: the asset folders the event page never draws (live rooms, PK, sounds, splash, …). A folder dropped by
+#   - assets: the asset folders the event page never draws (live rooms, PK, sounds, splash, …) and the debug-only
+#     development photos (assets/preview/, docs/design/PREVIEW_ASSETS.md: this is a release build). A folder dropped by
 #     mistake shows as a missing picture in the preview, never as a crash; the smoke test fails on "Unable to load
 #     asset".
 set -euo pipefail
@@ -37,7 +38,8 @@ rm -f "$out/flutter_service_worker.js"
 # Asset folders the event page does not use.
 for dir in sounds splash pk battle emojis staff live_themes cp_space live_cp_seats live_bar live_room_icons \
   live_cinema live_rank_frames live_top_frames families flags special_id global_strips category_icons taps charm \
-  win_frames host_frames host_agent recharge_agent recharge_badges profile_card card_boxes host_targets profile; do
+  win_frames host_frames host_agent recharge_agent recharge_badges profile_card card_boxes host_targets profile \
+  preview; do
   rm -rf "$out/assets/assets/$dir"
 done
 
@@ -48,7 +50,7 @@ commit=$(git rev-parse HEAD 2>/dev/null || echo unknown)
 {
   echo "commit=$commit"
   echo "flutter=$(flutter --version --machine 2>/dev/null | sed -n 's/.*"frameworkVersion": *"\([^"]*\)".*/\1/p' | head -n 1)"
-  echo "protocol=1"
+  echo "protocol=2"
   echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } > "$out/preview-build.txt"
 echo "event preview built in $out ($(du -sh "$out" | cut -f1))"

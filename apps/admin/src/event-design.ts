@@ -17,6 +17,7 @@ import {
   type GiftEventFormState,
   type PrizeItemForm,
 } from './gift-events';
+import { sampleLeaderboards } from './event-preview-sample';
 
 export const DESIGN_LAYOUTS = ['HERO_PODIUM', 'STAGE', 'DECK'] as const;
 export const DESIGN_LEADERBOARDS = ['THRONE', 'PODIUM', 'CARDS_ROW', 'SPOTLIGHT', 'SHIELD_CREST'] as const;
@@ -516,18 +517,25 @@ export function previewEvent(
 
 let seq = 0;
 
-/** The render message (JSON text, the preview's protocol v1). */
+/**
+ * The preview's protocol version. v2: the SAMPLE leaderboards travel in the message (`leaderboards`, the panel's
+ * labelled sample module `event-preview-sample.ts`), read by the app's own `fromJson` — none are made in the app.
+ */
+export const PREVIEW_VERSION = 2;
+
+/** The render message (JSON text): the draft, the switches and the sample boards of its boards. */
 export function previewMessage(event: Record<string, unknown>, s: PreviewSettings): string {
   seq += 1;
   return JSON.stringify({
     type: PREVIEW_RENDER,
-    v: 1,
+    v: PREVIEW_VERSION,
     seq,
     language: s.language,
     theme: s.theme,
     state: s.state,
     reduceMotion: s.reduceMotion,
     event,
+    leaderboards: sampleLeaderboards(event, s.language, s.state),
   });
 }
 
@@ -545,7 +553,7 @@ export function previewReply(
   if (typeof e.data !== 'string') return null;
   try {
     const m = JSON.parse(e.data) as Record<string, unknown>;
-    if (m.v !== 1) return null;
+    if (m.v !== PREVIEW_VERSION) return null;
     if (m.type === PREVIEW_READY) return { type: PREVIEW_READY };
     if (m.type === PREVIEW_RENDERED && typeof m.seq === 'number') {
       return { type: PREVIEW_RENDERED, seq: m.seq, designed: m.designed === true };

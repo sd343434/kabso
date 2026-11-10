@@ -6,12 +6,12 @@
  *   KABSO_THUMBS_DIR=/dev/shm/thumbs EVENT_PREVIEW_DIR=… pnpm exec playwright test -c playwright.preview.config.ts thumbnails
  *   python3 -I e2e-preview/thumbnails.py /dev/shm/thumbs src/assets/event-design
  *
- * Sample data only (the preview's sample leaderboard, Kabso's development photos); no event art.
+ * Sample data only (the panel's sample leaderboards, Kabso's default picture); no event art.
  */
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { DESIGN, sampleEvent } from './fixture';
+import { DESIGN, render, sampleEvent } from './fixture';
 
 const out = process.env.KABSO_THUMBS_DIR;
 test.skip(!out, 'KABSO_THUMBS_DIR not set');
@@ -49,10 +49,10 @@ const shots: Shot[] = [
   })),
 ];
 
-async function render(page: Page, design: unknown, seq: number) {
+async function show(page: Page, design: unknown, seq: number) {
   await page.evaluate(
     (m) => (window as unknown as { __post: (m: unknown) => void }).__post(m),
-    { type: 'kabso.eventPreview.render', v: 1, seq, language: 'ar', theme: 'dark', state: 'RUNNING', reduceMotion: true, event: sampleEvent(design) },
+    render({ seq, language: 'ar', theme: 'dark', state: 'RUNNING', reduceMotion: true, event: sampleEvent(design) }),
   );
   await expect
     .poll(() => page.evaluate((s) => (window as unknown as { __replies: { seq?: number }[] }).__replies.some((r) => r.seq === s), seq))
@@ -70,8 +70,8 @@ test('option thumbnails from the real page', async ({ page }) => {
   let seq = 0;
   for (const s of shots) {
     // A fresh page each time (no scroll or tab left over).
-    await render(page, null, ++seq);
-    await render(page, s.design, ++seq);
+    await show(page, null, ++seq);
+    await show(page, s.design, ++seq);
     await page.waitForTimeout(1500);
     await page.screenshot({
       path: join(out!, `${s.name}.png`),

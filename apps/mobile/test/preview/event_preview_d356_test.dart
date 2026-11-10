@@ -81,9 +81,49 @@ Map<String, Object?> _event({Object? design, bool permanent = false}) => {
   'design': design,
 };
 
+/// One SAMPLE board as the panel sends it (the API's `EventLeaderboard`
+/// shape; no photo: Kabso's default picture).
+Map<String, Object?> _board({bool cp = false, bool agency = false}) => {
+  'board': cp ? 'CP' : 'SENDERS',
+  'minPoints': 1000,
+  'final': false,
+  'data': [
+    for (var i = 0; i < 4; i++)
+      {
+        'rank': i + 1,
+        'user': {
+          'id': 'sample-$i',
+          'username': 'sample$i',
+          'displayName': 'عيّنة ${i + 1}',
+          'avatarUrl': null,
+        },
+        if (cp)
+          'partner': {
+            'id': 'sample-p$i',
+            'username': 'samplep$i',
+            'displayName': 'شريك',
+            'avatarUrl': null,
+          },
+        if (agency) 'agency': {'name': 'وكالة ${i + 1}'},
+        'score': 100000 ~/ (i + 1),
+        'qualified': true,
+        'prize': const <Object?>[],
+        'prizeCoins': 0,
+      },
+  ],
+  'me': {
+    'rank': 3,
+    'score': 33333,
+    'prizeCoins': 0,
+    'qualified': true,
+    'prize': const <Object?>[],
+  },
+};
+
 String _message({
   Object? event,
-  int v = 1,
+  Object? leaderboards,
+  int v = 2,
   String type = kPreviewRender,
   String? state,
   String language = 'ar',
@@ -97,6 +137,7 @@ String _message({
   'state': ?state,
   'reduceMotion': reduceMotion,
   'event': event ?? _event(design: _design()),
+  'leaderboards': leaderboards ?? {'SENDERS': _board()},
 });
 
 PreviewParse _parse(Object? data, {String origin = _origin}) =>
@@ -107,8 +148,12 @@ PreviewParse _parse(Object? data, {String origin = _origin}) =>
       now: _now,
     );
 
-PreviewRequest _request(String message) =>
-    (_parse(message) as PreviewOk).request;
+PreviewRequest _request(String message) => switch (_parse(message)) {
+  PreviewOk(:final request) => request,
+  final other => throw StateError(
+    'not drawn: ${other is PreviewInvalid ? other.reason : other}',
+  ),
+};
 
 void main() {
   group('the message', () {
@@ -129,11 +174,23 @@ void main() {
     test('a broken message is reported, never drawn', () {
       expect(_parse('{nope'), isA<PreviewInvalid>());
       expect(_parse('[1]'), isA<PreviewInvalid>());
-      final v2 = _parse(_message(v: 2));
-      expect(v2, isA<PreviewInvalid>());
-      expect((v2 as PreviewInvalid).seq, 7);
+      // v1 (the leaderboards made in Dart) is gone.
+      final v1 = _parse(_message(v: 1));
+      expect(v1, isA<PreviewInvalid>());
+      expect((v1 as PreviewInvalid).seq, 7);
       expect(
-        _parse(jsonEncode({'type': kPreviewRender, 'v': 1, 'seq': 3})),
+        _parse(jsonEncode({'type': kPreviewRender, 'v': 2, 'seq': 3})),
+        isA<PreviewInvalid>(),
+      );
+      expect(_parse(_message(leaderboards: [1])), isA<PreviewInvalid>());
+      expect(
+        _parse(
+          _message(
+            leaderboards: {
+              'SENDERS': {'board': 'SENDERS'},
+            },
+          ),
+        ),
         isA<PreviewInvalid>(),
       );
       // Not an EventDetail (no title).
@@ -203,54 +260,54 @@ void main() {
     test('the replies are versioned JSON text', () {
       expect(jsonDecode(previewReply(kPreviewReady)), {
         'type': kPreviewReady,
-        'v': 1,
+        'v': 2,
       });
       expect(
         jsonDecode(previewReply(kPreviewRendered, seq: 3, designed: true)),
-        {'type': kPreviewRendered, 'v': 1, 'seq': 3, 'designed': true},
+        {'type': kPreviewRendered, 'v': 2, 'seq': 3, 'designed': true},
       );
     });
   });
 
-  group('the sample boards', () {
-    test('12 made-up entrants, the viewer 8th, final when ended', () {
-      final b = previewLeaderboard(
-        EventBoardKind.senders,
-        ar: true,
-        ended: true,
-        minPoints: 1000,
+  group('the panel’s sample boards', () {
+    test('read with the API’s fromJson, by board; unknown boards dropped', () {
+      final r = _request(
+        _message(
+          leaderboards: {
+            'SENDERS': _board(),
+            'CP': _board(cp: true),
+            'NOPE': _board(),
+          },
+        ),
       );
-      expect(b.giftRows, hasLength(12));
-      expect(b.myRank, 8);
-      expect(b.isFinal, isTrue);
-      expect(b.giftRows.first.user.avatarUrl, previewPhotoUrl('avatar_layla'));
-      expect(b.giftRows.every((r) => r.score >= 1000), isTrue);
-      final cp = previewLeaderboard(
-        EventBoardKind.cp,
-        ar: false,
-        ended: false,
-        minPoints: 0,
-        photos: false,
+      expect(r.leaderboards.keys, {EventBoardKind.senders, EventBoardKind.cp});
+      final b = r.leaderboards[EventBoardKind.senders]!;
+      expect(b.giftRows, hasLength(4));
+      expect(b.myRank, 3);
+      expect(b.giftRows.first.user.avatarUrl, isNull);
+      expect(
+        r.leaderboards[EventBoardKind.cp]!.giftRows.first.partner,
+        isNotNull,
       );
-      expect(cp.giftRows.first.partner, isNotNull);
-      expect(cp.giftRows.first.user.avatarUrl, isNull);
-      final agencies = previewLeaderboard(
-        EventBoardKind.agencies,
-        ar: false,
-        ended: false,
-        minPoints: 0,
-      );
-      expect(agencies.giftRows.first.agencyName, 'Sara Agency');
+      final agencies = _request(
+        _message(leaderboards: {'AGENCIES': _board(agency: true)}),
+      ).leaderboards.values.single;
+      expect(agencies.giftRows.first.agencyName, 'وكالة 1');
     });
 
     test('the repository answers the event and boards only', () async {
-      final repo = PreviewProgramsRepository(photos: false)
-        ..request = _request(_message());
+      final repo = PreviewProgramsRepository()..request = _request(_message());
       expect((await repo.event('preview')).title, 'ملك الهدايا');
       expect(
-        (await repo.leaderboard('preview', board: 'SENDERS')).minPoints,
-        1000,
+        (await repo.leaderboard('preview', board: 'SENDERS')).giftRows,
+        hasLength(4),
       );
+      // A board without a sample: empty (the page's honest empty board).
+      final none = PreviewProgramsRepository()
+        ..request = _request(_message(leaderboards: const {}));
+      final empty = await none.leaderboard('preview', board: 'SENDERS');
+      expect(empty.giftRows, isEmpty);
+      expect(empty.minPoints, 1000);
       expect(repo.tasks, throwsUnsupportedError);
     });
   });
@@ -267,7 +324,6 @@ void main() {
         EventPreviewApp(
           controller: controller,
           prefs: await testPrefs(language: 'ar'),
-          photos: false,
           onRendered: (r, {required designed}) =>
               rendered.add((r.seq, designed)),
         ),

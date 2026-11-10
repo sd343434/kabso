@@ -5,26 +5,28 @@
 // `window.postMessage`. This file is the protocol and its pure parts (no
 // `dart:js_interop`, so the VM tests run it):
 //
-//   panel → preview  {"type": "kabso.eventPreview.render", "v": 1, "seq": n,
+//   panel → preview  {"type": "kabso.eventPreview.render", "v": 2, "seq": n,
 //                     "language": "ar" | "en", "theme": "dark" | "light",
 //                     "state": "UPCOMING" | "RUNNING" | "FINAL_HOUR" | "ENDED",
-//                     "reduceMotion": bool, "event": <EventDetail JSON>}
-//   preview → panel  {"type": "kabso.eventPreview.ready", "v": 1}
-//                    {"type": "kabso.eventPreview.rendered", "v": 1, "seq": n,
+//                     "reduceMotion": bool, "event": <EventDetail JSON>,
+//                     "leaderboards": {"SENDERS": <EventLeaderboard JSON>, …}}
+//   preview → panel  {"type": "kabso.eventPreview.ready", "v": 2}
+//                    {"type": "kabso.eventPreview.rendered", "v": 2, "seq": n,
 //                     "designed": bool}
-//                    {"type": "kabso.eventPreview.error", "v": 1, "seq": n?,
+//                    {"type": "kabso.eventPreview.error", "v": 2, "seq": n?,
 //                     "reason": "…"}
 //
 // Messages travel as JSON text. Only the allowed origins are listened to (the
 // preview's own origin — the panel serves it — plus any compile-time
 // `PREVIEW_PARENT_ORIGINS` for local development). `event` is the same shape as
 // `GET /events/{id}` (`EventDetail`, including `design`); the preview never
-// calls the API. The leaderboards are SAMPLE rows made here (labelled «بيانات
-// تجريبية» on the page), never real users.
+// calls the API. The leaderboards are the panel's SAMPLE rows (its labelled
+// sample-data module, apps/admin/src/event-preview-sample.ts), read with the
+// app's own `EventLeaderboard.fromJson` — the page says «بيانات تجريبية».
+// v2 (D356 follow-up): the leaderboards moved from here to the message.
 
 import 'dart:convert';
 
-import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 
@@ -32,7 +34,7 @@ const kPreviewRender = 'kabso.eventPreview.render';
 const kPreviewReady = 'kabso.eventPreview.ready';
 const kPreviewRendered = 'kabso.eventPreview.rendered';
 const kPreviewError = 'kabso.eventPreview.error';
-const kPreviewVersion = 1;
+const kPreviewVersion = 2;
 
 /// The event id the preview uses when the draft has none yet.
 const kPreviewEventId = 'preview';
@@ -66,9 +68,14 @@ final class PreviewRequest {
     required this.dark,
     required this.state,
     required this.reduceMotion,
+    this.leaderboards = const {},
   });
 
   final int seq;
+
+  /// The panel's sample boards, by board (a board it sent none for is
+  /// empty).
+  final Map<EventBoardKind, EventLeaderboard> leaderboards;
 
   /// The parsed event with the [state]'s dates.
   final EventDetail event;
@@ -151,10 +158,26 @@ PreviewParse parsePreviewMessage(
   } on Object catch (e) {
     return PreviewInvalid('event: ${e.runtimeType}', seq: seq);
   }
+  final boards = <EventBoardKind, EventLeaderboard>{};
+  final rawBoards = json['leaderboards'];
+  if (rawBoards != null && rawBoards is! Map<String, dynamic>) {
+    return PreviewInvalid('leaderboards', seq: seq);
+  }
+  try {
+    for (final MapEntry(:key, :value)
+        in (rawBoards as Map<String, dynamic>? ?? const {}).entries) {
+      final kind = EventBoardKind.fromWire(key);
+      if (kind == null || value is! Map<String, dynamic>) continue;
+      boards[kind] = EventLeaderboard.fromJson(value);
+    }
+  } on Object catch (e) {
+    return PreviewInvalid('leaderboards: ${e.runtimeType}', seq: seq);
+  }
   return PreviewOk(
     PreviewRequest(
       seq: seq,
       event: detail,
+      leaderboards: boards,
       language: json['language'] == 'en' ? AppLanguage.en : AppLanguage.ar,
       dark: json['theme'] != 'light',
       state: state,
@@ -210,95 +233,19 @@ Map<String, dynamic> previewEventJson(
   };
 }
 
-/// The asset path of a sample photo (served next to the bundle; the page
-/// loads it like any other URL).
-String previewPhotoUrl(String name) => 'assets/assets/preview/$name.webp';
-
-const _samplePhotos = [
-  'avatar_layla',
-  'avatar_karim',
-  'avatar_rania',
-  'avatar_omar',
-  'avatar_huda',
-];
-
-const _namesAr = [
-  'سارة',
-  'خالد',
-  'ليان',
-  'عمر',
-  'نورة',
-  'أحمد',
-  'ريم',
-  'يوسف',
-  'هدى',
-  'كريم',
-  'لمى',
-  'زياد',
-];
-const _namesEn = [
-  'Sara',
-  'Khaled',
-  'Layan',
-  'Omar',
-  'Noura',
-  'Ahmed',
-  'Reem',
-  'Yousef',
-  'Huda',
-  'Karim',
-  'Lama',
-  'Ziad',
-];
-
-/// A SAMPLE board for the preview (12 made-up entrants, the sample photos on
-/// the first five; the viewer at 8th) — never real users. [photos] off draws
-/// Kabso's default picture (tests).
-EventLeaderboard previewLeaderboard(
+/// An empty board (`EventLeaderboard` JSON, read like the API's) for a board
+/// the panel sent no sample for.
+EventLeaderboard previewEmptyBoard(
   EventBoardKind kind, {
-  required bool ar,
   required bool ended,
   required int minPoints,
-  bool photos = true,
-}) {
-  final names = ar ? _namesAr : _namesEn;
-  UserSummary user(int i, [String suffix = '']) => UserSummary(
-    id: 'sample-$i$suffix',
-    username: 'sample$i$suffix',
-    displayName: names[i % names.length],
-    avatarUrl: photos && i < _samplePhotos.length
-        ? previewPhotoUrl(_samplePhotos[i])
-        : null,
-  );
-  final rows = [
-    for (var i = 0; i < names.length; i++)
-      GiftBoardRow(
-        rank: i + 1,
-        user: user(i),
-        partner: kind == EventBoardKind.cp
-            ? user(names.length - 1 - i, 'p')
-            : null,
-        isAgency: kind == EventBoardKind.agencies,
-        agencyName: kind == EventBoardKind.agencies
-            ? (ar ? 'وكالة ${names[i]}' : '${names[i]} Agency')
-            : null,
-        score: (8650000 / (i + 1) / (i + 1)).round() + minPoints,
-        qualified: true,
-        prize: const [],
-      ),
-  ];
-  return EventLeaderboard(
-    isFinal: ended,
-    rows: const [],
-    myRank: 8,
-    myScore: rows[7].score,
-    myPrize: 0,
-    board: kind,
-    minPoints: minPoints,
-    myQualified: true,
-    giftRows: rows,
-  );
-}
+}) => EventLeaderboard.fromJson({
+  'board': kind.wire,
+  'minPoints': minPoints,
+  'final': ended,
+  'data': const <Object?>[],
+  'me': const {'rank': null, 'score': 0, 'prizeCoins': 0, 'prize': <Object?>[]},
+});
 
 /// A message to the panel.
 String previewReply(String type, {int? seq, bool? designed, String? reason}) =>

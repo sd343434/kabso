@@ -1,3 +1,23 @@
+import type { PreviewState } from '../src/event-design';
+import { sampleLeaderboards } from '../src/event-preview-sample';
+
+/**
+ * A render message of protocol v2 as the panel sends it: [m] plus the panel's SAMPLE leaderboards of its event's boards
+ * (a message without an `event` object is left as it is: the bad-message case).
+ */
+export function render(m: Record<string, unknown>): Record<string, unknown> {
+  const event = m.event as Record<string, unknown> | undefined;
+  const ok = event && Array.isArray(event.boards);
+  return {
+    type: 'kabso.eventPreview.render',
+    v: 2,
+    ...m,
+    ...(ok
+      ? { leaderboards: sampleLeaderboards(event, m.language === 'en' ? 'en' : 'ar', (m.state ?? 'RUNNING') as PreviewState) }
+      : {}),
+  };
+}
+
 /** D356: a draft gift event as the panel posts it to the preview (`EventDetail` JSON, no art). */
 export function sampleEvent(design: unknown, ar = true): Record<string, unknown> {
   return {
