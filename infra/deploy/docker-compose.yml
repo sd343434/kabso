@@ -102,6 +102,9 @@ services:
       - ./studio:/srv/studio:ro
       # D330: the staging test APK mirror (mirror-apk.sh, run by update.sh; not in git), at https://live.<domain>/app/.
       - ./app:/srv/app:ro
+      # D356: the event page preview bundle the panel embeds (mirror-event-preview.sh swaps event-preview/current; not
+      # in git), at https://admin.<domain>/event-preview/.
+      - ./event-preview:/srv/event-preview:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on: [api, livekit]

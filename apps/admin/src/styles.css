@@ -2706,3 +2706,58 @@ table.events-v2 td .row { flex-wrap: wrap; }
 @media (max-width: 720px) {
   .ev-body .gev-line input[type='number'], .ev-body .gev-gift input[type='number'] { width: 80px; }
 }
+
+/* D356 (CONVENTIONS §10.152): the editor's design step — the designer beside the real preview (the app's Flutter page
+   in a phone frame). Wider dialog on this step; the preview column stays in view while the form scrolls. */
+.dialog:has(.ev-body[data-step='evStepDesign']) { width: min(1400px, 100%); }
+.dsg-layout { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: start; }
+.dsg-layout > .form-grid { min-width: 0; }
+.dsg-preview { position: sticky; top: 0; display: grid; gap: 8px; justify-items: center; }
+.dsg-preview h3 { margin: 0; font-size: 15px; }
+.dsg-preview .hint { max-width: 420px; text-align: center; }
+.dsg-preview-controls { display: flex; flex-wrap: wrap; gap: 6px 10px; justify-content: center; max-width: 440px; }
+.dsg-preview-controls select { width: auto; }
+.dsg-phone-slot { position: relative; }
+.dsg-phone {
+  position: absolute; top: 0; inset-inline-start: 0; transform-origin: top left; padding: 12px; border-radius: 46px;
+  background: #0b0b0d; box-shadow: 0 0 0 2px #34343d, var(--shadow-lg);
+}
+.dsg-phone iframe { display: block; border: 0; border-radius: 34px; background: #0b0b0d; }
+.dsg-preview-fallback { display: grid; gap: 8px; justify-items: center; }
+.dsg { display: grid; gap: 12px; }
+.dsg-picker { border: 0; padding: 0; margin: 0; }
+.dsg-picker legend { font-weight: 600; margin-bottom: 6px; }
+.dsg-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.dsg-option {
+  display: grid; justify-items: center; gap: 4px; width: 104px; padding: 6px; border-radius: var(--r-md);
+  border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 12px; text-align: center;
+}
+.dsg-option.on { border-color: var(--red-500); box-shadow: 0 0 0 2px color-mix(in srgb, var(--red-500) 30%, transparent); }
+.dsg-option input { position: absolute; opacity: 0; pointer-events: none; }
+.dsg-option:focus-within { outline: 2px solid var(--red-500); outline-offset: 2px; }
+.dsg-option img, .dsg-thumb-none { width: 92px; height: 120px; object-fit: cover; border-radius: 8px; background: #1a1208; }
+.dsg-edge { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.dsg-sections ol { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 6px; }
+.dsg-section {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--r-md);
+  border: 1px solid var(--border); background: var(--surface); cursor: grab;
+}
+.dsg-section strong { flex: 1; }
+.dsg-section.dragging { opacity: 0.6; border-style: dashed; }
+.dsg-section.hidden-section strong { opacity: 0.55; text-decoration: line-through; }
+.dsg-grip { color: var(--text-2); letter-spacing: -2px; }
+.dsg-lock { flex-basis: 100%; }
+.dsg-tier.invalid { border-inline-start: 3px solid var(--red-500); padding-inline-start: 6px; }
+.dsg-tier input[type='number'] { width: 64px; }
+.dsg-featured { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.dsg-issues { color: var(--red-500); margin: 4px 0; padding-inline-start: 18px; font-size: 13px; flex-basis: 100%; }
+.dsg-motion { display: grid; gap: 8px; }
+.dsg-motion input[type='range'] { width: min(320px, 100%); display: block; }
+.dsg-bg-thumb { width: 54px; height: 72px; object-fit: cover; border-radius: 6px; }
+.dsg-contrast ul { margin: 4px 0; padding-inline-start: 18px; }
+@media (max-width: 1100px) {
+  .dsg-layout { grid-template-columns: 1fr; }
+  .dsg-preview { position: static; }
+}
+.dsg-option img { object-position: top; }
+[data-picker='layout'] .dsg-option img, [data-picker='layout'] .dsg-thumb-none { height: 200px; }

@@ -14921,5 +14921,7 @@
   "eventsMilestonesTitle": "المراحل",
   "@eventsMilestonesTitle": {"description": "D354 (§10.150): the milestones section «المراحل» (D325)."},
   "eventsMilestoneAt": "عند {points} نقطة",
-  "@eventsMilestoneAt": {"description": "D354 (§10.150): a milestone's points threshold.", "placeholders": {"points": {"type": "String"}}}
+  "@eventsMilestoneAt": {"description": "D354 (§10.150): a milestone's points threshold.", "placeholders": {"points": {"type": "String"}}},
+  "eventPreviewSampleLabel": "معاينة · بيانات المتصدرين تجريبية",
+  "@eventPreviewSampleLabel": {"description": "D356 (§10.152): the label on the panel's live preview of the event page (Flutter web only, never in the app): the leaderboard rows are sample data."}
 }

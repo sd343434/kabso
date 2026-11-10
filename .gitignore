@@ -51,3 +51,5 @@ apps/studio/playwright-report/
 
 # D330: the staging APK mirror on the server (infra/deploy/mirror-apk.sh).
 infra/deploy/app/
+# D356: the event page preview bundle on the server (infra/deploy/mirror-event-preview.sh).
+infra/deploy/event-preview/

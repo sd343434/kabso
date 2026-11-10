@@ -1731,13 +1731,64 @@ D353).
   staff app's editor) and in `GET /events/{id}`; the background is a new `kind=board_background` of the existing event
   media upload (stored like the other event art in the media bucket, `media/<id>/…`).
 - **Order:** migration, API, then the app (an older app ignores `design` and keeps today's page; the new app against an
-  older API sees no design and draws today's page). The panel needs nothing yet (its designer is phase 2); an older
-  panel's full edit leaves `design` out, which keeps it.
+  older API sees no design and draws today's page). The panel's designer and its preview came with D356 (§11.14); an
+  older panel's full edit leaves `design` out, which keeps it.
 - **Rollback:** the older API ignores the column (and would not offer `board_background`); drop the column and restore
   the previous CHECK only after the older API is back, or leave them. A design saved meanwhile stays and reappears when
   the new API returns.
 - **Check after deploy:** `GET /admin/event-options` lists `designChoices`; a test event with
   `design: {v: 1, layout: "STAGE"}` returns the full design on `GET /events/{id}`; PP-86 on phones.
+
+### 11.14 The event page preview bundle at admin.<domain>/event-preview/ (D356) — [IMPLEMENTED; validated locally (Caddy 2.10.2 built from source, the mirror against a local HTTPS release, Chromium); not on the server or in CI yet]
+
+CONVENTIONS §10.152. The panel's design step embeds the app's real Flutter event page, built for the web from
+`apps/mobile/lib/preview_main.dart`. §11.13 is left for in-flight work.
+
+- **Why this way:** the server has no Flutter and should not get one (a ~2 GB image, minutes of CPU per build on the
+  only machine). CI already pins Flutter (3.47.7) and builds the APK; the bundle is static files. So **CI builds and
+  tests it, a release asset carries it, the server mirrors it** — the same path as the staging APK (§11.8). Served by
+  the panel's own Caddy block (same origin: the iframe and postMessage need no CORS and no extra DNS name), under
+  `/event-preview/`, outside the panel's build so a panel deploy never needs Flutter.
+- **Build:** `apps/mobile/tool/build_event_preview.sh OUT` (`flutter build web --release -t lib/preview_main.dart
+  --no-web-resources-cdn --base-href /event-preview/`, then trimmed: the CanvasKit renderer only (no skwasm / wimp /
+  webparagraph, no `.symbols`), no service worker, and the asset folders the event page never draws — live rooms, PK,
+  sounds, splash …). **Size:** 28 MB on disk (main.dart.js 3.6 MB, CanvasKit 13 MB with its Chromium variant, assets
+  12 MB incl. fonts), **14 MB** as `kabso-event-preview.tar.gz`; untrimmed it was 79 MB. A browser fetches only what
+  the page uses — compressed by Caddy, main.dart.js ~1.1 MB and the Chromium CanvasKit ~2.1 MB (gzip), plus the fonts
+  and pictures drawn — then revalidates (304).
+- **CI** (`.github/workflows/ci.yml`): job **`event-preview`** (when `apps/mobile` or `apps/admin` changed) builds the
+  bundle and the panel, installs Chromium (Playwright) and runs `apps/admin/e2e-preview/event-preview.spec.ts` (the
+  bundle answers, draws a posted design, rejects a bad message; the design step updates live and falls back), then
+  uploads `kabso-event-preview.tar.gz` + `kabso-event-preview.txt` (commit, `protocol=1`, sha256, size, built) as the
+  run's artifact (14 days). It is in `ci-ok`. Job **`event-preview-release`** (a green push to `staging` only; the one
+  job with `contents: write`, no checkout) puts both on the rolling prerelease **`staging-latest`** (with the APK).
+- **Server:** `infra/deploy/mirror-event-preview.sh`, run by `update.sh` at the end of every timer run next to
+  `mirror-apk.sh` (best effort, 600 s limit, never fails the deploy). It fetches the manifest, skips when the served
+  sha256 is the same, otherwise downloads the archive and checks its size (3–120 MB) and sha256, that it holds only
+  plain files and folders with safe relative paths, the files the page needs and `protocol=1`, then swaps it into
+  `infra/deploy/event-preview/current` with renames (git-ignored; Caddy mounts `./event-preview` at
+  `/srv/event-preview` read-only — **a compose change: `docker compose up -d caddy` once after this lands**). Variables
+  (all optional): `KABSO_PREVIEW_REPO` (default the APK's repo), `KABSO_PREVIEW_TAG` (`staging-latest`),
+  `KABSO_PREVIEW_BASE`, `KABSO_PREVIEW_DIR`. By hand: `sudo /opt/kabso/infra/deploy/mirror-event-preview.sh --force`.
+- **Caddy** (`admin.` block): `/event-preview/*` → `/srv/event-preview/current` (no SPA fallback: a missing file is a
+  404); headers split by path — the panel keeps its CSP (+ `frame-src 'self'`) and `X-Frame-Options DENY`; the preview
+  gets its own CSP (`script-src 'self' 'wasm-unsafe-eval'` for CanvasKit, `style-src 'self' 'unsafe-inline'` because the
+  Flutter engine injects `<style>` elements, `img-src` / `connect-src 'self' https:` for the event's art on the media
+  host — the page holds no credential and calls no API, `frame-ancestors 'self'`), `X-Frame-Options SAMEORIGIN` and
+  `Cache-Control: no-cache` (file names are not hashed). `KABSO_ADMIN_ALLOW_IPS` covers it like the rest of the panel.
+- **Order / compatibility:** none needed — no API or contract change. Without a bundle (first deploy, a failed mirror)
+  the step shows the sketch preview with a notice after 20 s; an older bundle with a newer panel (or the reverse) still
+  works while both speak protocol 1 (the mirror refuses another protocol and keeps the bundle it has).
+- **Rollback:** remove `infra/deploy/event-preview/current` (the sketch preview shows), or `--force` an older manifest.
+- **Check after deploy:** `curl -sI https://admin.<domain>/event-preview/` → 200 with the preview CSP and `SAMEORIGIN`;
+  `…/event-preview/kabso-event-preview.txt` names the commit; the design step's preview shows «معاينة ·
+  بيانات المتصدرين تجريبية» on the page; PP-88.
+- **Local:** `apps/mobile/tool/build_event_preview.sh /dev/shm/event-preview`, `pnpm --filter @kabso/admin build`, then
+  `EVENT_PREVIEW_DIR=/dev/shm/event-preview node apps/admin/e2e-preview/serve.mjs` (port 5190: the panel + the bundle on
+  one origin with Caddy's headers; the API is not proxied) or the Playwright config `playwright.preview.config.ts`. The
+  `vite` dev server (5180) has no bundle: its step shows the sketch fallback unless the bundle is served elsewhere
+  without `frame-ancestors 'self'`, `VITE_EVENT_PREVIEW_URL` points there and the bundle is built with
+  `--dart-define=PREVIEW_PARENT_ORIGINS=http://localhost:5180`.
 
 ### 5.25 Video posts and reels (migration `20261211090000_video_posts_reels`; D162) — [IMPLEMENTED, draft contract v1.41-social; not deployed, not device-tested]
 

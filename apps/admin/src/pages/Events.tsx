@@ -29,7 +29,9 @@ import {
 import type { Key } from '../i18n';
 import { Icon } from '../ui/icons';
 import { GiftEventResults, type AdminGiftEvent } from './GiftEventForm';
-import { EventArtFields, MedalDialog, PrizeItemEditor } from './GiftEventParts';
+import { EventArtFields, EventPagePreview, MedalDialog, PrizeItemEditor } from './GiftEventParts';
+import { ContrastNotice, EventDesignFields, EventLivePreview, useMeasuredColour } from './EventDesigner';
+import { designProblems, designServerProblems, previewEvent } from '../event-design';
 
 /** `AdminEventList` row (v1.101-social, D325). */
 export interface EventRow {
@@ -288,7 +290,11 @@ export function EventEditor({
     );
   }
   const server = givenServer ?? loaded.data ?? null;
-  const start = initial ?? (server ? formFromServer(server.form, options.timeZone) : newDraft(options.timeZone));
+  const start =
+    initial ??
+    (server
+      ? formFromServer(server.form, options.timeZone, server.artUrls?.leaderboardBackground ?? null)
+      : newDraft(options.timeZone));
   return (
     <Wizard
       eventId={eventId}
@@ -331,6 +337,15 @@ function Wizard({
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState<'gift' | 'item' | 'medal' | null>(null);
+  // D356: the pictures the contrast warning measures (fresh uploads; else their URLs when readable).
+  const [pageBgFile, setPageBgFile] = useState<Blob | null>(null);
+  const [boardBgFile, setBoardBgFile] = useState<Blob | null>(null);
+  const video = /\.(mp4|mov)$/.test(f.backgroundKey ?? '');
+  const pageColour = useMeasuredColour(pageBgFile ?? (video ? artUrls.backgroundPoster : artUrls.background) ?? null);
+  const boardColour = useMeasuredColour(boardBgFile ?? f.design?.backgroundUrl ?? null);
+  // D356: the design's problems — the panel's own (the server's rules) and the server's last refusal.
+  const designLocal = f.design ? designProblems(f.design, f.boards) : [];
+  const designAll = [...designLocal, ...designServerProblems(error)];
   const wasPublished = server?.form.status === 'PUBLISHED' || (server !== null && server.form.status === undefined);
   const locked = server?.structureLocked ?? false;
   const index = EVENT_STEPS.indexOf(step);
@@ -355,6 +370,8 @@ function Wizard({
     } catch (e) {
       setError(e);
       setBusy(false);
+      // D356: a design refusal is shown at its field in the design step.
+      if (designServerProblems(e).length > 0) setStep('evStepDesign');
       return null;
     }
   };
@@ -833,48 +850,72 @@ function Wizard({
         );
       case 'evStepDesign':
         return (
-          <div className="form-grid">
-            <div className="field span-2">
-              <label htmlFor="ev-banner">{t('evBanner')}</label>
-              <input
-                id="ev-banner"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setError(null);
-                  uploadEventMedia('banner', file).then((up) => {
-                    set('bannerMediaId', up.mediaId ?? '');
-                    setBannerUrl(up.url);
-                  }, setError);
+          <div className="dsg-layout">
+            <div className="form-grid">
+              <div className="field span-2">
+                <label htmlFor="ev-banner">{t('evBanner')}</label>
+                <input
+                  id="ev-banner"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setError(null);
+                    uploadEventMedia('banner', file).then((up) => {
+                      set('bannerMediaId', up.mediaId ?? '');
+                      setBannerUrl(up.url);
+                    }, setError);
+                  }}
+                />
+                <span className="hint">{t('evBannerHint')}</span>
+                {bannerUrl && <img className="ev-banner-preview" src={bannerUrl} alt="" />}
+              </div>
+              {/* v1.105-social (D340): a display setting — editable while the event runs. */}
+              <div className="field span-2">
+                <label className="check">
+                  <input
+                    id="ev-announce"
+                    type="checkbox"
+                    checked={f.announceFullscreen}
+                    onChange={(e) => set('announceFullscreen', e.target.checked)}
+                  />
+                  {t('evAnnounceFullscreen')}
+                </label>
+                <span className="hint">{t('evAnnounceFullscreenHint')}</span>
+              </div>
+              <EventArtFields
+                f={f}
+                options={options}
+                urls={artUrls}
+                disabled={false}
+                preview={false}
+                onKey={(slot, key, url, file) => {
+                  setF((x) => ({ ...x, [`${slot}Key`]: key }));
+                  setArtUrls((x) => ({ ...x, [slot]: url }));
+                  if ((slot === 'background' && file && !/^video\//.test(file.type)) || slot === 'backgroundPoster') {
+                    setPageBgFile(file ?? null);
+                  }
                 }}
               />
-              <span className="hint">{t('evBannerHint')}</span>
-              {bannerUrl && <img className="ev-banner-preview" src={bannerUrl} alt="" />}
+              {/* v1.115-social (D354 / D356): the page designer — a display setting, editable while the event runs. */}
+              <EventDesignFields
+                design={f.design ?? null}
+                boards={f.boards}
+                options={options}
+                problems={designAll}
+                onChange={(d) => set('design', d)}
+                onBackgroundFile={setBoardBgFile}
+              />
+              {f.design && (
+                <div className="span-2">
+                  <ContrastNotice design={f.design} page={pageColour} board={boardColour} />
+                </div>
+              )}
             </div>
-            {/* v1.105-social (D340): a display setting — editable while the event runs. */}
-            <div className="field span-2">
-              <label className="check">
-                <input
-                  id="ev-announce"
-                  type="checkbox"
-                  checked={f.announceFullscreen}
-                  onChange={(e) => set('announceFullscreen', e.target.checked)}
-                />
-                {t('evAnnounceFullscreen')}
-              </label>
-              <span className="hint">{t('evAnnounceFullscreenHint')}</span>
-            </div>
-            <EventArtFields
-              f={f}
-              options={options}
-              urls={artUrls}
-              disabled={false}
-              onKey={(slot, key, url) => {
-                setF((x) => ({ ...x, [`${slot}Key`]: key }));
-                setArtUrls((x) => ({ ...x, [slot]: url }));
-              }}
+            <EventLivePreview
+              eventFor={(l) => previewEvent(f, options, artUrls, l, eventId)}
+              fallback={<EventPagePreview f={f} urls={artUrls} />}
             />
           </div>
         );
@@ -907,10 +948,15 @@ function Wizard({
               <textarea id="ev-reason" maxLength={500} value={f.reason} onChange={(e) => set('reason', e.target.value)} />
               <span className="hint">{t('reasonHint')}</span>
             </div>
-            {problems.length > 0 && (
+            {(problems.length > 0 || designLocal.length > 0) && (
               <ul className="span-2 muted small gev-problems">
                 {problems.map((p) => (
                   <li key={p}>{t(p as Key)}</li>
+                ))}
+                {[...new Set(designLocal.map((p) => p.issue))].map((issue) => (
+                  <li key={issue}>
+                    {t('evStepDesign')}: {t(`dsgIssue_${issue}` as Key)}
+                  </li>
                 ))}
               </ul>
             )}
@@ -955,7 +1001,7 @@ function Wizard({
           <button
             type="button"
             className="btn"
-            disabled={busy || draftProblems.length > 0}
+            disabled={busy || draftProblems.length > 0 || designLocal.length > 0}
             onClick={() => {
               void save('DRAFT').then((id) => {
                 if (id) {
@@ -976,7 +1022,7 @@ function Wizard({
           <button
             type="button"
             className="btn primary"
-            disabled={busy || giftEventProblems({ ...f, status: 'PUBLISHED' }).length > 0}
+            disabled={busy || giftEventProblems({ ...f, status: 'PUBLISHED' }).length > 0 || designLocal.length > 0}
             onClick={() => {
               void save('PUBLISHED').then((id) => id && onDone());
             }}

@@ -29241,6 +29241,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عند {points} نقطة'**
   String eventsMilestoneAt(String points);
+
+  /// D356 (§10.152): the label on the panel's live preview of the event page (Flutter web only, never in the app): the leaderboard rows are sample data.
+  ///
+  /// In ar, this message translates to:
+  /// **'معاينة · بيانات المتصدرين تجريبية'**
+  String get eventPreviewSampleLabel;
 }
 
 class _AppLocalizationsDelegate

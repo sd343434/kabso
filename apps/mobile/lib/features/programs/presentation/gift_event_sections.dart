@@ -716,8 +716,14 @@ class GiftEventBackdrop extends StatelessWidget {
   @visibleForTesting
   static ImageProvider Function(String url)? imageForTesting;
 
+  // D356: on the web (the panel's preview) an art host without CORS headers
+  // still shows, as an <img> element; the phone ignores the strategy.
   static ImageProvider image(String url) =>
-      imageForTesting?.call(url) ?? NetworkImage(url);
+      imageForTesting?.call(url) ??
+      NetworkImage(
+        url,
+        webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+      );
 
   @override
   Widget build(BuildContext context) {

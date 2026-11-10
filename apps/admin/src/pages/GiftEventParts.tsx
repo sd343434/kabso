@@ -175,12 +175,16 @@ export function EventArtFields({
   urls,
   disabled,
   onKey,
+  preview = true,
 }: {
   f: GiftEventFormState;
   options: EventOptions;
   urls: Partial<Record<ArtSlot, string | null>>;
   disabled: boolean;
-  onKey: (slot: ArtSlot, key: string, url: string | null) => void;
+  /** D356: with the uploaded file (the design step measures the background's light for its contrast warning). */
+  onKey: (slot: ArtSlot, key: string, url: string | null, file?: File) => void;
+  /** D356: the sketch preview below the fields (the editor's design step shows the real preview instead). */
+  preview?: boolean;
 }) {
   const { t } = useApp();
   const [error, setError] = useState<unknown>(null);
@@ -203,7 +207,7 @@ export function EventArtFields({
           setError(null);
           uploadEventMedia(kind, file).then(
             (up: EventMediaUpload) => {
-              onKey(slot, up.key ?? '', up.url);
+              onKey(slot, up.key ?? '', up.url, file);
               setBusy(null);
             },
             (err: unknown) => {
@@ -241,7 +245,7 @@ export function EventArtFields({
         field('backgroundPoster', t('gevArtPoster'), ['background'], 'image/png,image/jpeg,image/webp')}
       {field('title', t('gevArtTitle'), ['title'], 'image/png,image/webp')}
       {field('overlay', t('gevArtOverlay'), ['overlay'], '.svga,application/json,.json')}
-      <EventPagePreview f={f} urls={urls} />
+      {preview && <EventPagePreview f={f} urls={urls} />}
     </fieldset>
   );
 }

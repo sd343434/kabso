@@ -17364,4 +17364,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String eventsMilestoneAt(String points) {
     return 'At $points points';
   }
+
+  @override
+  String get eventPreviewSampleLabel => 'Preview · sample leaderboard data';
 }

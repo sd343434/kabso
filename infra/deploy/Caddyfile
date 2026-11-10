@@ -72,26 +72,48 @@ api.{$KABSO_DOMAIN} {
 # KABSO_ADMIN_MEDIA_ORIGINS in kabso.env when LIVEKIT_URL is elsewhere (e.g. "wss://x.livekit.cloud https://x.livekit.cloud").
 admin.{$KABSO_DOMAIN} {
 	encode zstd gzip
+	# D356 (CONVENTIONS §10.152, docs/DEPLOYMENT.md §11.14): /event-preview/ is the event page preview bundle (the app's
+	# Flutter page built for the web, mirrored by mirror-event-preview.sh), framed by the panel's design step only
+	# (frame-ancestors 'self'). It differs from the panel: CanvasKit is WebAssembly ('wasm-unsafe-eval'), the Flutter
+	# engine injects its own <style> elements (style-src 'unsafe-inline'; scripts stay 'self'), and the event's art
+	# comes from the media host (img-src / connect-src https:; the page holds no credential and calls no API).
+	# apps/admin/e2e-preview/headers.mjs repeats both policies for the local tests (a unit test keeps them equal).
+	@preview path /event-preview /event-preview/*
+	@panel not path /event-preview /event-preview/*
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self'; media-src 'self' blob:; connect-src 'self' wss://live.{$KABSO_DOMAIN} https://live.{$KABSO_DOMAIN} {$KABSO_ADMIN_MEDIA_ORIGINS}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
-		X-Frame-Options "DENY"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "no-referrer"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
 		X-Robots-Tag "noindex, nofollow"
 		-Server
 	}
+	header @panel {
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self'; media-src 'self' blob:; connect-src 'self' wss://live.{$KABSO_DOMAIN} https://live.{$KABSO_DOMAIN} {$KABSO_ADMIN_MEDIA_ORIGINS}; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		X-Frame-Options "DENY"
+	}
+	header @preview {
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'"
+		X-Frame-Options "SAMEORIGIN"
+		# File names are not hashed: always revalidated (ETag), so a new bundle shows on the next open.
+		Cache-Control "no-cache"
+	}
 	@blocked not remote_ip {$KABSO_ADMIN_ALLOW_IPS:0.0.0.0/0 ::/0}
-	@page not path /assets/* /api/*
+	@page not path /assets/* /api/* /event-preview /event-preview/*
 	header @page Cache-Control "no-store"
 	header /assets/* Cache-Control "public, max-age=31536000, immutable"
-	# `route` keeps this order: the allowlist, the internal paths, the API, then the static panel.
+	# `route` keeps this order: the allowlist, the internal paths, the API, the preview bundle, then the static panel.
 	route {
 		respond @blocked "Forbidden" 403
 		respond /internal/* 404
 		# Caddy is the one proxy that appends X-Forwarded-For: TRUST_PROXY=1 (docs/DEPLOYMENT.md §3.1).
 		reverse_proxy /api/* api:3000
+		redir /event-preview /event-preview/ 308
+		# D356: no SPA fallback here — a missing file is a 404 (the panel then shows its sketch preview).
+		handle_path /event-preview/* {
+			root * /srv/event-preview/current
+			file_server
+		}
 		root * /srv/admin/current
 		try_files {path} /index.html
 		file_server
@@ -107,7 +129,7 @@ studio.{$KABSO_DOMAIN} {
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; font-src 'self'; media-src 'self' blob:; connect-src 'self' wss://live.{$KABSO_DOMAIN} https://live.{$KABSO_DOMAIN} {$KABSO_STUDIO_MEDIA_ORIGINS}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self'; media-src 'self' blob:; connect-src 'self' wss://live.{$KABSO_DOMAIN} https://live.{$KABSO_DOMAIN} {$KABSO_STUDIO_MEDIA_ORIGINS}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 		X-Frame-Options "DENY"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "no-referrer"

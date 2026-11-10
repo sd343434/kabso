@@ -17,5 +17,5 @@
     "allowSyntheticDefaultImports": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "test", "e2e", "vite.config.ts", "playwright.config.ts"]
+  "include": ["src", "test", "e2e", "e2e-preview", "vite.config.ts", "playwright.config.ts", "playwright.preview.config.ts"]
 }
