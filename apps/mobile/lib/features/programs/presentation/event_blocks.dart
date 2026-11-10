@@ -957,13 +957,16 @@ class EbCta extends StatelessWidget {
   );
 }
 
-/// Footer: slogan between ornamental lines, then the Kabso Live wordmark
-/// (set in Fredoka like the launch screen; the official logo file is still
-/// missing, blocker B8).
+/// Footer: slogan between ornamental lines, then the official Kabso Live
+/// logo (owner-supplied 2026-11-09, `assets/brand/`; the dark-background
+/// version, white «Kabso»).
 class EbFooter extends StatelessWidget {
   const EbFooter(this.slogan, {super.key});
 
   final String slogan;
+
+  static const logoDarkBg =
+      'assets/brand/kabso_live_logo_horizontal_dark_bg.webp';
 
   @override
   Widget build(BuildContext context) => Column(
@@ -994,49 +997,7 @@ class EbFooter extends StatelessWidget {
         ],
       ),
       const SizedBox(height: KSpacing.lg),
-      Semantics(
-        label: 'Kabso Live',
-        child: ExcludeSemantics(
-          child: Directionality(
-            textDirection: TextDirection.ltr,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Text(
-                  'kabso',
-                  style: TextStyle(
-                    fontFamily: 'Fredoka',
-                    fontSize: 34,
-                    color: Colors.white,
-                    height: 1,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: KBrandColors.red500,
-                    borderRadius: BorderRadius.circular(KRadius.sm),
-                  ),
-                  child: const Text(
-                    'LIVE',
-                    style: TextStyle(
-                      fontFamily: 'Fredoka',
-                      fontSize: 16,
-                      color: Colors.white,
-                      height: 1.2,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      Image.asset(logoDarkBg, width: 200, semanticLabel: 'Kabso Live'),
     ],
   );
 }

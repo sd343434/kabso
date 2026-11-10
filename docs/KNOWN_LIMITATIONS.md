@@ -16,7 +16,7 @@
 | B10 | Least-privilege runtime DB role (SEC-011) | Implemented in KL-013 (`466b66b`) and verified by A7 in KL-007f: PASS WITH CONDITIONS. KL7F-01/02/09 must be fixed in KL-013b before the first deployment | Nothing from you; engineering follow-up KL-013b |
 | B12 | Media storage credentials (owner chose Cloudflare R2, D45) | Avatar, cover and post photo uploads stay disabled (`MEDIA_UPLOADS_ENABLED=false`); the upload code exists (KL-060) and is verified against an S3-compatible test server | R2 account, bucket, custom domain, API token via the secret manager; cost approval *(D222: the R2 account, the two buckets, the custom domain and the token can now be entered and turned on by the OWNER in the admin panel «التخزين (R2 / S3)» — DEPLOYMENT §5.40; still needed: the account and the token themselves.)* |
 | B13 | Image moderation provider; legal duty for illegal content (e.g. CSAM detection and reporting) | Uploaded images are visible only to their owner | Provider choice (e.g. Rekognition, SafeSearch, Hive) + legal review before public launch |
-| B8 | Brand assets (logo, app icon) | App uses a text wordmark placeholder | Official Kabso Live assets |
+| B8 | Brand assets (logo, app icon) | **Logo resolved (2026-11-09):** the owner's official logo (mascot + «Kabso Live» wordmark, horizontal and stacked, light and dark-background versions) is in `apps/mobile/assets/brand/` (PROVENANCE.md); used first in the KL-352 event-page block footer. Screens that still draw `KLogo` (the text placeholder) move to it as they are touched | App icon: confirm whether the current launcher icon is final |
 
 ## Current limitations (Phase 1)
 
