@@ -167,6 +167,9 @@ flutter:
     # D154 the owner's «إفيهات» quips (assets/sounds/quips/PROVENANCE.md).
     - assets/sounds/quips/room/
     - assets/sounds/quips/kabi/
+    # D349 the owner's Gulf and Jordanian quips (same PROVENANCE.md).
+    - assets/sounds/quips/gulf/
+    - assets/sounds/quips/jordan/
     # Owner-supplied emoji packs, one folder per pack (D66, D102; Kabi's
     # outline added by tool/kabi_emoji_outline.py; assets/emojis/PROVENANCE.md).
     - assets/emojis/kabi/

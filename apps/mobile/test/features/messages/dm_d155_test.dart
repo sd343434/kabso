@@ -416,8 +416,10 @@ void main() {
   testWidgets('D154 × D155: the conversation panel offers paid quips (sent '
       'through the DM API) but not the free ones of a live', (tester) async {
     final dm = _world();
-    final gifts = FakeLiveGiftRepository(codes: ['rose', ...quipFixtureCodes])
-      ..categories = const ['POPULAR', 'EVENT', 'FUN', 'QUIPS'];
+    final gifts = FakeLiveGiftRepository(
+      codes: ['rose', ...quipFixtureCodes],
+      coins: 1000000,
+    )..categories = const ['POPULAR', 'EVENT', 'FUN', 'QUIPS'];
     await _pump(
       tester,
       const ChatScreen(username: 'sara_2026'),

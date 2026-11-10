@@ -36,19 +36,41 @@ const _gifts = <String, (String, int, String, String?, String, String)>{
   // need it list it and the LUCKY tab).
   'lucky_clover': ('LUCKY', 10, 'NONE', null, 'برسيم الحظ', 'Lucky clover'),
   // v1.32-live (D154): quips (not in [giftFixtureCodes]; tests that need
-  // them list them and the QUIPS tab).
+  // them list them and the QUIPS tab). D349: every paid line 100 000.
   'quip_clap': ('QUIPS', 0, 'NONE', null, 'تصفيق', 'Clap'),
-  'quip_ghazal_01': ('QUIPS', 99, 'NONE', null, 'غزل ١', 'Flirty 1'),
+  'quip_ghazal_01': ('QUIPS', 100000, 'NONE', null, 'غزل ١', 'Flirty 1'),
+  'quip_gulf_14': ('QUIPS', 100000, 'NONE', null, 'خليجي ١٤', 'Gulf 14'),
+  'quip_jordan_01': ('QUIPS', 100000, 'NONE', null, 'أردني ١', 'Jordanian 1'),
 };
 
 /// D154: the quips' sound, length and words. code: (soundKey, ms, text).
 const _quips = <String, (String, int, String?)>{
   'quip_clap': ('room/clap', 2038, null),
   'quip_ghazal_01': ('kabi/ghazal_01', 4362, 'إيه الجمال ده! تحفة بجد!'),
+  // D349: the owner's words (one with an emoji).
+  'quip_gulf_14': (
+    'gulf/gulf_14',
+    7340,
+    'تدري وش ناقص الدنيا؟ نسخة ثانية منك، عشان إذا اشتقت لك أروح لها! 😂',
+  ),
+  'quip_jordan_01': (
+    'jordan/jordan_01',
+    5016,
+    'ولك شو هالحلا؟ إنت مش بني آدم، إنت مخالفِة جمال!',
+  ),
 };
 
 /// D154: the quip codes of the test catalogue.
 const quipFixtureCodes = ['quip_clap', 'quip_ghazal_01'];
+
+/// D349: the quips of one per sub-category, in the server's order
+/// (مجانية, مصري, خليجي, أردني).
+const quipRegionFixtureCodes = [
+  'quip_clap',
+  'quip_ghazal_01',
+  'quip_gulf_14',
+  'quip_jordan_01',
+];
 
 /// The test sub-categories (D117): only POPULAR gifts carry one, so the
 /// other tabs show no chip row. code: (tagCode, ar, en).
@@ -58,7 +80,9 @@ const _tags = <String, (String, String, String)>{
   'crown': ('luxury', 'فخامة', 'Luxury'),
   'sports_car': ('luxury', 'فخامة', 'Luxury'),
   'quip_clap': ('free', 'مجانية', 'Free'),
-  'quip_ghazal_01': ('ghazal', 'غزل', 'Flirty'),
+  'quip_ghazal_01': ('egypt', 'مصري', 'Egyptian'),
+  'quip_gulf_14': ('gulf', 'خليجي', 'Gulf'),
+  'quip_jordan_01': ('jordan', 'أردني', 'Jordanian'),
 };
 
 /// The name of [code] as the server sends it.
@@ -82,6 +106,8 @@ Map<String, Object?> giftJson(String code, {bool ar = true}) {
     'assetKey': switch (code) {
       'quip_clap' => 'quips/clap',
       'quip_ghazal_01' => 'quips/ghazal',
+      'quip_gulf_14' => 'quips/gulf',
+      'quip_jordan_01' => 'quips/jordan',
       _ => 'gift_$code',
     },
     'animationKey': g.$4,

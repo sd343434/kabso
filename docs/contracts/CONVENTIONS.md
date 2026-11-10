@@ -2672,7 +2672,8 @@ Owner decisions (2026-10-28, D154 items 5, 5b–5f) are marked *(owner)*.
   (his own Kabso sounds, loudness-normalised; provenance in the app's `assets/sounds/quips/`) is added
   with `gift-admin quips-seed`: **8 free sounds** (clap, laugh, welcome, wow, ta-da, ya salam, bell,
   ooh; tag `free`) and **27 Kabi lines** at **ghazal 99, funny 199, tease 299 coins** (tags `ghazal`,
-  `funny`, `tease`). An admin manages quips like any gift (`gift-admin add|update … --category QUIPS
+  `funny`, `tease`). **D349 (§10.147):** the paid lines are now **100 000 coins** each in the
+  sub-categories «مصري» (these 27, tag `egypt`), «خليجي» (`gulf`, 14) and «أردني» (`jordan`, 4). An admin manages quips like any gift (`gift-admin add|update … --category QUIPS
   --sound <key> --sound-ms <ms> [--quip-text <text>]`; a new sound needs an app release that bundles
   it). Only a QUIPS gift may cost **0** (CHECK `gifts_price_range`); the sound fields are set exactly
   for QUIPS (CHECK `gifts_quip_fields`). Quips are never in the bag (`grant` refuses them).
@@ -11177,3 +11178,40 @@ placement) and asked for the two follow-ups below.
   silently override two others; the level banner (`level-ticker`, D254) is not a win; the live's own win banner
   (`lucky-win`) always shows. D151's hide flag (`luckyTickerHiddenProvider`) is now this switch.
 
+### 10.147 «إفيهات» by dialect: مجانية · مصري · خليجي · أردني *(no contract change — D349)*
+
+Owner (2026-11-09): «الافيهات الموجودة فيها افيهات مجانية ضعها في فئة فرعية باسم (مجانية) والباقي اجعل سعرها ١٠٠ الف
+وضعها في فئة فرعية اسمها (مصري) … افيهات خليجي وافيهات اردنية ضعها كل واحدة بفئة فرعية خاصة وسعر كل واحدة ايضاً ١٠٠
+الف». Catalogue data only: no field, endpoint, schema or error changes (`Gift.tag`, `Gift.quip`, `LiveQuip` as in
+§10.33), so no contract version. §10.147 was the number given for D349 (§10.132–§10.146 belong to other branches).
+
+- **The pack** (`QUIP_PACK`, `apps/api/src/modules/gifts/quips.ts`) — 53 QUIPS gifts in four sub-categories (the
+  panel's chips, in this order because the chips follow the gifts' `sortOrder`, §10.23):
+
+  | Chip (tag) | `sortOrder` | Quips | Price |
+  | ---------- | ----------- | ----- | ----- |
+  | «مجانية» / Free (`free`) | 0–7 | the 8 free room sounds of D154 | 0 (one per viewer per live; soundboard) |
+  | «مصري» / Egyptian (`egypt`) | 101–127 | the 27 Kabi lines of D154 (ghazal 1–10, funny 1–8, tease 1–9, in that order) | 100 000 |
+  | «خليجي» / Gulf (`gulf`) | 201–214 | `quip_gulf_01…14`, sound `gulf/gulf_NN`, «خليجي ١…١٤» / "Gulf 1…14" | 100 000 |
+  | «أردني» / Jordanian (`jordan`) | 301–304 | `quip_jordan_01…04`, sound `jordan/jordan_NN`, «أردني ١…٤» / "Jordanian 1…4" | 100 000 |
+
+  The D154 lines keep their codes (`quip_ghazal_01` …), names («غزل ١» …), sounds, art keys and texts, so history,
+  reports and the apps' art stay valid; only the tag, price and order change. Every paid line has its words
+  (`Gift.quip.text`; the Gulf / Jordanian texts are the owner's ElevenLabs texts with the direction tags removed). The
+  cell art key is `quips/<kind>` (`quips/gulf`, `quips/jordan`; the app draws Kabso's own Kabi art for it).
+- **A price change applies to later sends only:** every send stores its `unitPrice`, `totalCoins` and
+  `host_share_bps`, which are never rewritten. Shares are unchanged: quips 50 % of a send in a live
+  (`GIFT_HOST_SHARE_PERCENTS`, `QUIPS:50`), 60 % in a content creator's live (`GIFT_CREATOR_QUIP_SHARE_PERCENT`), the DM
+  recipient share in a conversation (§11.13); a paid quip counts like any gift (score, charm, support, family).
+- **`gift-admin quips-sync [--texts <file.json>]`** (migration role): brings a catalogue in line with the pack in one
+  transaction — adds the missing quips (`gift.add`) and, on the pack's existing quips, sets `priceCoins`, `tagCode`,
+  `tagNameAr`, `tagNameEn` and `sortOrder` (`gift.update` with the changes); names, sounds, art, on/off and texts are
+  left alone. `--texts` takes a JSON object of pack code → words (1–200 characters after trimming; `null` removes
+  them) and also sets those quips' `quipText` (unknown code, bad value or bad JSON → exit 1, nothing written). A
+  second run changes nothing (`quips: 0 added, 0 updated, 53 unchanged.`). A pack code held by a non-QUIPS gift is
+  refused. `quips-seed` stays add-only.
+- **Apps:** the sounds are bundled, so the new quips play only on an app that bundles `assets/sounds/quips/gulf/` and
+  `jordan/` (this release). An **older app** shows them from the catalogue like any quip (name, words, price; the
+  generic Kabi «sing» art for the unknown `quips/gulf` / `quips/jordan` keys) and, when one plays, shows the strip and
+  chat line with the words; loading the missing sound fails inside `AudioplayersQuipAudio.play`, which catches it (no
+  sound, no crash).

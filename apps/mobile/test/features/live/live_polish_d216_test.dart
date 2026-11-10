@@ -190,6 +190,8 @@ void main() {
       'quips/ghazal',
       'quips/funny',
       'quips/tease',
+      'quips/gulf',
+      'quips/jordan',
       'quips/unknown',
     ]) {
       expect(quipArt(key).asset, startsWith('assets/emojis/'), reason: key);
