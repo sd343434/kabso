@@ -89,7 +89,7 @@ describe('quips (v1.32-live, D154; D349)', () => {
       nameAr: 'أردني ١',
       nameEn: 'Jordanian 1',
       soundKey: 'jordan/jordan_01',
-      assetKey: 'quips/jordan',
+      assetKey: 'quips/jordan', // gitleaks:allow (an asset name)
       quipText: 'ولك شو هالحلا؟ إنت مش بني آدم، إنت مخالفِة جمال!',
     });
   });

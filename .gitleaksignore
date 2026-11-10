@@ -18,3 +18,12 @@ a0a187076ebef26251c8cb8181218f3712b331f6:apps/api/test/d340-event-announcements.
 # The same line as seen through the int20 merge commits' diffs (gitleaks git --log-opts="-m …").
 3767565a7ce4206627bb99fa4d302044625e8c3c:apps/api/test/d340-event-announcements.e2e-spec.ts:generic-api-key:148
 3aa81907a0cc5ff7100e5c8a5008e46842cc45f9:apps/api/test/d340-event-announcements.e2e-spec.ts:generic-api-key:148
+# Same exception pattern (D349, integration int22): the D349 unit spec's quip art key ('quips/jordan') matched
+# generic-api-key by its shape. It is an asset name, not a secret; the line now carries gitleaks:allow.
+201f9995276dbe4cfa35bccbe25b3bd2aada61d6:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+# The same line as seen through the int22 merge commits' diffs (gitleaks git --log-opts="-m …").
+b861685c7a3ec1b1f941921f3f05a5214b06a8d6:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+116f8b598bd63f591e12daa8aa5cfcca4faa5697:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+cb6a01cbf824de23434924f02442d5a517efce42:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+80be062f333bd7d6dc9ca3b8b4c821ee84b8eacd:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+a1a67abd78a47b7ed2e5936f161ef9f0c0dc9754:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
