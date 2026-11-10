@@ -4019,7 +4019,7 @@ abstract class AppLocalizations {
   /// D361 (§10.156): the line under «المؤسس ليس له مستوى».
   ///
   /// In ar, this message translates to:
-  /// **'حساب مؤسس كابسو لا يحمل مستوى، ولا يظهر له مستوى في أي مكان: الملف الشخصي والبث والدردشة والقوائم.'**
+  /// **'حساب مؤسس Kabso Live لا يحمل مستوى، ولا يظهر له مستوى في أي مكان: الملف الشخصي والبث والدردشة والقوائم.'**
   String get levelsFounderBody;
 
   /// D72: levels (CP-005).
