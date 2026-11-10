@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { Redis } from 'ioredis';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { z } from 'zod';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
@@ -14,6 +15,7 @@ import { limitedStaffSql } from '../live/live-staff.js';
 import { MediaService } from '../media/media.service.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { Notifier } from '../notifications/notifier.js';
+import { REDIS } from '../../redis/redis.module.js';
 import { formatStaffId, parseStaffId, staffIdsAmong } from '../users/staff-ids.js';
 import {
   FEEDBACK_CATEGORIES,
@@ -23,6 +25,7 @@ import {
   FEEDBACK_STATUSES,
   FEEDBACK_TEXT_MAX,
   FEEDBACK_WINDOW_MS,
+  FOUNDER_FEEDBACK_COUNT_CACHE_KEY,
   feedbackImageKey,
   type FeedbackKind,
   type FeedbackStatus,
@@ -149,7 +152,13 @@ export class OwnerFeedbackService {
     private readonly audit: AuditService,
     private readonly clock: Clock,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    @Inject(REDIS) private readonly redis: Redis,
   ) {}
+
+  /** v1.118-social (D357, §10.153): the founder's public count changed — drop its cached value (best effort). */
+  private async dropFeedbackCount(): Promise<void> {
+    await this.redis.del(FOUNDER_FEEDBACK_COUNT_CACHE_KEY).catch(() => undefined);
+  }
 
   /** `GET /owner/feedback/staff?q=`: the Kabso Team accounts a report may name (never an OWNER). */
   async staff(query: unknown): Promise<{ data: FeedbackStaffDto[] }> {
@@ -260,6 +269,7 @@ export class OwnerFeedbackService {
         });
         return row;
       });
+      await this.dropFeedbackCount();
       return { id: created.id, kind: input.kind, createdAt: created.createdAt.toISOString() };
     } catch (err) {
       await this.media.deletePrivateObjects(keys).catch(() => undefined);
@@ -414,6 +424,7 @@ export class OwnerFeedbackService {
         requestId: admin.requestId,
       });
     });
+    await this.dropFeedbackCount();
     await this.media.deletePrivateObjects(row.imageKeys);
   }
 

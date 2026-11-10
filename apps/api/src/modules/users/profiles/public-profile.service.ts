@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import type { Redis } from 'ioredis';
+import { REDIS } from '../../../redis/redis.module.js';
 import { Clock } from '../../../common/time/clock.js';
 import { recordProfileVisit } from '../../vip/profile-visits.js';
 import { AppException } from '../../../common/errors/app-exception.js';
@@ -125,6 +127,8 @@ export interface PublicProfileDto {
   coverVideo?: OwnerCoverVideoDto;
   /** v1.98-social (D307, §10.112.11): the owner's bilingual bio (only with at least one language). */
   ownerBio?: OwnerBioDto;
+  /** v1.118-social (D357, §10.153): the «اقترح ميزة / أبلغ» submissions the founder received (owner only). */
+  founderFeedbackCount?: number;
 }
 
 /**
@@ -146,6 +150,7 @@ export class PublicProfileService {
     private readonly bag: BagService,
     private readonly clock: Clock,
     private readonly media: MediaService,
+    @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
   private readonly logger = new Logger(PublicProfileService.name);
@@ -311,8 +316,14 @@ export class PublicProfileService {
       joinedMonth: user.joinedMonth,
       blockedByMe,
       ...stats,
-      // v1.95-social (D301, §10.112): the owner's profile layout and cover videos.
-      ...(await ownerProfileFields(this.prisma, user.id, (key) => this.media.largeUrl({ largeKey: key }))),
+      // v1.95-social (D301, §10.112): the owner's profile layout and cover videos; v1.118-social (D357) the count of
+      // «اقترح ميزة / أبلغ» submissions he has received (cached).
+      ...(await ownerProfileFields(
+        this.prisma,
+        user.id,
+        (key) => this.media.largeUrl({ largeKey: key }),
+        this.redis,
+      )),
     };
   }
 }

@@ -1,6 +1,7 @@
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
+import type { Redis } from 'ioredis';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -142,21 +143,64 @@ export async function ownerBioOf(db: BioDb, userId: string): Promise<OwnerBioDto
 }
 
 /**
+ * v1.118-social (D357, CONVENTIONS §10.153): `founderFeedbackCount` — how many «اقترح ميزة / أبلغ» submissions (both
+ * kinds, `owner_feedback` rows still kept) the founder has received. One number for everyone (the inbox is the
+ * platform's, not one owner's), cached in Redis this long; a new submission or a deletion drops the cached value.
+ */
+export const FOUNDER_FEEDBACK_COUNT_CACHE_KEY = 'owner:feedback-count:v1';
+export const FOUNDER_FEEDBACK_COUNT_CACHE_SECONDS = 60;
+
+type FeedbackDb = Pick<PrismaService, 'ownerFeedback'> | Prisma.TransactionClient;
+/** The cache the count is kept in (Redis; a failing Redis only means a fresh count). */
+export type FeedbackCountCache = Pick<Redis, 'get' | 'set'>;
+
+/** The cached value as stored, or null when it is not a count. */
+export function parseFeedbackCount(raw: string | null): number | null {
+  if (raw === null || !/^\d{1,12}$/.test(raw)) return null;
+  return Number(raw);
+}
+
+/** The founder's received submissions (cached when `cache` is given). Never who sent them or what they say. */
+export async function founderFeedbackCountOf(
+  db: FeedbackDb,
+  cache?: FeedbackCountCache | null,
+): Promise<number> {
+  const cached = cache
+    ? parseFeedbackCount(await cache.get(FOUNDER_FEEDBACK_COUNT_CACHE_KEY).catch(() => null))
+    : null;
+  if (cached !== null) return cached;
+  const count = await db.ownerFeedback.count();
+  await cache
+    ?.set(FOUNDER_FEEDBACK_COUNT_CACHE_KEY, String(count), 'EX', FOUNDER_FEEDBACK_COUNT_CACHE_SECONDS)
+    .catch(() => undefined);
+  return count;
+}
+
+/**
  * `PublicProfile.kabsoOwner` / `.coverVideo` / `.ownerBio` and the same on `Me` (§10.112): only for the owner;
- * `coverVideo` only with at least one video; v1.98-social (D307) `ownerBio` only with at least one language.
+ * `coverVideo` only with at least one video; v1.98-social (D307) `ownerBio` only with at least one language;
+ * v1.118-social (D357) `founderFeedbackCount` always on the owner's profile (0 included).
  */
 export async function ownerProfileFields(
-  db: Db & CoverDb & BioDb,
+  db: Db & CoverDb & BioDb & FeedbackDb,
   userId: string,
   urlOf: (key: string) => string,
-): Promise<{ kabsoOwner?: true; coverVideo?: OwnerCoverVideoDto; ownerBio?: OwnerBioDto }> {
+  cache?: FeedbackCountCache | null,
+): Promise<{
+  kabsoOwner?: true;
+  coverVideo?: OwnerCoverVideoDto;
+  ownerBio?: OwnerBioDto;
+  founderFeedbackCount?: number;
+}> {
   if (!(await isKabsoOwner(db, userId))) return {};
   const coverVideo = await coverVideoOf(db, userId, urlOf);
   const ownerBio = await ownerBioOf(db, userId);
+  const founderFeedbackCount = await founderFeedbackCountOf(db, cache);
   return {
     kabsoOwner: true,
     ...(coverVideo.ar || coverVideo.en ? { coverVideo } : {}),
     ...(ownerBio.ar || ownerBio.en ? { ownerBio } : {}),
+    founderFeedbackCount,
   };
 }
 

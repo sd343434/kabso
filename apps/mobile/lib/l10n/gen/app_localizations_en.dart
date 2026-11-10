@@ -15960,6 +15960,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ownerFeedbackButton => 'Suggest / report';
 
   @override
+  String get founderBadgeLabel => 'Kabso Live founder';
+
+  @override
+  String get founderFeedbackStat => 'Suggestions & complaints';
+
+  @override
   String get ownerPrivate => 'Private';
 
   @override

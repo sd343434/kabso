@@ -217,6 +217,12 @@ abstract class PublicProfile with _$PublicProfile {
       includeIfNull: false,
     )
     OwnerBio? ownerBio,
+
+    /// v1.118-social (D357, §10.153): how many «اقترح ميزة / أبلغ»
+    /// submissions the founder has received (one combined number, cached by
+    /// the server); null on anyone else's profile and from older servers
+    /// (the founder's page then shows «–», never a made-up 0).
+    @JsonKey(includeIfNull: false) int? founderFeedbackCount,
   }) = _PublicProfile;
 
   const new _();

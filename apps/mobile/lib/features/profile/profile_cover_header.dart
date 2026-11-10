@@ -20,6 +20,14 @@
 // centred, cover-less header and D299 / D307's name-on-the-cover layouts.
 // Every size is measured on the reference at 1.333 px/dp (M) or estimated
 // (E): docs/contracts/CONVENTIONS.md §10.73.7.
+//
+// D357 (owner, 2026-11-10, the FOUNDER's page only — CONVENTIONS §10.153):
+// the same cover (his video), but the photo CENTRED over the cover's edge,
+// the name centred under it in Kabso red, his red [FounderBadge] (an
+// outlined play triangle) centred under the name in place of the blue
+// seal, the bio centred, and only two numbers — «المتابعون» and «الاقتراحات
+// والشكاوى» (`PublicProfile.founderFeedbackCount`, v1.118-social). Every
+// other profile keeps the D335 layout above.
 
 import 'dart:math' as math;
 
@@ -41,6 +49,7 @@ import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
 import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
+import 'package:kabso_live/features/owner_profile/presentation/founder_badge.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_badge_wrap.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
@@ -61,6 +70,21 @@ import 'package:material_ui/material_ui.dart';
 /// How the cover's picture is loaded; tests swap in a [MemoryImage].
 @visibleForTesting
 ImageProvider Function(String src) profileCoverImageFor = NetworkImage.new;
+
+/// D357: where the founder's badge sits on his centred page.
+enum FounderBadgePlacement {
+  /// Under the name (the shipped choice: the name reads first, the badge
+  /// closes the identity block like a seal under a signature).
+  underName,
+
+  /// Right under the photo, above the name (kept for the comparison
+  /// captures the owner asked for).
+  underPhoto,
+}
+
+/// D357: the founder badge's place; captures switch it to compare.
+@visibleForTesting
+FounderBadgePlacement founderBadgePlacement = FounderBadgePlacement.underName;
 
 /// D335: builds the header's button row; [bondsToggle] is the chevron that
 /// opens the family / couple / medals tiles (null when there are none to
@@ -219,6 +243,14 @@ abstract final class KPublicProfile {
   static const Color topShade = Color(0x80000000);
 
   static const double factIcon = 16;
+
+  /// D357 (founder page only): the name under the centred photo (E 24 dp,
+  /// bold, Kabso red), the badge 8 dp under it (or 6 dp under the photo),
+  /// the bio 10 dp under the badge, centred.
+  static const double founderNameFont = 24;
+  static const double founderBadgeGap = 8;
+  static const double founderBadgeUnderPhotoGap = 6;
+  static const double founderBioGap = 10;
 }
 
 /// D335: the top bar of the profile pages over the full-bleed cover — back
@@ -585,6 +617,19 @@ class ProfileCoverHeader extends ConsumerStatefulWidget {
   static const cherriesKey = Key('profile.stat.cherries');
   static const coinsKey = Key('profile.stat.coins');
 
+  /// D357: the founder page's second number, «الاقتراحات والشكاوى».
+  static const founderFeedbackKey = Key('profile.stat.founderFeedback');
+
+  /// D357: the founder's centred identity block (photo-centred layout).
+  static const founderIdentityKey = Key('profile.cover.founderIdentity');
+
+  /// D357: the founder's name colour — Kabso red (the brand token; the
+  /// lighter red400 on dark for contrast: ≥ 4.5 : 1 on both pages).
+  static Color founderNameColor(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+      ? KBrandColors.red400
+      : KBrandColors.red500;
+
   /// D316 / D335: the fill of the pill buttons, the chevron and (once the
   /// bar is solid) the bar's circles — the reference's ≈ #EEF2F5 on white
   /// is the light overlay grey; on dark, the surface.
@@ -658,6 +703,11 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
           )
         : const Size.square(KPublicProfile.avatarOuter);
     const centreX = KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2;
+    final founder = profile.kabsoOwner;
+    final photo = KeyedSubtree(
+      key: ProfileCoverHeader.photoKey,
+      child: _photo(context, framed: framed),
+    );
     return Stack(
       key: ProfileCoverHeader.headerKey,
       children: [
@@ -678,22 +728,31 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
                 KPublicProfile.inset,
                 KPublicProfile.bottomGap,
               ),
-              child: _info(context),
+              child: founder ? _founderInfo(context) : _info(context),
             ),
           ],
         ),
-        // The photo over the cover's bottom edge, at the reading start (a
-        // frame's larger box keeps the same centre).
-        PositionedDirectional(
-          start: centreX - box.width / 2,
-          top: photoCentre - box.height / 2,
-          width: box.width,
-          height: box.height,
-          child: KeyedSubtree(
-            key: ProfileCoverHeader.photoKey,
-            child: _photo(context, framed: framed),
+        // D357: the founder's photo centred over the cover's bottom edge.
+        if (founder)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: photoCentre - box.height / 2,
+            height: box.height,
+            child: Center(
+              child: SizedBox.fromSize(size: box, child: photo),
+            ),
+          )
+        else
+          // The photo over the cover's bottom edge, at the reading start (a
+          // frame's larger box keeps the same centre).
+          PositionedDirectional(
+            start: centreX - box.width / 2,
+            top: photoCentre - box.height / 2,
+            width: box.width,
+            height: box.height,
+            child: photo,
           ),
-        ),
       ],
     );
   }
@@ -881,7 +940,10 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
               clipBehavior: Clip.none,
               children: [
                 Positioned.fill(child: picture),
-                if (profile.verification case final badge?)
+                // D357: the founder wears his red badge under the name
+                // instead of the seal on the photo.
+                if (profile.verification case final badge?
+                    when !profile.kabsoOwner)
                   PositionedDirectional(
                     start: c.dx + d - seal / 2,
                     top: c.dy + d - seal / 2,
@@ -1027,6 +1089,161 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
         ),
         // Owner 4: the family / couple / medals tiles, opened and closed by
         // the chevron (animated; reduce motion: at once).
+        if (bonds)
+          if (reduceMotion)
+            bondsSection
+          else
+            AnimatedSize(
+              duration: KPublicProfile.bondsMotion,
+              curve: Curves.easeOutCubic,
+              alignment: AlignmentDirectional.topStart,
+              child: bondsSection,
+            ),
+      ],
+    );
+  }
+
+  /// D357: the founder's centred block under the centred photo — the name
+  /// in Kabso red, his red badge (under the name, or under the photo per
+  /// [founderBadgePlacement]), the other badges, the worn medals, the bio,
+  /// the tags and links (all centred), the two numbers, the buttons and the
+  /// bonds section (as [_info]).
+  Widget _founderInfo(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    final medals = profile.medals.showcase;
+    final bonds = ProfileCoverHeader.hasBonds(profile);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final badges = _badges(context);
+    final underPhoto =
+        founderBadgePlacement == FounderBadgePlacement.underPhoto;
+    const badge = Center(child: FounderBadge());
+    final bondsSection = _bondsOpen
+        ? Padding(
+            key: ProfileCoverHeader.bondsKey,
+            padding: const EdgeInsets.only(top: KPublicProfile.bondsGap),
+            child: ProfileBondsBlock(
+              levels: const SizedBox.shrink(),
+              profile: profile,
+              ownTiles: false,
+              showMedals: false,
+            ),
+          )
+        : const SizedBox(width: double.infinity);
+    final name = Text(
+      profile.displayName,
+      key: const Key('profile.displayName'),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: t.title.copyWith(
+        color: ProfileCoverHeader.founderNameColor(context),
+        fontSize: KPublicProfile.founderNameFont,
+        fontWeight: FontWeight.w800,
+        height: 1.25,
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Column(
+          key: ProfileCoverHeader.founderIdentityKey,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (underPhoto) ...[
+              badge,
+              const SizedBox(height: KPublicProfile.founderBadgeUnderPhotoGap),
+            ],
+            Row(
+              key: ProfileCoverHeader.nameLineKey,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(child: name),
+                if (profile.live case final live? when !profile.blockedByMe)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      start: KSpacing.sm,
+                    ),
+                    child: ProfileLivePill(live: live, self: profile.isSelf),
+                  ),
+              ],
+            ),
+            if (!underPhoto) ...[
+              const SizedBox(height: KPublicProfile.founderBadgeGap),
+              badge,
+            ],
+            if (badges.isNotEmpty) ...[
+              const SizedBox(height: KSpacing.xs),
+              ProfileBadgeWrap(
+                key: ProfileCoverHeader.badgesKey,
+                spacing: KSpacing.sm,
+                runSpacing: KSpacing.xs,
+                maxLines: KPublicProfile.badgeLines,
+                centre: true,
+                children: badges,
+              ),
+            ],
+          ],
+        ),
+        if (medals.isNotEmpty)
+          SizedBox(
+            height: KPublicProfile.medalTap,
+            child: MedalShowcaseRow(
+              key: ProfileCoverHeader.medalsKey,
+              medals: medals,
+              size: KPublicProfile.medal,
+              onTap: () => context.push(
+                profile.isSelf
+                    ? AppRoutes.medals
+                    : AppRoutes.userMedals(profile.username),
+              ),
+            ),
+          ),
+        // v1.98-social: his bilingual bio (four lines), centred.
+        if (_bioOf(context) case final bio?)
+          Padding(
+            padding: EdgeInsets.only(
+              top: medals.isEmpty ? KPublicProfile.founderBioGap : KSpacing.xxs,
+            ),
+            child: Text(
+              bio,
+              key: ProfileCoverHeader.bioKey,
+              maxLines: KPublicProfile.ownerBioLines,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: t.body.copyWith(
+                color: p.textSecondary,
+                fontSize: KPublicProfile.bioFont,
+                height: KPublicProfile.bioHeight,
+              ),
+            ),
+          ),
+        if (profile.tags.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: KSpacing.sm),
+            child: ProfileTagChips(
+              tags: profile.tags,
+              icons: ProfileTagIcon.listFor(profile.tags, profile.tagIcons),
+              alignment: WrapAlignment.center,
+            ),
+          ),
+        if (profile.links.isNotEmpty)
+          KeyedSubtree(
+            key: ProfileCoverHeader.linksKey,
+            child: ProfileLinksRow(
+              links: profile.links,
+              reportable: !profile.isSelf,
+              alignment: WrapAlignment.center,
+            ),
+          ),
+        const SizedBox(height: KPublicProfile.statsGap),
+        _stats(context),
+        const SizedBox(height: KPublicProfile.actionsGap),
+        SizedBox(
+          key: ProfileCoverHeader.actionsKey,
+          height: KPublicProfile.buttonHeight,
+          child: widget.actions(context, bonds ? _bondsToggle(context) : null),
+        ),
         if (bonds)
           if (reduceMotion)
             bondsSection
@@ -1227,27 +1444,47 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    final stats = <(Key, int, String, VoidCallback?)>[
-      (
-        ProfileHeaderView.followersKey,
-        profile.followerCount,
-        l10n.liveCardFollowers,
-        widget.onOpenFollowers,
-      ),
-      (
-        ProfileHeaderView.followingKey,
-        profile.followingCount,
-        l10n.liveCardFollowing,
-        widget.onOpenFollowing,
-      ),
-      if (profile.cherriesReceived case final n? when !_teamOrFounder)
-        (ProfileCoverHeader.cherriesKey, n, l10n.liveCardCherries, null),
-      if (profile.coinsSent case final n? when !_teamOrFounder)
-        (ProfileCoverHeader.coinsKey, n, l10n.liveCardCoinsSent, null),
+    final stats = <(Key, int?, String, VoidCallback?)>[
+      // D357 (owner: «اظهر فقط عدد متابعين المؤسس وبجانبها عدد الاقتراحات
+      // والشكاوى»): the founder's page shows these two only.
+      if (profile.kabsoOwner) ...[
+        (
+          ProfileHeaderView.followersKey,
+          profile.followerCount,
+          l10n.liveCardFollowers,
+          widget.onOpenFollowers,
+        ),
+        (
+          ProfileCoverHeader.founderFeedbackKey,
+          profile.founderFeedbackCount,
+          l10n.founderFeedbackStat,
+          null,
+        ),
+      ] else ...[
+        (
+          ProfileHeaderView.followersKey,
+          profile.followerCount,
+          l10n.liveCardFollowers,
+          widget.onOpenFollowers,
+        ),
+        (
+          ProfileHeaderView.followingKey,
+          profile.followingCount,
+          l10n.liveCardFollowing,
+          widget.onOpenFollowing,
+        ),
+        if (profile.cherriesReceived case final n? when !_teamOrFounder)
+          (ProfileCoverHeader.cherriesKey, n, l10n.liveCardCherries, null),
+        if (profile.coinsSent case final n? when !_teamOrFounder)
+          (ProfileCoverHeader.coinsKey, n, l10n.liveCardCoinsSent, null),
+      ],
     ];
     final pending = !widget.countsKnown && !widget.countsFailed;
     final dense = stats.length > 2;
-    String number(int v) => widget.countsFailed ? '–' : KFormat.compactLatin(v);
+    // A number the server did not send (an older server's founder count) is
+    // a dash, never a made-up 0.
+    String number(int? v) =>
+        widget.countsFailed || v == null ? '–' : KFormat.compactLatin(v);
     final row = IntrinsicHeight(
       child: Row(
         key: ProfileScreen.statsKey,

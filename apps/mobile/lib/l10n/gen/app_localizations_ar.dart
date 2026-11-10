@@ -15961,6 +15961,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get ownerFeedbackButton => 'اقترح ميزة / أبلغ';
 
   @override
+  String get founderBadgeLabel => 'مؤسس Kabso Live';
+
+  @override
+  String get founderFeedbackStat => 'الاقتراحات والشكاوى';
+
+  @override
   String get ownerPrivate => 'خاص';
 
   @override

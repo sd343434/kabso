@@ -26896,6 +26896,18 @@ abstract class AppLocalizations {
   /// **'اقترح ميزة / أبلغ'**
   String get ownerFeedbackButton;
 
+  /// D357 (§10.153): the founder's red badge (an outlined play triangle) under his name — its spoken label and tooltip.
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤسس Kabso Live'**
+  String get founderBadgeLabel;
+
+  /// D357 (§10.153): the founder's page, the second of its two numbers — how many «اقترح ميزة / أبلغ» submissions (suggestions and complaints together) he has received.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاقتراحات والشكاوى'**
+  String get founderFeedbackStat;
+
   /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The chip on what only the owner sees.
   ///
   /// In ar, this message translates to:

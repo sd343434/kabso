@@ -511,6 +511,11 @@ info:
     `RechargePackages.websiteTopupUrl` and `createTopupWebsiteSession` follow TOPUP_APP_LINK_SOURCES (default SIDELOAD)
     on top of TOPUP_APP_LINK_PLATFORMS. Additive in shape; **behaviour change**: a session that reported no source (an
     app older than this) no longer gets the link.
+    **D357 (DRAFT v1.118-social)** the founder's centred page (CONVENTIONS §10.153; owner 2026-11-10):
+    `PublicProfile.founderFeedbackCount` / `Me.founderFeedbackCount` (integer ≥ 0, only on the app owner's profile, 0
+    included) — how many «اقترح ميزة / أبلغ» submissions (`createOwnerFeedback`, both kinds, the ones still kept) the
+    founder has received; one number for every viewer, cached 60 s (a new submission or a panel deletion drops the
+    cache); never who sent them or what they say. Additive.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -29811,6 +29816,10 @@ components:
         ownerBio:
           $ref: '#/components/schemas/OwnerBio'
           description: "(v1.98-social, D307, §10.112.11) The founder's bilingual bio; present only on an owner's profile with at least one language."
+        founderFeedbackCount:
+          type: integer
+          minimum: 0
+          description: "(v1.118-social, D357, §10.153) How many «اقترح ميزة / أبلغ» submissions (createOwnerFeedback, FEATURE and STAFF_REPORT, those still kept) the founder has received — one number for every viewer, cached up to 60 s. Present only on an owner's profile (0 included); never who sent them or what they say."
         verification:
           description: "(v1.90-social, D293, §10.105) The caller's automatic verification badge beside the name, or null. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
           oneOf:
@@ -30460,6 +30469,10 @@ components:
         ownerBio:
           $ref: '#/components/schemas/OwnerBio'
           description: "(v1.98-social, D307, §10.112.11) The founder's bilingual bio; present only on an owner's profile with at least one language."
+        founderFeedbackCount:
+          type: integer
+          minimum: 0
+          description: "(v1.118-social, D357, §10.153) How many «اقترح ميزة / أبلغ» submissions (createOwnerFeedback, FEATURE and STAFF_REPORT, those still kept) the founder has received — one number for every viewer, cached up to 60 s. Present only on an owner's profile (0 included); never who sent them or what they say."
         verification:
           description: "(v1.90-social, D293, §10.105) The user's automatic verification badge beside the name, or null — only its type: never an amount, a threshold or which condition was met beyond the badge itself. Also on a private account's profile. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
           oneOf:
