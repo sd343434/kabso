@@ -117,6 +117,7 @@ import 'package:kabso_live/features/vip/presentation/vip_screen.dart';
 import 'package:kabso_live/features/vip/presentation/vip_visitors_screen.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_history_screen.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_screen.dart';
+import 'package:kabso_live/features/whatsapp/presentation/wa_screens.dart';
 import 'package:material_ui/material_ui.dart';
 
 final rootNavigatorKeyProvider = Provider<GlobalKey<NavigatorState>>(
@@ -566,6 +567,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.staffEarnings,
         builder: (_, _) => const StaffEarningsScreen(),
+      ),
+      // v1.116-social (D355): «واتساب» — the inbox and one conversation.
+      GoRoute(
+        path: AppRoutes.staffWhatsApp,
+        builder: (_, _) => const WaInboxScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.staffWhatsAppChatPattern,
+        builder: (_, state) => WaChatScreen(
+          conversationId: state.pathParameters['conversationId']!,
+        ),
       ),
       // v1.78-live (D288): «بلاغات» — the shared report queue.
       GoRoute(

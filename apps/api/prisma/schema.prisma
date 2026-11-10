@@ -8205,3 +8205,195 @@ model IapSettings {
 
   @@map("iap_settings")
 }
+
+// ---------------------------------------------------------------------------------------------
+// v1.116-social (DRAFT, D355, CONVENTIONS §10.151): «واتساب» — the official Kabso WhatsApp number (WhatsApp Business
+// Platform, Cloud API) answered by the staff from the app and the panel. Owner: `whatsapp` module. Off until the
+// credentials are on the server. The staff columns (`assigned_to_id`, `author_id` …) carry no foreign key: accounts are
+// never deleted, only tombstoned (§10.56), and the history keeps who acted.
+// ---------------------------------------------------------------------------------------------
+
+enum WaConversationStatus {
+  OPEN
+  CLOSED
+
+  @@map("wa_conversation_status")
+}
+
+enum WaDirection {
+  INBOUND
+  OUTBOUND
+
+  @@map("wa_direction")
+}
+
+enum WaMessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  STICKER
+  LOCATION
+  REACTION
+  CONTACTS
+  INTERACTIVE
+  TEMPLATE
+  UNSUPPORTED
+
+  @@map("wa_message_type")
+}
+
+/// INBOUND rows are RECEIVED; OUTBOUND rows follow Meta's statuses (sent → delivered → read, or failed).
+enum WaMessageStatus {
+  RECEIVED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+
+  @@map("wa_message_status")
+}
+
+/// Where a media message's bytes are: in the private storage, or why not.
+enum WaMediaState {
+  NONE
+  STORED
+  TOO_LARGE
+  TYPE_REFUSED
+  FAILED
+
+  @@map("wa_media_state")
+}
+
+enum WaAssignmentAction {
+  CLAIM
+  RELEASE
+  TRANSFER
+  CLOSE
+  REOPEN
+
+  @@map("wa_assignment_action")
+}
+
+/// D355: one conversation per customer phone (E.164). `unread_count` counts the customer's messages since the team last
+/// read it; `last_inbound_at` opens Meta's 24-hour customer-service window.
+model WaConversation {
+  id                 String               @id @default(uuid(7)) @db.Uuid
+  phoneE164          String               @unique(map: "wa_conversations_phone_key") @map("phone_e164") @db.VarChar(16)
+  waId               String               @map("wa_id") @db.VarChar(32)
+  profileName        String?              @map("profile_name") @db.VarChar(200)
+  status             WaConversationStatus @default(OPEN)
+  assignedToId       String?              @map("assigned_to_id") @db.Uuid
+  assignedAt         DateTime?            @map("assigned_at") @db.Timestamptz(3)
+  unreadCount        Int                  @default(0) @map("unread_count")
+  lastInboundAt      DateTime?            @map("last_inbound_at") @db.Timestamptz(3)
+  lastMessageAt      DateTime             @default(now()) @map("last_message_at") @db.Timestamptz(3)
+  lastPreview        String?              @map("last_preview") @db.VarChar(120)
+  lastDirection      WaDirection?         @map("last_direction")
+  linkedUserId       String?              @map("linked_user_id") @db.Uuid
+  linkedById         String?              @map("linked_by_id") @db.Uuid
+  linkedAt           DateTime?            @map("linked_at") @db.Timestamptz(3)
+  closedAt           DateTime?            @map("closed_at") @db.Timestamptz(3)
+  closedById         String?              @map("closed_by_id") @db.Uuid
+  /// Set when the linked account was purged (§10.56): the sweeper deletes the conversation and its media.
+  purgeAfter         DateTime?            @map("purge_after") @db.Timestamptz(3)
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  messages    WaMessage[]
+  notes       WaNote[]
+  assignments WaAssignment[]
+
+  @@index([status, lastMessageAt(sort: Desc), id(sort: Desc)], map: "wa_conversations_status_last_idx")
+  @@index([assignedToId, lastMessageAt(sort: Desc)], map: "wa_conversations_assigned_idx")
+  @@index([linkedUserId], map: "wa_conversations_linked_idx", where: raw("linked_user_id IS NOT NULL"))
+  @@map("wa_conversations")
+}
+
+/// D355: one message in or out. `wa_message_id` (Meta's `wamid`) is unique: a webhook delivered twice stores one row.
+model WaMessage {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  conversationId String          @map("conversation_id") @db.Uuid
+  waMessageId    String?         @unique(map: "wa_messages_wamid_key") @map("wa_message_id") @db.VarChar(160)
+  direction      WaDirection
+  type           WaMessageType
+  body           String?
+  mediaKey       String?         @map("media_key") @db.VarChar(256)
+  mediaState     WaMediaState    @default(NONE) @map("media_state")
+  mediaMime      String?         @map("media_mime") @db.VarChar(100)
+  mediaSize      Int?            @map("media_size")
+  mediaFilename  String?         @map("media_filename") @db.VarChar(240)
+  mediaVoice     Boolean         @default(false) @map("media_voice")
+  latitude       Float?
+  longitude      Float?
+  locationName   String?         @map("location_name") @db.VarChar(240)
+  reactionEmoji  String?         @map("reaction_emoji") @db.VarChar(16)
+  reactionToWaId String?         @map("reaction_to_wa_id") @db.VarChar(160)
+  templateName   String?         @map("template_name") @db.VarChar(512)
+  templateLang   String?         @map("template_lang") @db.VarChar(16)
+  status         WaMessageStatus
+  errorCode      Int?            @map("error_code")
+  errorTitle     String?         @map("error_title") @db.VarChar(300)
+  sentById       String?         @map("sent_by_id") @db.Uuid
+  waTimestamp    DateTime?       @map("wa_timestamp") @db.Timestamptz(3)
+  statusAt       DateTime?       @map("status_at") @db.Timestamptz(3)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  conversation WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)], map: "wa_messages_conversation_idx")
+  @@map("wa_messages")
+}
+
+/// D355: an internal note on a conversation — never sent to the customer.
+model WaNote {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  authorId       String   @map("author_id") @db.Uuid
+  body           String   @db.VarChar(2000)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  conversation WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt], map: "wa_notes_conversation_idx")
+  @@map("wa_notes")
+}
+
+/// D355: claim / release / transfer / close / reopen of a conversation (who, from whom, to whom).
+model WaAssignment {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  conversationId String             @map("conversation_id") @db.Uuid
+  action         WaAssignmentAction
+  fromUserId     String?            @map("from_user_id") @db.Uuid
+  toUserId       String?            @map("to_user_id") @db.Uuid
+  actorId        String?            @map("actor_id") @db.Uuid
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  conversation WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt], map: "wa_assignments_conversation_idx")
+  @@map("wa_assignments")
+}
+
+/// D355: the team's quick replies «ردود سريعة» (managed with `support.whatsapp.manage`).
+model WaQuickReply {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  title       String   @unique(map: "wa_quick_replies_title_key") @db.VarChar(60)
+  body        String   @db.VarChar(1024)
+  createdById String?  @map("created_by_id") @db.Uuid
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("wa_quick_replies")
+}
+
+/// D355: a staff member's own WhatsApp settings (the push mute).
+model WaAgentSetting {
+  userId    String   @id @map("user_id") @db.Uuid
+  pushMuted Boolean  @default(false) @map("push_muted")
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("wa_agent_settings")
+}

@@ -22,6 +22,7 @@ import { LevelRaiseApps, LevelRaiseDetail, LevelRaises, LevelRaiseSettingsPage }
 import { OwnerFixedCosts } from './pages/OwnerFixedCosts';
 import { OwnerInbox } from './pages/OwnerInbox';
 import { VerificationBadgesPage } from './pages/VerificationBadges';
+import { WhatsAppInbox, WhatsAppQuickReplies, WhatsAppSettings } from './pages/WhatsApp';
 import { HostTargets } from './pages/HostTargets';
 import { ReferralDetail, Referrals, ReferralSettingsPage } from './pages/Referrals';
 import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
@@ -295,6 +296,16 @@ export function App() {
           break;
         case 'storeIap':
           page = <StoreIap />;
+          break;
+        // v1.116-social (D355): «واتساب».
+        case 'whatsapp':
+          page = <WhatsAppInbox />;
+          break;
+        case 'whatsappSettings':
+          page = <WhatsAppSettings />;
+          break;
+        case 'whatsappQuickReplies':
+          page = <WhatsAppQuickReplies />;
           break;
         case 'report':
           page = <Report />;

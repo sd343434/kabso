@@ -55,6 +55,8 @@ const PATHS = {
   volume: 'M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14',
   mute: 'M11 5 6 9H2v6h4l5 4zM23 9l-6 6M17 9l6 6',
   mic: 'M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3',
+  // v1.116-social (D355): «واتساب» — a speech bubble (not WhatsApp's logo: a third party's mark is never drawn here).
+  chat: 'M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.6-5.4A8.4 8.4 0 1 1 21 11.5zM8 11.5h.01M12 11.5h.01M16 11.5h.01',
 } as const;
 
 export type IconName = keyof typeof PATHS;

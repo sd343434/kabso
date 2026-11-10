@@ -511,6 +511,17 @@ info:
     `RechargePackages.websiteTopupUrl` and `createTopupWebsiteSession` follow TOPUP_APP_LINK_SOURCES (default SIDELOAD)
     on top of TOPUP_APP_LINK_PLATFORMS. Additive in shape; **behaviour change**: a session that reported no source (an
     app older than this) no longer gets the link.
+    **D355 (DRAFT v1.116-social)** «واتساب» — the official Kabso WhatsApp number answered by the staff (CONVENTIONS
+    §10.151; owner 2026-11-10): the WhatsApp Business Platform Cloud API behind configuration (off until the owner
+    places WHATSAPP_* on the server). Staff inbox in the app (`/staff/whatsapp/*`, tag `staff`) and the panel
+    (`/admin/whatsapp/*`, tag `admin-panel`, + settings and «اختبار الاتصال»): conversations (unassigned / mine / all /
+    closed, search), messages, text / media / template replies with the 24-hour window, read, claim / release /
+    transfer / close / reopen with history, internal notes, account link, quick replies, approved templates, agents,
+    the push mute; the public webhook `verifyWhatsAppWebhook` / `receiveWhatsAppWebhook` (X-Hub-Signature-256).
+    Capabilities `support.whatsapp` (OWNER, MODERATION, SUPPORT) and `support.whatsapp.manage` (OWNER, MODERATION);
+    codes `WHATSAPP_UNAVAILABLE` (503), `WHATSAPP_WINDOW_CLOSED`, `WHATSAPP_CONVERSATION_ASSIGNED`,
+    `WHATSAPP_CONVERSATION_CLOSED` (409), `WHATSAPP_SEND_FAILED` (502); data-export section `whatsapp`; migration
+    `20270421090000_whatsapp_inbox`. Additive.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -1173,6 +1184,8 @@ tags:
     description: "Level configuration, user progression, reconciliation and audit for admins (role ADMIN; v1.4-levels DRAFT, CP-005)."
   - name: store-iap
     description: "(v1.110-social DRAFT, D345) Coins from the stores «الشراء من المتجر»: Google Play Billing and App Store In-App Purchase consumables, verified by the server; refunds claw back and ban (CONVENTIONS §10.144)."
+  - name: whatsapp
+    description: "(v1.116-social DRAFT, D355) Meta's WhatsApp Business Platform webhook for the official Kabso number «واتساب» (public, signed). The staff's inbox is under the tags staff and admin-panel (CONVENTIONS §10.151)."
 paths:
   /health/live:
     get:
@@ -21300,6 +21313,1380 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+  # ---- v1.116-social (DRAFT, D355, CONVENTIONS §10.151): «واتساب» — the official Kabso WhatsApp number ------------
+  /api/v1/staff/whatsapp/summary:
+    get:
+      tags: [staff]
+      operationId: getStaffWhatsAppSummary
+      summary: "The «واتساب» badge: my and the unassigned conversations with unread messages (never 503: enabled false when off; not staff work)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaSummary' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations:
+    get:
+      tags: [staff]
+      operationId: getStaffWhatsAppConversations
+      summary: "The shared inbox: unassigned, mine, all open or closed; search by name or phone (newest activity first)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema: { type: string, enum: [unassigned, mine, all, closed], default: all }
+        - name: q
+          in: query
+          required: false
+          description: "A name, or the start of a phone number (digits, with or without + / 00)."
+          schema: { type: string, maxLength: 80 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversationPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}:
+    get:
+      tags: [staff]
+      operationId: getStaffWhatsAppConversation
+      summary: "One conversation with the 24-hour window, the assignee and the linked Kabso account"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}/messages:
+    get:
+      tags: [staff]
+      operationId: getStaffWhatsAppMessages
+      summary: "The messages, newest first (reactions are shown on the message they react to)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 30 }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaMessagePage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [staff]
+      operationId: sendStaffWhatsAppMessage
+      summary: "Reply with text (inside the 24-hour window) or an approved template (any time); an unassigned conversation becomes the caller’s"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaSendRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaMessage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}/media:
+    post:
+      tags: [staff]
+      operationId: sendStaffWhatsAppMedia
+      summary: "Reply with an image, voice / audio, video or document (raw bytes; inside the 24-hour window; WHATSAPP_MEDIA_MAX_BYTES)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+        - name: mime
+          in: query
+          required: true
+          description: "image/jpeg, image/png, audio/ogg, audio/mpeg, audio/mp4, audio/aac, audio/amr, video/mp4, video/3gpp, application/pdf, text/plain or an Office document type."
+          schema: { type: string }
+        - name: filename
+          in: query
+          required: false
+          schema: { type: string, maxLength: 240 }
+        - name: caption
+          in: query
+          required: false
+          schema: { type: string, maxLength: 1024 }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaMessage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/messages/{messageId}/media:
+    get:
+      tags: [staff]
+      operationId: getStaffWhatsAppMedia
+      summary: "A message’s media file from the private storage (only when `media.state` is STORED)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The file (private, no-store; always as an attachment).
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}/read:
+    post:
+      tags: [staff]
+      operationId: markStaffWhatsAppRead
+      summary: "The team read it: the unread count goes to 0 and the customer sees the blue ticks"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}/claim:
+    post:
+      tags: [staff]
+      operationId: claimStaffWhatsAppConversation
+      summary: "Take an unassigned conversation (409 WHATSAPP_CONVERSATION_ASSIGNED when another staff member has it)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}/release:
+    post:
+      tags: [staff]
+      operationId: releaseStaffWhatsAppConversation
+      summary: "Give the conversation back to the unassigned queue (the assignee, or support.whatsapp.manage)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}/transfer:
+    post:
+      tags: [staff]
+      operationId: transferStaffWhatsAppConversation
+      summary: "Hand the conversation to another agent (the assignee, an unassigned one, or support.whatsapp.manage)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaTransferRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}/close:
+    post:
+      tags: [staff]
+      operationId: closeStaffWhatsAppConversation
+      summary: "Close (resolved); a new customer message reopens it"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}/reopen:
+    post:
+      tags: [staff]
+      operationId: reopenStaffWhatsAppConversation
+      summary: "Reopen a closed conversation (the assignee is kept)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}/assignments:
+    get:
+      tags: [staff]
+      operationId: getStaffWhatsAppAssignments
+      summary: "The assignment history (claim, release, transfer, close, reopen), newest first, at most 100"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaAssignmentList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}/notes:
+    get:
+      tags: [staff]
+      operationId: getStaffWhatsAppNotes
+      summary: "The internal notes (never sent to the customer), oldest first, at most 200"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaNoteList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [staff]
+      operationId: addStaffWhatsAppNote
+      summary: "Add an internal note (audited; never sent to the customer)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaNoteRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaNote' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/conversations/{id}/link:
+    post:
+      tags: [staff]
+      operationId: linkStaffWhatsAppConversation
+      summary: "Link the conversation to the Kabso account the customer named (audited; Kabso has no verified phone to match, §10.151.7)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaLinkRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [staff]
+      operationId: unlinkStaffWhatsAppConversation
+      summary: "Remove the account link (audited)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/templates:
+    get:
+      tags: [staff]
+      operationId: getStaffWhatsAppTemplates
+      summary: "The approved message templates read from Meta (cached WHATSAPP_TEMPLATE_CACHE_SECONDS)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          description: "true reads Meta now."
+          schema: { type: string, enum: ['true', 'false'] }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaTemplateList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/agents:
+    get:
+      tags: [staff]
+      operationId: getStaffWhatsAppAgents
+      summary: "The staff who hold support.whatsapp now (for a transfer), with their shift"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaAgentList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/quick-replies:
+    get:
+      tags: [staff]
+      operationId: getStaffWhatsAppQuickReplies
+      summary: "The quick replies «ردود سريعة» (by title)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request). Staff work (§10.96.14)."
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaQuickReplyList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [staff]
+      operationId: createStaffWhatsAppQuickReply
+      summary: "Add a quick reply (support.whatsapp.manage; 400 title duplicate)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.manage` (checked on every request). Staff work (§10.96.14)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaQuickReplyRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaQuickReply' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/quick-replies/{replyId}:
+    patch:
+      tags: [staff]
+      operationId: updateStaffWhatsAppQuickReply
+      summary: "Edit a quick reply (support.whatsapp.manage)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.manage` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: replyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaQuickReplyPatch' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaQuickReply' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [staff]
+      operationId: deleteStaffWhatsAppQuickReply
+      summary: "Delete a quick reply (support.whatsapp.manage)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.manage` (checked on every request). Staff work (§10.96.14)."
+      parameters:
+        - name: replyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: No content.
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/whatsapp/me/settings:
+    get:
+      tags: [staff]
+      operationId: getStaffWhatsAppMySettings
+      summary: "My WhatsApp settings: the push mute (not staff work)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaAgentSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [staff]
+      operationId: updateStaffWhatsAppMySettings
+      summary: "Mute or unmute my WhatsApp pushes (not staff work)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaAgentSettings' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaAgentSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/summary:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppSummary
+      summary: "The «واتساب» badge: my and the unassigned conversations with unread messages (never 503: enabled false when off; not staff work)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaSummary' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppConversations
+      summary: "The shared inbox: unassigned, mine, all open or closed; search by name or phone (newest activity first)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema: { type: string, enum: [unassigned, mine, all, closed], default: all }
+        - name: q
+          in: query
+          required: false
+          description: "A name, or the start of a phone number (digits, with or without + / 00)."
+          schema: { type: string, maxLength: 80 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversationPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppConversation
+      summary: "One conversation with the 24-hour window, the assignee and the linked Kabso account"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}/messages:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppMessages
+      summary: "The messages, newest first (reactions are shown on the message they react to)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 30 }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaMessagePage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: sendAdminWhatsAppMessage
+      summary: "Reply with text (inside the 24-hour window) or an approved template (any time); an unassigned conversation becomes the caller’s"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaSendRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaMessage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}/media:
+    post:
+      tags: [admin-panel]
+      operationId: sendAdminWhatsAppMedia
+      summary: "Reply with an image, voice / audio, video or document (raw bytes; inside the 24-hour window; WHATSAPP_MEDIA_MAX_BYTES)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+        - name: mime
+          in: query
+          required: true
+          description: "image/jpeg, image/png, audio/ogg, audio/mpeg, audio/mp4, audio/aac, audio/amr, video/mp4, video/3gpp, application/pdf, text/plain or an Office document type."
+          schema: { type: string }
+        - name: filename
+          in: query
+          required: false
+          schema: { type: string, maxLength: 240 }
+        - name: caption
+          in: query
+          required: false
+          schema: { type: string, maxLength: 1024 }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaMessage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/messages/{messageId}/media:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppMedia
+      summary: "A message’s media file from the private storage (only when `media.state` is STORED)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The file (private, no-store; always as an attachment).
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}/read:
+    post:
+      tags: [admin-panel]
+      operationId: markAdminWhatsAppRead
+      summary: "The team read it: the unread count goes to 0 and the customer sees the blue ticks"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}/claim:
+    post:
+      tags: [admin-panel]
+      operationId: claimAdminWhatsAppConversation
+      summary: "Take an unassigned conversation (409 WHATSAPP_CONVERSATION_ASSIGNED when another staff member has it)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}/release:
+    post:
+      tags: [admin-panel]
+      operationId: releaseAdminWhatsAppConversation
+      summary: "Give the conversation back to the unassigned queue (the assignee, or support.whatsapp.manage)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}/transfer:
+    post:
+      tags: [admin-panel]
+      operationId: transferAdminWhatsAppConversation
+      summary: "Hand the conversation to another agent (the assignee, an unassigned one, or support.whatsapp.manage)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaTransferRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}/close:
+    post:
+      tags: [admin-panel]
+      operationId: closeAdminWhatsAppConversation
+      summary: "Close (resolved); a new customer message reopens it"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}/reopen:
+    post:
+      tags: [admin-panel]
+      operationId: reopenAdminWhatsAppConversation
+      summary: "Reopen a closed conversation (the assignee is kept)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}/assignments:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppAssignments
+      summary: "The assignment history (claim, release, transfer, close, reopen), newest first, at most 100"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaAssignmentList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}/notes:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppNotes
+      summary: "The internal notes (never sent to the customer), oldest first, at most 200"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaNoteList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: addAdminWhatsAppNote
+      summary: "Add an internal note (audited; never sent to the customer)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaNoteRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaNote' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/conversations/{id}/link:
+    post:
+      tags: [admin-panel]
+      operationId: linkAdminWhatsAppConversation
+      summary: "Link the conversation to the Kabso account the customer named (audited; Kabso has no verified phone to match, §10.151.7)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaLinkRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [admin-panel]
+      operationId: unlinkAdminWhatsAppConversation
+      summary: "Remove the account link (audited)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The conversation id."
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaConversation' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/templates:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppTemplates
+      summary: "The approved message templates read from Meta (cached WHATSAPP_TEMPLATE_CACHE_SECONDS)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          description: "true reads Meta now."
+          schema: { type: string, enum: ['true', 'false'] }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaTemplateList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/agents:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppAgents
+      summary: "The staff who hold support.whatsapp now (for a transfer), with their shift"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaAgentList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/quick-replies:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppQuickReplies
+      summary: "The quick replies «ردود سريعة» (by title)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaQuickReplyList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminWhatsAppQuickReply
+      summary: "Add a quick reply (support.whatsapp.manage; 400 title duplicate)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.manage` (checked on every request)."
+      security: [{ adminSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaQuickReplyRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaQuickReply' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/quick-replies/{replyId}:
+    patch:
+      tags: [admin-panel]
+      operationId: updateAdminWhatsAppQuickReply
+      summary: "Edit a quick reply (support.whatsapp.manage)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.manage` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: replyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaQuickReplyPatch' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaQuickReply' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [admin-panel]
+      operationId: deleteAdminWhatsAppQuickReply
+      summary: "Delete a quick reply (support.whatsapp.manage)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.manage` (checked on every request)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: replyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: No content.
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/me/settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppMySettings
+      summary: "My WhatsApp settings: the push mute (not staff work)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaAgentSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminWhatsAppMySettings
+      summary: "Mute or unmute my WhatsApp pushes (not staff work)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (checked on every request)."
+      security: [{ adminSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaAgentSettings' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaAgentSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminWhatsAppStatus
+      summary: "«إعدادات واتساب»: what is configured (never a secret), the webhook address to paste in Meta and the retention"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.manage` (checked on every request)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaStatus' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/whatsapp/settings/test:
+    post:
+      tags: [admin-panel]
+      operationId: testAdminWhatsAppConnection
+      summary: "«اختبار الاتصال»: the number’s name and quality and the approved templates read from Meta now (audited)"
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.manage` (checked on every request)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaTestResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/webhooks/whatsapp:
+    get:
+      tags: [whatsapp]
+      operationId: verifyWhatsAppWebhook
+      summary: "Meta's webhook subscription check (hub.mode=subscribe + the verify token → hub.challenge)"
+      description: "(v1.116-social, DRAFT, D355, §10.151.3) Public, no session. A wrong mode or token → 403 AUTH_FORBIDDEN; off → 503 WHATSAPP_UNAVAILABLE."
+      security: []
+      parameters:
+        - name: hub.mode
+          in: query
+          required: true
+          schema: { type: string, enum: [subscribe] }
+        - name: hub.verify_token
+          in: query
+          required: true
+          description: "WHATSAPP_VERIFY_TOKEN_FILE's value (compared in constant time)."
+          schema: { type: string }
+        - name: hub.challenge
+          in: query
+          required: true
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200':
+          description: The `hub.challenge` echoed as text.
+          content:
+            text/plain:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [whatsapp]
+      operationId: receiveWhatsAppWebhook
+      summary: "Meta's events: inbound messages and the statuses of sent ones (X-Hub-Signature-256 required)"
+      description: "(v1.116-social, DRAFT, D355, §10.151.3) Public, no session, no rate limit. The body is Meta's `whatsapp_business_account` object (field `messages`), kept raw for the signature; a wrong signature → 403 AUTH_FORBIDDEN (audited `whatsapp.webhook.refused`). Each message is stored once (`wamid` unique: Meta's retries change nothing); statuses only move forward (sent → delivered → read; failed keeps Meta's code); media is fetched into the private storage after the answer; events of another phone number id are ignored. A valid body is answered 200 even when one event could not be stored (Meta would retry the whole batch)."
+      security: []
+      parameters:
+        - name: X-Hub-Signature-256
+          in: header
+          required: true
+          description: "HMAC-SHA256 of the exact body with the Meta app secret."
+          schema: { type: string, pattern: '^sha256=[0-9a-fA-F]{64}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, description: "Meta's webhook body (not validated against a schema here: the parser keeps what §10.151.3 lists)." }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaWebhookAck' }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -21693,6 +23080,295 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
+    # ---- v1.116-social (DRAFT, D355, CONVENTIONS §10.151): «واتساب» ------------------------------------------------
+    WaStaffRef:
+      type: object
+      required: [userId, displayName, staffId]
+      properties:
+        userId: { type: string, format: uuid }
+        displayName: { type: [string, 'null'] }
+        staffId: { type: [string, 'null'], examples: [Kabso01] }
+    WaAccountCard:
+      type: object
+      description: "The linked Kabso account as the staff may see it (users.view): no email, no balance, no phone."
+      required: [userId, username, displayName, avatarUrl, status, countryCode, createdAt]
+      properties:
+        userId: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        avatarUrl: { type: [string, 'null'] }
+        status: { type: string, examples: [ACTIVE, SUSPENDED] }
+        countryCode: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    WaSummary:
+      type: object
+      required: [enabled, badge, mine, unassigned, unreadMessages]
+      properties:
+        enabled: { type: boolean, description: "false: WhatsApp is not configured on this server (the app hides the entry)." }
+        badge: { type: integer, minimum: 0, description: "mine + unassigned." }
+        mine: { type: integer, minimum: 0, description: "Open conversations assigned to the caller with unread messages." }
+        unassigned: { type: integer, minimum: 0, description: "Open unassigned conversations with unread messages." }
+        unreadMessages: { type: integer, minimum: 0 }
+    WaWindow:
+      type: object
+      required: [open, closesAt]
+      properties:
+        open: { type: boolean, description: "Free-form replies are allowed (within 24 h of the customer's last message)." }
+        closesAt: { type: [string, 'null'], format: date-time }
+    WaConversation:
+      type: object
+      required: [id, phone, name, status, assignedTo, assignedToMe, unreadCount, lastMessageAt, lastPreview, lastDirection, window, linkedAccount, closedAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        phone: { type: string, pattern: '^\+[1-9][0-9]{6,14}$', description: "E.164." }
+        name: { type: [string, 'null'], description: "The customer's WhatsApp profile name." }
+        status: { type: string, enum: [OPEN, CLOSED] }
+        assignedTo:
+          oneOf:
+            - { $ref: '#/components/schemas/WaStaffRef' }
+            - { type: 'null' }
+        assignedToMe: { type: boolean }
+        unreadCount: { type: integer, minimum: 0 }
+        lastMessageAt: { type: string, format: date-time }
+        lastPreview: { type: [string, 'null'], maxLength: 120 }
+        lastDirection: { type: [string, 'null'], enum: [INBOUND, OUTBOUND, null] }
+        window: { $ref: '#/components/schemas/WaWindow' }
+        linkedAccount:
+          oneOf:
+            - { $ref: '#/components/schemas/WaAccountCard' }
+            - { type: 'null' }
+        closedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    WaConversationPage:
+      type: object
+      required: [data, page]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/WaConversation' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    WaMessage:
+      type: object
+      required: [id, direction, type, text, media, location, reaction, template, status, error, sentBy, at, statusAt]
+      properties:
+        id: { type: string, format: uuid }
+        direction: { type: string, enum: [INBOUND, OUTBOUND] }
+        type: { type: string, enum: [TEXT, IMAGE, AUDIO, VIDEO, DOCUMENT, STICKER, LOCATION, CONTACTS, INTERACTIVE, TEMPLATE, UNSUPPORTED] }
+        text: { type: [string, 'null'], description: "The text, a caption, a template's filled body, a button reply or the shared contacts' names." }
+        media:
+          oneOf:
+            - type: object
+              required: [state, mime, size, filename, voice]
+              properties:
+                state: { type: string, enum: [STORED, TOO_LARGE, TYPE_REFUSED, FAILED], description: "STORED: fetch it with the …/messages/{messageId}/media operation." }
+                mime: { type: [string, 'null'] }
+                size: { type: [integer, 'null'] }
+                filename: { type: [string, 'null'] }
+                voice: { type: boolean, description: "A voice note (play it inline)." }
+            - { type: 'null' }
+        location:
+          oneOf:
+            - type: object
+              required: [latitude, longitude, name]
+              properties:
+                latitude: { type: number }
+                longitude: { type: number }
+                name: { type: [string, 'null'] }
+            - { type: 'null' }
+        reaction: { type: [string, 'null'], description: "The customer's reaction emoji on this message." }
+        template:
+          oneOf:
+            - type: object
+              required: [name, language]
+              properties:
+                name: { type: string }
+                language: { type: string }
+            - { type: 'null' }
+        status: { type: string, enum: [RECEIVED, SENT, DELIVERED, READ, FAILED], description: "INBOUND: RECEIVED; OUTBOUND: Meta's ticks." }
+        error:
+          oneOf:
+            - type: object
+              required: [code, title]
+              properties:
+                code: { type: [integer, 'null'] }
+                title: { type: [string, 'null'] }
+            - { type: 'null' }
+        sentBy:
+          oneOf:
+            - { $ref: '#/components/schemas/WaStaffRef' }
+            - { type: 'null' }
+        at: { type: string, format: date-time }
+        statusAt: { type: [string, 'null'], format: date-time }
+    WaMessagePage:
+      type: object
+      required: [data, page]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/WaMessage' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    WaSendRequest:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [type, text]
+          properties:
+            type: { const: TEXT }
+            text: { type: string, minLength: 1, maxLength: 4096 }
+        - type: object
+          additionalProperties: false
+          required: [type, template]
+          properties:
+            type: { const: TEMPLATE }
+            template:
+              type: object
+              additionalProperties: false
+              required: [name, language]
+              properties:
+                name: { type: string, pattern: '^[a-z0-9_]{1,512}$' }
+                language: { type: string, examples: [ar, en_US] }
+                parameters: { type: array, maxItems: 20, items: { type: string, minLength: 1, maxLength: 1024 }, description: "The body's {{1}}, {{2}} … in order (the count must match)." }
+    WaTransferRequest:
+      type: object
+      additionalProperties: false
+      required: [toUserId]
+      properties:
+        toUserId: { type: string, format: uuid }
+    WaAssignment:
+      type: object
+      required: [id, action, from, to, by, at]
+      properties:
+        id: { type: string, format: uuid }
+        action: { type: string, enum: [CLAIM, RELEASE, TRANSFER, CLOSE, REOPEN] }
+        from: { oneOf: [{ $ref: '#/components/schemas/WaStaffRef' }, { type: 'null' }] }
+        to: { oneOf: [{ $ref: '#/components/schemas/WaStaffRef' }, { type: 'null' }] }
+        by: { oneOf: [{ $ref: '#/components/schemas/WaStaffRef' }, { type: 'null' }], description: "null: the customer's message reopened it." }
+        at: { type: string, format: date-time }
+    WaAssignmentList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/WaAssignment' } }
+    WaNoteRequest:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 2000 }
+    WaNote:
+      type: object
+      required: [id, body, author, at]
+      properties:
+        id: { type: string, format: uuid }
+        body: { type: string }
+        author: { oneOf: [{ $ref: '#/components/schemas/WaStaffRef' }, { type: 'null' }] }
+        at: { type: string, format: date-time }
+    WaNoteList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/WaNote' } }
+    WaLinkRequest:
+      type: object
+      additionalProperties: false
+      required: [username]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 41, description: "With or without @." }
+    WaTemplate:
+      type: object
+      required: [name, language, category, body, parameterCount]
+      properties:
+        name: { type: string }
+        language: { type: string }
+        category: { type: [string, 'null'], examples: [UTILITY, MARKETING, AUTHENTICATION] }
+        body: { type: [string, 'null'], description: "The BODY text with its {{n}} placeholders." }
+        parameterCount: { type: integer, minimum: 0 }
+    WaTemplateList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/WaTemplate' } }
+    WaAgent:
+      allOf:
+        - { $ref: '#/components/schemas/WaStaffRef' }
+        - type: object
+          required: [onShift]
+          properties:
+            onShift: { type: boolean }
+    WaAgentList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/WaAgent' } }
+    WaQuickReplyRequest:
+      type: object
+      additionalProperties: false
+      required: [title, body]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 60 }
+        body: { type: string, minLength: 1, maxLength: 1024 }
+    WaQuickReplyPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 60 }
+        body: { type: string, minLength: 1, maxLength: 1024 }
+    WaQuickReply:
+      type: object
+      required: [id, title, body, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        body: { type: string }
+        updatedAt: { type: string, format: date-time }
+    WaQuickReplyList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/WaQuickReply' } }
+    WaAgentSettings:
+      type: object
+      additionalProperties: false
+      required: [pushMuted]
+      properties:
+        pushMuted: { type: boolean }
+    WaStatus:
+      type: object
+      required: [enabled, phoneNumberId, businessAccountId, displayName, graphApiVersion, webhookUrl, subscribedFields, retentionDays, mediaMaxBytes, lastInboundAt, conversations, missing]
+      properties:
+        enabled: { type: boolean }
+        phoneNumberId: { type: [string, 'null'] }
+        businessAccountId: { type: [string, 'null'] }
+        displayName: { type: [string, 'null'] }
+        graphApiVersion: { type: string, examples: [v23.0] }
+        webhookUrl: { type: string, description: "API_PUBLIC_URL + /api/v1/webhooks/whatsapp — the Callback URL in Meta." }
+        subscribedFields: { type: array, items: { type: string }, examples: [[messages]] }
+        retentionDays: { type: integer }
+        mediaMaxBytes: { type: integer }
+        lastInboundAt: { type: [string, 'null'], format: date-time }
+        conversations: { type: integer, minimum: 0 }
+        missing: { type: array, items: { type: string }, description: "The WHATSAPP_* settings not set (names only)." }
+    WaTestResult:
+      type: object
+      required: [ok, displayPhoneNumber, verifiedName, qualityRating, templates, error]
+      properties:
+        ok: { type: boolean }
+        displayPhoneNumber: { type: [string, 'null'] }
+        verifiedName: { type: [string, 'null'] }
+        qualityRating: { type: [string, 'null'], examples: [GREEN, YELLOW, RED] }
+        templates: { type: [integer, 'null'] }
+        error:
+          oneOf:
+            - type: object
+              required: [status, code, title]
+              properties:
+                status: { type: integer, description: "Meta's HTTP status (0: no answer)." }
+                code: { type: [integer, 'null'] }
+                title: { type: [string, 'null'] }
+            - { type: 'null' }
+    WaWebhookAck:
+      type: object
+      required: [received, events]
+      properties:
+        received: { const: true }
+        events: { type: integer, minimum: 0 }
     # ---- v1.89-social (D290, CONVENTIONS §10.103): level-raise requests ------------------------------------------------
     LevelRaiseStatus:
       type: string

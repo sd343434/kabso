@@ -1716,6 +1716,50 @@ export const envSchema = z
       .regex(/^[A-Za-z0-9._-]{1,32}$/, 'must be 1–32 letters, digits, dots, dashes or underscores')
       .default('2026-11-09'),
     /**
+     * v1.116-social (D355, CONVENTIONS §10.151): «واتساب» — the official Kabso number on the WhatsApp Business Platform
+     * (Cloud API). OFF until the whole set is on the server (a partial set refuses to boot). The ids are not secrets; the
+     * three secrets are PATHS to files read at boot (never the secret itself in the environment, git or chat): the System
+     * User's permanent access token, the Meta app secret (X-Hub-Signature-256) and the webhook verify token.
+     */
+    WHATSAPP_PHONE_NUMBER_ID: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{5,30}$/, 'must be the numeric phone number id from WhatsApp Manager')
+      .optional(),
+    WHATSAPP_BUSINESS_ACCOUNT_ID: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{5,30}$/, 'must be the numeric WhatsApp Business Account id')
+      .optional(),
+    WHATSAPP_ACCESS_TOKEN_FILE: z.string().trim().min(1).optional(),
+    WHATSAPP_APP_SECRET_FILE: z.string().trim().min(1).optional(),
+    WHATSAPP_VERIFY_TOKEN_FILE: z.string().trim().min(1).optional(),
+    /** The Graph API version called (Meta retires old versions — keep it current, PP-87). */
+    WHATSAPP_GRAPH_API_VERSION: z
+      .string()
+      .trim()
+      .regex(/^v[0-9]{1,3}\.[0-9]{1,2}$/, 'must look like v23.0')
+      .default('v23.0'),
+    /** Meta's Graph API origin (tests point it at a local fake). */
+    WHATSAPP_GRAPH_BASE_URL: z
+      .string()
+      .trim()
+      .url()
+      .default('https://graph.facebook.com')
+      .transform((v) => v.replace(/\/+$/, '')),
+    /** Optional: the number's display name shown in the panel (Meta's own name is read by «اختبار الاتصال»). */
+    WHATSAPP_DISPLAY_NAME: z.string().trim().min(1).max(100).optional(),
+    /** Conversations with no message for this many days are deleted with their media (privacy, §10.151.8). */
+    WHATSAPP_RETENTION_DAYS: intSetting(180, 7, 3650),
+    /** The largest media file kept or sent (Meta's own limits are lower for some types). */
+    WHATSAPP_MEDIA_MAX_BYTES: intSetting(16 * 1024 * 1024, 1024, 100 * 1024 * 1024),
+    /** The retention sweeper's tick; 0 = off. */
+    WHATSAPP_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
+    /** How long the approved templates read from Meta are cached. */
+    WHATSAPP_TEMPLATE_CACHE_SECONDS: intSetting(600, 0, 86_400),
+    /** At most one push per staff member and conversation in this many seconds (a burst is one push); 0 = every message. */
+    WHATSAPP_PUSH_GAP_SECONDS: intSetting(30, 0, 3600),
+    /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
      */
@@ -1921,6 +1965,22 @@ export const envSchema = z
             path: [key],
             message: 'is required when MEDIA_UPLOADS_ENABLED=true',
           });
+        }
+      }
+    }
+    // v1.116-social (D355, §10.151.1): WhatsApp is all or nothing.
+    {
+      const keys = [
+        'WHATSAPP_PHONE_NUMBER_ID',
+        'WHATSAPP_BUSINESS_ACCOUNT_ID',
+        'WHATSAPP_ACCESS_TOKEN_FILE',
+        'WHATSAPP_APP_SECRET_FILE',
+        'WHATSAPP_VERIFY_TOKEN_FILE',
+      ] as const;
+      const set = keys.filter((k) => env[k] !== undefined);
+      if (set.length > 0 && set.length < keys.length) {
+        for (const k of keys.filter((k) => env[k] === undefined)) {
+          ctx.addIssue({ code: 'custom', path: [k], message: `is required with ${set.join(', ')}` });
         }
       }
     }

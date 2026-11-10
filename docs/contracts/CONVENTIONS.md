@@ -224,6 +224,11 @@ All non-2xx responses use one envelope:
 | 400 | `STORE_IAP_VERIFICATION_FAILED` | *(v1.110-social, DRAFT, D345)* The store did not confirm the purchase, or its signed data is not valid: `details: [{field: purchaseToken \| signedTransaction \| signedPayload \| productId \| environment, issue: …}]` (§10.144.3). Nothing stored. |
 | 409 | `STORE_IAP_PURCHASE_CONFLICT` | *(v1.110-social, DRAFT, D345)* The store purchase was already verified for another account, or is bound to another account (`obfuscatedAccountId` / `appAccountToken`). §10.144.3. |
 | 409 | `STORE_IAP_PENDING` | *(v1.110-social, DRAFT, D345)* Google Play has not completed the payment yet (`purchaseState` pending); nothing stored, retry when the store says it is purchased. §10.144.3. |
+| 503 | `WHATSAPP_UNAVAILABLE` | *(v1.116-social, DRAFT, D355)* «واتساب»: the WhatsApp Business Platform credentials are not on this server (every inbox route and the webhook; `getStaffWhatsAppSummary` answers `enabled: false` instead). No `Retry-After`. §10.151.1. |
+| 409 | `WHATSAPP_WINDOW_CLOSED` | *(v1.116-social, DRAFT, D355)* A free-form reply (text or media) more than 24 hours after the customer's last message (Meta's customer-service window; also Meta's code 131047): only an approved template can be sent. §10.151.4. |
+| 409 | `WHATSAPP_CONVERSATION_ASSIGNED` | *(v1.116-social, DRAFT, D355)* The conversation belongs to another staff member: reply, claim, release or close needs it to be the caller's or unassigned (a transfer, release or close by `support.whatsapp.manage` is allowed). §10.151.4. |
+| 409 | `WHATSAPP_CONVERSATION_CLOSED` | *(v1.116-social, DRAFT, D355)* The conversation is closed: reopen it first (a new customer message reopens it by itself). §10.151.4. |
+| 502 | `WHATSAPP_SEND_FAILED` | *(v1.116-social, DRAFT, D355)* Meta refused or did not answer: `details: [{field: whatsapp \| templates, issue: meta_<code> \| http_<status>}]`. Nothing was stored; the staff member may retry. Meta's throughput codes (130429, 131056, 80007, 4) answer 429 `RATE_LIMITED` with `Retry-After: 60` instead. §10.151.4. |
 | 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). |
 | 409 | `VIP_PRICE_CHANGED` | *(v1.82-social, DRAFT, D252)* `buyVip`: `priceCoins` differs from the tier's price now (the owner changed it in the panel). Nothing was charged; the app reloads the tiers and shows the new price. §10.93. |
 | 409 | `STORE_UNAVAILABLE` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: the item cannot be bought now — `details: [{field: "item", issue: "item_off" \| "owned_permanent"}]` (switched off in the panel; the recipient holds it with no end) or `[{field: "days", issue: "not_priced" \| "too_far"}]` (no price for that currency and duration; the end would pass 3 650 days from now). Nothing was charged. §10.98. |
@@ -767,6 +772,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.116-social (draft) | 2026-11-10 | **D355 (owner: «ربط رقم واتساب رسمي واحد … زر واتساب في التطبيق وفي لوحة الإدارة، عداد غير مقروء، إشعار، والرد على العميل»):** «واتساب» on the WhatsApp Business Platform Cloud API, off until configured. Tag `staff` — `getStaffWhatsAppSummary`, `getStaffWhatsAppConversations`, `getStaffWhatsAppConversation`, `getStaffWhatsAppMessages`, `sendStaffWhatsAppMessage`, `sendStaffWhatsAppMedia`, `getStaffWhatsAppMedia`, `markStaffWhatsAppRead`, `claim…` / `release…` / `transfer…` / `close…` / `reopenStaffWhatsAppConversation`, `getStaffWhatsAppAssignments`, `getStaffWhatsAppNotes`, `addStaffWhatsAppNote`, `link…` / `unlinkStaffWhatsAppConversation`, `getStaffWhatsAppTemplates`, `getStaffWhatsAppAgents`, quick replies (`getStaffWhatsAppQuickReplies`, `create…` / `update…` / `deleteStaffWhatsAppQuickReply`), `getStaffWhatsAppMySettings` / `updateStaffWhatsAppMySettings`; tag `admin-panel` — the same as `…AdminWhatsApp…` plus `getAdminWhatsAppStatus` and `testAdminWhatsAppConnection`; tag `whatsapp` — `verifyWhatsAppWebhook`, `receiveWhatsAppWebhook`. Capabilities `support.whatsapp` (OWNER, MODERATION, SUPPORT), `support.whatsapp.manage` (OWNER, MODERATION); codes `WHATSAPP_UNAVAILABLE` (503), `WHATSAPP_WINDOW_CLOSED`, `WHATSAPP_CONVERSATION_ASSIGNED`, `WHATSAPP_CONVERSATION_CLOSED` (409), `WHATSAPP_SEND_FAILED` (502); data-export section `whatsapp`; audit `whatsapp.*`; migration `20270421090000_whatsapp_inbox`. §4, §10.151. | **Additive** (new operations, codes, capabilities, export section; `StaffStatus.capabilities` gains the two for the staff who hold them). Off until the owner places the WHATSAPP_* settings. |
 | v1.113-live (draft) | 2026-11-10 | **D351 (owner approved 2026-11-10: build the live capacity guard «حد الامتلاء» designed in D350's SURGE_AND_OVERFLOW_PLAN §6):** code `LIVE_CAPACITY_FULL` (503, `Retry-After`) on `startLiveRoom` — the one operation every go-live path uses (solo, PK host, multi-guest, audio, podcast, streamer, the web studio). Server settings `LIVE_CAPACITY_MAX_ROOMS` (**0 = off, the default**), `LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT` (100), `LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT` (25), `LIVE_CAPACITY_RETRY_AFTER_SECONDS` (60), `LIVE_CAPACITY_BYPASS_USER_IDS` (empty). Checked last, right before the room is created (every older refusal keeps its answer and order); race-safe through one transaction-scoped advisory lock. No new field, no migration. §4, §10.3, §10.148. | **Additive** (a new error code on one operation; with the default 0 nothing changes; an older app shows its generic error for the unknown code, CONVENTIONS v1.3 note). |
 | v1.112-social (draft) | 2026-11-09 | **int21 (owner «موافق على الاقتراحات» on D345 #7 + D344): «الشحن من الموقع» only in the direct APK.** `InstallSource` {PLAY, APP_STORE, SIDELOAD} in `DeviceInfo.installSource` (sign-in) and the `refresh` body, kept on the session (`sessions.install_source`, migration `20270418090100_session_install_source`); `RechargePackages.websiteTopupUrl` and `createTopupWebsiteSession` follow `TOPUP_APP_LINK_SOURCES` (default SIDELOAD) on top of `TOPUP_APP_LINK_PLATFORMS`. Also (D345 #5): a store refund bans every device seen for the account (no shape change). §10.143.3, §10.144. | **Additive** in shape; **behaviour change**: a session that reported no install source (an app older than this) no longer gets the website link; a refund bans more devices. |
 | v1.111-live (draft) | 2026-11-09 | **D347 (owner: «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»):** the global lucky banner — the data message `lucky-ticker` (topic `lucky`) goes to every other LIVE room (every mode) only for a send whose best win is in the server set `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (default `250,500,1000`; was every win ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`, 100); it gains `gift` `{code, assetKey, imageUrl}` and `room.mode`; the gap `LUCKY_GLOBAL_BANNER_GAP_SECONDS` (10) is configurable; a waiting win whose live ended is dropped. The app draws it as the room's win banner with the live's name and a tap target. *Follow-up (owner «نعم موافق»):* `GlobalStripsSettings.luckyGlobalMultipliers` / `luckyGlobalGapSeconds` (the panel, optional in `UpdateGlobalStripsRequest`, 400 `luckyGlobalMultipliers` / `invalid_value`), `NotificationSettings.luckyStrip` («إخفاء أشرطة الفوز»); migration `20270418090000_lucky_strip_setting`. §10.27, §10.146, §10.146.1. | **Additive** (new message fields older apps ignore); **behaviour change**: ×100 wins are no longer told to other lives. New fields are additive. |
@@ -11271,3 +11277,149 @@ node limits would otherwise refuse new viewers of the lives already running).
   setup and shows a sheet «البث مزدحم الآن، حاول بعد قليل» / "Live is busy right now, please try again shortly" with
   «حاول مجددًا» / "Try again", disabled with a countdown until `Retry-After` has passed (60 s without the header); not
   an error toast. The web studio shows the same words with the same button. An older app shows its generic error.
+
+### 10.151 «واتساب» — the official Kabso WhatsApp number answered by the staff *(v1.116-social, DRAFT — D355)*
+
+Owner (2026-11-10): «ربط رقم واتساب رسمي واحد لكابسو، يفتح كل مشرف وموظف دعم زر «واتساب» في التطبيق وفي لوحة الإدارة،
+مع عداد غير مقروء وإشعار عند وصول رسالة، ويرد على العميل». The owner has no Meta Business account yet: everything is
+behind configuration and **off** until the credentials are on the server (§10.151.1). Module `whatsapp` (owns `wa_*`).
+
+**Assumptions (D355).** developers.facebook.com was not reachable from the build machine; the design follows the
+documented WhatsApp Business Platform **Cloud API** (Graph API v2x) shapes, cross-checked with Meta's own sample
+repository (`fbsamples/whatsapp-api-examples`) and a typed schema of the webhook. Marked conservative: the webhook
+parser ignores what it does not know (an unknown message type is stored as UNSUPPORTED, unknown fields are dropped),
+`WHATSAPP_GRAPH_API_VERSION` (default `v23.0`) is a setting the owner keeps current (Meta retires versions about two
+years after release), and the read-receipt / media / template calls are the documented ones listed in
+`graph-client.ts`. Nothing was tested against Meta; PP-87 is the first real run.
+
+#### 10.151.1 Configuration (off until set)
+
+Five settings, **all or none** (a partial set refuses to boot): `WHATSAPP_PHONE_NUMBER_ID`,
+`WHATSAPP_BUSINESS_ACCOUNT_ID` (numeric ids, not secrets) and three **file paths** read once at boot —
+`WHATSAPP_ACCESS_TOKEN_FILE` (the System User's permanent token with `whatsapp_business_messaging` and
+`whatsapp_business_management`), `WHATSAPP_APP_SECRET_FILE` (the Meta app secret: the webhook signature) and
+`WHATSAPP_VERIFY_TOKEN_FILE` (a random string the owner also types in Meta). A missing, unreadable or empty file (< 8
+characters, or with spaces) refuses to boot. No secret is ever in the environment, git, a log, an API answer or the
+panel. Optional: `WHATSAPP_GRAPH_API_VERSION` (`v23.0`), `WHATSAPP_GRAPH_BASE_URL` (tests only), `WHATSAPP_DISPLAY_NAME`,
+`WHATSAPP_RETENTION_DAYS` (180, 7–3650), `WHATSAPP_MEDIA_MAX_BYTES` (16 MiB), `WHATSAPP_SWEEP_INTERVAL_SECONDS` (3600),
+`WHATSAPP_TEMPLATE_CACHE_SECONDS` (600), `WHATSAPP_PUSH_GAP_SECONDS` (30). Off: every inbox route and the webhook answer
+503 `WHATSAPP_UNAVAILABLE`; `GET …/summary` answers `{enabled: false}` (the app and the panel hide «واتساب»).
+
+#### 10.151.2 Permissions
+
+Two panel capabilities (§10.54.1), checked on **every request** against the roles held now, from the panel (cookie,
+`/api/v1/admin/whatsapp/*`) and from the staff's app account (bearer + StaffAppGuard, `/api/v1/staff/whatsapp/*`;
+staff work switches the shift on, §10.96.14, except the summary and «me/settings»):
+
+| Capability | OWNER | MODERATION «مشرف» | SUPPORT «دعم» | FINANCE | BD |
+|---|:-:|:-:|:-:|:-:|:-:|
+| `support.whatsapp` — the inbox, replies, claim / release / transfer / close / reopen, notes, the account link, templates, the agents, my push mute, reading the quick replies | ✓ | ✓ | ✓ | | |
+| `support.whatsapp.manage` — quick replies (create / edit / delete), the settings page and «اختبار الاتصال», and acting on a conversation assigned to someone else (transfer, release, close) | ✓ | ✓ | | | |
+
+The OWNER grants them by granting the role («الموظفون والصلاحيات», §10.96.5) — no new role. Both are in
+`StaffStatus.capabilities` (the app shows «واتساب» only with `support.whatsapp`).
+
+#### 10.151.3 The webhook (public)
+
+`GET /api/v1/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=…&hub.challenge=…` → 200 the challenge as
+`text/plain` when the mode is `subscribe` and the token equals the file's (constant-time); else 403 `AUTH_FORBIDDEN`.
+`POST /api/v1/webhooks/whatsapp` — no session, no rate limit, the body kept raw (≤ 3 MB): `X-Hub-Signature-256:
+sha256=<hex>` must be the HMAC-SHA256 of the exact bytes with the app secret (constant-time), else 403 (audited
+`whatsapp.webhook.refused`, nothing stored). Then each `entry[].changes[]` with `field: messages`:
+- **messages** (`text`, `image`, `audio` incl. `voice`, `video`, `document`, `sticker`, `location`, `reaction`,
+  `contacts`, `interactive` / `button` replies; anything else UNSUPPORTED) from a valid `wa_id` (E.164) — one
+  conversation per phone (created on the first message, the profile name kept fresh); the message is stored **once**
+  (`wa_messages.wa_message_id` unique and a per-phone advisory lock: Meta's retries and duplicates change nothing); the
+  conversation's unread count +1, `last_inbound_at` (the window) and the preview move, a CLOSED conversation reopens
+  (assignee kept, history REOPEN with no actor); a **reaction** sets the emoji on the message it reacts to and is not an
+  unread message;
+- **statuses** (`sent`, `delivered`, `read`, `failed` with Meta's first error code and title) of our outbound messages,
+  forward only (a late `delivered` never replaces `read`; `failed` is final);
+- events for another `phone_number_id` are ignored. The answer is 200 `{received: true, events}` even when one event
+  failed to store (logged): Meta would otherwise retry the whole batch.
+
+**Media in:** after the answer, `GET /{media-id}` then the URL with the same bearer token (only Meta's hosts —
+`*.fbsbx.com`, `*.facebook.com`, `*.whatsapp.net`, `*.fbcdn.net` — are fetched; no redirects), the type checked
+against the allowlist (JPEG, PNG, WebP stickers, AAC / MP4 / MPEG / AMR / OGG audio, MP4 / 3GPP video, PDF, plain text,
+Word / Excel / PowerPoint) and the size against `WHATSAPP_MEDIA_MAX_BYTES` while streaming; stored in the **private**
+bucket at `private/whatsapp/<conversation>/<message>.<ext>` (`private, no-store`). `media.state`: STORED, TOO_LARGE,
+TYPE_REFUSED or FAILED (the message text says so; nothing else is kept). Read with `GET …/messages/{id}/media`
+(always `Content-Disposition: attachment`, `nosniff`).
+
+#### 10.151.4 Replies and the 24-hour window
+
+`POST …/conversations/{id}/messages` `{type: TEXT, text}` or `{type: TEMPLATE, template: {name, language,
+parameters[]}}`; `POST …/conversations/{id}/media?mime=&filename=&caption=` with the raw bytes
+(`application/octet-stream`; outbound images JPEG / PNG only). Rules, in order: the conversation is OPEN (else 409
+`WHATSAPP_CONVERSATION_CLOSED`); it is the caller's or unassigned — an unassigned one becomes the caller's (CLAIM in
+the history) — else 409 `WHATSAPP_CONVERSATION_ASSIGNED`; **text and media only within 24 hours of the customer's last
+message** (Meta's customer-service window; else 409 `WHATSAPP_WINDOW_CLOSED` — the app switches the composer to
+«إرسال قالب»); a **template** any time, only an **APPROVED** one from Meta's list (`GET …/templates`, cached
+`WHATSAPP_TEMPLATE_CACHE_SECONDS`; `?refresh=true` reads now) with exactly its number of `{{n}}` body parameters (400
+`template` `not_approved` / `parameters` `count_mismatch`); the stored text is the template's body filled in. Meta's
+answer: accepted → stored SENT (then the statuses move it); refused → **nothing stored**, 502 `WHATSAPP_SEND_FAILED`
+with `meta_<code>`; Meta's 131047 (re-engagement) → 409 `WHATSAPP_WINDOW_CLOSED`; Meta's throughput limits (130429,
+131056 pair rate limit, 80007, 4) → 429 `RATE_LIMITED` with `Retry-After: 60`. Every send is audited
+`whatsapp.message.send` {messageId, type, claimed, via}. **Not idempotent towards Meta:** a send cannot be undone, so
+the clients disable «إرسال» while a send is in flight; a client retry after a timeout may send twice (documented, as
+Meta's API has no idempotency key).
+
+`POST …/read` sets the unread count to 0 and sends Meta the read receipt of the last inbound message (best effort).
+
+#### 10.151.5 Assignment, notes, account link, pushes
+
+- `claim` (unassigned only), `release` (the assignee or `manage`), `transfer {toUserId}` (to an agent holding
+  `support.whatsapp` now; by the assignee, on an unassigned one, or `manage`), `close` (the assignee, an unassigned one
+  or `manage`; unread → 0), `reopen`. Each under a row lock, in `wa_assignments` {action, from, to, actor} and audited
+  `whatsapp.conversation.assign`. `GET …/assignments` (newest first, ≤ 100), `GET …/agents` (with their shift).
+- **Notes** `wa_notes` — internal, never sent to the customer, never in the data export; audited
+  `whatsapp.note.create`.
+- **Account link** (§10.151.7): `POST …/link {username}` / `DELETE …/link`, audited; the card (`WaAccountCard`)
+  shows only what `users.view` shows: username, display name, avatar, status, country, joined — never an email, a
+  balance or a phone.
+- **Pushes** (staff channel `kabso_staff`, data `{kind: whatsapp, conversationId}`, tag `wa:<conversation>`): a new
+  customer message → the **assigned agent** (if still an agent); unassigned → the agents **on shift**; nobody on shift
+  → every agent. A muted agent («كتم إشعارات واتساب», `PUT …/me/settings {pushMuted}`) never; at most one push per
+  agent and conversation every `WHATSAPP_PUSH_GAP_SECONDS`. The text never has the message: «رسالة واتساب جديدة من
+  {name}» / the masked number (`+9665••••5678`). The badge is `GET …/summary` — `mine` + `unassigned` open
+  conversations with unread messages; the clients poll it (60 s, and on a `whatsapp` push), like «بلاغات» (§10.101).
+
+#### 10.151.6 Quick replies
+
+`wa_quick_replies` {title (unique, ≤ 60), body (≤ 1024)} — every agent reads them (`GET …/quick-replies`), OWNER and
+MODERATION create / edit / delete (audited `whatsapp.quick_reply.change`). Inserting one fills the composer; it is sent
+like any text (window rules apply).
+
+#### 10.151.7 Matching a phone to a Kabso account
+
+Kabso keeps **no verified phone number** on accounts (sign-up is by e-mail, §6; the recharge-agent application's phone is
+private KYC, not verified, and never used here). A phone match would therefore prove nothing and could show a stranger's
+account to the staff, so **there is no automatic match**: the staff member asks the customer for their username (or the
+customer writes it) and links it; the link is audited and can be removed. If the owner later adds verified phones
+(e.g. an SMS check), the match can be offered as a suggestion behind the same card (a contract change).
+
+#### 10.151.8 Privacy and retention
+
+The customer's phone (E.164), profile name, messages and media are personal data. **Retention:** a conversation with
+no message for `WHATSAPP_RETENTION_DAYS` (180) is deleted with its messages, notes, history and media files by the
+WhatsApp sweeper (audited `whatsapp.retention.purge` with counts only). **Account deletion:** the purge (§10.56) marks
+every conversation linked to the account (`purge_after`); it disappears from the inbox at once and the sweeper deletes it
+and its files; a later message from that phone starts a new conversation. **Data export:** section `whatsapp` — the
+linked conversations' messages (who wrote, type, text, file name, status, time), never the notes or which staff member
+answered. Meta keeps its own copy under Meta's terms (the privacy policy must say so — PP-87).
+
+#### 10.151.9 Data model (migration `20270421090000_whatsapp_inbox`)
+
+`wa_conversations` (phone unique, wa_id, profile_name, status OPEN / CLOSED, assigned_to_id / assigned_at, unread_count,
+last_inbound_at, last_message_at, last_preview, last_direction, linked_user_id / linked_by_id / linked_at, closed_*,
+purge_after), `wa_messages` (direction, type, body ≤ 4096, media key / state / mime / size / filename / voice,
+location, reaction, template name / language, status, error code / title, sent_by_id, wa_timestamp, status_at;
+`wa_message_id` unique), `wa_notes`, `wa_assignments`, `wa_quick_replies`, `wa_agent_settings` (push mute). Staff ids
+carry no foreign key (accounts are tombstoned, never deleted).
+
+#### 10.151.10 Costs
+
+Meta charges per message / conversation category and changes its pricing (the move to per-message pricing in 2025 is
+one example); service replies inside the 24-hour window and templates are priced differently by country. No number is
+written here on purpose — the owner reads the current prices at
+https://developers.facebook.com/docs/whatsapp/pricing before sending templates at scale.

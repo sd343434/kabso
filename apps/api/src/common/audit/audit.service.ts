@@ -335,6 +335,16 @@ export enum AuditAction {
   STORE_IAP_PRODUCT_UPDATE = 'store_iap.product.update',
   STORE_IAP_SETTINGS_UPDATE = 'store_iap.settings.update',
   STORE_IAP_VOIDED_SYNC = 'store_iap.voided_sync',
+  /** v1.116-social (D355, §10.151): «واتساب» — a staff reply, the assignment, notes, the account link, quick replies. */
+  WHATSAPP_SEND = 'whatsapp.message.send',
+  WHATSAPP_ASSIGN = 'whatsapp.conversation.assign',
+  WHATSAPP_NOTE = 'whatsapp.note.create',
+  WHATSAPP_LINK = 'whatsapp.conversation.link',
+  WHATSAPP_UNLINK = 'whatsapp.conversation.unlink',
+  WHATSAPP_QUICK_REPLY = 'whatsapp.quick_reply.change',
+  WHATSAPP_TEST = 'whatsapp.connection.test',
+  WHATSAPP_WEBHOOK_REFUSED = 'whatsapp.webhook.refused',
+  WHATSAPP_PURGE = 'whatsapp.retention.purge',
   TOPUP_EVENT_UNMATCHED = 'topup.event.unmatched',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',

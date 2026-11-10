@@ -42,6 +42,9 @@ export const STAFF_APP_CAPABILITIES = [
   'users.delete',
   // v1.97-social (D303, §10.114.7): «الفعاليات» — create / edit gift events and hold their payout.
   'events.manage',
+  // v1.116-social (D355, §10.151): «واتساب» — the shared WhatsApp inbox and its quick replies.
+  'support.whatsapp',
+  'support.whatsapp.manage',
 ] as const satisfies readonly Capability[];
 
 /** `StaffStatus` (v1.68-live, D273). */

@@ -100,4 +100,6 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'store_iap.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
   'store_iap.manage': ['OWNER'],
   'store_iap.unban': ['OWNER'],
+  'support.whatsapp': ['OWNER', 'MODERATION', 'SUPPORT'],
+  'support.whatsapp.manage': ['OWNER', 'MODERATION'],
 };

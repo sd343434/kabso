@@ -205,6 +205,12 @@ describe('ErrorCode', () => {
         'STORE_IAP_VERIFICATION_FAILED',
         'STORE_IAP_PURCHASE_CONFLICT',
         'STORE_IAP_PENDING',
+        // v1.116-social (D355): WhatsApp.
+        'WHATSAPP_UNAVAILABLE',
+        'WHATSAPP_WINDOW_CLOSED',
+        'WHATSAPP_CONVERSATION_ASSIGNED',
+        'WHATSAPP_CONVERSATION_CLOSED',
+        'WHATSAPP_SEND_FAILED',
         // v1.60-social (D191).
         'ADMIN_PANEL_UNAVAILABLE',
         'ADMIN_LOCKED',

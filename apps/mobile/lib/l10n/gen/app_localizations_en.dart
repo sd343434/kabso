@@ -17283,4 +17283,230 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveCapacityClose => 'Later';
+
+  @override
+  String get waRow => 'WhatsApp';
+
+  @override
+  String waRowBadge(int count) {
+    return '$count conversations waiting';
+  }
+
+  @override
+  String get waTitle => 'WhatsApp';
+
+  @override
+  String get waTabUnassigned => 'Unassigned';
+
+  @override
+  String get waTabMine => 'Mine';
+
+  @override
+  String get waTabAll => 'All';
+
+  @override
+  String get waTabClosed => 'Closed';
+
+  @override
+  String get waSearch => 'Search by name or number';
+
+  @override
+  String get waEmpty => 'No conversations here';
+
+  @override
+  String get waEmptyHint =>
+      'Customers’ messages to Kabso’s official number show here.';
+
+  @override
+  String get waOff => 'WhatsApp is not on yet';
+
+  @override
+  String get waOffHint =>
+      'The owner sets it up once the Meta Business account exists.';
+
+  @override
+  String waUnreadCount(int count) {
+    return '$count unread';
+  }
+
+  @override
+  String get waAssignedToMe => 'With me';
+
+  @override
+  String waAssignedTo(String name) {
+    return 'With $name';
+  }
+
+  @override
+  String get waUnassigned => 'Unassigned';
+
+  @override
+  String get waClosed => 'Closed';
+
+  @override
+  String get waClaim => 'Claim';
+
+  @override
+  String get waRelease => 'Release';
+
+  @override
+  String get waTransfer => 'Transfer';
+
+  @override
+  String get waTransferTo => 'Transfer to';
+
+  @override
+  String get waClose => 'Close';
+
+  @override
+  String get waReopen => 'Reopen';
+
+  @override
+  String waWindowOpen(String time) {
+    return 'Reply window open until $time';
+  }
+
+  @override
+  String get waWindowClosed =>
+      '24 hours have passed since the customer’s last message: you can only send an approved template.';
+
+  @override
+  String get waWindowNever =>
+      'The customer has not written yet: you can only send an approved template.';
+
+  @override
+  String get waComposerHint => 'Write your reply…';
+
+  @override
+  String get waSend => 'Send';
+
+  @override
+  String get waSendTemplate => 'Send a template';
+
+  @override
+  String waTemplateParam(int n) {
+    return 'Variable $n';
+  }
+
+  @override
+  String get waNoTemplates => 'No approved templates yet.';
+
+  @override
+  String get waAttach => 'Attach';
+
+  @override
+  String get waQuickReplies => 'Quick replies';
+
+  @override
+  String get waNoQuickReplies => 'No quick replies.';
+
+  @override
+  String get waVoice => 'Voice message';
+
+  @override
+  String get waPlay => 'Play';
+
+  @override
+  String get waPause => 'Pause';
+
+  @override
+  String get waOpenFile => 'Open the file';
+
+  @override
+  String get waMediaTooLarge =>
+      'The file is larger than allowed and was not kept.';
+
+  @override
+  String get waMediaRefused =>
+      'This file type is not allowed and was not kept.';
+
+  @override
+  String get waMediaFailed => 'The file could not be fetched from WhatsApp.';
+
+  @override
+  String get waLocation => 'Location';
+
+  @override
+  String get waUnsupported => 'A message type not supported yet.';
+
+  @override
+  String waTemplateTag(String name) {
+    return 'Template: $name';
+  }
+
+  @override
+  String get waStatusSent => 'Sent';
+
+  @override
+  String get waStatusDelivered => 'Delivered';
+
+  @override
+  String get waStatusRead => 'Read';
+
+  @override
+  String get waStatusFailed => 'Not delivered';
+
+  @override
+  String waSentBy(String name) {
+    return 'Sent by $name';
+  }
+
+  @override
+  String get waCustomer => 'Customer';
+
+  @override
+  String get waAccount => 'Kabso account';
+
+  @override
+  String get waNoAccount =>
+      'Not linked. Ask the customer for their username, then link it.';
+
+  @override
+  String get waLink => 'Link an account';
+
+  @override
+  String get waUnlink => 'Unlink';
+
+  @override
+  String get waUsername => 'Username';
+
+  @override
+  String get waNotes => 'Internal notes';
+
+  @override
+  String get waNotesHint => 'Never sent to the customer.';
+
+  @override
+  String get waAddNote => 'Add a note';
+
+  @override
+  String get waNoNotes => 'No notes.';
+
+  @override
+  String get waHistory => 'Assignment history';
+
+  @override
+  String get waSomeone => 'A team member';
+
+  @override
+  String get waMute => 'Mute WhatsApp notifications';
+
+  @override
+  String get waErrWindow =>
+      'The 24-hour window is over: send an approved template.';
+
+  @override
+  String get waErrAssigned => 'Another team member has this conversation.';
+
+  @override
+  String get waErrClosed => 'This conversation is closed. Reopen it first.';
+
+  @override
+  String get waErrSend => 'WhatsApp did not accept the message.';
+
+  @override
+  String get waErrOff => 'WhatsApp is not on on the server.';
+
+  @override
+  String get waDetails => 'Customer details';
 }

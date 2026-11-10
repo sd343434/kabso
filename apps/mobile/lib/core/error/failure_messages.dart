@@ -110,6 +110,12 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
       l10n.errorStoreIapVerificationFailed,
     ErrorCode.storeIapPurchaseConflict => l10n.errorStoreIapPurchaseConflict,
     ErrorCode.storeIapPending => l10n.errorStoreIapPending,
+    // v1.116-social (D355): «واتساب».
+    ErrorCode.whatsappUnavailable => l10n.waErrOff,
+    ErrorCode.whatsappWindowClosed => l10n.waErrWindow,
+    ErrorCode.whatsappConversationAssigned => l10n.waErrAssigned,
+    ErrorCode.whatsappConversationClosed => l10n.waErrClosed,
+    ErrorCode.whatsappSendFailed => l10n.waErrSend,
     ErrorCode.staffProtected => l10n.errorStaffProtected,
     ErrorCode.liveStaffRefused => l10n.errorLiveStaffRefused,
     ErrorCode.staffStepUpRequired => l10n.errorStaffStepUpRequired,

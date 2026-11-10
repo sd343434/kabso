@@ -1,0 +1,283 @@
+/* D355 «واتساب»: list + chat + customer panel. Kabso tokens from styles.css only; logical properties (RTL first). */
+.wa-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(240px, 300px);
+  gap: 12px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .wa-layout {
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  }
+  .wa-side {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 760px) {
+  .wa-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.wa-col-list,
+.wa-col-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-block-size: 70vh;
+}
+.wa-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  max-block-size: 64vh;
+}
+.wa-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  inline-size: 100%;
+  text-align: start;
+  padding: 10px;
+  border: 0;
+  border-block-end: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+.wa-row:hover,
+.wa-row.active {
+  background: var(--overlay);
+}
+.wa-row.unread .wa-row-name {
+  font-weight: 700;
+}
+.wa-row-top,
+.wa-row-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.wa-row-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-inline-size: 0;
+}
+.wa-unread {
+  min-inline-size: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 12px;
+  text-align: center;
+}
+.wa-row-tags .tag,
+.wa-settings .tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--text-muted, inherit);
+}
+.wa-row-tags .tag.mine {
+  border-color: var(--info);
+  color: var(--info);
+}
+.wa-row-tags .tag.open,
+.wa-settings .tag.open {
+  border-color: var(--success);
+  color: var(--success);
+}
+.wa-pick {
+  display: grid;
+  place-items: center;
+  min-block-size: 70vh;
+}
+.wa-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-inline-size: 0;
+}
+.wa-chat-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-block-end: 1px solid var(--border);
+  padding-block-end: 8px;
+}
+.wa-chat-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.wa-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.wa-window {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+}
+.wa-window.open {
+  color: var(--success);
+}
+.wa-window.closed {
+  background: var(--overlay);
+  border: 1px solid var(--warning);
+  color: var(--text);
+}
+.wa-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-block-size: 52vh;
+  padding: 4px;
+}
+.wa-bubble {
+  position: relative;
+  max-inline-size: 75%;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--raised);
+}
+.wa-bubble.in {
+  align-self: flex-start;
+}
+.wa-bubble.out {
+  align-self: flex-end;
+  background: var(--side-active-bg);
+}
+.wa-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wa-meta {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  color: var(--text-muted, inherit);
+  opacity: 0.8;
+}
+.wa-ticks.read {
+  color: var(--info);
+}
+.wa-ticks.failed,
+.wa-error {
+  color: var(--error);
+}
+.wa-reaction {
+  position: absolute;
+  inset-block-end: -10px;
+  inset-inline-end: 8px;
+  font-size: 14px;
+}
+.wa-image {
+  display: block;
+  max-inline-size: 260px;
+  max-block-size: 260px;
+  border-radius: var(--r-sm);
+}
+.wa-video {
+  max-inline-size: 280px;
+}
+.wa-audio {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wa-media-note,
+.wa-template-tag {
+  margin: 0;
+  color: var(--text-muted, inherit);
+  font-style: italic;
+}
+.wa-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-block-start: 1px solid var(--border);
+  padding-block-start: 8px;
+}
+.wa-composer textarea {
+  resize: vertical;
+}
+.wa-composer-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.wa-template-only {
+  align-self: flex-start;
+}
+.wa-template-preview {
+  padding: 8px;
+  border-radius: var(--r-sm);
+  background: var(--overlay);
+  white-space: pre-wrap;
+}
+.wa-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wa-side h3 {
+  margin-block: 0 6px;
+  font-size: 15px;
+}
+.wa-side h4 {
+  margin-block: 8px 4px;
+  font-size: 13px;
+}
+.wa-account {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.wa-notes,
+.wa-history,
+.wa-quick-list,
+.wa-quick-admin {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wa-notes p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.wa-quick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  inline-size: 100%;
+  text-align: start;
+}
+.wa-kv {
+  display: grid;
+  grid-template-columns: minmax(160px, 260px) 1fr;
+  gap: 8px;
+  padding-block: 6px;
+  border-block-end: 1px solid var(--border);
+}
+.wa-copy {
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.wa-phone {
+  unicode-bidi: isolate;
+}

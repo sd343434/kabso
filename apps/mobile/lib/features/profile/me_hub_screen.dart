@@ -38,6 +38,8 @@ import 'package:kabso_live/features/staff/presentation/staff_reports_screen.dart
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
+import 'package:kabso_live/features/whatsapp/application/wa_providers.dart';
+import 'package:kabso_live/features/whatsapp/presentation/wa_screens.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -173,6 +175,9 @@ class MeHubScreen extends ConsumerWidget {
   /// SUPPORT), with the unresolved count at the row's end.
   static const staffReportsKey = Key('meHub.staff.reports');
 
+  /// v1.116-social (D355): «واتساب».
+  static const staffWhatsAppKey = Key('meHub.staff.whatsapp');
+
   /// v1.89-social (D290): «طلب رفع ليفيل» (MODERATION / SUPPORT).
   static const staffLevelRaiseKey = Key('meHub.staff.levelRaise');
   static const soonKey = Key('meHub.soon');
@@ -291,6 +296,8 @@ class MeHubScreen extends ConsumerWidget {
           child: FounderDashboardCard(profile: stats),
         ),
       ],
+      // v1.116-social (D355): «واتساب» — the official number's inbox.
+      [_StaffWhatsAppRow(onTap: () => push(AppRoutes.staffWhatsApp))],
       [
         _HubRow(
           rowKey: founderProfitKey,
@@ -370,6 +377,10 @@ class MeHubScreen extends ConsumerWidget {
             if (staff.role == StaffLineRole.moderation ||
                 staff.role == StaffLineRole.support)
               [_StaffReportsRow(onTap: () => push(AppRoutes.staffReports))],
+            // v1.116-social (D355): «واتساب» — the official number's inbox.
+            if (staff.role == StaffLineRole.moderation ||
+                staff.role == StaffLineRole.support)
+              [_StaffWhatsAppRow(onTap: () => push(AppRoutes.staffWhatsApp))],
             // v1.75-live (D285): the recruiters' own recruits and earnings.
             if (staff.role == StaffLineRole.moderation ||
                 staff.role == StaffLineRole.bd)
@@ -1201,6 +1212,32 @@ class _HubRow extends StatelessWidget {
 /// report queue, with the unresolved count at its end (hidden at 0, «99+»),
 /// read while the row is on screen (and refreshed every minute, after «تم
 /// حله» and when a `STAFF_REPORT_NEW` push arrives).
+/// v1.116-social (D355, §10.151): «واتساب» with the conversations waiting
+/// for the caller (theirs and the unassigned ones). Hidden while the server
+/// says WhatsApp is off; an error keeps the row (the inbox says why).
+class _StaffWhatsAppRow extends ConsumerWidget {
+  const new({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final summary = ref.watch(waSummaryProvider).value;
+    if (summary != null && !summary.enabled) return const SizedBox.shrink();
+    final count = summary?.badge ?? 0;
+    return _HubRow(
+      rowKey: MeHubScreen.staffWhatsAppKey,
+      icon: Icons.chat_rounded,
+      hue: _Hues.teal,
+      title: l10n.waRow,
+      valueLabel: count > 0 ? l10n.waRowBadge(count) : null,
+      trailing: WaCountBadge(count: count),
+      onTap: onTap,
+    );
+  }
+}
+
 class _StaffReportsRow extends ConsumerWidget {
   const new({required this.onTap});
 

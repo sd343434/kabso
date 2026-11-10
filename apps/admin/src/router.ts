@@ -66,6 +66,10 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'store', pattern: '/store' },
   // v1.110-social (D345): «مشتريات المتجر».
   { name: 'storeIap', pattern: '/store-purchases' },
+  // v1.116-social (D355): «واتساب» — the inbox (one conversation open by `?c=`), the settings and the quick replies.
+  { name: 'whatsapp', pattern: '/whatsapp' },
+  { name: 'whatsappSettings', pattern: '/whatsapp/settings' },
+  { name: 'whatsappQuickReplies', pattern: '/whatsapp/quick-replies' },
   { name: 'waitlist', pattern: '/waitlist' },
   { name: 'team', pattern: '/team' },
   { name: 'audit', pattern: '/audit' },

@@ -152,6 +152,12 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.storeIapVerificationFailed: 400,
   ErrorCode.storeIapPurchaseConflict: 409,
   ErrorCode.storeIapPending: 409,
+  // v1.116-social (D355): «واتساب».
+  ErrorCode.whatsappUnavailable: 503,
+  ErrorCode.whatsappWindowClosed: 409,
+  ErrorCode.whatsappConversationAssigned: 409,
+  ErrorCode.whatsappConversationClosed: 409,
+  ErrorCode.whatsappSendFailed: 502,
   // v1.68-live (D273).
   ErrorCode.staffProtected: 403,
   ErrorCode.liveStaffRefused: 403,
@@ -345,6 +351,12 @@ void main() {
           'STORE_IAP_VERIFICATION_FAILED',
           'STORE_IAP_PURCHASE_CONFLICT',
           'STORE_IAP_PENDING',
+          // v1.116-social (D355): «واتساب».
+          'WHATSAPP_UNAVAILABLE',
+          'WHATSAPP_WINDOW_CLOSED',
+          'WHATSAPP_CONVERSATION_ASSIGNED',
+          'WHATSAPP_CONVERSATION_CLOSED',
+          'WHATSAPP_SEND_FAILED',
           // v1.68-live (D273): the staff tools in the app.
           'STAFF_PROTECTED',
           'LIVE_STAFF_REFUSED',

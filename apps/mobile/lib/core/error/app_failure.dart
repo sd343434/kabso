@@ -392,6 +392,22 @@ enum ErrorCode {
   /// v1.110-social (D345, 409): the store has not completed the payment yet.
   storeIapPending('STORE_IAP_PENDING'),
 
+  /// v1.116-social (D355, §10.151, 503): WhatsApp is not set up on this server.
+  whatsappUnavailable('WHATSAPP_UNAVAILABLE'),
+
+  /// v1.116-social (D355, 409): Meta's 24-hour window is closed — templates
+  /// only.
+  whatsappWindowClosed('WHATSAPP_WINDOW_CLOSED'),
+
+  /// v1.116-social (D355, 409): another staff member has the conversation.
+  whatsappConversationAssigned('WHATSAPP_CONVERSATION_ASSIGNED'),
+
+  /// v1.116-social (D355, 409): the conversation is closed.
+  whatsappConversationClosed('WHATSAPP_CONVERSATION_CLOSED'),
+
+  /// v1.116-social (D355, 502): Meta refused or did not answer the send.
+  whatsappSendFailed('WHATSAPP_SEND_FAILED'),
+
   /// v1.68-live (D273, §10.96.7, 403): the person holds a panel role — the
   /// app never acts on «فريق كابسو» (kick, mute, message, seat, family).
   staffProtected('STAFF_PROTECTED'),

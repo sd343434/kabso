@@ -320,6 +320,10 @@ export async function purgeAccountIn(
     UPDATE reports SET link_snapshot = jsonb_set(link_snapshot, '{username}', to_jsonb(${tombstone}::text))
      WHERE target_type = 'PROFILE_LINK'::report_target_type AND link_snapshot->>'userId' = ${userId}`;
 
+  // -- v1.116-social (D355, §10.151.8): the WhatsApp conversations linked to the account go with their media (the
+  // WhatsApp sweeper deletes the files and rows; a new message from that phone starts a fresh conversation).
+  await tx.$executeRaw`UPDATE wa_conversations SET purge_after = ${now} WHERE linked_user_id = ${u}`;
+
   // -- Content they wrote, and its counters on others' content.
   await tx.$executeRaw`DELETE FROM posts WHERE author_id = ${u}`;
   await tx.$executeRaw`DELETE FROM stories WHERE author_id = ${u}`;

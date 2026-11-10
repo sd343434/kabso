@@ -17,6 +17,7 @@ import 'package:kabso_live/features/push/push_messaging.dart';
 import 'package:kabso_live/features/push/push_payload.dart';
 import 'package:kabso_live/features/push/push_tokens_repository.dart';
 import 'package:kabso_live/features/staff/application/staff_providers.dart';
+import 'package:kabso_live/features/whatsapp/application/wa_providers.dart';
 
 /// D152 (CONVENTIONS §11.12): ties pushes to the session and the screen.
 ///
@@ -135,6 +136,14 @@ class PushController {
         return;
       }
       _ref.read(notificationSoundsProvider).message();
+      return;
+    }
+    if (push.isWhatsApp) {
+      // D355: the «واتساب» badge reads the count again at once.
+      if (_ref.exists(waSummaryProvider)) {
+        unawaited(_ref.read(waSummaryProvider.notifier).refresh());
+      }
+      _ref.read(notificationSoundsProvider).general();
       return;
     }
     if (push.kind == PushPayload.kindNotification) {

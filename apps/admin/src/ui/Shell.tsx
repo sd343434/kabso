@@ -11,14 +11,15 @@ import type { Attention, AttentionKind, SearchResult } from '../types';
 import { Icon } from './icons';
 import { useLiveReportsSummary } from '../pages/LiveModeration';
 import { badgeText, useOpenReports } from '../pages/Reports';
+import { useWhatsAppBadge } from '../pages/WhatsApp';
 
 /** v1.78-live (D288): the number on «البلاغات» — the unresolved reports (hidden at 0, «99+» above 99). */
-export function NavCount({ count }: { count: number | null }) {
+export function NavCount({ count, label = 'navReportsOpen' }: { count: number | null; label?: Key }) {
   const { t } = useApp();
   const text = badgeText(count ?? 0);
   if (text === null) return null;
   return (
-    <span className="nav-count" data-nav-count={count ?? 0} aria-label={t('navReportsOpen', { count: count ?? 0 })}>
+    <span className="nav-count" data-nav-count={count ?? 0} aria-label={t(label, { count: count ?? 0 })}>
       {text}
     </span>
   );
@@ -261,6 +262,8 @@ export function Shell({
   const dots = navDots(reported);
   // v1.78-live (D288): the unresolved reports on «البلاغات».
   const openReports = useOpenReports(can('reports.view'), path);
+  // v1.116-social (D355): the WhatsApp conversations waiting for the caller (theirs and the unassigned ones).
+  const waiting = useWhatsAppBadge(can('support.whatsapp'), path);
   return (
     <div className="shell">
       <aside className={`side${menuOpen ? ' open' : ''}`} aria-label={t('appName')}>
@@ -294,6 +297,7 @@ export function Shell({
                   <Icon name={n.icon} />
                   <span>{t(n.key)}</span>
                   {n.to === '/reports' && <NavCount count={openReports} />}
+                  {n.to === '/whatsapp' && <NavCount count={waiting} label="navWhatsAppUnread" />}
                   {(dots[n.to] ?? 0) > 0 && (
                     <span className="nav-dot" data-nav-dot={dots[n.to]} aria-label={t('liveReported')}>
                       <span className="red-dot" aria-hidden="true" />

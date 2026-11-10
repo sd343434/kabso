@@ -243,6 +243,15 @@ export const CAPABILITIES = {
   'store_iap.manage': ['OWNER'],
   /** «فك الحظر» of a refund ban (account and/or device; the code again and a reason). OWNER only (owner D345). */
   'store_iap.unban': ['OWNER'],
+  // ---- v1.116-social (D355, CONVENTIONS §10.151): «واتساب» — the official Kabso WhatsApp number -------------------
+  /**
+   * Read the shared inbox and answer the customers (text, media, templates), claim / release / transfer / close /
+   * reopen, internal notes, link a conversation to a Kabso account — from the panel and from the app. Owner: «كل مشرف
+   * أو موظف دعم» — the moderators «مشرف» and the support «دعم» (OWNER holds every capability).
+   */
+  'support.whatsapp': ['OWNER', 'MODERATION', 'SUPPORT'],
+  /** The quick replies «ردود سريعة» (create / edit / delete) and the connection status + «اختبار الاتصال». */
+  'support.whatsapp.manage': ['OWNER', 'MODERATION'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

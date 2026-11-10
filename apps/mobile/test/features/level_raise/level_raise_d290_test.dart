@@ -320,6 +320,14 @@ void main() {
           language: AppLanguage.ar,
           staff: KabsoStaffIdentity(role: role),
         );
+        // D355: the «واتساب» row above it may push it below the fold.
+        if (shown) {
+          await tester.scrollUntilVisible(
+            find.byKey(MeHubScreen.staffLevelRaiseKey),
+            200,
+            scrollable: find.byType(Scrollable).first,
+          );
+        }
         expect(
           find.byKey(MeHubScreen.staffLevelRaiseKey),
           shown ? findsOneWidget : findsNothing,
