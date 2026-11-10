@@ -132,6 +132,8 @@ void expectD335(
   required Size screen,
   required bool rtl,
   bool plainPhoto = true,
+  // D357: the founder's page centres the photo and the name.
+  bool centred = false,
 }) {
   expect(tester.takeException(), isNull);
   final header = _r(tester, ProfileCoverHeader.headerKey);
@@ -151,8 +153,12 @@ void expectD335(
   );
   const centre = KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2;
   expect(
-    rtl ? screen.width - photo.center.dx : photo.center.dx,
-    moreOrLessEquals(centre, epsilon: 0.5),
+    centred
+        ? photo.center.dx
+        : rtl
+        ? screen.width - photo.center.dx
+        : photo.center.dx,
+    moreOrLessEquals(centred ? screen.width / 2 : centre, epsilon: 0.5),
   );
   if (plainPhoto) {
     expect(photo.width, KPublicProfile.avatarOuter);
@@ -165,8 +171,12 @@ void expectD335(
   final nameLine = _r(tester, ProfileCoverHeader.nameLineKey);
   expect(name.top, greaterThan(cover.bottom));
   expect(nameLine.top, greaterThanOrEqualTo(photo.bottom - 0.5));
-  final start = rtl ? screen.width - nameLine.right : nameLine.left;
-  expect(start, moreOrLessEquals(KPublicProfile.inset, epsilon: 0.5));
+  if (centred) {
+    expect(name.center.dx, moreOrLessEquals(screen.width / 2, epsilon: 0.5));
+  } else {
+    final start = rtl ? screen.width - nameLine.right : nameLine.left;
+    expect(start, moreOrLessEquals(KPublicProfile.inset, epsilon: 0.5));
+  }
   final stats = _r(tester, ProfileScreen.statsKey);
   final actions = _r(tester, ProfileCoverHeader.actionsKey);
   expect(stats.top, greaterThan(nameLine.bottom));
@@ -513,11 +523,18 @@ void main() {
           'the ⋯ in the bar)', (tester) async {
         final ar = language == AppLanguage.ar;
         await pumpOwnerVisitor(tester, language: language);
-        expectD335(tester, screen: const Size(393, 852), rtl: ar);
+        // D357: his page centres the photo and the name.
+        expectD335(
+          tester,
+          screen: const Size(393, 852),
+          rtl: ar,
+          centred: true,
+        );
         final cover = _r(tester, ProfileCoverHeader.coverAreaKey);
         final video = _r(tester, OwnerCoverVideoLayer.layerKey);
         expect(cover.contains(video.center), isTrue);
-        expect(find.byKey(ProfileCoverHeader.avatarBadgeKey), findsOneWidget);
+        // D357: his red badge replaces the seal on the photo.
+        expect(find.byKey(ProfileCoverHeader.avatarBadgeKey), findsNothing);
         expect(find.byKey(ProfileCoverHeader.cherriesKey), findsNothing);
         expect(find.byKey(ProfileScreen.tabsKey), findsNothing);
         expect(find.byKey(OwnerVisitorActions.followKey), findsOneWidget);
@@ -537,7 +554,12 @@ void main() {
       tester,
     ) async {
       await pumpOwnerOwn(tester, language: AppLanguage.ar);
-      expectD335(tester, screen: const Size(393, 852), rtl: true);
+      expectD335(
+        tester,
+        screen: const Size(393, 852),
+        rtl: true,
+        centred: true,
+      );
       expect(find.byKey(ProfileScreen.editButtonKey), findsOneWidget);
       expect(find.byKey(ProfileScreen.tabsKey), findsNothing);
       await _end(tester);

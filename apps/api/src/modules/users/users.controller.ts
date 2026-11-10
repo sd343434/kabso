@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, HttpCode, Patch, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Inject, Patch, Put, Query, Req } from '@nestjs/common';
+import type { Redis } from 'ioredis';
+import { REDIS } from '../../redis/redis.module.js';
 import { z } from 'zod';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -41,6 +43,7 @@ export class UsersController {
     private readonly profiles: ProfileEditService,
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
+    @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
   @Get('me')
@@ -53,6 +56,7 @@ export class UsersController {
       kabsoOwner?: true;
       coverVideo?: OwnerCoverVideoDto;
       ownerBio?: OwnerBioDto;
+      founderFeedbackCount?: number;
     }
   > {
     const me = await this.users.getMe(auth.userId);
@@ -69,8 +73,11 @@ export class UsersController {
       ...(staffId ? { staffId } : {}),
       ...(staff ? { staff: { ...staff, ...(staffId ? { staffId } : {}) } } : {}),
       // v1.95-social (D301, §10.112): the app owner and the cover videos.
-      ...(await ownerProfileFields(this.prisma, auth.userId, (key) =>
-        this.media.largeUrl({ largeKey: key }),
+      ...(await ownerProfileFields(
+        this.prisma,
+        auth.userId,
+        (key) => this.media.largeUrl({ largeKey: key }),
+        this.redis,
       )),
     };
   }

@@ -68,6 +68,7 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       kabsoOwner: json['kabsoOwner'] as bool? ?? false,
       coverVideo: ownerCoverVideoFromJson(json['coverVideo']),
       ownerBio: ownerBioFromJson(json['ownerBio']),
+      founderFeedbackCount: (json['founderFeedbackCount'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -114,6 +115,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'kabsoOwner': instance.kabsoOwner,
       'coverVideo': ?ownerCoverVideoToJson(instance.coverVideo),
       'ownerBio': ?ownerBioToJson(instance.ownerBio),
+      'founderFeedbackCount': ?instance.founderFeedbackCount,
     };
 
 _ProfileLive _$ProfileLiveFromJson(Map<String, dynamic> json) => _ProfileLive(

@@ -45,6 +45,7 @@ import 'package:kabso_live/features/notifications/presentation/notifications_scr
 import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
 import 'package:kabso_live/features/owner_profile/domain/owner_models.dart';
 import 'package:kabso_live/features/owner_profile/presentation/announcement_composer.dart';
+import 'package:kabso_live/features/owner_profile/presentation/founder_badge.dart';
 import 'package:kabso_live/features/owner_profile/presentation/journey_editor.dart';
 import 'package:kabso_live/features/owner_profile/presentation/official_label.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_actions.dart';
@@ -774,13 +775,14 @@ void main() {
       for (final language in AppLanguage.values) {
         final ar = language == AppLanguage.ar;
         testD301('${language.name}: no «فريق كابسو» badge under the '
-            "founder's name; the seal and the special ID stay; the default "
-            'bio in the app language (not the one-language bio)', (
+            "founder's name; D357: his red badge instead of the seal; the "
+            'default bio in the app language (not the one-language bio)', (
           tester,
         ) async {
           await pumpOwnerVisitor(tester, language: language);
           expect(find.byType(KabsoTeamBadge), findsNothing);
-          expect(find.byType(ProfileVerificationBadge), findsOneWidget);
+          expect(find.byType(ProfileVerificationBadge), findsNothing);
+          expect(find.byType(FounderBadge), findsOneWidget);
           final bio = tester.widget<Text>(
             find.byKey(ProfileCoverHeader.bioKey),
           );
@@ -805,10 +807,10 @@ void main() {
 
       for (final language in AppLanguage.values) {
         for (final viewport in GoldenViewport.values) {
-          testD301('D335 ${language.name} ${viewport.name}: the photo at the '
-              "reading start over the cover's edge, the name and the seal "
-              'under it at the start; a long name is cut with «…», nothing '
-              'overflows', (tester) async {
+          testD301('D357 ${language.name} ${viewport.name}: the photo '
+              "centred over the cover's edge, the name and the red badge "
+              'centred under it; a long name is cut with «…» on two lines, '
+              'nothing overflows', (tester) async {
             final ar = language == AppLanguage.ar;
             await pumpOwnerVisitor(
               tester,
@@ -828,12 +830,7 @@ void main() {
             final photo = tester.getRect(
               find.byKey(ProfileCoverHeader.photoKey),
             );
-            const centre =
-                KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2;
-            expect(
-              ar ? width - photo.center.dx : photo.center.dx,
-              closeTo(centre, 0.5),
-            );
+            expect(photo.center.dx, closeTo(width / 2, 0.5));
             expect(
               photo.center.dy,
               closeTo(cover.bottom - KPublicProfile.avatarLift, 0.5),
@@ -842,34 +839,26 @@ void main() {
               find.byKey(ProfileCoverHeader.nameLineKey),
             );
             expect(line.top, greaterThanOrEqualTo(photo.bottom - 1));
-            expect(
-              ar ? width - line.right : line.left,
-              closeTo(KPublicProfile.inset, 0.5),
-            );
             expect(line.left, greaterThanOrEqualTo(0));
             expect(line.right, lessThanOrEqualTo(width));
-            // His seal after the name and (D335, owner 2) the same seal's
-            // art on the photo's corner (read once, with the name).
-            expect(find.byType(ProfileVerificationBadge), findsOneWidget);
-            final seal = tester.getRect(find.byType(ProfileVerificationBadge));
-            expect(seal.right, lessThanOrEqualTo(width));
-            expect(seal.left, greaterThanOrEqualTo(0));
-            final corner = tester.getRect(
-              find.byKey(ProfileCoverHeader.avatarBadgeKey),
+            final nameRect = tester.getRect(
+              find.byKey(const Key('profile.displayName')),
             );
-            expect(corner.center.dy, greaterThan(photo.center.dy));
-            expect(
-              ar
-                  ? corner.center.dx < photo.center.dx
-                  : corner.center.dx > photo.center.dx,
-              isTrue,
-            );
-            // The name is cut on one line (not wrapped, not clipped away).
+            expect(nameRect.center.dx, closeTo(width / 2, 0.5));
+            // D357: no blue seal (after the name or on the photo); his red
+            // badge centred under the name.
+            expect(find.byType(ProfileVerificationBadge), findsNothing);
+            expect(find.byKey(ProfileCoverHeader.avatarBadgeKey), findsNothing);
+            final badge = tester.getRect(find.byKey(FounderBadge.badgeKey));
+            expect(badge.center.dx, closeTo(width / 2, 0.5));
+            expect(badge.top, greaterThanOrEqualTo(nameRect.bottom));
+            // The name is cut on two lines at most, centred.
             final name = tester.widget<Text>(
               find.byKey(const Key('profile.displayName')),
             );
-            expect(name.maxLines, 1);
+            expect(name.maxLines, 2);
             expect(name.overflow, TextOverflow.ellipsis);
+            expect(name.textAlign, TextAlign.center);
             // The name block on the page under the cover, above the numbers.
             expect(line.top, greaterThan(cover.bottom));
             expect(

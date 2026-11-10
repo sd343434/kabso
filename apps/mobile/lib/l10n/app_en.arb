@@ -4975,6 +4975,8 @@
   "ownerFollow": "Follow the founder",
   "ownerFollowing": "Following the founder",
   "ownerFeedbackButton": "Suggest / report",
+  "founderBadgeLabel": "Kabso Live founder",
+  "founderFeedbackStat": "Suggestions & complaints",
   "ownerPrivate": "Private",
   "ownerEdit": "Edit",
   "ownerDelete": "Delete",

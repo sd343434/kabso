@@ -505,6 +505,12 @@ info:
     `luckyGlobalGapSeconds`, optional in `UpdateGlobalStripsRequest`; 400 `luckyGlobalMultipliers` / `invalid_value`;
     audited; the env values are the defaults), and a viewer hides the banner with `NotificationSettings.luckyStrip`
     (false = «إخفاء أشرطة الفوز»; migration `20270418090000_lucky_strip_setting`). Additive.
+    **int21 (DRAFT v1.112-social)** «الشحن من الموقع» only in the direct APK (CONVENTIONS §10.143.3; owner «موافق على
+    الاقتراحات», D345 #7 + D344): `InstallSource` {PLAY, APP_STORE, SIDELOAD} in `DeviceInfo.installSource` (sign-in)
+    and in the `refresh` body (kept on the session; migration `20270418090100_session_install_source`);
+    `RechargePackages.websiteTopupUrl` and `createTopupWebsiteSession` follow TOPUP_APP_LINK_SOURCES (default SIDELOAD)
+    on top of TOPUP_APP_LINK_PLATFORMS. Additive in shape; **behaviour change**: a session that reported no source (an
+    app older than this) no longer gets the link.
     **D354 (DRAFT v1.115-social)** the event page designer «مصمم صفحة الفعالية» (CONVENTIONS §10.150; owner
     2026-11-10 «اجعل كل الخيارات متاحة»): `GiftEventForm.design` / `EventDetail.design` — `EventPageDesign` version 1
     (layout HERO_PODIUM | STAGE | DECK; leaderboard THRONE | PODIUM | CARDS_ROW | SPOTLIGHT | SHIELD_CREST; countdown
@@ -518,12 +524,6 @@ info:
     `design_tier_prize`, `design_tier_featured`; `design.leaderboardBackgroundMediaId` / `invalid_value`.
     `EventOptions.designChoices`, `AdminGiftEvent.artUrls.leaderboardBackground`; migration
     `20270420090000_event_page_design`. Additive: older apps ignore `design`.
-    **int21 (DRAFT v1.112-social)** «الشحن من الموقع» only in the direct APK (CONVENTIONS §10.143.3; owner «موافق على
-    الاقتراحات», D345 #7 + D344): `InstallSource` {PLAY, APP_STORE, SIDELOAD} in `DeviceInfo.installSource` (sign-in)
-    and in the `refresh` body (kept on the session; migration `20270418090100_session_install_source`);
-    `RechargePackages.websiteTopupUrl` and `createTopupWebsiteSession` follow TOPUP_APP_LINK_SOURCES (default SIDELOAD)
-    on top of TOPUP_APP_LINK_PLATFORMS. Additive in shape; **behaviour change**: a session that reported no source (an
-    app older than this) no longer gets the link.
     **D355 (DRAFT v1.116-social)** «واتساب» — the official Kabso WhatsApp number answered by the staff (CONVENTIONS
     §10.151; owner 2026-11-10): the WhatsApp Business Platform Cloud API behind configuration (off until the owner
     places WHATSAPP_* on the server). Staff inbox in the app (`/staff/whatsapp/*`, tag `staff`) and the panel
@@ -535,6 +535,11 @@ info:
     codes `WHATSAPP_UNAVAILABLE` (503), `WHATSAPP_WINDOW_CLOSED`, `WHATSAPP_CONVERSATION_ASSIGNED`,
     `WHATSAPP_CONVERSATION_CLOSED` (409), `WHATSAPP_SEND_FAILED` (502); data-export section `whatsapp`; migration
     `20270421090000_whatsapp_inbox`. Additive.
+    **D357 (DRAFT v1.118-social)** the founder's centred page (CONVENTIONS §10.153; owner 2026-11-10):
+    `PublicProfile.founderFeedbackCount` / `Me.founderFeedbackCount` (integer ≥ 0, only on the app owner's profile, 0
+    included) — how many «اقترح ميزة / أبلغ» submissions (`createOwnerFeedback`, both kinds, the ones still kept) the
+    founder has received; one number for every viewer, cached 60 s (a new submission or a panel deletion drops the
+    cache); never who sent them or what they say. Additive.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -31658,6 +31663,10 @@ components:
         ownerBio:
           $ref: '#/components/schemas/OwnerBio'
           description: "(v1.98-social, D307, §10.112.11) The founder's bilingual bio; present only on an owner's profile with at least one language."
+        founderFeedbackCount:
+          type: integer
+          minimum: 0
+          description: "(v1.118-social, D357, §10.153) How many «اقترح ميزة / أبلغ» submissions (createOwnerFeedback, FEATURE and STAFF_REPORT, those still kept) the founder has received — one number for every viewer, cached up to 60 s. Present only on an owner's profile (0 included); never who sent them or what they say."
         verification:
           description: "(v1.90-social, D293, §10.105) The caller's automatic verification badge beside the name, or null. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
           oneOf:
@@ -32307,6 +32316,10 @@ components:
         ownerBio:
           $ref: '#/components/schemas/OwnerBio'
           description: "(v1.98-social, D307, §10.112.11) The founder's bilingual bio; present only on an owner's profile with at least one language."
+        founderFeedbackCount:
+          type: integer
+          minimum: 0
+          description: "(v1.118-social, D357, §10.153) How many «اقترح ميزة / أبلغ» submissions (createOwnerFeedback, FEATURE and STAFF_REPORT, those still kept) the founder has received — one number for every viewer, cached up to 60 s. Present only on an owner's profile (0 included); never who sent them or what they say."
         verification:
           description: "(v1.90-social, D293, §10.105) The user's automatic verification badge beside the name, or null — only its type: never an amount, a threshold or which condition was met beyond the badge itself. Also on a private account's profile. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
           oneOf:

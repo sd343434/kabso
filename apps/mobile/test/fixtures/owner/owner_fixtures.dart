@@ -41,6 +41,7 @@ PublicProfile ownerProfile({
   bool self = false,
   OwnerCoverVideo? videos = ownerVideos,
   bool following = false,
+  int? feedbackCount = ownerFeedbackCount,
 }) => PublicProfile(
   id: 'owner-0',
   username: 'kabso',
@@ -59,7 +60,11 @@ PublicProfile ownerProfile({
   joinedMonth: '2026-01',
   kabsoOwner: true,
   coverVideo: videos,
+  founderFeedbackCount: feedbackCount,
 );
+
+/// D357: the founder's «الاقتراحات والشكاوى» in the fixtures (shown «1.2K»).
+const int ownerFeedbackCount = 1284;
 
 /// «رحلة Kabso» as in mock-up 5 (the last one «الأحدث»).
 const List<JourneyMilestone> ownerJourney = [
