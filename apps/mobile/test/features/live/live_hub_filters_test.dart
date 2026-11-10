@@ -28,7 +28,6 @@ import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_nearby_country.dart';
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
-import 'package:kabso_live/features/live/presentation/widgets/kabso_live_icon.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/voice_rooms_screen.dart';
@@ -355,7 +354,7 @@ void main() {
               .kind,
       };
       expect(types.values, everyElement(isNotNull));
-      // D362: drawn as the owner's glyph and tag.
+      // D362: drawn as its tiny tag beside the live wave.
       expect(types.values.toSet(), {LiveCardKind.live, LiveCardKind.pk});
     });
 
@@ -746,18 +745,14 @@ void main() {
       expect(inCard('a', find.byKey(VoiceRoomRow.pkKey)), findsOneWidget);
       expect(inCard('a', find.byKey(VoiceRoomRow.featuredKey)), findsOneWidget);
       expect(inCard('a', find.text('welcome')), findsOneWidget);
-      // D342: each kind its own mark on the picture (D362: the owner's
-      // glyph and tag).
+      // D342: each kind its own mark on the picture (D362: its tiny tag
+      // beside the live wave, no glyph).
       expect(
         inCard('a', find.byKey(LiveTypeTag.keyOf(PartyKind.audio.cardKind))),
         findsOneWidget,
       );
       expect(inCard('a', find.text(en.liveTypeTagVoice)), findsOneWidget);
-      KabsoLiveType glyphIn(String k) => tester
-          .widget<KabsoLiveIcon>(inCard(k, find.byType(KabsoLiveIcon)))
-          .type;
-      expect(glyphIn('a'), KabsoLiveType.voice);
-      // The count's mic (the tag's glyph is painted, not an icon).
+      // The count's mic.
       expect(inCard('a', find.byIcon(Icons.mic_rounded)), findsOneWidget);
       // D246 (v1.58-live): «رائج», the host's level and flag — from the API.
       expect(inCard('a', find.byKey(VoiceRoomRow.popularKey)), findsOneWidget);
@@ -792,7 +787,6 @@ void main() {
         inCard('m', find.byKey(LiveTypeTag.keyOf(PartyKind.multi.cardKind))),
         findsOneWidget,
       );
-      expect(glyphIn('m'), KabsoLiveType.cam);
       expect(inCard('m', find.text(en.liveTypeTagMulti)), findsOneWidget);
       expect(inCard('m', find.byIcon(Icons.videocam_rounded)), findsOneWidget);
       // A podcast: its badge, and its episode and topic under the title.
@@ -800,15 +794,14 @@ void main() {
         inCard('p', find.byKey(LiveTypeTag.keyOf(PartyKind.podcast.cardKind))),
         findsOneWidget,
       );
-      expect(glyphIn('p'), KabsoLiveType.podcastVoice);
       expect(inCard('p', find.text(en.liveTypeTagPodcast)), findsOneWidget);
       expect(
         inCard('p', find.byKey(LiveTypeTag.keyOf(PartyKind.audio.cardKind))),
         findsNothing,
       );
       expect(inCard('p', find.text('Episode 12 · Business')), findsOneWidget);
-      // D362: no chip — a 12 lp white glyph and a 9 sp weight-800 white
-      // tag with a soft shadow, never taller than the old 18 lp chip.
+      // D362: no chip and no glyph — a 9 sp weight-800 white tag with a
+      // soft shadow, never taller than the old 18 lp chip.
       for (final k in PartyKind.values) {
         final tag = find.byKey(LiveTypeTag.keyOf(k.cardKind));
         expect(
@@ -816,12 +809,10 @@ void main() {
           findsNothing,
         );
         expect(tester.getSize(tag).height, lessThanOrEqualTo(18));
-        final glyph = tester.widget<KabsoLiveIcon>(
-          find.descendant(of: tag, matching: find.byType(KabsoLiveIcon)),
+        expect(
+          find.descendant(of: tag, matching: find.byType(CustomPaint)),
+          findsNothing,
         );
-        expect(glyph.type, k.cardKind.glyph);
-        expect(glyph.size, 12);
-        expect(glyph.color, const Color(0xFFFFFFFF));
         final style = tester
             .widget<Text>(
               find.descendant(
@@ -835,13 +826,23 @@ void main() {
         expect(style.fontWeight, FontWeight.w800);
         expect(style.shadows, LiveTypeTag.shadows);
       }
-      // In the cover's top start corner.
+      // Right beside the live wave, at the cover's bottom start.
       final cover = tester.getRect(find.byKey(const Key('a')));
+      final mark = find.descendant(
+        of: find.byKey(const Key('a')),
+        matching: find.byKey(VoiceRoomRow.kindKey),
+      );
+      final wave = tester.getRect(
+        find.descendant(of: mark, matching: find.byType(KLiveEqualizer)),
+      );
       final badge = tester.getRect(
         find.byKey(LiveTypeTag.keyOf(PartyKind.audio.cardKind)),
       );
-      expect(badge.top - cover.top, closeTo(KVoiceRoomRow.badgeInset, 0.5));
-      expect(badge.left - cover.left, closeTo(KVoiceRoomRow.badgeInset, 0.5));
+      expect(wave.left - cover.left, closeTo(KVoiceRoomRow.markStart, 0.5));
+      expect(badge.left - wave.right, closeTo(3, 0.5));
+      expect((badge.center.dy - wave.center.dy).abs(), lessThan(1.5));
+      expect(badge.bottom, lessThan(cover.bottom));
+      expect(badge.top - cover.top, greaterThan(cover.height / 2));
       expect(tester.getSize(find.byKey(const Key('a'))).height, 68.6);
       expect(tester.getSize(find.byKey(const Key('p'))).height, 68.6);
     });

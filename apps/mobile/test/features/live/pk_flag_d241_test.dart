@@ -50,7 +50,7 @@ Future<String?> _tag(
     ),
     language: language,
   );
-  // D362: the tag beside the owner's glyph.
+  // D362: the tag beside the live wave (no glyph).
   return tester
       .widget<Text>(
         find.descendant(

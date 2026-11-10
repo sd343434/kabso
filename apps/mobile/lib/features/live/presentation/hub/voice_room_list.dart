@@ -49,13 +49,11 @@ abstract final class KVoiceRoomRow {
   static const double chipGap = 6;
   static const double chipFont = 10;
 
-  /// The cover's kind mark: 6.4 lp in, 4.5 lp up (M). D342b: the live
-  /// mark stays there; the kind (D362: [LiveTypeTag], the owner's glyph
-  /// and tag) sits in the cover's top start corner, [badgeInset] from both
-  /// edges.
+  /// The cover's kind mark: 6.4 lp in, 4.5 lp up (M) — the live wave and,
+  /// right beside it, the kind's tiny tag (D362: [LiveTypeTag], no glyph;
+  /// owner 2026-11-10), for every kind.
   static const double markStart = 6.4;
   static const double markBottom = 4.5;
-  static const double badgeInset = 4;
 
   /// Light theme: the card text (sampled `#282828`), the subtitle grey,
   /// and the count's icon (sampled `#43E7E4`).
@@ -177,10 +175,9 @@ abstract final class VoiceRoomList {
 
 /// One room as a party-page card (D246, the owner's reference): the cover
 /// square at the reading start, rounded, with the live mark and the room's
-/// kind — D342: the kind's own mark (D362: [LiveTypeTag], the owner's
-/// animated glyph and tiny tag) in its top start corner, the live mark at
-/// its bottom start, since
-/// the three kinds share one list; the host's country flag and the title
+/// kind — D342: each kind told apart (D362: its tiny tag, [LiveTypeTag],
+/// right beside the live wave at the cover's bottom start; no glyph),
+/// since the three kinds share one list; the host's country flag and the title
 /// in bold (two lines when there is no topic), the host's topic in grey
 /// under it (D342: a podcast without one, its episode and topic); one line
 /// of pills with only what the API says — «رائج» (`popular`,
@@ -238,7 +235,6 @@ class VoiceRoomRow extends StatelessWidget {
       withCategory,
       if (room.roomLevel case final level?) l10n.liveRoomLevelBadge(level),
     ].join(', ');
-    final partyKind = PartyKind.of(room);
     final podcast = room.podcast;
     final own = room.topic?.trim();
     // D342: a podcast says its episode and topic when the host set none.
@@ -295,58 +291,34 @@ class VoiceRoomRow extends StatelessWidget {
                             // The marks sit on a fixed 68.6 lp picture: they
                             // do not grow with the text size (they would
                             // be cut), the rest of the card does.
-                            if (partyKind != null) ...[
-                              const PositionedDirectional(
-                                start: KVoiceRoomRow.markStart,
-                                bottom: KVoiceRoomRow.markBottom,
-                                child: KLiveEqualizer(
-                                  color: KLiveGrid.liveMark,
-                                  size: 9,
-                                ),
-                              ),
-                              PositionedDirectional(
-                                start: KVoiceRoomRow.badgeInset,
-                                end: KVoiceRoomRow.badgeInset,
-                                top: KVoiceRoomRow.badgeInset,
-                                child: Align(
+                            // D362: the type's tiny tag right beside the
+                            // live wave, for every kind (no glyph).
+                            PositionedDirectional(
+                              start: KVoiceRoomRow.markStart,
+                              end: 3,
+                              bottom: KVoiceRoomRow.markBottom,
+                              child: MediaQuery.withNoTextScaling(
+                                child: Row(
                                   key: kindKey,
-                                  alignment: AlignmentDirectional.centerStart,
-                                  // D362: the owner's glyph and tag.
-                                  child: LiveTypeTag(
-                                    kind: LiveCardKind.of(room, withPk: false),
-                                    iconSize: 12,
-                                    fontSize: 9,
-                                  ),
-                                ),
-                              ),
-                            ] else
-                              PositionedDirectional(
-                                start: KVoiceRoomRow.markStart,
-                                end: 3,
-                                bottom: KVoiceRoomRow.markBottom,
-                                child: MediaQuery.withNoTextScaling(
-                                  child: Row(
-                                    key: kindKey,
-                                    children: [
-                                      const KLiveEqualizer(
-                                        color: KLiveGrid.liveMark,
-                                        size: 9,
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Flexible(
-                                        child: LiveTypeTag(
-                                          kind: LiveCardKind.of(
-                                            room,
-                                            withPk: false,
-                                          ),
-                                          iconSize: 12,
-                                          fontSize: 9,
+                                  children: [
+                                    const KLiveEqualizer(
+                                      color: KLiveGrid.liveMark,
+                                      size: 9,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Flexible(
+                                      child: LiveTypeTag(
+                                        kind: LiveCardKind.of(
+                                          room,
+                                          withPk: false,
                                         ),
+                                        fontSize: 9,
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                            ),
                           ],
                         ),
                       ),

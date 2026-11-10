@@ -1,14 +1,14 @@
 // D362 (owner: «ايقونة تكون ببطاقة البث من الخارج حسب نوع البث بخط صغير
-// جداً لكي لا تأخذ مساحة»): the live hub's cards with the owner's room-type
-// glyph and tiny tag (still frames: reduce motion, as in every golden).
+// جداً لكي لا تأخذ مساحة», then 2026-11-10: «لا ازل الايقونات فقط جنبي موجة
+// الكلمة بتصنيف لايف»): the live hub's cards with the room type as a tiny
+// tag right beside the teal live wave, no glyph (still frames: reduce
+// motion, as in every golden).
 //
 //   live_tags.grid        the hub grid, one card of every kind the data
 //                         carries (PK, streamer, podcast, audio, multi,
 //                         camera live) and one on a bright cover; dark
 //   live_tags.grid_light  the same in the light theme
-//   live_tags.zoom        every glyph of the owner's file 4× (the four with
-//                         no backing room state marked «unused» by layout:
-//                         the second block), then the six card tags 3×
+//   live_tags.zoom        the six card tags 3×, each beside the live wave
 //
 // 393 × 852 @3x. Regenerate on Linux with the pinned Flutter:
 //   flutter test --update-goldens test/goldens/live_type_tags_d362_golden_test.dart
@@ -22,8 +22,8 @@ import 'package:flutter/rendering.dart' show OffsetLayer;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
-import 'package:kabso_live/features/live/presentation/widgets/kabso_live_icon.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:material_ui/material_ui.dart';
@@ -107,7 +107,8 @@ Widget _grid(AppLanguage language) => CustomScrollView(
   slivers: [LiveHubGrid.sliver(rooms: _rooms(language), onOpenRoom: (_) {})],
 );
 
-/// The owner's glyphs enlarged on a mid cover, then the card tags.
+/// The card tags 3× on a mid cover, each beside the live wave (the grid
+/// card's 10 lp wave and 4 lp gap, 3×).
 Widget _zoom() => Container(
   constraints: const BoxConstraints.expand(),
   color: const Color(0xFF5A5F6B),
@@ -116,33 +117,17 @@ Widget _zoom() => Container(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Used on the cards.
-        Wrap(
-          spacing: 14,
-          runSpacing: 10,
-          children: [
-            for (final type in {for (final k in LiveCardKind.values) k.glyph})
-              KabsoLiveIcon(type: type, size: 56),
-          ],
-        ),
-        const SizedBox(height: 18),
-        // In the owner's file, no room state backs them yet.
-        Opacity(
-          opacity: 0.6,
-          child: Wrap(
-            spacing: 14,
-            children: [
-              for (final type in KabsoLiveType.values)
-                if (!LiveCardKind.values.any((k) => k.glyph == type))
-                  KabsoLiveIcon(type: type, size: 56),
-            ],
-          ),
-        ),
-        const SizedBox(height: 22),
         for (final kind in LiveCardKind.values)
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: LiveTypeTag(kind: kind, iconSize: 39, fontSize: 28.5),
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const KLiveEqualizer(color: KLiveGrid.liveMark, size: 30),
+                const SizedBox(width: KSpacing.xs * 3),
+                LiveTypeTag(kind: kind, fontSize: 28.5),
+              ],
+            ),
           ),
       ],
     ),
@@ -186,39 +171,7 @@ void main() {
         padding: EdgeInsets.zero,
       );
       await expectScreenGolden('live_tags.zoom', language: language);
-      await _capture(tester, 'icons_zoom.$name.393x852@3x');
-    });
-
-    // Captures only (KABSO_CAPTURE_DIR): frames of the loops, never a golden.
-    testWidgets('live_tags.frames $name', (tester) async {
-      if (_captureDir == null) return;
-      KabsoLiveIcon.animationsEnabled = true;
-      addTearDown(() => KabsoLiveIcon.animationsEnabled = false);
-      setViewport(tester, GoldenViewport.phone);
-      await tester.pumpWidget(
-        MediaQuery(
-          data: const MediaQueryData(),
-          child: ColoredBox(
-            color: const Color(0xFF5A5F6B),
-            child: Center(
-              child: Wrap(
-                textDirection: TextDirection.ltr,
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  for (final type in KabsoLiveType.values)
-                    KabsoLiveIcon(type: type, size: 112),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-      for (var i = 0; i < 6; i++) {
-        await tester.pump(const Duration(milliseconds: 230));
-        await _capture(tester, 'icons_frames.$name.$i');
-      }
-      await tester.pumpWidget(const SizedBox());
+      await _capture(tester, 'tags_zoom.$name.393x852@3x');
     });
   });
 }

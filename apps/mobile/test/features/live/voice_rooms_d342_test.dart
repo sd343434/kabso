@@ -18,6 +18,7 @@ import 'package:kabso_live/features/live/application/live_room_swipe.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
@@ -234,14 +235,27 @@ void main() {
               matching: find.byType(LiveTypeTag),
             ),
           );
-          // On the cover, in its top start corner; D362: the decorative
-          // tag stays within 18 lp at text ×1.3.
+          final wave = tester.getRect(
+            find.descendant(
+              of: find.descendant(
+                of: find.byKey(VoiceRoomList.rowKey(i)),
+                matching: find.byKey(VoiceRoomRow.kindKey),
+              ),
+              matching: find.byType(KLiveEqualizer),
+            ),
+          );
+          // On the cover, right beside the live wave at its bottom start
+          // (D362, owner 2026-11-10: no glyph); the decorative tag stays
+          // within 18 lp at text ×1.3.
           expect(badge.height, lessThanOrEqualTo(LiveTypeTag.maxHeight));
-          expect(badge.top - row.top, closeTo(4, 0.5));
+          expect((badge.center.dy - wave.center.dy).abs(), lessThan(1.5));
+          expect(badge.bottom, lessThanOrEqualTo(row.bottom));
           if (language == AppLanguage.ar) {
+            expect(wave.left - badge.right, closeTo(3, 0.5));
             expect(badge.right, lessThanOrEqualTo(row.right));
             expect(badge.left, greaterThanOrEqualTo(row.right - 68.6));
           } else {
+            expect(badge.left - wave.right, closeTo(3, 0.5));
             expect(badge.left, greaterThanOrEqualTo(row.left));
             expect(badge.right, lessThanOrEqualTo(row.left + 68.6));
           }

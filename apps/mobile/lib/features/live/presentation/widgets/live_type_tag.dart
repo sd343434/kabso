@@ -1,9 +1,7 @@
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/live/presentation/widgets/kabso_live_icon.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:visibility_detector/visibility_detector.dart';
 
 /// D342 (owner: «ان يكونو بنفس الصف لكن ميز كل واحده بهم»): the three party
 /// kinds the party page lists together, each told apart on its card (D362:
@@ -33,9 +31,7 @@ enum PartyKind {
 
 /// D362: the room types a hub card can tell apart — only the states the
 /// room data really carries (`LiveRoomSummary.mode` and `inPk`; no team PK,
-/// PK penalty or video podcast exists on the wire, so the owner's
-/// [KabsoLiveType.pkGroup], [KabsoLiveType.pkJudge] and
-/// [KabsoLiveType.podcastCam] glyphs are kept but unused).
+/// PK penalty or video podcast exists on the wire).
 enum LiveCardKind {
   /// In a PK now (`inPk`, or the legacy mode PK).
   pk,
@@ -71,22 +67,8 @@ enum LiveCardKind {
       ? audio
       : live;
 
-  /// The owner's glyph. A PK uses the compact bolt (the tag already says
-  /// «PK»; the P⚡K lettermark at 13 lp would repeat it); a multi-guest live
-  /// is a camera live (the owner drew no multi glyph; its tag tells it
-  /// apart).
-  KabsoLiveType get glyph => switch (this) {
-    pk => KabsoLiveType.pkBolt,
-    streamer => KabsoLiveType.streamer,
-    podcast => KabsoLiveType.podcastVoice,
-    audio => KabsoLiveType.voice,
-    multi => KabsoLiveType.cam,
-    live => KabsoLiveType.cam,
-  };
-
-  /// The short tag beside the glyph — the owner's English tags, the same
-  /// in both languages (his file: «short English tag shown next to the
-  /// small icon»).
+  /// The short tag beside the live wave — the owner's English tags, the
+  /// same in both languages.
   String tag(AppLocalizations l10n) => switch (this) {
     pk => l10n.pkBadge,
     streamer => l10n.liveTypeTagStreamer,
@@ -107,29 +89,19 @@ enum LiveCardKind {
   };
 }
 
-/// D362: a live card's room type from the outside — the owner's animated
-/// white glyph ([KabsoLiveIcon], [iconSize] lp) and its tiny English tag
-/// ([fontSize] sp, weight 800), both with a soft shadow so they read on a
-/// bright cover. No pill, so it takes almost no room.
+/// D362: a live card's room type from the outside — its tiny English tag
+/// ([fontSize] sp, weight 800, white) with a soft shadow so it reads on a
+/// bright cover, right beside the card's teal live wave. No pill and no
+/// glyph (owner 2026-11-10: «لا ازل الايقونات فقط جنبي موجة الكلمة بتصنيف
+/// لايف»), so it takes almost no room.
 ///
-/// - The pair follows the reading direction (glyph at the start); the
-///   glyphs themselves are painted and never mirrored.
 /// - Decorative size: it does not grow with the text size and shrinks to
 ///   fit a narrow card instead of cutting its tag; the card's own label
 ///   carries the type for screen readers ([LiveCardKind.semanticLabel]).
-/// - The glyph loops only while the card is on screen (a visibility check,
-///   so a long grid never runs dozens of tickers), never with reduce motion,
-///   and its tickers pause with [TickerMode] (a hidden tab).
-class LiveTypeTag extends StatefulWidget {
-  const new({
-    required this.kind,
-    super.key,
-    this.iconSize = 13,
-    this.fontSize = 9.5,
-  });
+class LiveTypeTag extends StatelessWidget {
+  const new({required this.kind, super.key, this.fontSize = 9.5});
 
   final LiveCardKind kind;
-  final double iconSize;
   final double fontSize;
 
   static Key keyOf(LiveCardKind kind) => Key('liveTypeTag.${kind.name}');
@@ -147,55 +119,27 @@ class LiveTypeTag extends StatefulWidget {
   ];
 
   @override
-  State<LiveTypeTag> createState() => _LiveTypeTagState();
-}
-
-class _LiveTypeTagState extends State<LiveTypeTag> {
-  bool _visible = false;
-
-  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final kind = widget.kind;
     return Semantics(
       label: kind.semanticLabel(l10n),
       excludeSemantics: true,
-      child: VisibilityDetector(
-        key: ObjectKey(this),
-        onVisibilityChanged: (info) {
-          final visible = info.visibleFraction > 0;
-          if (mounted && visible != _visible) {
-            setState(() => _visible = visible);
-          }
-        },
-        child: MediaQuery.withNoTextScaling(
-          child: FittedBox(
-            key: LiveTypeTag.keyOf(kind),
-            fit: BoxFit.scaleDown,
-            alignment: AlignmentDirectional.centerStart,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                KabsoLiveIcon(
-                  type: kind.glyph,
-                  size: widget.iconSize,
-                  animate: _visible,
-                ),
-                SizedBox(width: widget.fontSize * .3),
-                Text(
-                  kind.tag(l10n),
-                  key: LiveTypeTag.textKey,
-                  maxLines: 1,
-                  style: context.textStyles.caption.copyWith(
-                    color: const Color(0xFFFFFFFF),
-                    fontSize: widget.fontSize,
-                    fontWeight: FontWeight.w800,
-                    height: 1,
-                    letterSpacing: 0.1,
-                    shadows: LiveTypeTag.shadows,
-                  ),
-                ),
-              ],
+      child: MediaQuery.withNoTextScaling(
+        child: FittedBox(
+          key: keyOf(kind),
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(
+            kind.tag(l10n),
+            key: textKey,
+            maxLines: 1,
+            style: context.textStyles.caption.copyWith(
+              color: const Color(0xFFFFFFFF),
+              fontSize: fontSize,
+              fontWeight: FontWeight.w800,
+              height: 1,
+              letterSpacing: 0.1,
+              shadows: shadows,
             ),
           ),
         ),
