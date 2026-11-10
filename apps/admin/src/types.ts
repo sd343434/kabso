@@ -116,7 +116,10 @@ export type Capability =
   // v1.110-social (D345): «مشتريات المتجر».
   | 'store_iap.view'
   | 'store_iap.manage'
-  | 'store_iap.unban';
+  | 'store_iap.unban'
+  // v1.116-social (D355): «واتساب».
+  | 'support.whatsapp'
+  | 'support.whatsapp.manage';
 
 /** v1.90-social (D293, §10.105): the automatic verification badge, highest first. */
 export const VERIFICATION_BADGES = ['OWNER', 'STAFF', 'RECHARGE_AGENT', 'HOST_AGENT', 'CREATOR', 'VERIFIED_HOST'] as const;
@@ -1287,4 +1290,110 @@ export interface StoreIapRefundBanRow {
   deviceLiftedAt: string | null;
   deviceLiftReason: string | null;
   createdAt: string;
+}
+
+// ---- v1.116-social (D355, CONVENTIONS §10.151): «واتساب» ------------------------------------------------------------
+export interface WaStaffRef {
+  userId: string;
+  displayName: string | null;
+  staffId: string | null;
+}
+export interface WaAccountCard {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  status: string;
+  countryCode: string | null;
+  createdAt: string;
+}
+export interface WaSummary {
+  enabled: boolean;
+  badge: number;
+  mine: number;
+  unassigned: number;
+  unreadMessages: number;
+}
+export interface WaConversation {
+  id: string;
+  phone: string;
+  name: string | null;
+  status: 'OPEN' | 'CLOSED';
+  assignedTo: WaStaffRef | null;
+  assignedToMe: boolean;
+  unreadCount: number;
+  lastMessageAt: string;
+  lastPreview: string | null;
+  lastDirection: 'INBOUND' | 'OUTBOUND' | null;
+  window: { open: boolean; closesAt: string | null };
+  linkedAccount: WaAccountCard | null;
+  closedAt: string | null;
+  createdAt: string;
+}
+export interface WaMessage {
+  id: string;
+  direction: 'INBOUND' | 'OUTBOUND';
+  type: string;
+  text: string | null;
+  media: { state: 'STORED' | 'TOO_LARGE' | 'TYPE_REFUSED' | 'FAILED'; mime: string | null; size: number | null; filename: string | null; voice: boolean } | null;
+  location: { latitude: number; longitude: number; name: string | null } | null;
+  reaction: string | null;
+  template: { name: string; language: string } | null;
+  status: 'RECEIVED' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
+  error: { code: number | null; title: string | null } | null;
+  sentBy: WaStaffRef | null;
+  at: string;
+  statusAt: string | null;
+}
+export interface WaNote {
+  id: string;
+  body: string;
+  author: WaStaffRef | null;
+  at: string;
+}
+export interface WaAssignment {
+  id: string;
+  action: 'CLAIM' | 'RELEASE' | 'TRANSFER' | 'CLOSE' | 'REOPEN';
+  from: WaStaffRef | null;
+  to: WaStaffRef | null;
+  by: WaStaffRef | null;
+  at: string;
+}
+export interface WaTemplate {
+  name: string;
+  language: string;
+  category: string | null;
+  body: string | null;
+  parameterCount: number;
+}
+export interface WaQuickReply {
+  id: string;
+  title: string;
+  body: string;
+  updatedAt: string;
+}
+export interface WaAgent extends WaStaffRef {
+  onShift: boolean;
+}
+export interface WaStatus {
+  enabled: boolean;
+  phoneNumberId: string | null;
+  businessAccountId: string | null;
+  displayName: string | null;
+  graphApiVersion: string;
+  webhookUrl: string;
+  subscribedFields: string[];
+  retentionDays: number;
+  mediaMaxBytes: number;
+  lastInboundAt: string | null;
+  conversations: number;
+  missing: string[];
+}
+export interface WaTestResult {
+  ok: boolean;
+  displayPhoneNumber: string | null;
+  verifiedName: string | null;
+  qualityRating: string | null;
+  templates: number | null;
+  error: { status: number; code: number | null; title: string | null } | null;
 }

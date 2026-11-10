@@ -111,6 +111,10 @@ export const NAV: NavGroup[] = [
     key: 'navGroupContent',
     items: [
       { to: '/reports', key: 'navReports', icon: 'flag', cap: 'reports.view', match: ['reports'] },
+      // v1.116-social (D355): «واتساب» — the official number's inbox, its quick replies and settings.
+      { to: '/whatsapp', key: 'navWhatsApp', icon: 'chat', cap: 'support.whatsapp', match: ['whatsapp'] },
+      { to: '/whatsapp/quick-replies', key: 'navWhatsAppQuickReplies', icon: 'list', cap: 'support.whatsapp.manage', match: ['whatsappQuickReplies'] },
+      { to: '/whatsapp/settings', key: 'navWhatsAppSettings', icon: 'settings', cap: 'support.whatsapp.manage', match: ['whatsappSettings'] },
       // v1.95-social (D301): «صندوق المؤسس» — suggestions and confidential staff reports (OWNER only).
       { to: '/owner-inbox', key: 'navOwnerInbox', icon: 'mail', cap: 'owner.inbox', match: ['ownerInbox'] },
       // D301 follow-up (§10.112.10): the fixed monthly costs of «الربح» (OWNER only).

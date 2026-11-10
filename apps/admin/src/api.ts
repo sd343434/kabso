@@ -303,3 +303,24 @@ function uploadRaw<T>(path: string, file: Blob, onProgress: (fraction: number) =
     xhr.send(file);
   });
 }
+
+/**
+ * v1.116-social (D355, §10.151.4): a WhatsApp media reply — the raw file to `POST /admin/whatsapp/conversations/{id}/media`
+ * (the server checks the type, the size and the 24-hour window, uploads it to Meta and keeps it for the inbox).
+ */
+export function uploadWhatsAppMedia<T>(
+  conversationId: string,
+  file: File,
+  caption: string,
+  onProgress: (fraction: number) => void = () => undefined,
+): Promise<T> {
+  return uploadRaw<T>(
+    withQuery(`/admin/whatsapp/conversations/${encodeURIComponent(conversationId)}/media`, {
+      mime: file.type || 'application/octet-stream',
+      filename: file.name,
+      caption: caption.trim() || undefined,
+    }),
+    file,
+    onProgress,
+  );
+}
