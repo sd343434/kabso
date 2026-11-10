@@ -33,14 +33,7 @@ export type AccountCategory = (typeof ACCOUNT_CATEGORIES)[number];
  * `SNAPCHAT` added (additive; an older app reads them as `OTHER`).
  */
 export type ProfileLinkPlatform =
-  | 'INSTAGRAM'
-  | 'TIKTOK'
-  | 'YOUTUBE'
-  | 'FACEBOOK'
-  | 'X'
-  | 'WHATSAPP'
-  | 'SNAPCHAT'
-  | 'OTHER';
+  'INSTAGRAM' | 'TIKTOK' | 'YOUTUBE' | 'FACEBOOK' | 'X' | 'WHATSAPP' | 'SNAPCHAT' | 'OTHER';
 
 /** At most 3 links per profile. */
 export const MAX_PROFILE_LINKS = 3;

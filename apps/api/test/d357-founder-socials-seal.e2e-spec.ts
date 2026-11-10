@@ -118,12 +118,21 @@ describe('D357 founder socials and no OWNER seal', { timeout: 300_000 }, () => {
     expect([notOwner.status, details(notOwner)]).toEqual([400, [{ field: 'links', issue: 'too_many' }]]);
     expect((await patchMe(alice, { links: four.slice(0, 3) })).status).toBe(200);
     // A regular user may also use the new platforms and the phone form (within 3).
-    const wa = await patchMe(alice, { links: [{ url: '00966501234567' }, { url: 'https://snapchat.com/add/x' }] });
+    const wa = await patchMe(alice, {
+      links: [{ url: '00966501234567' }, { url: 'https://snapchat.com/add/x' }],
+    });
     expect(wa.status, JSON.stringify(wa.body)).toBe(200);
-    expect((wa.body.links as { platform: string }[]).map((l) => l.platform)).toEqual(['WHATSAPP', 'SNAPCHAT']);
+    expect((wa.body.links as { platform: string }[]).map((l) => l.platform)).toEqual([
+      'WHATSAPP',
+      'SNAPCHAT',
+    ]);
     for (const url of ['http://instagram.com/kabso', 'snapchat.com/add/kabso', '0501234567', 'wa.me/1234']) {
       const res = await patchMe(owner, { links: [{ url }] });
-      expect([url, res.status, details(res)]).toEqual([url, 400, [{ field: 'links.0.url', issue: 'invalid_format' }]]);
+      expect([url, res.status, details(res)]).toEqual([
+        url,
+        400,
+        [{ field: 'links.0.url', issue: 'invalid_format' }],
+      ]);
     }
   });
 });
