@@ -2930,7 +2930,8 @@ paths:
         Requires a verified email (every v1.2+ account is verified at creation; a legacy
         unverified account gets 403 `AUTH_FORBIDDEN`). CP-010: also requires the **hosting
         permission** (`Me.canHost`), else 403 `LIVE_HOSTING_NOT_ALLOWED` (checked after
-        `LIVE_HOSTING_ENABLED`). `allowGuests` defaults to true.
+        `LIVE_HOSTING_ENABLED`). `allowGuests` defaults to true. v1.113-live (D351): last of all, the
+        capacity guard — 503 `LIVE_CAPACITY_FULL` with `Retry-After` (CONVENTIONS §10.148).
       requestBody:
         required: true
         content:
@@ -2961,10 +2962,24 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '429': { $ref: '#/components/responses/Error' }
         '503':
-          description: LIVE_HOSTING_UNAVAILABLE (hosting disabled by config) or SERVICE_UNAVAILABLE (dependency down).
+          description: |
+            LIVE_HOSTING_UNAVAILABLE (hosting disabled by config, no `Retry-After`) or SERVICE_UNAVAILABLE (dependency
+            down). v1.113-live (D351, CONVENTIONS §10.148) LIVE_CAPACITY_FULL — the capacity guard «حد الامتلاء»: the
+            lives running now already use `LIVE_CAPACITY_MAX_ROOMS` (video-room units; AUDIO / PODCAST lighter), with
+            `Retry-After`. Checked last, right before the room is created (only when the setting is above 0, default
+            off); never on viewers, seats, PK or media tokens. Nothing was created.
+          headers:
+            Retry-After:
+              description: LIVE_CAPACITY_FULL only — seconds to wait before trying again (LIVE_CAPACITY_RETRY_AFTER_SECONDS).
+              schema: { type: integer, minimum: 1 }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error:
+                  code: LIVE_CAPACITY_FULL
+                  message: Live is busy right now, please try again shortly.
+                  requestId: 01JCAPACITY0000000000000000
 
   /api/v1/live/podcasts/scheduled:
     get:

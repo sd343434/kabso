@@ -163,6 +163,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.levelRaiseDuplicate: 409,
   ErrorCode.ownerOnly: 403,
   ErrorCode.ownerJourneyLimit: 409,
+  // v1.113-live (D351): the capacity guard «حد الامتلاء».
+  ErrorCode.liveCapacityFull: 503,
 };
 
 DioException _badResponse(
@@ -356,6 +358,8 @@ void main() {
           // v1.95-social (D301): the app owner only; «رحلة Kabso» is full.
           'OWNER_ONLY',
           'OWNER_JOURNEY_LIMIT',
+          // v1.113-live (D351).
+          'LIVE_CAPACITY_FULL',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

@@ -14887,5 +14887,17 @@
   "walletReasonStoreIap": "شراء من المتجر",
   "@walletReasonStoreIap": {"description": "D345: coins from the stores (Google Play / App Store), the no-refund consent and the states."},
   "walletReasonStoreIapReversal": "استرداد عبر المتجر (سُحبت العملات)",
-  "@walletReasonStoreIapReversal": {"description": "D345: coins from the stores (Google Play / App Store), the no-refund consent and the states."}
+  "@walletReasonStoreIapReversal": {"description": "D345: coins from the stores (Google Play / App Store), the no-refund consent and the states."},
+  "errorLiveCapacityFull": "البث مزدحم الآن، حاول بعد قليل",
+  "@errorLiveCapacityFull": {"description": "LIVE_CAPACITY_FULL (503, v1.113-live, D351): a new live does not fit on the servers now; the owner's words. Transient (Retry-After)."},
+  "liveCapacityTitle": "البث مزدحم",
+  "@liveCapacityTitle": {"description": "D351: the live capacity guard «حد الامتلاء» (LIVE_CAPACITY_FULL, CONVENTIONS §10.148) — the sheet after a refused go-live."},
+  "liveCapacityHint": "إعداداتك محفوظة، يمكنك المحاولة مجددًا بعد انتهاء العدّ.",
+  "@liveCapacityHint": {"description": "D351: the live capacity guard «حد الامتلاء» (LIVE_CAPACITY_FULL, CONVENTIONS §10.148) — the sheet after a refused go-live."},
+  "liveCapacityRetry": "حاول مجددًا",
+  "@liveCapacityRetry": {"description": "D351: the live capacity guard «حد الامتلاء» (LIVE_CAPACITY_FULL, CONVENTIONS §10.148) — the sheet after a refused go-live."},
+  "liveCapacityRetryIn": "حاول مجددًا بعد {wait}",
+  "@liveCapacityRetryIn": {"description": "D351: the live capacity guard «حد الامتلاء» (LIVE_CAPACITY_FULL, CONVENTIONS §10.148) — the sheet after a refused go-live. {wait}: m:ss until Retry-After has passed.", "placeholders": {"wait": {"type": "String"}}},
+  "liveCapacityClose": "لاحقًا",
+  "@liveCapacityClose": {"description": "D351: the live capacity guard «حد الامتلاء» (LIVE_CAPACITY_FULL, CONVENTIONS §10.148) — the sheet after a refused go-live."}
 }

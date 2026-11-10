@@ -428,6 +428,11 @@ enum ErrorCode {
   /// v1.95-social (D301, 409): «رحلة Kabso» already has 30 milestones.
   ownerJourneyLimit('OWNER_JOURNEY_LIMIT'),
 
+  /// v1.113-live (D351, §10.148, 503): the capacity guard «حد الامتلاء» — a
+  /// new live does not fit on the servers now (every go-live path); nothing
+  /// was created. Transient: `Retry-After` says when to try again.
+  liveCapacityFull('LIVE_CAPACITY_FULL'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 
@@ -520,7 +525,8 @@ final class ServerFailure extends AppFailure {
   final List<FieldIssue> details;
   final String? requestId;
 
-  /// Parsed from the `Retry-After` header on `RATE_LIMITED`.
+  /// Parsed from the `Retry-After` header (`RATE_LIMITED`,
+  /// `SERVICE_UNAVAILABLE`, v1.113-live `LIVE_CAPACITY_FULL`, …).
   final Duration? retryAfter;
 }
 

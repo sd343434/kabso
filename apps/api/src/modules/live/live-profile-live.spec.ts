@@ -9,6 +9,7 @@ import type { UsersService } from '../users/users.service.js';
 import type { LiveCategoriesService } from './live-categories.service.js';
 import type { LiveRankingsService } from './live-rankings.service.js';
 import type { LiveScheduleService } from './live-schedule.service.js';
+import type { LiveCapacityGuard } from './live-capacity.js';
 import { LiveRoomsService } from './live-rooms.service.js';
 
 const NOW = new Date('2026-11-05T20:20:00.000Z');
@@ -60,6 +61,7 @@ function service(rows: Row[]) {
     {} as LiveRankingsService,
     {} as LiveScheduleService,
     {} as StorageSettingsStore,
+    {} as LiveCapacityGuard,
   );
   return { rooms, statements, transactions };
 }

@@ -50,7 +50,7 @@ generator set and raw log path.** Method and TARGETS: [`PHASE_1_TEST_PLAN.md`](.
 | Ceiling, realistic mix | | |
 | Egress plateau (Mbit/s) | | |
 | `LIMIT_BYTES_PER_SEC` for production | | |
-| `LIVE_MAX_ROOMS_PER_MEDIA_NODE` for the capacity guard | | |
+| Capacity guard (D351): `LIVE_CAPACITY_MAX_ROOMS` per node (≈ 80 % of the mix ceiling) and the audio weight `LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT` | | |
 | `sysload_limit` for Phase 2 | | |
 | sysctl changes needed | | |
 | Nodes needed for the production target (Phase 0 demand) | | |

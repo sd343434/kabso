@@ -120,6 +120,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.levelRaiseDuplicate => l10n.lrDuplicateShort,
     ErrorCode.ownerOnly => l10n.errorOwnerOnly,
     ErrorCode.ownerJourneyLimit => l10n.errorOwnerJourneyLimit,
+    ErrorCode.liveCapacityFull => l10n.errorLiveCapacityFull,
     ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
     ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
     ErrorCode.rechargeApplicationNotAllowed =>
@@ -162,6 +163,21 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,
   };
+}
+
+/// v1.113-live (D351): the go-live was refused by the capacity guard
+/// «حد الامتلاء» (`LIVE_CAPACITY_FULL`).
+bool isLiveCapacityFull(Object? failure) =>
+    failure is ServerFailure && failure.code == ErrorCode.liveCapacityFull;
+
+/// The wait before «حاول مجددًا» after `LIVE_CAPACITY_FULL`: its
+/// `Retry-After`, else [fallback] (the server's default, 60 s).
+Duration liveCapacityWait(
+  ServerFailure failure, {
+  Duration fallback = const Duration(seconds: 60),
+}) {
+  final after = failure.retryAfter;
+  return after != null && after > Duration.zero ? after : fallback;
 }
 
 /// Codes that honour `Retry-After` (countdown + disabled CTA).

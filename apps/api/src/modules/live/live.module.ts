@@ -33,6 +33,7 @@ import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { LiveStatsService } from './live-stats.service.js';
 import { LiveRankingsService } from './live-rankings.service.js';
 import { LiveRoomsService } from './live-rooms.service.js';
+import { LiveCapacityGuard } from './live-capacity.js';
 import { LiveScheduleService } from './live-schedule.service.js';
 import { LiveSeatsService } from './live-seats.service.js';
 import { LiveTapsService } from './live-taps.service.js';
@@ -84,6 +85,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
   ],
   providers: [
     LiveCategoriesService,
+    // v1.113-live (D351): the capacity guard on going live.
+    LiveCapacityGuard,
     LiveRoomsService,
     LiveMediaService,
     // v1.64-live (D260): every live assigned to a staff member on shift (§10.96).

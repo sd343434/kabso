@@ -633,6 +633,17 @@ export interface AppConfig {
     readonly gamesEnabled: boolean;
     /** v1.45-live (D201, §10.63): a second-camera pairing code's lifetime (LIVE_SECOND_CAMERA_CODE_SECONDS). */
     readonly secondCameraCodeSeconds: number;
+    /**
+     * v1.113-live (D351, §10.148): the capacity guard «حد الامتلاء» on `startLiveRoom`. `maxRooms` 0 = off. Weights are
+     * percent of one video room; `bypassUserIds` (lower-case UUIDs) are never refused (their rooms still count).
+     */
+    readonly capacity: {
+      readonly maxRooms: number;
+      readonly videoWeightPercent: number;
+      readonly audioWeightPercent: number;
+      readonly retryAfterSeconds: number;
+      readonly bypassUserIds: readonly string[];
+    };
   };
   readonly registration: {
     readonly ttlSeconds: number;
@@ -1145,6 +1156,13 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       rankingsTimeZone: e.LIVE_RANKINGS_TIME_ZONE,
       gamesEnabled: e.LIVE_GAMES_ENABLED,
       secondCameraCodeSeconds: e.LIVE_SECOND_CAMERA_CODE_SECONDS,
+      capacity: {
+        maxRooms: e.LIVE_CAPACITY_MAX_ROOMS,
+        videoWeightPercent: e.LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT,
+        audioWeightPercent: e.LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT,
+        retryAfterSeconds: e.LIVE_CAPACITY_RETRY_AFTER_SECONDS,
+        bypassUserIds: e.LIVE_CAPACITY_BYPASS_USER_IDS,
+      },
     },
     registration: {
       ttlSeconds: e.REGISTRATION_TTL_SECONDS,

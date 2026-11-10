@@ -17255,4 +17255,25 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get walletReasonStoreIapReversal =>
       'استرداد عبر المتجر (سُحبت العملات)';
+
+  @override
+  String get errorLiveCapacityFull => 'البث مزدحم الآن، حاول بعد قليل';
+
+  @override
+  String get liveCapacityTitle => 'البث مزدحم';
+
+  @override
+  String get liveCapacityHint =>
+      'إعداداتك محفوظة، يمكنك المحاولة مجددًا بعد انتهاء العدّ.';
+
+  @override
+  String get liveCapacityRetry => 'حاول مجددًا';
+
+  @override
+  String liveCapacityRetryIn(String wait) {
+    return 'حاول مجددًا بعد $wait';
+  }
+
+  @override
+  String get liveCapacityClose => 'لاحقًا';
 }

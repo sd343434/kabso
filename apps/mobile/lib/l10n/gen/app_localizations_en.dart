@@ -17261,4 +17261,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletReasonStoreIapReversal => 'Store refund (coins taken back)';
+
+  @override
+  String get errorLiveCapacityFull =>
+      'Live is busy right now, please try again shortly.';
+
+  @override
+  String get liveCapacityTitle => 'Live is busy';
+
+  @override
+  String get liveCapacityHint =>
+      'Your setup is kept. You can try again when the countdown ends.';
+
+  @override
+  String get liveCapacityRetry => 'Try again';
+
+  @override
+  String liveCapacityRetryIn(String wait) {
+    return 'Try again in $wait';
+  }
+
+  @override
+  String get liveCapacityClose => 'Later';
 }

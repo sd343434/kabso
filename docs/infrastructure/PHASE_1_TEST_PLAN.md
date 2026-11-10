@@ -117,7 +117,8 @@ ESTIMATE from LiveKit's numbers and the local smoke (a subscriber of one 720p si
 Mbit/s): to push the node's **egress to ~900 Mbit/s** the generators must **receive ~900 Mbit/s** and send the
 publishers' uplink (~2.5 Mbit/s per video publisher). Keep each generator at ≤ 60–70 % of its own port so the generator
 is not the bottleneck → **at least 2, better 3 machines with a guaranteed 1 Gbit/s port**, 4–8 vCPU each (lk does not
-decode video; CPU use was not measured here). Options (owner's approval needed; prices from Phase 0 §7, eu-central,
+decode video; CPU use was not measured here). Options (**owner-approved 2026-11-10: a budget of ~€32 for the load
+generators, approved, not spent yet** — PRE_PRODUCTION_CHECKLIST PP-84; prices from Phase 0 §7, eu-central,
 excl. VAT): 3 × Hetzner Cloud CCX33 (€0.2227/h; **throughput per instance not published — measure with iperf3 first**;
 generator outbound traffic counts against the 20 TB included), or hourly dedicated servers if offered. Two days of
 three CCX33 ≈ 3 × €0.2227 × 48 h ≈ **€32**. Incoming traffic to the node is not counted by Hetzner (Phase 0 §2).
@@ -167,5 +168,5 @@ temporary Prometheus on a generator scraping through an SSH tunnel. Capture `doc
 
 - The ceiling per shape and for the mix (last stage within all TARGETS).
 - Production values: `LIMIT_BYTES_PER_SEC` (≈ 80 % of the measured plateau, in+out) and the capacity guard's
-  `LIVE_MAX_ROOMS_PER_MEDIA_NODE` (SURGE_AND_OVERFLOW_PLAN §6), `sysload_limit` for Phase 2.
+  `LIVE_CAPACITY_MAX_ROOMS` / `LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT` (D351, DEPLOYMENT §11.10), `sysload_limit` for Phase 2.
 - Whether sysctl values need changing (UDP buffer errors).

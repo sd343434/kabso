@@ -361,6 +361,11 @@ export enum ErrorCode {
    * 'until_required' | 'until_not_allowed' | 'until_past' | 'until_too_far' | 'invalid_format'}]`. Nothing changed.
    */
   ITEM_BADGES_INVALID = 'ITEM_BADGES_INVALID',
+  /**
+   * v1.113-live (DRAFT, D351, §10.148): the capacity guard «حد الامتلاء» — `startLiveRoom` while the LIVE rooms already
+   * use LIVE_CAPACITY_MAX_ROOMS; `Retry-After` (LIVE_CAPACITY_RETRY_AFTER_SECONDS). Nothing was created.
+   */
+  LIVE_CAPACITY_FULL = 'LIVE_CAPACITY_FULL',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -529,6 +534,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 409,
   [ErrorCode.STAFF_ACCOUNT_LIMITED]: 403,
   [ErrorCode.ITEM_BADGES_INVALID]: 400,
+  [ErrorCode.LIVE_CAPACITY_FULL]: 503,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -699,6 +705,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 'Set up the authenticator in the admin panel first.',
   [ErrorCode.STAFF_ACCOUNT_LIMITED]: 'A Kabso Team account cannot do this.',
   [ErrorCode.ITEM_BADGES_INVALID]: 'These badges cannot be set together.',
+  [ErrorCode.LIVE_CAPACITY_FULL]: 'Live is busy right now, please try again shortly.',
 };
 
 export interface ErrorDetail {

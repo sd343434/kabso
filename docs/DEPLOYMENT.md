@@ -1734,6 +1734,35 @@ ports and TLS: [`TURN_NETWORK_DESIGN.md`](infrastructure/TURN_NETWORK_DESIGN.md)
 and the admin/studio CSP origins `KABSO_ADMIN_MEDIA_ORIGINS` / `KABSO_STUDIO_MEDIA_ORIGINS` =
 `"wss://media1.<domain> https://media1.<domain>"`.
 
+### 11.10 The live capacity guard «حد الامتلاء» (D351) — [IMPLEMENTED, draft contract v1.113-live; off by default, not deployed]
+
+The API refuses a NEW live (every mode, the web studio too) with 503 `LIVE_CAPACITY_FULL` + `Retry-After` when it no
+longer fits next to the lives running (CONVENTIONS §10.148; design `SURGE_AND_OVERFLOW_PLAN.md` §6). Viewers, seats,
+PK and media tokens are never refused. **No migration, no secret, no new host.** With the defaults nothing changes —
+staging keeps going live exactly as before.
+
+| Setting (`/etc/kabso/kabso.env`) | Default | Meaning |
+|---|---|---|
+| `LIVE_CAPACITY_MAX_ROOMS` | `0` (off) | the ceiling, in video-room units (0–100000) |
+| `LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT` | `100` | one SOLO / MULTI / STREAMER live, in percent of a unit (1–1000) |
+| `LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT` | `25` | one AUDIO / PODCAST live (no video), in percent of a unit (1–1000) |
+| `LIVE_CAPACITY_RETRY_AFTER_SECONDS` | `60` | the `Retry-After` the apps wait before «حاول مجددًا» (1–3600) |
+| `LIVE_CAPACITY_BYPASS_USER_IDS` | empty | user ids (UUIDs, comma-separated) never refused; their lives still count |
+
+- **Turning it on:** only after Phase 1 has numbers (`docs/infrastructure/SINGLE_NODE_CAPACITY_RESULTS.md`): set
+  `LIVE_CAPACITY_MAX_ROOMS` to ≈ 80 % of the measured ceiling of the realistic mix × the media nodes in service, and
+  the audio weight from the measured audio / video ratio; restart the API (`docker compose up -d api`). A bad value
+  stops the API at boot with the setting's name (as every setting). Off again: `0` + restart.
+- **Several API instances:** the count is the database's (LIVE rooms with a fresh heartbeat) and the race guard is a
+  Postgres advisory lock, so every instance enforces the same ceiling; set the same values on all of them.
+- **Watching it:** each refusal is a `warn` log line `event: live.capacity.full` (mode, rooms, units used, limit; no
+  user id) and a Redis day counter `<REDIS_KEY_PREFIX>live:capacity:refused:<YYYY-MM-DD>` (UTC, kept 8 days):
+  `redis-cli GET "<prefix>live:capacity:refused:$(date -u +%F)"`. Not in the admin panel yet (needs a contract field);
+  the Phase 4 Prometheus exporter can read the same key. Many refusals = add a media node (surge plan §5), then raise
+  the ceiling.
+- **Rollback:** `LIVE_CAPACITY_MAX_ROOMS=0` (or an older image: it ignores the settings). Older apps show their generic
+  error for the new code.
+
 ### 5.25 Video posts and reels (migration `20261211090000_video_posts_reels`; D162) — [IMPLEMENTED, draft contract v1.41-social; not deployed, not device-tested]
 
 Video in «منشور جديد» (the «فيديو» tab), reels («ريلز») in «لحظات» and the ➕ menu (CONVENTIONS

@@ -1,7 +1,8 @@
 # Surge and overflow plan — sudden load on the media tier (D350)
 
 Status: **PLAN + scripts (dry-run by default). Nothing was created or run against Hetzner.** The capacity guard (§6) is
-a **design only** in this branch (reason in §6.5). Labels: VERIFIED (official docs or LiveKit v1.13.11 source, named),
+**implemented since D351** (owner approval 2026-11-10; contract v1.113-live, CONVENTIONS §10.148, DEPLOYMENT §11.10) and
+off by default (`LIVE_CAPACITY_MAX_ROOMS=0`) until Phase 1 has numbers. Labels: VERIFIED (official docs or LiveKit v1.13.11 source, named),
 OWNER, ESTIMATE, TARGET.
 
 ## 1. What happens automatically
@@ -98,7 +99,7 @@ Phase 2 template; the private network must reach the LiveKit Redis). Time to ser
 - **Short surges only:** an EX44 ($74/month, 1 Gbit guaranteed, unlimited traffic) is cheaper than a CCX33 running
   more than ~14 days a month (336 h × €0.2227 ≈ €75, ignoring the EUR/USD difference), and its port is guaranteed.
 
-## 6. Capacity guard (DESIGN — not implemented in this branch)
+## 6. Capacity guard (D350 design; IMPLEMENTED in D351 — see §6.6)
 
 ### 6.1 Goal
 
@@ -148,3 +149,16 @@ error code in CONVENTIONS §4 and openapi, the mobile mapping, ar/en strings, sc
 to land as one coordinated API + mobile change set with a board proposal, and its ceiling can only be set from the
 Phase 1 measurements, which do not exist yet. With the default "off" it would change nothing today. Recommended as the
 next task once SINGLE_NODE_CAPACITY_RESULTS.md has numbers.
+
+### 6.6 As implemented (D351, 2026-11-10)
+
+The owner approved the guard on 2026-11-10. Differences from the outline above (CONVENTIONS §10.148 is authoritative):
+
+- **Settings:** `LIVE_CAPACITY_MAX_ROOMS` (was `LIVE_MAX_CONCURRENT_ROOMS`; 0 = off, default) counted in **video-room
+  units** with `LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT` (100) and `LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT` (25, AUDIO / PODCAST);
+  `LIVE_CAPACITY_RETRY_AFTER_SECONDS` (60); `LIVE_CAPACITY_BYPASS_USER_IDS` (empty — no bypass by default, the owner
+  included). The per-node product (`LIVE_MAX_ROOMS_PER_MEDIA_NODE` × nodes) is computed by the operator, not by the API.
+- **Strict, not soft:** a transaction-scoped Postgres advisory lock serializes the count + insert of go-lives (§6.2's
+  "two hosts at the same instant may both pass" no longer holds). The e2e test starts 9 hosts at once against a ceiling
+  of 3 and gets exactly 3; with the lock removed the same test got 4–5 (checked once as a negative control).
+- **Refusals:** log `live.capacity.full` + Redis day counter `live:capacity:refused:<UTC date>`; no panel screen yet.

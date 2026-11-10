@@ -1,7 +1,8 @@
 # TURN and network design — LiveKit media node (D350)
 
 Status: **DESIGN, validated locally** (LIVEKIT_SINGLE_NODE_DEPLOYMENT.md §9). Applies to the Phase 1 EX44 and, unchanged
-per node, to the Phase 2 media nodes. Labels as in the runbook (VERIFIED / OWNER / ESTIMATE).
+per node, to the Phase 2 media nodes. Labels as in the runbook (VERIFIED / OWNER / ESTIMATE). **OWNER (2026-11-10):** the
+hostnames `media1.<domain>` (signalling) and `turn1.<domain>` (TURN) are approved (board D350); DNS is not created yet.
 
 ## 1. How a client connects (LiveKit's order, VERIFIED: docs + source)
 

@@ -12,7 +12,7 @@ import {
   type DeviceOption,
   type QualityId,
 } from './devices';
-import { errorKey } from './errors';
+import { capacityRetryAt, errorKey, secondsLeft } from './errors';
 import {
   EMPTY_CHAT,
   chatFailed,
@@ -149,6 +149,8 @@ export function Studio({ api, me }: { api: Api; me: Me }) {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [ending, setEnding] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  // D351: «البث مزدحم» — when «حاول مجددًا» may be pressed (null: not refused by the capacity guard).
+  const [capacityUntil, setCapacityUntil] = useState<number | null>(null);
   const [heartbeatFailures, setHeartbeatFailures] = useState(0);
   const joinSeq = useRef(0);
 
@@ -370,6 +372,7 @@ export function Studio({ api, me }: { api: Api; me: Me }) {
   const goLive = async () => {
     if (missing.length > 0 || phase.kind === 'starting') return;
     setError(null);
+    setCapacityUntil(null);
     setPhase({ kind: 'starting' });
     try {
       let room: LiveRoom;
@@ -412,6 +415,12 @@ export function Studio({ api, me }: { api: Api; me: Me }) {
       if (err instanceof ApiError && (err.code === 'LIVE_HOSTING_NOT_ALLOWED' || err.code === 'LIVE_HOSTING_UNAVAILABLE')) {
         setGate({ kind: err.code === 'LIVE_HOSTING_NOT_ALLOWED' ? 'noPermission' : 'hostingOff' });
         return;
+      }
+      // D351: the capacity guard — the same words as the app, with «حاول مجددًا» after `Retry-After`.
+      const retryAt = capacityRetryAt(err, Date.now());
+      if (retryAt !== null) {
+        setNow(Date.now());
+        setCapacityUntil(retryAt);
       }
       setError(err);
     }
@@ -557,10 +566,10 @@ export function Studio({ api, me }: { api: Api; me: Me }) {
   }, [isLive, t]);
 
   useEffect(() => {
-    if (!isLive) return;
+    if (!isLive && capacityUntil === null) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [isLive]);
+  }, [isLive, capacityUntil]);
 
   useEffect(
     () => () => {
@@ -714,9 +723,22 @@ export function Studio({ api, me }: { api: Api; me: Me }) {
           </div>
         </div>
       )}
-      {errMsg && (
+      {errMsg && capacityUntil === null && (
         <div className="alert error" role="alert">
           {t(errMsg.key, errMsg.vars)}
+        </div>
+      )}
+      {errMsg && capacityUntil !== null && !live_ && (
+        <div className="alert warn row-between" role="alert" data-testid="capacity-full">
+          <strong>{t('errCapacityFull')}</strong>
+          <button
+            className="btn primary small"
+            data-testid="capacity-retry"
+            disabled={secondsLeft(capacityUntil, now) > 0 || phase.kind === 'starting'}
+            onClick={() => void goLive()}
+          >
+            {secondsLeft(capacityUntil, now) > 0 ? t('capacityRetryIn', { wait: clock(secondsLeft(capacityUntil, now)) }) : t('capacityRetry')}
+          </button>
         </div>
       )}
 
