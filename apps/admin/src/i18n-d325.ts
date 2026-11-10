@@ -104,7 +104,7 @@ export const AR_D325 = {
   evMilestoneTwice: 'مرحلة مكررة.',
   evBadMilestone: 'مرحلة غير مكتملة: نقاط صحيحة، لوحة موجودة، وجائزة صحيحة.',
   evBanner: 'بانر الصفحة الرئيسية للبث (1500 × 300)',
-  evBannerHint: 'يظهر أول الصفحة الرئيسية للبث من بداية الفعالية إلى نهايتها ويفتحها — لجمهور الفعالية فقط (أي جمهور).',
+  evBannerHint: 'يظهر في شريط بانرات صفحة البث ويفتح الفعالية — لجمهور الفعالية فقط (أي جمهور).',
   // v1.105-social (D340, §10.134).
   evAnnounceFullscreen: 'إعلان بملء الشاشة عند البدء',
   evAnnounceFullscreenHint:
@@ -217,7 +217,7 @@ export const EN_D325: Record<keyof typeof AR_D325, string> = {
   evBadMilestone: 'An incomplete milestone: whole points, a board the event has and a valid prize.',
   evBanner: 'Live home banner (1500 × 300)',
   evBannerHint:
-    'Shown first on the Live home from the start to the end, opening the event — to the event’s audience only (any audience).',
+    'Shown in the Live page banner carousel, opening the event — to the event’s audience only (any audience).',
   evAnnounceFullscreen: 'Full-screen announcement at the start',
   evAnnounceFullscreenHint:
     'When the event starts the app shows it full screen once to everyone who can take part (its art, dates and top prize). It can change at any time. The winners’ «Congratulations» always shows.',

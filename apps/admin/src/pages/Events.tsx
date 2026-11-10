@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { api, uploadEventMedia, uploadGiftFile, uploadStoreArt } from '../api';
+import { api, uploadGiftFile, uploadStoreArt } from '../api';
+import { EventHubBannerField } from './EventHubBanner';
 import { Dialog, ErrorAlert, FormDialog, reasonField, useAsync } from '../components';
 import { useApp } from '../context';
 import { formatDate, formatNumber } from '../format';
@@ -834,25 +835,19 @@ function Wizard({
       case 'evStepDesign':
         return (
           <div className="form-grid">
-            <div className="field span-2">
-              <label htmlFor="ev-banner">{t('evBanner')}</label>
-              <input
-                id="ev-banner"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setError(null);
-                  uploadEventMedia('banner', file).then((up) => {
-                    set('bannerMediaId', up.mediaId ?? '');
-                    setBannerUrl(up.url);
-                  }, setError);
-                }}
-              />
-              <span className="hint">{t('evBannerHint')}</span>
-              {bannerUrl && <img className="ev-banner-preview" src={bannerUrl} alt="" />}
-            </div>
+            {/* v1.119-social (D359): «بانر صفحة البث» — the event's only way onto the Live hub (its carousel). */}
+            <EventHubBannerField
+              f={f}
+              spec={options.specs?.find((x) => x.kind === 'banner')}
+              imageUrl={bannerUrl}
+              onChange={(k, v) => setF((x) => ({ ...x, [k]: v }))}
+              onUploaded={(mediaId, url) => {
+                set('bannerMediaId', mediaId);
+                setBannerUrl(url);
+              }}
+              onError={setError}
+              onEditAudience={() => setStep('evStepAudience')}
+            />
             {/* v1.105-social (D340): a display setting — editable while the event runs. */}
             <div className="field span-2">
               <label className="check">

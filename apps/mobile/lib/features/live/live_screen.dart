@@ -306,8 +306,24 @@ class LiveRoomsPage extends ConsumerWidget {
   /// A sliver-free header above the rooms (the Voice rooms' "Room" row).
   final Widget? header;
 
+  /// Where a hub banner leads: (D359) an event banner opens that event's
+  /// page ([AppRoutes.event]) from its `eventId`, whatever its `link`;
+  /// any other banner its allowlisted `link`.
+  static HomeBannerTarget? _targetOf(HomeBanner banner) {
+    final eventId = banner.eventId;
+    if (eventId != null && _uuid.hasMatch(eventId)) {
+      return HomeBannerRoute(AppRoutes.event(eventId.toLowerCase()));
+    }
+    return HomeBannerTarget.parse(banner.link);
+  }
+
+  static final _uuid = RegExp(
+    '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
   void _openBanner(BuildContext context, WidgetRef ref, HomeBanner banner) {
-    switch (HomeBannerTarget.parse(banner.link)) {
+    switch (_targetOf(banner)) {
       case HomeBannerRoute(:final location):
         unawaited(context.push<void>(location));
       case HomeBannerLiveTab(tab: final target):
@@ -404,7 +420,7 @@ class LiveRoomsPage extends ConsumerWidget {
       cardBanners: cards.banners,
       cardBannerCell: cards.cell,
       onOpenBanner: (banner) => _openBanner(context, ref, banner),
-      canOpenBanner: (banner) => HomeBannerTarget.parse(banner.link) != null,
+      canOpenBanner: (banner) => _targetOf(banner) != null,
       onOpenRoom: (room) {
         final id = room.roomId;
         if (id == null) return;

@@ -3938,3 +3938,13 @@ left for in-flight work.
   `room.mode`; the new app reads an older server's message without them). **Rollback:** the older API sends ×100+ again
   with the 10 s gap; the new app shows those too.
 
+### 11.15 Event banners on the «البث» hub (D359; migration `20270423090000_event_banner_options`) — [IMPLEMENTED, draft contract v1.119-social; not deployed, not device-tested]
+
+- **Migration:** `ALTER TABLE events ADD COLUMN banner_enabled BOOLEAN NOT NULL DEFAULT true, ADD COLUMN
+  banner_before_start BOOLEAN NOT NULL DEFAULT false` — constant defaults, metadata-only (no rewrite), no GRANT (an
+  existing table). Older events keep their banner and window.
+- **Behaviour change at deploy:** `GET /home/banners` drops an event banner once its event has ended (before, a banner
+  with a later or no end of its own stayed) and lists running events' banners first. No config, no sweeper.
+- **Rollback:** the previous API ignores the two columns; drop them only after rolling back.
+- **Check after deploy:** CONVENTIONS §10.154 / PRE_PRODUCTION_CHECKLIST PP-90.
+

@@ -14,6 +14,9 @@ import {
 } from './home-banners.js';
 import { eventAudienceWhere, GUEST_AUDIENCE, personAudienceOf } from '../programs/event-audience.js';
 
+/** How many active banners are read before the running-first order and [HOME_BANNER_LIMIT] (D359). */
+const BANNER_SCAN_LIMIT = 100;
+
 /** `HomeBanner` (openapi v1.26-live draft, D124). */
 export interface HomeBannerDto {
   id: string;
@@ -54,6 +57,10 @@ export class HomeService {
    * v1.102-social (D334, owner: «أي فعالية يمكن أن يكون لها بانر … يظهر لجمهورها فقط»): a banner that opens an event
    * is listed only while the event is published and only to its audience — `caller` (null: a guest, EVERYONE events
    * only); a banner without an event is everyone's.
+   * v1.119-social (D359, §10.154, owner: events reach the hub only through this carousel): an event banner also goes the
+   * moment its event ends (`endsAt` passed — «إنهاء» included), whatever its own window says, decided at query time (no
+   * sweeper); the banners of RUNNING events (started, not ended) come first, then every other banner — each group in
+   * the admin's order ([BANNER_ORDER]).
    */
   async listBanners(
     language: ContentLanguage,
@@ -61,21 +68,34 @@ export class HomeService {
     caller: string | null = null,
   ): Promise<HomeBannerDto[]> {
     const audience = caller === null ? GUEST_AUDIENCE : await personAudienceOf(this.prisma, caller);
+    const now = this.clock.now();
     const rows = await this.prisma.homeBanner.findMany({
       where: {
         AND: [
-          activeBannerWhere(this.clock.now(), placement),
+          activeBannerWhere(now, placement),
           {
-            OR: [{ eventId: null }, { event: { status: 'PUBLISHED', AND: [eventAudienceWhere(audience)] } }],
+            OR: [
+              { eventId: null },
+              {
+                event: {
+                  status: 'PUBLISHED',
+                  AND: [eventAudienceWhere(audience), { OR: [{ endsAt: null }, { endsAt: { gt: now } }] }],
+                },
+              },
+            ],
           },
         ],
       },
       orderBy: BANNER_ORDER,
-      take: HOME_BANNER_LIMIT,
-      include: { media: true, video: true },
+      // Active banners are a handful the admin made; the running-first order needs them all before the limit.
+      take: BANNER_SCAN_LIMIT,
+      include: { media: true, video: true, event: { select: { startsAt: true } } },
     });
-    return rows
+    const running = (row: (typeof rows)[number]) =>
+      row.event !== null && row.event.startsAt !== null && row.event.startsAt <= now;
+    return [...rows.filter(running), ...rows.filter((row) => !running(row))]
       .filter((row) => bannerLinkProblem(row.link) === null)
+      .slice(0, HOME_BANNER_LIMIT)
       .map((row) => ({
         id: row.id,
         imageUrl: this.media.largeUrl(row.media),

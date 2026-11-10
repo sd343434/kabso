@@ -283,7 +283,9 @@ describe('D325 the step-by-step editor', () => {
   it('milestones, design (banner and art with their specs) and the review', () => {
     expect(editor('ar', 'evStepMilestones')).toContain('إضافة مرحلة');
     const d = editor('ar', 'evStepDesign');
-    expect(d).toContain('بانر الصفحة الرئيسية للبث (1500 × 300)');
+    // D359: the banner field is «بانر صفحة البث» with its 1500 × 300 guidance.
+    expect(d).toContain('بانر صفحة البث');
+    expect(d).toContain('1500 × 300 بكسل');
     expect(d).toContain('معاينة الصفحة قبل النشر');
     const r = editor('ar', 'evStepReview');
     expect(r).toContain('بلا موعد بعد');

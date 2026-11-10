@@ -4431,6 +4431,10 @@ model Event {
   /// v1.105-social (D340, §10.134): «إعلان بملء الشاشة عند البدء» — the app shows the start full screen once per person.
   /// True for every event made after migration 20270412090000; false for the older ones.
   announceFullscreen  Boolean       @default(true) @map("announce_fullscreen")
+  /// v1.119-social (D359, §10.154): «بانر صفحة البث» — the Live home banner made from `bannerMediaId` is shown (true) or
+  /// taken down with the picture kept (false); `bannerBeforeStart` shows it from the publish time instead of the start.
+  bannerEnabled       Boolean       @default(true) @map("banner_enabled")
+  bannerBeforeStart   Boolean       @default(false) @map("banner_before_start")
   createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
