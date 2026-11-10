@@ -1173,6 +1173,9 @@ class WaTemplateSheet extends ConsumerStatefulWidget {
 }
 
 class _WaTemplateSheetState extends ConsumerState<WaTemplateSheet> {
+  /// The template's own name and language code (Meta data, not app copy).
+  static String _templateLabel(WaTemplate t) => '${t.name} (${t.language})';
+
   late final Future<List<WaTemplate>> _templates = ref
       .read(waRepositoryProvider)
       .templates();
@@ -1183,7 +1186,6 @@ class _WaTemplateSheetState extends ConsumerState<WaTemplateSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final p = context.palette;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
@@ -1231,7 +1233,7 @@ class _WaTemplateSheetState extends ConsumerState<WaTemplateSheet> {
                       for (final x in list)
                         RadioListTile<WaTemplate>(
                           value: x,
-                          title: Text('${x.name} (${x.language})'),
+                          title: Text(_templateLabel(x)),
                           subtitle: x.body == null
                               ? null
                               : Text(
@@ -1284,7 +1286,7 @@ class _WaTemplateSheetState extends ConsumerState<WaTemplateSheet> {
                           }
                         },
                 ),
-                Text(' ', style: TextStyle(color: p.textTertiary)),
+                const SizedBox(height: KSpacing.md),
               ],
             );
           },
