@@ -565,19 +565,15 @@ void main() {
       });
     }
 
-    testWidgets('Instagram (D361) and another link open only after '
-        '«You are leaving Kabso» with the full URL', (tester) async {
+    testWidgets('Instagram opens directly (D361, 2026-11-10); another link '
+        'only after «You are leaving Kabso» with the full URL', (tester) async {
       final l10n = l10nFor(AppLanguage.en);
       final (_, _, opener) = await _pumpPublic(tester, withFields());
-      // D361 (owner: D357's direct opening was not approved): Instagram,
-      // Facebook, WhatsApp and Snapchat ask first like any other link.
+      // D361, 2026-11-10 owner: Instagram/Facebook direct again (as under
+      // D175); WhatsApp and Snapchat ask first like any other link.
       await tester.tap(find.byKey(ProfileLinkKeys.chip(0)));
       await tester.pumpAndSettle();
-      expect(find.byKey(ProfileLinkKeys.leavingSheet), findsOneWidget);
-      expect(find.text('https://www.instagram.com/sara'), findsWidgets);
-      expect(opener.opened, isEmpty);
-      await tester.tap(find.byKey(ProfileLinkKeys.leavingOpen));
-      await tester.pumpAndSettle();
+      expect(find.byKey(ProfileLinkKeys.leavingSheet), findsNothing);
       expect(opener.opened, [Uri.parse('https://www.instagram.com/sara')]);
       await tester.tap(find.byKey(ProfileLinkKeys.chip(1)));
       await tester.pumpAndSettle();
@@ -821,18 +817,23 @@ void main() {
       expect(link.platform.known, isFalse);
       expect(link.display, 'example.com/a/b');
       expect(ProfileLinkPlatform.fromWire('TIKTOK').known, isTrue);
-      // D361: only TikTok, YouTube and X open without the warning.
-      expect(
-        [
-          for (final p in ProfileLinkPlatform.values)
-            if (p.opensDirectly) p,
-        ],
-        [
-          ProfileLinkPlatform.tiktok,
-          ProfileLinkPlatform.youtube,
-          ProfileLinkPlatform.x,
-        ],
-      );
+      // D361, 2026-11-10 owner: TikTok, YouTube, X, Instagram and Facebook
+      // open without the warning; WhatsApp, Snapchat and any other link ask
+      // first.
+      const direct = {
+        ProfileLinkPlatform.instagram: true,
+        ProfileLinkPlatform.tiktok: true,
+        ProfileLinkPlatform.youtube: true,
+        ProfileLinkPlatform.x: true,
+        ProfileLinkPlatform.facebook: true,
+        ProfileLinkPlatform.whatsapp: false,
+        ProfileLinkPlatform.snapchat: false,
+        ProfileLinkPlatform.other: false,
+      };
+      expect(direct.keys.toSet(), ProfileLinkPlatform.values.toSet());
+      for (final p in ProfileLinkPlatform.values) {
+        expect(p.opensDirectly, direct[p], reason: p.wire);
+      }
       expect(Gender.fromWire('NOPE'), isNull);
       expect(AccountCategory.fromWire('POET'), AccountCategory.poet);
     });

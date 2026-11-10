@@ -454,8 +454,9 @@ void main() {
       });
     }
 
-    testWidgets('a tap asks «أنت تغادر Kabso» first (D361), then opens the '
-        'link outside the app; cancel opens nothing; a failure says so', (
+    testWidgets('Instagram and Facebook open directly; WhatsApp and Snapchat '
+        'ask «أنت تغادر Kabso» first (D361, 2026-11-10), then open the link '
+        'outside the app; cancel opens nothing; a failure says so', (
       tester,
     ) async {
       final opener = _Opener();
@@ -464,28 +465,57 @@ void main() {
         language: AppLanguage.ar,
         overrides: [externalLinkOpenerProvider.overrideWithValue(opener)],
       );
-      for (final platform in ProfileLinkRules.founderSocials) {
-        expect(platform.opensDirectly, isFalse, reason: platform.wire);
-      }
+      // D361, 2026-11-10 owner: Instagram/Facebook direct again; WhatsApp/
+      // Snapchat ask first.
+      expect(
+        {for (final p in ProfileLinkRules.founderSocials) p: p.opensDirectly},
+        {
+          ProfileLinkPlatform.instagram: true,
+          ProfileLinkPlatform.facebook: true,
+          ProfileLinkPlatform.whatsapp: false,
+          ProfileLinkPlatform.snapchat: false,
+        },
+      );
       await tester.tap(
         find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.whatsapp)),
       );
       await tester.pumpAndSettle();
-      // D361 (owner: D357's direct opening was not approved): the sheet.
       expect(find.byKey(ProfileLinkKeys.leavingSheet), findsOneWidget);
       expect(find.text('https://wa.me/966500000000'), findsWidgets);
       expect(opener.opened, isEmpty);
       await tester.tap(find.byKey(ProfileLinkKeys.leavingOpen));
       await tester.pumpAndSettle();
       expect(opener.opened, [Uri.parse('https://wa.me/966500000000')]);
+      // Cancel on the sheet opens nothing.
       await tester.tap(
-        find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.instagram)),
+        find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.whatsapp)),
       );
       await tester.pumpAndSettle();
       expect(find.byKey(ProfileLinkKeys.leavingSheet), findsOneWidget);
       await tester.tap(find.text('إلغاء').last);
       await tester.pumpAndSettle();
       expect(opener.opened, hasLength(1));
+      // Instagram and Facebook: no sheet, straight out.
+      await tester.tap(
+        find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.instagram)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(ProfileLinkKeys.leavingSheet), findsNothing);
+      expect(opener.opened, hasLength(2));
+      expect(
+        opener.opened.last,
+        Uri.parse('https://www.instagram.com/kabso.test'),
+      );
+      await tester.tap(
+        find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.facebook)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(ProfileLinkKeys.leavingSheet), findsNothing);
+      expect(opener.opened, hasLength(3));
+      expect(
+        opener.opened.last,
+        Uri.parse('https://www.facebook.com/kabso.test'),
+      );
       opener.ok = false;
       await tester.tap(
         find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.snapchat)),

@@ -49,9 +49,9 @@ AccountCategory? accountCategoryFromJson(Object? json) =>
 String? accountCategoryToJson(AccountCategory? category) => category?.wire;
 
 /// `ProfileLinkPlatform`: the server names the known domains. The app opens
-/// TikTok, YouTube and X directly and shows «أنت تغادر Kabso» before every
-/// other link — Instagram, Facebook, WhatsApp and Snapchat included (D361,
-/// owner: D357 had opened those four directly without his approval).
+/// TikTok, YouTube, X, Instagram and Facebook directly and shows «أنت تغادر
+/// Kabso» before every other link — WhatsApp and Snapchat included (D361;
+/// 2026-11-10 owner: Instagram/Facebook direct again, as under D175).
 enum ProfileLinkPlatform {
   instagram('INSTAGRAM'),
   tiktok('TIKTOK'),
@@ -77,9 +77,15 @@ enum ProfileLinkPlatform {
   bool get known => this != other;
 
   /// Opened without the «أنت تغادر Kabso» warning (D175's sheet for every
-  /// other link). D361: never Instagram, Facebook, WhatsApp or Snapchat —
-  /// they ask first, the founder's social row too.
-  bool get opensDirectly => this == tiktok || this == youtube || this == x;
+  /// other link). D361, 2026-11-10 owner: Instagram/Facebook direct again
+  /// (as under D175); WhatsApp and Snapchat ask first — the founder's social
+  /// row too.
+  bool get opensDirectly =>
+      this == tiktok ||
+      this == youtube ||
+      this == x ||
+      this == instagram ||
+      this == facebook;
 }
 
 /// `ProfileLink`.
