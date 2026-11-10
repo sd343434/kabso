@@ -454,7 +454,8 @@ void main() {
       });
     }
 
-    testWidgets('a tap opens the link outside the app; a failure says so', (
+    testWidgets('a tap asks «أنت تغادر Kabso» first (D361), then opens the '
+        'link outside the app; cancel opens nothing; a failure says so', (
       tester,
     ) async {
       final opener = _Opener();
@@ -463,17 +464,34 @@ void main() {
         language: AppLanguage.ar,
         overrides: [externalLinkOpenerProvider.overrideWithValue(opener)],
       );
+      for (final platform in ProfileLinkRules.founderSocials) {
+        expect(platform.opensDirectly, isFalse, reason: platform.wire);
+      }
       await tester.tap(
         find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.whatsapp)),
       );
       await tester.pumpAndSettle();
+      // D361 (owner: D357's direct opening was not approved): the sheet.
+      expect(find.byKey(ProfileLinkKeys.leavingSheet), findsOneWidget);
+      expect(find.text('https://wa.me/966500000000'), findsWidgets);
+      expect(opener.opened, isEmpty);
+      await tester.tap(find.byKey(ProfileLinkKeys.leavingOpen));
+      await tester.pumpAndSettle();
       expect(opener.opened, [Uri.parse('https://wa.me/966500000000')]);
-      // No «أنت تغادر Kabso» sheet for these platforms.
-      expect(find.byKey(ProfileLinkKeys.leavingSheet), findsNothing);
+      await tester.tap(
+        find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.instagram)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(ProfileLinkKeys.leavingSheet), findsOneWidget);
+      await tester.tap(find.text('إلغاء').last);
+      await tester.pumpAndSettle();
+      expect(opener.opened, hasLength(1));
       opener.ok = false;
       await tester.tap(
         find.byKey(FounderSocialRow.buttonKey(ProfileLinkPlatform.snapchat)),
       );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ProfileLinkKeys.leavingOpen));
       await tester.pump();
       expect(opener.opened.last.host, 'www.snapchat.com');
       expect(find.text('تعذّر فتح الرابط'), findsOneWidget);

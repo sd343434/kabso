@@ -565,13 +565,19 @@ void main() {
       });
     }
 
-    testWidgets('a known platform opens directly; another link only after '
+    testWidgets('Instagram (D361) and another link open only after '
         '«You are leaving Kabso» with the full URL', (tester) async {
       final l10n = l10nFor(AppLanguage.en);
       final (_, _, opener) = await _pumpPublic(tester, withFields());
+      // D361 (owner: D357's direct opening was not approved): Instagram,
+      // Facebook, WhatsApp and Snapchat ask first like any other link.
       await tester.tap(find.byKey(ProfileLinkKeys.chip(0)));
       await tester.pumpAndSettle();
-      expect(find.byKey(ProfileLinkKeys.leavingSheet), findsNothing);
+      expect(find.byKey(ProfileLinkKeys.leavingSheet), findsOneWidget);
+      expect(find.text('https://www.instagram.com/sara'), findsWidgets);
+      expect(opener.opened, isEmpty);
+      await tester.tap(find.byKey(ProfileLinkKeys.leavingOpen));
+      await tester.pumpAndSettle();
       expect(opener.opened, [Uri.parse('https://www.instagram.com/sara')]);
       await tester.tap(find.byKey(ProfileLinkKeys.chip(1)));
       await tester.pumpAndSettle();
@@ -815,6 +821,18 @@ void main() {
       expect(link.platform.known, isFalse);
       expect(link.display, 'example.com/a/b');
       expect(ProfileLinkPlatform.fromWire('TIKTOK').known, isTrue);
+      // D361: only TikTok, YouTube and X open without the warning.
+      expect(
+        [
+          for (final p in ProfileLinkPlatform.values)
+            if (p.opensDirectly) p,
+        ],
+        [
+          ProfileLinkPlatform.tiktok,
+          ProfileLinkPlatform.youtube,
+          ProfileLinkPlatform.x,
+        ],
+      );
       expect(Gender.fromWire('NOPE'), isNull);
       expect(AccountCategory.fromWire('POET'), AccountCategory.poet);
     });
