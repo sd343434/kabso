@@ -777,6 +777,8 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.116-live (draft) | 2026-11-11 | **D369 (owner: «الغي البث المتعدد لا اريده»): the multi-guest live is retired.** `startLiveRoom` `mode` MULTI → 400 `VALIDATION_FAILED` `mode` / `invalid_value` (as PK); `StartLiveRoomRequest.mode` enum SOLO, AUDIO, PODCAST, STREAMER. No list returns a MULTI room (`listLiveRooms` every `kind` and no kind, `listActiveLiveBoosts`); `kind=multi` stays valid and answers an empty page; `kind=party` = AUDIO; `party_all` loses MULTI. A MULTI room started before the deploy runs on until it ends (no migration, no job); `LiveRoomMode.MULTI`, the rows, `LiveConfig.seatCounts.MULTI`, the capacity weights and the panel's mode filter are kept. §10.4, §10.141, §10.162. | **Behaviour change** (a request enum value removed; lists no longer return MULTI rooms). Older apps: their multi-guest go-live is refused with 400 (the app shows its validation error); their hub and party lists simply contain no MULTI room. |
+| v1.115-live (draft) | 2026-11-11 | **D368 (owner: «بودكاست الحي يظهر في صفحة البث وليس الحفلة لكن الصوتي يظهر في صفحة الحفلة»; «ازل من بودكاست زر الكاميرة التي خلف التصنيف»):** a live VIDEO podcast (PODCAST with `LivePodcast.video`, §10.157) is listed by `listLiveRooms` `kind=solo` and `kind=video` under every hub filter, not by `kind=party_all` (audio podcasts only); `kind=podcast` keeps every podcast; «رائج» (§10.89) counts a video podcast in the video lives' top. App: the hub's camera card with the «Podcast» tag and no camera icon after the tag; a «مميز» slot pinned only where its kind lists the room. No migration, no shape change. §10.4, §10.89, §10.141, §10.161. | **Behaviour change** in list membership only (shapes unchanged). An older app sees a video podcast on its hub (`solo`) and no longer on its party page. |
 | v1.124-social (draft) | 2026-11-11 | **D367 (owner: «في صفحة الموظفين يظهر تصنيف مثل شاعر، يجب إلغاؤه من صفحة المشرفين»):** `Me.category` / `PublicProfile.category` are null for a Kabso Team account (any panel role — a limited staff member, the founder too), for itself and for visitors; the stored value is kept. Shapes unchanged; the app also hides the line for an older payload and «التصنيف» in «تعديل الملف» for staff. §10.160. |
 | v1.123-social (draft) | 2026-11-11 | **D366 (owner approved «نعم موافق»): WhatsApp departments and the transfer with a department, a target and a note «الأقسام والتحويل».** `WaDepartment` PAYMENTS «الشحن والمدفوعات» / AGENCIES «الوكالات والمضيفون» / TECHNICAL «المشاكل التقنية» / REPORTS «البلاغات والحظر» / GENERAL «عام». A REPLY+ staff member belongs to one or more (none set = GENERAL), set by `team.manage` with `setAdminTeamWhatsAppDepartments` (code + reason, audited `admin.team.whatsapp_departments`); `AdminTeam.data[].whatsappDepartments`. `WaConversation.department` (GENERAL until a transfer; only a transfer changes it), `?department=` on the conversation lists and the agents; `WaAgent.departments` / `openCount`. `WaTransferRequest {department, toUserId?, note?}`: no `toUserId` = «أول متاح في القسم» (on shift, fewest open, then least recently assigned; never the current assignee) or the department's queue; `toUserId` must be REPLY+ and in the department (400 `not_in_department`); the note is an internal note linked to the history row (`WaAssignment.department` / `fromDepartment` / `note`). D355's `{toUserId}` alone still works (GENERAL, no membership check). The transfer is pushed to the receiver (or the department's members for the queue), never to the actor or a muted one. Migration `20270428090000_whatsapp_departments` (§10.159). |
 | v1.122-social (draft) | 2026-11-11 | **D364 (owner approved 2026-11-11: the comments sheet restyled after a reel-comments reference in Kabso's tokens, with a real «الأحدث» order and a dislike):** `listComments` query `sort` `RELEVANT` (default, unchanged order) \| `NEWEST` (pinned, then `createdAt` desc, `id` desc); a cursor is bound to its order (the other order → 400 `cursor` / `invalid_value`); `dislikeComment` / `undislikeComment` (`PUT`/`DELETE /comments/{commentId}/dislike`, `CommentDislikeState`); `Comment.viewerHasDisliked`; a like and a dislike exclude each other; the dislike count is never returned and nobody is notified; migration `20270427090000_comment_dislikes_newest` (table `comment_dislikes`, index `comments_newest_idx`); the account erasure deletes the dislikes. §10.158, §11.5. | **Additive** (an optional query parameter with the old default, new operations and schema, a new response field older clients ignore). |
@@ -1055,6 +1057,9 @@ until a media provider is wired in.
   `audio` = rooms with `mode` `AUDIO` (voice rooms; there is no separate podcast type, a podcast is a
   voice room), `video` = `SOLO`, `PK` and `MULTI`; absent = all rooms. Another value → 400
   (`field "kind"`). The app's hub sends it on every tab (its "voice rooms · live" switch).
+- *(v1.115-live, D368, §10.161)* a live **video** podcast is listed by `solo` and `video` (not `party_all`);
+  `podcast` keeps every podcast. *(v1.116-live, D369, §10.162)* MULTI is retired: no kind and no list without a kind
+  returns a MULTI room; `multi` stays valid and lists nothing; `party` = `AUDIO`.
 - *(v1.27.1-live, owner D133: the hub's Nearby · Popular ▾ · Featured · Explore)* `kind` also takes
   `solo` = `SOLO` and `PK` (the hub's lives), `multi` = `MULTI`, `party` = `AUDIO` and `MULTI` (the
   party page). **`scope=nearby`** keeps the rooms whose host's country (`Me.country`, §10.28) equals
@@ -10732,6 +10737,8 @@ numbers reserved for the in-flight D339–D341 branches (§10.132–§10.140).
   other (a `party_all` cursor on another kind, or none, is 400 `cursor`). `party` (AUDIO and MULTI, D133) keeps its
   meaning; a podcast is in `podcast` and `party_all` only. «رائج» (§10.89) is unchanged (each kind its own top). No
   migration.
+  *(v1.115-live, D368, §10.161)* `party_all` = `AUDIO` and the **audio** podcasts (a live video podcast is the main
+  hub's). *(v1.116-live, D369, §10.162)* no MULTI room any more; `party` = `AUDIO`.
 - **The app.** The party page asks for one list, `LiveHubSelection.partyQuery` (the selected filter's query with
   `kind=party_all`) — never three paged lists merged on the phone. Gone: the second row's kinds «بث صوتي · بث بودكاست ·
   بث متعدد» (`voiceRooms.kinds` / `voiceRooms.kind.*`) and the corner Live switch (`VoiceRoomsLiveButton`,
@@ -12071,3 +12078,41 @@ Owner (2026-11-11): «في صفحة الموظفين يظهر تصنيف مثل 
 - **App:** the line under the name never shows a category on a staff profile (`kabsoTeam`, `staff`, `staffId` or
   `kabsoOwner`), also for an older server's payload; «التصنيف» is not offered in «تعديل الملف» for a staff account.
 - Regular accounts are unchanged.
+
+### 10.161 A live video podcast on the Live hub «بودكاست الحي في صفحة البث» *(v1.115-live, DRAFT — D368)*
+
+Owner (2026-11-11): «اقصد ان بودكاست الحي يظهر في صفحة البث وليس الحفلة لكن الصوتي يظهر في صفحة الحفلة», and «ازل من
+بودكاست زر الكاميرة التي خلف التصنيف».
+
+- **Lists (`GET /live/rooms`, §10.4).** A live **video** podcast (`mode` PODCAST with `live_rooms.podcast_video` true,
+  `LivePodcast.video`, §10.157) is a camera live of the main hub: `kind=solo` and `kind=video` list it, under every hub
+  filter (following, nearby / country, popular with or without a category, featured, explore), in the same order and
+  paged by the same cursor as the other camera lives. `kind=party_all` (§10.141) lists the **audio** podcasts only
+  (`AUDIO` and PODCAST without video). `kind=podcast` keeps every podcast, audio and video (older apps). `audio`,
+  `streamer`, `party` and `multi` never list a podcast. Server-side, so every page agrees. Cursor format unchanged.
+- **«رائج» (§10.89).** A video podcast counts in the video lives' top (`SOLO`, `PK`, `STREAMER`, video PODCAST); the
+  audio podcasts keep their own top.
+- **App.** The hub draws a video podcast as a normal camera grid card with the «Podcast» tag; it is never on the party
+  page. A «مميز» slot (`listActiveLiveBoosts`) is pinned only on a page whose kind lists the room. Swiping inside a room
+  follows the list it was opened from. The scheduled episodes stay above the party list. The tag (`LiveTypeTag`) draws
+  no camera after «Podcast» any more (grid card and voice room list); «فيديو» stays in the spoken label only. The
+  scheduled episode's labelled «فيديو» badge is unchanged.
+- Unchanged: the away / heartbeat rules, the capacity guard (§10.148; a video podcast already weighs as a video live),
+  audio podcasts. No migration, no shape change.
+
+### 10.162 The multi-guest live is retired «الغي البث المتعدد» *(v1.116-live, DRAFT — D369)*
+
+Owner (2026-11-11): «الغي البث المتعدد لا اريده».
+
+- **Start.** `startLiveRoom` with `mode` MULTI → 400 `VALIDATION_FAILED` `mode` / `invalid_value` (exactly as PK).
+  `StartLiveRoomRequest.mode` is SOLO, AUDIO, PODCAST or STREAMER; `seatCount` is required for AUDIO only.
+- **Lists.** No list returns a MULTI room: every `kind` of `GET /live/rooms` and the list without a kind, and the slots
+  of `GET /live/boosts/active`. `kind=multi` stays a valid value and answers an empty page; `kind=party` = AUDIO.
+- **Running rooms.** A MULTI room started before the deploy runs on until it ends naturally (its host ends it, the
+  sweeper, a suspension); no migration and no job end it. Its viewers, seats, gifts and media tokens work as before;
+  `getLiveRoom` still answers it with `mode` MULTI.
+- **Kept.** The enum value `LiveRoomMode.MULTI` (responses, the panel's mode filter), the stored rows,
+  `LiveConfig.seatCounts.MULTI`, the capacity weights (§10.148) and the seat rules for a MULTI room.
+- **App.** No multi-guest mode in Go Live, no multi kind / category / tag / label in the hub or the party page (l10n
+  keys `goLiveModeMulti`, `liveCategoryMulti`, `liveTypeTagMulti` removed); the host's multi seat grid is gone. The app
+  still parses `MULTI` (a card draws it as a camera live) and a viewer of a legacy MULTI room keeps its seat grid.

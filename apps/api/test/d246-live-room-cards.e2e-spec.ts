@@ -87,7 +87,8 @@ describe('D246 room cards on GET /live/rooms', { timeout: 300_000 }, () => {
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     const id = res.body.id as string;
     hostOf.set(id, u);
-    if (mode === 'MULTI') await ctx.prisma.liveRoom.update({ where: { id }, data: { mode: 'MULTI', seatCount: 4 } });
+    if (mode === 'MULTI')
+      await ctx.prisma.liveRoom.update({ where: { id }, data: { mode: 'MULTI', seatCount: 4 } });
     await setScore(id, score, mode === 'PK');
     return id;
   };

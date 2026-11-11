@@ -456,6 +456,7 @@ info:
     «ازل فلاتر بث صوتي بث بوكاست و بث متعدد … ان يكونو بنفس الصف لكن ميز كل واحده بهم»): `listLiveRooms` gains
     `kind=party_all` — `AUDIO`, `PODCAST` and `MULTI` rooms in one list in the tab's own order (popular, new, following,
     nearby / country), one cursor bound to it. Additive; `party` (AUDIO and MULTI) is unchanged. No migration.
+    (v1.115-live, D368: `party_all` lists the audio podcasts only; v1.116-live, D369: no MULTI room.)
     **D343 (DRAFT v1.108-social)** the sign-up code «رمز الدعوة أو رمز المشرف» and the personal link (CONVENTIONS
     §10.142; owner 2026-11-09): `RegisterRequest.referralCode` also takes a supervisor's staff ID («Kabso07», an ACTIVE
     MODERATION or BD staff member, D285) and `register` answers 400 `referralCode` `not_found` for a code nobody can use
@@ -606,6 +607,16 @@ info:
     `PublicProfile.category` are null for an account holding any panel role (`kabsoTeam`, a limited `staff`, the
     founder), for itself and for visitors; the stored value is kept (shown again if the role ends). Shapes unchanged
     (already nullable); behaviour change for staff accounts only.
+    **D368 (DRAFT v1.115-live)** a live video podcast on the Live hub (CONVENTIONS §10.161; owner 2026-11-11:
+    «اقصد ان بودكاست الحي يظهر في صفحة البث وليس الحفلة لكن الصوتي يظهر في صفحة الحفلة»): `listLiveRooms` `kind=solo`
+    and `kind=video` list a PODCAST whose `LivePodcast.video` is true (every hub filter, the same cursor); `kind=party_all`
+    lists the audio podcasts only; `kind=podcast` keeps every podcast; «رائج» counts a video podcast in the video lives'
+    top. No shape change, no migration; behaviour change in list membership only.
+    **D369 (DRAFT v1.116-live)** the multi-guest live is retired (CONVENTIONS §10.162; owner 2026-11-11: «الغي البث
+    المتعدد لا اريده»): `startLiveRoom` refuses `mode` MULTI (400 `VALIDATION_FAILED` `mode` / `invalid_value`, as PK);
+    no list returns a MULTI room (`listLiveRooms` with any `kind` or none, `listActiveLiveBoosts`); `kind=multi` stays
+    valid and answers an empty page; `kind=party` = AUDIO. A MULTI room started before runs on until it ends;
+    `LiveRoomMode` keeps MULTI. Behaviour change; no migration.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -2853,7 +2864,7 @@ paths:
         v1.33-live, CONVENTIONS §10.34. At most `slots` LIVE rooms whose traffic card runs now, the
         earliest started first, for the top of the live list with the «مميز» label. Guests may read it
         (the list's buckets). Rooms across a block with the caller, of a host who is not ACTIVE, or not
-        fresh are left out.
+        fresh are left out. v1.116-live (D369, CONVENTIONS §10.162): a (retired) MULTI room is never listed.
       security:
         - bearerAuth: []
         - {}
@@ -2950,7 +2961,7 @@ paths:
         - name: kind
           in: query
           required: false
-          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. (v1.27.1-live, D133) `solo`: `SOLO` and `PK`; `multi`: `MULTI`; `party`: `AUDIO` and `MULTI`. (v1.47-live, D212) `podcast`: `PODCAST` (in no other kind but `party_all`). (v1.56-live, D213) `streamer`: `STREAMER`; a streamer is a video live, so `video` and `solo` list it too. (v1.107-live, D342, CONVENTIONS §10.141) `party_all`: `AUDIO`, `PODCAST` and `MULTI` in one list — the mixed list of the party page, in the order of its tab and paged by one cursor (a cursor is bound to its kind like any other); `party` keeps its meaning. Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
+          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. (v1.27.1-live, D133) `solo`: `SOLO` and `PK`; `multi`: `MULTI`; `party`: `AUDIO` and `MULTI`. (v1.47-live, D212) `podcast`: `PODCAST` (in no other kind but `party_all`). (v1.56-live, D213) `streamer`: `STREAMER`; a streamer is a video live, so `video` and `solo` list it too. (v1.107-live, D342, CONVENTIONS §10.141) `party_all`: `AUDIO`, `PODCAST` and `MULTI` in one list — the mixed list of the party page, in the order of its tab and paged by one cursor (a cursor is bound to its kind like any other); `party` keeps its meaning. (v1.115-live, D368, CONVENTIONS §10.161) a live VIDEO podcast (`LivePodcast.video`) is a camera live: `solo` and `video` list it, `party_all` lists the AUDIO podcasts only, `podcast` keeps every podcast. (v1.116-live, D369, CONVENTIONS §10.162) MULTI is retired: no kind (and no list without a kind) returns a MULTI room; `multi` stays valid and answers an empty page; `party` = `AUDIO`. Absent: every room (but MULTI). Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
           schema: { type: string, enum: [audio, video, solo, multi, party, podcast, streamer, party_all] }
         - name: scope
           in: query
@@ -33309,6 +33320,8 @@ components:
         speakers; listeners raise a hand), STREAMER (v1.56-live, D213: the host's phone screen with
         a round camera bubble; no guest seats, no PK). PK is reserved for L5. Clients render an
         unrecognised future value as SOLO (an older app shows a STREAMER's camera track as a solo live).
+        MULTI is retired (v1.116-live, D369, CONVENTIONS §10.162): it can no longer be started and no list returns it; a
+        MULTI room started before runs on until it ends, so `getLiveRoom` may still answer MULTI.
     StreamerOrientation:
       type: string
       enum: [PORTRAIT, LANDSCAPE]
@@ -33592,9 +33605,9 @@ components:
         allowGuests: { type: boolean, default: true }
         mode:
           type: string
-          enum: [SOLO, MULTI, AUDIO, PODCAST, STREAMER]
+          enum: [SOLO, AUDIO, PODCAST, STREAMER]
           default: SOLO
-          description: CP-011. PK cannot be started here (L5). v1.47-live (D212) PODCAST needs `podcast`. v1.56-live (D213) STREAMER may send `streamer`; its host publishes the screen besides the camera and microphone.
+          description: CP-011. PK cannot be started here (L5). v1.47-live (D212) PODCAST needs `podcast`. v1.56-live (D213) STREAMER may send `streamer`; its host publishes the screen besides the camera and microphone. v1.116-live (D369, CONVENTIONS §10.162) MULTI is retired — refused like PK (400 `VALIDATION_FAILED` `mode` / `invalid_value`).
         streamer: { $ref: '#/components/schemas/StreamerSetup' }
         podcast:
           type: object
@@ -33626,7 +33639,7 @@ components:
                 (`LiveSeats.studio.segments`). Not started until the host taps «الفقرة التالية».
               items: { $ref: '#/components/schemas/LivePodcastSegment' }
         seatCount:
-          description: CP-011 — required for MULTI and AUDIO, forbidden for SOLO, PODCAST and STREAMER (else 400; a PODCAST always has 4).
+          description: CP-011 — required for AUDIO, forbidden for SOLO, PODCAST and STREAMER (else 400; a PODCAST always has 4). v1.116-live (D369) MULTI, which also required it, can no longer be started.
           allOf:
             - $ref: '#/components/schemas/LiveSeatCount'
         theme: { $ref: '#/components/schemas/LiveThemeSlug' }

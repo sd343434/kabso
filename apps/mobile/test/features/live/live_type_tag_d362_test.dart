@@ -198,6 +198,16 @@ void main() {
             ),
             findsOneWidget,
           );
+          expect(tester.takeException(), isNull);
+          // The tag alone (the card speaks one label of its own): «فيديو»
+          // is in its spoken label.
+          await pumpComponent(
+            tester,
+            const Center(
+              child: LiveTypeTag(kind: LiveCardKind.podcast, video: true),
+            ),
+            language: language,
+          );
           expect(
             tester
                 .getSemantics(
@@ -206,7 +216,7 @@ void main() {
                 .label,
             '${l10n.liveCategoryPodcast} · ${l10n.podcastVideoBadge}',
           );
-          expect(tester.takeException(), isNull);
+          expect(find.byType(Icon), findsNothing);
         },
       );
     }

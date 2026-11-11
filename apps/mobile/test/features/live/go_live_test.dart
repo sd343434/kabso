@@ -716,9 +716,9 @@ void main() {
         'mic, numbered seats and ✕ to end', (tester) async {
       final (repo, camera) = await _pump(tester);
       await mode(tester, LiveRoomMode.audio);
-      // The mode tabs: picking LIVE leaves the setup (Multi-guest runs off
-      // the edge, as in the reference).
-      expect(find.byKey(GoLiveKeys.mode(LiveRoomMode.multi)), findsOneWidget);
+      // The mode tabs: picking LIVE leaves the setup (D369: no multi-guest
+      // tab any more).
+      expect(find.byKey(GoLiveKeys.mode(LiveRoomMode.multi)), findsNothing);
       await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.solo)));
       await tester.pumpAndSettle();
       expect(find.byType(GoLiveAudioSetup), findsNothing);
@@ -1121,51 +1121,17 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('multi-guest: seats, theme, and the seats on air', (
-      tester,
-    ) async {
-      final (repo, camera) = await _pump(tester);
-      await mode(tester, LiveRoomMode.multi);
-      expect(camera.previewModes, [true]);
-      expect(find.byKey(VideoSeatGrid.seatKey(5)), findsOneWidget);
-      await tester.tap(find.byKey(GoLiveKeys.seatCount(9)));
-      await tester.pumpAndSettle();
-      expect(find.byKey(VideoSeatGrid.seatKey(8)), findsOneWidget);
-
-      await tester.tap(find.byKey(GoLiveScreen.themeKey));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(GoLiveKeys.theme('ice-palace')));
-      await tester.pumpAndSettle();
-
-      await _goLive(tester);
-      final request = repo.startRequests.single;
-      expect(request.mode, LiveRoomMode.multi);
-      expect(request.seatCount, 9);
-      expect(request.theme, 'ice-palace');
-
-      // A guest takes seat 1 on the server; the grid shows them.
-      repo.seatState = repo.seatState!.copyWith(
-        version: 1,
-        seats: [
-          for (final seat in repo.seatState!.seats)
-            if (seat.index == 1)
-              seat.copyWith(
-                state: LiveSeatState.taken,
-                user: const UserSummary(
-                  id: 'u-omar',
-                  username: 'omar',
-                  displayName: 'Omar',
-                  avatarUrl: null,
-                ),
-              )
-            else
-              seat,
-        ],
-      );
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
-      expect(find.text('Omar'), findsOneWidget);
-      expect(repo.seatCalls, contains('seats'));
+    testWidgets('D369 (owner: «الغي البث المتعدد لا اريده»): no multi-guest '
+        'mode in the setup — LIVE, audio and podcast only', (tester) async {
+      await _pump(tester);
+      expect(find.byKey(GoLiveKeys.mode(LiveRoomMode.multi)), findsNothing);
+      expect(find.byKey(GoLiveKeys.mode(LiveRoomMode.solo)), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.mode(LiveRoomMode.podcast)), findsOneWidget);
+      expect(find.byType(VideoSeatGrid), findsNothing);
+      await mode(tester, LiveRoomMode.audio);
+      // The audio setup's own mode tabs have no multi-guest either.
+      expect(find.byKey(GoLiveKeys.mode(LiveRoomMode.multi)), findsNothing);
       await _leave(tester);
     });
 

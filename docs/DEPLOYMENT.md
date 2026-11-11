@@ -4240,3 +4240,29 @@ CONVENTIONS §10.158 (owner approved 2026-11-11). One migration, no new setting,
 - **Order:** deploy the API image (the migration runs first) → ship the APK. An older app never sends `sort` (it gets
   today's order) and ignores `Comment.viewerHasDisliked`; its like still removes a dislike the person made on the new
   app.
+
+### 5.114 A live video podcast on the Live hub and the multi-guest live retired (D368, D369; no migration) — [IMPLEMENTED, draft contracts v1.115-live and v1.116-live; not deployed, not device-tested]
+
+CONVENTIONS §10.161 (owner 2026-11-11: «اقصد ان بودكاست الحي يظهر في صفحة البث وليس الحفلة لكن الصوتي يظهر في صفحة
+الحفلة»; «ازل من بودكاست زر الكاميرة التي خلف التصنيف») and §10.162 («الغي البث المتعدد لا اريده»). No migration, no
+new setting, no new secret, no new host, no job.
+
+- **What changes on the server:** `GET /live/rooms` lists a live video podcast under `kind=solo` / `kind=video` (the
+  hub) and no longer under `kind=party_all`; no list returns a MULTI room (`kind=multi` answers an empty page, `party` =
+  AUDIO; `GET /live/boosts/active` leaves them out); `POST /live/rooms` with `mode` MULTI answers 400 `mode` /
+  `invalid_value`.
+- **Running MULTI rooms** are not ended: they run on until their host ends them (or the sweeper / a suspension does).
+  To see them before and after the deploy (read-only, any role that can read `live_rooms`):
+
+  ```sql
+  SELECT id, host_user_id, seat_count, started_at, last_heartbeat_at
+    FROM live_rooms
+   WHERE status = 'LIVE' AND mode = 'MULTI'
+   ORDER BY started_at;
+  ```
+
+  Nothing needs to be done with them; the query only tells the owner how many multi-guest lives are still on air.
+- **Order:** deploy the API image → ship the APK. An older app keeps working: its multi-guest go-live is refused with
+  the 400 (it shows its validation error), its hub shows video podcasts and its party page no longer does, and no list
+  it reads contains a MULTI room. The new APK has no multi-guest mode and no camera after the «Podcast» tag.
+- **Rollback:** the previous API image restores the old lists and the MULTI start; nothing is stored differently.

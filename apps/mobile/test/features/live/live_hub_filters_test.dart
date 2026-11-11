@@ -785,7 +785,6 @@ void main() {
       expect(inCard('m', find.byKey(VoiceRoomRow.flagKey)), findsNothing);
       expect(inCard('m', find.byKey(VoiceRoomRow.pkKey)), findsNothing);
       expect(inCard('m', find.byKey(VoiceRoomRow.featuredKey)), findsNothing);
-      expect(inCard('m', find.byKey(VoiceRoomRow.topicKey)), findsNothing);
       expect(inCard('m', find.byKey(VoiceRoomRow.seatsKey)), findsNothing);
       // D368 (owner: «ازل من بودكاست زر الكاميرة التي خلف التصنيف»): a video
       // podcast's tag is the podcast's, with no camera after it; «فيديو» is
@@ -801,10 +800,6 @@ void main() {
         findsNothing,
       );
       expect(inCard('m', find.byIcon(Icons.videocam_rounded)), findsNothing);
-      expect(
-        tester.getSemantics(videoTag).label,
-        '${en.liveCategoryPodcast} · ${en.podcastVideoBadge}',
-      );
       // A podcast: its badge, and its episode and topic under the title.
       expect(
         inCard('p', find.byKey(LiveTypeTag.keyOf(PartyKind.podcast.cardKind))),
@@ -819,7 +814,7 @@ void main() {
       // D362: no chip and no glyph — a 9 sp weight-800 white tag with a
       // soft shadow, never taller than the old 18 lp chip.
       for (final k in PartyKind.values) {
-        final tag = find.byKey(LiveTypeTag.keyOf(k.cardKind));
+        final tag = find.byKey(LiveTypeTag.keyOf(k.cardKind)).first;
         expect(
           find.descendant(of: tag, matching: find.byType(Container)),
           findsNothing,
