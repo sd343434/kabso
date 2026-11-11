@@ -23,7 +23,8 @@ import 'package:material_ui/material_ui.dart';
 /// row of small buttons — bullet message, voice clip, private messages and
 /// picture, in this order from the start. Kabso's own (Material) icons.
 ///
-/// - **Bullet:** toggles bullet mode; the hint gives the price (15 coins)
+/// - **Bullet:** toggles bullet mode; the hint gives the price
+///   ([liveBulletCostCoins], 10,000 coins since D371)
 ///   and the balance (`GET /wallet/me`); send posts a bullet (≤ 60).
 /// - **Voice:** tap to record, tap again (or the send arrow) to send, ✕ to
 ///   throw away; it stops and sends by itself at 30 s. Hidden where clips
@@ -357,10 +358,11 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
     final signedIn = ref.watch(currentUserProvider) != null;
     final String hint;
     if (_bullet) {
+      final price = KFormat.grouped(liveBulletCostCoins);
       final coins = ref.watch(liveCoinsProvider).value;
       hint = coins == null
-          ? l10n.liveBulletHintNoBalance
-          : l10n.liveBulletHint(KFormat.grouped(coins));
+          ? l10n.liveBulletHintNoBalance(price)
+          : l10n.liveBulletHint(price, KFormat.grouped(coins));
     } else {
       hint = l10n.goLiveChatHint;
     }

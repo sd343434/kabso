@@ -121,12 +121,12 @@ describe('D258 VIP daily perks', { timeout: 120_000 }, () => {
   });
   afterAll(async () => ctx?.close());
 
-  it('three free public messages a day, then 15 coins each; a new day gives three again', async () => {
+  it('three free public messages a day, then LIVE_BULLET_COST_COINS (10 000, D371) each; a new day gives three again', async () => {
     const h = await host();
     const room = await goLive(h);
     const member = await signup();
     await vip(member);
-    await coins(member, 100);
+    await coins(member, LIVE_BULLET_COST_COINS + 100);
     await join(room, member);
     const before = Number((await ctx.http.get('/api/v1/wallet/me').set(auth(member))).body.coins);
     for (const left of [2, 1, 0]) {
@@ -146,7 +146,7 @@ describe('D258 VIP daily perks', { timeout: 120_000 }, () => {
     expect(rows.map((r) => r.cost)).toEqual([0, 0, 0, LIVE_BULLET_COST_COINS]);
     // Someone without VIP pays from the first one, and gets no `free` field.
     const plain = await signup();
-    await coins(plain, 100);
+    await coins(plain, LIVE_BULLET_COST_COINS + 100);
     await join(room, plain);
     const once = await bullet(room, plain);
     expect(once.status).toBe(201);

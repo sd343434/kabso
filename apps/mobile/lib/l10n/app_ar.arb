@@ -5319,26 +5319,34 @@
   "@liveToolLiveTime": {
     "description": "Room tools sheet tile (owner ref 84)"
   },
-  "errorInsufficientCoins": "تحتاج 15 عملة لإرسال رسالة عامة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.",
+  "errorInsufficientCoins": "تحتاج 10,000 عملة لإرسال رسالة عامة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.",
   "@errorInsufficientCoins": {
-    "description": "INSUFFICIENT_COINS (409, CP-017): a bullet costs 15 coins; no purchase flow exists yet."
+    "description": "INSUFFICIENT_COINS (409, CP-017): a bullet costs 10,000 coins (D371, liveBulletCostCoins, grouped like KFormat.grouped); no purchase flow exists yet."
   },
   "liveBulletToggle": "رسالة عامة",
   "@liveBulletToggle": {
     "description": "Live chat tool: bullet mode on/off (CP-017)."
   },
-  "liveBulletHint": "رسالة عامة بـ 15 عملة · رصيدك {coins}",
+  "liveBulletHint": "رسالة عامة بـ {price} عملة · رصيدك {coins}",
   "@liveBulletHint": {
-    "description": "Chat field hint while bullet mode is on, with the coin balance (CP-017).",
+    "description": "Chat field hint while bullet mode is on, with the price (D371: 10,000 coins, KFormat.grouped(liveBulletCostCoins)) and the coin balance (CP-017).",
     "placeholders": {
+      "price": {
+        "type": "String"
+      },
       "coins": {
         "type": "String"
       }
     }
   },
-  "liveBulletHintNoBalance": "رسالة عامة بـ 15 عملة",
+  "liveBulletHintNoBalance": "رسالة عامة بـ {price} عملة",
   "@liveBulletHintNoBalance": {
-    "description": "Chat field hint in bullet mode before the balance is known (CP-017)."
+    "description": "Chat field hint in bullet mode before the balance is known, with the price (D371: KFormat.grouped(liveBulletCostCoins)) (CP-017).",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
   },
   "liveBulletSent": "أُرسلت رسالتك العامة إلى كل البثوث",
   "@liveBulletSent": {

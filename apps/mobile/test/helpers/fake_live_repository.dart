@@ -6,6 +6,7 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
+import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -1207,7 +1208,7 @@ class FakeLiveRepository implements LiveRepository {
     }
     // D258: a free VIP bullet costs nothing.
     final freeLeft = bulletFreeLeft;
-    if (freeLeft == null) coins -= 15;
+    if (freeLeft == null) coins -= liveBulletCostCoins;
     return (
       bullet: LiveBullet(
         id: 'bullet-${bulletCalls.length}',

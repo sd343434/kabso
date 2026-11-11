@@ -8150,10 +8150,10 @@ abstract class AppLocalizations {
   /// **'وقت البث'**
   String get liveToolLiveTime;
 
-  /// INSUFFICIENT_COINS (409, CP-017): a bullet costs 15 coins; no purchase flow exists yet.
+  /// INSUFFICIENT_COINS (409, CP-017): a bullet costs 10,000 coins (D371, liveBulletCostCoins, grouped like KFormat.grouped); no purchase flow exists yet.
   ///
   /// In ar, this message translates to:
-  /// **'تحتاج 15 عملة لإرسال رسالة عامة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.'**
+  /// **'تحتاج 10,000 عملة لإرسال رسالة عامة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.'**
   String get errorInsufficientCoins;
 
   /// Live chat tool: bullet mode on/off (CP-017).
@@ -8162,17 +8162,17 @@ abstract class AppLocalizations {
   /// **'رسالة عامة'**
   String get liveBulletToggle;
 
-  /// Chat field hint while bullet mode is on, with the coin balance (CP-017).
+  /// Chat field hint while bullet mode is on, with the price (D371: 10,000 coins, KFormat.grouped(liveBulletCostCoins)) and the coin balance (CP-017).
   ///
   /// In ar, this message translates to:
-  /// **'رسالة عامة بـ 15 عملة · رصيدك {coins}'**
-  String liveBulletHint(String coins);
+  /// **'رسالة عامة بـ {price} عملة · رصيدك {coins}'**
+  String liveBulletHint(String price, String coins);
 
-  /// Chat field hint in bullet mode before the balance is known (CP-017).
+  /// Chat field hint in bullet mode before the balance is known, with the price (D371: KFormat.grouped(liveBulletCostCoins)) (CP-017).
   ///
   /// In ar, this message translates to:
-  /// **'رسالة عامة بـ 15 عملة'**
-  String get liveBulletHintNoBalance;
+  /// **'رسالة عامة بـ {price} عملة'**
+  String liveBulletHintNoBalance(String price);
 
   /// Snack after a bullet was sent (CP-017).
   ///

@@ -331,9 +331,9 @@ abstract interface class LiveRepository {
     required String clientId,
   });
 
-  /// `POST /live/rooms/{roomId}/bullets` (15 coins): the bullet and the
-  /// balance after it. A retry with the same [clientId] is never charged
-  /// again.
+  /// `POST /live/rooms/{roomId}/bullets` (10,000 coins, D371): the bullet
+  /// and the balance after it. A retry with the same [clientId] is never
+  /// charged again.
   Future<LiveBulletSent> sendBullet(
     String roomId, {
     required String text,

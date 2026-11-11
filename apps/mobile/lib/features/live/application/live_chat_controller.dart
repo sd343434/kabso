@@ -872,9 +872,9 @@ class LiveChatController extends Notifier<LiveChatState> {
   /// today; null after a paid one.
   int? lastBulletFreeLeft;
 
-  /// CP-017: sends [text] (trimmed) as a bullet over every live for 15
-  /// coins; the balance follows the answer. Returns why it was refused, or
-  /// `null`.
+  /// CP-017: sends [text] (trimmed) as a bullet over every live for
+  /// [liveBulletCostCoins] coins (10,000, D371); the balance follows the
+  /// answer. Returns why it was refused, or `null`.
   Future<AppFailure?> sendBullet(String text) async {
     final trimmed = text.trim();
     if (ref.read(currentUserProvider) == null || trimmed.isEmpty) return null;

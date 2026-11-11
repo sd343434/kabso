@@ -50,9 +50,9 @@ info:
     **v1.18-live (DRAFT, owner D103)** changes the `AUDIO` seat counts to 5, 10, 15, 20 or 25
     (host included; seat indexes stay 1 … 24, CONVENTIONS §10.9).
     **CP-017 (D104, DRAFT v1.19-live)** adds coins (`GET /wallet/me`; granted only by an admin on
-    the server, purchases still B5), bullet messages (15 coins, shown in every live as data
-    message `bullet`, code `INSUFFICIENT_COINS`) and voice clips (≤ 30 s) and images in the live
-    chat that vanish 60 s after sending (CONVENTIONS §10.19, §10.11, §11.1).
+    the server, purchases still B5), bullet messages (15 coins — 10 000 since v1.117-live, D371 —
+    shown in every live as data message `bullet`, code `INSUFFICIENT_COINS`) and voice clips
+    (≤ 30 s) and images in the live chat that vanish 60 s after sending (CONVENTIONS §10.19, §10.11, §11.1).
     **v1.20-live (DRAFT, owner D105)** lets the host and the room's moderators kick a person out
     of a live (audio and video) until it ends: `POST`/`GET /live/rooms/{roomId}/kicks`,
     `DELETE /live/rooms/{roomId}/kicks/{username}`, `LiveRoom.kicked`, data message `kick` on
@@ -617,6 +617,10 @@ info:
     no list returns a MULTI room (`listLiveRooms` with any `kind` or none, `listActiveLiveBoosts`); `kind=multi` stays
     valid and answers an empty page; `kind=party` = AUDIO. A MULTI room started before runs on until it ends;
     `LiveRoomMode` keeps MULTI. Behaviour change; no migration.
+    **D371 (DRAFT v1.117-live)** a bullet message «رسالة عامة» costs 10 000 coins instead of 15 (CONVENTIONS §10.19;
+    owner 2026-11-11 «اريد جعل سعر الرسائل العامة ب ١٠ الاف كوينز»): `sendLiveBullet` charges 10 000, a balance under
+    10 000 → 409 `INSUFFICIENT_COINS`; VIP free public messages (D258) unchanged. Shapes unchanged; behaviour change
+    (an older app's hint still says 15).
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -3917,7 +3921,7 @@ paths:
     post:
       tags: [live]
       operationId: sendLiveBullet
-      summary: "Send a bullet message to every live, for 15 coins (CP-017)"
+      summary: "Send a bullet message to every live, for 10 000 coins (CP-017; D371, v1.117-live: was 15)"
       description: |
         CONVENTIONS §10.19. A signed-in caller who is in this LIVE room now (the host, or in its
         media session). Checks, in order: 401 without an account; 404 for a room the caller may
@@ -3926,8 +3930,8 @@ paths:
         balance; nothing charged or sent again); 403 `LIVE_KICKED` (v1.20-live, D105: kicked out
         of this live); 403 `LIVE_CHAT_NOT_IN_ROOM`; 403
         `LIVE_CHAT_MUTED` (muted in this live's chat); 429 (one bullet every 5 s per user); 409
-        `INSUFFICIENT_COINS` (a balance under 15; nothing stored, charged or sent). On success 15
-        coins are charged in the same transaction and, after the response, the bullet is sent to
+        `INSUFFICIENT_COINS` (a balance under 10 000; nothing stored, charged or sent). On success
+        10 000 coins (`LIVE_BULLET_COST_COINS`; v1.117-live, D371: was 15) are charged in the same transaction and, after the response, the bullet is sent to
         every LIVE room as a `bullet` data message on topic `bullet`
         (`{"type":"bullet","bullet":LiveBullet}`).
       parameters:

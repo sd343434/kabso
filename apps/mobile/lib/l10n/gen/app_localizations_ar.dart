@@ -4651,18 +4651,20 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorInsufficientCoins =>
-      'تحتاج 15 عملة لإرسال رسالة عامة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.';
+      'تحتاج 10,000 عملة لإرسال رسالة عامة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.';
 
   @override
   String get liveBulletToggle => 'رسالة عامة';
 
   @override
-  String liveBulletHint(String coins) {
-    return 'رسالة عامة بـ 15 عملة · رصيدك $coins';
+  String liveBulletHint(String price, String coins) {
+    return 'رسالة عامة بـ $price عملة · رصيدك $coins';
   }
 
   @override
-  String get liveBulletHintNoBalance => 'رسالة عامة بـ 15 عملة';
+  String liveBulletHintNoBalance(String price) {
+    return 'رسالة عامة بـ $price عملة';
+  }
 
   @override
   String get liveBulletSent => 'أُرسلت رسالتك العامة إلى كل البثوث';

@@ -47,8 +47,8 @@ export interface LiveBulletResultDto {
   freeLeft?: number;
 }
 
-/** What a bullet message costs (owner D104). */
-export const LIVE_BULLET_COST_COINS = 15;
+/** What a bullet message costs (owner D104; 10 000 coins since D371, it was 15). The app mirrors it for its hint. */
+export const LIVE_BULLET_COST_COINS = 10_000;
 /** Counting rule: at most one bullet every 5 seconds per user (CONVENTIONS §7, §10.19). */
 export const LIVE_BULLET_SEND_INTERVAL_MS = 5_000;
 /** The media data topic of bullet data messages (CONVENTIONS §10.19). */
