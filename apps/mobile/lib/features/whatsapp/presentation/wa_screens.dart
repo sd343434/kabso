@@ -34,6 +34,11 @@ class WaInboxScreen extends ConsumerStatefulWidget {
   static const searchKey = Key('wa.search');
   static Key row(String id) => Key('wa.row.$id');
 
+  /// D364: the department filter's chips (null: «كل الأقسام»).
+  static const departmentsKey = Key('wa.departments');
+  static Key departmentChip(WaDepartment? d) =>
+      Key('wa.department.${d?.wire ?? 'all'}');
+
   @override
   ConsumerState<WaInboxScreen> createState() => _WaInboxScreenState();
 }
@@ -41,10 +46,11 @@ class WaInboxScreen extends ConsumerStatefulWidget {
 class _WaInboxScreenState extends ConsumerState<WaInboxScreen> {
   WaFilter _filter = WaFilter.unassigned;
   String _q = '';
+  WaDepartment? _department;
   Timer? _debounce;
   Timer? _poll;
 
-  WaListKey get _key => (filter: _filter, q: _q);
+  WaListKey get _key => (filter: _filter, q: _q, department: _department);
 
   @override
   void initState() {
@@ -121,6 +127,29 @@ class _WaInboxScreenState extends ConsumerState<WaInboxScreen> {
                   () => setState(() => _q = v.trim()),
                 );
               },
+            ),
+          ),
+          // D364 (§10.157.4): one department's conversations — with
+          // «غير مسندة», its queue.
+          SingleChildScrollView(
+            key: WaInboxScreen.departmentsKey,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+            child: Row(
+              children: [
+                for (final d in <WaDepartment?>[null, ...WaDepartment.values])
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: KSpacing.xs),
+                    child: KChip(
+                      key: WaInboxScreen.departmentChip(d),
+                      label: d == null
+                          ? l10n.waDeptAll
+                          : waDepartmentName(l10n, d),
+                      selected: _department == d,
+                      onSelected: () => setState(() => _department = d),
+                    ),
+                  ),
+              ],
             ),
           ),
           Expanded(
@@ -305,6 +334,50 @@ String waPhoneGroups(String e164) {
 String _staff(AppLocalizations l10n, WaStaffRef? s) =>
     s?.label ?? l10n.waSomeone;
 
+/// D364 (§10.157): a department's name in the app's language.
+String waDepartmentName(AppLocalizations l10n, WaDepartment d) => switch (d) {
+  WaDepartment.payments => l10n.waDeptPAYMENTS,
+  WaDepartment.agencies => l10n.waDeptAGENCIES,
+  WaDepartment.technical => l10n.waDeptTECHNICAL,
+  WaDepartment.reports => l10n.waDeptREPORTS,
+  WaDepartment.general => l10n.waDeptGENERAL,
+};
+
+/// D364: each department's icon (the chip, the sheet).
+IconData waDepartmentIcon(WaDepartment d) => switch (d) {
+  WaDepartment.payments => Icons.payments_outlined,
+  WaDepartment.agencies => Icons.groups_outlined,
+  WaDepartment.technical => Icons.build_outlined,
+  WaDepartment.reports => Icons.flag_outlined,
+  WaDepartment.general => Icons.forum_outlined,
+};
+
+/// D364: the conversation's department as a small neutral pill (inbox rows,
+/// the chat's status strip), read as «القسم: …».
+class WaDepartmentPill extends StatelessWidget {
+  const new({required this.department, super.key});
+
+  static const pillKey = Key('wa.departmentPill');
+
+  final WaDepartment department;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final name = waDepartmentName(l10n, department);
+    return Semantics(
+      key: pillKey,
+      label: l10n.waDeptLabel(name),
+      excludeSemantics: true,
+      child: WaPill(
+        label: name,
+        color: context.palette.textSecondary,
+        icon: waDepartmentIcon(department),
+      ),
+    );
+  }
+}
+
 /// D363: one inbox row, in the Messages tab's language (D336): the picture,
 /// the name (or the number, formatted), the time and the unread count under
 /// it, the last message, and who has it as a small tinted chip.
@@ -333,6 +406,8 @@ class WaConversationTile extends StatelessWidget {
         ? l10n.waAssignedToMe
         : c.assignedTo != null
         ? l10n.waAssignedTo(_staff(l10n, c.assignedTo))
+        : c.department != WaDepartment.general
+        ? l10n.waQueueOf(waDepartmentName(l10n, c.department))
         : l10n.waUnassigned;
     final tagColor = !c.open
         ? p.textTertiary
@@ -382,7 +457,14 @@ class WaConversationTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: KSpacing.xs),
-                    WaPill(label: tag, color: tagColor),
+                    Wrap(
+                      spacing: KSpacing.xs,
+                      runSpacing: KSpacing.xxs,
+                      children: [
+                        WaPill(label: tag, color: tagColor),
+                        WaDepartmentPill(department: c.department),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -523,6 +605,9 @@ class WaChatScreen extends ConsumerStatefulWidget {
   static const menuKey = Key('wa.menu');
   static const detailsKey = Key('wa.details');
 
+  /// D364: the header's «تحويل» button (REPLY+, open conversations).
+  static const transferKey = Key('wa.transfer');
+
   @override
   ConsumerState<WaChatScreen> createState() => _WaChatScreenState();
 }
@@ -577,12 +662,39 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
     }
   }
 
-  Future<void> _transfer() async {
-    final to = await showModalBottomSheet<String>(
+  /// D364 (§10.157.2): the transfer sheet — a department, «أول متاح في
+  /// القسم» or one of its agents, a note — then a toast with where it went.
+  Future<void> _transfer(WaConversation c) async {
+    final choice = await showModalBottomSheet<WaTransferChoice>(
       context: context,
-      builder: (_) => const _AgentsSheet(),
+      isScrollControlled: true,
+      builder: (_) => WaTransferSheet(conversation: c),
     );
-    if (to != null) await _run((r) => r.transfer(_id, to));
+    if (choice == null || !mounted) return;
+    final l10n = context.l10n;
+    try {
+      final after = await ref
+          .read(waRepositoryProvider)
+          .transfer(
+            _id,
+            department: choice.department,
+            toUserId: choice.to?.ref.userId,
+            note: choice.note,
+          );
+      if (mounted) {
+        KSnack.success(
+          context,
+          after.assignedTo != null
+              ? l10n.waTransferDoneTo(_staff(l10n, after.assignedTo))
+              : l10n.waTransferDoneQueue(
+                  waDepartmentName(l10n, after.department),
+                ),
+        );
+      }
+      _reload();
+    } on Object catch (e) {
+      if (mounted) KSnack.error(context, waErrorMessage(l10n, e));
+    }
   }
 
   @override
@@ -640,6 +752,15 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
                 builder: (_) => WaCustomerSheet(conversationId: _id),
               ),
             ),
+          // D364: «تحويل» in the header, beside the customer button (not in
+          // the menu any more); never for VIEW or a closed conversation.
+          if (c != null && !viewOnly && c.open)
+            IconButton(
+              key: WaChatScreen.transferKey,
+              tooltip: l10n.waTransfer,
+              icon: const Icon(Icons.swap_horiz_rounded),
+              onPressed: () => unawaited(_transfer(c)),
+            ),
           // D360: VIEW reads only — no actions menu (the label is in the
           // status strip).
           if (c != null && !viewOnly)
@@ -647,19 +768,12 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
               key: WaChatScreen.menuKey,
               tooltip: l10n.waMenu,
               icon: const Icon(Icons.more_vert_rounded),
-              onSelected: (a) => a == 'transfer'
-                  ? unawaited(_transfer())
-                  : unawaited(_run((r) => r.act(_id, a))),
+              onSelected: (a) => unawaited(_run((r) => r.act(_id, a))),
               itemBuilder: (_) => [
                 if (c.open && c.assignedTo == null)
                   PopupMenuItem(value: 'claim', child: Text(l10n.waClaim)),
                 if (c.open && c.assignedTo != null)
                   PopupMenuItem(value: 'release', child: Text(l10n.waRelease)),
-                if (c.open)
-                  PopupMenuItem(
-                    value: 'transfer',
-                    child: Text(l10n.waTransfer),
-                  ),
                 if (c.open)
                   PopupMenuItem(value: 'close', child: Text(l10n.waClose)),
                 if (!c.open)
@@ -939,6 +1053,8 @@ class WaWindowBanner extends StatelessWidget {
         ? (l10n.waAssignedToMe, p.info)
         : c.assignedTo != null
         ? (l10n.waAssignedTo(_staff(l10n, c.assignedTo)), p.textSecondary)
+        : c.department != WaDepartment.general
+        ? (l10n.waQueueOf(waDepartmentName(l10n, c.department)), p.success)
         : (l10n.waUnassigned, p.success);
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -961,6 +1077,7 @@ class WaWindowBanner extends StatelessWidget {
               color: owner.$2,
               icon: Icons.support_agent_rounded,
             ),
+          WaDepartmentPill(department: c.department),
           if (viewOnly) const WaViewOnlyLabel(),
         ],
       ),
@@ -2153,46 +2270,290 @@ class _WaTemplateSheetState extends ConsumerState<WaTemplateSheet> {
   }
 }
 
-class _AgentsSheet extends ConsumerWidget {
-  const new();
+/// D364 (CONVENTIONS §10.157.2; owner «نعم موافق»): the transfer sheet —
+/// the department chips, then «أول متاح في القسم» first, then that
+/// department's agents (an on-shift dot and their open conversations), an
+/// internal note (never sent), and «تحويل». Pops a [WaTransferChoice].
+class WaTransferSheet extends ConsumerStatefulWidget {
+  const new({required this.conversation, super.key});
+
+  final WaConversation conversation;
+
+  static Key departmentKey(WaDepartment d) => Key('wa.transfer.dept.${d.wire}');
+  static const firstKey = Key('wa.transfer.first');
+  static Key agentKey(String userId) => Key('wa.transfer.agent.$userId');
+  static const noteKey = Key('wa.transfer.note');
+  static const confirmKey = Key('wa.transfer.confirm');
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WaTransferSheet> createState() => _WaTransferSheetState();
+}
+
+class _WaTransferSheetState extends ConsumerState<WaTransferSheet> {
+  late WaDepartment _department = widget.conversation.department;
+
+  /// null: «أول متاح في القسم».
+  WaAgent? _to;
+  final _note = TextEditingController();
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return FutureBuilder<List<WaAgent>>(
-      future: ref.read(waRepositoryProvider).agents(),
-      builder: (context, snap) {
-        final items = snap.data;
-        if (items == null) {
-          return const SizedBox(
-            height: 160,
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              ListTile(
-                title: Text(l10n.waTransferTo, style: context.textStyles.title),
-              ),
-              for (final a in items)
-                ListTile(
-                  leading: Icon(
-                    Icons.circle,
-                    size: 10,
-                    color: a.onShift
-                        ? context.palette.success
-                        : context.palette.textTertiary,
-                  ),
-                  title: Text(_staff(l10n, a.ref)),
-                  subtitle: a.ref.staffId == null ? null : Text(a.ref.staffId!),
-                  onTap: () => Navigator.of(context).pop(a.ref.userId),
-                ),
-            ],
+    final p = context.palette;
+    final t = context.textStyles;
+    final agents = ref.watch(waAgentsProvider(_department));
+    Widget section(String label) => Padding(
+      padding: const EdgeInsetsDirectional.only(
+        top: KSpacing.md,
+        bottom: KSpacing.xs,
+      ),
+      child: Text(
+        label,
+        style: t.caption.copyWith(
+          color: p.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.88,
           ),
-        );
-      },
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              KSpacing.lg,
+              KSpacing.md,
+              KSpacing.lg,
+              KSpacing.lg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(l10n.waTransferTitle, style: t.title),
+                section(l10n.waTransferDepartment),
+                Wrap(
+                  spacing: KSpacing.xs,
+                  children: [
+                    for (final d in WaDepartment.values)
+                      KChip(
+                        key: WaTransferSheet.departmentKey(d),
+                        label: waDepartmentName(l10n, d),
+                        selected: d == _department,
+                        onSelected: () => setState(() {
+                          _department = d;
+                          _to = null;
+                        }),
+                      ),
+                  ],
+                ),
+                section(l10n.waTransferWho),
+                _TransferOption(
+                  key: WaTransferSheet.firstKey,
+                  selected: _to == null,
+                  leading: CircleAvatar(
+                    radius: KSizes.avatarSm / 2,
+                    backgroundColor: p.success.withValues(alpha: 0.14),
+                    child: Icon(Icons.bolt_rounded, color: p.success),
+                  ),
+                  title: l10n.waTransferFirst,
+                  subtitle: l10n.waTransferFirstHint,
+                  onTap: () => setState(() => _to = null),
+                ),
+                switch (agents) {
+                  AsyncData(:final value) when value.isEmpty => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
+                    child: Text(
+                      l10n.waTransferNoAgents,
+                      style: t.caption.copyWith(color: p.textTertiary),
+                    ),
+                  ),
+                  AsyncData(:final value) => Column(
+                    children: [
+                      for (final a in value)
+                        _TransferOption(
+                          key: WaTransferSheet.agentKey(a.ref.userId),
+                          selected: _to?.ref.userId == a.ref.userId,
+                          leading: _AgentAvatar(agent: a),
+                          title: _staff(l10n, a.ref),
+                          subtitle: [
+                            if (a.ref.staffId != null &&
+                                a.ref.displayName != null)
+                              a.ref.staffId!,
+                            if (a.onShift) l10n.waOnShift else l10n.waOffShift,
+                            l10n.waAgentOpen(a.openCount),
+                          ].join(' · '),
+                          onTap: () => setState(() => _to = a),
+                        ),
+                    ],
+                  ),
+                  AsyncError(:final error) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
+                    child: Text(
+                      waErrorMessage(l10n, error),
+                      style: t.caption.copyWith(color: p.error),
+                    ),
+                  ),
+                  _ => const Padding(
+                    padding: EdgeInsets.all(KSpacing.md),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                },
+                const SizedBox(height: KSpacing.md),
+                TextField(
+                  key: WaTransferSheet.noteKey,
+                  controller: _note,
+                  maxLength: 500,
+                  minLines: 1,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: l10n.waTransferNote,
+                    helperText: l10n.waTransferNoteHint,
+                    prefixIcon: const Icon(Icons.sticky_note_2_outlined),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: KSpacing.md),
+                KButton(
+                  key: WaTransferSheet.confirmKey,
+                  label: l10n.waTransferConfirm,
+                  icon: Icons.swap_horiz_rounded,
+                  onPressed: () => Navigator.of(context).pop(
+                    WaTransferChoice(
+                      department: _department,
+                      to: _to,
+                      note: _note.text.trim().isEmpty
+                          ? null
+                          : _note.text.trim(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One choice of the transfer sheet (radio-like: the check on the end side).
+class _TransferOption extends StatelessWidget {
+  const new({
+    required this.selected,
+    required this.leading,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    super.key,
+  });
+
+  final bool selected;
+  final Widget leading;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    return Semantics(
+      selected: selected,
+      inMutuallyExclusiveGroup: true,
+      button: true,
+      child: Material(
+        color: selected
+            ? p.primary.withValues(alpha: 0.08)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(KRadius.md),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(KRadius.md),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: KSpacing.sm,
+              vertical: KSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                leading,
+                const SizedBox(width: KSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.bodyStrong.copyWith(color: p.textPrimary),
+                      ),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.caption.copyWith(color: p.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: KSpacing.sm),
+                Icon(
+                  selected
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_off_rounded,
+                  color: selected ? p.primary : p.textTertiary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// An agent's picture with the on-shift dot (green on shift, grey off).
+class _AgentAvatar extends StatelessWidget {
+  const new({required this.agent});
+
+  final WaAgent agent;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return SizedBox.square(
+      dimension: KSizes.avatarSm,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          KAvatar(name: _staff(context.l10n, agent.ref), size: KSizes.avatarSm),
+          PositionedDirectional(
+            end: -1,
+            bottom: -1,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: agent.onShift ? p.success : p.textTertiary,
+                shape: BoxShape.circle,
+                border: Border.all(color: p.surface, width: 2),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

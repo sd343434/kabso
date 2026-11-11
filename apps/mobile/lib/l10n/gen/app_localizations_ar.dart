@@ -17706,4 +17706,91 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get waAttachPhoto => 'صورة';
+
+  @override
+  String get waDeptPAYMENTS => 'الشحن والمدفوعات';
+
+  @override
+  String get waDeptAGENCIES => 'الوكالات والمضيفون';
+
+  @override
+  String get waDeptTECHNICAL => 'المشاكل التقنية';
+
+  @override
+  String get waDeptREPORTS => 'البلاغات والحظر';
+
+  @override
+  String get waDeptGENERAL => 'عام';
+
+  @override
+  String get waDeptAll => 'كل الأقسام';
+
+  @override
+  String waDeptLabel(String department) {
+    return 'القسم: $department';
+  }
+
+  @override
+  String get waTransferTitle => 'تحويل المحادثة';
+
+  @override
+  String get waTransferDepartment => 'القسم';
+
+  @override
+  String get waTransferWho => 'إلى من';
+
+  @override
+  String get waTransferFirst => 'أول متاح في القسم';
+
+  @override
+  String get waTransferFirstHint =>
+      'أقل موظف مناوب انشغالاً، أو قائمة القسم إن لم يكن أحد مناوباً';
+
+  @override
+  String get waTransferNoAgents => 'لا يوجد موظفون في هذا القسم بعد.';
+
+  @override
+  String get waTransferNote => 'ملاحظة داخلية (اختياري)';
+
+  @override
+  String get waTransferNoteHint => 'تُحفظ مع التحويل ولا تُرسل للعميل أبداً';
+
+  @override
+  String get waTransferConfirm => 'تحويل';
+
+  @override
+  String waTransferDoneTo(String name) {
+    return 'حُوّلت المحادثة إلى $name';
+  }
+
+  @override
+  String waTransferDoneQueue(String department) {
+    return 'حُوّلت المحادثة إلى قائمة $department';
+  }
+
+  @override
+  String waAgentOpen(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count محادثة مفتوحة',
+      many: '$count محادثة مفتوحة',
+      few: '$count محادثات مفتوحة',
+      two: 'محادثتان مفتوحتان',
+      one: 'محادثة مفتوحة',
+      zero: 'لا محادثات مفتوحة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get waOnShift => 'مناوب';
+
+  @override
+  String get waOffShift => 'خارج المناوبة';
+
+  @override
+  String waQueueOf(String department) {
+    return 'قائمة $department';
+  }
 }

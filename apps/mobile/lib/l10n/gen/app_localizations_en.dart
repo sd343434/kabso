@@ -17696,4 +17696,89 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get waAttachPhoto => 'Photo';
+
+  @override
+  String get waDeptPAYMENTS => 'Top-ups & payments';
+
+  @override
+  String get waDeptAGENCIES => 'Agencies & hosts';
+
+  @override
+  String get waDeptTECHNICAL => 'Technical issues';
+
+  @override
+  String get waDeptREPORTS => 'Reports & bans';
+
+  @override
+  String get waDeptGENERAL => 'General';
+
+  @override
+  String get waDeptAll => 'All departments';
+
+  @override
+  String waDeptLabel(String department) {
+    return 'Department: $department';
+  }
+
+  @override
+  String get waTransferTitle => 'Transfer conversation';
+
+  @override
+  String get waTransferDepartment => 'Department';
+
+  @override
+  String get waTransferWho => 'To whom';
+
+  @override
+  String get waTransferFirst => 'First available in the department';
+
+  @override
+  String get waTransferFirstHint =>
+      'The least busy agent on shift, or the department queue if nobody is on shift';
+
+  @override
+  String get waTransferNoAgents => 'No agents in this department yet.';
+
+  @override
+  String get waTransferNote => 'Internal note (optional)';
+
+  @override
+  String get waTransferNoteHint =>
+      'Kept with the transfer, never sent to the customer';
+
+  @override
+  String get waTransferConfirm => 'Transfer';
+
+  @override
+  String waTransferDoneTo(String name) {
+    return 'Transferred to $name';
+  }
+
+  @override
+  String waTransferDoneQueue(String department) {
+    return 'Transferred to the $department queue';
+  }
+
+  @override
+  String waAgentOpen(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count open',
+      one: '1 open',
+      zero: 'No open conversations',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get waOnShift => 'On shift';
+
+  @override
+  String get waOffShift => 'Off shift';
+
+  @override
+  String waQueueOf(String department) {
+    return '$department queue';
+  }
 }

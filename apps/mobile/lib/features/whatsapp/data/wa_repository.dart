@@ -14,7 +14,12 @@ abstract interface class WaRepository {
   /// `GET …/summary` — the badge (`enabled` false when WhatsApp is off).
   Future<WaSummary> summary();
 
-  Future<List<WaConversation>> conversations(WaFilter filter, {String? q});
+  /// D364: [department] keeps one department's conversations.
+  Future<List<WaConversation>> conversations(
+    WaFilter filter, {
+    String? q,
+    WaDepartment? department,
+  });
 
   Future<WaConversation> conversation(String id);
 
@@ -46,7 +51,14 @@ abstract interface class WaRepository {
   /// `claim` / `release` / `close` / `reopen`.
   Future<WaConversation> act(String id, String action);
 
-  Future<WaConversation> transfer(String id, String toUserId);
+  /// D364 (§10.157.2): to [department] — [toUserId] in it, or (null) its
+  /// first available agent / its queue — with an optional internal [note].
+  Future<WaConversation> transfer(
+    String id, {
+    required WaDepartment department,
+    String? toUserId,
+    String? note,
+  });
 
   Future<WaNote> addNote(String id, String body);
 
@@ -58,7 +70,9 @@ abstract interface class WaRepository {
 
   Future<List<WaQuickReply>> quickReplies();
 
-  Future<List<WaAgent>> agents();
+  /// D364: [department] keeps its members (on shift first, then the least
+  /// busy).
+  Future<List<WaAgent>> agents({WaDepartment? department});
 
   Future<bool> pushMuted();
 
@@ -88,18 +102,22 @@ class WaRepositoryImpl implements WaRepository {
   });
 
   @override
-  Future<List<WaConversation>> conversations(WaFilter filter, {String? q}) =>
-      guardApiCall(() async {
-        final res = await _dio.get<Map<String, dynamic>>(
-          '$_base/conversations',
-          queryParameters: {
-            'filter': filter.wire,
-            'limit': 50,
-            if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
-          },
-        );
-        return _list(res, WaConversation.fromJson);
-      });
+  Future<List<WaConversation>> conversations(
+    WaFilter filter, {
+    String? q,
+    WaDepartment? department,
+  }) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '$_base/conversations',
+      queryParameters: {
+        'filter': filter.wire,
+        'limit': 50,
+        if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+        if (department != null) 'department': department.wire,
+      },
+    );
+    return _list(res, WaConversation.fromJson);
+  });
 
   @override
   Future<WaConversation> conversation(String id) => guardApiCall(() async {
@@ -190,14 +208,22 @@ class WaRepositoryImpl implements WaRepository {
       });
 
   @override
-  Future<WaConversation> transfer(String id, String toUserId) =>
-      guardApiCall(() async {
-        final res = await _dio.post<Map<String, dynamic>>(
-          '${_c(id)}/transfer',
-          data: {'toUserId': toUserId},
-        );
-        return WaConversation.fromJson(res.data!);
-      });
+  Future<WaConversation> transfer(
+    String id, {
+    required WaDepartment department,
+    String? toUserId,
+    String? note,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_c(id)}/transfer',
+      data: {
+        'department': department.wire,
+        'toUserId': ?toUserId,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+    return WaConversation.fromJson(res.data!);
+  });
 
   @override
   Future<WaNote> addNote(String id, String body) => guardApiCall(() async {
@@ -237,10 +263,14 @@ class WaRepositoryImpl implements WaRepository {
   });
 
   @override
-  Future<List<WaAgent>> agents() => guardApiCall(() async {
-    final res = await _dio.get<Map<String, dynamic>>('$_base/agents');
-    return _list(res, WaAgent.fromJson);
-  });
+  Future<List<WaAgent>> agents({WaDepartment? department}) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '$_base/agents',
+          queryParameters: {'department': ?department?.wire},
+        );
+        return _list(res, WaAgent.fromJson);
+      });
 
   @override
   Future<bool> pushMuted() => guardApiCall(() async {

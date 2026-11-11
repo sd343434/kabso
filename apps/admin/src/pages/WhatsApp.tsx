@@ -17,7 +17,9 @@ import type {
   WaSummary,
   WaTemplate,
   WaTestResult,
+  WaDepartment,
 } from '../types';
+import { WA_DEPARTMENTS } from '../types';
 import './whatsapp.css';
 
 /**
@@ -70,6 +72,31 @@ export function useWhatsAppBadge(enabled: boolean, path: string): number | null 
     };
   }, [enabled, path]);
   return enabled ? n : null;
+}
+
+/** D364 (§10.157): a department's name. */
+export function departmentName(t: T, d: WaDepartment | null | undefined): string {
+  return t(`waDept${d ?? 'GENERAL'}` as Key);
+}
+
+/** D364: the department tag (inbox rows, the chat head). */
+export function DepartmentTag({ d }: { d: WaDepartment | undefined }) {
+  const { t } = useApp();
+  const name = departmentName(t, d);
+  return (
+    <span className="tag dept" data-wa-department={d ?? 'GENERAL'} title={`${t('waDeptFilter')}: ${name}`}>
+      {name}
+    </span>
+  );
+}
+
+/** D364: who has it — a person, me, the unassigned queue (named by its department unless GENERAL), or closed. */
+export function ownerText(t: T, c: WaConversation): string {
+  if (c.status === 'CLOSED') return t('waClosed');
+  if (c.assignedTo) return c.assignedToMe ? t('waAssignedToMe') : t('waAssignedTo', { name: staffName(t, c.assignedTo) });
+  return c.department && c.department !== 'GENERAL'
+    ? t('waQueueOf', { department: departmentName(t, c.department) })
+    : t('waUnassigned');
 }
 
 export function staffName(t: T, s: WaStaffRef | null): string {
@@ -160,8 +187,9 @@ export function WaConversationList({
                   {c.assignedToMe ? t('waAssignedToMe') : t('waAssignedTo', { name: staffName(t, c.assignedTo) })}
                 </span>
               ) : (
-                <span className="tag open">{t('waUnassigned')}</span>
+                <span className="tag open">{ownerText(t, c)}</span>
               )}
+              <DepartmentTag d={c.department} />
             </span>
           </button>
         </li>
@@ -298,14 +326,7 @@ export function WaChatView({
             )}
           </h2>
           <p className="muted small">
-            <Phone value={c.phone} /> ·{' '}
-            {c.status === 'CLOSED'
-              ? t('waClosed')
-              : c.assignedTo
-                ? c.assignedToMe
-                  ? t('waAssignedToMe')
-                  : t('waAssignedTo', { name: staffName(t, c.assignedTo) })
-                : t('waUnassigned')}
+            <Phone value={c.phone} /> · {ownerText(t, c)} <DepartmentTag d={c.department} />
           </p>
         </div>
         {reply && (
@@ -321,8 +342,8 @@ export function WaChatView({
             </button>
           )}
           {c.status === 'OPEN' && (mineOrFree || manage) && (
-            <button className="btn small" onClick={() => onAction('transfer')}>
-              {t('waTransfer')}
+            <button className="btn small" data-wa-transfer title={t('waTransfer')} onClick={() => onAction('transfer')}>
+              ⇄ {t('waTransfer')}
             </button>
           )}
           {c.status === 'OPEN' && (mineOrFree || manage) && (
@@ -582,6 +603,12 @@ export function historyLine(t: T, a: WaAssignment): string {
   const by = staffName(t, a.by);
   const to = staffName(t, a.to);
   if (a.action === 'REOPEN') return a.by ? t('waActREOPENBy', { by }) : t('waActREOPEN');
+  // D364: a transfer with its department — to a person or to the department's queue — and its note.
+  if (a.action === 'TRANSFER' && a.department) {
+    const department = departmentName(t, a.department);
+    const line = a.to ? t('waActTRANSFERDept', { by, to, department }) : t('waActTRANSFERQueue', { by, department });
+    return a.note ? `${line} · ${t('waHistoryNote', { note: a.note.body })}` : line;
+  }
   return t(`waAct${a.action}` as Key, { by, to });
 }
 
@@ -687,6 +714,7 @@ export function WhatsAppInbox() {
   const { search } = useLocation();
   const selected = search.get('c');
   const [filter, setFilter] = useState<Filter>('unassigned');
+  const [department, setDepartment] = useState<WaDepartment | ''>('');
   const [q, setQ] = useState('');
   const [tick, setTick] = useState(0);
   const bump = useCallback(() => {
@@ -695,8 +723,14 @@ export function WhatsAppInbox() {
   }, []);
   const summary = useAsync(() => api.get<WaSummary>(`${BASE}/summary`), [tick]);
   const list = useAsync(
-    () => api.get<Page<WaConversation>>(`${BASE}/conversations`, { filter, q: q.trim() || undefined, limit: 50 }),
-    [filter, q, tick],
+    () =>
+      api.get<Page<WaConversation>>(`${BASE}/conversations`, {
+        filter,
+        department: department || undefined,
+        q: q.trim() || undefined,
+        limit: 50,
+      }),
+    [filter, department, q, tick],
   );
   useEffect(() => {
     const h = window.setInterval(() => setTick((x) => x + 1), 15_000);
@@ -728,6 +762,7 @@ export function WhatsAppInbox() {
               </button>
             ))}
           </div>
+          <DepartmentFilter value={department} onChange={setDepartment} />
           <input
             className="input"
             type="search"
@@ -755,6 +790,35 @@ export function WhatsAppInbox() {
         )}
       </div>
     </>
+  );
+}
+
+/** D364 (§10.157.4): the inbox's department filter (with «غير مسندة»: that department's queue). */
+export function DepartmentFilter({
+  value,
+  onChange,
+}: {
+  value: WaDepartment | '';
+  onChange: (d: WaDepartment | '') => void;
+}) {
+  const { t } = useApp();
+  return (
+    <label className="field wa-dept-filter">
+      <span className="small muted">{t('waDeptFilter')}</span>
+      <select
+        className="input"
+        data-wa-department-filter
+        value={value}
+        onChange={(e) => onChange(e.target.value as WaDepartment | '')}
+      >
+        <option value="">{t('waDeptAll')}</option>
+        {WA_DEPARTMENTS.map((d) => (
+          <option key={d} value={d}>
+            {departmentName(t, d)}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -829,7 +893,21 @@ function OpenConversation({
         }
         onNote={() => setDialog('note')}
       />
-      {dialog === 'transfer' && <TransferDialog id={id} onClose={() => setDialog(null)} onDone={() => { setDialog(null); refresh(); }} />}
+      {dialog === 'transfer' && (
+        <TransferDialog
+          c={c}
+          onClose={() => setDialog(null)}
+          onDone={(after) => {
+            setDialog(null);
+            toast(
+              after.assignedTo
+                ? t('waTransferDoneTo', { name: staffName(t, after.assignedTo) })
+                : t('waTransferDoneQueue', { department: departmentName(t, after.department) }),
+            );
+            refresh();
+          }}
+        />
+      )}
       {dialog === 'link' && (
         <FormDialog
           title={t('waLink')}
@@ -862,33 +940,177 @@ function OpenConversation({
   );
 }
 
-function TransferDialog({ id, onClose, onDone }: { id: string; onClose: () => void; onDone: () => void }) {
-  const { t, session } = useApp();
-  const agents = useAsync(() => api.get<{ data: WaAgent[] }>(`${BASE}/agents`), []);
-  const [error, setError] = useState<unknown>(null);
-  const me = session?.admin.id;
+/** D364: what the transfer dialog chose — the department, a person (null: «أول متاح في القسم») and the note. */
+export interface TransferChoice {
+  department: WaDepartment;
+  to: string | null;
+  note: string;
+}
+
+/**
+ * D364 (CONVENTIONS §10.157.2): the transfer dialog's body without its loading (the tests render it) — the department
+ * chips, «أول متاح في القسم» first, the department's agents (the on-shift dot and their open conversations), the
+ * internal note (never sent) and «تحويل».
+ */
+export function WaTransferView({
+  choice,
+  agents,
+  loading,
+  busy,
+  onChange,
+  onConfirm,
+}: {
+  choice: TransferChoice;
+  agents: WaAgent[] | null;
+  loading: boolean;
+  busy: boolean;
+  onChange: (next: TransferChoice) => void;
+  onConfirm: () => void;
+}) {
+  const { t, lang } = useApp();
   return (
-    <Dialog title={t('waTransferTo')} onClose={onClose}>
+    <div className="wa-transfer" data-wa-transfer-department={choice.department}>
+      <p className="small muted">{t('waTransferDepartment')}</p>
+      <div className="chips" role="radiogroup" aria-label={t('waTransferDepartment')}>
+        {WA_DEPARTMENTS.map((d) => (
+          <button
+            key={d}
+            type="button"
+            role="radio"
+            aria-checked={choice.department === d}
+            className={`chip ${choice.department === d ? 'active' : ''}`}
+            data-wa-dept-chip={d}
+            onClick={() => onChange({ ...choice, department: d, to: null })}
+          >
+            {departmentName(t, d)}
+          </button>
+        ))}
+      </div>
+      <p className="small muted">{t('waTransferWho')}</p>
+      <ul className="wa-transfer-list" role="radiogroup" aria-label={t('waTransferWho')}>
+        <li>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={choice.to === null}
+            className={`wa-transfer-option${choice.to === null ? ' active' : ''}`}
+            data-wa-transfer-first
+            onClick={() => onChange({ ...choice, to: null })}
+          >
+            <span className="wa-transfer-icon" aria-hidden="true">
+              ⚡
+            </span>
+            <span className="grow">
+              <b>{t('waTransferFirst')}</b>
+              <span className="muted small block">{t('waTransferFirstHint')}</span>
+            </span>
+          </button>
+        </li>
+        {loading && (
+          <li>
+            <Loading />
+          </li>
+        )}
+        {agents && agents.length === 0 && <li className="muted small">{t('waTransferNoAgents')}</li>}
+        {agents?.map((a) => (
+          <li key={a.userId}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={choice.to === a.userId}
+              className={`wa-transfer-option${choice.to === a.userId ? ' active' : ''}`}
+              data-wa-transfer-agent={a.userId}
+              onClick={() => onChange({ ...choice, to: a.userId })}
+            >
+              <span
+                className={`wa-shift-dot${a.onShift ? ' on' : ''}`}
+                role="img"
+                aria-label={a.onShift ? t('waOnShift') : t('waOffShift')}
+              />
+              <span className="grow">
+                <b>{staffName(t, a)}</b>
+                <span className="muted small block">
+                  {[
+                    a.displayName && a.staffId ? a.staffId : null,
+                    a.onShift ? t('waOnShift') : t('waOffShift'),
+                    t('waAgentOpen', { count: formatNumber(a.openCount ?? 0, lang) }),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <label className="field">
+        <span>{t('waTransferNote')}</span>
+        <textarea
+          className="input"
+          data-wa-transfer-note
+          maxLength={500}
+          rows={2}
+          dir="auto"
+          value={choice.note}
+          onChange={(e) => onChange({ ...choice, note: e.target.value })}
+        />
+        <span className="muted small">
+          {t('waTransferNoteHint')} · {formatNumber(choice.note.length, lang)}/500
+        </span>
+      </label>
+      <div className="actions">
+        <button className="btn primary" data-wa-transfer-confirm disabled={busy} onClick={onConfirm}>
+          {t('waTransferConfirm')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TransferDialog({
+  c,
+  onClose,
+  onDone,
+}: {
+  c: WaConversation;
+  onClose: () => void;
+  onDone: (after: WaConversation) => void;
+}) {
+  const { t } = useApp();
+  const [choice, setChoice] = useState<TransferChoice>({ department: c.department ?? 'GENERAL', to: null, note: '' });
+  const agents = useAsync(
+    () => api.get<{ data: WaAgent[] }>(`${BASE}/agents`, { department: choice.department }),
+    [choice.department],
+  );
+  const [error, setError] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+  const confirm = () => {
+    setBusy(true);
+    setError(null);
+    const note = choice.note.trim();
+    void api
+      .post<WaConversation>(`${BASE}/conversations/${c.id}/transfer`, {
+        department: choice.department,
+        ...(choice.to ? { toUserId: choice.to } : {}),
+        ...(note ? { note } : {}),
+      })
+      .then(onDone, (e: unknown) => {
+        setBusy(false);
+        setError(e);
+      });
+  };
+  return (
+    <Dialog title={t('waTransferTitle')} onClose={onClose}>
       <ErrorAlert error={agents.error} />
       <WaError error={error} />
-      {agents.loading && <Loading />}
-      <ul className="wa-quick-list">
-        {agents.data?.data
-          .filter((a) => a.userId !== me)
-          .map((a) => (
-            <li key={a.userId}>
-              <button
-                className="btn ghost wa-quick"
-                onClick={() =>
-                  void api.post(`${BASE}/conversations/${id}/transfer`, { toUserId: a.userId }).then(onDone, setError)
-                }
-              >
-                <b>{staffName(t, a)}</b>
-                <span className="muted small">{a.staffId ?? ''} {a.onShift ? '●' : ''}</span>
-              </button>
-            </li>
-          ))}
-      </ul>
+      <WaTransferView
+        choice={choice}
+        agents={agents.data?.data ?? null}
+        loading={agents.loading}
+        busy={busy}
+        onChange={setChoice}
+        onConfirm={confirm}
+      />
     </Dialog>
   );
 }

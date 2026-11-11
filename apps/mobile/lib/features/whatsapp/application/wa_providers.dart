@@ -68,14 +68,21 @@ final AsyncNotifierProvider<WaSummaryController, WaSummary> waSummaryProvider =
       WaSummaryController.new,
     );
 
-/// One tab of the inbox (with the search text).
-typedef WaListKey = ({WaFilter filter, String q});
+/// One tab of the inbox (with the search text and, D364, the department).
+typedef WaListKey = ({WaFilter filter, String q, WaDepartment? department});
 
 final FutureProviderFamily<List<WaConversation>, WaListKey>
 waConversationsProvider = FutureProvider.autoDispose
     .family<List<WaConversation>, WaListKey>(
-      (ref, key) =>
-          ref.watch(waRepositoryProvider).conversations(key.filter, q: key.q),
+      (ref, key) => ref
+          .watch(waRepositoryProvider)
+          .conversations(key.filter, q: key.q, department: key.department),
+    );
+
+/// D364 (§10.157.2): one department's agents for the transfer sheet.
+final FutureProviderFamily<List<WaAgent>, WaDepartment> waAgentsProvider =
+    FutureProvider.autoDispose.family<List<WaAgent>, WaDepartment>(
+      (ref, d) => ref.watch(waRepositoryProvider).agents(department: d),
     );
 
 /// The open conversation: the conversation, its messages and notes.

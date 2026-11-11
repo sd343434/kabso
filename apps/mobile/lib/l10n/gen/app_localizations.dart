@@ -29835,6 +29835,138 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'صورة'**
   String get waAttachPhoto;
+
+  /// D364: the WhatsApp department PAYMENTS.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشحن والمدفوعات'**
+  String get waDeptPAYMENTS;
+
+  /// D364: the WhatsApp department AGENCIES.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوكالات والمضيفون'**
+  String get waDeptAGENCIES;
+
+  /// D364: the WhatsApp department TECHNICAL.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاكل التقنية'**
+  String get waDeptTECHNICAL;
+
+  /// D364: the WhatsApp department REPORTS.
+  ///
+  /// In ar, this message translates to:
+  /// **'البلاغات والحظر'**
+  String get waDeptREPORTS;
+
+  /// D364: the WhatsApp department GENERAL (the default).
+  ///
+  /// In ar, this message translates to:
+  /// **'عام'**
+  String get waDeptGENERAL;
+
+  /// D364: the inbox's department filter, no department chosen.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل الأقسام'**
+  String get waDeptAll;
+
+  /// D364: the semantics of a department chip.
+  ///
+  /// In ar, this message translates to:
+  /// **'القسم: {department}'**
+  String waDeptLabel(String department);
+
+  /// D364: the transfer sheet's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحويل المحادثة'**
+  String get waTransferTitle;
+
+  /// D364: the transfer sheet's department section.
+  ///
+  /// In ar, this message translates to:
+  /// **'القسم'**
+  String get waTransferDepartment;
+
+  /// D364: the transfer sheet's target section.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلى من'**
+  String get waTransferWho;
+
+  /// D364: route to the department's first available agent.
+  ///
+  /// In ar, this message translates to:
+  /// **'أول متاح في القسم'**
+  String get waTransferFirst;
+
+  /// D364: what «أول متاح في القسم» does.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل موظف مناوب انشغالاً، أو قائمة القسم إن لم يكن أحد مناوباً'**
+  String get waTransferFirstHint;
+
+  /// D364: a department with no agent.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد موظفون في هذا القسم بعد.'**
+  String get waTransferNoAgents;
+
+  /// D364: the transfer sheet's note field.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظة داخلية (اختياري)'**
+  String get waTransferNote;
+
+  /// D364: the note field's helper text.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُحفظ مع التحويل ولا تُرسل للعميل أبداً'**
+  String get waTransferNoteHint;
+
+  /// D364: the transfer sheet's confirm button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحويل'**
+  String get waTransferConfirm;
+
+  /// D364: the toast after a transfer to a person.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُوّلت المحادثة إلى {name}'**
+  String waTransferDoneTo(String name);
+
+  /// D364: the toast after a transfer to the department queue.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُوّلت المحادثة إلى قائمة {department}'**
+  String waTransferDoneQueue(String department);
+
+  /// D364: an agent's open assigned conversations.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا محادثات مفتوحة} =1{محادثة مفتوحة} =2{محادثتان مفتوحتان} few{{count} محادثات مفتوحة} many{{count} محادثة مفتوحة} other{{count} محادثة مفتوحة}}'**
+  String waAgentOpen(int count);
+
+  /// D364: the on-shift dot's label.
+  ///
+  /// In ar, this message translates to:
+  /// **'مناوب'**
+  String get waOnShift;
+
+  /// D364: the off-shift dot's label.
+  ///
+  /// In ar, this message translates to:
+  /// **'خارج المناوبة'**
+  String get waOffShift;
+
+  /// D364: the chat strip when the conversation waits in a department queue.
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة {department}'**
+  String waQueueOf(String department);
 }
 
 class _AppLocalizationsDelegate
