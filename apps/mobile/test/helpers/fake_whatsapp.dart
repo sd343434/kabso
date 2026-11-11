@@ -11,6 +11,14 @@ final d355Now = DateTime.utc(2026, 11, 10, 9, 30);
 const waMe = WaStaffRef(userId: 'me', displayName: 'هدى', staffId: 'Kabso03');
 const waMona = WaStaffRef(userId: 's2', displayName: 'منى', staffId: 'Kabso02');
 
+/// D364: the payments agents of the transfer sheet.
+const waKhalid = WaStaffRef(
+  userId: 's3',
+  displayName: 'خالد',
+  staffId: 'Kabso04',
+);
+const waRana = WaStaffRef(userId: 's4', displayName: 'رنا', staffId: 'Kabso05');
+
 WaConversation waConversation({
   String id = 'c1',
   String? name = 'سارة',
@@ -21,6 +29,7 @@ WaConversation waConversation({
   bool windowOpen = true,
   String? preview = 'الإيصال',
   WaAccountCard? account,
+  WaDepartment department = WaDepartment.general,
 }) => WaConversation(
   id: id,
   phone: '+966500001001',
@@ -36,6 +45,7 @@ WaConversation waConversation({
       ? d355Now.add(const Duration(hours: 20))
       : d355Now.subtract(const Duration(hours: 3)),
   linkedAccount: account,
+  department: department,
 );
 
 /// [reaction]: the golden font has no emoji, so the goldens leave it out.
@@ -82,6 +92,7 @@ List<WaMessage> waMessages({required bool ar, bool reaction = true}) => [
     at: d355Now.subtract(const Duration(minutes: 12)),
     text: ar ? 'لحظة من فضلك' : 'One moment please',
     errorTitle: 'Message undeliverable',
+    errorCode: 131026,
     sentBy: waMe,
   ),
   WaMessage(
@@ -99,6 +110,15 @@ List<WaMessage> waMessages({required bool ar, bool reaction = true}) => [
     tick: WaTick.received,
     at: d355Now.subtract(const Duration(minutes: 15)),
     text: 'السلام عليكم',
+  ),
+  // D363: the day before — the chat's «أمس» separator.
+  WaMessage(
+    id: 'm0',
+    outbound: false,
+    type: 'TEXT',
+    tick: WaTick.received,
+    at: d355Now.subtract(const Duration(hours: 20)),
+    text: ar ? 'مرحباً، عندي مشكلة في الشحن' : 'Hi, I have a top-up problem',
   ),
 ];
 
@@ -120,6 +140,35 @@ class FakeWaRepository implements WaRepository {
   AppFailure? sendError;
 
   final List<WaFilter> filters = [];
+
+  /// D364: the department of each list read (null: all).
+  final List<WaDepartment?> departments = [];
+
+  /// D364: each transfer (department, to, note).
+  final List<(WaDepartment, String?, String?)> transfers = [];
+
+  /// D364: what a transfer answers (default: [current] moved as asked).
+  WaConversation Function(WaDepartment department, String? to)? afterTransfer;
+
+  /// D364: the agents of each department (default: [waMona] in GENERAL,
+  /// [waKhalid] and [waRana] in PAYMENTS).
+  Map<WaDepartment, List<WaAgent>> agentsBy = {
+    WaDepartment.general: const [WaAgent(ref: waMona, onShift: true)],
+    WaDepartment.payments: const [
+      WaAgent(
+        ref: waKhalid,
+        onShift: true,
+        departments: [WaDepartment.payments],
+        openCount: 1,
+      ),
+      WaAgent(
+        ref: waRana,
+        onShift: false,
+        departments: [WaDepartment.payments, WaDepartment.technical],
+        openCount: 3,
+      ),
+    ],
+  };
   final List<String> sentTexts = [];
   final List<(String, List<String>)> sentTemplates = [];
   final List<String> actions = [];
@@ -144,9 +193,16 @@ class FakeWaRepository implements WaRepository {
   Future<List<WaConversation>> conversations(
     WaFilter filter, {
     String? q,
+    WaDepartment? department,
   }) async {
     filters.add(filter);
-    return list;
+    departments.add(department);
+    return department == null
+        ? list
+        : [
+            for (final c in list)
+              if (c.department == department) c,
+          ];
   }
 
   @override
@@ -200,9 +256,34 @@ class FakeWaRepository implements WaRepository {
   }
 
   @override
-  Future<WaConversation> transfer(String id, String toUserId) async {
-    actions.add('transfer:$toUserId');
-    return current;
+  Future<WaConversation> transfer(
+    String id, {
+    required WaDepartment department,
+    String? toUserId,
+    String? note,
+  }) async {
+    actions.add('transfer:${toUserId ?? department.wire}');
+    transfers.add((department, toUserId, note));
+    final f = afterTransfer;
+    if (f != null) return current = f(department, toUserId);
+    final agent = [for (final l in agentsBy.values) ...l]
+        .where((a) => a.ref.userId == toUserId)
+        .firstOrNull;
+    return current = WaConversation(
+      id: current.id,
+      phone: current.phone,
+      name: current.name,
+      open: current.open,
+      assignedTo: agent?.ref,
+      assignedToMe: false,
+      unreadCount: current.unreadCount,
+      lastMessageAt: current.lastMessageAt,
+      lastPreview: current.lastPreview,
+      windowOpen: current.windowOpen,
+      windowClosesAt: current.windowClosesAt,
+      linkedAccount: current.linkedAccount,
+      department: department,
+    );
   }
 
   @override
@@ -231,9 +312,10 @@ class FakeWaRepository implements WaRepository {
   ];
 
   @override
-  Future<List<WaAgent>> agents() async => const [
-    WaAgent(ref: waMona, onShift: true),
-  ];
+  Future<List<WaAgent>> agents({WaDepartment? department}) async =>
+      department == null
+      ? [for (final l in agentsBy.values) ...l]
+      : agentsBy[department] ?? const [];
 
   @override
   Future<bool> pushMuted() async => false;

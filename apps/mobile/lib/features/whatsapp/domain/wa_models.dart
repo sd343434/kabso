@@ -56,6 +56,27 @@ class WaAccountCard {
   final DateTime createdAt;
 }
 
+/// v1.122-social (D364, CONVENTIONS §10.157): the WhatsApp departments — a
+/// fixed set. Every conversation is in one (GENERAL until a transfer moves
+/// it); a staff member answers for one or more (GENERAL by default).
+enum WaDepartment {
+  payments('PAYMENTS'),
+  agencies('AGENCIES'),
+  technical('TECHNICAL'),
+  reports('REPORTS'),
+  general('GENERAL');
+
+  new(this.wire);
+
+  final String wire;
+
+  /// An unknown or missing value (a server before D364) reads as GENERAL.
+  static WaDepartment fromWire(Object? v) => WaDepartment.values.firstWhere(
+    (d) => d.wire == v,
+    orElse: () => WaDepartment.general,
+  );
+}
+
 enum WaFilter {
   unassigned('unassigned'),
   mine('mine'),
@@ -109,6 +130,7 @@ class WaConversation {
     this.lastPreview,
     this.windowClosesAt,
     this.linkedAccount,
+    this.department = WaDepartment.general,
   });
 
   factory fromJson(Map<String, dynamic> j) {
@@ -129,6 +151,7 @@ class WaConversation {
       linkedAccount: account is Map<String, dynamic>
           ? WaAccountCard.fromJson(account)
           : null,
+      department: WaDepartment.fromWire(j['department']),
     );
   }
 
@@ -148,6 +171,9 @@ class WaConversation {
   final bool windowOpen;
   final DateTime? windowClosesAt;
   final WaAccountCard? linkedAccount;
+
+  /// D364: the department «القسم» (changed only by a transfer).
+  final WaDepartment department;
 
   String get title => name ?? phone;
 
@@ -203,6 +229,7 @@ class WaMessage {
     this.reaction,
     this.templateName,
     this.errorTitle,
+    this.errorCode,
     this.sentBy,
   });
 
@@ -232,6 +259,7 @@ class WaMessage {
       errorTitle: error == null
           ? null
           : (error['title'] as String? ?? '${error['code'] ?? ''}'),
+      errorCode: (error?['code'] as num?)?.toInt(),
       sentBy: WaStaffRef.maybe(j['sentBy']),
       at: _date(j['at']) ?? DateTime.now(),
     );
@@ -248,7 +276,13 @@ class WaMessage {
   final String? reaction;
   final String? templateName;
   final WaTick tick;
+
+  /// Meta's own words for a failed send (English, never shown in the app:
+  /// D363 shows [errorCode] in words instead).
   final String? errorTitle;
+
+  /// Meta's numeric error code (131047 the window, 131026 undeliverable, …).
+  final int? errorCode;
   final WaStaffRef? sentBy;
   final DateTime at;
 }
@@ -310,15 +344,43 @@ class WaNote {
 }
 
 class WaAgent {
-  const new({required this.ref, required this.onShift});
+  const new({
+    required this.ref,
+    required this.onShift,
+    this.departments = const [WaDepartment.general],
+    this.openCount = 0,
+  });
 
-  factory fromJson(Map<String, dynamic> j) => WaAgent(
-    ref: WaStaffRef.fromJson(j),
-    onShift: j['onShift'] as bool? ?? false,
-  );
+  factory fromJson(Map<String, dynamic> j) {
+    final depts = j['departments'];
+    return WaAgent(
+      ref: WaStaffRef.fromJson(j),
+      onShift: j['onShift'] as bool? ?? false,
+      departments: depts is List && depts.isNotEmpty
+          ? [for (final d in depts) WaDepartment.fromWire(d)]
+          : const [WaDepartment.general],
+      openCount: (j['openCount'] as num?)?.toInt() ?? 0,
+    );
+  }
 
   final WaStaffRef ref;
   final bool onShift;
+
+  /// D364: the departments the agent answers for.
+  final List<WaDepartment> departments;
+
+  /// D364: open conversations assigned to the agent now.
+  final int openCount;
+}
+
+/// D364 (§10.157.2): what the transfer sheet chose — a department, a person
+/// in it (null: «أول متاح في القسم») and an internal note.
+class WaTransferChoice {
+  const new({required this.department, this.to, this.note});
+
+  final WaDepartment department;
+  final WaAgent? to;
+  final String? note;
 }
 
 /// The conversation screen's data: the conversation, a page of messages

@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { api } from '../api';
 import { Avatar, codeField, Dialog, ErrorAlert, FormDialog, reasonField, StatusBadge, useAsync } from '../components';
 import { useApp } from '../context';
 import { formatDate } from '../format';
-import type { PanelRole } from '../types';
+import type { PanelRole, WaDepartment } from '../types';
+import { WA_DEPARTMENTS } from '../types';
 import { Icon } from '../ui/icons';
 import { STAFF_REGIONS, type StaffRegion } from '../i18n-d283';
 import { recruitBreakdown, type RecruitCounts } from './Recruits';
@@ -30,6 +31,104 @@ export interface Member {
   recruits?: RecruitCounts;
   /** D360: the WhatsApp level «مستوى واتساب» (absent from an older API). */
   whatsapp?: TeamWhatsApp;
+  /** D364: the WhatsApp departments «الأقسام» (absent from an older API). */
+  whatsappDepartments?: TeamWaDepartments;
+}
+
+/** D364 (v1.122-social, §10.157.1): a staff member's WhatsApp departments (GENERAL when none is set). */
+export interface TeamWaDepartments {
+  departments: WaDepartment[];
+  isDefault: boolean;
+}
+
+/** D364: set the departments ([] = back to GENERAL) — team.manage, the reason and a fresh code; audited. */
+export const setStaffWaDepartments = (userId: string, departments: WaDepartment[], reason: string, totpCode: string) =>
+  api.put<{ userId: string; before: WaDepartment[]; whatsappDepartments: TeamWaDepartments }>(
+    `/admin/team/${userId}/whatsapp/departments`,
+    { departments, reason, totpCode },
+  );
+
+/** D364: whether the departments can be set — the WhatsApp level REPLY or MANAGE. */
+export const answersWhatsApp = (m: Member) => m.whatsapp?.level === 'REPLY' || m.whatsapp?.level === 'MANAGE';
+
+/** D364: the departments row of a member card, under the WhatsApp level. */
+export function WaDepartmentsRow({
+  m,
+  onEdit,
+}: {
+  m: Member & { whatsappDepartments: TeamWaDepartments };
+  onEdit?: () => void;
+}) {
+  const { t } = useApp();
+  const d = m.whatsappDepartments;
+  const replies = answersWhatsApp(m);
+  return (
+    <>
+      <dt>{t('waDepartments')}</dt>
+      <dd data-wa-departments={d.departments.join(',')} data-wa-departments-default={d.isDefault ? 'true' : 'false'}>
+        {d.departments.map((x) => (
+          <Fragment key={x}>
+            <span className={`badge ${replies ? 'info' : ''}`}>{t(`waDept${x}`)}</span>{' '}
+          </Fragment>
+        ))}
+        {d.isDefault && <span className="badge">{t('waDepartmentsDefaultTag')}</span>}
+        {!replies && <div className="muted small">{t('waDepartmentsReplyOnly')}</div>}
+        {replies && onEdit && (
+          <div>
+            <button className="btn small" data-edit-wa-departments onClick={onEdit}>
+              {t('waDepartmentsEdit')}
+            </button>
+          </div>
+        )}
+      </dd>
+    </>
+  );
+}
+
+/** D364: pick the departments (checkboxes in the catalogue's order; none = GENERAL), then the reason and the code. */
+export function WaDepartmentsDialog({
+  member,
+  onClose,
+  onDone,
+}: {
+  member: Member & { whatsappDepartments: TeamWaDepartments };
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { t } = useApp();
+  const d = member.whatsappDepartments;
+  const [picked, setPicked] = useState<WaDepartment[]>(d.isDefault ? [] : d.departments);
+  return (
+    <FormDialog
+      title={t('waDepartmentsTitle', { name: member.displayName || `@${member.username}` })}
+      intro={
+        <>
+          <p className="muted small">{t('waDepartmentsIntro')}</p>
+          <div className="region-picks" role="group" aria-label={t('waDepartments')}>
+            {WA_DEPARTMENTS.map((x) => (
+              <label key={x} className="check-row" data-wa-department-option={x}>
+                <input
+                  type="checkbox"
+                  checked={picked.includes(x)}
+                  onChange={(e) =>
+                    setPicked((p) =>
+                      e.target.checked ? WA_DEPARTMENTS.filter((y) => y === x || p.includes(y)) : p.filter((y) => y !== x),
+                    )
+                  }
+                />{' '}
+                <span className="strong">{t(`waDept${x}`)}</span>
+              </label>
+            ))}
+          </div>
+        </>
+      }
+      fields={[reasonField(t), stepField(t)]}
+      confirmLabel={t('save')}
+      submit={(v) => setStaffWaDepartments(member.id, picked, v.reason ?? '', v.totpCode ?? '')}
+      onClose={onClose}
+      onDone={onDone}
+    />
+  );
 }
 
 /** D360 (v1.120-social, §10.155): a staff member's WhatsApp level. */
@@ -322,6 +421,7 @@ export function MemberCard({
   onReset,
   onRegions,
   onWhatsApp,
+  onWaDepartments,
 }: {
   m: Member;
   selfId: string | undefined;
@@ -332,6 +432,8 @@ export function MemberCard({
   onRegions?: () => void;
   /** D360: change the WhatsApp level (never an OWNER's). */
   onWhatsApp?: () => void;
+  /** D364: change the WhatsApp departments (REPLY / MANAGE only). */
+  onWaDepartments?: () => void;
 }) {
   const { t, lang } = useApp();
   const self = m.id === selfId;
@@ -413,6 +515,9 @@ export function MemberCard({
           </>
         )}
         {m.whatsapp && <WhatsAppLevelRow wa={m.whatsapp} onEdit={onWhatsApp} />}
+        {m.whatsapp && m.whatsappDepartments && (
+          <WaDepartmentsRow m={m as Member & { whatsappDepartments: TeamWaDepartments }} onEdit={onWaDepartments} />
+        )}
         {m.lockedUntil && (
           <>
             <dt>{t('teamLocked')}</dt>
@@ -459,6 +564,7 @@ export function Team() {
     | { next: GrantResult }
     | { regions: Member }
     | { whatsapp: Member & { whatsapp: TeamWhatsApp } }
+    | { departments: Member & { whatsappDepartments: TeamWaDepartments } }
     | null
   >(null);
   const [revokeRole, setRevokeRole] = useState<PanelRole | null>(null);
@@ -520,6 +626,11 @@ export function Team() {
             onReset={() => setDialog({ reset: m })}
             onRegions={() => setDialog({ regions: m })}
             onWhatsApp={m.whatsapp ? () => setDialog({ whatsapp: m as Member & { whatsapp: TeamWhatsApp } }) : undefined}
+            onWaDepartments={
+              m.whatsappDepartments
+                ? () => setDialog({ departments: m as Member & { whatsappDepartments: TeamWaDepartments } })
+                : undefined
+            }
           />
         ))}
       </div>
@@ -583,6 +694,9 @@ export function Team() {
             if (released > 0) toast(t('waLevelReleased', { n: released }));
           }}
         />
+      )}
+      {dialog && dialog !== 'grant' && 'departments' in dialog && (
+        <WaDepartmentsDialog member={dialog.departments} onClose={() => setDialog(null)} onDone={done} />
       )}
       {dialog && dialog !== 'grant' && 'regions' in dialog && (
         <RegionsDialog member={dialog.regions} onClose={() => setDialog(null)} onDone={done} />

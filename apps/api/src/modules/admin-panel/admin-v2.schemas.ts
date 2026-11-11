@@ -16,6 +16,7 @@ import { PANEL_ROLES, WHATSAPP_LEVELS } from './admin-permissions.js';
 import { dayRange, tableQuery } from './admin-tables.js';
 import { STAFF_REGION_CODES, type StaffRegion } from '../live/staff-regions.js';
 import { itemBadgesInput } from '../gifts/item-badges.schemas.js';
+import { WA_DEPARTMENTS } from '../whatsapp/whatsapp-departments.js';
 
 /** Request bodies and queries of the panel v2 (v1.65-social, D197, CONVENTIONS §10.60; openapi tag `admin-panel`). */
 
@@ -431,6 +432,17 @@ export const teamWhatsAppBody = z.strictObject({
   reason,
   totpCode,
 });
+
+/** v1.122-social (D364, §10.157.1): a staff member's WhatsApp departments; [] = back to the default (GENERAL). */
+export const teamWaDepartmentsBody = z.strictObject({
+  departments: z
+    .array(z.enum(WA_DEPARTMENTS))
+    .max(WA_DEPARTMENTS.length)
+    .refine((v) => new Set(v).size === v.length, { message: 'duplicate', params: { issue: 'duplicate' } }),
+  reason,
+  totpCode,
+});
+export type TeamWaDepartmentsBody = z.output<typeof teamWaDepartmentsBody>;
 
 export const specialUsernamesQuery = tableQuery(['grantedAt', 'username'], 'grantedAt')
   .extend({

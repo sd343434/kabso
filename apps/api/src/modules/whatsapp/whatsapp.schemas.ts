@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { WA_DEPARTMENTS } from './whatsapp-departments.js';
 
 /** v1.116-social (D355, CONVENTIONS §10.151): the request shapes of «واتساب». */
 export const listQuery = z.strictObject({
   filter: z.enum(['unassigned', 'mine', 'all', 'closed']).default('all'),
+  /** D364 (§10.157.4): only the conversations of one department. */
+  department: z.enum(WA_DEPARTMENTS).optional(),
   q: z.string().trim().max(80).optional(),
   cursor: z.string().max(512).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -41,7 +44,24 @@ export const mediaQuery = z.strictObject({
 });
 export type MediaQuery = z.output<typeof mediaQuery>;
 
-export const transferBody = z.strictObject({ toUserId: z.uuid() });
+/**
+ * D355 `{toUserId}`; D364 (§10.157.2) `{department, toUserId?, note?}` — no `toUserId`: «أول متاح في القسم». Without a
+ * department (an app or panel before D364) `toUserId` is required and the department is GENERAL.
+ */
+export const transferBody = z
+  .strictObject({
+    toUserId: z.uuid().optional(),
+    department: z.enum(WA_DEPARTMENTS).optional(),
+    note: z.string().trim().max(500).optional(),
+  })
+  .refine((v) => v.department !== undefined || v.toUserId !== undefined, {
+    message: 'toUserId is required without a department',
+    path: ['toUserId'],
+    params: { issue: 'required' },
+  });
+export type TransferBody = z.output<typeof transferBody>;
+export const agentsQuery = z.strictObject({ department: z.enum(WA_DEPARTMENTS).optional() });
+export type AgentsQuery = z.output<typeof agentsQuery>;
 export const noteBody = z.strictObject({ body: z.string().trim().min(1).max(2000) });
 export const linkBody = z.strictObject({
   username: z
