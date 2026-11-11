@@ -8,7 +8,7 @@ import { svipTierFor } from './programs-rules.js';
 const DAY_MS = 86_400_000;
 
 /** The ledger reasons that are gift spending (CP-024 §4: SVIP is earned by supporting people). */
-export const SVIP_SPEND_REASONS = ['LIVE_GIFT', 'LUCKY_GIFT', 'DM_GIFT', 'CP_GIFT'] as const;
+export const SVIP_SPEND_REASONS = ['LIVE_GIFT', 'LUCKY_GIFT', 'DM_GIFT', 'CP_GIFT', 'CONTENT_GIFT'] as const;
 
 /** An SVIP perk (CP-024 §3–4). `available`: the app really does it today. */
 export type SvipPerkCode =
@@ -70,7 +70,7 @@ export interface SvipStatusDto {
 /**
  * SVIP (v1.44-social, D166, CP-024 §4 approved with defaults, CONVENTIONS §10.41): earned, never bought.
  * The status is computed from the ledger alone, so it needs no table and no job: at every gift spend
- * (`LIVE_GIFT`, `LUCKY_GIFT`, `DM_GIFT`, `CP_GIFT`) the rolling `SVIP_WINDOW_DAYS` total is taken; the
+ * (`LIVE_GIFT`, `LUCKY_GIFT`, `DM_GIFT`, `CP_GIFT`; v1.127-social `CONTENT_GIFT`) the rolling `SVIP_WINDOW_DAYS` total is taken; the
  * caller holds the highest tier whose threshold such a total met within the last `SVIP_STATUS_DAYS`
  * days, until `SVIP_STATUS_DAYS` after the last time it was met.
  */
@@ -97,7 +97,7 @@ export class SvipService {
                                RANGE BETWEEN make_interval(days => ${svipWindowDays}::int) PRECEDING
                                          AND CURRENT ROW)::bigint AS total
         FROM wallet_ledger
-       WHERE user_id = ${me}::uuid AND reason IN ('LIVE_GIFT', 'LUCKY_GIFT', 'DM_GIFT', 'CP_GIFT') AND delta < 0
+       WHERE user_id = ${me}::uuid AND reason IN ('LIVE_GIFT', 'LUCKY_GIFT', 'DM_GIFT', 'CP_GIFT', 'CONTENT_GIFT') AND delta < 0
          AND created_at > ${historyStart}::timestamptz AND created_at <= ${now}::timestamptz
        ORDER BY created_at, id`;
     let tier = 0;

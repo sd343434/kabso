@@ -200,7 +200,7 @@ export interface AttributedGift {
   reason: string;
   sentAt: string;
   giftCode: string | null;
-  place: 'LIVE' | 'DM' | 'UNKNOWN';
+  place: 'LIVE' | 'DM' | 'CONTENT' | 'UNKNOWN';
   coinsFromPurchase: number;
   totalCoins: number;
   recipients: { userId: string; username: string | null; cherries: number }[];
@@ -258,7 +258,14 @@ export async function attributionIn(tx: Tx, order: TopupOrder): Promise<Attribut
   const gifts = giftIds.length
     ? await tx.liveGift.findMany({
         where: { id: { in: giftIds } },
-        select: { id: true, giftCode: true, roomId: true, dmConversationId: true, totalCoins: true },
+        select: {
+          id: true,
+          giftCode: true,
+          roomId: true,
+          dmConversationId: true,
+          postId: true,
+          totalCoins: true,
+        },
       })
     : [];
   const byId = new Map(gifts.map((g) => [g.id, g]));
@@ -288,7 +295,14 @@ export async function attributionIn(tx: Tx, order: TopupOrder): Promise<Attribut
         reason: s.reason,
         sentAt: s.at.toISOString(),
         giftCode: g?.giftCode ?? null,
-        place: g ? (g.dmConversationId !== null ? 'DM' : 'LIVE') : 'UNKNOWN',
+        // v1.127-social (D372): a gift on a post or reel (its ledger reason says so even once the post is gone).
+        place: g
+          ? g.dmConversationId !== null
+            ? 'DM'
+            : g.postId !== null || s.reason === 'CONTENT_GIFT'
+              ? 'CONTENT'
+              : 'LIVE'
+          : 'UNKNOWN',
         coinsFromPurchase: Number(s.coins),
         totalCoins: Number(g?.totalCoins ?? s.coins),
         recipients: rows

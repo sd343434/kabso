@@ -1269,6 +1269,8 @@ enum WalletLedgerReason {
   /// the store refunded them (reference: the purchase; the balance may go below 0).
   STORE_IAP
   STORE_IAP_REVERSAL
+  /// v1.127-social (D372, CONVENTIONS §10.164): a gift sent on a post or reel «هدية الدعم» (reference: the send).
+  CONTENT_GIFT
 
   @@map("wallet_ledger_reason")
 }
@@ -1940,6 +1942,9 @@ model Post {
   repostCount     Int            @default(0) @map("repost_count")
   saveCount       Int            @default(0) @map("save_count")
   viewCount       Int            @default(0) @map("view_count")
+  /// v1.127-social (D372, §10.164): the cherries the author earned from the gifts sent on this post or reel «هدية
+  /// الدعم» (each send's recipient credit; a reversal takes its credit back, never below 0).
+  giftCherries    BigInt         @default(0) @map("gift_cherries")
   /// `Idempotency-Key` of createPost and the SHA-256 of its body (kept 24 h, §11.2).
   idempotencyKey  String?        @map("idempotency_key") @db.Uuid
   requestHash     String?        @map("request_hash") @db.VarChar(64)
@@ -1963,6 +1968,8 @@ model Post {
   hides         PostHide[]
   reports       Report[]
   notifications Notification[]
+  /// v1.127-social (D372): the gifts sent on it.
+  gifts         LiveGift[]
 
   @@unique([authorId, idempotencyKey], map: "posts_author_idempotency_key")
   @@index([authorId, publishedAt(sort: Desc), id(sort: Desc)], map: "posts_author_published_idx", where: raw("status = 'PUBLISHED'::post_status AND deleted_at IS NULL"))
@@ -2118,6 +2125,10 @@ model Comment {
   postId     String    @map("post_id") @db.Uuid
   authorId   String    @map("author_id") @db.Uuid
   parentId   String?   @map("parent_id") @db.Uuid
+  /// v1.127-social (D372, §10.164): GIFT — the gift line of a content gift send (empty `text`, top level, never edited).
+  kind       CommentKind @default(TEXT)
+  /// v1.127-social (D372): the send of a GIFT comment (CHECK `comments_gift_shape`).
+  giftId     String?   @unique(map: "comments_gift_id_key") @map("gift_id") @db.Uuid
   text       String    @db.VarChar(500)
   likeCount  Int       @default(0) @map("like_count")
   replyCount Int       @default(0) @map("reply_count")
@@ -2128,6 +2139,7 @@ model Comment {
   post          Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
   author        User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
   parent        Comment?         @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  gift          LiveGift?        @relation(fields: [giftId], references: [id], onDelete: Cascade)
   replies       Comment[]        @relation("CommentReplies")
   likes         CommentLike[]
   /// v1.122-social (D364): private; the number is never returned.
@@ -2143,6 +2155,14 @@ model Comment {
   @@index([parentId, createdAt, id], map: "comments_replies_idx", where: raw("deleted_at IS NULL"))
   @@index([authorId], map: "comments_author_id_idx")
   @@map("comments")
+}
+
+/// v1.127-social (D372, CONVENTIONS §10.164): what a comment is — a person's text, or the gift line of a content gift.
+enum CommentKind {
+  TEXT
+  GIFT
+
+  @@map("comment_kind")
 }
 
 model CommentLike {
@@ -2484,6 +2504,9 @@ enum NotificationType {
   EVENT_PRIZE_WON
   /// v1.101-social (D325, system; target EVENT): an event for the person's audience started (once per person and event).
   EVENT_STARTED
+  /// v1.127-social (D372, §10.164; target POST): someone sent a gift on your post or reel «أرسل لك فلان هدية» — one
+  /// unread row per post, new senders join it.
+  CONTENT_GIFT_RECEIVED
 
   @@map("notification_type")
 }
@@ -3493,6 +3516,9 @@ model LiveGift {
   roomId           String?        @map("room_id") @db.Uuid
   /// v1.40-social (D155): the direct conversation it was sent in (null for live gifts).
   dmConversationId String?        @map("dm_conversation_id") @db.Uuid
+  /// v1.127-social (D372, §10.164): the post or reel it was sent on «هدية الدعم» (null for live and conversation
+  /// gifts, and once the post is gone).
+  postId           String?        @map("post_id") @db.Uuid
   giftCode         String         @map("gift_code") @db.VarChar(40)
   quantity         Int
   source           LiveGiftSource
@@ -3523,12 +3549,16 @@ model LiveGift {
   freeQuip       LiveFreeQuip?
   /// v1.43-live (D195): the PK points of a send made in a room during a PK battle.
   pkPoints       PkGiftPoint?
+  /// v1.127-social (D372).
+  post           Post?               @relation(fields: [postId], references: [id], onDelete: SetNull)
+  comment        Comment?
 
   @@unique([senderId, clientId], map: "live_gifts_client_once")
   @@index([senderId, roomId, createdAt(sort: Desc)], map: "live_gifts_sender_room_idx")
   @@index([roomId, createdAt], map: "live_gifts_room_idx")
   @@index([giftCode], map: "live_gifts_gift_idx")
   @@index([dmConversationId], map: "live_gifts_dm_conversation_idx")
+  @@index([postId], map: "live_gifts_post_idx", where: raw("post_id IS NOT NULL"))
   @@index([createdAt], map: "live_gifts_created_at_idx")
   @@map("live_gifts")
 }

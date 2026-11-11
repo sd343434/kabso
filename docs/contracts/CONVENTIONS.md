@@ -232,6 +232,7 @@ All non-2xx responses use one envelope:
 | 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). |
 | 409 | `VIP_PRICE_CHANGED` | *(v1.82-social, DRAFT, D252)* `buyVip`: `priceCoins` differs from the tier's price now (the owner changed it in the panel). Nothing was charged; the app reloads the tiers and shows the new price. §10.93. |
 | 409 | `INSUFFICIENT_RECHARGE_POINTS` | *(v1.126-social, DRAFT, D370)* `buyVip` with `payWith: POINTS`: the caller's recharge points «نقاط الشحن» do not cover the tier's points price (also while the balance is below 0 after a reversal). Nothing was charged; the app shows the balance and how points are earned. `VIP_PRICE_CHANGED` and `VIP_UNAVAILABLE` (new issue `no_points_price`: the tier has no points price) apply to a points purchase as to a coin one. §10.163. |
+| 409 | `CONTENT_GIFT_RECIPIENT_UNAVAILABLE` | *(v1.127-social, DRAFT, D372)* `sendContentGift`: a gift on this post or reel «هدية الدعم» cannot be sent — `details: [{field: "post", issue: "own_content" \| "not_creator"}]` (the caller's own post; its author is neither a host nor a content creator). Checked again under the post's lock. Nothing was charged. A post the caller cannot see (deleted, removed, a block either way, an author who is not ACTIVE) is 404 `NOT_FOUND` as on every post route. §10.164. |
 | 409 | `STORE_UNAVAILABLE` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: the item cannot be bought now — `details: [{field: "item", issue: "item_off" \| "owned_permanent"}]` (switched off in the panel; the recipient holds it with no end) or `[{field: "days", issue: "not_priced" \| "too_far"}]` (no price for that currency and duration; the end would pass 3 650 days from now). Nothing was charged. §10.98. |
 | 409 | `STORE_PRICE_CHANGED` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: `price` differs from the item's price for that currency and duration now (the owner changed it in the panel). Nothing was charged; the app reloads the items and shows the new price. §10.98. |
 | 403 | `STAFF_PROTECTED` | *(v1.68-live, DRAFT, D273)* The target holds a panel role (OWNER, MODERATION, SUPPORT, FINANCE): nobody acts on «فريق كابسو» from the app — a live kick or chat mute, removing their chat message, a seat mute / removal, a family kick or chat mute. The app says «لا يمكن اتخاذ إجراء ضد فريق كابسو». Nothing changed. §10.96.7. |
@@ -656,6 +657,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.81-social)* Tables `fx_rates` (the latest automatic rate per currency, its source and times, a value held for review), `fx_settings` (the paid provider's key sealed, the switch, the last test, the poller's state); capability `fx.settings`; audit `fx.*`; server config `FX_*` (§10.87) | Backend — `fx` module (`FxRatesService` the only writer of `fx_rates` and of the poller state, and the one resolver every price reads; `FxSettingsService` the only writer of the provider settings). `recharge_exchange_rates` stays the `recharge` module's (the manual rates). | CTO |
 | *(v1.82-social)* Tables `vip_tiers`, `vip_tier_perks`, `vip_memberships`, `vip_purchases` | Backend — `vip` module (`VipService` takes the coins through `wallet-ledger.ts`, `VIP_PURCHASE`; the tiers and perks written only by the panel's `VipAdminService`, `catalog.manage`, audited `vip.tier.*`) | CTO; Security (coin path, prices) |
 | *(v1.126-social)* Tables `recharge_points_balances` (CHECK `recharge_points_balances_range`), `recharge_points_ledger` (append-only for the runtime group; unique `recharge_points_ledger_reference_once` (reason, reference); CHECK `recharge_points_ledger_sign`); enums `recharge_points_reason`, `vip_pay_with`; columns `vip_tiers.points_price` (CHECK `vip_tiers_points_price_range`), `vip_purchases.pay_with`, `price_points`, `list_price_points`, `points_after` (CHECK `vip_purchases_pay_with_shape`; `vip_purchases_shape` re-added) | Backend — `recharge-points` module (`recharge-points-ledger.ts`, the only writer: earned in the `topup`, `store-iap` and `recharge` credit transactions, reversed in `topup` / `store-iap` refunds, spent by `vip` `VipService.buy`, adjusted by the panel's `adminControl`, audited `recharge_points.adjust`) | CTO; Security (a value path that buys VIP) |
+| *(v1.127-social)* Columns `live_gifts.post_id` (FK posts SET NULL, CHECK `live_gifts_post_place`, index `live_gifts_post_idx`), `comments.kind` (enum `comment_kind` TEXT \| GIFT), `comments.gift_id` (unique, FK live_gifts CASCADE, CHECK `comments_gift_shape`), `posts.gift_cherries` (CHECK `posts_gift_cherries_range`); wallet ledger reason `CONTENT_GIFT` (debit, `wallet_ledger_reason_sign` extended); notification type `CONTENT_GIFT_RECEIVED` | Backend — `content-gifts` module (`ContentGiftsService`: the send through the live module's `LiveGiftsService.sendDirect` place CONTENT, which writes `live_gifts` / the wallet / cherries / levels / family; the gift line, `comment_count` and `gift_cherries` in the same transaction); `economy/cherry-ledger.ts` takes a reversed send's credit off `gift_cherries` | CTO; Security (a coin path) |
 | *(v1.80-kyc)* Tables `kyc_settings` (the Didit API key and webhook secret sealed, the workflows, the daily limit, the switch, the last test), `kyc_checks` (one Didit session of a person: status, decision, reasons, name, birth date, document country, document HMAC), `kyc_webhook_events` (the deliveries applied); capabilities `kyc.settings`, `kyc.view`; audit `kyc.*` (§10.77) | Backend — `kyc` module (`KycSettingsService` the only writer of the settings, `KycService` of the checks; `KycSettingsStore` the only reader of the secrets; `kyc-core.ts` the gates shared with `host-applications`, `economy` (agency open) and `recharge`); web — `apps/admin` «التحقق من الهوية (Didit)» and the KYC block of the three application pages; app — `features/kyc` | CTO; Security (Didit secrets, the minimum personal data, the webhook signature); Privacy (Didit as a processor, export and purge) |
 | *(v1.64-social)* Table `payment_settings` (the Stripe keys sealed, the top-up options); capability `payments.settings`; audit `payment.settings.*` (§10.53.1) | Backend — `payment-settings` module (`PaymentSettingsService` the only writer; `PaymentSettingsStore` the only reader, used by `topup`, `wallet`, `site-settings`); web — `apps/admin` «الدفع (Stripe)» | CTO; Security (Stripe keys, encryption at rest) |
 | *(v1.66-social)* Tables `legal_documents`, `user_consents`, `data_exports`; column `pending_registrations.legal_consent`; notification type `DATA_EXPORT_READY`; the 428 gate (`ConsentGuard`); server config `DATA_EXPORT_*`, `RATE_LIMIT_DATA_EXPORT_*`; CLIs `legal-admin`, `privacy-admin`; private prefix `private/data-exports/`; `scripts/check-site-no-tracking.sh` (§10.61) | Backend — `privacy` module (`legal.ts` and `data-export.ts` shared with the CLIs; `auth`, `topup` and `gifts` record consents through `legal.ts`; D193's purge deletes exports and clears consents' IP/UA) | CTO; Security (the export's content, the download token); Legal (the documents' text and versions) |
@@ -779,6 +781,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.127-social (draft) | 2026-11-11 | **D372 (owner 2026-11-11: «هدية الدعم» on reels and posts — «المضيفون وصناع المحتوى فقط»; the same gifts, prices, tabs, quantities and bag as a live, no lucky gifts and no CP gifts; a gift box button beside «+» in the comment composer; a gold gift line in the comments; the author notified; correction the same day: the counter on the post / reel is the TOTAL VALUE IN CHERRIES the author earned, compact 10.1k / 12.6m / 1.2b, beside the cherry icon):** `sendContentGift` (`POST /posts/{postId}/gifts`; `ContentGiftSendRequest`, `ContentGiftResult`); `Comment.kind` TEXT \| GIFT and `Comment.gift` (`CommentGift`; a GIFT line's `text` is empty, `Comment.text` minLength dropped in responses); `Post.giftCherries` (int64) and `Post.giftable`; notification `CONTENT_GIFT_RECEIVED` (target POST, grouped per post); wallet ledger reason `CONTENT_GIFT`; `EarningContext` CONTENT (cherry history, earnings); code `CONTENT_GIFT_RECIPIENT_UNAVAILABLE` (409). Migrations `20270501090000_content_gift_enums`, `20270501090100_content_gifts`. §4, §8, §10.164. | **Additive.** An older app shows a gift line as an empty comment by its sender and ignores the new fields; it cannot send content gifts. Clients ignore an unknown notification type, ledger reason and earning context. |
 | v1.126-social (draft) | 2026-11-11 | **D370 (owner 2026-11-11: «نقاط الشحن» — every recharged coin is one point, the points accumulate and never expire «النقاط لا تصفر كل شهر بل تبقى مجموع», and buy VIP «استبدل بالنقاط» beside «ادفع بالعملات الذهبية»; owner-approved points prices VIP1 2 000 000 … VIP12 400 000 000):** `getMyRechargePoints` (`GET /me/recharge-points`; `RechargePoints`, `RechargePointsEntry`, `RechargePointsReason`); `BuyVipRequest.payWith` (`VipPayWith` COINS default \| POINTS) and `pricePoints` (`priceCoins` required only with COINS); `VipTier.pricePoints` / `renewPricePoints`; `MyVip.rechargePoints`, `MyVip.renewal.pricePoints`; `VipPurchaseResult.payWith` / `pricePoints` / `listPricePoints` / `rechargePoints` (`priceCoins` 0 with POINTS); code `INSUFFICIENT_RECHARGE_POINTS` (409), `VIP_UNAVAILABLE` issue `no_points_price`; the panel's `AdminVipTier.pointsPrice` (+ create / update), `listAdminUserLedger?kind=recharge_points`, `AdminUserDetail.balances.rechargePoints` / `ledger.rechargePoints`, `adjustAdminUserRechargePoints` (`AdminRechargePointsAdjustRequest` / `Result`; audit `recharge_points.adjust`). Migration `20270430090000_recharge_points`. §4, §8, §10.163. | **Additive.** An older app sends no `payWith` and buys with coins exactly as before (the coin purchase's idempotency hash is unchanged); new response fields are ignored by older clients. No back-fill: points start with the recharges after the deploy. |
 | v1.117-live (draft) | 2026-11-11 | **D371 (owner: «اريد جعل سعر الرسائل العامة ب ١٠ الاف كوينز»):** a bullet message «رسالة عامة» (`sendLiveBullet`) costs **10 000 coins** instead of 15 (`LIVE_BULLET_COST_COINS`); a balance under 10 000 → 409 `INSUFFICIENT_COINS`. VIP free public messages (D258) unchanged (still free); a paid bullet still counts its coins as family points (now 10 000). §4 (409 row), §10.19. | **Behaviour change, shapes unchanged.** An older app's hint and «not enough coins» text still say 15 coins; the server charges 10 000. |
 | v1.116-live (draft) | 2026-11-11 | **D369 (owner: «الغي البث المتعدد لا اريده»): the multi-guest live is retired.** `startLiveRoom` `mode` MULTI → 400 `VALIDATION_FAILED` `mode` / `invalid_value` (as PK); `StartLiveRoomRequest.mode` enum SOLO, AUDIO, PODCAST, STREAMER. No list returns a MULTI room (`listLiveRooms` every `kind` and no kind, `listActiveLiveBoosts`); `kind=multi` stays valid and answers an empty page; `kind=party` = AUDIO; `party_all` loses MULTI. A MULTI room started before the deploy runs on until it ends (no migration, no job); `LiveRoomMode.MULTI`, the rows, `LiveConfig.seatCounts.MULTI`, the capacity weights and the panel's mode filter are kept. §10.4, §10.141, §10.162. | **Behaviour change** (a request enum value removed; lists no longer return MULTI rooms). Older apps: their multi-guest go-live is refused with 400 (the app shows its validation error); their hub and party lists simply contain no MULTI room. |
@@ -12212,3 +12215,101 @@ owner may ask for a one-off back-fill from the wallet ledger later.
 Like the other ledgers (§10.56): the balance and the ledger are kept under the tombstone id (they hold no free text;
 the adjustment's reason lives only in the audit row, which ends with the retention). A negative balance does not block a
 deletion (points have no cash value).
+
+### 10.164 «هدية الدعم» — gifts on posts and reels *(v1.127-social, DRAFT — D372)*
+
+Owner (2026-11-11): a gift can be sent on a reel or a post, **to hosts and content creators only** («المضيفون وصناع
+المحتوى فقط»); the **same gifts as in a live** (the D108 catalogue `getGiftCatalogue`: prices, tabs, quantities and the
+gift bag «الحقيبة») **without lucky gifts** (D132 / D148) and **without CP gifts**; a gift box button beside «+» in the
+comment composer opens the gift panel; the send shows as a special gold line in the comments and the author is notified.
+Correction the same day: the counter on the post / reel is the **total value of the gifts received on it in cherries**
+(the cherries the author earned from them), compact (10.1k, 12.6m, 1.2b) beside the cherry icon.
+
+#### 10.164.1 Who receives
+
+The post's author when they are a **host** (the hosting permission, `live_hosts`, any source: an admin's or the team's
+approval, an agency's activation, a creator membership) or a **content creator** (`creator_members`) — the same people
+the live gift share rules (§10.108, §10.140) call hosts and creators. Never the caller (`own_content`). `Post.giftable`
+tells the app (the author is one of them and is not the caller); the API checks it again before and inside the send.
+
+#### 10.164.2 `sendContentGift` (`POST /posts/{postId}/gifts`)
+
+Body `{giftCode, quantity, source: COINS | BAG, clientId}` (the live send's fields without recipients). Order:
+
+1. 404 `NOT_FOUND` — a post the caller cannot see (§11.7: deleted, removed, not published, held for review, a private
+   author not followed, an author who is not ACTIVE, a block either way). The same answer as every post route, so a
+   block is never revealed.
+2. 400 the body (`quantity` one of `GiftCatalogue.quantities`, unknown fields refused).
+3. A retry with the same `clientId` by the same sender → 200 with the first send's gift line and the values now
+   (balance, bag, `giftCherries`); nothing is charged or written again. A `clientId` the caller already used for
+   another send (a live, a conversation, another post) → 409 `IDEMPOTENCY_CONFLICT`. A concurrent retry loses on
+   `live_gifts_client_once` and is answered with the first send.
+4. 409 `CONTENT_GIFT_RECIPIENT_UNAVAILABLE` — `own_content` (the caller's post), `not_creator` (the author is not a
+   host or a content creator).
+5. 403 `AUTH_FORBIDDEN` — the caller may not comment on the post (`commentsEnabled: false`, `whoCanComment` NOBODY, or
+   FOLLOWERS without following): the gift line is a comment (CTO choice; the gift button lives in the composer, which
+   is closed then).
+6. The live gift pipeline without a room (`LiveGiftsService.sendDirect`, place CONTENT, as D155's conversation gifts):
+   409 `GIFT_UNAVAILABLE` (unknown, switched off, a disabled tab, an event gift outside its event, **a LUCKY gift or a
+   QUIPS gift** — CTO: a quip is a sound heard in a live's queue); 400 `source` for a custom gift from the bag; the rate
+   limits of a live gift (`live:gift:any` on the route, then `live:gift` — `RATE_LIMIT_LIVE_GIFT_USER`); then in the
+   send's transaction (the sender's advisory lock `live-gift:<sender>`, the sender's account row FOR SHARE, the post row
+   FOR UPDATE, the checks of 1, 4 and 5 again): 403 `TOPUP_ACCOUNT_FROZEN` (a coin debt, D190), 403
+   `ACCOUNT_RESTRICTED` (the team's «منع إرسال الهدايا», D208), 409 `GIFT_BAG_INSUFFICIENT` (BAG) or 409
+   `INSUFFICIENT_COINS` (COINS). Nothing is stored, charged or sent on any refusal.
+
+#### 10.164.3 The money (as a live gift)
+
+- **COINS:** unit price × quantity, one conditional debit `UPDATE wallets … WHERE coins >= total` and its ledger row
+  `CONTENT_GIFT` (reference: the send). **BAG:** the pieces leave the bag (`consumeStockIn`), nothing is charged, an
+  archived gift's last piece finishes it (D338).
+- **The send:** a `live_gifts` row with `post_id` (no room, no conversation; CHECK `live_gifts_post_place`) and one
+  `live_gift_recipients` row (the author), `host_share_bps` fixed at the send.
+- **The author's cherries:** exactly a live gift's rule (`creditGiftCherriesIn`, §10.46): floor(value × the stored
+  share × `CHERRIES_PER_COIN`) as `GIFT_RECEIVED`, with the agency's and its parent's commissions (`AGENCY_COMMISSION`,
+  `PARENT_COMMISSION`) and the agency month. The stored share is the live share of a send to that person alone: the
+  category's `GIFT_HOST_SHARE_PERCENTS`, a creator member's `GIFT_CREATOR_SHARE_PERCENT` (§10.108), a direct host's or
+  creator's `GIFT_DIRECT_HOST_SHARE_PERCENT` / `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (§10.140, never below the share it
+  replaces), a custom gift's `GIFT_CUSTOM_SHARE_PERCENT` with its owner's coin royalty (§10.118); an event's prize pieces
+  from the bag share 0 (D334). The admin reversal of a send (§10.46) takes the credit back as for a live gift.
+- **Levels (CP-005):** the author's charm (`GIFT_RECEIVED`) and the sender's support (`GIFT_SENT`) count the full value,
+  with the VIP speed-up (D258), as a live gift.
+- **The sender's family** (§10.21): a COINS send counts its coins as family points (`family_points_ledger` on the
+  ledger row); a bag send counts nothing. **Also as a live gift:** «ملوك الثروة» (D291), «الأغنى» (D320), SVIP spend
+  (§10.41), the top-up reversal's gift list (place CONTENT, §10.53).
+- **Not counted:** no live score, popularity, Contribution, PK, wish list, room cherries, gift strip or level ticker
+  (there is no room).
+
+#### 10.164.4 The gift line, the counter and the notification
+
+- **The gift line** is a top-level `comments` row of `kind` GIFT naming the send (`gift_id`, unique; empty `text`;
+  CHECK `comments_gift_shape`), written in the send's transaction with the send's time, so it sits in its time position
+  in both orders (`RELEVANT` by its likes, `NEWEST` by time). `Comment.gift` = {`giftCode`, `name` (the reader's account
+  language), `quantity`, `assetKey`, `imageUrl`}. The app shows «<author> أرسل <name> ×<quantity>» in gold with the
+  gift's picture. It is never edited (comments have no edit); it may be liked, disliked, replied to, reported, pinned and
+  deleted (by its sender or the post's author; the moderation removal) like any comment — deleting it never refunds the
+  send nor lowers `giftCherries`.
+- **The comment count (CTO choice):** a gift line **counts** in `Post.commentCount` (it is listed with the comments, so
+  the sheet's title and the list agree).
+- **`Post.giftCherries`** (int64): the author's `GIFT_RECEIVED` cherries of every send on the post, added in the send's
+  transaction; a reversed send takes its credit back (never below 0). The app shows it compact (`KFormat.compact`:
+  10.1k, 12.6m, 1.2b) beside the cherry icon, in the reel's action column and the post's footer, when above 0.
+- **The notification** `CONTENT_GIFT_RECEIVED` to the author (actor the sender, target POST), one unread row per post
+  that new senders join (like likes, D92), always on (no settings switch), pushed «أرسل لك فلان هدية» / "… sent you a
+  gift" (§11.12). Never to a blocked, muting or inactive author (the notifier's rules).
+
+#### 10.164.5 Reading elsewhere
+
+The send is a `live_gifts` row, so the panel's gift statistics, the gift catalogue's per-gift totals, the user page's
+coins sent and the cherry and earning histories include it (`EarningContext` / the cherry history's `context`
+CONTENT). The panel's user ledger shows the reason `CONTENT_GIFT`.
+
+#### 10.164.6 The app
+
+- **Composer** (D364's pill): a round gift box button (`KabsoArt.giftBox`) between «+» and the field, only when
+  `Post.giftable`. It opens the live gift panel in a content mode: the catalogue's tabs, Recent and the bag, the
+  quantity and Send — no recipients row, no lucky tab or gifts, no quips, no PK tab, no MAX X combo. A send closes the
+  panel; the gift line appears at the top of the list (below the pinned comment) and the post's counter grows.
+- **Counter:** the cherry art and `KFormat.compact(giftCherries)` in the reel's action column (under comments) and in
+  the post's footer, hidden at 0.
+- **Errors:** `CONTENT_GIFT_RECIPIENT_UNAVAILABLE` has its own message (ar / en).

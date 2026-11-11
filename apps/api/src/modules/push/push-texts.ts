@@ -127,6 +127,9 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       return ar
         ? `يوشك يوزرك المميز @${n.targetId ?? ''} على الانتهاء`
         : `Your premium username @${n.targetId ?? ''} ends soon`;
+    // v1.127-social (D372, §10.164): a gift on the recipient's post or reel.
+    case 'CONTENT_GIFT_RECEIVED':
+      return w && (ar ? `أرسل لك ${w} هدية` : `${w} sent you a gift`);
     case 'BAG_ITEM_RECEIVED':
       return w && (ar ? `أرسل لك ${w} عنصراً إلى حقيبتك` : `${w} sent you an item for your bag`);
     case 'RECHARGE_COINS_RECEIVED':

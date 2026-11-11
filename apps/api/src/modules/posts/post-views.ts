@@ -11,6 +11,7 @@ import { STORE_ART_SELECT, storeWearOf, type StoreArtRow } from '../store/store-
 import { isTeamAvatarUrl } from '../live/staff-avatar.js';
 import { summaryStaffIdOf } from '../users/staff-ids.js';
 import type { VerificationBadgeValue } from '../verification/verification-rules.js';
+import { contentGiftRecipients } from '../content-gifts/content-gift-rules.js';
 
 /** `Post` (openapi v1.5-social). */
 export interface PostDto {
@@ -43,6 +44,13 @@ export interface PostDto {
   shareCount: number;
   repostCount: number;
   viewCount: number;
+  /**
+   * v1.127-social (D372, §10.164): the cherries the author earned from the gifts sent on it «هدية الدعم» (the counter
+   * next to the cherry icon).
+   */
+  giftCherries: number;
+  /** v1.127-social (D372): the caller may send a gift on it — the author is a host or a content creator, not the caller. */
+  giftable: boolean;
   viewerHasLiked: boolean;
   viewerHasSaved: boolean;
   viewerHasReposted: boolean;
@@ -427,10 +435,21 @@ export class PostViews {
               })
             ).map((f) => f.followeeId),
           );
+    // v1.127-social (D372): whose posts take gifts (hosts and content creators).
+    const creators = await contentGiftRecipients(db, authorIds);
     return ids.flatMap((id) => {
       const row = byId.get(id);
       return row
-        ? [this.toDto(viewerId, row, repostedBy.get(id) ?? null, followed.has(row.authorId), english)]
+        ? [
+            this.toDto(
+              viewerId,
+              row,
+              repostedBy.get(id) ?? null,
+              followed.has(row.authorId),
+              english,
+              creators.has(row.authorId),
+            ),
+          ]
         : [];
     });
   }
@@ -447,6 +466,7 @@ export class PostViews {
     repostedBy: UserSummaryDto | null,
     followsAuthor: boolean,
     english = false,
+    giftable = false,
   ): PostDto {
     const isSelf = row.authorId === viewerId;
     // Order follows the text; only linked (stored) entities are returned.
@@ -478,6 +498,8 @@ export class PostViews {
       shareCount: row.shareCount,
       repostCount: row.repostCount,
       viewCount: row.viewCount,
+      giftCherries: Number(row.giftCherries),
+      giftable: !isSelf && giftable,
       viewerHasLiked: row.likes.length > 0,
       viewerHasSaved: row.saves.length > 0,
       viewerHasReposted: row.reposts.length > 0,

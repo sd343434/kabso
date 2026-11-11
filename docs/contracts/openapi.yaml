@@ -615,6 +615,15 @@ info:
     (`POST /admin/users/{userId}/recharge-points/adjustments`, audited `recharge_points.adjust`). A reversed top-up or
     a refunded store purchase takes its points back (the balance may go below 0). Migration
     `20270430090000_recharge_points`. Additive (an older app sends no `payWith` and buys with coins as before).
+    **D372 (DRAFT v1.127-social)** «هدية الدعم» — gifts on posts and reels (CONVENTIONS §10.164; owner 2026-11-11):
+    `sendContentGift` (`POST /posts/{postId}/gifts`, `ContentGiftSendRequest`, `ContentGiftResult`) sends a catalogue
+    gift (the live catalogue and bag; no lucky gift, no quip) to the post's author, a host or a content creator only
+    (409 `CONTENT_GIFT_RECIPIENT_UNAVAILABLE`, new: `own_content`, `not_creator`); coins or bag, idempotent `clientId`,
+    the author's cherries / charm and the sender's support / family as a live gift, wallet ledger `CONTENT_GIFT`.
+    `Comment.kind` (TEXT | GIFT) and `Comment.gift` (`CommentGift`; a GIFT line has an empty `text`), `Post.giftCherries`
+    (the author's cherries from the gifts on it) and `Post.giftable`; notification `CONTENT_GIFT_RECEIVED` (target
+    POST, grouped per post); `EarningContext` CONTENT. Migrations `20270501090000_content_gift_enums`,
+    `20270501090100_content_gifts`. Additive (an older app shows a gift line as an empty comment).
     **D367 (DRAFT v1.124-social)** a Kabso Team profile shows no account category (CONVENTIONS §10.160; owner
     2026-11-11 «في صفحة الموظفين يظهر تصنيف مثل شاعر، يجب إلغاؤه من صفحة المشرفين»): `Me.category` and
     `PublicProfile.category` are null for an account holding any panel role (`kabsoTeam`, a limited `staff`, the
@@ -10225,6 +10234,51 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/posts/{postId}/gifts:
+    post:
+      tags: [comments]
+      operationId: sendContentGift
+      summary: "Send a gift on a post or reel «هدية الدعم» (v1.127-social, D372)"
+      description: |
+        CONVENTIONS §10.164 (v1.127-social, DRAFT, D372). A catalogue gift (`getGiftCatalogue`: the same gifts, prices
+        and quantities as a live; no lucky gift and no quip) to the post's author, who must be a host or a content
+        creator. Paid with coins (price × quantity, one conditional debit, wallet ledger `CONTENT_GIFT`) or from the
+        caller's gift bag. The author earns cherries, charm and their agency's commission as from a live gift (the live
+        share of the gift's category, a creator's or a direct host's share where it applies); the caller earns support
+        and family points (coins). In the same transaction the gift line — a `Comment` of `kind` GIFT with `gift` and
+        an empty `text` — is added (counted in `commentCount`), `Post.giftCherries` grows by the author's cherries and
+        the author gets `CONTENT_GIFT_RECEIVED` (one unread row per post). Order: 404 (a post the caller cannot see:
+        deleted, removed, not published, its author not ACTIVE, a block either way) → 400 the body → a retry with the
+        same `clientId` (200 with the first send and the values now; a `clientId` already used for another send → 409
+        `IDEMPOTENCY_CONFLICT`) → 409 `CONTENT_GIFT_RECIPIENT_UNAVAILABLE` (`post` / `own_content`, `not_creator`) → 403
+        `AUTH_FORBIDDEN` (the caller may not comment on it: comments off, nobody, followers only) → 409
+        `GIFT_UNAVAILABLE` (unknown, off, a lucky gift or a quip) → 400 (a custom gift from the bag) → 429 (as a live
+        gift: `live:gift:any`, then `live:gift`) → 403 `TOPUP_ACCOUNT_FROZEN` / `ACCOUNT_RESTRICTED` (`NO_GIFTS`) → 409
+        `INSUFFICIENT_COINS` / `GIFT_BAG_INSUFFICIENT`; nothing is charged, stored or sent on a refusal.
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContentGiftSendRequest' }
+      responses:
+        '201':
+          description: Sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContentGiftResult' }
+        '200':
+          description: A retry (same `clientId`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContentGiftResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/comments/{commentId}/replies:
     get:
@@ -36008,7 +36062,7 @@ components:
         settings: { $ref: '#/components/schemas/PostSettingsPatch' }
     Post:
       type: object
-      required: [id, format, announcement, author, text, media, location, hashtags, mentions, status, createdAt, publishAt, publishedAt, editedAt, pinned, likeCount, commentCount, shareCount, repostCount, viewCount, viewerHasLiked, viewerHasSaved, viewerHasReposted, isSelf, viewerFollowsAuthor, settings, moderation, repostedBy]
+      required: [id, format, announcement, author, text, media, location, hashtags, mentions, status, createdAt, publishAt, publishedAt, editedAt, pinned, likeCount, commentCount, shareCount, repostCount, viewCount, giftCherries, giftable, viewerHasLiked, viewerHasSaved, viewerHasReposted, isSelf, viewerFollowsAuthor, settings, moderation, repostedBy]
       properties:
         official:
           type: boolean
@@ -36052,6 +36106,15 @@ components:
         shareCount: { type: integer, minimum: 0 }
         repostCount: { type: integer, minimum: 0 }
         viewCount: { type: integer, minimum: 0 }
+        giftCherries:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: "(v1.127-social, D372, §10.164) The cherries the author earned from the gifts sent on this post or reel «هدية الدعم» — the counter beside the cherry icon (compact: 10.1k, 12.6m). A reversed send takes its credit back."
+        giftable:
+          type: boolean
+          description: "(v1.127-social, D372, §10.164) The caller may send a gift on it: its author is a host or a content creator and is not the caller. The comment composer shows the gift button only then (comment rules still apply on send)."
         viewerHasLiked: { type: boolean }
         viewerHasSaved: { type: boolean }
         viewerHasReposted: { type: boolean }
@@ -36125,12 +36188,24 @@ components:
               watchedMs: { type: integer, minimum: 0, maximum: 3600000 }
     Comment:
       type: object
-      required: [id, postId, author, text, createdAt, likeCount, viewerHasLiked, viewerHasDisliked, replyCount, parentId, mentions, pinned, canDelete]
+      required: [id, postId, author, text, createdAt, likeCount, viewerHasLiked, viewerHasDisliked, replyCount, parentId, mentions, pinned, canDelete, kind, gift]
       properties:
         id: { type: string, format: uuid }
         postId: { type: string, format: uuid }
         author: { $ref: '#/components/schemas/UserSummary' }
-        text: { type: string, minLength: 1, maxLength: 500 }
+        text:
+          type: string
+          maxLength: 500
+          description: "At least one character for a TEXT comment; empty for a GIFT line (v1.127-social)."
+        kind:
+          type: string
+          enum: [TEXT, GIFT]
+          description: "(v1.127-social, D372, §10.164) GIFT: the gift line of a gift sent on the post «هدية الدعم» — the app shows «<author> أرسل <gift.name> ×<gift.quantity>» in gold with the gift's picture; it is never edited, may be liked, replied to, reported, pinned and deleted (by its sender or the post's author) like any comment, and counts in `commentCount`. Clients show an unknown value as TEXT."
+        gift:
+          description: "(v1.127-social, D372) The gift of a GIFT line; null for TEXT."
+          oneOf:
+            - $ref: '#/components/schemas/CommentGift'
+            - type: 'null'
         createdAt: { type: string, format: date-time }
         likeCount: { type: integer, minimum: 0 }
         viewerHasLiked: { type: boolean }
@@ -36146,6 +36221,40 @@ components:
         canDelete:
           type: boolean
           description: The caller wrote it or owns the post.
+    CommentGift:
+      type: object
+      description: "(v1.127-social, D372, §10.164) What a gift line shows."
+      required: [giftCode, name, quantity, assetKey, imageUrl]
+      properties:
+        giftCode: { type: string }
+        name: { type: string, description: "The gift's name in the reader's account language." }
+        quantity: { type: integer, minimum: 1 }
+        assetKey: { type: string, description: The app's bundled art when there is no hosted picture. }
+        imageUrl: { type: [string, 'null'], format: uri }
+    ContentGiftSendRequest:
+      type: object
+      additionalProperties: false
+      description: "(v1.127-social, D372, §10.164) A gift on a post or reel; the post's author receives."
+      required: [giftCode, quantity, source, clientId]
+      properties:
+        giftCode: { type: string, minLength: 1, maxLength: 40 }
+        quantity: { type: integer, description: "One of `GiftCatalogue.quantities`." }
+        source: { $ref: '#/components/schemas/LiveGiftSource' }
+        clientId: { type: string, format: uuid, description: "The send's id: a retry is never charged again." }
+    ContentGiftResult:
+      type: object
+      description: "(v1.127-social, D372, §10.164)"
+      required: [comment, giftCherries, coins, bagQuantity]
+      properties:
+        comment: { $ref: '#/components/schemas/Comment' }
+        giftCherries:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: The post's `giftCherries` after the send (on a retry, now).
+        coins: { type: integer, format: int64, minimum: 0, description: "The caller's balance after the send (on a retry, now)." }
+        bagQuantity: { type: integer, minimum: 0, description: What the caller's bag holds of that gift now. }
     CommentDislikeState:
       type: object
       description: v1.122-social (D364, §10.158). The caller's reaction after the change; no dislike count.
@@ -36300,8 +36409,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED]
+      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». (v1.127-social, D372) `CONTENT_GIFT_RECEIVED` (actor the sender, target POST: the post or reel; one unread row per post that new senders join, always on, pushed «أرسل لك فلان هدية»): someone sent a gift on your post or reel «هدية الدعم». Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED, CONTENT_GIFT_RECEIVED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
@@ -38762,6 +38871,8 @@ components:
         # balance may go below 0).
         - STORE_IAP
         - STORE_IAP_REVERSAL
+        # v1.127-social (D372, CONVENTIONS §10.164): a gift sent on a post or reel «هدية الدعم» (reference: the send).
+        - CONTENT_GIFT
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]
@@ -38795,8 +38906,8 @@ components:
         sendCount: { type: integer, format: int64, minimum: 0, description: The gift sends that gave earnings (the rows of the history). }
     EarningContext:
       type: string
-      enum: [LIVE, DM]
-      description: Where the gift was sent (a live, or a direct conversation).
+      enum: [LIVE, DM, CONTENT]
+      description: Where the gift was sent (a live, or a direct conversation; v1.127-social, D372, a post or reel `CONTENT`). Clients show an unknown value as LIVE.
     Earning:
       type: object
       required: [id, createdAt, context, giftCode, giftName, quantity, giftCoins, shareBps, coins, sender]
