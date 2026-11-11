@@ -118,6 +118,8 @@ describe('D191 contract coverage', () => {
         'listAdminRechargeExchangeRates',
         'setAdminRechargeExchangeRate',
         'clearAdminRechargeExchangeRate',
+        // v1.126-social (D370): the recharge-points adjustment «نقاط الشحن».
+        'adjustAdminUserRechargePoints',
       ].sort(),
     );
   });
@@ -548,6 +550,7 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
         lockedTaskCherries: 0,
         cherriesReceived: 0,
         coinsSent: 0,
+        rechargePoints: 0,
       });
       expect(detail.body.ledger).not.toBeNull();
       // Owner 2026-10-31: the moderator «مشرف» sees the balances (read-only), not the ledger rows.
@@ -560,9 +563,10 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
         lockedTaskCherries: 0,
         cherriesReceived: 0,
         coinsSent: 0,
+        rechargePoints: 0,
       });
       // D275 (owner): the moderator reads the ledger rows too (read-only).
-      expect(modView.body.ledger).toEqual({ coins: [], cherries: [] });
+      expect(modView.body.ledger).toEqual({ coins: [], cherries: [], rechargePoints: [] });
       expect((await audits('admin.user.view', u.id)).map((a) => a.actorUserId).sort()).toEqual(
         [finance.id, moderator.id].sort(),
       );
