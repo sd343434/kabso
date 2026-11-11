@@ -12,7 +12,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_pk_controller.dart';
@@ -256,22 +255,6 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('MULTI: «إعدادات البث» first, requests kept; the seats and '
-        'the theme moved into the settings', (tester) async {
-      await _hostOnAir(tester, mode: LiveRoomMode.multi);
-      expect(find.byKey(KHostBar.micKey), findsNothing);
-      await _capture(tester, 'multi.bar.ar');
-      await _openTools(tester, LiveRoomMode.multi);
-      final ids = _toolIds(tester);
-      expect(ids.first, 'liveSettings');
-      expect(ids, contains('requests'));
-      // D253: the microphone is in ≡ on the video live.
-      for (final gone in ['seats', 'theme', 'youtube', 'voice']) {
-        expect(ids, isNot(contains(gone)), reason: gone);
-      }
-      await _leave(tester);
-    });
-
     testWidgets('AUDIO: «إعدادات البث», the mic (D225b), YouTube, music, '
         'sounds, seat emoji, program, topic, wishes; no screen share, '
         'singing, seats or theme tiles; the bar: ≡ … ∞, PK «قريباً», games, '
@@ -438,50 +421,6 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('MULTI: the seat count and «كتم الجميع» — every taken seat '
-        'not muted yet gets the seat mute', (tester) async {
-      final (repo, _) = await _hostOnAir(tester, mode: LiveRoomMode.multi);
-      UserSummary u(String id) =>
-          UserSummary(id: id, username: id, displayName: id, avatarUrl: null);
-      repo.seatState = repo.seatState!.copyWith(
-        seats: [
-          LiveSeat(index: 1, state: LiveSeatState.taken, user: u('a')),
-          LiveSeat(
-            index: 2,
-            state: LiveSeatState.taken,
-            user: u('b'),
-            mutedByHost: true,
-          ),
-          LiveSeat(index: 3, state: LiveSeatState.taken, user: u('c')),
-          const LiveSeat(index: 4, state: LiveSeatState.empty, user: null),
-        ],
-      );
-      await _openSettings(tester, LiveRoomMode.multi);
-      await _capture(tester, 'multi.settings.ar');
-      expect(_row('seatCount'), findsOneWidget);
-      expect(_row('camera'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        _row('muteAll'),
-        60,
-        scrollable: find.descendant(
-          of: find.byKey(LiveSettingsSheet.sheetKey),
-          matching: find.byType(Scrollable),
-        ),
-      );
-      repo.seatCalls.clear();
-      await tester.tap(_row('muteAll'));
-      await tester.pumpAndSettle();
-      expect(repo.seatCalls.where((c) => c.startsWith('muteSeat')), [
-        'muteSeat:1:true',
-        'muteSeat:3:true',
-      ]);
-      expect(
-        find.text(_l10n(tester, GoLiveScreen).liveMuteAllDone),
-        findsOneWidget,
-      );
-      await _leave(tester);
-    });
-
     testWidgets('AUDIO: no camera group; seats, «كتم الجميع» and the theme', (
       tester,
     ) async {
@@ -521,9 +460,9 @@ void main() {
 
     for (final language in [AppLanguage.ar, AppLanguage.en]) {
       for (final viewport in GoldenViewport.values) {
+        // D369: no multi-guest mode for a host any more (retired).
         for (final mode in [
           LiveRoomMode.solo,
-          LiveRoomMode.multi,
           LiveRoomMode.audio,
           LiveRoomMode.podcast,
         ]) {

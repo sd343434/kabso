@@ -77,7 +77,8 @@ abstract final class KVoiceRoomsHeader {
 /// على لايف … ازله»):
 /// - No kinds row and no Live switch in the corner (the bar's «البث» tab
 ///   is the way to the hub).
-/// - One list of every party room — audio, podcast and multi mixed, in the
+/// - One list of every party room — audio and audio podcasts mixed (D368:
+///   a live video podcast is the hub's; D369: no multi-guest lives), in the
 ///   selected filter's own order: one server list (`kind=party_all`,
 ///   v1.107-live) paged by one cursor, never three lists merged here; each
 ///   card says its kind on its picture (D362: `LiveTypeTag`, a tiny tag

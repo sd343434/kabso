@@ -39,7 +39,7 @@ import 'package:material_ui/material_ui.dart';
 /// (first), Nearby (the person's country, D133), Popular ▾ (its menu: All or
 /// a category), Featured (hosts featured from admin, D133) and Explore (the
 /// newest); every kind together, each card naming its kind (no category
-/// row; audio / podcast / multi are also the party page's tabs) — which
+/// row; audio / podcast are also the party page's tabs) — which
 /// replaced the
 /// Following · Popular · New tabs, the category chips and D129's "voice
 /// rooms · live" switch. The voice rooms are the «الحفلة» tab (D322;
@@ -143,8 +143,9 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
             if (_selection.filter == LiveHubFilter.nearby)
               const LiveNearbyCountryRow(),
             // D237 (owner): no category row — every kind together, each
-            // card names its kind; audio, podcast and multi are also the
-            // party page's tabs.
+            // card names its kind; audio and podcast are also the party
+            // page's (D368: a live video podcast is a hub card, D369: no
+            // multi-guest lives).
             Expanded(
               child: LiveRoomsPage(
                 key: ValueKey(_selection),
@@ -522,7 +523,7 @@ class LiveHubBody extends StatelessWidget {
   /// D212: the podcast tab (its empty copy names podcasts).
   final bool podcast;
 
-  /// D342: the party page's mixed list (audio, podcast, multi).
+  /// D342: the party page's mixed list (audio and audio podcasts).
   final bool party;
   final LiveRoomsLayout layout;
   final Widget? header;
