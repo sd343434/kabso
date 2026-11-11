@@ -91,7 +91,9 @@ import {
   teamResetBody,
   teamRegionsBody,
   teamWhatsAppBody,
+  teamWaDepartmentsBody,
   type TeamRegionsBody,
+  type TeamWaDepartmentsBody,
   teamRevokeBody,
   updateGiftBody,
   usersTableQuery,
@@ -1004,6 +1006,19 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
   ) {
     return this.team.setWhatsApp(pathUuid(id), body, admin);
+  }
+
+  /** v1.122-social (D364, §10.157.1): a staff member's WhatsApp departments (team.manage, code + reason, audited). */
+  @Put('team/:userId/whatsapp/departments')
+  @HttpCode(200)
+  @TEAM_LIMIT
+  @RequireCapability('team.manage')
+  teamWaDepartments(
+    @Param('userId') id: string,
+    @Body(new ZodValidationPipe(teamWaDepartmentsBody)) body: TeamWaDepartmentsBody,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.team.setWaDepartments(pathUuid(id), body, admin);
   }
 
   @Post('team/:userId/reset-2fa')

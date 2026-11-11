@@ -18,6 +18,12 @@ import {
   type WhatsAppLevel,
 } from './admin-permissions.js';
 import { releaseAssignedIn, setWhatsAppLevelOf } from '../whatsapp/whatsapp-access.js';
+import {
+  setDepartmentsOf,
+  sortDepartments,
+  teamDepartmentsOf,
+  type WaDepartment,
+} from '../whatsapp/whatsapp-departments.js';
 import { AdminRoleError, grantRoleIn, resetSecondFactorIn, revokeRoleIn } from './admin-roles.js';
 import { AUDIT_ROW, auditRowDto } from './admin-people.service.js';
 import { dayBound, tableResult, window, type TableQuery } from './admin-tables.js';
@@ -50,6 +56,13 @@ export interface TeamGrantBody {
 /** `setAdminTeamWhatsApp` (v1.120-social, D360): a level, or null to go back to the roles' default. */
 export interface TeamWhatsAppBody {
   readonly level: WhatsAppLevel | null;
+  readonly reason: string;
+  readonly totpCode: string;
+}
+
+/** `setAdminTeamWhatsAppDepartments` (v1.122-social, D364): the departments, [] to go back to the default (GENERAL). */
+export interface TeamWaDepartmentsBody {
+  readonly departments: readonly WaDepartment[];
   readonly reason: string;
   readonly totpCode: string;
 }
@@ -207,7 +220,7 @@ export class AdminTeamService {
         staffNumber: { select: { number: true } },
       },
     });
-    const [recruitCounts, waLevels] = await Promise.all([
+    const [recruitCounts, waLevels, waDepartments] = await Promise.all([
       recruitCountsOf(
         this.prisma,
         rows.map((u) => u.id),
@@ -216,6 +229,10 @@ export class AdminTeamService {
         where: { userId: { in: rows.map((u) => u.id) } },
         select: { userId: true, level: true },
       }),
+      setDepartmentsOf(
+        this.prisma,
+        rows.map((u) => u.id),
+      ),
     ]);
     const waSet = new Map(waLevels.map((w) => [w.userId, w.level]));
     return {
@@ -248,6 +265,8 @@ export class AdminTeamService {
           u.adminPermissions.map((p) => p.permission as string).filter(isPanelRole),
           waSet.get(u.id) ?? null,
         ),
+        // v1.122-social (D364, §10.157.1): the person's WhatsApp departments «الأقسام» (GENERAL when none is set).
+        whatsappDepartments: teamDepartmentsOf(waDepartments.get(u.id)),
       })),
     };
   }
@@ -356,6 +375,63 @@ export class AdminTeamService {
     });
   }
 
+  /**
+   * v1.122-social (D364, CONVENTIONS §10.157.1) `setAdminTeamWhatsAppDepartments`: `team.manage` sets the departments a
+   * staff member answers for (one or more of the five; [] = back to the default GENERAL) — the code again and a reason,
+   * like the level. Refused for an account on no team role (`team_not_member`) and for someone below REPLY now
+   * (`team_departments_level`: a viewer is never a transfer target). Under the lock of the person's `users` row (a
+   * transfer to them waits). Conversations already assigned to them stay (a department only routes new transfers).
+   * Audited `admin.team.whatsapp_departments` {before, after, setBefore, setAfter, reason, via}.
+   */
+  async setWaDepartments(userId: string, body: TeamWaDepartmentsBody, ctx: AdminContext) {
+    await this.auth.reauthenticate(ctx, body.totpCode);
+    const now = new Date();
+    const wanted = sortDepartments(body.departments);
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM users WHERE id = ${userId}::uuid FOR NO KEY UPDATE`;
+      const roles = (
+        await tx.userAdminPermission.findMany({ where: { userId }, select: { permission: true } })
+      )
+        .map((p) => p.permission as string)
+        .filter(isPanelRole);
+      if (roles.length === 0) throw refused('The account is not on the team.', 'team_not_member', 'rule');
+      const level = effectiveWhatsAppLevel(roles, await setWhatsAppLevelOf(tx, userId));
+      if (whatsAppLevelRank(level) < whatsAppLevelRank('REPLY')) {
+        throw refused(
+          'Departments are for staff at the REPLY WhatsApp level or above.',
+          'team_departments_level',
+          'rule',
+        );
+      }
+      const setBefore = (await setDepartmentsOf(tx, [userId])).get(userId) ?? [];
+      await tx.waStaffDepartment.deleteMany({ where: { userId } });
+      if (wanted.length > 0) {
+        await tx.waStaffDepartment.createMany({
+          data: wanted.map((department) => ({ userId, department, setById: ctx.userId, createdAt: now })),
+        });
+      }
+      const before = teamDepartmentsOf(setBefore);
+      const after = teamDepartmentsOf(wanted);
+      await this.audit.recordIn(tx, {
+        action: AuditAction.WHATSAPP_DEPARTMENTS,
+        actorUserId: ctx.userId,
+        targetType: 'user',
+        targetId: userId,
+        metadata: {
+          before: before.departments,
+          after: after.departments,
+          setBefore,
+          setAfter: wanted,
+          reason: body.reason,
+          via: ctx.via ?? 'panel',
+        },
+        ip: ctx.ip,
+        requestId: ctx.requestId,
+      });
+      return { userId, before: before.departments, whatsappDepartments: after };
+    });
+  }
+
   async grant(body: TeamGrantBody, ctx: AdminContext) {
     await this.auth.reauthenticate(ctx, body.totpCode);
     const who = body.account ?? body.email ?? '';
@@ -413,7 +489,10 @@ export class AdminTeamService {
             : [];
         const dropped = out.left.length === 0 && setBefore !== null;
         if (dropped) await tx.waStaffAccess.deleteMany({ where: { userId } });
-        if (released.length > 0 || dropped) {
+        // v1.122-social (D364): off the team, the departments go too (a later grant starts from GENERAL).
+        const departmentsDropped =
+          out.left.length === 0 ? (await tx.waStaffDepartment.deleteMany({ where: { userId } })).count : 0;
+        if (released.length > 0 || dropped || departmentsDropped > 0) {
           await this.audit.recordIn(tx, {
             action: AuditAction.WHATSAPP_LEVEL,
             actorUserId: ctx.userId,
@@ -428,6 +507,7 @@ export class AdminTeamService {
               conversations: released.slice(0, 100),
               reason: body.reason,
               cause: 'role_revoked',
+              departmentsDropped,
               via: ctx.via ?? 'panel',
             },
             ip: ctx.ip,

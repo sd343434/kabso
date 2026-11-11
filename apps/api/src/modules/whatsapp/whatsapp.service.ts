@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
+import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Clock } from '../../common/time/clock.js';
@@ -9,6 +10,7 @@ import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AdminContext } from '../admin-panel/admin-auth.service.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
+import { PushService } from '../push/push.service.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
 import { formatStaffId } from '../users/staff-ids.js';
 import { GraphError, WHATSAPP_GRAPH, type GraphTemplate, type WhatsAppGraph } from './graph-client.js';
@@ -23,10 +25,41 @@ import {
   windowOf,
 } from './whatsapp-core.js';
 import { isAtWhatsAppLevel, staffAtLevel } from './whatsapp-access.js';
+import {
+  DEFAULT_DEPARTMENT,
+  effectiveDepartments,
+  firstAvailable,
+  setDepartmentsOf,
+  type WaDepartment,
+} from './whatsapp-departments.js';
 
 type Tx = Prisma.TransactionClient;
 
 export type WaFilter = 'unassigned' | 'mine' | 'all' | 'closed';
+
+export const WA_TRANSFER_PUSH_TITLE = { ar: 'واتساب Kabso', en: 'Kabso WhatsApp' } as const;
+
+/** The department names in the pushes (the clients word them from the code everywhere else). */
+export const WA_DEPARTMENT_NAMES: Record<WaDepartment, { ar: string; en: string }> = {
+  PAYMENTS: { ar: 'الشحن والمدفوعات', en: 'Top-ups & payments' },
+  AGENCIES: { ar: 'الوكالات والمضيفون', en: 'Agencies & hosts' },
+  TECHNICAL: { ar: 'المشاكل التقنية', en: 'Technical issues' },
+  REPORTS: { ar: 'البلاغات والحظر', en: 'Reports & bans' },
+  GENERAL: { ar: 'عام', en: 'General' },
+};
+
+/** «+9665••••4567»: a push never shows the full number on a lock screen. */
+function maskedPhoneOf(e164: string): string {
+  if (e164.length <= 8) return e164;
+  return `${e164.slice(0, 5)}${'•'.repeat(Math.max(e164.length - 9, 2))}${e164.slice(-4)}`;
+}
+
+/** D364 (§10.157.2): a transfer — a department, optionally a person, optionally an internal note. */
+export interface WaTransferInput {
+  readonly toUserId?: string | undefined;
+  readonly department?: WaDepartment | undefined;
+  readonly note?: string | undefined;
+}
 
 export interface StaffRefDto {
   userId: string;
@@ -59,6 +92,8 @@ export interface WaConversationDto {
   linkedAccount: WaAccountCardDto | null;
   closedAt: string | null;
   createdAt: string;
+  /** D364 (§10.157): the department «القسم». */
+  department: WaDepartment;
 }
 
 export interface WaMessageDto {
@@ -115,6 +150,8 @@ export class WhatsAppService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(WHATSAPP_GRAPH) private readonly graph: WhatsAppGraph | null,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly push: PushService,
+    private readonly background: BackgroundTasks,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
   }
@@ -158,11 +195,21 @@ export class WhatsAppService {
     };
   }
 
-  async list(ctx: AdminContext, q: { filter: WaFilter; q?: string; cursor?: string; limit: number }) {
+  async list(
+    ctx: AdminContext,
+    q: {
+      filter: WaFilter;
+      department?: WaDepartment | undefined;
+      q?: string;
+      cursor?: string;
+      limit: number;
+    },
+  ) {
     this.requireGraph();
     const term = q.q?.trim() ?? '';
-    const scope = `wa:${q.filter}:${ctx.userId}:${term}`;
+    const scope = `wa:${q.filter}:${ctx.userId}:${q.department ?? '*'}:${term}`;
     const where: Prisma.WaConversationWhereInput = { purgeAfter: null };
+    if (q.department) where.department = q.department;
     if (q.filter === 'closed') where.status = 'CLOSED';
     else where.status = 'OPEN';
     if (q.filter === 'unassigned') where.assignedToId = null;
@@ -341,6 +388,7 @@ export class WhatsAppService {
         linkedAccount: r.linkedUserId ? (cards.get(r.linkedUserId) ?? null) : null,
         closedAt: iso(r.closedAt),
         createdAt: r.createdAt.toISOString(),
+        department: r.department,
       };
     });
   }
@@ -722,24 +770,249 @@ export class WhatsAppService {
     });
   }
 
-  transfer(ctx: AdminContext, id: string, toUserId: string) {
+  /**
+   * D364 (CONVENTIONS §10.157.2): the transfer — to a `department` (required since D364), optionally to a person in it
+   * (REPLY+, a member of that department), else «أول متاح في القسم» (the on-shift member with the fewest open assigned
+   * conversations, ties to the one assigned least recently) or, nobody on shift, the department's unassigned queue. An
+   * optional note is stored as an internal note (never sent) linked to the history row. Without a department (an app
+   * or panel before D364): D355's call — `toUserId` required, the department GENERAL, no membership check.
+   */
+  async transfer(ctx: AdminContext, id: string, input: WaTransferInput | string): Promise<WaConversationDto> {
+    this.requireGraph();
+    const body: WaTransferInput = typeof input === 'string' ? { toUserId: input } : input;
+    const legacy = body.department === undefined;
+    const department: WaDepartment = body.department ?? DEFAULT_DEPARTMENT;
+    const noteText = body.note?.trim() ?? '';
     const now = this.clock.now();
-    return this.assign(
-      ctx,
-      id,
-      'TRANSFER',
-      async (row, _tx, answerer) => {
-        if (row.status === 'CLOSED') throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_CLOSED);
-        if (row.assignedToId !== null && row.assignedToId !== ctx.userId && !this.manages(ctx)) {
-          throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_ASSIGNED);
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      // Routing into one department runs one at a time (two «first available» never both count the same load).
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:wa-dept'), hashtext(${department}))`;
+      const peek = await tx.waConversation.findUnique({
+        where: { id },
+        select: { assignedToId: true, purgeAfter: true },
+      });
+      if (!peek || peek.purgeAfter !== null) throw new AppException(ErrorCode.NOT_FOUND);
+      let to: string | null;
+      if (body.toUserId !== undefined) {
+        // The target's `users` row share-locked BEFORE the conversation (the D360 lock order).
+        if (!(await this.canAnswerIn(tx, body.toUserId))) {
+          throw AppException.validation([{ field: 'toUserId', issue: 'not_an_agent' }]);
         }
-        // D360: only to a staff member at REPLY or MANAGE (never VIEW or NONE).
-        if (!answerer) throw AppException.validation([{ field: 'toUserId', issue: 'not_an_agent' }]);
-        if (row.assignedToId === toUserId) return null;
-        return { to: toUserId, data: { assignedToId: toUserId, assignedAt: now } };
-      },
-      toUserId,
+        if (!legacy) {
+          const theirs = effectiveDepartments(
+            (await setDepartmentsOf(tx, [body.toUserId])).get(body.toUserId),
+          );
+          if (!theirs.includes(department)) {
+            throw AppException.validation([{ field: 'toUserId', issue: 'not_in_department' }]);
+          }
+        }
+        to = body.toUserId;
+      } else {
+        to = await this.pickFirstAvailable(tx, department, peek.assignedToId);
+      }
+      const [locked] = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id::text AS id FROM wa_conversations WHERE id = ${id}::uuid AND purge_after IS NULL FOR UPDATE`;
+      if (!locked) throw new AppException(ErrorCode.NOT_FOUND);
+      const row = (await tx.waConversation.findUnique({ where: { id } }))!;
+      if (row.status === 'CLOSED') throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_CLOSED);
+      if (row.assignedToId !== null && row.assignedToId !== ctx.userId && !this.manages(ctx)) {
+        throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_ASSIGNED);
+      }
+      // Nothing changes (same person, same department, no note): D355's no-op.
+      if (row.assignedToId === to && row.department === department && noteText.length === 0) {
+        return null;
+      }
+      const note =
+        noteText.length > 0
+          ? await tx.waNote.create({
+              data: { conversationId: id, authorId: ctx.userId, body: noteText, createdAt: now },
+            })
+          : null;
+      await tx.waConversation.update({
+        where: { id },
+        data: {
+          department,
+          assignedToId: to,
+          assignedAt: to === null ? null : row.assignedToId === to ? row.assignedAt : now,
+          updatedAt: now,
+        },
+      });
+      const history = await tx.waAssignment.create({
+        data: {
+          conversationId: id,
+          action: 'TRANSFER',
+          fromUserId: row.assignedToId,
+          toUserId: to,
+          actorId: ctx.userId,
+          department,
+          fromDepartment: row.department,
+          noteId: note?.id ?? null,
+          createdAt: now,
+        },
+      });
+      await this.audit.recordIn(tx, {
+        ...this.audited(ctx),
+        action: AuditAction.WHATSAPP_ASSIGN,
+        targetType: 'wa_conversation',
+        targetId: id,
+        metadata: {
+          action: 'TRANSFER',
+          from: row.assignedToId,
+          to,
+          department,
+          fromDepartment: row.department,
+          routed: body.toUserId === undefined ? (to === null ? 'queue' : 'first_available') : 'person',
+          noteId: note?.id ?? null,
+          legacy,
+          assignmentId: history.id,
+          via: ctx.via ?? 'panel',
+        },
+      });
+      return {
+        to,
+        department,
+        conv: { id: row.id, profileName: row.profileName, phoneE164: row.phoneE164 },
+      };
+    });
+    if (outcome) {
+      const o = outcome;
+      this.background.run('whatsapp.transfer.push', () => this.transferPush(ctx.userId, o));
+    }
+    return this.get(ctx, id);
+  }
+
+  /**
+   * «أول متاح في القسم»: the REPLY+ staff ON SHIFT who belong to `department`, except the conversation's current
+   * assignee (a transfer hands it to someone else); the fewest open assigned conversations, then the least recently
+   * assigned ({@link firstAvailable}). The chosen one's `users` row is share-locked and their level checked again
+   * (a level change between the read and the lock picks the next one). Null: nobody — the department's queue.
+   */
+  private async pickFirstAvailable(
+    tx: Tx,
+    department: WaDepartment,
+    current: string | null,
+  ): Promise<string | null> {
+    const members = await this.departmentAgents(tx, department);
+    const shifts = await tx.adminShift.findMany({
+      where: { userId: { in: members }, onShift: true },
+      select: { userId: true },
+    });
+    const on = new Set(shifts.map((s) => s.userId));
+    let pool = members.filter((m) => on.has(m) && m !== current);
+    while (pool.length > 0) {
+      const loads = await this.loadsOf(tx, pool);
+      const best = firstAvailable(
+        pool.map((userId) => ({
+          userId,
+          open: loads.open.get(userId) ?? 0,
+          lastAssignedAt: loads.last.get(userId) ?? null,
+        })),
+      );
+      if (!best) return null;
+      if (await this.canAnswerIn(tx, best.userId)) return best.userId;
+      pool = pool.filter((u) => u !== best.userId);
+    }
+    return null;
+  }
+
+  /** The REPLY+ staff who belong to `department` (no membership set: GENERAL), oldest account first. */
+  private async departmentAgents(db: Tx | PrismaService, department: WaDepartment): Promise<string[]> {
+    const ids = (await staffAtLevel(db, 'REPLY')).map((a) => a.userId);
+    const set = await setDepartmentsOf(db, ids);
+    return ids.filter((u) => effectiveDepartments(set.get(u)).includes(department));
+  }
+
+  /** Each person's open assigned conversations and their last CLAIM / TRANSFER received. */
+  private async loadsOf(db: Tx | PrismaService, userIds: readonly string[]) {
+    const open = new Map<string, number>();
+    const last = new Map<string, Date>();
+    if (userIds.length === 0) return { open, last };
+    const [counts, latest] = await Promise.all([
+      db.waConversation.groupBy({
+        by: ['assignedToId'],
+        where: { assignedToId: { in: [...userIds] }, status: 'OPEN', purgeAfter: null },
+        _count: { _all: true },
+      }),
+      db.waAssignment.groupBy({
+        by: ['toUserId'],
+        where: { toUserId: { in: [...userIds] }, action: { in: ['CLAIM', 'TRANSFER'] } },
+        _max: { createdAt: true },
+      }),
+    ]);
+    for (const c of counts) if (c.assignedToId) open.set(c.assignedToId, c._count._all);
+    for (const l of latest) if (l.toUserId && l._max.createdAt) last.set(l.toUserId, l._max.createdAt);
+    return { open, last };
+  }
+
+  /**
+   * D364 (§10.157.5): who a transfer is pushed to — the receiver; for the queue, the department's REPLY+ members on
+   * shift, else all of them (somebody who can reply is always told, as D360). Never the one who transferred, never a
+   * muted one, never below REPLY. Exported for the tests through {@link transferPushRecipients}.
+   */
+  async transferPushRecipients(
+    actorId: string,
+    outcome: { to: string | null; department: WaDepartment },
+  ): Promise<string[]> {
+    const muted = new Set(
+      (
+        await this.prisma.waAgentSetting.findMany({ where: { pushMuted: true }, select: { userId: true } })
+      ).map((s) => s.userId),
     );
+    let ids: string[];
+    if (outcome.to !== null) {
+      ids = (await this.isAgent(this.prisma, outcome.to)) ? [outcome.to] : [];
+    } else {
+      const members = await this.departmentAgents(this.prisma, outcome.department);
+      const on = new Set(
+        (
+          await this.prisma.adminShift.findMany({
+            where: { userId: { in: members }, onShift: true },
+            select: { userId: true },
+          })
+        ).map((s) => s.userId),
+      );
+      const onShift = members.filter((m) => on.has(m) && m !== actorId);
+      ids = onShift.length > 0 ? onShift : members;
+    }
+    return ids.filter((u) => u !== actorId && !muted.has(u));
+  }
+
+  private async transferPush(
+    actorId: string,
+    o: {
+      to: string | null;
+      department: WaDepartment;
+      conv: { id: string; profileName: string | null; phoneE164: string };
+    },
+  ) {
+    if (!this.push.enabled) return;
+    const userIds = await this.transferPushRecipients(actorId, o);
+    if (userIds.length === 0) return;
+    const who = o.conv.profileName?.trim() || maskedPhoneOf(o.conv.phoneE164);
+    const dept = WA_DEPARTMENT_NAMES[o.department];
+    await this.push.deliver({
+      userIds,
+      channel: 'staff',
+      tag: `wa:${o.conv.id}`,
+      data: {
+        kind: 'whatsapp',
+        channel: 'staff',
+        conversationId: o.conv.id,
+        event: 'transfer',
+        department: o.department,
+      },
+      text: (locale) => ({
+        title: WA_TRANSFER_PUSH_TITLE[locale],
+        body:
+          o.to !== null
+            ? locale === 'ar'
+              ? `حُوّلت إليك محادثة ${who} — ${dept.ar}`
+              : `${who}'s conversation was transferred to you — ${dept.en}`
+            : locale === 'ar'
+              ? `محادثة ${who} بانتظار الرد في قسم ${dept.ar}`
+              : `${who}'s conversation is waiting in ${dept.en}`,
+      }),
+    });
   }
 
   close(ctx: AdminContext, id: string) {
@@ -773,6 +1046,16 @@ export class WhatsAppService {
     });
     const staff = await this.staffRefs(rows.flatMap((r) => [r.fromUserId, r.toUserId, r.actorId]));
     const ref = (u: string | null) => (u ? (staff.get(u) ?? null) : null);
+    const noteIds = rows.map((r) => r.noteId).filter((n): n is string => n !== null);
+    const notes = new Map(
+      (noteIds.length === 0
+        ? []
+        : await this.prisma.waNote.findMany({
+            where: { id: { in: noteIds }, conversationId: id },
+            select: { id: true, body: true },
+          })
+      ).map((n) => [n.id, n]),
+    );
     return {
       data: rows.map((r) => ({
         id: r.id,
@@ -781,6 +1064,10 @@ export class WhatsAppService {
         to: ref(r.toUserId),
         by: ref(r.actorId),
         at: r.createdAt.toISOString(),
+        // D364 (§10.157.6): a transfer's departments and its internal note (null for other actions).
+        department: r.department,
+        fromDepartment: r.fromDepartment,
+        note: r.noteId ? (notes.get(r.noteId) ?? null) : null,
       })),
     };
   }
@@ -793,22 +1080,33 @@ export class WhatsAppService {
     return isAtWhatsAppLevel(db, userId, 'REPLY');
   }
 
-  async agents() {
+  /**
+   * The agents (REPLY+). D364 (§10.157.2): each with their departments and open assigned conversations;
+   * `department` keeps the members of one (the transfer sheet's list), on shift first, then the fewest open.
+   */
+  async agents(department?: WaDepartment) {
     this.requireGraph();
-    const ids = (await staffAtLevel(this.prisma, 'REPLY')).map((a) => a.userId);
-    const [staff, shifts] = await Promise.all([
+    const all = (await staffAtLevel(this.prisma, 'REPLY')).map((a) => a.userId);
+    const set = await setDepartmentsOf(this.prisma, all);
+    const ids = department ? all.filter((u) => effectiveDepartments(set.get(u)).includes(department)) : all;
+    const [staff, shifts, loads] = await Promise.all([
       this.staffRefs(ids),
       this.prisma.adminShift.findMany({
         where: { userId: { in: ids } },
         select: { userId: true, onShift: true },
       }),
+      this.loadsOf(this.prisma, ids),
     ]);
-    return {
-      data: ids.map((id) => ({
-        ...staff.get(id)!,
-        onShift: shifts.some((s) => s.userId === id && s.onShift),
-      })),
-    };
+    const rows = ids.map((id) => ({
+      ...staff.get(id)!,
+      onShift: shifts.some((s) => s.userId === id && s.onShift),
+      departments: effectiveDepartments(set.get(id)),
+      openCount: loads.open.get(id) ?? 0,
+    }));
+    if (department) {
+      rows.sort((a, b) => Number(b.onShift) - Number(a.onShift) || a.openCount - b.openCount);
+    }
+    return { data: rows };
   }
 
   /**

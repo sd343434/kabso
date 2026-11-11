@@ -29,6 +29,7 @@ import {
 } from '../admin-panel/staff-app.guard.js';
 import { Public } from '../auth/public.decorator.js';
 import {
+  agentsQuery,
   linkBody,
   listQuery,
   mediaQuery,
@@ -40,10 +41,12 @@ import {
   settingsBody,
   templatesQuery,
   transferBody,
+  type AgentsQuery,
   type ListQuery,
   type MediaQuery,
   type MessagesQuery,
   type SendBody,
+  type TransferBody,
 } from './whatsapp.schemas.js';
 import { WhatsAppWebhookService } from './whatsapp-webhook.service.js';
 import { WhatsAppService } from './whatsapp.service.js';
@@ -182,9 +185,9 @@ export class StaffWhatsAppController {
   transfer(
     @CurrentStaff() ctx: AdminContext,
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(transferBody)) body: { toUserId: string },
+    @Body(new ZodValidationPipe(transferBody)) body: TransferBody,
   ) {
-    return this.wa.transfer(ctx, pathUuid(id), body.toUserId);
+    return this.wa.transfer(ctx, pathUuid(id), body);
   }
 
   @Post('conversations/:id/close')
@@ -259,8 +262,8 @@ export class StaffWhatsAppController {
   @Get('agents')
   @UseGuards(StaffAppGuard)
   @StaffCapability('support.whatsapp')
-  agents() {
-    return this.wa.agents();
+  agents(@Query(new ZodValidationPipe(agentsQuery)) q: AgentsQuery) {
+    return this.wa.agents(q.department);
   }
 
   @Get('quick-replies')
@@ -415,9 +418,9 @@ export class AdminWhatsAppController {
   transfer(
     @CurrentAdmin() ctx: AdminContext,
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(transferBody)) body: { toUserId: string },
+    @Body(new ZodValidationPipe(transferBody)) body: TransferBody,
   ) {
-    return this.wa.transfer(ctx, pathUuid(id), body.toUserId);
+    return this.wa.transfer(ctx, pathUuid(id), body);
   }
 
   @Post('conversations/:id/close')
@@ -483,8 +486,8 @@ export class AdminWhatsAppController {
 
   @Get('agents')
   @RequireCapability('support.whatsapp')
-  agents() {
-    return this.wa.agents();
+  agents(@Query(new ZodValidationPipe(agentsQuery)) q: AgentsQuery) {
+    return this.wa.agents(q.department);
   }
 
   @Get('quick-replies')

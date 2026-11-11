@@ -8306,6 +8306,8 @@ model WaConversation {
   closedById         String?              @map("closed_by_id") @db.Uuid
   /// Set when the linked account was purged (§10.56): the sweeper deletes the conversation and its media.
   purgeAfter         DateTime?            @map("purge_after") @db.Timestamptz(3)
+  /// D364 (v1.122-social, §10.157): the department «القسم» (GENERAL until a transfer moves it; only a transfer does).
+  department         WaDepartment         @default(GENERAL)
   createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
 
@@ -8316,6 +8318,7 @@ model WaConversation {
   @@index([status, lastMessageAt(sort: Desc), id(sort: Desc)], map: "wa_conversations_status_last_idx")
   @@index([assignedToId, lastMessageAt(sort: Desc)], map: "wa_conversations_assigned_idx")
   @@index([linkedUserId], map: "wa_conversations_linked_idx", where: raw("linked_user_id IS NOT NULL"))
+  @@index([department, status, lastMessageAt(sort: Desc), id(sort: Desc)], map: "wa_conversations_department_idx")
   @@map("wa_conversations")
 }
 
@@ -8376,6 +8379,10 @@ model WaAssignment {
   fromUserId     String?            @map("from_user_id") @db.Uuid
   toUserId       String?            @map("to_user_id") @db.Uuid
   actorId        String?            @map("actor_id") @db.Uuid
+  /// D364 (§10.157): a TRANSFER's department (to / from) and the internal note written with it (`wa_notes.id`).
+  department     WaDepartment?
+  fromDepartment WaDepartment?      @map("from_department")
+  noteId         String?            @map("note_id") @db.Uuid
   createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
 
   conversation WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -8426,4 +8433,27 @@ model WaStaffAccess {
   updatedAt DateTime      @default(now()) @map("updated_at") @db.Timestamptz(3)
 
   @@map("wa_staff_access")
+}
+
+/// D364 (v1.122-social, CONVENTIONS §10.157): the WhatsApp departments «الأقسام» — a fixed set.
+enum WaDepartment {
+  PAYMENTS
+  AGENCIES
+  TECHNICAL
+  REPORTS
+  GENERAL
+
+  @@map("wa_department")
+}
+
+/// D364: one department a staff member belongs to (no row at all: GENERAL). Counts only while the person is at REPLY or
+/// above. Set by `team.manage` only; no foreign key, like every staff id of the module.
+model WaStaffDepartment {
+  userId     String       @map("user_id") @db.Uuid
+  department WaDepartment
+  setById    String?      @map("set_by_id") @db.Uuid
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@id([userId, department], map: "wa_staff_departments_pkey")
+  @@map("wa_staff_departments")
 }

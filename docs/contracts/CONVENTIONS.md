@@ -773,6 +773,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.122-social (draft) | 2026-11-11 | **D364 (owner approved «نعم موافق»): WhatsApp departments and the transfer with a department, a target and a note «الأقسام والتحويل».** `WaDepartment` PAYMENTS «الشحن والمدفوعات» / AGENCIES «الوكالات والمضيفون» / TECHNICAL «المشاكل التقنية» / REPORTS «البلاغات والحظر» / GENERAL «عام». A REPLY+ staff member belongs to one or more (none set = GENERAL), set by `team.manage` with `setAdminTeamWhatsAppDepartments` (code + reason, audited `admin.team.whatsapp_departments`); `AdminTeam.data[].whatsappDepartments`. `WaConversation.department` (GENERAL until a transfer; only a transfer changes it), `?department=` on the conversation lists and the agents; `WaAgent.departments` / `openCount`. `WaTransferRequest {department, toUserId?, note?}`: no `toUserId` = «أول متاح في القسم» (on shift, fewest open, then least recently assigned; never the current assignee) or the department's queue; `toUserId` must be REPLY+ and in the department (400 `not_in_department`); the note is an internal note linked to the history row (`WaAssignment.department` / `fromDepartment` / `note`). D355's `{toUserId}` alone still works (GENERAL, no membership check). The transfer is pushed to the receiver (or the department's members for the queue), never to the actor or a muted one. Migration `20270426090000_whatsapp_departments` (§10.157). |
 | v1.121-social (draft) | 2026-11-10 | **D361 (owner: «المؤسس ليس له ليفيل»): the founder has no level.** For the app owner (an ACTIVE account holding OWNER, `PublicProfile.kabsoOwner`): `getUserLevels` answers `data: []` for every viewer; `LiveRoom.roomLevel` / `LiveRoomSummary.roomLevel` null in his lives; `LiveChatAuthorBadges.charmLevel` / `supportLevel` and `HostSupporter.supportLevel` null for him; his level-ups never go out on the `level` ticker. `getMyLevels` unchanged (private). No migration, nothing deleted. §10.156. App (no contract): the D175 «أنت تغادر Kabso» sheet again before Instagram, Facebook, WhatsApp and Snapchat links (the founder's social row too). 2026-11-10 owner: Instagram/Facebook direct again; WhatsApp/Snapchat ask first. | **Behaviour change for the founder only**; shapes unchanged (every field was already nullable or a list). |
 | v1.120-social (draft) | 2026-11-10 | **D360 (owner approved): a WhatsApp level per staff member «مستوى واتساب لكل موظف».** `WhatsAppLevel` NONE / VIEW / REPLY / MANAGE decides the three WhatsApp capabilities — new `support.whatsapp.view` (VIEW+), `support.whatsapp` (REPLY+), `support.whatsapp.manage` (MANAGE); no level set = the roles' default, exactly D355; an OWNER is always MANAGE. `setAdminTeamWhatsApp` (`PUT /admin/team/{userId}/whatsapp`, `team.manage`, code + reason; audited `admin.team.whatsapp`; `ADMIN_ACTION_REFUSED` issues `team_not_member`, `team_whatsapp_owner`); `AdminTeam.data[].whatsapp` (`AdminTeamWhatsApp`); the `/staff/whatsapp/*` and `/admin/whatsapp/*` reads need `.view`, every action `support.whatsapp`; `StaffStatus.capabilities` enum gains the three. Migration `20270425090000_whatsapp_staff_access` (`wa_staff_access`). §10.155. | **Additive** (a new capability and operation, a new optional field). No behaviour change until a level is set; then the level replaces the role rule for that person only. |
 | v1.119-social (draft) | 2026-11-10 | **D359 (owner decision: events reach the «البث» hub ONLY through the existing home banner carousel — no extra strip, icon or floating button):** `GiftEventForm.bannerEnabled` («بانر صفحة البث» on / off, picture kept) and `bannerBeforeStart` («يظهر قبل البداية», from the publish time), optional (absent: true / false on a create, kept on an edit; migration `20270423090000_event_banner_options`); `bannerMediaId` null removes the event's banner; `listHomeBanners` leaves out an event banner once its event has ended (query time) and lists running events' banners first, then the rest, each group in the admin's order. §10.154. |
@@ -11838,3 +11839,97 @@ also opened directly; the owner's request names all four, so they ask now too. A
 **2026-11-10 owner (option ب): Instagram/Facebook direct again; WhatsApp/Snapchat ask first.** `opensDirectly` =
 TikTok / YouTube / X / Instagram / Facebook (as under D175); only WhatsApp, Snapchat and any other link show the
 sheet — everywhere, the founder's social row included.
+
+### 10.157 «الأقسام والتحويل» — WhatsApp departments and the transfer *(v1.122-social, DRAFT — D364)*
+
+Owner (approved «نعم موافق»): the transfer was hidden in the chat's ⋮ menu and only listed agents. Now a conversation
+moves to a **department**, to a person in it or to whoever is first available there, with an internal note. Migration
+`20270426090000_whatsapp_departments`: enum `wa_department`, table `wa_staff_departments` (one row per membership; **no
+row = GENERAL**), `wa_conversations.department` (NOT NULL DEFAULT GENERAL — every existing conversation is «عام»), and
+`wa_assignments.department` / `from_department` / `note_id`. Nothing changes on deploy: everyone and everything starts
+in GENERAL, and the D355 transfer call keeps working.
+
+#### 10.157.1 The departments and who belongs (decision: a separate table)
+
+| Code | ar | en |
+|---|---|---|
+| PAYMENTS | الشحن والمدفوعات | Top-ups & payments |
+| AGENCIES | الوكالات والمضيفون | Agencies & hosts |
+| TECHNICAL | المشاكل التقنية | Technical issues |
+| REPORTS | البلاغات والحظر | Reports & bans |
+| GENERAL | عام | General (the default) |
+
+A fixed set (an enum, not a table: adding one is a contract change). A staff member at the WhatsApp level **REPLY or
+above** (§10.155) belongs to one or more; none set = GENERAL. `PUT /api/v1/admin/team/{userId}/whatsapp/departments`
+`{departments: [...] (0–5, unique; [] = back to GENERAL), reason, totpCode}` — capability `team.manage` (the OWNER, the
+same right as the level), the authenticator code again and a reason, `RATE_LIMIT_ADMIN_TEAM_IP`; under a lock of the
+person's `users` row. 409 `ADMIN_ACTION_REFUSED` `team_not_member` (no panel role) / `team_departments_level` (below
+REPLY now: a viewer is never a target). Audited `admin.team.whatsapp_departments` {before, after (effective lists),
+setBefore, setAfter (the rows), reason, via}. Answer `{userId, before, whatsappDepartments: {departments, isDefault}}`;
+`listAdminTeam` carries `whatsappDepartments` for each member. A lowered person keeps their rows (ignored while below
+REPLY; they count again if raised); off the team entirely (the last role revoked) the rows are deleted
+(`departmentsDropped` in the revoke's `admin.team.whatsapp` audit). Conversations already assigned stay where they are —
+departments only route transfers. **Decision:** a separate table rather than a column of `wa_staff_access`, because a
+row there means «a level is SET» (no row = the roles' default, §10.155.1): a membership must never create a level.
+
+#### 10.157.2 The transfer
+
+`POST …/conversations/{id}/transfer` (app and panel, `support.whatsapp`, the D355 rules: an open conversation, the
+caller's or an unassigned one, or MANAGE): `{department, toUserId?, note?}`.
+
+- **`toUserId`**: must be an ACTIVE staff member at REPLY+ (400 `toUserId` `not_an_agent`, D360) **and** in `department`
+  (400 `toUserId` `not_in_department`). The target's `users` row is share-locked before the conversation (D360's order).
+- **No `toUserId` — «أول متاح في القسم»** (§10.157.3).
+- **`note`** (≤ 500 after trimming; empty = none): stored as a `wa_notes` row by the caller — an internal note, never sent
+  to the customer (no Graph call) — and linked to the history row (`note_id`); it shows in the notes and in the history.
+- The conversation takes `department`; a transfer is the **only** way to change it (no other route writes it).
+- Same person, same department and no note: nothing changes (D355's no-op, no history row).
+- **Backward compatibility:** without `department` (an app or panel before D364) the body is D355's `{toUserId}`
+  (required: 400 `toUserId` `required` otherwise); the department becomes GENERAL and **membership is not checked**
+  (only REPLY+), so an older APK can still hand a conversation to anyone it lists; audited `legacy: true`.
+
+`GET …/agents?department=` lists that department's REPLY+ members, on shift first, then the fewest open; every agent
+carries `departments` and `openCount` (open conversations assigned now).
+
+#### 10.157.3 «أول متاح في القسم» and the department queue
+
+The candidates are the REPLY+ members of the department **on shift** (`admin_shifts.on_shift`), **except the
+conversation's current assignee** (a transfer hands it to someone else). The one with the **fewest open assigned
+conversations** wins; a tie goes to the one **assigned least recently** (the latest CLAIM or TRANSFER they received;
+never assigned first), then the lowest id (stable). Routing into one department is serialised by a transaction-level
+advisory lock, so two simultaneous transfers do not both pick the same «least busy» agent; the winner's row is
+share-locked and their level re-checked (a level change in between picks the next one). **Nobody on shift → the
+department's queue:** `assignedTo` null, `department` kept; it shows under «غير مسندة» filtered by that department, and
+the clients name it «قائمة {department}».
+
+#### 10.157.4 The conversation's department in the clients
+
+`WaConversation.department` (always present from D364; an older server's absence reads as GENERAL). Shown as a chip in
+the chat's status strip (D363) and on every inbox row; the inbox gets a department filter (`?department=` on
+`get…WhatsAppConversations`, combined with the tabs and the search). Staff change it only through the transfer.
+
+#### 10.157.5 Pushes
+
+After the commit (background): a transfer to a person is pushed to them; to the queue, to the department's REPLY+
+members on shift, else to all of its REPLY+ members (somebody who can reply is always told, as D360). Never the one who
+transferred, never a muted one (`pushMuted`), never below REPLY. `data: {kind: 'whatsapp', channel: 'staff',
+conversationId, event: 'transfer', department}` (an older app opens the conversation as for a message), the body
+«حُوّلت إليك محادثة {who} — {department}» / «محادثة {who} بانتظار الرد في قسم {department}» (a masked number when the
+customer has no name). New customer messages keep §10.155.3's recipients (unchanged).
+
+#### 10.157.6 History and audit
+
+Each TRANSFER row records who (`by`), from, to (null: the queue), `department`, `fromDepartment`, the note
+(`{id, body}`) and when; the other actions have them null. Audited `whatsapp.conversation.assign` {action: TRANSFER,
+from, to, department, fromDepartment, routed: person / first_available / queue, noteId, legacy, assignmentId, via}.
+
+#### 10.157.7 Clients
+
+**App:** a visible «تحويل» icon button in the chat header beside the customer button (tooltip «تحويل»), hidden for VIEW
+and for a closed conversation; the ⋮ menu no longer has «تحويل» (no duplicate). The transfer sheet: the department
+chips (the conversation's own picked first), «أول متاح في القسم» as the first option, then the department's agents —
+each with an on-shift dot and «N محادثة مفتوحة» — a note field (≤ 500, «لا تُرسل للعميل أبداً») and «تحويل». After
+it a toast («حُوّلت المحادثة إلى {name}» / «… إلى قائمة {department}») and the strip shows the new assignee or the
+queue with the department chip. **Panel:** the same dialog from the chat's «تحويل», the department tag in the chat head
+and on the rows, the department filter above the search, history lines with the department and the note, and on the
+staff card «أقسام واتساب» under «مستوى واتساب» with «تغيير الأقسام» (checkboxes, reason, code; only for REPLY / MANAGE).
