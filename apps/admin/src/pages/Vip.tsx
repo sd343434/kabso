@@ -9,7 +9,9 @@ import {
 } from "../components";
 import { useApp } from "../context";
 import { formatNumber } from "../format";
+import type { Key } from "../i18n";
 import { Icon } from "../ui/icons";
+import { ENTRY_CAR, EntryDisplaySelect, type EntryDisplay } from "./Store";
 import "./vip.css";
 
 /** `AdminVipPerk` (v1.82-social, D252). `available`: the app really does it (server list, read-only). */
@@ -27,6 +29,8 @@ export interface AdminVipPerk {
   artHeight: number | null;
   /** v1.83-social (D258): the perk's number for this tier (bullets / coins a day, level speed-up %). */
   amount: number | null;
+  /** v1.128-social (D373): the ENTRY_EFFECT perk's display; null for other perks (absent from an older server). */
+  entryDisplay?: EntryDisplay | null;
 }
 
 /** `AdminVipTier` (v1.82-social, D252). `sortOrder` is the order and the rank. */
@@ -73,6 +77,8 @@ export interface PerkDraft {
   artWidth: string;
   artHeight: string;
   amount: string;
+  /** v1.128-social (D373): the ENTRY_EFFECT perk's display (sent for that code only); absent: FULL_SCREEN. */
+  entryDisplay?: EntryDisplay;
 }
 
 /** The tier form. */
@@ -154,6 +160,7 @@ export function draftOf(tier: AdminVipTier | null): TierDraft {
       artHeight: p.artHeight === null ? "" : String(p.artHeight),
       amount:
         p.amount === null || p.amount === undefined ? "" : String(p.amount),
+      ...(p.code === ENTRY_CAR ? { entryDisplay: p.entryDisplay ?? "FULL_SCREEN" } : {}),
     })),
   };
 }
@@ -217,6 +224,9 @@ function perksBody(perks: PerkDraft[]) {
     artWidth: p.artWidth.trim() === "" ? null : Number(p.artWidth),
     artHeight: p.artHeight.trim() === "" ? null : Number(p.artHeight),
     amount: p.amount.trim() === "" ? null : Number(p.amount),
+    // v1.128-social (D373): only the entry car perk has a display (the server refuses it elsewhere); none chosen yet:
+    // not sent (the server keeps the stored one, FULL_SCREEN for a new perk).
+    ...(p.code.trim() === ENTRY_CAR && p.entryDisplay ? { entryDisplay: p.entryDisplay } : {}),
   }));
 }
 
@@ -367,6 +377,12 @@ export function VipTiersTable({
                       }
                     >
                       {lang === "ar" ? p.titleAr : p.titleEn}
+                      {p.code === ENTRY_CAR && (
+                        <span data-vip-entry-display={tier.code}>
+                          {" · "}
+                          {t(`entryDisplay${p.entryDisplay ?? "FULL_SCREEN"}` as Key)}
+                        </span>
+                      )}
                     </span>
                   ))}
                 </span>
@@ -483,6 +499,7 @@ export function PerksEditor({
                 amount: "",
                 artWidth: "",
                 artHeight: "",
+                entryDisplay: "FULL_SCREEN",
               },
             ])
           }
@@ -634,6 +651,13 @@ export function PerksEditor({
               <span className="error small">{t("vipPerkAmountBad")}</span>
             )}
           </div>
+          {p.code.trim() === ENTRY_CAR && (
+            <EntryDisplaySelect
+              id={`vp-entry-display-${i}`}
+              value={p.entryDisplay ?? "FULL_SCREEN"}
+              onChange={(entryDisplay) => set(i, { entryDisplay })}
+            />
+          )}
           <div className="field">
             <span>
               {t("vipUploadStill")} / {t("vipUploadAnimation")}

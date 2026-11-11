@@ -39,6 +39,41 @@ export const STORE_CURRENCIES = ["COINS", "CHERRIES"] as const;
 export type StoreCurrency = (typeof STORE_CURRENCIES)[number];
 export type StoreAlpha = "NONE" | "SIDE_BY_SIDE";
 
+/**
+ * v1.128-social (D373, §10.165; owner: «اما بشاشة كاملة او نصف الشاشة»): how an entry car plays — the whole live
+ * screen or a band about half the screen high. Set per store entry car and per VIP ENTRY_EFFECT perk.
+ */
+export const ENTRY_DISPLAYS = ["FULL_SCREEN", "HALF_SCREEN"] as const;
+export type EntryDisplay = (typeof ENTRY_DISPLAYS)[number];
+/** The store kind / VIP perk code whose art is an entry car (the only one with a display). */
+export const ENTRY_CAR = "ENTRY_EFFECT";
+
+/** «طريقة العرض: شاشة كاملة / نصف الشاشة» (pure: rendered in the tests; reused by the VIP perk form). */
+export function EntryDisplaySelect({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: EntryDisplay;
+  onChange: (v: EntryDisplay) => void;
+}) {
+  const { t } = useApp();
+  return (
+    <div className="field" data-entry-display-field>
+      <label htmlFor={id}>{t("entryDisplay")}</label>
+      <select id={id} data-entry-display={id} value={value} onChange={(e) => onChange(e.target.value as EntryDisplay)}>
+        {ENTRY_DISPLAYS.map((d) => (
+          <option key={d} value={d}>
+            {t(`entryDisplay${d}` as Key)}
+          </option>
+        ))}
+      </select>
+      <span className="hint">{t("entryDisplayHint")}</span>
+    </div>
+  );
+}
+
 /** `AdminStorePrice`. */
 export interface AdminStorePrice {
   currency: StoreCurrency;
@@ -59,6 +94,8 @@ export interface AdminStoreItem {
   animationAlpha: StoreAlpha | null;
   artWidth: number | null;
   artHeight: number | null;
+  /** v1.128-social (D373): an entry car's display; null for every other kind (absent from an older server). */
+  entryDisplay?: EntryDisplay | null;
   prices: AdminStorePrice[];
   sortOrder: number;
   /** Deprecated v1.79-live (D289): «جديد» is in `badges`. */
@@ -115,6 +152,8 @@ export interface ItemDraft {
   animationAlpha: StoreAlpha;
   artWidth: string;
   artHeight: string;
+  /** v1.128-social (D373): an entry car's display (sent for kind ENTRY_EFFECT only). */
+  entryDisplay: EntryDisplay;
   /** `COINS:7` → "50000". */
   prices: Record<string, string>;
   sortOrder: string;
@@ -144,6 +183,7 @@ export function draftOf(item: AdminStoreItem | null, kind: StoreKind = "AVATAR_F
     animationAlpha: item?.animationAlpha ?? "NONE",
     artWidth: item && item.artWidth !== null ? String(item.artWidth) : "",
     artHeight: item && item.artHeight !== null ? String(item.artHeight) : "",
+    entryDisplay: item?.entryDisplay ?? "FULL_SCREEN",
     prices,
     sortOrder: item ? String(item.sortOrder) : "",
     badges: badgeState(item?.badges ?? []),
@@ -212,7 +252,14 @@ export function itemBody(d: ItemDraft, before: AdminStoreItem | null): Record<st
   };
   const prices = pricesOf(d);
   if (before === null) {
-    return { kind: d.kind, ...fields, prices, ...badgesPart(d.badges, null), enabled: d.enabled };
+    return {
+      kind: d.kind,
+      ...fields,
+      ...(d.kind === ENTRY_CAR ? { entryDisplay: d.entryDisplay } : {}),
+      prices,
+      ...badgesPart(d.badges, null),
+      enabled: d.enabled,
+    };
   }
   const out: Record<string, unknown> = Object.fromEntries(
     Object.entries(fields).filter(
@@ -220,6 +267,9 @@ export function itemBody(d: ItemDraft, before: AdminStoreItem | null): Record<st
     ),
   );
   if (JSON.stringify(pricesOf(draftOf(before))) !== JSON.stringify(prices)) out.prices = prices;
+  if (before.kind === ENTRY_CAR && d.entryDisplay !== (before.entryDisplay ?? "FULL_SCREEN")) {
+    out.entryDisplay = d.entryDisplay;
+  }
   Object.assign(out, badgesPart(d.badges, before));
   return out;
 }
@@ -311,7 +361,20 @@ export function StoreItemsTable({
                   </span>
                 </span>
               </td>
-              <td>{t(kindLabel(item.kind))}</td>
+              <td>
+                {t(kindLabel(item.kind))}
+                {item.kind === ENTRY_CAR && (
+                  <>
+                    <br />
+                    <span
+                      className={`badge ${item.entryDisplay === "HALF_SCREEN" ? "warn" : ""}`}
+                      data-store-entry-display={item.code}
+                    >
+                      {t(`entryDisplay${item.entryDisplay ?? "FULL_SCREEN"}` as Key)}
+                    </span>
+                  </>
+                )}
+              </td>
               <td>
                 <span className="store-prices">
                   {item.prices.length === 0 ? (
@@ -615,6 +678,13 @@ function ItemForm({
           />
           {uploadButton("animation")}
         </div>
+        {draft.kind === ENTRY_CAR && (
+          <EntryDisplaySelect
+            id="store-entry-display"
+            value={draft.entryDisplay}
+            onChange={(entryDisplay) => setDraft((d) => ({ ...d, entryDisplay }))}
+          />
+        )}
         {format === "MP4" && (
           <div className="field span-2">
             <label htmlFor="store-alpha">{t("storeAlpha")}</label>
