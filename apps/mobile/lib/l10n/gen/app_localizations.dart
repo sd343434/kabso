@@ -30279,6 +30279,168 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'قائمة {department}'**
   String waQueueOf(String department);
+
+  /// D370 «نقاط الشحن»: the VIP page's second way to pay (recharge points).
+  ///
+  /// In ar, this message translates to:
+  /// **'استبدل بالنقاط'**
+  String get vipPayPoints;
+
+  /// D370 «نقاط الشحن»: the VIP purchase panel's pay-method switch (semantics label).
+  ///
+  /// In ar, this message translates to:
+  /// **'طريقة الدفع'**
+  String get vipPayWith;
+
+  /// D370 «نقاط الشحن»: a points amount (grouped Western digits).
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} نقطة'**
+  String vipPoints(String points);
+
+  /// D370 «نقاط الشحن»: the VIP purchase panel's points balance line.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك: {points} نقطة'**
+  String vipPointsBalance(String points);
+
+  /// D370 «نقاط الشحن»: the VIP button when the points do not cover the price.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط غير كافية'**
+  String get vipPointsShort;
+
+  /// D370 «نقاط الشحن»: the VIP purchase panel's hint under the points balance.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل عملة تشحنها = نقطة شحن'**
+  String get vipPointsHint;
+
+  /// D370 «نقاط الشحن»: the VIP confirm card's points balance line.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاطك'**
+  String get vipConfirmPoints;
+
+  /// D370 «نقاط الشحن»: the VIP confirm card's primary button (points).
+  ///
+  /// In ar, this message translates to:
+  /// **'استبدل {points} نقطة'**
+  String vipRedeem(String points);
+
+  /// D370 «نقاط الشحن»: VIP_UNAVAILABLE no_points_price.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا المستوى لا يُستبدل بالنقاط.'**
+  String get vipErrorNoPointsPrice;
+
+  /// D370 «نقاط الشحن»: the snack after a points purchase.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم استبدال النقاط: {tier} حتى {date}'**
+  String vipRedeemDone(String tier, String date);
+
+  /// D370 «نقاط الشحن»: INSUFFICIENT_RECHARGE_POINTS.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط الشحن لا تكفي لهذا المستوى.'**
+  String get errorInsufficientRechargePoints;
+
+  /// D370 «نقاط الشحن»: the wallet row and the history page title.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط الشحن'**
+  String get rechargePointsTitle;
+
+  /// D370 «نقاط الشحن»: the wallet row's subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} نقطة · استبدلها بـ VIP'**
+  String rechargePointsRowHint(String points);
+
+  /// D370 «نقاط الشحن»: the history page's balance card.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيد النقاط'**
+  String get rechargePointsBalanceLabel;
+
+  /// D370 «نقاط الشحن»: the history page's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل عملة تشحنها من الموقع أو المتجر أو من وكيل شحن = نقطة واحدة. النقاط لا تنتهي وتُستبدل بـ VIP.'**
+  String get rechargePointsHowTo;
+
+  /// D370 «نقاط الشحن»: the history page's empty state.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا نقاط بعد'**
+  String get rechargePointsEmpty;
+
+  /// D370 «نقاط الشحن»: the history page's empty state body.
+  ///
+  /// In ar, this message translates to:
+  /// **'اشحن العملات لتجمع النقاط.'**
+  String get rechargePointsEmptyBody;
+
+  /// D370 «نقاط الشحن»: the history page's error.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل نقاط الشحن'**
+  String get rechargePointsLoadError;
+
+  /// D370 «نقاط الشحن»: a history row's balance after.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرصيد بعدها: {points}'**
+  String rechargePointsAfter(String points);
+
+  /// D370 «نقاط الشحن»: a points history reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن من الموقع'**
+  String get rechargePointsReasonWeb;
+
+  /// D370 «نقاط الشحن»: a points history reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن من المتجر'**
+  String get rechargePointsReasonStore;
+
+  /// D370 «نقاط الشحن»: a points history reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن من وكيل'**
+  String get rechargePointsReasonAgent;
+
+  /// D370 «نقاط الشحن»: a points history reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'استبدال VIP'**
+  String get rechargePointsReasonVip;
+
+  /// D370 «نقاط الشحن»: a points history reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'استرجاع شحن'**
+  String get rechargePointsReasonReversal;
+
+  /// D370 «نقاط الشحن»: a points history reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل من الإدارة'**
+  String get rechargePointsReasonAdmin;
+
+  /// D370 «نقاط الشحن»: a points history reason (unknown).
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير في النقاط'**
+  String get rechargePointsReasonOther;
+
+  /// D370 «نقاط الشحن»: the VIP purchase panel's unit and length (points).
+  ///
+  /// In ar, this message translates to:
+  /// **'نقطة / {days} يوماً'**
+  String vipPointsPer(String days);
 }
 
 class _AppLocalizationsDelegate

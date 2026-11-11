@@ -17971,4 +17971,102 @@ class AppLocalizationsEn extends AppLocalizations {
   String waQueueOf(String department) {
     return '$department queue';
   }
+
+  @override
+  String get vipPayPoints => 'Redeem with points';
+
+  @override
+  String get vipPayWith => 'Pay with';
+
+  @override
+  String vipPoints(String points) {
+    return '$points points';
+  }
+
+  @override
+  String vipPointsBalance(String points) {
+    return 'Your balance: $points points';
+  }
+
+  @override
+  String get vipPointsShort => 'Not enough points';
+
+  @override
+  String get vipPointsHint => 'Every coin you recharge = 1 point';
+
+  @override
+  String get vipConfirmPoints => 'Your points';
+
+  @override
+  String vipRedeem(String points) {
+    return 'Redeem $points points';
+  }
+
+  @override
+  String get vipErrorNoPointsPrice =>
+      'This tier can\'t be redeemed with points.';
+
+  @override
+  String vipRedeemDone(String tier, String date) {
+    return 'Points redeemed: $tier until $date';
+  }
+
+  @override
+  String get errorInsufficientRechargePoints =>
+      'You don\'t have enough recharge points for this tier.';
+
+  @override
+  String get rechargePointsTitle => 'Recharge points';
+
+  @override
+  String rechargePointsRowHint(String points) {
+    return '$points points · redeem them for VIP';
+  }
+
+  @override
+  String get rechargePointsBalanceLabel => 'Points balance';
+
+  @override
+  String get rechargePointsHowTo =>
+      'Every coin you recharge on the website, in the store or from a recharge agent = 1 point. Points never expire and can be redeemed for VIP.';
+
+  @override
+  String get rechargePointsEmpty => 'No points yet';
+
+  @override
+  String get rechargePointsEmptyBody => 'Recharge coins to collect points.';
+
+  @override
+  String get rechargePointsLoadError => 'Couldn\'t load recharge points';
+
+  @override
+  String rechargePointsAfter(String points) {
+    return 'Balance after: $points';
+  }
+
+  @override
+  String get rechargePointsReasonWeb => 'Website recharge';
+
+  @override
+  String get rechargePointsReasonStore => 'Store purchase';
+
+  @override
+  String get rechargePointsReasonAgent => 'Recharge agent';
+
+  @override
+  String get rechargePointsReasonVip => 'VIP redeemed';
+
+  @override
+  String get rechargePointsReasonReversal => 'Recharge reversed';
+
+  @override
+  String get rechargePointsReasonAdmin => 'Adjusted by Kabso';
+
+  @override
+  String get rechargePointsReasonOther => 'Points change';
+
+  @override
+  String vipPointsPer(String days) {
+    return 'points / $days days';
+  }
 }

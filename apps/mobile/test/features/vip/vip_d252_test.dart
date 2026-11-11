@@ -174,6 +174,14 @@ class _FakeVip implements VipRepository {
     return (kind: VipPurchaseKind.bought, membership: m, coins: 100);
   }
 
+  /// D370: redemptions with recharge points (none in these tests).
+  @override
+  Future<VipRedemption> redeemWithPoints({
+    required String tierId,
+    required int pricePoints,
+    required String idempotencyKey,
+  }) => throw UnimplementedError();
+
   /// D258: the caller's renewal quote (null: none).
   VipRenewal? renewalQuote;
 
@@ -564,6 +572,7 @@ void main() {
               priceCoins: 850000,
               discountPercent: 15,
               until: DateTime.now().add(const Duration(days: 27)),
+              pricePoints: null,
             );
       await _pump(tester, vip: vip);
       expect(find.text(_en.vipRenewalDiscountLine('15')), findsOneWidget);

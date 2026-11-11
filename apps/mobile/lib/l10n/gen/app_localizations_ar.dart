@@ -17988,4 +17988,101 @@ class AppLocalizationsAr extends AppLocalizations {
   String waQueueOf(String department) {
     return 'قائمة $department';
   }
+
+  @override
+  String get vipPayPoints => 'استبدل بالنقاط';
+
+  @override
+  String get vipPayWith => 'طريقة الدفع';
+
+  @override
+  String vipPoints(String points) {
+    return '$points نقطة';
+  }
+
+  @override
+  String vipPointsBalance(String points) {
+    return 'رصيدك: $points نقطة';
+  }
+
+  @override
+  String get vipPointsShort => 'نقاط غير كافية';
+
+  @override
+  String get vipPointsHint => 'كل عملة تشحنها = نقطة شحن';
+
+  @override
+  String get vipConfirmPoints => 'نقاطك';
+
+  @override
+  String vipRedeem(String points) {
+    return 'استبدل $points نقطة';
+  }
+
+  @override
+  String get vipErrorNoPointsPrice => 'هذا المستوى لا يُستبدل بالنقاط.';
+
+  @override
+  String vipRedeemDone(String tier, String date) {
+    return 'تم استبدال النقاط: $tier حتى $date';
+  }
+
+  @override
+  String get errorInsufficientRechargePoints =>
+      'نقاط الشحن لا تكفي لهذا المستوى.';
+
+  @override
+  String get rechargePointsTitle => 'نقاط الشحن';
+
+  @override
+  String rechargePointsRowHint(String points) {
+    return '$points نقطة · استبدلها بـ VIP';
+  }
+
+  @override
+  String get rechargePointsBalanceLabel => 'رصيد النقاط';
+
+  @override
+  String get rechargePointsHowTo =>
+      'كل عملة تشحنها من الموقع أو المتجر أو من وكيل شحن = نقطة واحدة. النقاط لا تنتهي وتُستبدل بـ VIP.';
+
+  @override
+  String get rechargePointsEmpty => 'لا نقاط بعد';
+
+  @override
+  String get rechargePointsEmptyBody => 'اشحن العملات لتجمع النقاط.';
+
+  @override
+  String get rechargePointsLoadError => 'تعذّر تحميل نقاط الشحن';
+
+  @override
+  String rechargePointsAfter(String points) {
+    return 'الرصيد بعدها: $points';
+  }
+
+  @override
+  String get rechargePointsReasonWeb => 'شحن من الموقع';
+
+  @override
+  String get rechargePointsReasonStore => 'شحن من المتجر';
+
+  @override
+  String get rechargePointsReasonAgent => 'شحن من وكيل';
+
+  @override
+  String get rechargePointsReasonVip => 'استبدال VIP';
+
+  @override
+  String get rechargePointsReasonReversal => 'استرجاع شحن';
+
+  @override
+  String get rechargePointsReasonAdmin => 'تعديل من الإدارة';
+
+  @override
+  String get rechargePointsReasonOther => 'تغيير في النقاط';
+
+  @override
+  String vipPointsPer(String days) {
+    return 'نقطة / $days يوماً';
+  }
 }

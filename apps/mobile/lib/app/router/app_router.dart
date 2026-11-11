@@ -115,6 +115,7 @@ import 'package:kabso_live/features/stories/presentation/story_archive_screen.da
 import 'package:kabso_live/features/stories/presentation/story_viewer_screen.dart';
 import 'package:kabso_live/features/vip/presentation/vip_screen.dart';
 import 'package:kabso_live/features/vip/presentation/vip_visitors_screen.dart';
+import 'package:kabso_live/features/wallet/presentation/recharge_points_screen.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_history_screen.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_screen.dart';
 import 'package:kabso_live/features/whatsapp/presentation/wa_screens.dart';
@@ -458,6 +459,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.walletHistory,
         builder: (_, _) => const WalletHistoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.rechargePoints,
+        builder: (_, _) => const RechargePointsScreen(),
       ),
       GoRoute(
         path: AppRoutes.earnings,
