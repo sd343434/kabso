@@ -406,10 +406,11 @@ describe('D288 shared reports, and no code for the ban and content deletion', { 
       expect(sent.body).toBe('A new report is waiting to be resolved');
       expect(JSON.stringify(sent)).not.toContain('secret reporter note');
       expect(JSON.stringify(sent)).not.toContain(reporter.username);
-      expect((await audits('moderation.report.push', first)).at(-1)!.metadata).toMatchObject({
-        recipientId: support.id,
-        sent: 1,
-      });
+      // One push audit row per recipient, written in no fixed order: pick the SUPPORT account's (it has a token).
+      const pushAudit = (await audits('moderation.report.push', first)).find(
+        (a) => (a.metadata as { recipientId?: string }).recipientId === support.id,
+      );
+      expect(pushAudit?.metadata).toMatchObject({ recipientId: support.id, sent: 1 });
 
       const inbox = await sget(support, '/notifications');
       expectContract(inbox, 'listNotifications');
