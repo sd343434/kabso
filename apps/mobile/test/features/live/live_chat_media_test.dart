@@ -1,5 +1,5 @@
-// CP-017 (D104): the live chat's tools — bullet messages (15 coins, the
-// balance from GET /wallet/me), voice clips (fake recorder, 30 s at most),
+// CP-017 (D104): the live chat's tools — bullet messages (10,000 coins since
+// D371, the balance from GET /wallet/me), voice clips (fake recorder, 30 s at most),
 // pictures, private messages — voice and picture lines that vanish at
 // expiresAt, and bullets shown as a box in the viewer's and the host's chat
 // (owner, 2026-10-26: they no longer fly over the screen).
@@ -15,11 +15,13 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -244,6 +246,9 @@ Future<void> _leave(WidgetTester tester) async {
   await tester.pump();
 }
 
+/// D371: a bullet's price as the hint shows it (10,000 coins).
+final String _price = KFormat.grouped(liveBulletCostCoins);
+
 void main() {
   final l10n = l10nFor(AppLanguage.en);
 
@@ -420,7 +425,7 @@ void main() {
       expect(room.repo.bulletCalls, hasLength(1));
       expect(find.text(l10n.liveBulletSentFree('2')), findsOneWidget);
       expect(find.text(l10n.liveBulletSent), findsNothing);
-      expect(find.text(l10n.liveBulletHint('100')), findsOneWidget);
+      expect(find.text(l10n.liveBulletHint(_price, '100')), findsOneWidget);
       _clearSnack(tester);
       await _leave(tester);
     });
@@ -428,6 +433,7 @@ void main() {
     testWidgets('bullet mode shows the price and the balance; send posts '
         'the bullet and the balance follows the answer', (tester) async {
       final room = await _pumpRoom(tester);
+      room.repo.coins = 25000;
       await _openComposer(tester);
       final bullet = find.byKey(LiveRoomComposer.bulletKey);
       final handle = tester.ensureSemantics();
@@ -443,7 +449,8 @@ void main() {
       );
       handle.dispose();
       expect(room.repo.walletReads, 1);
-      expect(find.text(l10n.liveBulletHint('100')), findsOneWidget);
+      expect(find.text(l10n.liveBulletHint(_price, '25,000')), findsOneWidget);
+      expect(_price, '10,000');
       // 60 code points at most.
       expect(
         tester
@@ -463,7 +470,7 @@ void main() {
       // Not a chat line.
       expect(room.repo.chatCalls.where((c) => c.startsWith('send:')), isEmpty);
       expect(find.text(l10n.liveBulletSent), findsOneWidget);
-      expect(find.text(l10n.liveBulletHint('85')), findsOneWidget);
+      expect(find.text(l10n.liveBulletHint(_price, '15,000')), findsOneWidget);
       expect(
         tester
             .widget<TextField>(find.byKey(LiveChatComposer.fieldKey))
@@ -484,7 +491,7 @@ void main() {
     ) async {
       final room = await _pumpRoom(tester);
       room.repo
-        ..coins = 5
+        ..coins = liveBulletCostCoins - 1
         ..bulletFailure = const ServerFailure(
           code: ErrorCode.insufficientCoins,
           rawCode: 'INSUFFICIENT_COINS',
@@ -494,12 +501,12 @@ void main() {
       await _openComposer(tester);
       await tester.tap(find.byKey(LiveRoomComposer.bulletKey));
       await tester.pumpAndSettle();
-      expect(find.text(l10n.liveBulletHint('5')), findsOneWidget);
+      expect(find.text(l10n.liveBulletHint(_price, '9,999')), findsOneWidget);
       await tester.enterText(find.byKey(LiveChatComposer.fieldKey), 'Hi');
       await tester.tap(find.byKey(LiveChatComposer.sendKey));
       await tester.pumpAndSettle();
       expect(find.text(l10n.errorInsufficientCoins), findsOneWidget);
-      expect(l10n.errorInsufficientCoins, contains('15'));
+      expect(l10n.errorInsufficientCoins, contains(_price));
       expect(
         tester
             .widget<TextField>(find.byKey(LiveChatComposer.fieldKey))

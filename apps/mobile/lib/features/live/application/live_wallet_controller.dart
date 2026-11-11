@@ -2,8 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 
-/// What a bullet message costs (CP-017, `LIVE_BULLET_COST_COINS`).
-const int liveBulletCostCoins = 15;
+/// What a bullet message costs (CP-017, `LIVE_BULLET_COST_COINS`): 10,000
+/// coins since the owner's decision D371 (it was 15). The server charges;
+/// this mirror only prices the hint.
+const int liveBulletCostCoins = 10000;
 
 /// The signed-in person's coin balance (`GET /wallet/me`, CP-017 §10.19);
 /// 0 for guests. A bullet's answer carries the balance after it ([set]).

@@ -18,6 +18,7 @@ import { FAMILY_CREATE_COST_COINS as COST } from '../src/modules/families/famili
 import { FamiliesService } from '../src/modules/families/families.service.js';
 import { uuidv7 } from '../src/modules/levels/uuidv7.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
+import { LIVE_BULLET_COST_COINS as BULLET } from '../src/modules/live/live-bullets.service.js';
 import { MEDAL_CATALOGUE } from '../src/modules/medals/medals.catalogue.js';
 
 /** D291: the wearable medals (the retired name-side icons are left out of every list). */
@@ -465,7 +466,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       const [leader, member, host] = [await signup(), await signup(), await signup()];
       const f = await newFamily(leader, 'Eagles');
       await join(leader, member, f.id);
-      // A bullet message (15 coins) by a member is 15 family points.
+      // A bullet message (LIVE_BULLET_COST_COINS, 10 000 coins since D371) by a member is as many family points.
       await ctx.prisma.liveHost.create({ data: { userId: host.id, source: 'ADMIN' } });
       const started = await ctx.http.post('/api/v1/live/rooms').set(auth(host)).send({ title: 'Family' });
       expect(started.status).toBe(201);
@@ -481,18 +482,18 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
         .set('Authorization', MemoryLiveMedia.sign(raw))
         .send(raw)
         .expect(200);
-      await grant(member, 1000);
+      await grant(member, 3 * BULLET);
       const bullet = await ctx.http
         .post(`/api/v1/live/rooms/${roomId}/bullets`)
         .set(auth(member))
         .send({ text: 'hello family', clientId: randomUUID() });
       expect(bullet.status).toBe(201);
-      expect((await family(member, f.id)).points).toBe(COST + 15);
+      expect((await family(member, f.id)).points).toBe(COST + BULLET);
       // The first bullet earns BULLET_FIRST.
       expect(await medalsOf(member)).toEqual(['BULLET_FIRST', 'FIRST_FAMILY']);
 
       // Crossing a threshold raises the level (points set near it instead of 33 more bullets).
-      // D200: level 2 at 4 000 000 points; 3 999 990 + 15 crosses it.
+      // D200: level 2 at 4 000 000 points; 3 999 990 + one bullet crosses it.
       await ctx.prisma.family.update({ where: { id: f.id }, data: { points: 3_999_990n } });
       clock.advance(6);
       const second = await ctx.http
@@ -500,15 +501,15 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
         .set(auth(member))
         .send({ text: 'level up', clientId: randomUUID() });
       expect(second.status).toBe(201);
-      expect(await family(member, f.id)).toMatchObject({ points: 4_000_005, level: 2 });
+      expect(await family(member, f.id)).toMatchObject({ points: 3_999_990 + BULLET, level: 2 });
       const entries = await ctx.prisma.familyPointsEntry.findMany({
         where: { familyId: f.id },
         orderBy: { createdAt: 'asc' },
       });
       expect(entries.map((e) => [e.userId, Number(e.points)])).toEqual([
         [leader.id, COST],
-        [member.id, 15],
-        [member.id, 15],
+        [member.id, BULLET],
+        [member.id, BULLET],
       ]);
       // A spender who is not in a family adds nothing anywhere; leaving keeps the points.
       expect((await ctx.http.post(`/api/v1/families/${f.id}/leave`).set(auth(member))).status).toBe(204);
@@ -518,7 +519,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
         .set(auth(member))
         .send({ text: 'outside', clientId: randomUUID() })
         .expect(201);
-      expect((await family(leader, f.id)).points).toBe(4_000_005);
+      expect((await family(leader, f.id)).points).toBe(3_999_990 + BULLET);
       await ctx.http.post(`/api/v1/live/rooms/${roomId}/end`).set(auth(host)).expect(200);
     });
   });

@@ -4626,18 +4626,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorInsufficientCoins =>
-      'You need 15 coins for a public message. For now the team adds coins; there is no purchase yet.';
+      'You need 10,000 coins for a public message. For now the team adds coins; there is no purchase yet.';
 
   @override
   String get liveBulletToggle => 'Public message';
 
   @override
-  String liveBulletHint(String coins) {
-    return 'Public message for 15 coins · You have $coins';
+  String liveBulletHint(String price, String coins) {
+    return 'Public message for $price coins · You have $coins';
   }
 
   @override
-  String get liveBulletHintNoBalance => 'Public message for 15 coins';
+  String liveBulletHintNoBalance(String price) {
+    return 'Public message for $price coins';
+  }
 
   @override
   String get liveBulletSent => 'Your public message went to every live';

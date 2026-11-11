@@ -226,7 +226,10 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
   // ---- Bullet messages ---------------------------------------------------------------------------
 
   describe('bullet messages', () => {
-    it('costs 15 coins and reaches every LIVE room (video and audio) on topic `bullet`', async () => {
+    // D371: a bullet costs 10 000 coins; the balances below are written in terms of the constant.
+    const COST = LIVE_BULLET_COST_COINS;
+
+    it('costs LIVE_BULLET_COST_COINS (10 000) coins and reaches every LIVE room (video and audio) on topic `bullet`', async () => {
       const [h1, h2, h3, h4] = [await host(), await host(), await host(), await host()];
       const viewer = await signup();
       const solo = await goLive(h1);
@@ -235,7 +238,7 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
       const ended = await goLive(h4);
       await end(ended, h4);
       await join(solo, viewer);
-      grant(viewer, 20);
+      grant(viewer, COST + 5);
       wait5();
 
       const clientId = randomUUID();
@@ -255,9 +258,9 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
           roomId: solo,
           createdAt: clock.now().toISOString(),
         },
-        coins: 20 - LIVE_BULLET_COST_COINS,
+        coins: 5,
       });
-      expect(LIVE_BULLET_COST_COINS).toBe(15);
+      expect(LIVE_BULLET_COST_COINS).toBe(10_000);
       expect(await wallet(viewer)).toBe(5);
 
       await settle(ctx);
@@ -273,8 +276,8 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
 
       const rows = await ledger(viewer);
       expect(rows.map((r) => [r.reason, Number(r.delta), Number(r.balanceAfter), r.referenceId])).toEqual([
-        ['ADMIN_GRANT', 20, 20, expect.any(String)],
-        ['BULLET_MESSAGE', -15, 5, res.body.bullet.id],
+        ['ADMIN_GRANT', COST + 5, COST + 5, expect.any(String)],
+        ['BULLET_MESSAGE', -COST, 5, res.body.bullet.id],
       ]);
       for (const [roomId, u] of [
         [solo, h1],
@@ -290,7 +293,7 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
       const viewer = await signup();
       const roomId = await goLive(h);
       await join(roomId, viewer);
-      grant(viewer, 14);
+      grant(viewer, COST - 1);
       wait5();
       const broadcastsBefore = media.broadcasts.length;
       const res = await bullet(roomId, viewer, { text: 'hello', clientId: randomUUID() });
@@ -299,7 +302,7 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
       expectContract(res, 'sendLiveBullet');
       await settle(ctx);
       expect(media.broadcasts.length).toBe(broadcastsBefore);
-      expect(await wallet(viewer)).toBe(14);
+      expect(await wallet(viewer)).toBe(COST - 1);
       expect(await ctx.prisma.liveBullet.count({ where: { userId: viewer.id } })).toBe(0);
       expect((await ledger(viewer)).map((r) => r.reason)).toEqual(['ADMIN_GRANT']);
 
@@ -318,7 +321,7 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
       const viewer = await signup();
       const roomId = await goLive(h);
       await join(roomId, viewer);
-      grant(viewer, 100);
+      grant(viewer, 3 * COST);
       wait5();
       const clientId = randomUUID();
       const first = await bullet(roomId, viewer, { text: 'once', clientId });
@@ -327,10 +330,10 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
       const again = await bullet(roomId, viewer, { text: 'twice?', clientId: clientId.toUpperCase() });
       expect(again.status).toBe(200);
       expectContract(again, 'sendLiveBullet');
-      expect(again.body).toEqual({ bullet: first.body.bullet, coins: 85 });
+      expect(again.body).toEqual({ bullet: first.body.bullet, coins: 2 * COST });
       await settle(ctx);
       expect(bulletsTo(roomId)).toHaveLength(1);
-      expect(await wallet(viewer)).toBe(85);
+      expect(await wallet(viewer)).toBe(2 * COST);
       expect((await ledger(viewer)).filter((r) => r.reason === 'BULLET_MESSAGE')).toHaveLength(1);
       // Concurrent duplicates: one bullet, one charge (a duplicate that reaches the 5-second
       // rule before the first one committed may get 429; it is never charged).
@@ -344,7 +347,7 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
       expect(statuses.every((s) => s === 200 || s === 201 || s === 429)).toBe(true);
       const ids = raced.filter((r) => r.status !== 429).map((r) => r.body.bullet.id as string);
       expect(new Set(ids).size).toBe(1);
-      expect(await wallet(viewer)).toBe(70);
+      expect(await wallet(viewer)).toBe(COST);
       expect((await ledger(viewer)).filter((r) => r.reason === 'BULLET_MESSAGE')).toHaveLength(2);
       await end(roomId, h);
     });
@@ -356,7 +359,7 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
       const b = await goLive(h2);
       await join(a, viewer);
       await join(b, viewer);
-      grant(viewer, 100);
+      grant(viewer, 3 * COST);
       wait5();
       expect((await bullet(a, viewer, { text: 'one', clientId: randomUUID() })).status).toBe(201);
       clock.advance(4);
@@ -365,10 +368,10 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
       expect(limited.body.error.code).toBe('RATE_LIMITED');
       expect(limited.headers['retry-after']).toBe('1');
       expectContract(limited, 'sendLiveBullet');
-      expect(await wallet(viewer)).toBe(85);
+      expect(await wallet(viewer)).toBe(2 * COST);
       clock.advance(1);
       expect((await bullet(b, viewer, { text: 'two', clientId: randomUUID() })).status).toBe(201);
-      expect(await wallet(viewer)).toBe(70);
+      expect(await wallet(viewer)).toBe(COST);
       await end(a, h1);
       await end(b, h2);
     });
@@ -377,7 +380,7 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
       const h = await host();
       const [viewer, outsider, muted] = [await signup(), await signup(), await signup()];
       const roomId = await goLive(h);
-      for (const u of [viewer, outsider, muted, h]) grant(u, 100);
+      for (const u of [viewer, outsider, muted, h]) grant(u, 3 * COST);
       await join(roomId, viewer);
       await join(roomId, muted);
       wait5();
@@ -430,17 +433,17 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
       );
       expect((await bullet(roomId, h, { text: 'from the host', clientId: randomUUID() })).status).toBe(201);
       // Nobody but these two was charged.
-      expect(await wallet(outsider)).toBe(100);
-      expect(await wallet(muted)).toBe(100);
-      expect(await wallet(viewer)).toBe(85);
-      expect(await wallet(h)).toBe(85);
+      expect(await wallet(outsider)).toBe(3 * COST);
+      expect(await wallet(muted)).toBe(3 * COST);
+      expect(await wallet(viewer)).toBe(2 * COST);
+      expect(await wallet(h)).toBe(2 * COST);
 
       await end(roomId, h);
       wait5();
       const after = await bullet(roomId, viewer, { text: 'hi', clientId: randomUUID() });
       expect(after.status).toBe(409);
       expect(after.body.error.code).toBe('LIVE_ROOM_ENDED');
-      expect(await wallet(viewer)).toBe(85);
+      expect(await wallet(viewer)).toBe(2 * COST);
     });
   });
 

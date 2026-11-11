@@ -727,9 +727,9 @@ export class LiveController {
   }
 
   /**
-   * CP-017: a bullet message to every live, 15 coins. 201 new, 200 a retry with the same
-   * `clientId`. 20 / min per user, replacing the default (§7); one every 5 s is a counting rule
-   * checked before the charge (§10.19).
+   * CP-017: a bullet message to every live for `LIVE_BULLET_COST_COINS` coins (10 000 since D371). 201 new,
+   * 200 a retry with the same `clientId`. 20 / min per user, replacing the default (§7); one every 5 s is a
+   * counting rule checked before the charge (§10.19).
    */
   @Post('rooms/:roomId/bullets')
   @RateLimit({ bucket: 'live:bullet', rule: 'liveChatUser', key: byUserId, replacesDefault: true })

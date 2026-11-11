@@ -4240,3 +4240,15 @@ CONVENTIONS §10.158 (owner approved 2026-11-11). One migration, no new setting,
 - **Order:** deploy the API image (the migration runs first) → ship the APK. An older app never sends `sort` (it gets
   today's order) and ignores `Comment.viewerHasDisliked`; its like still removes a dislike the person made on the new
   app.
+
+### 5.116 A public message «رسالة عامة» costs 10 000 coins (D371; no migration) — [IMPLEMENTED, draft contract v1.117-live; not deployed, not device-tested]
+
+CONVENTIONS §10.19 (owner 2026-11-11 «اريد جعل سعر الرسائل العامة ب ١٠ الاف كوينز»). A code constant
+(`LIVE_BULLET_COST_COINS`, 15 → 10 000): no migration, no new setting, no new secret, no new host.
+
+- **Behaviour change from the API deploy on:** every paid bullet is charged 10 000 coins and a balance under 10 000 gets
+  409 `INSUFFICIENT_COINS`. VIP free public messages (D258) stay free; a paid bullet's 10 000 coins count as family
+  points. Bullets already sent keep their recorded `cost` (15).
+- **Older apps** still show «رسالة عامة بـ 15 عملة» in the chat hint and «تحتاج 15 عملة» when refused, but the server
+  charges 10 000. Ship the APK with this change right after the API, and tell users (or the team) about the new price.
+- **Order:** deploy the API image → ship the APK.
