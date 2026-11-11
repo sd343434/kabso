@@ -867,94 +867,103 @@ class _GoldButton extends StatelessWidget {
     final t = context.textStyles;
     final live = enabled || busy;
     final shape = BorderRadius.circular(KRadius.pill);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: shape,
-        boxShadow: live
-            ? const [
-                BoxShadow(
-                  color: Color(0x40F5C451),
-                  blurRadius: 18,
-                  offset: Offset(0, 2),
-                ),
-              ]
-            : const [],
-      ),
-      child: Material(
-        type: MaterialType.transparency,
-        shape: const StadiumBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: Ink(
+    // Owner 2026-11-11 («اصغر وبشكل الطف»): a smaller, centred button.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 240),
+        child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: shape,
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: live
-                  ? const [
-                      Color(0xFFFFE9A3),
-                      Color(0xFFF5C451),
-                      Color(0xFFD99A2B),
-                    ]
-                  : const [Color(0xFF4A4658), Color(0xFF3A3646)],
-            ),
-            border: Border.all(
-              color: live ? const Color(0xFFFFF3C4) : const Color(0x33F5C451),
-              width: 0.8,
-            ),
+            boxShadow: live
+                ? const [
+                    BoxShadow(
+                      color: Color(0x33F5C451),
+                      blurRadius: 12,
+                      offset: Offset(0, 2),
+                    ),
+                  ]
+                : const [],
           ),
-          child: InkWell(
-            onTap: enabled ? onTap : null,
-            child: SizedBox(
-              height: 48,
-              width: double.infinity,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // The inner highlight over the top half.
-                  if (live)
-                    Positioned(
-                      top: 1,
-                      left: 14,
-                      right: 14,
-                      height: 20,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: shape,
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              const Color(0xFFFFFFFF).withValues(alpha: 0.45),
-                              const Color(0xFFFFFFFF).withValues(alpha: 0),
-                            ],
+          child: Material(
+            type: MaterialType.transparency,
+            shape: const StadiumBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: shape,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: live
+                      ? const [
+                          Color(0xFFFFE9A3),
+                          Color(0xFFF5C451),
+                          Color(0xFFD99A2B),
+                        ]
+                      : const [Color(0xFF4A4658), Color(0xFF3A3646)],
+                ),
+                border: Border.all(
+                  color: live
+                      ? const Color(0xFFFFF3C4)
+                      : const Color(0x33F5C451),
+                  width: 0.8,
+                ),
+              ),
+              child: InkWell(
+                onTap: enabled ? onTap : null,
+                child: SizedBox(
+                  height: 42,
+                  width: double.infinity,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // The inner highlight over the top half.
+                      if (live)
+                        Positioned(
+                          top: 1,
+                          left: 14,
+                          right: 14,
+                          height: 17,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: shape,
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  const Color(0xFFFFFFFF)
+                                      .withValues(alpha: 0.45),
+                                  const Color(0xFFFFFFFF).withValues(alpha: 0),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  if (busy)
-                    const SizedBox.square(
-                      dimension: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: ink,
-                      ),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: t.label.copyWith(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w700,
-                          color: live ? ink : const Color(0xFFB9B1C6),
+                      if (busy)
+                        const SizedBox.square(
+                          dimension: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: ink,
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.label.copyWith(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: live ? ink : const Color(0xFFB9B1C6),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -1305,7 +1314,7 @@ class VipPayWithSwitch extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTap: () => onChanged(points),
           child: Container(
-            height: 36,
+            height: 30,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(KRadius.pill),
@@ -1328,7 +1337,7 @@ class VipPayWithSwitch extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: t.label.copyWith(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: selected
                           ? _ink
@@ -1345,34 +1354,43 @@ class VipPayWithSwitch extends StatelessWidget {
     return Semantics(
       container: true,
       label: l10n.vipPayWith,
-      child: Container(
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: const Color(0x66000000),
-          borderRadius: BorderRadius.circular(KRadius.pill),
-          border: Border.all(color: _gold.withValues(alpha: 0.35), width: 0.8),
-        ),
-        child: Row(
-          children: [
-            pill(
-              key: VipScreen.payCoinsKey,
-              selected: !withPoints,
-              icon: const KabsoArtIcon(KabsoArt.coin, size: 16),
-              label: l10n.vipPayCoins,
-              points: false,
-            ),
-            pill(
-              key: VipScreen.payPointsKey,
-              selected: withPoints,
-              icon: Icon(
-                Icons.stars_rounded,
-                size: 17,
-                color: withPoints ? _ink : _gold,
+      // Owner 2026-11-11 («اصغر وبشكل الطف»): a smaller, centred switch.
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: const Color(0x66000000),
+              borderRadius: BorderRadius.circular(KRadius.pill),
+              border: Border.all(
+                color: _gold.withValues(alpha: 0.35),
+                width: 0.8,
               ),
-              label: l10n.vipPayPoints,
-              points: true,
             ),
-          ],
+            child: Row(
+              children: [
+                pill(
+                  key: VipScreen.payCoinsKey,
+                  selected: !withPoints,
+                  icon: const KabsoArtIcon(KabsoArt.coin, size: 14),
+                  label: l10n.vipPayCoins,
+                  points: false,
+                ),
+                pill(
+                  key: VipScreen.payPointsKey,
+                  selected: withPoints,
+                  icon: Icon(
+                    Icons.stars_rounded,
+                    size: 15,
+                    color: withPoints ? _ink : _gold,
+                  ),
+                  label: l10n.vipPayPoints,
+                  points: true,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
