@@ -138,8 +138,13 @@ abstract interface class PostsRepository {
   });
 
   /// `GET /posts/{postId}/comments`: top level, the pinned one first, then
-  /// by likes, then newest.
-  Future<PageOf<Comment>> comments(String postId, {String? cursor});
+  /// by likes, then newest ([CommentSort.relevant]) or newest first
+  /// ([CommentSort.newest], D364). A cursor belongs to its [sort].
+  Future<PageOf<Comment>> comments(
+    String postId, {
+    String? cursor,
+    CommentSort sort = CommentSort.relevant,
+  });
 
   /// `GET /comments/{commentId}/replies`: oldest first.
   Future<PageOf<Comment>> replies(String commentId, {String? cursor});
@@ -154,6 +159,13 @@ abstract interface class PostsRepository {
 
   /// `PUT`/`DELETE /comments/{commentId}/like`.
   Future<LikeState> setCommentLiked(String commentId, {required bool liked});
+
+  /// `PUT`/`DELETE /comments/{commentId}/dislike` (D364): private; a
+  /// dislike removes the caller's like.
+  Future<CommentDislikeState> setCommentDisliked(
+    String commentId, {
+    required bool disliked,
+  });
 
   /// `PUT`/`DELETE /comments/{commentId}/pin` (post author, top level; a
   /// new pin replaces the previous one).
@@ -462,18 +474,29 @@ class PostsRepositoryImpl implements PostsRepository {
     'cursor': cursor,
   });
 
-  Future<PageOf<Comment>> _comments(String path, String? cursor) =>
-      guardApiCall(() async {
-        final res = await _dio.get<Map<String, dynamic>>(
-          path,
-          queryParameters: {'cursor': ?cursor},
-        );
-        return _commentPage(res.data!);
-      });
+  Future<PageOf<Comment>> _comments(
+    String path,
+    String? cursor, [
+    String? sort,
+  ]) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      path,
+      queryParameters: {'sort': ?sort, 'cursor': ?cursor},
+    );
+    return _commentPage(res.data!);
+  });
 
   @override
-  Future<PageOf<Comment>> comments(String postId, {String? cursor}) =>
-      _comments('/posts/${pathSegment(postId)}/comments', cursor);
+  Future<PageOf<Comment>> comments(
+    String postId, {
+    String? cursor,
+    CommentSort sort = CommentSort.relevant,
+  }) => _comments(
+    '/posts/${pathSegment(postId)}/comments',
+    cursor,
+    // The server's default; sent only for another order.
+    sort == CommentSort.relevant ? null : sort.wire,
+  );
 
   @override
   Future<PageOf<Comment>> replies(String commentId, {String? cursor}) =>
@@ -510,6 +533,23 @@ class PostsRepositoryImpl implements PostsRepository {
           likeCount: body['likeCount'] as int?,
         );
       });
+
+  @override
+  Future<CommentDislikeState> setCommentDisliked(
+    String commentId, {
+    required bool disliked,
+  }) => guardApiCall(() async {
+    final path = '/comments/${pathSegment(commentId)}/dislike';
+    final res = disliked
+        ? await _dio.put<Map<String, dynamic>>(path)
+        : await _dio.delete<Map<String, dynamic>>(path);
+    final body = res.data!;
+    return (
+      disliked: body['disliked']! as bool,
+      liked: body['liked']! as bool,
+      likeCount: body['likeCount']! as int,
+    );
+  });
 
   @override
   Future<Comment> setCommentPinned(String commentId, {required bool pinned}) =>

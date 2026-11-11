@@ -125,6 +125,8 @@ model User {
   postMentions           PostMention[]
   comments               Comment[]
   commentLikes           CommentLike[]
+  /// v1.122-social (D364).
+  commentDislikes        CommentDislike[]
   commentMentions        CommentMention[]
   blocking               UserBlock[]                @relation("BlockBlocker")
   blockedBy              UserBlock[]                @relation("BlockBlocked")
@@ -2125,12 +2127,16 @@ model Comment {
   parent        Comment?         @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies       Comment[]        @relation("CommentReplies")
   likes         CommentLike[]
+  /// v1.122-social (D364): private; the number is never returned.
+  dislikes      CommentDislike[]
   mentions      CommentMention[]
   reports       Report[]
   notifications Notification[]
 
   @@unique([postId], map: "comments_one_pin_per_post", where: raw("pinned_at IS NOT NULL AND deleted_at IS NULL"))
   @@index([postId, likeCount(sort: Desc), createdAt(sort: Desc), id(sort: Desc)], map: "comments_top_idx", where: raw("parent_id IS NULL AND deleted_at IS NULL"))
+  /// v1.122-social (D364): `listComments?sort=NEWEST`.
+  @@index([postId, createdAt(sort: Desc), id(sort: Desc)], map: "comments_newest_idx", where: raw("parent_id IS NULL AND deleted_at IS NULL"))
   @@index([parentId, createdAt, id], map: "comments_replies_idx", where: raw("deleted_at IS NULL"))
   @@index([authorId], map: "comments_author_id_idx")
   @@map("comments")
@@ -2147,6 +2153,21 @@ model CommentLike {
   @@id([commentId, userId], map: "comment_likes_pkey")
   @@index([userId], map: "comment_likes_user_id_idx")
   @@map("comment_likes")
+}
+
+/// v1.122-social (D364, CONVENTIONS §10.158): a person's dislike of a comment. Private (never counted in any
+/// response); excludes the same person's `CommentLike` on the comment (the API keeps one of the two).
+model CommentDislike {
+  commentId String   @map("comment_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId], map: "comment_dislikes_pkey")
+  @@index([userId], map: "comment_dislikes_user_id_idx")
+  @@map("comment_dislikes")
 }
 
 model CommentMention {

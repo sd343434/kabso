@@ -3,10 +3,15 @@ import type { AuthContext } from '../../common/http/request-context.js';
 import { byUserId, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
-import { CommentsService, type CommentDto } from './comments.service.js';
+import { CommentsService, type CommentDto, type DislikeStateDto } from './comments.service.js';
 import type { LikeStateDto } from './post-interactions.service.js';
 import type { PageDto } from './post-views.js';
-import { pageQuerySchema, type PageQuery } from './posts.schemas.js';
+import {
+  commentListQuerySchema,
+  pageQuerySchema,
+  type CommentListQuery,
+  type PageQuery,
+} from './posts.schemas.js';
 
 /** Post and comment likes share one bucket (CONVENTIONS §11.8). */
 const LIKE_LIMIT = { bucket: 'social:like', rule: 'likeUser', key: byUserId, replacesDefault: true } as const;
@@ -20,7 +25,7 @@ export class CommentsController {
   list(
     @CurrentAuth() auth: AuthContext,
     @Param('postId') postId: string,
-    @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
+    @Query(new ZodValidationPipe(commentListQuerySchema)) query: CommentListQuery,
   ): Promise<PageDto<CommentDto>> {
     return this.comments.list(auth.userId, postId, query);
   }
@@ -63,6 +68,24 @@ export class CommentsController {
   @RateLimit(LIKE_LIMIT)
   unlike(@CurrentAuth() auth: AuthContext, @Param('commentId') commentId: string): Promise<LikeStateDto> {
     return this.comments.like(auth.userId, commentId, false);
+  }
+
+  /** v1.122-social (D364, §10.158): private dislike; excludes the caller's like. */
+  @Put('comments/:commentId/dislike')
+  @HttpCode(200)
+  @RateLimit(LIKE_LIMIT)
+  dislike(@CurrentAuth() auth: AuthContext, @Param('commentId') commentId: string): Promise<DislikeStateDto> {
+    return this.comments.dislike(auth.userId, commentId, true);
+  }
+
+  @Delete('comments/:commentId/dislike')
+  @HttpCode(200)
+  @RateLimit(LIKE_LIMIT)
+  undislike(
+    @CurrentAuth() auth: AuthContext,
+    @Param('commentId') commentId: string,
+  ): Promise<DislikeStateDto> {
+    return this.comments.dislike(auth.userId, commentId, false);
   }
 
   @Put('comments/:commentId/pin')

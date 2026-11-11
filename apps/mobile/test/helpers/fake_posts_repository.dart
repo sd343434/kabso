@@ -395,11 +395,28 @@ class FakePostsRepository implements PostsRepository {
     ...commentReplies.values,
   ].expand((l) => l).firstWhere((c) => c.id == id);
 
+  /// The orders `comments` was asked for, in call order (D364).
+  final List<CommentSort> commentSorts = [];
+
   @override
-  Future<PageOf<Comment>> comments(String postId, {String? cursor}) async {
-    await _step('comments:$postId:${cursor ?? ''}');
-    final all = [...?postComments[postId]]
-      ..sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+  Future<PageOf<Comment>> comments(
+    String postId, {
+    String? cursor,
+    CommentSort sort = CommentSort.relevant,
+  }) async {
+    commentSorts.add(sort);
+    final tag = sort == CommentSort.relevant ? '' : ':${sort.wire}';
+    await _step('comments:$postId:${cursor ?? ''}$tag');
+    final all = [...?postComments[postId]];
+    if (sort == CommentSort.newest) {
+      // Newest first by time, then id (the stored order breaks ties).
+      final order = {for (final (i, c) in all.indexed) c.id: i};
+      all.sort((a, b) {
+        final t = b.createdAt.compareTo(a.createdAt);
+        return t != 0 ? t : order[b.id]!.compareTo(order[a.id]!);
+      });
+    }
+    all.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
     return _commentSlice(all, cursor);
   }
 
@@ -453,9 +470,36 @@ class FakePostsRepository implements PostsRepository {
         : (c.likeCount + (liked ? 1 : -1)).clamp(0, 1 << 31);
     _updateComment(
       commentId,
-      (x) => x.copyWith(viewerHasLiked: liked, likeCount: n),
+      // D364: a like removes the caller's dislike.
+      (x) => x.copyWith(
+        viewerHasLiked: liked,
+        viewerHasDisliked: liked ? false : null,
+        likeCount: n,
+      ),
     );
     return (liked: liked, likeCount: n);
+  }
+
+  @override
+  Future<CommentDislikeState> setCommentDisliked(
+    String commentId, {
+    required bool disliked,
+  }) async {
+    await _step('dislikeComment:$commentId:$disliked');
+    final c = _find(commentId);
+    final n = disliked && c.viewerHasLiked
+        ? (c.likeCount - 1).clamp(0, 1 << 31)
+        : c.likeCount;
+    final liked = !disliked && c.viewerHasLiked;
+    _updateComment(
+      commentId,
+      (x) => x.copyWith(
+        viewerHasDisliked: disliked,
+        viewerHasLiked: liked,
+        likeCount: n,
+      ),
+    );
+    return (disliked: disliked, liked: liked, likeCount: n);
   }
 
   @override
@@ -737,17 +781,20 @@ Comment testComment(
   String? parentId,
   int likes = 0,
   bool liked = false,
+  bool disliked = false,
   int replies = 0,
   bool pinned = false,
   bool canDelete = false,
+  DateTime? createdAt,
 }) => Comment(
   id: id,
   postId: postId,
   author: author,
   text: text,
-  createdAt: DateTime.utc(2026, 10, 20, 10),
+  createdAt: createdAt ?? DateTime.utc(2026, 10, 20, 10),
   likeCount: likes,
   viewerHasLiked: liked,
+  viewerHasDisliked: disliked,
   replyCount: replies,
   parentId: parentId,
   mentions: const [],

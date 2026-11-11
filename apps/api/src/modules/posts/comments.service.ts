@@ -17,7 +17,8 @@ import {
   visiblePostWhere,
   type PageDto,
 } from './post-views.js';
-import { createCommentSchema, type PageQuery } from './posts.schemas.js';
+import { commentAfterWhere, commentListScope, commentOrderBy, commentPosition } from './comment-order.js';
+import { createCommentSchema, type CommentListQuery, type PageQuery } from './posts.schemas.js';
 import { PostsService } from './posts.service.js';
 import { parseMentions } from './text-entities.js';
 import { assertNotRestricted } from '../users/account-control.js';
@@ -33,11 +34,20 @@ export interface CommentDto {
   createdAt: string;
   likeCount: number;
   viewerHasLiked: boolean;
+  /** v1.122-social (D364): the caller's own dislike; the number is never returned. */
+  viewerHasDisliked: boolean;
   replyCount: number;
   parentId: string | null;
   mentions: UserSummaryDto[];
   pinned: boolean;
   canDelete: boolean;
+}
+
+/** `CommentDislikeState` (v1.122-social, D364): the caller's reaction after the change; no dislike count. */
+export interface DislikeStateDto {
+  disliked: boolean;
+  liked: boolean;
+  likeCount: number;
 }
 
 /**
@@ -62,6 +72,7 @@ function include(viewerId: string) {
     post: { select: { authorId: true } },
     mentions: { where: { user: { status: 'ACTIVE' } }, include: { user: { select: MENTION_USER_SELECT } } },
     likes: { where: { userId: viewerId }, select: { userId: true }, take: 1 },
+    dislikes: { where: { userId: viewerId }, select: { userId: true }, take: 1 },
   } satisfies Prisma.CommentInclude;
 }
 
@@ -171,15 +182,19 @@ export class CommentsService {
   // ---------------------------------------------------------------------------------------------
   // Lists
 
-  /** `GET /posts/{postId}/comments`: the pinned one (first page), then by likes, then newest. */
-  async list(viewerId: string, postId: string, query: PageQuery): Promise<PageDto<CommentDto>> {
+  /**
+   * `GET /posts/{postId}/comments`: the pinned one (first page), then by likes, then newest (`RELEVANT`), or newest
+   * first (`NEWEST`, v1.122-social §10.158). The cursor is signed for its order.
+   */
+  async list(viewerId: string, postId: string, query: CommentListQuery): Promise<PageDto<CommentDto>> {
     if (!isUuid(postId)) throw new AppException(ErrorCode.NOT_FOUND);
     const post = await this.prisma.post.findFirst({
       where: { AND: [{ id: postId.toLowerCase() }, visiblePostWhere(viewerId)] },
       select: { id: true },
     });
     if (!post) throw new AppException(ErrorCode.NOT_FOUND);
-    const scope = `comments:${post.id}:${viewerId}`;
+    const sort = query.sort;
+    const scope = commentListScope(post.id, viewerId, sort);
     const after = this.posts.decode(query.cursor, scope);
     const base: Prisma.CommentWhereInput = {
       AND: [visibleCommentWhere(viewerId), { postId: post.id, parentId: null }],
@@ -194,21 +209,9 @@ export class CommentsService {
     const room = Math.max(query.limit - pinned.length, 1);
     const rows = await this.prisma.comment.findMany({
       where: {
-        AND: [
-          base,
-          { pinnedAt: null },
-          after
-            ? {
-                OR: [
-                  { likeCount: { lt: after.n ?? 0 } },
-                  { likeCount: after.n ?? 0, createdAt: { lt: after.at } },
-                  { likeCount: after.n ?? 0, createdAt: after.at, id: { lt: after.id } },
-                ],
-              }
-            : {},
-        ],
+        AND: [base, { pinnedAt: null }, commentAfterWhere(sort, after)],
       },
-      orderBy: [{ likeCount: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: commentOrderBy(sort),
       take: room + 1,
       select: { id: true, likeCount: true, createdAt: true },
     });
@@ -219,10 +222,7 @@ export class CommentsService {
       data: await this.load(viewerId, [...pinned.map((p) => p.id), ...pageRows.map((r) => r.id)]),
       page: {
         hasMore,
-        nextCursor:
-          hasMore && last
-            ? this.posts.cursors.encode(scope, { at: last.createdAt, id: last.id, n: last.likeCount })
-            : null,
+        nextCursor: hasMore && last ? this.posts.cursors.encode(scope, commentPosition(sort, last)) : null,
       },
     };
   }
@@ -331,28 +331,69 @@ export class CommentsService {
       // the post, so taking the comment first would deadlock with a reply being created (§11.10).
       await tx.$queryRaw`SELECT 1 FROM posts WHERE id = ${found.postId}::uuid FOR UPDATE`;
       await tx.$queryRaw`SELECT 1 FROM comments WHERE id = ${found.id}::uuid FOR UPDATE`;
-      const changed = liked
-        ? (await tx.commentLike.createMany({ data: [{ commentId: found.id, userId }], skipDuplicates: true }))
-            .count
-        : (await tx.commentLike.deleteMany({ where: { commentId: found.id, userId } })).count;
-      const { likeCount } = changed
-        ? await tx.comment.update({
-            where: { id: found.id },
-            data: { likeCount: { increment: liked ? 1 : -1 } },
-            select: { likeCount: true },
-          })
-        : await tx.comment.findUniqueOrThrow({ where: { id: found.id }, select: { likeCount: true } });
-      if (changed) {
-        const n = {
-          type: 'LIKE_COMMENT',
-          recipientId: found.authorId,
-          actorId: userId,
-          postId: found.postId,
-          commentId: found.id,
-        } as const;
-        await (liked ? this.notifier.notify(tx, n) : this.notifier.undo(tx, n));
-      }
+      // v1.122-social (D364): a like and a dislike exclude each other.
+      if (liked) await tx.commentDislike.deleteMany({ where: { commentId: found.id, userId } });
+      const likeCount = await this.setLikeIn(tx, found, userId, liked);
       return { liked, likeCount };
+    });
+  }
+
+  /**
+   * Writes or removes the caller's like on a locked comment, with its counter and `LIKE_COMMENT` notification;
+   * returns the like count after it.
+   */
+  private async setLikeIn(
+    tx: Tx,
+    found: { id: string; postId: string; authorId: string },
+    userId: string,
+    liked: boolean,
+  ): Promise<number> {
+    const changed = liked
+      ? (await tx.commentLike.createMany({ data: [{ commentId: found.id, userId }], skipDuplicates: true }))
+          .count
+      : (await tx.commentLike.deleteMany({ where: { commentId: found.id, userId } })).count;
+    const { likeCount } = changed
+      ? await tx.comment.update({
+          where: { id: found.id },
+          data: { likeCount: { increment: liked ? 1 : -1 } },
+          select: { likeCount: true },
+        })
+      : await tx.comment.findUniqueOrThrow({ where: { id: found.id }, select: { likeCount: true } });
+    if (changed) {
+      const n = {
+        type: 'LIKE_COMMENT',
+        recipientId: found.authorId,
+        actorId: userId,
+        postId: found.postId,
+        commentId: found.id,
+      } as const;
+      await (liked ? this.notifier.notify(tx, n) : this.notifier.undo(tx, n));
+    }
+    return likeCount;
+  }
+
+  /**
+   * `PUT`/`DELETE /comments/{commentId}/dislike` (v1.122-social, D364, §10.158; idempotent). Private: no count is
+   * returned and nobody is notified. Disliking removes the caller's like (its counter and notification go as on
+   * unlike). Same visibility and lock order as [like].
+   */
+  async dislike(userId: string, commentId: string, disliked: boolean): Promise<DislikeStateDto> {
+    return this.prisma.$transaction(async (tx) => {
+      const found = await this.findVisible(tx, userId, commentId);
+      await tx.$queryRaw`SELECT 1 FROM posts WHERE id = ${found.postId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT 1 FROM comments WHERE id = ${found.id}::uuid FOR UPDATE`;
+      if (disliked) {
+        await tx.commentDislike.createMany({ data: [{ commentId: found.id, userId }], skipDuplicates: true });
+        const likeCount = await this.setLikeIn(tx, found, userId, false);
+        return { disliked, liked: false, likeCount };
+      }
+      await tx.commentDislike.deleteMany({ where: { commentId: found.id, userId } });
+      const row = await tx.comment.findUniqueOrThrow({
+        where: { id: found.id },
+        select: { likeCount: true },
+      });
+      const mine = await tx.commentLike.count({ where: { commentId: found.id, userId } });
+      return { disliked, liked: mine > 0, likeCount: row.likeCount };
     });
   }
 
@@ -415,6 +456,7 @@ export class CommentsService {
       createdAt: row.createdAt.toISOString(),
       likeCount: row.likeCount,
       viewerHasLiked: row.likes.length > 0,
+      viewerHasDisliked: row.dislikes.length > 0,
       replyCount: row.replyCount,
       parentId: row.parentId,
       mentions: parseMentions(row.text).flatMap((u) => {

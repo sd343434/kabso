@@ -57,6 +57,7 @@ class CommentsState {
     this.next,
     this.loadingMore = false,
     this.countDelta = 0,
+    this.sort = CommentSort.relevant,
   });
 
   final List<CommentThread> threads;
@@ -69,6 +70,9 @@ class CommentsState {
   /// keep the post's `commentCount` current without reloading it.
   final int countDelta;
 
+  /// The order the list is in (D364); kept while the sheet is open.
+  final CommentSort sort;
+
   CommentsState copyWith({
     List<CommentThread>? threads,
     String? next,
@@ -80,6 +84,7 @@ class CommentsState {
     next: clearNext ? null : (next ?? this.next),
     loadingMore: loadingMore ?? this.loadingMore,
     countDelta: countDelta ?? this.countDelta,
+    sort: sort,
   );
 }
 
@@ -95,16 +100,46 @@ class CommentsController extends AsyncNotifier<CommentsState> {
 
   PostsRepository get _repo => ref.read(postsRepositoryProvider);
 
+  /// The chosen order (D364): the sheet's menu; a rebuild keeps it.
+  CommentSort _sort = CommentSort.relevant;
+
   @override
   Future<CommentsState> build() async {
     ref
       ..watch(currentUserProvider.select((u) => u?.id))
       ..watch(postsRepositoryProvider);
-    final page = await _repo.comments(postId);
+    final sort = _sort;
+    final page = await _repo.comments(postId, sort: sort);
     return CommentsState(
       threads: [for (final c in page.items) CommentThread(comment: c)],
       next: page.next,
+      sort: sort,
     );
+  }
+
+  /// Lists the comments in [sort] from the first page (D364). The count
+  /// kept for the post ([CommentsState.countDelta]) carries over. A later
+  /// choice wins over an earlier answer still on its way.
+  /// [reload] loads it again even when it is the current order (retry).
+  Future<void> setSort(CommentSort sort, {bool reload = false}) async {
+    if (sort == _sort && state.hasValue && !reload) return;
+    _sort = sort;
+    final delta = _current?.countDelta ?? 0;
+    state = const AsyncLoading();
+    try {
+      final page = await _repo.comments(postId, sort: sort);
+      if (_sort != sort) return;
+      _set(
+        CommentsState(
+          threads: [for (final c in page.items) CommentThread(comment: c)],
+          next: page.next,
+          countDelta: delta,
+          sort: sort,
+        ),
+      );
+    } on Object catch (e, st) {
+      if (_sort == sort && ref.mounted) state = AsyncError(e, st);
+    }
   }
 
   CommentsState? get _current => state.value;
@@ -130,7 +165,7 @@ class CommentsController extends AsyncNotifier<CommentsState> {
     if (s == null || s.next == null || s.loadingMore) return;
     _set(s.copyWith(loadingMore: true));
     try {
-      final page = await _repo.comments(postId, cursor: s.next);
+      final page = await _repo.comments(postId, cursor: s.next, sort: s.sort);
       final now = _current!;
       final known = {for (final t in now.threads) t.comment.id};
       _set(
@@ -309,12 +344,14 @@ class CommentsController extends AsyncNotifier<CommentsState> {
     );
   }
 
-  /// Likes or unlikes [comment] at once; back as it was when it fails.
+  /// Likes or unlikes [comment] at once; back as it was when it fails. A
+  /// like removes the caller's dislike (D364).
   Future<void> toggleLike(Comment comment) async {
     final next = !comment.viewerHasLiked;
     _replace(
       comment.copyWith(
         viewerHasLiked: next,
+        viewerHasDisliked: next ? false : null,
         likeCount: (comment.likeCount + (next ? 1 : -1)).clamp(0, 1 << 31),
       ),
     );
@@ -323,7 +360,37 @@ class CommentsController extends AsyncNotifier<CommentsState> {
       _replace(
         comment.copyWith(
           viewerHasLiked: like.liked,
+          viewerHasDisliked: like.liked ? false : null,
           likeCount: like.likeCount ?? comment.likeCount,
+        ),
+      );
+    } on Object {
+      _replace(comment);
+      rethrow;
+    }
+  }
+
+  /// Dislikes or takes back the dislike of [comment] at once (D364); a
+  /// dislike removes the caller's like. Back as it was when it fails.
+  Future<void> toggleDislike(Comment comment) async {
+    final next = !comment.viewerHasDisliked;
+    final dropsLike = next && comment.viewerHasLiked;
+    _replace(
+      comment.copyWith(
+        viewerHasDisliked: next,
+        viewerHasLiked: next ? false : null,
+        likeCount: dropsLike
+            ? (comment.likeCount - 1).clamp(0, 1 << 31)
+            : comment.likeCount,
+      ),
+    );
+    try {
+      final r = await _repo.setCommentDisliked(comment.id, disliked: next);
+      _replace(
+        comment.copyWith(
+          viewerHasDisliked: r.disliked,
+          viewerHasLiked: r.liked,
+          likeCount: r.likeCount,
         ),
       );
     } on Object {

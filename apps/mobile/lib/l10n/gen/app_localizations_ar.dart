@@ -2789,6 +2789,18 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get commentsSortRelevant => 'الأكثر صلة';
+
+  @override
+  String get commentsSortNewest => 'الأحدث';
+
+  @override
+  String get commentsSortMenu => 'ترتيب التعليقات';
+
+  @override
+  String get commentsDislike => 'عدم إعجاب';
+
+  @override
   String get commentsOpen => 'عرض التعليقات';
 
   @override

@@ -2760,6 +2760,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get commentsSortRelevant => 'Most relevant';
+
+  @override
+  String get commentsSortNewest => 'Newest';
+
+  @override
+  String get commentsSortMenu => 'Sort comments';
+
+  @override
+  String get commentsDislike => 'Dislike';
+
+  @override
   String get commentsOpen => 'View comments';
 
   @override

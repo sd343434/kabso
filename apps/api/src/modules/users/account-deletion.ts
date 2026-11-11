@@ -343,6 +343,8 @@ export async function purgeAccountIn(
     WITH d AS (DELETE FROM comment_likes WHERE user_id = ${u} RETURNING comment_id),
          c AS (SELECT comment_id, count(*)::int AS n FROM d GROUP BY comment_id)
     UPDATE comments k SET like_count = GREATEST(k.like_count - c.n, 0) FROM c WHERE k.id = c.comment_id`;
+  // v1.122-social (D364): their private comment dislikes (no counter to adjust).
+  await tx.$executeRaw`DELETE FROM comment_dislikes WHERE user_id = ${u}`;
   // Views and share events are totals of the past (the counters stay); their rows name the viewer.
   await tx.$executeRaw`DELETE FROM post_views WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM post_share_events WHERE user_id = ${u}`;

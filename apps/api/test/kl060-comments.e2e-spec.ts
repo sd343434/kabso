@@ -248,4 +248,142 @@ describe('KL-060 comments', () => {
     expect((await ctx.http.put(`/api/v1/comments/${t}/like`).set(auth(me))).status).toBe(404);
     expect((await ctx.http.get(`/api/v1/comments/${t}/replies`).set(auth(me))).status).toBe(404);
   });
+
+  // v1.122-social (D364, CONVENTIONS §10.158).
+  it('sort=NEWEST: the pinned one, then newest first; cursors are bound to their order', async () => {
+    const [author, a, b] = [await signup(), await signup(), await signup()];
+    const postId = await post(author);
+    const c1 = (await comment(a, postId, { text: 'one' })).body.id as string;
+    const c2 = (await comment(b, postId, { text: 'two' })).body.id as string;
+    const c3 = (await comment(a, postId, { text: 'three' })).body.id as string;
+    const c4 = (await comment(b, postId, { text: 'four' })).body.id as string;
+    // Replies are not listed at the top level in either order.
+    await comment(a, postId, { text: 'r', parentId: c1 });
+    // Likes order RELEVANT only: c1 2 likes, c2 1.
+    await ctx.http.put(`/api/v1/comments/${c1}/like`).set(auth(b));
+    await ctx.http.put(`/api/v1/comments/${c1}/like`).set(auth(author));
+    await ctx.http.put(`/api/v1/comments/${c2}/like`).set(auth(a));
+    const list = (q: string) => ctx.http.get(`/api/v1/posts/${postId}/comments${q}`).set(auth(a));
+
+    const relevant = await list('');
+    expect(relevant.status).toBe(200);
+    expectContract(relevant, 'listComments');
+    expect(ids(relevant)).toEqual([c1, c2, c4, c3]);
+    expect(ids(await list('?sort=RELEVANT'))).toEqual([c1, c2, c4, c3]);
+    const newest = await list('?sort=NEWEST');
+    expect(newest.status).toBe(200);
+    expectContract(newest, 'listComments');
+    expect(ids(newest)).toEqual([c4, c3, c2, c1]);
+
+    // Pinned first, on the first page only; paging continues by time.
+    await ctx.http.put(`/api/v1/comments/${c2}/pin`).set(auth(author));
+    const p1 = await list('?sort=NEWEST&limit=2');
+    expect(ids(p1)).toEqual([c2, c4]);
+    const p2 = await list(`?sort=NEWEST&limit=2&cursor=${p1.body.page.nextCursor}`);
+    expect(ids(p2)).toEqual([c3, c1]);
+    expect(p2.body.page.hasMore).toBe(false);
+
+    // A cursor of one order is refused by the other (and by the default).
+    for (const q of [
+      `?cursor=${p1.body.page.nextCursor}`,
+      `?sort=RELEVANT&cursor=${p1.body.page.nextCursor}`,
+    ]) {
+      const bad = await list(q);
+      expect(bad.status, q).toBe(400);
+      expect(bad.body.error.details).toEqual([{ field: 'cursor', issue: 'invalid_value' }]);
+      expectContract(bad, 'listComments');
+    }
+    const r1 = await list('?limit=2');
+    const crossed = await list(`?sort=NEWEST&cursor=${r1.body.page.nextCursor}`);
+    expect(crossed.status).toBe(400);
+    expect(crossed.body.error.details).toEqual([{ field: 'cursor', issue: 'invalid_value' }]);
+    // RELEVANT cursors keep working as before.
+    expect(ids(await list(`?limit=2&cursor=${r1.body.page.nextCursor}`))).toEqual([c4, c3]);
+
+    const unknown = await list('?sort=newest');
+    expect(unknown.status).toBe(400);
+    expect(unknown.body.error.details[0].field).toBe('sort');
+    expectContract(unknown, 'listComments');
+  });
+
+  it('dislike: private, idempotent, exclusive with the like; blocks and deleted comments → 404', async () => {
+    const [author, a, b, troll] = [await signup(), await signup(), await signup(), await signup()];
+    const postId = await post(author);
+    const c1 = (await comment(author, postId, { text: 'mine' })).body.id as string;
+    const url = `/api/v1/comments/${c1}`;
+
+    // A like, then a dislike: the like goes (count and notification).
+    expect((await ctx.http.put(`${url}/like`).set(auth(a))).body).toEqual({ liked: true, likeCount: 1 });
+    await ctx.http.put(`${url}/like`).set(auth(b));
+    const actorsOf = (userId: string) =>
+      ctx.prisma.notificationActor.count({
+        where: { actorId: userId, notification: { recipientId: author.id, commentId: c1 } },
+      });
+    expect(await actorsOf(a.id)).toBe(1);
+    const notesBefore = await ctx.prisma.notification.count({ where: { recipientId: author.id } });
+    const disliked = await Promise.all(
+      Array.from({ length: 3 }, () => ctx.http.put(`${url}/dislike`).set(auth(a))),
+    );
+    expect(disliked.every((r) => r.status === 200)).toBe(true);
+    expectContract(disliked[0]!, 'dislikeComment');
+    expect(disliked[0]!.body).toEqual({ disliked: true, liked: false, likeCount: 1 });
+    expect(await ctx.prisma.commentDislike.count({ where: { commentId: c1 } })).toBe(1);
+    expect(await ctx.prisma.commentLike.count({ where: { commentId: c1, userId: a.id } })).toBe(0);
+    // No notification for a dislike; the like's one is taken back from a (b's stays).
+    expect(await actorsOf(a.id)).toBe(0);
+    expect(await actorsOf(b.id)).toBe(1);
+    expect(await ctx.prisma.notification.count({ where: { recipientId: author.id } })).toBeLessThanOrEqual(
+      notesBefore,
+    );
+
+    // The count is never returned: not to the disliker, not to the author.
+    const mineView = await ctx.http.get(`/api/v1/posts/${postId}/comments`).set(auth(a));
+    expectContract(mineView, 'listComments');
+    expect(mineView.body.data[0]).toMatchObject({
+      id: c1,
+      viewerHasDisliked: true,
+      viewerHasLiked: false,
+      likeCount: 1,
+    });
+    const authorView = await ctx.http.get(`/api/v1/posts/${postId}/comments`).set(auth(author));
+    expect(authorView.body.data[0]).toMatchObject({ viewerHasDisliked: false, likeCount: 1 });
+    expect(JSON.stringify(authorView.body)).not.toMatch(/dislikeCount|dislikes/i);
+
+    // Liking again removes the dislike.
+    expect((await ctx.http.put(`${url}/like`).set(auth(a))).body).toEqual({ liked: true, likeCount: 2 });
+    expect(await ctx.prisma.commentDislike.count({ where: { commentId: c1 } })).toBe(0);
+
+    // Undislike is idempotent and says whether the caller's like stands.
+    const none = await ctx.http.delete(`${url}/dislike`).set(auth(a));
+    expect(none.status).toBe(200);
+    expectContract(none, 'undislikeComment');
+    expect(none.body).toEqual({ disliked: false, liked: true, likeCount: 2 });
+    await ctx.http.put(`${url}/dislike`).set(auth(b));
+    const back = await ctx.http.delete(`${url}/dislike`).set(auth(b));
+    expect(back.body).toEqual({ disliked: false, liked: false, likeCount: 1 });
+    expect((await ctx.http.delete(`${url}/dislike`).set(auth(b))).body).toEqual({
+      disliked: false,
+      liked: false,
+      likeCount: 1,
+    });
+
+    // Dislikes never change the order.
+    const c2 = (await comment(b, postId, { text: 'newer' })).body.id as string;
+    await ctx.http.put(`${url}/dislike`).set(auth(b));
+    expect(ids(await ctx.http.get(`/api/v1/posts/${postId}/comments`).set(auth(b)))).toEqual([c1, c2]);
+
+    // Blocks either way, unknown and deleted comments: 404.
+    await withMigrationClient((c) =>
+      c.userBlock.create({ data: { blockerId: author.id, blockedId: troll.id } }),
+    );
+    const blocked = await ctx.http.put(`${url}/dislike`).set(auth(troll));
+    expect(blocked.status).toBe(404);
+    expectContract(blocked, 'dislikeComment');
+    expect((await ctx.http.put(`/api/v1/comments/${randomUUID()}/dislike`).set(auth(a))).status).toBe(404);
+    expect((await ctx.http.put(`/api/v1/comments/nope/dislike`).set(auth(a))).status).toBe(404);
+    expect((await ctx.http.delete(`/api/v1/comments/${c2}`).set(auth(b))).status).toBe(204);
+    expect((await ctx.http.put(`/api/v1/comments/${c2}/dislike`).set(auth(a))).status).toBe(404);
+    expect((await ctx.http.delete(`/api/v1/comments/${c2}/dislike`).set(auth(a))).status).toBe(404);
+    expect((await ctx.http.put(`${url}/dislike`)).status).toBe(401);
+  });
 });

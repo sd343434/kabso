@@ -84,6 +84,17 @@ export const pageQuerySchema = z.strictObject({
 });
 export type PageQuery = z.output<typeof pageQuerySchema>;
 
+/** `GET /posts/{postId}/comments` (v1.122-social adds `sort`, §10.158): `RELEVANT` (default) or `NEWEST`. */
+export const commentListQuerySchema = z.strictObject({
+  sort: z
+    .enum(['RELEVANT', 'NEWEST'])
+    .optional()
+    .transform((v) => v ?? 'RELEVANT'),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type CommentListQuery = z.output<typeof commentListQuerySchema>;
+
 export const myPostsQuerySchema = z.strictObject({
   status: z.string().pipe(z.enum(['DRAFT', 'SCHEDULED'])),
   cursor: z.string().min(1).max(512).optional(),

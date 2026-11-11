@@ -4940,6 +4940,30 @@ abstract class AppLocalizations {
   /// **'عرض ردود أخرى ({count})'**
   String commentsMoreReplies(int count);
 
+  /// D364 comments sheet order menu: the pinned comment, then by likes, then newest (listComments sort=RELEVANT, the default).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأكثر صلة'**
+  String get commentsSortRelevant;
+
+  /// D364 comments sheet order menu: the pinned comment, then newest first (listComments sort=NEWEST).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأحدث'**
+  String get commentsSortNewest;
+
+  /// D364 tooltip / screen-reader name of the comments order menu button.
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب التعليقات'**
+  String get commentsSortMenu;
+
+  /// D364 screen-reader name of a comment's dislike button (private: no count is shown).
+  ///
+  /// In ar, this message translates to:
+  /// **'عدم إعجاب'**
+  String get commentsDislike;
+
   /// KL-060 comment button semantics.
   ///
   /// In ar, this message translates to:

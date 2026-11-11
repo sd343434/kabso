@@ -251,6 +251,10 @@ class PageOf<T> {
 /// `LikeState`.
 typedef LikeState = ({bool liked, int? likeCount});
 
+/// `CommentDislikeState` (D364): the caller's reaction after a dislike
+/// change; there is no dislike count.
+typedef CommentDislikeState = ({bool disliked, bool liked, int likeCount});
+
 /// One item of `RecordViewsRequest`: how long a post was on screen.
 typedef PostView = ({String postId, int watchedMs});
 
@@ -370,6 +374,7 @@ class Comment {
     required this.mentions,
     required this.pinned,
     required this.canDelete,
+    this.viewerHasDisliked = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => Comment(
@@ -380,6 +385,8 @@ class Comment {
     createdAt: DateTime.parse(json['createdAt']! as String),
     likeCount: json['likeCount']! as int,
     viewerHasLiked: json['viewerHasLiked']! as bool,
+    // v1.122-social (D364); absent from older servers.
+    viewerHasDisliked: json['viewerHasDisliked'] as bool? ?? false,
     replyCount: json['replyCount']! as int,
     parentId: json['parentId'] as String?,
     mentions: [
@@ -397,6 +404,9 @@ class Comment {
   final DateTime createdAt;
   final int likeCount;
   final bool viewerHasLiked;
+
+  /// The caller disliked it (D364). The number of dislikes is private.
+  final bool viewerHasDisliked;
   final int replyCount;
 
   /// The top-level comment of a reply.
@@ -412,6 +422,7 @@ class Comment {
   Comment copyWith({
     int? likeCount,
     bool? viewerHasLiked,
+    bool? viewerHasDisliked,
     int? replyCount,
     bool? pinned,
   }) => Comment(
@@ -422,6 +433,7 @@ class Comment {
     createdAt: createdAt,
     likeCount: likeCount ?? this.likeCount,
     viewerHasLiked: viewerHasLiked ?? this.viewerHasLiked,
+    viewerHasDisliked: viewerHasDisliked ?? this.viewerHasDisliked,
     replyCount: replyCount ?? this.replyCount,
     parentId: parentId,
     mentions: mentions,
@@ -485,3 +497,15 @@ enum SearchType { users, hashtags, posts }
 
 /// The order of a hashtag's posts (`GET /hashtags/{tag}/posts?sort=`).
 enum HashtagSort { recent, top }
+
+/// The order of a post's comments (`GET /posts/{postId}/comments?sort=`,
+/// D364): the pinned one first, then by likes ([relevant], the default) or
+/// newest first ([newest]).
+enum CommentSort {
+  relevant('RELEVANT'),
+  newest('NEWEST');
+
+  new(this.wire);
+
+  final String wire;
+}

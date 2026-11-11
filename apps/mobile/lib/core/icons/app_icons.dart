@@ -32,6 +32,11 @@ abstract final class AppIcons {
   static const String bell = '$_p/bell_outline.svg';
   static const String heart = '$_p/heart_outline.svg';
   static const String heartFilled = '$_p/heart_filled.svg';
+
+  /// D364: the comment dislike. Drawn for Kabso in this set's style (24
+  /// grid, 2-unit round strokes, `currentColor`); not an owner file.
+  static const String thumbDown = '$_p/thumb_down_outline.svg';
+  static const String thumbDownFilled = '$_p/thumb_down_filled.svg';
   static const String comment = '$_p/comment_outline.svg';
   static const String commentFilled = '$_p/comment_filled.svg';
   static const String bookmark = '$_p/bookmark_outline.svg';

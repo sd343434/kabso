@@ -580,6 +580,12 @@ info:
     control `setLivePodcastControl`, the segments (`PodcastSetup.segments`, `setLivePodcastSegments`,
     `nextLivePodcastSegment`), the audience question on screen (`showLivePodcastQuestion` / `hideLivePodcastQuestion`)
     and `LiveSeats.studio` (`LivePodcastStudio`, data message `studio`); migration `20270426090100_podcast_video_studio`.
+    **D364 (DRAFT v1.122-social)** the comments sheet's order menu and the comment dislike (CONVENTIONS §10.158; owner
+    approved 2026-11-11): `listComments?sort=RELEVANT|NEWEST` (default RELEVANT, today's order; NEWEST = the pinned
+    comment, then newest first; a cursor is bound to its order, another order's cursor → 400 `cursor` /
+    `invalid_value`); `dislikeComment` / `undislikeComment` (`PUT`/`DELETE /comments/{commentId}/dislike`,
+    `CommentDislikeState`) — a like and a dislike exclude each other; the dislike count is never returned;
+    `Comment.viewerHasDisliked`. Migration `20270427090000_comment_dislikes_newest`. Additive.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -10123,9 +10129,18 @@ paths:
     get:
       tags: [comments]
       operationId: listComments
-      summary: "Top-level comments: the pinned one, then by likes, then newest"
+      summary: "Top-level comments: the pinned one, then by likes, then newest (or newest first)"
+      description: |
+        CONVENTIONS §11.5, §10.158 (v1.122-social, D364). `sort=RELEVANT` (default): the pinned comment (first
+        page), then by `likeCount` desc, then newest. `sort=NEWEST`: the pinned comment (first page), then
+        `createdAt` desc, then `id` desc. A `nextCursor` is bound to its order: sent with the other order → 400
+        `cursor` / `invalid_value`. Dislikes never change the order.
       parameters:
         - $ref: '#/components/parameters/PostIdPath'
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [RELEVANT, NEWEST], default: RELEVANT }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -10220,6 +10235,41 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LikeState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/comments/{commentId}/dislike:
+    put:
+      tags: [comments]
+      operationId: dislikeComment
+      summary: "Dislike a comment (idempotent; removes the caller's like) (v1.122-social, D364)"
+      description: |
+        CONVENTIONS §10.158. Private: the number of dislikes is never returned to anyone, and the comment's author
+        is not notified. Disliking removes the caller's like (so `likeCount` may drop); liking removes the
+        caller's dislike. Same visibility, blocks and rate limit as `likeComment`.
+      parameters:
+        - $ref: '#/components/parameters/CommentIdPath'
+      responses:
+        '200':
+          description: Disliked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentDislikeState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [comments]
+      operationId: undislikeComment
+      summary: "Take back a dislike (idempotent) (v1.122-social, D364)"
+      parameters:
+        - $ref: '#/components/parameters/CommentIdPath'
+      responses:
+        '200':
+          description: Not disliked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentDislikeState' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -35817,7 +35867,7 @@ components:
               watchedMs: { type: integer, minimum: 0, maximum: 3600000 }
     Comment:
       type: object
-      required: [id, postId, author, text, createdAt, likeCount, viewerHasLiked, replyCount, parentId, mentions, pinned, canDelete]
+      required: [id, postId, author, text, createdAt, likeCount, viewerHasLiked, viewerHasDisliked, replyCount, parentId, mentions, pinned, canDelete]
       properties:
         id: { type: string, format: uuid }
         postId: { type: string, format: uuid }
@@ -35826,6 +35876,9 @@ components:
         createdAt: { type: string, format: date-time }
         likeCount: { type: integer, minimum: 0 }
         viewerHasLiked: { type: boolean }
+        viewerHasDisliked:
+          type: boolean
+          description: v1.122-social (D364, §10.158) the caller disliked it. The number of dislikes is never returned.
         replyCount: { type: integer, minimum: 0 }
         parentId: { type: [string, 'null'], format: uuid }
         mentions:
@@ -35835,6 +35888,16 @@ components:
         canDelete:
           type: boolean
           description: The caller wrote it or owns the post.
+    CommentDislikeState:
+      type: object
+      description: v1.122-social (D364, §10.158). The caller's reaction after the change; no dislike count.
+      required: [disliked, liked, likeCount]
+      properties:
+        disliked: { type: boolean }
+        liked:
+          type: boolean
+          description: Always false after a dislike (a dislike removes the caller's like).
+        likeCount: { type: integer, minimum: 0 }
     CommentPage:
       type: object
       required: [data, page]

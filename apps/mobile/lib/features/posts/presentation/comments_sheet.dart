@@ -20,44 +20,785 @@ import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Geometry of the comments sheet (KL-056), measured from the owner's Figma
-/// reference (UI kit "Comment page", node 1347:5310, 414x896: sheet 414x653).
-/// Only geometry and type sizes are taken from it; colours are Kabso's and
-/// avatars are the users' own or initials, never the kit's photos.
+/// Geometry of the comments sheet. The layout follows the owner's
+/// reel-comments reference: the reel stays visible above a rounded sheet
+/// with a tab handle, a centred count, a sort line, rows whose footer ends
+/// with the like, and a floating pill composer. Only geometry comes from
+/// it; colours, icons and type are Kabso's, and avatars are the users' own
+/// or initials.
 abstract final class KCommentsSheet {
-  /// Sheet height as a share of the screen (653 / 896).
-  static const double heightFactor = 0.73;
-  static const double radius = 8;
-  static const Color barrier = Color(0x33000000);
-  static const double headerHeight = 36;
-  static const double titleSize = 13;
-  static const double closeIcon = 17;
-  static const double closeInset = 16;
-  static const double listInset = 14;
-  static const double listTop = 12;
-  static const double commentGap = 22;
-  static const double avatar = 33;
+  /// Sheet height as a share of the screen: the reel's upper part stays
+  /// visible above it.
+  static const double heightFactor = 0.6;
+  static const double radius = 28;
+
+  /// A light barrier, so the reel behind stays clearly visible.
+  static const Color barrier = Color(0x1F000000);
+
+  /// The tab-shaped handle centred on the top edge: it rises [tabRise]
+  /// above the sheet and holds the grab bar.
+  static const double tabRise = 8;
+  static const Size tab = Size(64, 22);
+  static const double tabRadius = 11;
+  static const Size grabBar = Size(28, 4);
+
+  /// Tap area of the handle (closes the sheet; swiping down does too).
+  static const Size handleTarget = Size(96, KSizes.minTouchTarget);
+  static const double headerTop = 14;
+  static const double titleSize = 15;
+  static const double sortSize = 13;
+  static const double sortIcon = 16;
+  static const double sortHeight = 32;
+  static const double listInset = 16;
+  static const double listTop = 4;
+  static const double commentGap = 14;
+  static const double avatar = 44;
   static const double avatarGap = 12;
-  static const double nameSize = 13;
+  static const double nameSize = 13.5;
   static const double verifiedIcon = 12;
-  static const double bodySize = 15;
-  static const double bodyHeight = 1.365;
-  static const double metaSize = 13;
+  static const double bodySize = 14.5;
+  static const double bodyHeight = 1.4;
+  static const double metaSize = 12.5;
   static const double metaGap = 8;
   static const double repliesSize = 12;
   static const double repliesIcon = 18;
-  static const double likeIcon = 20;
-  static const double likeSize = 13.5;
-  static const double likeColumn = 24;
-  static const double barAvatar = 32;
-  static const double barInset = 12;
+  static const double likeIcon = 18;
+  static const double likeSize = 12.5;
 
-  /// Height of the meta row and the replies toggle (text buttons).
+  /// Height of the footer row and the replies toggle (text buttons).
   static const double metaTarget = 40;
+
+  /// The floating pill composer, inset from the sheet's edges.
+  static const double composerRadius = 28;
+  static const double composerInset = 12;
+  static const double composerBottom = 8;
+  static const double composerPadding = 6;
+  static const double composerButton = 38;
+  static const double composerIcon = 20;
+  static const List<BoxShadow> composerShadow = [
+    BoxShadow(color: Color(0x40000000), blurRadius: 18, offset: Offset(0, 6)),
+  ];
   static const double inputHeight = 38;
-  static const double inputRadius = 8;
-  static const double inputIcon = 24;
-  static const double postIcon = 28;
+}
+
+/// The frame of a comments sheet: the tab handle (tap to close, or swipe
+/// the sheet down), the centred [title], the order menu, then [body] and
+/// [composer]. Shared by [CommentsSheet] and the feed preview's sheet.
+class CommentsSheetFrame extends StatelessWidget {
+  const new({
+    required this.sheetKey,
+    required this.closeKey,
+    required this.title,
+    required this.body,
+    required this.composer,
+    required this.sort,
+    required this.onSort,
+    super.key,
+  });
+
+  final Key sheetKey;
+  final Key closeKey;
+  final String title;
+  final Widget body;
+  final Widget composer;
+
+  /// The list's order and the menu that changes it (D364).
+  final CommentSort sort;
+  final ValueChanged<CommentSort> onSort;
+
+  /// The order menu's button and its items.
+  static const sortKey = Key('comments.sort');
+  static Key sortOptionKey(CommentSort sort) =>
+      Key('comments.sort.${sort.name}');
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l10n = context.l10n;
+    final t = context.textStyles;
+    final height =
+        MediaQuery.sizeOf(context).height * KCommentsSheet.heightFactor;
+    return Padding(
+      // Keeps the composer above the keyboard.
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SizedBox(
+        height: height + KCommentsSheet.tabRise,
+        child: Stack(
+          children: [
+            PositionedDirectional(
+              top: KCommentsSheet.tabRise,
+              start: 0,
+              end: 0,
+              bottom: 0,
+              child: Container(
+                key: sheetKey,
+                decoration: BoxDecoration(
+                  color: p.surfaceRaised,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(KCommentsSheet.radius),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: KCommentsSheet.headerTop),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: t.bodyStrong.copyWith(
+                          fontSize: KCommentsSheet.titleSize,
+                          fontWeight: FontWeight.w700,
+                          color: p.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        start: KCommentsSheet.listInset - KSpacing.sm,
+                      ),
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: _SortMenu(sort: sort, onSort: onSort),
+                      ),
+                    ),
+                    Expanded(child: body),
+                    composer,
+                  ],
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: Semantics(
+                button: true,
+                label: l10n.liveClose,
+                child: GestureDetector(
+                  key: closeKey,
+                  behavior: HitTestBehavior.opaque,
+                  onTap: Navigator.of(context).maybePop,
+                  child: SizedBox.fromSize(
+                    size: KCommentsSheet.handleTarget,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Container(
+                        width: KCommentsSheet.tab.width,
+                        height: KCommentsSheet.tab.height,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: p.surfaceRaised,
+                          borderRadius: BorderRadius.circular(
+                            KCommentsSheet.tabRadius,
+                          ),
+                        ),
+                        child: Container(
+                          width: KCommentsSheet.grabBar.width,
+                          height: KCommentsSheet.grabBar.height,
+                          decoration: BoxDecoration(
+                            color: p.borderStrong,
+                            borderRadius: BorderRadius.circular(KRadius.pill),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// «الأكثر صلة ⌄»: the current order; a tap opens the menu of both (D364).
+class _SortMenu extends StatelessWidget {
+  const new({required this.sort, required this.onSort});
+
+  final CommentSort sort;
+  final ValueChanged<CommentSort> onSort;
+
+  static String label(AppLocalizations l10n, CommentSort sort) =>
+      switch (sort) {
+        CommentSort.relevant => l10n.commentsSortRelevant,
+        CommentSort.newest => l10n.commentsSortNewest,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l10n = context.l10n;
+    final t = context.textStyles;
+    return PopupMenuButton<CommentSort>(
+      key: CommentsSheetFrame.sortKey,
+      tooltip: l10n.commentsSortMenu,
+      initialValue: sort,
+      onSelected: onSort,
+      position: PopupMenuPosition.under,
+      color: p.surfaceOverlay,
+      // Flat with a hairline: the raised overlay colour already lifts it off
+      // the sheet.
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(KRadius.lg),
+        side: BorderSide(color: p.border),
+      ),
+      itemBuilder: (_) => [
+        for (final s in CommentSort.values)
+          PopupMenuItem(
+            key: CommentsSheetFrame.sortOptionKey(s),
+            value: s,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label(l10n, s),
+                    style: t.body.copyWith(
+                      color: p.textPrimary,
+                      fontWeight: s == sort ? FontWeight.w600 : null,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: KSpacing.md),
+                if (s == sort)
+                  Icon(Icons.check_rounded, size: 18, color: p.primaryText)
+                else
+                  const SizedBox(width: 18),
+              ],
+            ),
+          ),
+      ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: KCommentsSheet.sortHeight),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label(l10n, sort),
+                style: t.label.copyWith(
+                  fontSize: KCommentsSheet.sortSize,
+                  color: p.textPrimary,
+                ),
+              ),
+              const SizedBox(width: KSpacing.xxs),
+              AppIcon(
+                AppIcons.chevronDown,
+                size: KCommentsSheet.sortIcon,
+                color: p.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One comment row: round avatar at the start; the name, seal, creator tag
+/// and time on one line; the text; then a footer with Reply and "⋯" at the
+/// start and the like (icon and count) at the end. A long press opens the
+/// same actions as "⋯".
+class CommentRow extends StatelessWidget {
+  const new({
+    required this.name,
+    required this.text,
+    required this.when,
+    required this.likeCount,
+    required this.liked,
+    required this.onLike,
+    this.avatarUrl,
+    this.seal,
+    this.creator = false,
+    this.pinned = false,
+    this.onReply,
+    this.onMore,
+    this.disliked = false,
+    this.onDislike,
+    this.likeKey,
+    this.dislikeKey,
+    this.replyKey,
+    this.moreKey,
+    super.key,
+  });
+
+  final String name;
+
+  /// Shown as is (callers isolate `@handles` first).
+  final String text;
+  final String when;
+  final int likeCount;
+  final bool liked;
+  final VoidCallback onLike;
+  final String? avatarUrl;
+
+  /// The verification seal after the name, if any.
+  final Widget? seal;
+  final bool creator;
+  final bool pinned;
+  final VoidCallback? onReply;
+  final VoidCallback? onMore;
+
+  /// D364: the caller's private dislike, after the like (no count).
+  final bool disliked;
+  final VoidCallback? onDislike;
+  final Key? likeKey;
+  final Key? dislikeKey;
+  final Key? replyKey;
+  final Key? moreKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l10n = context.l10n;
+    final t = context.textStyles;
+    final meta = t.caption.copyWith(
+      fontSize: KCommentsSheet.metaSize,
+      color: p.textTertiary,
+    );
+    // Separator dot (drawn, not a text literal).
+    Widget dot() => Container(
+      width: 3,
+      height: 3,
+      decoration: BoxDecoration(color: p.textTertiary, shape: BoxShape.circle),
+    );
+    return GestureDetector(
+      onLongPress: onMore,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ExcludeSemantics(
+            child: KAvatar(
+              name: name,
+              imageUrl: avatarUrl,
+              size: KCommentsSheet.avatar,
+            ),
+          ),
+          const SizedBox(width: KCommentsSheet.avatarGap),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (pinned)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: KSpacing.xxs),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.push_pin_rounded,
+                          size: 13,
+                          color: p.textTertiary,
+                        ),
+                        const SizedBox(width: KSpacing.xxs),
+                        Text(l10n.commentsPinned, style: meta),
+                      ],
+                    ),
+                  ),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: KSpacing.xs,
+                  runSpacing: KSpacing.xxs,
+                  children: [
+                    Text(
+                      name,
+                      style: t.label.copyWith(
+                        fontSize: KCommentsSheet.nameSize,
+                        fontWeight: FontWeight.w700,
+                        color: p.textPrimary,
+                      ),
+                    ),
+                    ?seal,
+                    if (creator)
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: p.primary.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(KRadius.xs),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: KSpacing.xs,
+                          ),
+                          child: Text(
+                            l10n.commentsCreator,
+                            style: meta.copyWith(
+                              fontSize: KCommentsSheet.metaSize - 1,
+                              fontWeight: FontWeight.w600,
+                              color: p.primaryText,
+                            ),
+                          ),
+                        ),
+                      ),
+                    dot(),
+                    Text(when, style: meta),
+                  ],
+                ),
+                const SizedBox(height: KSpacing.xxs),
+                KabiEmojiText(
+                  text,
+                  style: t.body.copyWith(
+                    fontSize: KCommentsSheet.bodySize,
+                    height: KCommentsSheet.bodyHeight,
+                    color: p.textSecondary,
+                  ),
+                ),
+                Row(
+                  children: [
+                    if (onReply != null)
+                      TextButton(
+                        key: replyKey,
+                        onPressed: onReply,
+                        style: TextButton.styleFrom(
+                          foregroundColor: p.textTertiary,
+                          padding: const EdgeInsetsDirectional.only(
+                            end: KCommentsSheet.metaGap,
+                          ),
+                          minimumSize: const Size(0, KCommentsSheet.metaTarget),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          l10n.commentsReply,
+                          style: meta.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: p.textSecondary,
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox(height: KCommentsSheet.metaTarget),
+                    if (onMore != null)
+                      IconButton(
+                        key: moreKey,
+                        tooltip: l10n.commentsMore,
+                        onPressed: onMore,
+                        constraints: const BoxConstraints.tightFor(
+                          width: KCommentsSheet.metaTarget,
+                          height: KCommentsSheet.metaTarget,
+                        ),
+                        padding: EdgeInsets.zero,
+                        icon: AppIcon(
+                          AppIcons.moreHoriz,
+                          size: 18,
+                          color: p.textTertiary,
+                        ),
+                      ),
+                    const Spacer(),
+                    Semantics(
+                      container: true,
+                      button: true,
+                      selected: liked,
+                      label: l10n.commentsLike(
+                        KFormat.compact(likeCount, l10n),
+                      ),
+                      onTap: onLike,
+                      excludeSemantics: true,
+                      child: InkWell(
+                        key: likeKey,
+                        onTap: onLike,
+                        borderRadius: BorderRadius.circular(KRadius.pill),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minWidth: KSizes.minTouchTarget,
+                            minHeight: KCommentsSheet.metaTarget,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: KSpacing.xs,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                AppIcon(
+                                  liked ? AppIcons.heartFilled : AppIcons.heart,
+                                  size: KCommentsSheet.likeIcon,
+                                  color: liked ? p.primary : p.textTertiary,
+                                ),
+                                const SizedBox(width: KSpacing.xs),
+                                Text(
+                                  KFormat.compact(likeCount, l10n),
+                                  maxLines: 1,
+                                  style: meta.copyWith(
+                                    fontSize: KCommentsSheet.likeSize,
+                                    color: p.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (onDislike case final dislike?)
+                      Semantics(
+                        container: true,
+                        button: true,
+                        selected: disliked,
+                        label: l10n.commentsDislike,
+                        onTap: dislike,
+                        excludeSemantics: true,
+                        child: InkWell(
+                          key: dislikeKey,
+                          onTap: dislike,
+                          customBorder: const CircleBorder(),
+                          child: SizedBox(
+                            width: KCommentsSheet.metaTarget,
+                            height: KCommentsSheet.metaTarget,
+                            child: Center(
+                              child: AppIcon(
+                                disliked
+                                    ? AppIcons.thumbDownFilled
+                                    : AppIcons.thumbDown,
+                                size: KCommentsSheet.likeIcon,
+                                color: disliked
+                                    ? p.textPrimary
+                                    : p.textTertiary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The floating pill composer: a round "+" at the start (the Kabi emoji
+/// picker), the field, and a round brand-red send button at the end. A
+/// reply chip sits above it while replying.
+class CommentComposer extends StatelessWidget {
+  const new({
+    required this.controller,
+    required this.focusNode,
+    required this.onPost,
+    required this.onEmoji,
+    required this.inputKey,
+    required this.postKey,
+    required this.emojiKey,
+    this.canPost = true,
+    this.sending = false,
+    this.replyingTo,
+    this.onCancelReply,
+    this.cancelReplyKey,
+    this.maxLength,
+    super.key,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final VoidCallback onPost;
+  final ValueChanged<KabsoEmoji> onEmoji;
+  final Key inputKey;
+  final Key postKey;
+  final Key emojiKey;
+  final bool canPost;
+  final bool sending;
+
+  /// The name of the comment being replied to (shows the reply chip).
+  final String? replyingTo;
+  final VoidCallback? onCancelReply;
+  final Key? cancelReplyKey;
+  final int? maxLength;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l10n = context.l10n;
+    final ar = Directionality.of(context) == TextDirection.rtl;
+    const noBorder = OutlineInputBorder(borderSide: BorderSide.none);
+    final reply = replyingTo;
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: KCommentsSheet.composerBottom),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          KCommentsSheet.composerInset,
+          KSpacing.xs,
+          KCommentsSheet.composerInset,
+          0,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (reply != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: KSpacing.xs),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: p.surfaceOverlay,
+                    borderRadius: BorderRadius.circular(KRadius.pill),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      start: KSpacing.md,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            l10n.commentsReplyingTo(reply),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.textStyles.caption.copyWith(
+                              color: p.textSecondary,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          key: cancelReplyKey,
+                          tooltip: l10n.commentsCancelReply,
+                          onPressed: onCancelReply,
+                          icon: AppIcon(
+                            AppIcons.close,
+                            size: 14,
+                            color: p.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: p.surfaceOverlay,
+                borderRadius: BorderRadius.circular(
+                  KCommentsSheet.composerRadius,
+                ),
+                boxShadow: KCommentsSheet.composerShadow,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(KCommentsSheet.composerPadding),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      key: emojiKey,
+                      tooltip: l10n.kabiEmojiButton,
+                      onPressed: sending
+                          ? null
+                          : () async {
+                              final emoji = await showKabiEmojiPicker(context);
+                              if (emoji != null) onEmoji(emoji);
+                            },
+                      style: IconButton.styleFrom(
+                        backgroundColor: p.surfaceRaised,
+                        fixedSize: const Size.square(
+                          KCommentsSheet.composerButton,
+                        ),
+                        minimumSize: const Size.square(
+                          KCommentsSheet.composerButton,
+                        ),
+                        padding: EdgeInsets.zero,
+                      ),
+                      icon: AppIcon(
+                        AppIcons.plus,
+                        size: KCommentsSheet.composerIcon,
+                        color: p.textPrimary,
+                      ),
+                    ),
+                    Expanded(
+                      // Direction follows the first letter outside tags: a
+                      // reply's lone @handle reads left to right.
+                      child: ValueListenableBuilder(
+                        valueListenable: controller,
+                        builder: (context, value, _) => TextField(
+                          key: inputKey,
+                          textDirection: KFormat.inputDirection(value.text),
+                          controller: controller,
+                          focusNode: focusNode,
+                          enabled: !sending,
+                          minLines: 1,
+                          maxLines: 4,
+                          inputFormatters: [
+                            if (maxLength case final max?)
+                              LengthLimitingTextInputFormatter(max),
+                          ],
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => onPost(),
+                          style: context.textStyles.body.copyWith(
+                            color: p.textPrimary,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: l10n.commentsHint,
+                            hintStyle: context.textStyles.body.copyWith(
+                              color: p.textTertiary,
+                            ),
+                            filled: false,
+                            isDense: true,
+                            constraints: const BoxConstraints(
+                              minHeight: KCommentsSheet.inputHeight,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: KSpacing.md,
+                              vertical: KSpacing.sm + 1,
+                            ),
+                            // The pill is the field; no outline, even
+                            // while typing.
+                            border: noBorder,
+                            enabledBorder: noBorder,
+                            disabledBorder: noBorder,
+                            focusedBorder: noBorder,
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      key: postKey,
+                      tooltip: l10n.commentsPost,
+                      onPressed: canPost && !sending ? onPost : null,
+                      style: IconButton.styleFrom(
+                        backgroundColor: p.primary,
+                        disabledBackgroundColor: p.primary.withValues(
+                          alpha: 0.35,
+                        ),
+                        fixedSize: const Size.square(
+                          KCommentsSheet.composerButton,
+                        ),
+                        minimumSize: const Size.square(
+                          KCommentsSheet.composerButton,
+                        ),
+                        padding: EdgeInsets.zero,
+                      ),
+                      icon: sending
+                          ? SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation(p.onPrimary),
+                              ),
+                            )
+                          // The paper plane points along the reading
+                          // direction.
+                          : Transform.flip(
+                              flipX: ar,
+                              child: AppIcon(
+                                AppIcons.send,
+                                size: KCommentsSheet.composerIcon,
+                                color: p.onPrimary,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// [text] with every `@username` wrapped in a left-to-right isolate, so a
@@ -148,6 +889,7 @@ class CommentsSheet extends ConsumerStatefulWidget {
   static const deleteConfirmKey = Key('comments.delete.confirm');
   static Key commentKey(String id) => Key('comments.item.$id');
   static Key likeKey(String id) => Key('comments.item.$id.like');
+  static Key dislikeKey(String id) => Key('comments.item.$id.dislike');
   static Key replyKey(String id) => Key('comments.item.$id.reply');
   static Key moreKey(String id) => Key('comments.item.$id.more');
   static Key repliesKey(String id) => Key('comments.item.$id.replies');
@@ -164,6 +906,9 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   final _focus = FocusNode();
   Comment? _replyTo;
   bool _sending = false;
+
+  /// The order chosen in this sheet (D364); the list reloads on a change.
+  CommentSort _sort = CommentSort.relevant;
   int _lastDelta = 0;
 
   String get _postId => widget.target.postId;
@@ -334,99 +1079,64 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       );
     }
     final total = (widget.target.commentCount + delta).clamp(0, 1 << 31);
-    final height =
-        MediaQuery.sizeOf(context).height * KCommentsSheet.heightFactor;
-    return Padding(
-      // Keeps the composer above the keyboard.
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        key: CommentsSheet.sheetKey,
-        height: height,
-        decoration: BoxDecoration(
-          color: p.surfaceRaised,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(KCommentsSheet.radius),
+    final reply = _replyTo;
+    return CommentsSheetFrame(
+      sheetKey: CommentsSheet.sheetKey,
+      closeKey: CommentsSheet.closeKey,
+      title: l10n.commentsSheetTitle(total),
+      sort: _sort,
+      onSort: (sort) {
+        setState(() => _sort = sort);
+        unawaited(_comments.setSort(sort));
+      },
+      body: switch (comments) {
+        AsyncData(:final value) => _List(
+          state: value,
+          target: widget.target,
+          onLike: (c) => _guard(() => _comments.toggleLike(c)),
+          onDislike: (c) => _guard(() => _comments.toggleDislike(c)),
+          onReply: widget.target.commentsOpen ? _reply : null,
+          onMore: _more,
+          onReplies: (c) => _guard(() => _comments.toggleReplies(c.id)),
+          onMoreReplies: (c) => _guard(() => _comments.moreReplies(c.id)),
+          onLoadMore: () => _guard(_comments.loadMore),
+        ),
+        AsyncError() => _Message(
+          title: l10n.commentsFailed,
+          action: TextButton(
+            key: CommentsSheet.retryKey,
+            onPressed: () => unawaited(_comments.setSort(_sort, reload: true)),
+            child: Text(l10n.actionRetry),
           ),
         ),
-        child: Column(
-          children: [
-            SizedBox(
-              width: double.infinity,
-              height: KCommentsSheet.headerHeight + KSpacing.sm,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      l10n.commentsSheetTitle(total),
-                      style: context.textStyles.caption.copyWith(
-                        fontSize: KCommentsSheet.titleSize,
-                        fontWeight: FontWeight.w600,
-                        color: p.textPrimary,
-                      ),
-                    ),
-                  ),
-                  PositionedDirectional(
-                    end: KCommentsSheet.closeInset - KSpacing.md,
-                    child: IconButton(
-                      key: CommentsSheet.closeKey,
-                      tooltip: l10n.liveClose,
-                      onPressed: Navigator.of(context).maybePop,
-                      icon: AppIcon(
-                        AppIcons.close,
-                        size: KCommentsSheet.closeIcon,
-                        color: p.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: switch (comments) {
-                AsyncData(:final value) => _List(
-                  state: value,
-                  target: widget.target,
-                  onLike: (c) => _guard(() => _comments.toggleLike(c)),
-                  onReply: widget.target.commentsOpen ? _reply : null,
-                  onMore: _more,
-                  onReplies: (c) => _guard(() => _comments.toggleReplies(c.id)),
-                  onMoreReplies: (c) =>
-                      _guard(() => _comments.moreReplies(c.id)),
-                  onLoadMore: () => _guard(_comments.loadMore),
-                ),
-                AsyncError() => _Message(
-                  title: l10n.commentsFailed,
-                  action: TextButton(
-                    key: CommentsSheet.retryKey,
-                    onPressed: () => ref.invalidate(commentsProvider(_postId)),
-                    child: Text(l10n.actionRetry),
-                  ),
-                ),
-                _ => Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation(p.primary),
-                  ),
-                ),
-              },
-            ),
-            if (widget.target.commentsOpen)
-              _CommentBar(
-                controller: _controller,
-                focusNode: _focus,
-                sending: _sending,
-                replyTo: _replyTo,
-                onCancelReply: () => setState(() => _replyTo = null),
-                onPost: _send,
-                // D66: a Kabi emoji posts at once, as its own comment.
-                onEmoji: (e) => _send(e.token),
-              )
-            else
-              _ClosedBar(message: l10n.commentsClosed),
-          ],
+        _ => Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation(p.primary),
+          ),
         ),
-      ),
+      },
+      composer: widget.target.commentsOpen
+          ? CommentComposer(
+              controller: _controller,
+              focusNode: _focus,
+              inputKey: CommentsSheet.inputKey,
+              postKey: CommentsSheet.postKey,
+              emojiKey: CommentsSheet.emojiKey,
+              cancelReplyKey: CommentsSheet.cancelReplyKey,
+              maxLength: maxCommentText,
+              sending: _sending,
+              canPost: _controller.text.trim().isNotEmpty,
+              replyingTo: reply == null
+                  ? null
+                  : reply.author.displayName.isEmpty
+                  ? reply.author.username
+                  : reply.author.displayName,
+              onCancelReply: () => setState(() => _replyTo = null),
+              onPost: _send,
+              // D66: a Kabi emoji posts at once, as its own comment.
+              onEmoji: (e) => _send(e.token),
+            )
+          : _ClosedBar(message: l10n.commentsClosed),
     );
   }
 }
@@ -478,6 +1188,7 @@ class _List extends StatelessWidget {
     required this.state,
     required this.target,
     required this.onLike,
+    required this.onDislike,
     required this.onReply,
     required this.onMore,
     required this.onReplies,
@@ -488,6 +1199,7 @@ class _List extends StatelessWidget {
   final CommentsState state;
   final CommentsTarget target;
   final ValueChanged<Comment> onLike;
+  final ValueChanged<Comment> onDislike;
   final ValueChanged<Comment>? onReply;
   final ValueChanged<Comment> onMore;
   final ValueChanged<Comment> onReplies;
@@ -506,6 +1218,7 @@ class _List extends StatelessWidget {
       comment: c,
       creator: c.author.id == target.authorId,
       onLike: () => onLike(c),
+      onDislike: () => onDislike(c),
       onReply: onReply == null ? null : () => onReply!(c),
       onMore: () => onMore(c),
     );
@@ -585,6 +1298,7 @@ class _CommentTile extends StatelessWidget {
     required this.comment,
     required this.creator,
     required this.onLike,
+    required this.onDislike,
     required this.onReply,
     required this.onMore,
     super.key,
@@ -593,22 +1307,17 @@ class _CommentTile extends StatelessWidget {
   final Comment comment;
   final bool creator;
   final VoidCallback onLike;
+  final VoidCallback onDislike;
   final VoidCallback? onReply;
   final VoidCallback onMore;
 
   @override
   Widget build(BuildContext context) {
-    final p = context.palette;
     final l10n = context.l10n;
-    final t = context.textStyles;
     final c = comment;
     final name = c.author.displayName.isEmpty
         ? c.author.username
         : c.author.displayName;
-    final meta = t.caption.copyWith(
-      fontSize: KCommentsSheet.metaSize,
-      color: p.textTertiary,
-    );
     final when =
         KFormat.relative(
           c.createdAt,
@@ -617,175 +1326,32 @@ class _CommentTile extends StatelessWidget {
           Localizations.localeOf(context).toLanguageTag(),
         ) ??
         l10n.feedPostJustNow;
-    return GestureDetector(
-      onLongPress: onMore,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ExcludeSemantics(
-            child: KAvatar(
-              name: name,
-              imageUrl: c.author.avatarUrl,
-              size: KCommentsSheet.avatar,
+    return CommentRow(
+      name: name,
+      avatarUrl: c.author.avatarUrl,
+      text: isolateHandles(c.text, mentions: c.mentions),
+      when: when,
+      likeCount: c.likeCount,
+      liked: c.viewerHasLiked,
+      // D293: the author's verification seal after the name.
+      seal: shownVerification(c.author.verification) == null
+          ? null
+          : VerificationSeal(
+              c.author.verification,
+              fontSize: KCommentsSheet.nameSize,
+              gap: 0,
             ),
-          ),
-          const SizedBox(width: KCommentsSheet.avatarGap),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (c.pinned)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: KSpacing.xxs),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.push_pin_rounded,
-                          size: 13,
-                          color: p.textTertiary,
-                        ),
-                        const SizedBox(width: KSpacing.xxs),
-                        Text(l10n.commentsPinned, style: meta),
-                      ],
-                    ),
-                  ),
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 3,
-                  children: [
-                    Text(
-                      name,
-                      style: meta.copyWith(
-                        fontSize: KCommentsSheet.nameSize,
-                        fontWeight: FontWeight.w600,
-                        color: p.textSecondary,
-                      ),
-                    ),
-                    // D293: the author's verification seal after the name.
-                    if (shownVerification(c.author.verification) != null)
-                      VerificationSeal(
-                        c.author.verification,
-                        fontSize: KCommentsSheet.nameSize,
-                        gap: 0,
-                      ),
-                    if (creator) ...[
-                      // Separator dot (drawn, not a text literal).
-                      Container(
-                        width: 3,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: p.textTertiary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      Text(
-                        l10n.commentsCreator,
-                        style: meta.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: p.primaryText,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: KSpacing.xxs),
-                KabiEmojiText(
-                  isolateHandles(c.text, mentions: c.mentions),
-                  style: t.body.copyWith(
-                    fontSize: KCommentsSheet.bodySize,
-                    height: KCommentsSheet.bodyHeight,
-                    color: p.textPrimary,
-                  ),
-                ),
-                // Wraps on narrow widths and large text.
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(when, style: meta),
-                    if (onReply != null)
-                      TextButton(
-                        key: CommentsSheet.replyKey(c.id),
-                        onPressed: onReply,
-                        style: TextButton.styleFrom(
-                          foregroundColor: p.textTertiary,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: KCommentsSheet.metaGap,
-                          ),
-                          minimumSize: const Size(0, KCommentsSheet.metaTarget),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          l10n.commentsReply,
-                          style: meta.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      )
-                    else
-                      const SizedBox(
-                        width: KCommentsSheet.metaGap,
-                        height: KCommentsSheet.metaTarget,
-                      ),
-                    IconButton(
-                      key: CommentsSheet.moreKey(c.id),
-                      tooltip: l10n.commentsMore,
-                      onPressed: onMore,
-                      constraints: const BoxConstraints.tightFor(
-                        width: KCommentsSheet.metaTarget,
-                        height: KCommentsSheet.metaTarget,
-                      ),
-                      padding: EdgeInsets.zero,
-                      icon: AppIcon(
-                        AppIcons.moreHoriz,
-                        size: 18,
-                        color: p.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: KSpacing.sm),
-          Semantics(
-            container: true,
-            button: true,
-            selected: c.viewerHasLiked,
-            label: l10n.commentsLike(KFormat.compact(c.likeCount, l10n)),
-            onTap: onLike,
-            excludeSemantics: true,
-            child: InkWell(
-              key: CommentsSheet.likeKey(c.id),
-              onTap: onLike,
-              customBorder: const CircleBorder(),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minWidth: KSizes.minTouchTarget,
-                  minHeight: KSizes.minTouchTarget,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AppIcon(
-                      c.viewerHasLiked ? AppIcons.heartFilled : AppIcons.heart,
-                      size: KCommentsSheet.likeIcon,
-                      color: c.viewerHasLiked ? p.primary : p.textTertiary,
-                    ),
-                    Text(
-                      KFormat.compact(c.likeCount, l10n),
-                      maxLines: 1,
-                      style: t.caption.copyWith(
-                        fontSize: KCommentsSheet.likeSize,
-                        color: p.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+      creator: creator,
+      pinned: c.pinned,
+      onLike: onLike,
+      disliked: c.viewerHasDisliked,
+      onDislike: onDislike,
+      onReply: onReply,
+      onMore: onMore,
+      likeKey: CommentsSheet.likeKey(c.id),
+      dislikeKey: CommentsSheet.dislikeKey(c.id),
+      replyKey: CommentsSheet.replyKey(c.id),
+      moreKey: CommentsSheet.moreKey(c.id),
     );
   }
 }
@@ -862,16 +1428,27 @@ class _ClosedBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: p.surfaceRaised,
-        border: Border(top: BorderSide(color: p.border, width: 0.5)),
-      ),
-      child: SafeArea(
-        top: false,
+    // The composer's pill, holding the reason instead of a field.
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: KCommentsSheet.composerBottom),
+      child: Container(
+        key: CommentsSheet.closedKey,
+        margin: const EdgeInsets.fromLTRB(
+          KCommentsSheet.composerInset,
+          KSpacing.xs,
+          KCommentsSheet.composerInset,
+          0,
+        ),
+        decoration: BoxDecoration(
+          color: p.surfaceOverlay,
+          borderRadius: BorderRadius.circular(KCommentsSheet.composerRadius),
+        ),
         child: Padding(
-          key: CommentsSheet.closedKey,
-          padding: const EdgeInsets.all(KSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: KSpacing.lg,
+            vertical: KSpacing.md,
+          ),
           child: Row(
             children: [
               Icon(Icons.lock_outline_rounded, size: 18, color: p.textTertiary),
@@ -886,184 +1463,6 @@ class _ClosedBar extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CommentBar extends ConsumerWidget {
-  const new({
-    required this.controller,
-    required this.focusNode,
-    required this.sending,
-    required this.replyTo,
-    required this.onCancelReply,
-    required this.onPost,
-    required this.onEmoji,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final bool sending;
-  final Comment? replyTo;
-  final VoidCallback onCancelReply;
-  final VoidCallback onPost;
-  final ValueChanged<KabsoEmoji> onEmoji;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final p = context.palette;
-    final l10n = context.l10n;
-    final ar = Directionality.of(context) == TextDirection.rtl;
-    final me = ref.watch(currentUserProvider);
-    final canPost = !sending && controller.text.trim().isNotEmpty;
-    final noBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(KCommentsSheet.inputRadius),
-      borderSide: BorderSide.none,
-    );
-    final reply = replyTo;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: p.surfaceRaised,
-        border: Border(top: BorderSide(color: p.border, width: 0.5)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (reply != null)
-              Container(
-                color: p.surfaceOverlay.withValues(alpha: 0.5),
-                padding: const EdgeInsetsDirectional.only(
-                  start: KCommentsSheet.barInset,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l10n.commentsReplyingTo(
-                          reply.author.displayName.isEmpty
-                              ? reply.author.username
-                              : reply.author.displayName,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.textStyles.caption.copyWith(
-                          color: p.textSecondary,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      key: CommentsSheet.cancelReplyKey,
-                      tooltip: l10n.commentsCancelReply,
-                      onPressed: onCancelReply,
-                      icon: AppIcon(
-                        AppIcons.close,
-                        size: 14,
-                        color: p.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: KCommentsSheet.barInset,
-                vertical: KSpacing.sm,
-              ),
-              child: Row(
-                children: [
-                  ExcludeSemantics(
-                    child: KAvatar(
-                      name: me?.displayName ?? l10n.commentsYou,
-                      size: KCommentsSheet.barAvatar,
-                    ),
-                  ),
-                  const SizedBox(width: KSpacing.sm),
-                  Expanded(
-                    // Direction follows the first letter outside tags: a
-                    // reply's lone @handle reads left to right.
-                    child: ValueListenableBuilder(
-                      valueListenable: controller,
-                      builder: (context, value, _) => TextField(
-                        key: CommentsSheet.inputKey,
-                        textDirection: KFormat.inputDirection(value.text),
-                        controller: controller,
-                        focusNode: focusNode,
-                        enabled: !sending,
-                        minLines: 1,
-                        maxLines: 4,
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(maxCommentText),
-                        ],
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => onPost(),
-                        decoration: InputDecoration(
-                          hintText: l10n.commentsHint,
-                          filled: true,
-                          fillColor: p.surfaceOverlay,
-                          isDense: true,
-                          constraints: const BoxConstraints(
-                            minHeight: KCommentsSheet.inputHeight,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: KSpacing.sm,
-                            vertical: KSpacing.sm + 2,
-                          ),
-                          suffixIcon: IconButton(
-                            key: CommentsSheet.emojiKey,
-                            tooltip: l10n.kabiEmojiButton,
-                            onPressed: sending
-                                ? null
-                                : () async {
-                                    final emoji = await showKabiEmojiPicker(
-                                      context,
-                                    );
-                                    if (emoji != null) onEmoji(emoji);
-                                  },
-                            icon: AppIcon(
-                              AppIcons.emoji,
-                              size: KCommentsSheet.inputIcon,
-                              color: p.textSecondary,
-                            ),
-                          ),
-                          suffixIconConstraints: const BoxConstraints(),
-                          // No outline at rest; the theme's focus border
-                          // shows while typing.
-                          border: noBorder,
-                          enabledBorder: noBorder,
-                          disabledBorder: noBorder,
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    key: CommentsSheet.postKey,
-                    tooltip: l10n.commentsPost,
-                    onPressed: canPost ? onPost : null,
-                    icon: sending
-                        ? const SizedBox.square(
-                            dimension: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        // The paper plane points along the reading direction.
-                        : Transform.flip(
-                            flipX: ar,
-                            child: AppIcon(
-                              AppIcons.send,
-                              size: KCommentsSheet.postIcon,
-                              color: canPost
-                                  ? p.primary
-                                  : p.primary.withValues(alpha: 0.35),
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );

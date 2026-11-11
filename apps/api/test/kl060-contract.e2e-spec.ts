@@ -17,8 +17,16 @@ describe('KL-060 contract coverage', () => {
         .filter((o) => V15_PATHS.test(o.path))
         .filter((o) => !o.path.includes('stories'))
         // v1.95-social (D301): «رسمي» on a post; d301-owner-profile covers it with its own list.
+        // v1.122-social (D364): the comment dislike; kl060-comments covers it.
         .filter(
-          (o) => !['markPostOfficial', 'unmarkPostOfficial', 'getSearchFeatured'].includes(o.operationId),
+          (o) =>
+            ![
+              'markPostOfficial',
+              'unmarkPostOfficial',
+              'getSearchFeatured',
+              'dislikeComment',
+              'undislikeComment',
+            ].includes(o.operationId),
         )
         .map((o) => o.operationId)
         .sort(),

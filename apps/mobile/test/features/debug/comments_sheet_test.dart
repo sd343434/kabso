@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/debug/feed_comments_sheet.dart';
 import 'package:kabso_live/features/debug/feed_preview_screen.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -56,7 +57,9 @@ void main() {
     expect(find.byKey(FeedCommentsSheet.sheetKey), findsNothing);
   });
 
-  testWidgets('sheet height is 653/896 of the screen', (tester) async {
+  testWidgets('sheet height is KCommentsSheet.heightFactor of the screen', (
+    tester,
+  ) async {
     _phone(tester);
     await _open(tester);
     expect(
@@ -108,6 +111,41 @@ void main() {
       find.byKey(FeedCommentsSheet.inputKey),
     );
     expect(field.controller!.text, '@Nour (test) ');
+  });
+
+  testWidgets('D364: «Newest» reorders the preview; dislike and like '
+      'exclude each other', (tester) async {
+    _phone(tester);
+    await _open(tester);
+    final l10n = l10nFor(AppLanguage.en);
+    double y(String name) => tester
+        .getTopLeft(
+          find.descendant(
+            of: find.byKey(FeedCommentsSheet.sheetKey),
+            matching: find.text(name),
+          ),
+        )
+        .dy;
+    expect(y('Nour (test)'), lessThan(y('Omar (test)')));
+    await tester.tap(find.byKey(CommentsSheetFrame.sortKey));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(CommentsSheetFrame.sortOptionKey(CommentSort.newest)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(l10n.commentsSortNewest), findsOneWidget);
+    // Omar commented 2 hours ago, Nour 5.
+    expect(y('Omar (test)'), lessThan(y('Nour (test)')));
+
+    final dislikes = find.bySemanticsLabel(l10n.commentsDislike);
+    expect(dislikes, findsNWidgets(3));
+    await tester.tap(find.bySemanticsLabel(l10n.commentsLike('86')));
+    await tester.pump();
+    expect(find.bySemanticsLabel(l10n.commentsLike('87')), findsOneWidget);
+    // Hind's row is the second in «Newest».
+    await tester.tap(dislikes.at(1));
+    await tester.pump();
+    expect(find.bySemanticsLabel(l10n.commentsLike('86')), findsOneWidget);
   });
 
   testWidgets('RTL: avatars at the right, like buttons at the left', (

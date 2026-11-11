@@ -2993,6 +2993,22 @@
       }
     }
   },
+  "commentsSortRelevant": "الأكثر صلة",
+  "@commentsSortRelevant": {
+    "description": "D364 comments sheet order menu: the pinned comment, then by likes, then newest (listComments sort=RELEVANT, the default)."
+  },
+  "commentsSortNewest": "الأحدث",
+  "@commentsSortNewest": {
+    "description": "D364 comments sheet order menu: the pinned comment, then newest first (listComments sort=NEWEST)."
+  },
+  "commentsSortMenu": "ترتيب التعليقات",
+  "@commentsSortMenu": {
+    "description": "D364 tooltip / screen-reader name of the comments order menu button."
+  },
+  "commentsDislike": "عدم إعجاب",
+  "@commentsDislike": {
+    "description": "D364 screen-reader name of a comment's dislike button (private: no count is shown)."
+  },
   "commentsOpen": "عرض التعليقات",
   "@commentsOpen": {
     "description": "KL-060 comment button semantics."

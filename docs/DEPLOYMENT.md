@@ -4225,3 +4225,18 @@ rate-limit settings, no new secret, no new host.
   brings it on air — tell hosts to invite guests on the new APK.
 - **Phase 2 (not built):** recording, automatic highlight clips to reels, a programme page with subscriptions /
   tickets.
+
+### 5.113 The comments sheet's «الأحدث» order and the comment dislike (D364; migration `20270427090000_comment_dislikes_newest`) — [IMPLEMENTED, draft contract v1.122-social; not deployed, not device-tested]
+
+CONVENTIONS §10.158 (owner approved 2026-11-11). One migration, no new setting, no new secret, no new host.
+
+- **Migration** `20270427090000_comment_dislikes_newest` (applied by the usual `migrate` job, as the migration role):
+  the table `comment_dislikes` (key `(comment_id, user_id)`, FKs to `comments` and `users` CASCADE; granted to the
+  runtime role by the schema's default privileges, `20261016120000_runtime_role_grants`; nothing to grant by hand) and
+  the partial index `comments_newest_idx` on `comments (post_id, created_at DESC, id DESC) WHERE parent_id IS NULL AND
+  deleted_at IS NULL`. The plain `CREATE INDEX` locks writes to `comments` while it builds (seconds at today's size);
+  run it outside the evening peak.
+- **Rate limit:** the dislike shares the like bucket (`social:like`, `RATE_LIMIT_LIKE_USER`); nothing new to set.
+- **Order:** deploy the API image (the migration runs first) → ship the APK. An older app never sends `sort` (it gets
+  today's order) and ignores `Comment.viewerHasDisliked`; its like still removes a dislike the person made on the new
+  app.
