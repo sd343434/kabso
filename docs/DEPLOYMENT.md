@@ -4187,3 +4187,41 @@ already allow the new sounds and prices.
   they are). To go back to D154's prices, `gift-admin update <code> --price 99|199|299 --tag ghazal|funny|tease
   --tag-ar … --tag-en …` per line, and `gift-admin disable quip_gulf_NN|quip_jordan_NN` (or `delete`: never-sent ones
   are removed, sent ones archived, §5.101).
+
+### 5.112 The video podcast «بودكاست فيديو» (D363; migrations `20270426090000_podcast_video`, `20270426090100_podcast_video_studio`) — [IMPLEMENTED, draft contract v1.114-live; not deployed, not device-tested]
+
+CONVENTIONS §10.157 (owner-approved mockup, 2026-11-10; scope extension 2026-11-11). Two migrations, two optional
+rate-limit settings, no new secret, no new host.
+
+- **Migration** `20270426090000_podcast_video` (applied by the usual `migrate` job, as the migration role): adds
+  `live_rooms.podcast_video` and `live_schedule_slots.podcast_video` (`BOOLEAN NOT NULL DEFAULT false`: a constant
+  default, so no table rewrite), re-creates the CHECKs `live_rooms_podcast_fields` and
+  `live_schedule_slots_podcast_fields` with the flag (every existing row satisfies them: the flag is false), adds
+  `live_seat_invites.guest_title`, `live_room_seats.guest_title` / `hot_seat_request_id` (nullable, FK `SET NULL`), the
+  partial unique index `live_room_seats_one_hot_seat`, and the table `live_question_votes` (granted to the runtime role
+  by the schema's default privileges, `20261016120000_runtime_role_grants`; nothing to grant by hand). The `ALTER
+  TABLE … ADD CONSTRAINT` on `live_rooms` validates the existing rows under a short lock: run it outside the evening
+  peak.
+- **Migration** `20270426090100_podcast_video_studio` (scope extension: backstage, manual control, segments, the
+  question on screen; applied by the same `migrate` job, after the first): adds `live_room_seats.backstage`
+  (`BOOLEAN NOT NULL DEFAULT false`: a constant default, no table rewrite) and the table `live_podcast_studios` (one
+  row per video podcast, CHECK `live_podcast_studios_shape`, FKs to `live_rooms` CASCADE and `live_seat_requests` SET
+  NULL), granted to the runtime role by the default privileges; nothing to grant by hand. No lock beyond the
+  catalogue change on `live_room_seats`.
+- **Settings (optional):** `RATE_LIMIT_LIVE_QUESTION_VOTE_USER` (default `120/600`) and
+  `RATE_LIMIT_LIVE_PODCAST_DIRECTOR_USER` (default `600/600`). The defaults fit; set them only to tune.
+- **Capacity (§5 / D351):** with `LIVE_CAPACITY_MAX_ROOMS` set, a video podcast now weighs
+  `LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT` (an audio podcast still the audio weight). Re-check the ceiling if video podcasts
+  become common.
+- **Media:** a video podcast publishes up to four cameras (host + 3) like a 4-seat multi-guest live; the LiveKit node
+  sizing of D350 already counts such rooms. The director's shot is relayed by the API (`broadcastData`, topic
+  `podcast`, D319 retry); apps still hold no data publish permission. The studio's changes go the same way (`studio`
+  on topic `podcast`). A backstage guest publishes with the media server's per-publisher subscription permission set to
+  the host only (the app sets it; LiveKit enforces it) — nothing to configure on the server.
+- **Order:** deploy the API image (the migration runs first) → ship the APK. An older app sees a video podcast as an
+  audio podcast (it ignores `podcast.video`; its listeners hear the speakers but see no video) and never sends the new
+  fields. Backstage is a courtesy of the new app (it limits its own tracks to the host): an older guest app accepted
+  into a video podcast lands backstage without knowing it and its microphone is heard by everyone until the host
+  brings it on air — tell hosts to invite guests on the new APK.
+- **Phase 2 (not built):** recording, automatic highlight clips to reels, a programme page with subscriptions /
+  tickets.

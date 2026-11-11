@@ -82,6 +82,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_soundboard_sh
 import 'package:kabso_live/features/live/presentation/go_live/live_sticker_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_strip_settings.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_video_podcast_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/live_capacity_sheet.dart';
@@ -410,11 +411,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       time.hour,
       time.minute,
     );
-    final topic = ref.read(liveHostControllerProvider).podcast.topic;
+    final setup = ref.read(liveHostControllerProvider).podcast;
     try {
       await ref
           .read(liveScheduleRepositoryProvider)
-          .create(title: title, startsAt: startsAt, podcastTopic: topic.wire);
+          .create(
+            title: title,
+            startsAt: startsAt,
+            podcastTopic: setup.topic.wire,
+            // D363: an announced video episode.
+            podcastVideo: setup.video,
+          );
       if (!mounted) return;
       KSnack.success(context, l10n.podcastSetupScheduled);
       setState(() => _schedulePodcast = false);
@@ -967,7 +974,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       onSeat = (index) => unawaited(_tapSeat(room.id, liveSeats, index));
     }
 
-    final audioOnAir = gate == null && onAir && state.mode.isVoice;
+    // D363 (§10.157): a video podcast is drawn as a video live.
+    final videoPodcast =
+        state.mode == LiveRoomMode.podcast && state.podcast.video;
+    final audioOnAir = gate == null && onAir && state.voiceOnly;
     // D131: the host's video live in the viewer's frame (host pill, chips,
     // inline chat, the host bar).
     final videoOnAir =
@@ -975,11 +985,32 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         onAir &&
         !captureFailed &&
         room != null &&
-        !state.mode.isVoice;
+        !state.voiceOnly;
     final Widget background;
     if (gate != null || ended) {
       // D199 (owner, ref 275): no camera (permission refused) is black.
       background = const ColoredBox(color: KLiveVideoPlaceholder.black);
+    } else if (videoPodcast) {
+      // D363: the camera while setting up; on air, the director's shot.
+      background = videoOnAir
+          ? VideoPodcastRoomStage(
+              roomId: room.id,
+              // The host's own name and picture, as on the host pill.
+              host: user == null
+                  ? room.host
+                  : room.host.copyWith(
+                      displayName: user.displayName,
+                      avatarUrl: user.avatarUrl,
+                    ),
+              seats: liveSeats,
+              engine: engine,
+              // The host's own picture is the camera preview.
+              me: room.host.id,
+              isHost: true,
+              hostMicOff: !state.micEnabled,
+              onBringOnAir: (index) => unawaited(_bringOnAir(room.id, index)),
+            )
+          : _camera(state);
     } else if (!seats) {
       // D201: the second camera's small picture and the REC badge on air.
       background = videoOnAir && state.mode == LiveRoomMode.solo
@@ -1032,7 +1063,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     }
 
     final canAct = previewing || state.phase == GoLivePhase.live;
-    final video = !state.mode.isVoice;
+    final video = !state.voiceOnly;
     final tools = <GoLiveTool>[
       if (video) ...[
         GoLiveTool(
@@ -1135,9 +1166,40 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           label: l10n.liveSeatRequests,
           badge: (liveSeats?.pendingRequests ?? 0) > 0,
           onTap: state.phase == GoLivePhase.live
-              ? () => unawaited(_openRequests(room.id))
+              // D363: a video podcast's hands sheet (votes, hot seat).
+              ? () => unawaited(
+                  videoPodcast
+                      ? _openHands(room, liveSeats)
+                      : _openRequests(room.id),
+                )
               : null,
         ),
+        // D363 (§10.157): the director — «تلقائي» or a pinned guest.
+        if (videoPodcast)
+          GoLiveTool(
+            id: 'director',
+            icon: Icons.movie_filter_rounded,
+            label: l10n.podcastDirector,
+            badge:
+                !(newerStudio(
+                      ref.watch(podcastStudioProvider(room.id)),
+                      liveSeats?.studio,
+                    )?.automatic ??
+                    true),
+            onTap: state.phase == GoLivePhase.live
+                ? () => unawaited(_openDirector(room, liveSeats))
+                : null,
+          ),
+        // D363 scope extension: the episode's segments.
+        if (videoPodcast)
+          GoLiveTool(
+            id: 'segments',
+            icon: Icons.view_agenda_rounded,
+            label: l10n.podcastSegments,
+            onTap: state.phase == GoLivePhase.live
+                ? () => unawaited(_openSegments(room, liveSeats))
+                : null,
+          ),
         GoLiveTool(
           id: 'seats',
           icon: Icons.weekend_rounded,
@@ -1188,6 +1250,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         focusNode: _titleFocus,
         enabled: previewing,
         theme: state.theme,
+        // D363: a video podcast is set up over the camera.
+        preview: videoPodcast ? _camera(state) : null,
         onTheme: previewing
             ? () => unawaited(
                 showLiveThemeSheet(
@@ -2067,7 +2131,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 // debug/profile builds with the camera processor only.
                 if (LiveFxDiagnostics.enabled &&
                     engine.arEffects != LiveArSupport.unsupported &&
-                    !state.mode.isVoice &&
+                    !state.voiceOnly &&
                     engine.videoEnabled)
                   PositionedDirectional(
                     top: MediaQuery.paddingOf(context).top + 120,
@@ -2433,6 +2497,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // only); beauty and the filters are on ✨; the microphone, the
           // voice, the theme and the seats moved to «إعدادات البث».
           ?byId['requests'],
+          // D363: a video podcast's director and segments.
+          ?byId['director'],
+          ?byId['segments'],
           // D253 (owner: the host's screen as the reference; what it does
           // not show moves into ≡): the microphone and the quick replies.
           GoLiveTool(
@@ -3415,7 +3482,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             for (final seat
                 in ref.watch(liveSeatsProvider(room.id)).value?.seats ??
                     const <LiveSeat>[])
-              ?seat.user,
+              // D363 scope extension: not a guest waiting backstage.
+              if (!seat.backstage) ?seat.user,
           ],
           onSeatsStale: () {
             if (mounted) unawaited(_afterSeatChange(room.id));
@@ -3485,7 +3553,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         moderators: seats.moderators,
         seated: seats.seats,
         onInvite: (username) async {
-          await repo.inviteToSeat(roomId, username, seatIndex: index);
+          await repo.inviteToSeat(
+            roomId,
+            username,
+            seatIndex: index,
+            guestTitle: await _guestTitle(),
+          );
           await _afterSeatChange(roomId);
         },
         onModerator: (username, {required moderator}) async {
@@ -3530,7 +3603,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         await _afterSeatChange(roomId);
       },
       onInvite: (username) async {
-        await ref.read(liveRepositoryProvider).inviteToSeat(roomId, username);
+        final guestTitle = await _guestTitle();
+        await ref
+            .read(liveRepositoryProvider)
+            .inviteToSeat(roomId, username, guestTitle: guestTitle);
         await _afterSeatChange(roomId);
       },
       onModerator: (username, {required moderator}) async {
@@ -3652,7 +3728,116 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         questionsOpen: questionsOpen,
         seconds: seconds,
       ),
+      // D363 (§10.157): «الكرسي الساخن» — the asker joins for 60 s.
+      onHotSeat: podcast.video
+          ? (r) async {
+              await repo.acceptSeatRequest(room.id, r.id, hotSeat: true);
+              await _afterSeatChange(room.id);
+            }
+          : null,
+      // D363 scope extension: the question over the video, answered by a
+      // person on air (asked when there is more than one guest).
+      onShowOnScreen: podcast.video
+          ? (r) async {
+              final people = _onAirPeople(
+                room,
+                ref.read(liveSeatsProvider(room.id)).value,
+              );
+              final guests = people.skip(1).toList();
+              final String? answer;
+              if (guests.length <= 1) {
+                answer = (guests.firstOrNull ?? people.first).id;
+              } else {
+                answer = await showPodcastAnswerPicker(context, people: people);
+                if (answer == null) return;
+              }
+              ref
+                  .read(podcastStudioProvider(room.id).notifier)
+                  .apply(
+                    await repo.showPodcastQuestion(
+                      room.id,
+                      r.id,
+                      answerUserId: answer,
+                    ),
+                  );
+            }
+          : null,
     );
+  }
+
+  /// D363: the host, then the people on air (not backstage).
+  List<({String id, String name})> _onAirPeople(
+    LiveRoom room,
+    LiveSeats? liveSeats,
+  ) => [
+    (id: room.host.id, name: room.host.displayName),
+    for (final s in podcastOnAir(liveSeats))
+      (id: s.user!.id, name: s.user!.displayName),
+  ];
+
+  /// D363 (§10.157) + scope extension: the director — «تلقائي», the shot
+  /// kept on one person and/or a layout kept; the server relays it to
+  /// everyone (`studio`).
+  Future<void> _openDirector(LiveRoom room, LiveSeats? liveSeats) async {
+    final studio = newerStudio(
+      ref.read(podcastStudioProvider(room.id)),
+      liveSeats?.studio,
+    );
+    final choice = await showPodcastDirectorSheet(
+      context,
+      people: _onAirPeople(room, liveSeats),
+      pin: studio?.pinUserId,
+      layout: studio?.layout,
+      hotSeat: podcastOnAir(liveSeats).any((s) => s.hotSeat != null),
+    );
+    if (choice == null || !mounted) return;
+    await runSeatAction(context, () async {
+      final next = await ref
+          .read(liveRepositoryProvider)
+          .setPodcastControl(
+            room.id,
+            pinUserId: choice.pin,
+            layout: choice.layout,
+          );
+      ref.read(podcastStudioProvider(room.id).notifier).apply(next);
+    });
+  }
+
+  /// D363 scope extension: the episode's segments «فقرات الحلقة» on air.
+  Future<void> _openSegments(LiveRoom room, LiveSeats? liveSeats) async {
+    final studio = newerStudio(
+      ref.read(podcastStudioProvider(room.id)),
+      liveSeats?.studio,
+    );
+    final segments = await showPodcastSegmentsSheet(
+      context,
+      segments: studio?.segments ?? const [],
+    );
+    if (segments == null || !mounted) return;
+    await runSeatAction(context, () async {
+      final next = await ref
+          .read(liveRepositoryProvider)
+          .setPodcastSegments(room.id, segments);
+      ref.read(podcastStudioProvider(room.id).notifier).apply(next);
+    });
+  }
+
+  /// D363 scope extension: a backstage guest goes on air.
+  Future<void> _bringOnAir(String roomId, int seatIndex) => runSeatAction(
+    context,
+    () async {
+      await ref.read(liveRepositoryProvider).bringSeatOnAir(roomId, seatIndex);
+      await _afterSeatChange(roomId);
+    },
+  );
+
+  /// D363: a video podcast guest's lower-third title, asked when inviting
+  /// (null: not a video podcast, or none given).
+  Future<String?> _guestTitle() async {
+    final room = ref.read(liveHostControllerProvider).room;
+    if (room == null || !room.videoPodcast) return null;
+    final title = await showPodcastGuestTitleSheet(context);
+    return title == null || title.isEmpty ? null : title;
   }
 
   Future<void> _openRequests(String roomId) {
@@ -3678,7 +3863,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         problem == LiveCaptureProblem.denied ||
         problem == LiveCaptureProblem.blocked;
     // D144a: an audio room asks for the microphone only, and says so.
-    final audio = state.mode.isVoice;
+    final audio = state.voiceOnly;
     final blocked = problem == LiveCaptureProblem.blocked;
     return LiveGlass(
       child: _Notice(

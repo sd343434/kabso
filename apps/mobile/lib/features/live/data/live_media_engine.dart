@@ -372,6 +372,16 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
   /// (the match for both rooms; invitations and queue ends for the host).
   Stream<PkEvent> get pkEvents;
 
+  /// v1.114-live (D363, §10.157): the server's `podcast` data messages in
+  /// the room (the director's shots, question upvotes).
+  Stream<PodcastEvent> get podcastEvents;
+
+  /// v1.114-live (D363 scope extension): who may receive this phone's
+  /// camera and microphone — [onlyIdentity] only (a backstage guest's
+  /// self-check, seen by the host), or everyone (null). Enforced by the
+  /// media server for this participant's tracks.
+  Future<void> restrictSubscribers(String? onlyIdentity);
+
   /// Notifies on any session change: participants, tracks, speakers,
   /// metadata, permissions, connection.
   Listenable get changes;
@@ -415,6 +425,7 @@ class LiveKitMediaEngine
   final _invites = StreamController<String>.broadcast();
   final _chat = StreamController<LiveChatEvent>.broadcast();
   final _pk = StreamController<PkEvent>.broadcast();
+  final _podcast = StreamController<PodcastEvent>.broadcast();
   Set<String> _speaking = const {};
   int? _seatsVersion;
   int? _score;
@@ -1107,6 +1118,12 @@ class LiveKitMediaEngine
             }
             return;
           }
+          // v1.114-live (D363): a video podcast's director and votes.
+          if (e.topic == 'podcast') {
+            final podcast = PodcastEvent.parse(message);
+            if (podcast != null) _podcast.add(podcast);
+            return;
+          }
           if (message is Map && message['type'] == 'seat-invite') {
             final roomId = message['roomId'];
             if (roomId is String) _invites.add(roomId);
@@ -1537,6 +1554,22 @@ class LiveKitMediaEngine
 
   @override
   Stream<PkEvent> get pkEvents => _pk.stream;
+
+  @override
+  Stream<PodcastEvent> get podcastEvents => _podcast.stream;
+
+  @override
+  Future<void> restrictSubscribers(String? onlyIdentity) async {
+    final local = _room?.localParticipant;
+    if (local == null) return;
+    local.setTrackSubscriptionPermissions(
+      allParticipantsAllowed: onlyIdentity == null,
+      trackPermissions: [
+        if (onlyIdentity != null)
+          lk.ParticipantTrackPermission(onlyIdentity, true, null),
+      ],
+    );
+  }
 
   @override
   Listenable get changes => _changes;

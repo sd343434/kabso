@@ -8,6 +8,7 @@ import { UsersModule } from '../users/users.module.js';
 import { WalletModule } from '../wallet/wallet.module.js';
 import { LiveBulletsService } from './live-bullets.service.js';
 import { LiveSeatEmojiService } from './live-seat-emoji.service.js';
+import { LivePodcastVideoService } from './live-podcast-video.service.js';
 import { LiveQuipsService } from './live-quips.service.js';
 import { LiveBoostsService } from './live-boosts.service.js';
 import { LiveNewcomersService } from './live-newcomers.service.js';
@@ -109,6 +110,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveBulletsService,
     // v1.27.5-live (D138): an emoji on one's own seat (§10.30).
     LiveSeatEmojiService,
+    LivePodcastVideoService,
     LiveQuipsService,
     LiveBoostsService,
     LiveNewcomersService,

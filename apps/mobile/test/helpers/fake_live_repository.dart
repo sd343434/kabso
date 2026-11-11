@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -239,6 +240,38 @@ class FakeLiveRepository implements LiveRepository {
   final List<({bool? questionsOpen, bool setSeconds, int? seconds})>
   podcastSettings = [];
 
+  /// D363: `acceptSeatRequest` hot seats, `voteQuestion` and
+  /// `setPodcastDirector` calls, and the invitations' guest titles.
+  final List<({String requestId, int? seconds})> hotSeats = [];
+  final List<({String requestId, bool vote})> votes = [];
+  final List<PodcastDirectorShot> directorShots = [];
+  final List<String?> guestTitles = [];
+
+  /// D363 scope extension: the studio the fake server holds (each change
+  /// raises `seq`), its calls, and the backstage guests brought on air.
+  LivePodcastStudio studio = const LivePodcastStudio();
+  final List<String> studioCalls = [];
+  final List<int> onAir = [];
+
+  LivePodcastStudio _studio(String call, LivePodcastStudio next) {
+    studioCalls.add(call);
+    studio = LivePodcastStudio(
+      seq: studio.seq + 1,
+      pinUserId: next.pinUserId,
+      layout: next.layout,
+      segments: next.segments,
+      segmentIndex: next.segmentIndex,
+      segmentStartedAt: next.segmentStartedAt,
+      closing: next.closing,
+      onScreen: next.onScreen,
+    );
+    // A video podcast's seats carry it (`LiveSeats.studio`).
+    if (seatState case final seats? when seats.studio != null) {
+      seatState = seats.copyWith(studio: studio);
+    }
+    return studio;
+  }
+
   /// D212: answers `scheduledPodcasts`.
   List<LiveScheduledPodcast> scheduled = [];
   AppFailure? scheduledFailure;
@@ -348,6 +381,8 @@ class FakeLiveRepository implements LiveRepository {
               topic: podcast.topic,
               questionsOpen: podcast.questionsOpen,
               questionSeconds: podcast.questionSeconds,
+              // D363: the setup's «صوت / فيديو».
+              video: podcast.video,
             ),
       theme: theme ?? LiveThemes.classic,
       // D213: the server's starting layout (portrait, bubble top left).
@@ -357,6 +392,10 @@ class FakeLiveRepository implements LiveRepository {
       roomLevel: startRoomLevel,
       roomNumber: startRoomNumber,
     );
+    // D363 scope extension: the setup's segments are the episode's.
+    if (podcast != null && podcast.video) {
+      studio = LivePodcastStudio(segments: podcast.segments);
+    }
     if (mode.hasSeats) {
       seatState = LiveSeats(
         roomId: room.id,
@@ -376,6 +415,9 @@ class FakeLiveRepository implements LiveRepository {
           invite: null,
         ),
       );
+    }
+    if (podcast != null && podcast.video) {
+      seatState = seatState?.copyWith(studio: studio);
     }
     hostRoom = room;
     return room;
@@ -730,8 +772,11 @@ class FakeLiveRepository implements LiveRepository {
     String roomId,
     String requestId, {
     int? seatIndex,
+    bool hotSeat = false,
+    int? hotSeatSeconds,
   }) async {
     final s = _seats('acceptSeatRequest:$requestId:${seatIndex ?? ''}');
+    if (hotSeat) hotSeats.add((requestId: requestId, seconds: hotSeatSeconds));
     final request = pendingSeatRequests.firstWhere((r) => r.id == requestId);
     pendingSeatRequests = [
       for (final r in pendingSeatRequests)
@@ -749,6 +794,136 @@ class FakeLiveRepository implements LiveRepository {
   }
 
   @override
+  Future<LivePodcastQuestionVotes> voteQuestion(
+    String roomId,
+    String requestId, {
+    required bool vote,
+  }) async {
+    votes.add((requestId: requestId, vote: vote));
+    final mine = votes.where((v) => v.requestId == requestId).last.vote;
+    return LivePodcastQuestionVotes(
+      requestId: requestId,
+      votes: mine ? 1 : 0,
+      votedByMe: mine,
+    );
+  }
+
+  @override
+  Future<void> setPodcastDirector(
+    String roomId,
+    PodcastDirectorShot shot,
+  ) async {
+    directorShots.add(shot);
+  }
+
+  @override
+  Future<LivePodcastStudio> setPodcastControl(
+    String roomId, {
+    String? pinUserId,
+    PodcastShotKind? layout,
+  }) async => _studio(
+    'control:${pinUserId ?? ''}:${layout?.wire ?? ''}',
+    LivePodcastStudio(
+      pinUserId: pinUserId,
+      layout: layout,
+      segments: studio.segments,
+      segmentIndex: studio.segmentIndex,
+      segmentStartedAt: studio.segmentStartedAt,
+      closing: studio.closing,
+      onScreen: studio.onScreen,
+    ),
+  );
+
+  @override
+  Future<LivePodcastStudio> setPodcastSegments(
+    String roomId,
+    List<LivePodcastSegment> segments,
+  ) async {
+    final index = studio.segmentIndex;
+    return _studio(
+      'segments:${segments.length}',
+      LivePodcastStudio(
+        pinUserId: studio.pinUserId,
+        layout: studio.layout,
+        segments: segments,
+        segmentIndex: segments.isEmpty
+            ? null
+            : index != null && index >= segments.length
+            ? segments.length - 1
+            : index,
+        segmentStartedAt: segments.isEmpty ? null : studio.segmentStartedAt,
+        closing: segments.isNotEmpty && studio.closing,
+        onScreen: studio.onScreen,
+      ),
+    );
+  }
+
+  @override
+  Future<LivePodcastStudio> nextPodcastSegment(String roomId) async {
+    final index = studio.segmentIndex;
+    final last = studio.segments.length - 1;
+    final closing = index != null && index >= last;
+    return _studio(
+      'next',
+      LivePodcastStudio(
+        pinUserId: studio.pinUserId,
+        layout: studio.layout,
+        segments: studio.segments,
+        segmentIndex: closing ? index : (index ?? -1) + 1,
+        segmentStartedAt: closing ? studio.segmentStartedAt : clock.now(),
+        closing: closing,
+        onScreen: studio.onScreen,
+      ),
+    );
+  }
+
+  @override
+  Future<LivePodcastStudio> showPodcastQuestion(
+    String roomId,
+    String requestId, {
+    String? answerUserId,
+  }) async {
+    final request = pendingSeatRequests.firstWhere((r) => r.id == requestId);
+    return _studio(
+      'show:$requestId:${answerUserId ?? ''}',
+      LivePodcastStudio(
+        pinUserId: studio.pinUserId,
+        layout: studio.layout,
+        segments: studio.segments,
+        segmentIndex: studio.segmentIndex,
+        segmentStartedAt: studio.segmentStartedAt,
+        closing: studio.closing,
+        onScreen: LivePodcastOnScreen(
+          requestId: requestId,
+          user: request.user,
+          question: request.question ?? '',
+          answerUserId: answerUserId,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<LivePodcastStudio> hidePodcastQuestion(String roomId) async => _studio(
+    'hide',
+    LivePodcastStudio(
+      pinUserId: studio.pinUserId,
+      layout: studio.layout,
+      segments: studio.segments,
+      segmentIndex: studio.segmentIndex,
+      segmentStartedAt: studio.segmentStartedAt,
+      closing: studio.closing,
+    ),
+  );
+
+  @override
+  Future<LiveSeats> bringSeatOnAir(String roomId, int seatIndex) async {
+    final s = _seats('bringSeatOnAir:$seatIndex');
+    onAir.add(seatIndex);
+    return _setSeat(s, seatIndex, (seat) => seat.copyWith(backstage: false));
+  }
+
+  @override
   Future<void> declineSeatRequest(String roomId, String requestId) async {
     _seats('declineSeatRequest:$requestId');
     pendingSeatRequests = [
@@ -762,8 +937,10 @@ class FakeLiveRepository implements LiveRepository {
     String roomId,
     String username, {
     int? seatIndex,
+    String? guestTitle,
   }) async {
     _seats('inviteToSeat:$username:${seatIndex ?? ''}');
+    guestTitles.add(guestTitle);
     return LiveSeatInvite(
       id: 'inv-$username',
       user: _user(username),

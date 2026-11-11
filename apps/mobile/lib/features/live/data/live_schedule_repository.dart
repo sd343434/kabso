@@ -24,6 +24,7 @@ class LiveScheduleSlot {
     required this.title,
     required this.startsAt,
     this.podcastTopic,
+    this.podcastVideo = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => LiveScheduleSlot(
@@ -33,6 +34,7 @@ class LiveScheduleSlot {
     podcastTopic: json['mode'] == 'PODCAST'
         ? json['podcastTopic'] as String?
         : null,
+    podcastVideo: json['podcastVideo'] == true,
   );
 
   final String id;
@@ -42,6 +44,9 @@ class LiveScheduleSlot {
   /// v1.47-live (D212): an announced podcast episode's topic slug; null
   /// for a plain announcement.
   final String? podcastTopic;
+
+  /// v1.114-live (D363): an announced video episode.
+  final bool podcastVideo;
 }
 
 /// The host's live schedule (CP-016 C, CONVENTIONS §10.16): followers are
@@ -52,11 +57,12 @@ abstract interface class LiveScheduleRepository {
   Future<List<LiveScheduleSlot>> list();
 
   /// `POST /me/live-schedule`. D212: [podcastTopic] announces a podcast
-  /// episode (mode PODCAST).
+  /// episode (mode PODCAST); D363: [podcastVideo] a video one.
   Future<LiveScheduleSlot> create({
     required String title,
     required DateTime startsAt,
     String? podcastTopic,
+    bool podcastVideo = false,
   });
 
   /// `DELETE /me/live-schedule/{slotId}`.
@@ -82,6 +88,7 @@ class LiveScheduleRepositoryImpl implements LiveScheduleRepository {
     required String title,
     required DateTime startsAt,
     String? podcastTopic,
+    bool podcastVideo = false,
   }) => guardApiCall(() async {
     final res = await _api.post<Map<String, dynamic>>(
       '/me/live-schedule',
@@ -91,6 +98,8 @@ class LiveScheduleRepositoryImpl implements LiveScheduleRepository {
         if (podcastTopic != null) ...{
           'mode': 'PODCAST',
           'podcastTopic': podcastTopic,
+          // v1.114-live (D363): sent only when on (audio = D212's body).
+          if (podcastVideo) 'podcastVideo': true,
         },
       },
     );

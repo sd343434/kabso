@@ -32,6 +32,8 @@ import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
 import { LiveBulletsService, type LiveBulletResultDto } from './live-bullets.service.js';
 import { LiveSeatEmojiService, type LiveSeatEmojiDto } from './live-seat-emoji.service.js';
+import { LivePodcastVideoService, type LivePodcastQuestionVotesDto } from './live-podcast-video.service.js';
+import type { LivePodcastStudioDto } from './live-podcast-studio.js';
 import { LiveQuipsService, type LiveQuipDto } from './live-quips.service.js';
 import {
   LiveBoostsService,
@@ -128,6 +130,14 @@ const SEAT_ASK = {
   replacesDefault: true,
 } as const;
 
+/** v1.114-live (D363, §7): question upvotes, 120 / 10 min per user (replaces the default). */
+const QUESTION_VOTE = {
+  bucket: 'live:question:vote',
+  rule: 'liveQuestionVoteUser',
+  key: byUserId,
+  replacesDefault: true,
+} as const;
+
 /** CP-011 (§7): host and moderator seat actions, 300 / hour per user (replaces the default). */
 const SEAT_ACTION = {
   bucket: 'live:seat:action',
@@ -153,6 +163,7 @@ export class LiveController {
     private readonly chat: LiveChatService,
     private readonly bullets: LiveBulletsService,
     private readonly seatEmoji: LiveSeatEmojiService,
+    private readonly podcastVideo: LivePodcastVideoService,
     private readonly quips: LiveQuipsService,
     private readonly boosts: LiveBoostsService,
     private readonly newcomers: LiveNewcomersService,
@@ -435,6 +446,96 @@ export class LiveController {
     return this.seats.deferRequest(requireCaller(req), roomId, requestId, await this.language(req));
   }
 
+  /** v1.114-live (D363, §10.157): upvote a video podcast hand's question (idempotent). */
+  @Put('rooms/:roomId/seat-requests/:requestId/vote')
+  @HttpCode(200)
+  @RateLimit(QUESTION_VOTE)
+  voteQuestion(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('requestId') requestId: string,
+  ): Promise<LivePodcastQuestionVotesDto> {
+    return this.podcastVideo.setVote(requireCaller(req), roomId, requestId, true);
+  }
+
+  /** v1.114-live (D363): take back the caller's upvote (idempotent). */
+  @Delete('rooms/:roomId/seat-requests/:requestId/vote')
+  @HttpCode(200)
+  @RateLimit(QUESTION_VOTE)
+  unvoteQuestion(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('requestId') requestId: string,
+  ): Promise<LivePodcastQuestionVotesDto> {
+    return this.podcastVideo.setVote(requireCaller(req), roomId, requestId, false);
+  }
+
+  /** v1.114-live (D363): the host relays the director's shot to the room (nothing stored). */
+  @Put('rooms/:roomId/podcast/director')
+  @HttpCode(204)
+  @RateLimit({
+    bucket: 'live:podcast:director',
+    rule: 'livePodcastDirectorUser',
+    key: byUserId,
+    replacesDefault: true,
+  })
+  async setPodcastDirector(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<void> {
+    await this.podcastVideo.relayDirector(requireCaller(req), roomId, body);
+  }
+  /** v1.114-live (D363, scope extension): the host pins a person / locks a layout (both null: «تلقائي»). */
+  @Put('rooms/:roomId/podcast/control')
+  @HttpCode(200)
+  setPodcastControl(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LivePodcastStudioDto> {
+    return this.podcastVideo.setControl(requireCaller(req), roomId, body);
+  }
+
+  /** v1.114-live (D363, scope extension): the host replaces the episode's segments. */
+  @Put('rooms/:roomId/podcast/segments')
+  @HttpCode(200)
+  setPodcastSegments(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LivePodcastStudioDto> {
+    return this.podcastVideo.setSegments(requireCaller(req), roomId, body);
+  }
+
+  /** v1.114-live (D363, scope extension): the next segment, or the closing card after the last. */
+  @Post('rooms/:roomId/podcast/segments/next')
+  @HttpCode(200)
+  nextPodcastSegment(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LivePodcastStudioDto> {
+    return this.podcastVideo.nextSegment(requireCaller(req), roomId);
+  }
+
+  /** v1.114-live (D363, scope extension): the host shows a hand's question over the video. */
+  @Put('rooms/:roomId/podcast/on-screen')
+  @HttpCode(200)
+  showPodcastQuestion(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LivePodcastStudioDto> {
+    return this.podcastVideo.showOnScreen(requireCaller(req), roomId, body);
+  }
+
+  /** v1.114-live (D363, scope extension): the question card goes away (idempotent). */
+  @Delete('rooms/:roomId/podcast/on-screen')
+  @HttpCode(200)
+  hidePodcastQuestion(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+  ): Promise<LivePodcastStudioDto> {
+    return this.podcastVideo.hideOnScreen(requireCaller(req), roomId);
+  }
+
   @Post('rooms/:roomId/seat-requests/:requestId/decline')
   @HttpCode(204)
   @RateLimit(SEAT_ACTION)
@@ -496,6 +597,18 @@ export class LiveController {
     @Param('seatIndex') seatIndex: string,
   ): Promise<LiveSeatsDto> {
     return this.seats.remove(requireCaller(req), roomId, seatIndex, await this.language(req));
+  }
+
+  /** v1.114-live (D363, scope extension): the host brings a backstage guest on air. */
+  @Post('rooms/:roomId/seats/:seatIndex/on-air')
+  @HttpCode(200)
+  @RateLimit(SEAT_ACTION)
+  async bringSeatOnAir(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('seatIndex') seatIndex: string,
+  ): Promise<LiveSeatsDto> {
+    return this.seats.bringOnAir(requireCaller(req), roomId, seatIndex, await this.language(req));
   }
 
   @Post('rooms/:roomId/seats/:seatIndex/lock')

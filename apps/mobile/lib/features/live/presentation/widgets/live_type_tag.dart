@@ -99,10 +99,20 @@ enum LiveCardKind {
 ///   fit a narrow card instead of cutting its tag; the card's own label
 ///   carries the type for screen readers ([LiveCardKind.semanticLabel]).
 class LiveTypeTag extends StatelessWidget {
-  const new({required this.kind, super.key, this.fontSize = 9.5});
+  const new({
+    required this.kind,
+    super.key,
+    this.fontSize = 9.5,
+    this.video = false,
+  });
 
   final LiveCardKind kind;
   final double fontSize;
+
+  /// D363 (§10.157): a video podcast — a tiny camera after the tag.
+  final bool video;
+
+  static const videoKey = Key('liveTypeTag.video');
 
   static Key keyOf(LiveCardKind kind) => Key('liveTypeTag.${kind.name}');
 
@@ -121,27 +131,46 @@ class LiveTypeTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final videoPodcast = video && kind == LiveCardKind.podcast;
+    final tag = Text(
+      kind.tag(l10n),
+      key: textKey,
+      maxLines: 1,
+      style: context.textStyles.caption.copyWith(
+        color: const Color(0xFFFFFFFF),
+        fontSize: fontSize,
+        fontWeight: FontWeight.w800,
+        height: 1,
+        letterSpacing: 0.1,
+        shadows: shadows,
+      ),
+    );
     return Semantics(
-      label: kind.semanticLabel(l10n),
+      label: videoPodcast
+          ? '${kind.semanticLabel(l10n)} · ${l10n.podcastVideoBadge}'
+          : kind.semanticLabel(l10n),
       excludeSemantics: true,
       child: MediaQuery.withNoTextScaling(
         child: FittedBox(
           key: keyOf(kind),
           fit: BoxFit.scaleDown,
           alignment: AlignmentDirectional.centerStart,
-          child: Text(
-            kind.tag(l10n),
-            key: textKey,
-            maxLines: 1,
-            style: context.textStyles.caption.copyWith(
-              color: const Color(0xFFFFFFFF),
-              fontSize: fontSize,
-              fontWeight: FontWeight.w800,
-              height: 1,
-              letterSpacing: 0.1,
-              shadows: shadows,
-            ),
-          ),
+          child: !videoPodcast
+              ? tag
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    tag,
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.videocam_rounded,
+                      key: videoKey,
+                      size: fontSize + 2,
+                      color: const Color(0xFFFFFFFF),
+                      shadows: shadows,
+                    ),
+                  ],
+                ),
         ),
       ),
     );

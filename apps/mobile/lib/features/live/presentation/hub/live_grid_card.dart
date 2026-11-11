@@ -176,7 +176,12 @@ class KLiveGridCard extends StatelessWidget {
                           Expanded(
                             child: Align(
                               alignment: AlignmentDirectional.centerStart,
-                              child: LiveTypeTag(key: typeKey, kind: kind),
+                              child: LiveTypeTag(
+                                key: typeKey,
+                                kind: kind,
+                                // D363: a video podcast's camera.
+                                video: room.podcast?.video ?? false,
+                              ),
                             ),
                           ),
                           const SizedBox(width: KSpacing.xs),

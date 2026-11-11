@@ -3,8 +3,10 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/features/live/domain/live_podcast_video.dart';
 import 'package:kabso_live/features/live/domain/live_streamer.dart';
 
+export 'package:kabso_live/features/live/domain/live_podcast_video.dart';
 export 'package:kabso_live/features/live/domain/live_streamer.dart';
 
 part 'live_models.freezed.dart';
@@ -77,6 +79,8 @@ class PodcastSetup {
     required this.topic,
     this.questionsOpen = true,
     this.questionSeconds = 120,
+    this.video = false,
+    this.segments = const [],
   });
 
   final PodcastTopic topic;
@@ -85,10 +89,37 @@ class PodcastSetup {
   /// null = no limit.
   final int? questionSeconds;
 
+  /// v1.114-live (D363, §10.157): «صوت / فيديو» — a video podcast.
+  final bool video;
+
+  /// v1.114-live (D363 scope extension): the episode's segments «فقرات»
+  /// (a video podcast's; at most [LivePodcastSegment.max]).
+  final List<LivePodcastSegment> segments;
+
+  PodcastSetup copyWith({
+    PodcastTopic? topic,
+    bool? questionsOpen,
+    int? Function()? questionSeconds,
+    bool? video,
+    List<LivePodcastSegment>? segments,
+  }) => PodcastSetup(
+    topic: topic ?? this.topic,
+    questionsOpen: questionsOpen ?? this.questionsOpen,
+    questionSeconds: questionSeconds == null
+        ? this.questionSeconds
+        : questionSeconds(),
+    video: video ?? this.video,
+    segments: segments ?? this.segments,
+  );
+
   Map<String, dynamic> toJson() => {
     'topic': topic.wire,
     'questionsOpen': questionsOpen,
     'questionSeconds': questionSeconds,
+    // Sent only when on, so an audio podcast's request is exactly D212's.
+    if (video) 'video': true,
+    if (video && segments.isNotEmpty)
+      'segments': [for (final g in segments) g.toJson()],
   };
 }
 
@@ -137,9 +168,55 @@ abstract class LivePodcast with _$LivePodcast {
     /// An accepted hand's speaking time; null = no limit.
     int? questionSeconds,
     @Default(<LivePodcastSpeaker>[]) List<LivePodcastSpeaker> speakers,
+
+    /// v1.114-live (D363, §10.157): a video podcast (false from older
+    /// servers: audio).
+    @Default(false) bool video,
   }) = _LivePodcast;
 
   factory fromJson(Map<String, dynamic> json) => _$LivePodcastFromJson(json);
+}
+
+/// v1.114-live (D363, §10.157): the video podcast on a room.
+extension LiveRoomVideoPodcast on LiveRoom {
+  /// A podcast whose host and speakers are on camera.
+  bool get videoPodcast =>
+      mode == LiveRoomMode.podcast && (podcast?.video ?? false);
+
+  /// No camera for anyone: AUDIO and an audio podcast. The layout and the
+  /// camera follow this; a video podcast is drawn as a video live.
+  bool get voiceOnly => mode.isVoice && !videoPodcast;
+}
+
+/// `LivePodcastHotSeat` (v1.114-live, D363): the hand seated «في الكرسي
+/// الساخن».
+@freezed
+abstract class LivePodcastHotSeat with _$LivePodcastHotSeat {
+  const factory({
+    required String requestId,
+    required String question,
+    @Default(0) int votes,
+  }) = _LivePodcastHotSeat;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LivePodcastHotSeatFromJson(json);
+}
+
+/// `LivePodcastQuestion` (v1.114-live, D363): a raised hand with a
+/// question, as every listener sees it.
+@freezed
+abstract class LivePodcastQuestion with _$LivePodcastQuestion {
+  const factory({
+    required String requestId,
+    required UserSummary user,
+    required String question,
+    @Default(0) int votes,
+    @Default(false) bool votedByMe,
+    @Default(false) bool deferred,
+  }) = _LivePodcastQuestion;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LivePodcastQuestionFromJson(json);
 }
 
 /// `LiveScheduledPodcast` (v1.47-live, D212): an announced episode in the
@@ -156,6 +233,9 @@ abstract class LiveScheduledPodcast with _$LiveScheduledPodcast {
 
     /// The person will be reminded (they follow the host).
     @Default(false) bool reminder,
+
+    /// v1.114-live (D363): a video episode (the card's video badge).
+    @Default(false) bool video,
   }) = _LiveScheduledPodcast;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -674,6 +754,17 @@ abstract class LiveSeat with _$LiveSeat {
     /// v1.47-live (D212): a podcast speaker's question end (they go back
     /// to the listeners then); null = no limit.
     DateTime? demoteAt,
+
+    /// v1.114-live (D363): the guest's lower-third title (video podcasts).
+    String? guestTitle,
+
+    /// v1.114-live (D363): seated «في الكرسي الساخن» — the question card.
+    LivePodcastHotSeat? hotSeat,
+
+    /// v1.114-live (D363 scope extension): waiting «خلف الكواليس» (an
+    /// accepted guest of a video podcast, until the host brings them on
+    /// air) — not on the stage, the director or the gift recipients.
+    @Default(false) bool backstage,
   }) = _LiveSeat;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveSeatFromJson(json);
@@ -702,6 +793,9 @@ abstract class LiveSeatRequest with _$LiveSeatRequest {
 
     /// v1.47-live (D212): the host said «لاحقاً».
     @Default(false) bool deferred,
+
+    /// v1.114-live (D363): the question's upvotes.
+    @Default(0) int votes,
   }) = _LiveSeatRequest;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -717,6 +811,9 @@ abstract class LiveSeatInvite with _$LiveSeatInvite {
     required int? seatIndex,
     required UserSummary invitedBy,
     required DateTime expiresAt,
+
+    /// v1.114-live (D363): the guest's lower-third title (video podcasts).
+    String? guestTitle,
   }) = _LiveSeatInvite;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveSeatInviteFromJson(json);
@@ -783,6 +880,13 @@ abstract class LiveSeats with _$LiveSeats {
 
     /// v1.47-live (D212): a podcast's raised hands (user ids, queue order).
     @Default(<String>[]) List<String> handsUp,
+
+    /// v1.114-live (D363): a video podcast's questions, most votes first.
+    @Default(<LivePodcastQuestion>[]) List<LivePodcastQuestion> questions,
+
+    /// v1.114-live (D363 scope extension): a video podcast's studio (manual
+    /// control, segments, the question on screen); null otherwise.
+    LivePodcastStudio? studio,
 
     /// Signed-in callers only.
     LiveSeatsMine? mine,

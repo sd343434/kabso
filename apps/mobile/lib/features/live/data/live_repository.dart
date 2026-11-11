@@ -143,21 +143,70 @@ abstract interface class LiveRepository {
     String? cursor,
   });
 
-  /// `POST …/seat-requests/{requestId}/accept`.
+  /// `POST …/seat-requests/{requestId}/accept`. v1.114-live (D363):
+  /// [hotSeat] seats a video podcast's hand «في الكرسي الساخن» for
+  /// [hotSeatSeconds] (the server's default 60 s when null).
   Future<LiveSeats> acceptSeatRequest(
     String roomId,
     String requestId, {
     int? seatIndex,
+    bool hotSeat = false,
+    int? hotSeatSeconds,
   });
+
+  /// v1.114-live (D363): `PUT` / `DELETE …/seat-requests/{requestId}/vote`
+  /// — the caller's upvote of a video podcast hand's question.
+  Future<LivePodcastQuestionVotes> voteQuestion(
+    String roomId,
+    String requestId, {
+    required bool vote,
+  });
+
+  /// v1.114-live (D363): `PUT /live/rooms/{roomId}/podcast/director` — the
+  /// host relays the director's shot to the room.
+  Future<void> setPodcastDirector(String roomId, PodcastDirectorShot shot);
+
+  /// v1.114-live (D363 scope extension): `PUT …/podcast/control` — pin a
+  /// person and/or keep a layout; both null = «تلقائي».
+  Future<LivePodcastStudio> setPodcastControl(
+    String roomId, {
+    String? pinUserId,
+    PodcastShotKind? layout,
+  });
+
+  /// `PUT …/podcast/segments` — the episode's segments (0–8).
+  Future<LivePodcastStudio> setPodcastSegments(
+    String roomId,
+    List<LivePodcastSegment> segments,
+  );
+
+  /// `POST …/podcast/segments/next` — the next segment, then the closing
+  /// card.
+  Future<LivePodcastStudio> nextPodcastSegment(String roomId);
+
+  /// `PUT …/podcast/on-screen` — a hand's question over the video.
+  Future<LivePodcastStudio> showPodcastQuestion(
+    String roomId,
+    String requestId, {
+    String? answerUserId,
+  });
+
+  /// `DELETE …/podcast/on-screen` — the question card goes away.
+  Future<LivePodcastStudio> hidePodcastQuestion(String roomId);
+
+  /// `POST …/seats/{seatIndex}/on-air` — a backstage guest goes on air.
+  Future<LiveSeats> bringSeatOnAir(String roomId, int seatIndex);
 
   /// `POST …/seat-requests/{requestId}/decline`.
   Future<void> declineSeatRequest(String roomId, String requestId);
 
-  /// `POST /live/rooms/{roomId}/seat-invites`.
+  /// `POST /live/rooms/{roomId}/seat-invites`. v1.114-live (D363):
+  /// [guestTitle] is a video podcast guest's lower-third title.
   Future<LiveSeatInvite> inviteToSeat(
     String roomId,
     String username, {
     int? seatIndex,
+    String? guestTitle,
   });
 
   /// `POST …/seat-invites/me/accept`.
@@ -664,12 +713,102 @@ class LiveRepositoryImpl implements LiveRepository {
     String roomId,
     String requestId, {
     int? seatIndex,
+    bool hotSeat = false,
+    int? hotSeatSeconds,
   }) => _seatsCall(
     () => _dio.post(
       '${_room(roomId)}/seat-requests/${pathSegment(requestId)}/accept',
-      data: {'seatIndex': ?seatIndex},
+      data: {
+        'seatIndex': ?seatIndex,
+        if (hotSeat) 'hotSeat': true,
+        if (hotSeat) 'hotSeatSeconds': ?hotSeatSeconds,
+      },
     ),
   );
+
+  @override
+  Future<LivePodcastQuestionVotes> voteQuestion(
+    String roomId,
+    String requestId, {
+    required bool vote,
+  }) => guardApiCall(() async {
+    final path =
+        '${_room(roomId)}/seat-requests/${pathSegment(requestId)}/vote';
+    final res = vote
+        ? await _dio.put<Map<String, dynamic>>(path)
+        : await _dio.delete<Map<String, dynamic>>(path);
+    return LivePodcastQuestionVotes.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> setPodcastDirector(String roomId, PodcastDirectorShot shot) =>
+      guardApiCall(() async {
+        await _dio.put<void>(
+          '${_room(roomId)}/podcast/director',
+          data: shot.toJson(),
+        );
+      });
+
+  Future<LivePodcastStudio> _studioCall(
+    Future<Response<Map<String, dynamic>>> Function() call,
+  ) => guardApiCall(() async {
+    final res = await call();
+    return LivePodcastStudio.fromJson(res.data!);
+  });
+
+  @override
+  Future<LivePodcastStudio> setPodcastControl(
+    String roomId, {
+    String? pinUserId,
+    PodcastShotKind? layout,
+  }) => _studioCall(
+    () => _dio.put<Map<String, dynamic>>(
+      '${_room(roomId)}/podcast/control',
+      data: {'pinUserId': pinUserId, 'layout': layout?.wire},
+    ),
+  );
+
+  @override
+  Future<LivePodcastStudio> setPodcastSegments(
+    String roomId,
+    List<LivePodcastSegment> segments,
+  ) => _studioCall(
+    () => _dio.put<Map<String, dynamic>>(
+      '${_room(roomId)}/podcast/segments',
+      data: {
+        'segments': [for (final g in segments) g.toJson()],
+      },
+    ),
+  );
+
+  @override
+  Future<LivePodcastStudio> nextPodcastSegment(String roomId) => _studioCall(
+    () => _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/podcast/segments/next',
+    ),
+  );
+
+  @override
+  Future<LivePodcastStudio> showPodcastQuestion(
+    String roomId,
+    String requestId, {
+    String? answerUserId,
+  }) => _studioCall(
+    () => _dio.put<Map<String, dynamic>>(
+      '${_room(roomId)}/podcast/on-screen',
+      data: {'requestId': requestId, 'answerUserId': ?answerUserId},
+    ),
+  );
+
+  @override
+  Future<LivePodcastStudio> hidePodcastQuestion(String roomId) => _studioCall(
+    () =>
+        _dio.delete<Map<String, dynamic>>('${_room(roomId)}/podcast/on-screen'),
+  );
+
+  @override
+  Future<LiveSeats> bringSeatOnAir(String roomId, int seatIndex) =>
+      _seatsCall(() => _dio.post('${_room(roomId)}/seats/$seatIndex/on-air'));
 
   @override
   Future<void> declineSeatRequest(String roomId, String requestId) =>
@@ -684,10 +823,15 @@ class LiveRepositoryImpl implements LiveRepository {
     String roomId,
     String username, {
     int? seatIndex,
+    String? guestTitle,
   }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '${_room(roomId)}/seat-invites',
-      data: {'username': username, 'seatIndex': ?seatIndex},
+      data: {
+        'username': username,
+        'seatIndex': ?seatIndex,
+        'guestTitle': ?guestTitle,
+      },
     );
     return LiveSeatInvite.fromJson(res.data!);
   });

@@ -22,6 +22,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_sheets.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_video_podcast_studio.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/podcast_hub.dart';
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
@@ -69,6 +70,7 @@ LiveSeats _podcastSeats({
   LiveSeatRequest? request,
   int? mine,
   DateTime? demoteAt,
+  bool backstage = false,
 }) => LiveSeats(
   roomId: 'room-0',
   mode: LiveRoomMode.podcast,
@@ -88,6 +90,7 @@ LiveSeats _podcastSeats({
       user: mine == 2 ? _u(testUser().id, 'أنا') : _u('u2', 'سارة'),
       points: 410,
       demoteAt: demoteAt,
+      backstage: backstage,
     ),
     const LiveSeat(index: 3, state: LiveSeatState.empty, user: null),
   ],
@@ -108,6 +111,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _openRoom(
   String language = 'ar',
   GoldenViewport viewport = GoldenViewport.phone,
   double textScale = 1,
+  bool video = false,
 }) async {
   final ar = language == 'ar';
   final live =
@@ -118,9 +122,11 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _openRoom(
             seatCount: 4,
             viewerCount: 1200,
             theme: 'podcast-studio',
-            podcast: const LivePodcast(
+            podcast: LivePodcast(
               episodeNumber: 12,
               topic: PodcastTopic.business,
+              // D363 scope extension: a video podcast's room.
+              video: video,
             ),
           ),
         )
@@ -420,6 +426,42 @@ void main() {
       await tester.pump(const Duration(seconds: 81));
       await tester.pump();
       expect(live.seatCalls, contains('leaveSeat'));
+      await _close(tester);
+    });
+
+    testWidgets('D363 scope extension: a video podcast guest waits backstage '
+        '— the self-check, only the host receives them, leaving is back to '
+        'the audience', (tester) async {
+      final (live, engine) = await _openRoom(
+        tester,
+        video: true,
+        seats: _podcastSeats(
+          role: LiveSeatRole.seated,
+          mine: 2,
+          backstage: true,
+        ),
+      );
+      expect(find.byKey(VideoPodcastStudioKeys.selfCheck), findsOneWidget);
+      expect(find.text('أنت خلف الكواليس'), findsOneWidget);
+      final hostId = apiRoom().host.id;
+      expect(engine.subscribersOnly, hostId);
+      await tester.tap(find.byKey(VideoPodcastStudioKeys.leaveBackstage));
+      await tester.pump();
+      expect(live.seatCalls, contains('leaveSeat'));
+      await _close(tester);
+    });
+
+    testWidgets('D363 scope extension: on air, everyone receives the guest', (
+      tester,
+    ) async {
+      final (_, engine) = await _openRoom(
+        tester,
+        video: true,
+        seats: _podcastSeats(role: LiveSeatRole.seated, mine: 2),
+      );
+      expect(find.byKey(VideoPodcastStudioKeys.selfCheck), findsNothing);
+      // Never restricted: nothing sent.
+      expect(engine.subscriberCalls, isEmpty);
       await _close(tester);
     });
 

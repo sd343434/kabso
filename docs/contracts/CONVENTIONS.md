@@ -504,6 +504,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | Seat requests and invitations *(v1.7-live, CP-011)* | 30 / 10 min per user |
 | Host and moderator seat actions (accept, decline, mute, remove, lock, moderators, `seatCount`/`theme` in `PATCH`) *(v1.7-live, CP-011)* | 300 / hour per user |
 | `GET /live/rooms/{roomId}/seats` *(v1.7-live, CP-011)* | 600 / 15 min per user; guests share the CP-010 guest read limit per IP |
+| `PUT` / `DELETE /live/rooms/{roomId}/seat-requests/{requestId}/vote` *(v1.114-live, D363)* | 120 / 10 min per user (bucket `live:question:vote`, `RATE_LIMIT_LIVE_QUESTION_VOTE_USER`; replaces the default) |
+| `PUT /live/rooms/{roomId}/podcast/director` *(v1.114-live, D363)* | 600 / 10 min per user (bucket `live:podcast:director`, `RATE_LIMIT_LIVE_PODCAST_DIRECTOR_USER`; a shot at most every 2.5 s plus one every 10 s; replaces the default) |
 | `POST /live/rooms/{roomId}/taps` *(v1.8-live, CP-012)* | 120 / min per user (one batch a second = 60 / min; 2× headroom). **Replaces** the per-user default (it would exhaust 600 / 15 min). The 10-a-second and 10 000-a-live limits are counting rules, not rate limits: past them taps are dropped with 200 (§10.10) |
 | `POST /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | 20 / min per user, plus a counting rule of 1 a second per user and room (429 with `Retry-After`). **Replaces** the per-user default |
 | Chat delete, chat mutes, `chatEnabled` in `PATCH` *(v1.9-live, CP-013)* | the CP-011 host and moderator bucket (300 / hour per user); deleting one's own message counts there too |
@@ -614,6 +616,8 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.19-live)* Tables `wallets`, `wallet_ledger` | Backend — `wallet` module | CTO; Security (financial tables) |
 | *(v1.19-live)* Table `live_bullets` | Backend — `live` module | CTO |
 | *(v1.20-live)* Table `live_room_kicks` | Backend — `live` module | CTO |
+| *(v1.114-live, D363)* Table `live_question_votes`; columns `live_rooms.podcast_video`, `live_schedule_slots.podcast_video`, `live_room_seats.guest_title` / `hot_seat_request_id`, `live_seat_invites.guest_title` | Backend — `live` module | CTO |
+| *(v1.114-live, D363 scope extension)* Table `live_podcast_studios`; column `live_room_seats.backstage` | Backend — `live` module (`live-podcast-studio.ts`, `LivePodcastVideoService`, `LiveSeatsService.bringOnAir`) | CTO |
 | *(v1.21-live)* Tables `families`, `family_members`, `family_join_requests`, `family_points_ledger` | Backend — `families` module (`family_points_ledger` is written with the wallet's debits) | CTO; Security (the points ledger follows wallet debits) |
 | *(v1.25-live)* Tables `family_chat_messages`, `family_chat_mutes`; columns `families.cover_media_id`, `cover_url`, `tagline` | Backend — `families` module | CTO |
 | *(v1.25-live)* Column `users.last_active_at` (presence) | Backend — `users` module (`PresenceTracker`, written by the access-token guard); read by `families` | CTO; Security reviews who may see it (§10.25) |
@@ -773,6 +777,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.114-live (draft) | 2026-11-10 | **D363 (owner-approved mockup: «بودكاست فيديو» with an automatic director):** `PodcastSetup.video` (default false) and `LivePodcast.video` — a video podcast's host and speakers publish the camera and the microphone (`seatPermission` / host sources), the capacity guard weighs it as a video live; `CreateLiveScheduleSlotRequest.podcastVideo`, `LiveScheduleSlot.podcastVideo`, `LiveScheduledPodcast.video`; `LiveSeatInviteBody.guestTitle` / `LiveSeatInvite.guestTitle` / `LiveSeat.guestTitle` (the lower third, 1–40 code points, video podcasts only); question upvotes `voteLivePodcastQuestion` / `unvoteLivePodcastQuestion` (`PUT` / `DELETE …/seat-requests/{requestId}/vote`, `LivePodcastQuestionVotes`), `LiveSeats.questions` (`LivePodcastQuestion`), `LiveSeatRequest.votes`, data message `question-votes` on topic `podcast`; the hot seat «الكرسي الساخن» `LiveSeatAcceptBody.hotSeat` / `hotSeatSeconds` (`acceptLiveSeatRequest`'s body, which replaces the schema `LiveSeatRequestBody`, `seatIndex` unchanged) and `LiveSeat.hotSeat` (`LivePodcastHotSeat`); the director relay `setLivePodcastDirector` (`PUT …/podcast/director`, `LivePodcastDirectorShot`) and data message `director` on topic `podcast`; config `RATE_LIMIT_LIVE_QUESTION_VOTE_USER` (120/600), `RATE_LIMIT_LIVE_PODCAST_DIRECTOR_USER` (600/600); migration `20270426090000_podcast_video` (re-creates CHECK `live_rooms_podcast_fields`, adds `live_schedule_slots_podcast_fields` rule, table `live_question_votes`). §7, §8, §10.69, §10.148, §10.157. **Scope extension (owner 2026-11-11):** backstage «خلف الكواليس» (`LiveSeat.backstage`; an accepted invitation of a video podcast lands there; `bringLiveSeatOnAir` `POST …/seats/{seatIndex}/on-air`), the host's manual control (`setLivePodcastControl` `PUT …/podcast/control`, `LivePodcastControlBody`, `LivePodcastLockLayout`), the segments «فقرات الحلقة» (`PodcastSetup.segments`, `setLivePodcastSegments` `PUT …/podcast/segments`, `nextLivePodcastSegment` `POST …/podcast/segments/next`, `LivePodcastSegment`), the audience question on screen (`showLivePodcastQuestion` / `hideLivePodcastQuestion` `PUT` / `DELETE …/podcast/on-screen`, `LivePodcastOnScreen`), `LiveSeats.studio` (`LivePodcastStudio`) and the data message `studio` (topic `podcast`); migration `20270426090100_podcast_video_studio` (table `live_podcast_studios`, column `live_room_seats.backstage`). | **Additive** (new optional request fields, new response fields, operations and a data message topic; every new behaviour is off for audio podcasts, which are unchanged). |
 | v1.121-social (draft) | 2026-11-10 | **D361 (owner: «المؤسس ليس له ليفيل»): the founder has no level.** For the app owner (an ACTIVE account holding OWNER, `PublicProfile.kabsoOwner`): `getUserLevels` answers `data: []` for every viewer; `LiveRoom.roomLevel` / `LiveRoomSummary.roomLevel` null in his lives; `LiveChatAuthorBadges.charmLevel` / `supportLevel` and `HostSupporter.supportLevel` null for him; his level-ups never go out on the `level` ticker. `getMyLevels` unchanged (private). No migration, nothing deleted. §10.156. App (no contract): the D175 «أنت تغادر Kabso» sheet again before Instagram, Facebook, WhatsApp and Snapchat links (the founder's social row too). 2026-11-10 owner: Instagram/Facebook direct again; WhatsApp/Snapchat ask first. | **Behaviour change for the founder only**; shapes unchanged (every field was already nullable or a list). |
 | v1.120-social (draft) | 2026-11-10 | **D360 (owner approved): a WhatsApp level per staff member «مستوى واتساب لكل موظف».** `WhatsAppLevel` NONE / VIEW / REPLY / MANAGE decides the three WhatsApp capabilities — new `support.whatsapp.view` (VIEW+), `support.whatsapp` (REPLY+), `support.whatsapp.manage` (MANAGE); no level set = the roles' default, exactly D355; an OWNER is always MANAGE. `setAdminTeamWhatsApp` (`PUT /admin/team/{userId}/whatsapp`, `team.manage`, code + reason; audited `admin.team.whatsapp`; `ADMIN_ACTION_REFUSED` issues `team_not_member`, `team_whatsapp_owner`); `AdminTeam.data[].whatsapp` (`AdminTeamWhatsApp`); the `/staff/whatsapp/*` and `/admin/whatsapp/*` reads need `.view`, every action `support.whatsapp`; `StaffStatus.capabilities` enum gains the three. Migration `20270425090000_whatsapp_staff_access` (`wa_staff_access`). §10.155. | **Additive** (a new capability and operation, a new optional field). No behaviour change until a level is set; then the level replaces the role rule for that person only. |
 | v1.119-social (draft) | 2026-11-10 | **D359 (owner decision: events reach the «البث» hub ONLY through the existing home banner carousel — no extra strip, icon or floating button):** `GiftEventForm.bannerEnabled` («بانر صفحة البث» on / off, picture kept) and `bannerBeforeStart` («يظهر قبل البداية», from the publish time), optional (absent: true / false on a create, kept on an edit; migration `20270423090000_event_banner_options`); `bannerMediaId` null removes the event's banner; `listHomeBanners` leaves out an event banner once its event has ended (query time) and lists running events' banners first, then the rest, each group in the admin's order. §10.154. |
@@ -5402,6 +5407,8 @@ the podcast mockup (Clubhouse / Spaces style, built on the audio room's own elem
   «فلانة دخلت البث» by the `join` message's `gender`, else the neutral «انضم فلان» — at most 5 a second per room
   (server, §10.11); the recharge-agent / host-agent entrance bars stay.
 - **Admin.** `GET /admin/lives?mode=SOLO|PK|MULTI|AUDIO|PODCAST` filters the lives on air (the panel's category chips).
+- *(v1.114-live, D363)* A PODCAST may be a **video podcast** (`podcast.video`): §10.157. Everything above holds for it;
+  «audio only» above means an audio podcast.
 
 ### 10.70 PK friends who are waiting for a random match *(v1.48-live, DRAFT — D215)*
 
@@ -11277,7 +11284,8 @@ node limits would otherwise refuse new viewers of the lives already running).
 - **Rule:** the lives counted are the LIVE rooms with a fresh heartbeat (§10.2 — a room stops counting as soon as it
   ends, and a crashed host's room at the stale window). Each weighs, in percent of a video room,
   `LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT` (default 100) for SOLO / MULTI / STREAMER (and the legacy PK mode) and
-  `LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT` (default 25) for AUDIO / PODCAST (no video tracks). A new room of weight *w* is
+  `LIVE_CAPACITY_WEIGHT_AUDIO_PERCENT` (default 25) for AUDIO / PODCAST (no video tracks; v1.114-live, D363: a **video**
+  podcast, `podcast_video`, weighs the video weight like a video live). A new room of weight *w* is
   refused when `used + w > LIVE_CAPACITY_MAX_ROOMS × 100` — with video rooms only that is «the live rooms ≥ the limit».
   `LIVE_CAPACITY_MAX_ROOMS` 0 (**the default**) switches the guard off: nothing is counted, no lock is taken, the
   behaviour is exactly v1.112's. The production value comes from the Phase 1 measurements
@@ -11838,3 +11846,92 @@ also opened directly; the owner's request names all four, so they ask now too. A
 **2026-11-10 owner (option ب): Instagram/Facebook direct again; WhatsApp/Snapchat ask first.** `opensDirectly` =
 TikTok / YouTube / X / Instagram / Facebook (as under D175); only WhatsApp, Snapchat and any other link show the
 sheet — everywhere, the founder's social row included.
+
+### 10.157 The video podcast «بودكاست فيديو» and its automatic director *(v1.114-live, DRAFT — D363)*
+
+Owner-approved mockup (2026-11-10): the podcast mode gets «صوت / فيديو»; a video podcast is full-screen vertical
+video with an automatic director, a lower third for guests, a hot seat «الكرسي الساخن» for listeners' questions, and
+Kabso's usual live chrome (host chip, ranking chips, chat, gift banners, bottom bar). Audio podcasts are unchanged.
+
+- **The flag.** `StartLiveRoomRequest.podcast.video` (default false) → `live_rooms.podcast_video`, shown as
+  `LivePodcast.video` on every summary. CHECK `live_rooms_podcast_fields` (re-created) keeps it false outside PODCAST.
+  Announced episodes: `CreateLiveScheduleSlotRequest.podcastVideo` (PODCAST only, else 400 `podcastVideo`
+  `invalid_value`) → `LiveScheduleSlot.podcastVideo`, `LiveScheduledPodcast.video` (CHECK
+  `live_schedule_slots_podcast_fields` re-created). The app shows a small video badge on hub and announced cards.
+- **Media.** In a video podcast the host publishes the camera and the microphone and every seated speaker gets
+  `['camera', 'microphone']` (muted by the host: `['camera']`), exactly like a multi-guest live; listeners publish
+  nothing until seated. Seats, hands, timed questions and invitations work as in §10.69 (host + 3 speakers).
+- **Capacity (§10.148).** A video podcast weighs `LIVE_CAPACITY_WEIGHT_VIDEO_PERCENT`, both when it is counted and
+  when it asks to start.
+- **Guest title.** `LiveSeatInviteBody.guestTitle` (video podcasts only, else 400 `guestTitle` `invalid_value`): 1–40
+  code points after the chat text rules (§10.11), the host's blocked words masked (§10.11) when stored. The invitation
+  carries it (`LiveSeatInvite.guestTitle`) and the seat keeps it once accepted (`LiveSeat.guestTitle`, null without);
+  the app draws the lower third «الضيف: الاسم — اللقب» when a guest first appears on screen and on each switch to them.
+- **Questions and upvotes.** In a video podcast `LiveSeats.questions` lists, for everyone, the raised hands that carry
+  a question (at most 50), most votes first, then queue order (§10.69): `requestId`, `user`, `question` (the host's
+  blocked words masked), `votes`, `votedByMe` (false for guests), `deferred`. `voteLivePodcastQuestion` /
+  `unvoteLivePodcastQuestion` (`PUT` / `DELETE …/seat-requests/{requestId}/vote`) add or remove the caller's one vote
+  (table `live_question_votes`, primary key request + user, so one vote per person per question): signed in, not the
+  asker (403), not kicked (403 `LIVE_KICKED`); the hand must be PENDING (409 `LIVE_REQUEST_NOT_PENDING`) in a LIVE
+  video podcast and carry a question (else 404). Both are idempotent and answer `LivePodcastQuestionVotes`. After a
+  change the room gets `{"type":"question-votes","requestId","votes"}` on topic `podcast` (best effort, with the D319
+  retry); a vote does not raise `LiveSeats.version`. `LiveSeatRequest.votes` carries the count in the host's list.
+  Votes are deleted with their request; nothing else reads them.
+- **The hot seat «الكرسي الساخن».** `acceptLiveSeatRequest` with `hotSeat: true` (video podcast, a hand with a
+  question; else 400 `hotSeat` `invalid_value`) seats the asker for `hotSeatSeconds` (60 / 120 / 180 / 300, default
+  60 — the timed-question mechanism of §10.69: `demoteAt`, the sweeper moves them back to the listeners). One hot seat
+  at a time (another one taken → 409 `LIVE_SEAT_UNAVAILABLE`); it uses a free speaker seat (none → 409 as before).
+  The seat's `hotSeat` is `{requestId, question, votes}` (the question as listed); every app draws the question card
+  with the vote count, the asker's bubble (audio; the camera is allowed but off by default) and a circular timer to
+  `demoteAt`. `hotSeatSeconds` without `hotSeat` → 400.
+- **The director.** The shot everyone sees is chosen by the host's app from the media server's active-speaker
+  events: SPEAKER (the current speaker full screen, the others as small vertical thumbnails on the side, mirrored for
+  RTL), SPLIT (two people alternating within ~6 s: top / bottom), GRID (3+ speaking at once: everyone, briefly, then
+  back), HOT_SEAT (the hot seat's card); every shot is held at least 2.5 s and changes with a cross-fade. The host's
+  app relays each change, and the current shot every 10 s, with `setLivePodcastDirector` (`PUT …/podcast/director`,
+  host only; `userIds` the host or seated people, else 400); the server sends it to the room as
+  `{"type":"director","shot","userIds","locked","seq","at"}` on topic `podcast` (apps hold no data publish permission,
+  CP-010; D319 retry). Nothing is stored. An app that has had no `director` message for 15 s (the host away or in the
+  background, a late join) runs the same director locally until messages come back. The host can lock a shot (pin a
+  guest, `locked` true) from the live controls and return to «تلقائي». A viewer may tap a thumbnail to watch someone
+  freely; «رجوع للمخرج» returns to the director. A chip names the shot (🎬 لقطة المتحدث / نقاش / الكرسي الساخن).
+- **Gifts and chat** are as in every live: the sender picks the recipient among the people on stage; chat lines and
+  gift banners overlay the video.
+- **Scope extension (owner 2026-11-11): the studio.** Everyone reads the studio in `LiveSeats.studio`
+  (`LivePodcastStudio`, video podcasts only; what a late joiner starts from) and gets each change as
+  `{"type":"studio","studio":LivePodcastStudio}` on topic `podcast` (best effort, D319 retry; apps drop an older `seq`).
+  A studio change does not raise `LiveSeats.version`. Stored in `live_podcast_studios` (one row per room). Host only
+  (403); not a video podcast → 404; ended → 409 `LIVE_ROOM_ENDED`; the default rate limit.
+  - **Backstage «خلف الكواليس».** In a video podcast an accepted invitation (`acceptLiveSeatInvite`) seats the guest
+    with `LiveSeat.backstage` true: they get the speakers' media grant (camera + microphone) and their app restricts its
+    tracks to the host (the media server's per-publisher subscription permission), shows the self-check (own preview,
+    the microphone's state) and «مغادرة الكواليس» (`leaveLiveSeat`: back to the audience). This is a privacy courtesy,
+    not a security boundary: the guest is someone the host already invited (an older app does not restrict its tracks,
+    DEPLOYMENT §5.112). The host's app shows a backstage strip
+    with each guest's small video and «على الهواء» → `bringLiveSeatOnAir` (`POST …/seats/{seatIndex}/on-air`; no
+    backstage guest there → 409 `LIVE_SEAT_UNAVAILABLE`; `version` raised). A backstage guest is left out of the
+    stage, the director (`setLivePodcastDirector` with them → 400), `LivePodcast.speakers`, pins, answers and the
+    gift recipients. A raised hand (timed question, hot seat) still goes straight on air. Capacity (§10.148): the
+    room already weighs as a video live; a backstage guest takes one of its 3 speaker seats.
+  - **Manual control.** `setLivePodcastControl` (`PUT …/podcast/control`, `{pinUserId?, layout?}`): pin the host or
+    someone on air (else 400 `pinUserId`) and/or keep a layout `SPEAKER` / `SPLIT` / `HOT_SEAT` (`HOT_SEAT` only
+    with a hot seat, else 400 `layout`; `GRID` is never kept); both null = «تلقائي». The host's director then keeps
+    that shot (the people still follow the voices where the pin leaves room) and relays it as before; viewers'
+    local director applies the same control while the relay is not heard. A pinned person who leaves reads as null.
+    The app shows «مثبّت: الاسم» / «تخطيط ثابت: …» on the stage and, for the host, a red «تلقائي».
+  - **Segments «فقرات الحلقة».** Up to 8, each a title (1–40 code points after the chat text rules) and optional
+    planned minutes (1–180): in the setup (`StartLiveRoomRequest.podcast.segments`, video podcasts only, else 400
+    `podcast.segments`) or on air (`setLivePodcastSegments`, `PUT …/podcast/segments`, replaces the list; a current
+    segment beyond it moves to the last). `nextLivePodcastSegment` (`POST …/podcast/segments/next`): not started →
+    the first; then the next; after the last → `closing` true (then nothing changes); no segments → 400 `segments`
+    `required`. The app draws a thin progress bar (one piece per segment), a segment card «الفقرة 2 من 4 · العنوان»
+    for 5 s after each start, the host's «ابدأ الفقرات» / «الفقرة التالية», and the closing card «نهاية الحلقة —
+    شكراً لمتابعتكم». Stored with the episode (the room's studio row).
+  - **The audience question on screen.** `showLivePodcastQuestion` (`PUT …/podcast/on-screen`, `{requestId,
+    answerUserId?}`): a hand of this room with a question (404), still up or seated (409 `LIVE_REQUEST_NOT_PENDING`);
+    `answerUserId` the host or someone on air (400). The card «سؤال الجمهور» (the asker's picture and name, the
+    question with the host's blocked words masked) shows over the video until `hideLivePodcastQuestion` (`DELETE`,
+    idempotent); while it is up the director prefers the answering person's shot (after the host's control and the
+    hot seat). The host's app asks who answers when more than one guest is on air.
+- **Phase 2 (not built):** recording, automatic highlight clips to reels, a programme page with subscriptions or
+  tickets.

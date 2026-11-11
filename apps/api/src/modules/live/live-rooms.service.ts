@@ -253,6 +253,8 @@ export interface LivePodcastDto {
   questionSeconds: number | null;
   /** The seated speakers (not the host), in seat order (at most 3). */
   speakers: LivePodcastSpeakerDto[];
+  /** v1.114-live (D363, §10.157): a video podcast (the host and the speakers on camera). */
+  video: boolean;
 }
 
 /** `LiveScore` (CP-012). */
@@ -426,6 +428,8 @@ export interface RoomRow {
   podcast_topic: string | null;
   questions_open: boolean;
   question_seconds: number | null;
+  /** v1.114-live (D363): a video podcast (always false outside PODCAST). */
+  podcast_video: boolean;
   /** v1.47-live (D212): a PODCAST's seated speakers (JSON, seat order); null for other modes. */
   podcast_speakers: LivePodcastSpeakerDto[] | null;
   /** v1.54-live (D241): an open PK match has this room on either side. */
@@ -518,7 +522,7 @@ const ROOM_COLUMNS = Prisma.sql`
          c.slug AS category_slug, c.name_ar AS category_name_ar,
          c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
          r.wish_gifts, r.episode_number, r.podcast_topic, r.questions_open,
-         r.question_seconds::int AS question_seconds,
+         r.question_seconds::int AS question_seconds, r.podcast_video,
          EXISTS (SELECT 1 FROM pk_matches pm WHERE pm.status <> 'CLOSED'::pk_match_status
                    AND (pm.room_a_id = r.id OR pm.room_b_id = r.id)) AS in_pk,
          CASE WHEN r.mode = 'PODCAST'::live_room_mode THEN (
@@ -527,7 +531,7 @@ const ROOM_COLUMNS = Prisma.sql`
              FROM live_room_seats s2
              JOIN users sp ON sp.id = s2.user_id AND sp.status = 'ACTIVE'
              JOIN user_profiles spp ON spp.user_id = s2.user_id
-            WHERE s2.room_id = r.id AND s2.user_id IS NOT NULL) END AS podcast_speakers,
+            WHERE s2.room_id = r.id AND s2.user_id IS NOT NULL AND NOT s2.backstage) END AS podcast_speakers,
          r.streamer_orientation, r.streamer_camera_visible, r.streamer_camera_corner, r.streamer_main,
          r.streamer_version`;
 
@@ -1173,6 +1177,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
               questionsOpen: row.questions_open,
               questionSeconds: row.question_seconds,
               speakers: row.podcast_speakers ?? [],
+              video: row.podcast_video,
             }
           : null,
       inPk: row.in_pk || row.mode === 'PK',
@@ -1633,7 +1638,9 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         // v1.113-live (D351, §10.148): the capacity guard, last before the insert (every earlier refusal keeps its
         // own answer). With the guard on it holds the cluster-wide advisory lock until this transaction ends, so
         // concurrent go-lives cannot overshoot the ceiling; off (the default) it does nothing.
-        await this.capacity.assertFits(tx, callerId, mode, this.cutoff(now), now);
+        // v1.114-live (D363, §10.157): a video podcast weighs as a video live.
+        const podcastVideo = mode === 'PODCAST' && input.podcast?.video === true;
+        await this.capacity.assertFits(tx, callerId, mode, this.cutoff(now), now, podcastVideo);
         // v1.47-live (D212, §10.69): a podcast episode is numbered per host (the host's lives are
         // serialized by the user lock above and the one-live-per-host index).
         const podcast =
@@ -1652,6 +1659,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
                   input.podcast.questionSeconds === undefined
                     ? DEFAULT_PODCAST_QUESTION_SECONDS
                     : input.podcast.questionSeconds,
+                podcastVideo,
               }
             : null;
         const room = await tx.liveRoom.create({
@@ -1682,6 +1690,17 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           },
           select: { id: true },
         });
+        // v1.114-live (D363, scope extension): the episode's segments prepared at setup (video podcasts only).
+        const segments = podcastVideo ? (input.podcast?.segments ?? []) : [];
+        if (segments.length > 0) {
+          await tx.livePodcastStudio.create({
+            data: {
+              roomId: room.id,
+              segments: segments.map((g) => ({ title: g.title, minutes: g.minutes ?? null })),
+              updatedAt: now,
+            },
+          });
+        }
         await this.audit.recordIn(tx, {
           action: AuditAction.LIVE_ROOM_START,
           actorUserId: callerId,
@@ -1691,7 +1710,13 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             categorySlug: input.categorySlug ?? null,
             mode,
             seatCount: input.seatCount ?? null,
-            ...(podcast ? { episodeNumber: podcast.episodeNumber, podcastTopic: podcast.podcastTopic } : {}),
+            ...(podcast
+              ? {
+                  episodeNumber: podcast.episodeNumber,
+                  podcastTopic: podcast.podcastTopic,
+                  ...(podcastVideo ? { podcastVideo: true } : {}),
+                }
+              : {}),
           },
           ip: meta.ip,
           requestId: meta.requestId,

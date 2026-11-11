@@ -579,6 +579,9 @@ export const envSchema = z
     // CP-011 (CONVENTIONS §7): per user, each replacing the default authenticated bucket.
     RATE_LIMIT_LIVE_SEAT_ASK_USER: rateLimit('30/600'),
     RATE_LIMIT_LIVE_SEAT_ACTION_USER: rateLimit('300/3600'),
+    // v1.114-live (D363, §10.157): question upvotes and the director relay of a video podcast.
+    RATE_LIMIT_LIVE_QUESTION_VOTE_USER: rateLimit('120/600'),
+    RATE_LIMIT_LIVE_PODCAST_DIRECTOR_USER: rateLimit('600/600'),
     RATE_LIMIT_LIVE_SEATS_READ_USER: rateLimit('600/900'),
     // v1.43-live (D195, CONVENTIONS §7, §10.58): PK invitations sent, and every other PK action
     // (answers, the random queue, ending, muting, the opponent's media token), per user.

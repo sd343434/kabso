@@ -313,6 +313,8 @@ class VoiceRoomRow extends StatelessWidget {
                                           withPk: false,
                                         ),
                                         fontSize: 9,
+                                        // D363: a video podcast's camera.
+                                        video: room.podcast?.video ?? false,
                                       ),
                                     ),
                                   ],

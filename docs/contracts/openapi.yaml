@@ -566,6 +566,20 @@ info:
     level-ups are never sent on the `level` ticker topic. His own `getMyLevels` is unchanged (private; the app shows
     him a neutral state). Nothing is deleted. Shapes unchanged (all nullable / lists already); behaviour change for
     the founder only.
+    **D363 (DRAFT v1.114-live)** the video podcast «بودكاست فيديو» with an automatic director (CONVENTIONS §10.157;
+    owner-approved mockup 2026-11-10): `PodcastSetup.video` / `LivePodcast.video` (a PODCAST whose host and up to 3
+    speakers publish the camera and the microphone; the capacity guard weighs it as a video live), announced video
+    episodes (`CreateLiveScheduleSlotRequest.podcastVideo`, `LiveScheduleSlot.podcastVideo`,
+    `LiveScheduledPodcast.video`), the guest's lower-third title (`LiveSeatInviteBody.guestTitle`,
+    `LiveSeatInvite.guestTitle`, `LiveSeat.guestTitle`), question upvotes (`voteLivePodcastQuestion` /
+    `unvoteLivePodcastQuestion`, `LivePodcastQuestionVotes`, `LiveSeats.questions`, `LiveSeatRequest.votes`, data
+    message `question-votes` on topic `podcast`), the hot seat «الكرسي الساخن» (`LiveSeatAcceptBody.hotSeat` /
+    `hotSeatSeconds`, `LiveSeat.hotSeat`) and the director's shot relay (`setLivePodcastDirector`, data message
+    `director` on topic `podcast`). Migration `20270426090000_podcast_video`. Additive (audio podcasts unchanged).
+    Scope extension (owner 2026-11-11): backstage `LiveSeat.backstage` + `bringLiveSeatOnAir`, the host's manual
+    control `setLivePodcastControl`, the segments (`PodcastSetup.segments`, `setLivePodcastSegments`,
+    `nextLivePodcastSegment`), the audience question on screen (`showLivePodcastQuestion` / `hideLivePodcastQuestion`)
+    and `LiveSeats.studio` (`LivePodcastStudio`, data message `studio`); migration `20270426090100_podcast_video_studio`.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -5445,6 +5459,10 @@ paths:
         usable seat → 409 `LIVE_SEAT_UNAVAILABLE`. Not host or moderator → 403.
         v1.47-live (D212): in a PODCAST with a question time, the seat gets `demoteAt` (now + the time);
         then the sweeper moves the speaker back to the listeners.
+        v1.114-live (D363, CONVENTIONS §10.157): `hotSeat` true seats a video podcast's hand «في الكرسي الساخن» for
+        `hotSeatSeconds` (default 60; `LiveSeat.hotSeat` carries the question and its votes). Not a video podcast or
+        a hand without a question → 400 (`hotSeat`, `invalid_value`); another hot seat is taken → 409
+        `LIVE_SEAT_UNAVAILABLE`.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/SeatRequestIdPath'
@@ -5452,13 +5470,223 @@ paths:
         required: false
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/LiveSeatRequestBody' }
+            schema: { $ref: '#/components/schemas/LiveSeatAcceptBody' }
       responses:
         '200':
           description: The seats after the change.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LiveSeats' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seat-requests/{requestId}/vote:
+    put:
+      tags: [live]
+      operationId: voteLivePodcastQuestion
+      summary: "Upvote a raised hand's question in a video podcast (v1.114-live, D363)"
+      description: |
+        CONVENTIONS §10.157. One vote per person per question (idempotent: 200 with the same count). Signed-in
+        callers other than the asker (403 `AUTH_FORBIDDEN`); kicked → 403 `LIVE_KICKED`. The room must be a LIVE video
+        PODCAST and the request a PENDING hand of it with a question, else 404 (an ended room → 409
+        `LIVE_ROOM_ENDED`); a hand no longer up → 409 `LIVE_REQUEST_NOT_PENDING`. The room then gets the data message
+        `{"type":"question-votes","requestId","votes"}` on topic `podcast` (best effort).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/SeatRequestIdPath'
+      responses:
+        '200':
+          description: The question's votes now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LivePodcastQuestionVotes' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: unvoteLivePodcastQuestion
+      summary: "Take back my upvote (v1.114-live, D363; idempotent)"
+      description: CONVENTIONS §10.157. The same checks as `voteLivePodcastQuestion` except the asker check; no vote → 200 unchanged.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/SeatRequestIdPath'
+      responses:
+        '200':
+          description: The question's votes now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LivePodcastQuestionVotes' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/podcast/director:
+    put:
+      tags: [live]
+      operationId: setLivePodcastDirector
+      summary: "Host: relay the automatic director's shot to the room (v1.114-live, D363)"
+      description: |
+        CONVENTIONS §10.157. The host's app runs the director of a video podcast and sends each shot change (and the
+        same shot again every 10 s); the server checks it and sends it to everyone in the media room as
+        `{"type":"director","shot","userIds","locked","seq","at"}` on topic `podcast` (apps hold no data publish
+        permission, CP-010). Nothing is stored. Not the host → 403; not a video podcast → 404; ended → 409
+        `LIVE_ROOM_ENDED`; a `userIds` entry that is neither the host nor seated → 400 (`userIds`, `invalid_value`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LivePodcastDirectorShot' }
+      responses:
+        '204': { description: Sent to the room (best effort). }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/podcast/control:
+    put:
+      tags: [live]
+      operationId: setLivePodcastControl
+      summary: "Host: pin a person / lock a layout, or back to «تلقائي» (v1.114-live, D363)"
+      description: |
+        CONVENTIONS §10.157. Host only (403); not a video podcast → 404; ended → 409 `LIVE_ROOM_ENDED`. A change raises `seq` and is sent to
+        the room as `{"type":"studio","studio":LivePodcastStudio}` on topic `podcast` (best effort, D319 retry); no
+        change sends nothing. Late joiners read `LiveSeats.studio`. `pinUserId` must be the host or someone on air (400 `pinUserId`); `layout`
+        `HOT_SEAT` needs a hot seat now (400 `layout`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LivePodcastControlBody' }
+      responses:
+        '200':
+          description: The studio after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LivePodcastStudio' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/podcast/segments:
+    put:
+      tags: [live]
+      operationId: setLivePodcastSegments
+      summary: "Host: the episode's segments «فقرات الحلقة» (v1.114-live, D363)"
+      description: |
+        CONVENTIONS §10.157. Host only (403); not a video podcast → 404; ended → 409 `LIVE_ROOM_ENDED`. A change raises `seq` and is sent to
+        the room as `{"type":"studio","studio":LivePodcastStudio}` on topic `podcast` (best effort, D319 retry); no
+        change sends nothing. Late joiners read `LiveSeats.studio`. Replaces the list (0–8); a current segment beyond the new list moves to the
+        last one (an empty list: not started, no closing card).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LivePodcastSegmentsBody' }
+      responses:
+        '200':
+          description: The studio after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LivePodcastStudio' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/podcast/segments/next:
+    post:
+      tags: [live]
+      operationId: nextLivePodcastSegment
+      summary: "Host: «الفقرة التالية» — the next segment, then the closing card (v1.114-live, D363)"
+      description: |
+        CONVENTIONS §10.157. Host only (403); not a video podcast → 404; ended → 409 `LIVE_ROOM_ENDED`. A change raises `seq` and is sent to
+        the room as `{"type":"studio","studio":LivePodcastStudio}` on topic `podcast` (best effort, D319 retry); no
+        change sends nothing. Late joiners read `LiveSeats.studio`. Not started → the first; then the next; after the last → `closing` true (then
+        nothing changes). No segments → 400 (`segments`, `required`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The studio after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LivePodcastStudio' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/podcast/on-screen:
+    put:
+      tags: [live]
+      operationId: showLivePodcastQuestion
+      summary: "Host: show a listener's question over the video (v1.114-live, D363)"
+      description: |
+        CONVENTIONS §10.157. Host only (403); not a video podcast → 404; ended → 409 `LIVE_ROOM_ENDED`. A change raises `seq` and is sent to
+        the room as `{"type":"studio","studio":LivePodcastStudio}` on topic `podcast` (best effort, D319 retry); no
+        change sends nothing. Late joiners read `LiveSeats.studio`. The hand must be of this room with a question (404), still up or seated
+        (409 `LIVE_REQUEST_NOT_PENDING`); `answerUserId` the host or someone on air (400). One question at a time
+        (a new one replaces it).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LivePodcastOnScreenBody' }
+      responses:
+        '200':
+          description: The studio after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LivePodcastStudio' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: hideLivePodcastQuestion
+      summary: "Host: the question card goes away (v1.114-live, D363; idempotent)"
+      description: |
+        CONVENTIONS §10.157. Host only (403); not a video podcast → 404; ended → 409 `LIVE_ROOM_ENDED`. A change raises `seq` and is sent to
+        the room as `{"type":"studio","studio":LivePodcastStudio}` on topic `podcast` (best effort, D319 retry); no
+        change sends nothing. Late joiners read `LiveSeats.studio`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The studio after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LivePodcastStudio' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
@@ -5626,6 +5854,32 @@ paths:
       description: |
         The guest keeps watching. An empty seat → 200 unchanged. A moderator cannot remove another
         moderator (403).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/SeatIndexPath'
+      responses:
+        '200':
+          description: The seats after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seats/{seatIndex}/on-air:
+    post:
+      tags: [live]
+      operationId: bringLiveSeatOnAir
+      summary: "Host: bring a backstage guest on air (v1.114-live, D363)"
+      description: |
+        CONVENTIONS §10.157 (scope extension). In a video podcast an accepted invitation seats the guest
+        «خلف الكواليس» (`LiveSeat.backstage`): they check their camera and microphone, seen by the host only. This
+        puts them on air (`backstage` false; `version` raised). Host only (403); not a video podcast → 404; no
+        backstage guest on that seat → 409 `LIVE_SEAT_UNAVAILABLE`. Leaving backstage is `leaveLiveSeat` (back to the
+        audience).
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/SeatIndexPath'
@@ -32938,8 +33192,11 @@ components:
     LivePodcast:
       type: object
       description: v1.47-live (D212, CONVENTIONS §10.69) — a PODCAST live's episode facts.
-      required: [episodeNumber, topic, questionsOpen, questionSeconds, speakers]
+      required: [episodeNumber, topic, questionsOpen, questionSeconds, speakers, video]
       properties:
+        video:
+          type: boolean
+          description: v1.114-live (D363, §10.157) — a video podcast «بودكاست فيديو» (the host and speakers on camera); false = audio only.
         episodeNumber: { type: integer, minimum: 1, description: "Per host: 1 for the host's first podcast, then 2, 3, …" }
         topic: { $ref: '#/components/schemas/PodcastTopic' }
         questionsOpen: { type: boolean, description: "Listeners may raise a hand." }
@@ -33146,6 +33403,20 @@ components:
             questionSeconds:
               allOf: [{ $ref: '#/components/schemas/PodcastQuestionSeconds' }]
               description: Default 120; null = no limit.
+            video:
+              type: boolean
+              default: false
+              description: |
+                v1.114-live (D363, CONVENTIONS §10.157) — «صوت / فيديو»: true starts a video podcast (the host and the
+                speakers publish the camera and the microphone; the capacity guard counts it as a video live).
+            segments:
+              type: array
+              maxItems: 8
+              description: |
+                v1.114-live (D363 scope extension, §10.157) — the episode's segments «فقرات» prepared at setup (video
+                podcasts only, else 400 `podcast.segments` `invalid_value`); stored with the episode
+                (`LiveSeats.studio.segments`). Not started until the host taps «الفقرة التالية».
+              items: { $ref: '#/components/schemas/LivePodcastSegment' }
         seatCount:
           description: CP-011 — required for MULTI and AUDIO, forbidden for SOLO, PODCAST and STREAMER (else 400; a PODCAST always has 4).
           allOf:
@@ -33910,11 +34181,6 @@ components:
       type: string
       pattern: '^[a-z0-9-]{2,32}$'
       description: CP-011 room theme; one of `LiveConfig.themes` (else 400). The app shows an unknown slug as the default theme.
-    LiveSeatRequestBody:
-      type: object
-      additionalProperties: false
-      properties:
-        seatIndex: { type: integer, minimum: 1, maximum: 24 }
     LiveSeatAskBody:
       type: object
       additionalProperties: false
@@ -33925,6 +34191,19 @@ components:
           type: string
           maxLength: 640
           description: PODCAST only — 1–80 code points after the chat text rules (§10.11); else 400.
+    LiveSeatAcceptBody:
+      type: object
+      additionalProperties: false
+      description: v1.114-live (D363) — `acceptLiveSeatRequest`'s body (it replaces `LiveSeatRequestBody`, whose `seatIndex` it keeps, + the hot seat).
+      properties:
+        seatIndex: { type: integer, minimum: 1, maximum: 24 }
+        hotSeat:
+          type: boolean
+          description: Video PODCAST only, a hand with a question — «الكرسي الساخن» (else 400). Default false.
+        hotSeatSeconds:
+          type: integer
+          enum: [60, 120, 180, 300]
+          description: With `hotSeat` only (else 400); the hot seat's time, default 60.
     LiveSeatInviteBody:
       type: object
       required: [username]
@@ -33932,6 +34211,146 @@ components:
       properties:
         username: { type: string }
         seatIndex: { type: integer, minimum: 1, maximum: 24 }
+        guestTitle:
+          type: string
+          maxLength: 320
+          description: |
+            v1.114-live (D363, §10.157) — video PODCAST only (else 400 `guestTitle` `invalid_value`): the guest's short
+            title for the lower third «الضيف: الاسم — اللقب», 1–40 code points after the chat text rules (§10.11); the
+            host's blocked words are masked when it is stored.
+    LivePodcastHotSeat:
+      type: object
+      description: v1.114-live (D363, §10.157) — the hand seated «في الكرسي الساخن».
+      required: [requestId, question, votes]
+      properties:
+        requestId: { type: string, format: uuid }
+        question: { type: string, description: "The hand's question (the host's blocked words masked)." }
+        votes: { type: integer, minimum: 0 }
+    LivePodcastQuestion:
+      type: object
+      description: v1.114-live (D363, §10.157) — a raised hand with a question, as every listener sees it.
+      required: [requestId, user, question, votes, votedByMe, deferred]
+      properties:
+        requestId: { type: string, format: uuid }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        question: { type: string, description: "The host's blocked words masked." }
+        votes: { type: integer, minimum: 0 }
+        votedByMe: { type: boolean, description: "False for guests." }
+        deferred: { type: boolean }
+    LivePodcastQuestionVotes:
+      type: object
+      description: v1.114-live (D363) — `voteLivePodcastQuestion` / `unvoteLivePodcastQuestion`.
+      required: [requestId, votes, votedByMe]
+      properties:
+        requestId: { type: string, format: uuid }
+        votes: { type: integer, minimum: 0 }
+        votedByMe: { type: boolean }
+    LivePodcastDirectorShot:
+      type: object
+      additionalProperties: false
+      description: v1.114-live (D363, §10.157) — the shot the host's director chose.
+      required: [shot, userIds, locked, seq]
+      properties:
+        shot:
+          type: string
+          enum: [SPEAKER, SPLIT, GRID, HOT_SEAT]
+          description: SPEAKER (one person full screen), SPLIT (two, top / bottom), GRID (everyone), HOT_SEAT (the hot seat's card).
+        userIds:
+          type: array
+          minItems: 1
+          maxItems: 5
+          uniqueItems: true
+          description: The people on screen, the main one first — the host or seated speakers only.
+          items: { type: string, format: uuid }
+        locked: { type: boolean, description: "The host pinned this shot (the director paused)." }
+        seq: { type: integer, minimum: 0, maximum: 2147483647, description: "Increases with every change; apps drop an older one." }
+    LivePodcastLockLayout:
+      type: string
+      enum: [SPEAKER, SPLIT, HOT_SEAT]
+      description: v1.114-live (D363 scope extension) — a layout the host keeps (the director still picks the people).
+    LivePodcastSegment:
+      type: object
+      additionalProperties: false
+      description: v1.114-live (D363 scope extension, §10.157) — one segment «فقرة» of an episode.
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 320
+          description: 1–40 code points after the chat text rules (§10.11).
+        minutes:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 180
+          description: The planned length (optional; null in answers when not given).
+    LivePodcastOnScreen:
+      type: object
+      description: v1.114-live (D363 scope extension) — the listener question shown over the video.
+      required: [requestId, user, question, answerUserId, at]
+      properties:
+        requestId: { type: string, format: uuid }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        question: { type: string, description: "The hand's question (the host's blocked words masked)." }
+        answerUserId:
+          type: [string, 'null']
+          format: uuid
+          description: Who answers — the director prefers their shot while the card is up; null = whoever speaks (also once they left the stage).
+        at: { type: string, format: date-time }
+    LivePodcastStudio:
+      type: object
+      description: |
+        v1.114-live (D363 scope extension, CONVENTIONS §10.157) — a video podcast's studio. A room that never changed
+        it reads `seq` 0, everything null / empty / false.
+      required: [seq, pinUserId, layout, segments, segmentIndex, segmentStartedAt, closing, onScreen]
+      properties:
+        seq: { type: integer, minimum: 0, description: "Raised with every change; apps drop an older state." }
+        pinUserId:
+          type: [string, 'null']
+          format: uuid
+          description: The person the host pinned (the director keeps the shot on them); null once they left the stage.
+        layout:
+          description: The layout the host locked; null with `pinUserId` null = the automatic director «تلقائي».
+          oneOf:
+            - $ref: '#/components/schemas/LivePodcastLockLayout'
+            - type: 'null'
+        segments:
+          type: array
+          maxItems: 8
+          items: { $ref: '#/components/schemas/LivePodcastSegment' }
+        segmentIndex: { type: [integer, 'null'], minimum: 0, description: "The current segment (0-based); null = not started." }
+        segmentStartedAt: { type: [string, 'null'], format: date-time }
+        closing: { type: boolean, description: "The closing card «نهاية الحلقة» after the last segment." }
+        onScreen:
+          oneOf:
+            - $ref: '#/components/schemas/LivePodcastOnScreen'
+            - type: 'null'
+    LivePodcastControlBody:
+      type: object
+      additionalProperties: false
+      description: v1.114-live (D363 scope extension) — both null or absent = «تلقائي».
+      properties:
+        pinUserId: { type: [string, 'null'], format: uuid, description: "The host or someone on air (not backstage), else 400." }
+        layout:
+          oneOf:
+            - $ref: '#/components/schemas/LivePodcastLockLayout'
+            - type: 'null'
+    LivePodcastSegmentsBody:
+      type: object
+      additionalProperties: false
+      required: [segments]
+      properties:
+        segments:
+          type: array
+          maxItems: 8
+          items: { $ref: '#/components/schemas/LivePodcastSegment' }
+    LivePodcastOnScreenBody:
+      type: object
+      additionalProperties: false
+      required: [requestId]
+      properties:
+        requestId: { type: string, format: uuid }
+        answerUserId: { type: [string, 'null'], format: uuid, description: "The host or someone on air, else 400; absent = null." }
     LiveSeat:
       type: object
       required: [index, state, user, mutedByHost, points]
@@ -33958,6 +34377,21 @@ components:
           type: [string, 'null']
           format: date-time
           description: v1.47-live (D212) — PODCAST rooms only (absent otherwise); TAKEN — when this speaker's question time ends (null = no limit, the host's guests).
+        guestTitle:
+          type: [string, 'null']
+          description: v1.114-live (D363) — PODCAST rooms only (absent otherwise); TAKEN — the title the host gave the guest when inviting, else null.
+        hotSeat:
+          description: v1.114-live (D363) — PODCAST rooms only (absent otherwise); TAKEN «في الكرسي الساخن», else null.
+          oneOf:
+            - $ref: '#/components/schemas/LivePodcastHotSeat'
+            - type: 'null'
+        backstage:
+          type: boolean
+          description: |
+            v1.114-live (D363 scope extension, §10.157) — PODCAST rooms only (absent otherwise); TAKEN — the guest
+            waits «خلف الكواليس» (a video podcast's accepted invitation) until the host brings them on air with
+            `bringLiveSeatOnAir`. Apps leave them out of the stage, the director, the speakers and the gift
+            recipients. False otherwise.
     LiveSeatRequest:
       type: object
       required: [id, user, seatIndex, createdAt]
@@ -33968,6 +34402,7 @@ components:
         createdAt: { type: string, format: date-time }
         question: { type: [string, 'null'], description: "v1.47-live (D212): PODCAST only (absent otherwise) — the hand's question." }
         deferred: { type: boolean, description: "v1.47-live (D212): PODCAST only — the host said «لاحقاً» (listed after the others)." }
+        votes: { type: integer, minimum: 0, description: "v1.114-live (D363): PODCAST only — the question's upvotes (0 in an audio podcast)." }
     LiveSeatRequestPage:
       type: object
       required: [data, page]
@@ -33985,6 +34420,7 @@ components:
         seatIndex: { type: [integer, 'null'], minimum: 1, maximum: 24 }
         invitedBy: { $ref: '#/components/schemas/UserSummary' }
         expiresAt: { type: string, format: date-time }
+        guestTitle: { type: [string, 'null'], description: "v1.114-live (D363): PODCAST only (absent otherwise) — the title for the lower third." }
     LiveSeatsMine:
       type: object
       required: [role, seatIndex, request, invite]
@@ -34062,6 +34498,21 @@ components:
           maxItems: 50
           description: v1.47-live (D212) — PODCAST only, for everyone — the user ids of the raised hands in queue order (deferred last). A change raises `version`.
           items: { type: string, format: uuid }
+        questions:
+          type: array
+          maxItems: 50
+          description: |
+            v1.114-live (D363, §10.157) — video PODCAST only (absent otherwise), for everyone: the raised hands that
+            carry a question, most votes first, then queue order. A hand raised or lowered raises `version`; a vote does
+            not (the `question-votes` data message carries the new count).
+          items: { $ref: '#/components/schemas/LivePodcastQuestion' }
+        studio:
+          description: |
+            v1.114-live (D363 scope extension, §10.157) — video PODCAST only (absent otherwise), for everyone: the
+            studio — the host's manual control, the segments and the question on screen. What a late joiner starts
+            from; each change is also sent as the `studio` data message. A change does not raise `version`.
+          allOf:
+            - $ref: '#/components/schemas/LivePodcastStudio'
         mine:
           description: Signed-in callers only; absent for guests.
           allOf:
@@ -35113,9 +35564,12 @@ components:
         podcastTopic:
           allOf: [{ $ref: '#/components/schemas/PodcastTopic' }]
           description: v1.47-live (D212) — required with `mode` PODCAST, refused without it (400).
+        podcastVideo:
+          type: boolean
+          description: v1.114-live (D363) — a video episode; with `mode` PODCAST only (else 400 `podcastVideo` `invalid_value`). Default false.
     LiveScheduleSlot:
       type: object
-      required: [id, title, startsAt, createdAt, mode, podcastTopic]
+      required: [id, title, startsAt, createdAt, mode, podcastTopic, podcastVideo]
       properties:
         id: { type: string, format: uuid }
         title: { type: string, minLength: 1, maxLength: 60 }
@@ -35127,15 +35581,17 @@ components:
           oneOf:
             - $ref: '#/components/schemas/PodcastTopic'
             - type: 'null'
+        podcastVideo: { type: boolean, description: "v1.114-live (D363): a video episode (false when not a podcast)." }
     LiveScheduledPodcast:
       type: object
       description: v1.47-live (D212, §10.69) — an announced podcast episode in the hub.
-      required: [id, title, startsAt, podcastTopic, host, reminder]
+      required: [id, title, startsAt, podcastTopic, host, reminder, video]
       properties:
         id: { type: string, format: uuid }
         title: { type: string, minLength: 1, maxLength: 60 }
         startsAt: { type: string, format: date-time }
         podcastTopic: { $ref: '#/components/schemas/PodcastTopic' }
+        video: { type: boolean, description: "v1.114-live (D363): a video episode (the hub card's video badge)." }
         host: { $ref: '#/components/schemas/UserSummary' }
         reminder:
           type: boolean

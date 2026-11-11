@@ -118,6 +118,7 @@ _LivePodcast _$LivePodcastFromJson(Map<String, dynamic> json) => _LivePodcast(
           ?.map((e) => LivePodcastSpeaker.fromJson(e as Map<String, dynamic>))
           .toList() ??
       const <LivePodcastSpeaker>[],
+  video: json['video'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$LivePodcastToJson(_LivePodcast instance) =>
@@ -127,7 +128,43 @@ Map<String, dynamic> _$LivePodcastToJson(_LivePodcast instance) =>
       'questionsOpen': instance.questionsOpen,
       'questionSeconds': instance.questionSeconds,
       'speakers': instance.speakers,
+      'video': instance.video,
     };
+
+_LivePodcastHotSeat _$LivePodcastHotSeatFromJson(Map<String, dynamic> json) =>
+    _LivePodcastHotSeat(
+      requestId: json['requestId'] as String,
+      question: json['question'] as String,
+      votes: (json['votes'] as num?)?.toInt() ?? 0,
+    );
+
+Map<String, dynamic> _$LivePodcastHotSeatToJson(_LivePodcastHotSeat instance) =>
+    <String, dynamic>{
+      'requestId': instance.requestId,
+      'question': instance.question,
+      'votes': instance.votes,
+    };
+
+_LivePodcastQuestion _$LivePodcastQuestionFromJson(Map<String, dynamic> json) =>
+    _LivePodcastQuestion(
+      requestId: json['requestId'] as String,
+      user: UserSummary.fromJson(json['user'] as Map<String, dynamic>),
+      question: json['question'] as String,
+      votes: (json['votes'] as num?)?.toInt() ?? 0,
+      votedByMe: json['votedByMe'] as bool? ?? false,
+      deferred: json['deferred'] as bool? ?? false,
+    );
+
+Map<String, dynamic> _$LivePodcastQuestionToJson(
+  _LivePodcastQuestion instance,
+) => <String, dynamic>{
+  'requestId': instance.requestId,
+  'user': instance.user,
+  'question': instance.question,
+  'votes': instance.votes,
+  'votedByMe': instance.votedByMe,
+  'deferred': instance.deferred,
+};
 
 _LiveScheduledPodcast _$LiveScheduledPodcastFromJson(
   Map<String, dynamic> json,
@@ -142,6 +179,7 @@ _LiveScheduledPodcast _$LiveScheduledPodcastFromJson(
   ),
   host: UserSummary.fromJson(json['host'] as Map<String, dynamic>),
   reminder: json['reminder'] as bool? ?? false,
+  video: json['video'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$LiveScheduledPodcastToJson(
@@ -153,6 +191,7 @@ Map<String, dynamic> _$LiveScheduledPodcastToJson(
   'podcastTopic': _$PodcastTopicEnumMap[instance.podcastTopic]!,
   'host': instance.host,
   'reminder': instance.reminder,
+  'video': instance.video,
 };
 
 _LiveCategory _$LiveCategoryFromJson(Map<String, dynamic> json) =>
@@ -506,6 +545,11 @@ _LiveSeat _$LiveSeatFromJson(Map<String, dynamic> json) => _LiveSeat(
   demoteAt: json['demoteAt'] == null
       ? null
       : DateTime.parse(json['demoteAt'] as String),
+  guestTitle: json['guestTitle'] as String?,
+  hotSeat: json['hotSeat'] == null
+      ? null
+      : LivePodcastHotSeat.fromJson(json['hotSeat'] as Map<String, dynamic>),
+  backstage: json['backstage'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$LiveSeatToJson(_LiveSeat instance) => <String, dynamic>{
@@ -515,6 +559,9 @@ Map<String, dynamic> _$LiveSeatToJson(_LiveSeat instance) => <String, dynamic>{
   'mutedByHost': instance.mutedByHost,
   'points': instance.points,
   'demoteAt': instance.demoteAt?.toIso8601String(),
+  'guestTitle': instance.guestTitle,
+  'hotSeat': instance.hotSeat,
+  'backstage': instance.backstage,
 };
 
 const _$LiveSeatStateEnumMap = {
@@ -531,6 +578,7 @@ _LiveSeatRequest _$LiveSeatRequestFromJson(Map<String, dynamic> json) =>
       createdAt: DateTime.parse(json['createdAt'] as String),
       question: json['question'] as String?,
       deferred: json['deferred'] as bool? ?? false,
+      votes: (json['votes'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$LiveSeatRequestToJson(_LiveSeatRequest instance) =>
@@ -541,6 +589,7 @@ Map<String, dynamic> _$LiveSeatRequestToJson(_LiveSeatRequest instance) =>
       'createdAt': instance.createdAt.toIso8601String(),
       'question': instance.question,
       'deferred': instance.deferred,
+      'votes': instance.votes,
     };
 
 _LiveSeatInvite _$LiveSeatInviteFromJson(Map<String, dynamic> json) =>
@@ -552,6 +601,7 @@ _LiveSeatInvite _$LiveSeatInviteFromJson(Map<String, dynamic> json) =>
         json['invitedBy'] as Map<String, dynamic>,
       ),
       expiresAt: DateTime.parse(json['expiresAt'] as String),
+      guestTitle: json['guestTitle'] as String?,
     );
 
 Map<String, dynamic> _$LiveSeatInviteToJson(_LiveSeatInvite instance) =>
@@ -561,6 +611,7 @@ Map<String, dynamic> _$LiveSeatInviteToJson(_LiveSeatInvite instance) =>
       'seatIndex': instance.seatIndex,
       'invitedBy': instance.invitedBy,
       'expiresAt': instance.expiresAt.toIso8601String(),
+      'guestTitle': instance.guestTitle,
     };
 
 _LiveSeatsMine _$LiveSeatsMineFromJson(Map<String, dynamic> json) =>
@@ -640,6 +691,14 @@ _LiveSeats _$LiveSeatsFromJson(Map<String, dynamic> json) => _LiveSeats(
   handsUp:
       (json['handsUp'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const <String>[],
+  questions:
+      (json['questions'] as List<dynamic>?)
+          ?.map((e) => LivePodcastQuestion.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const <LivePodcastQuestion>[],
+  studio: json['studio'] == null
+      ? null
+      : LivePodcastStudio.fromJson(json['studio'] as Map<String, dynamic>),
   mine: json['mine'] == null
       ? null
       : LiveSeatsMine.fromJson(json['mine'] as Map<String, dynamic>),
@@ -656,5 +715,7 @@ Map<String, dynamic> _$LiveSeatsToJson(_LiveSeats instance) =>
       'couples': instance.couples,
       'pendingRequests': instance.pendingRequests,
       'handsUp': instance.handsUp,
+      'questions': instance.questions,
+      'studio': instance.studio,
       'mine': instance.mine,
     };

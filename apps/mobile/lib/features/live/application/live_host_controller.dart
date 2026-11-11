@@ -106,6 +106,12 @@ class GoLiveState {
   /// CP-011: SOLO (LIVE), MULTI (multi-guest) or AUDIO.
   final LiveRoomMode mode;
 
+  /// v1.114-live (D363, §10.157): no camera — AUDIO, and a podcast unless
+  /// its setup is «فيديو». What the camera, the preview and the room's
+  /// layout follow (the seat counts still follow [mode]).
+  bool get voiceOnly =>
+      mode.isVoice && !(mode == LiveRoomMode.podcast && podcast.video);
+
   /// The seat count chosen for each mode (host tile included).
   final int multiSeats;
   final int audioSeats;
@@ -342,20 +348,17 @@ class LiveHostController extends Notifier<GoLiveState> {
   /// microphone only.
   Future<void> startPreview({LivePermissionPrompt? explain}) async {
     state = state.copyWith(phase: GoLivePhase.preparing);
-    if (!await _ensurePermission(
-      camera: !state.mode.isVoice,
-      explain: explain,
-    )) {
+    if (!await _ensurePermission(camera: !state.voiceOnly, explain: explain)) {
       return;
     }
     if (!ref.mounted) return;
     try {
-      var video = !state.mode.isVoice;
+      var video = !state.voiceOnly;
       await _engine.startPreview(video: video);
       // The mode may change while the camera starts (Audio tapped while
       // preparing): follow it, so an audio room never keeps a camera.
-      while (ref.mounted && (!state.mode.isVoice) != video) {
-        video = !state.mode.isVoice;
+      while (ref.mounted && (!state.voiceOnly) != video) {
+        video = !state.voiceOnly;
         await _engine.startPreview(video: video);
       }
       if (!ref.mounted) return;
@@ -412,7 +415,7 @@ class LiveHostController extends Notifier<GoLiveState> {
             state.capture != LiveCaptureProblem.denied)) {
       return;
     }
-    final permission = await _permissions.check(camera: !state.mode.isVoice);
+    final permission = await _permissions.check(camera: !state.voiceOnly);
     if (!ref.mounted || permission != LivePermission.granted) return;
     await startPreview();
   }
@@ -436,7 +439,7 @@ class LiveHostController extends Notifier<GoLiveState> {
     }
     if (mode == state.mode) return;
     final wasPreview = state.phase == GoLivePhase.preview;
-    final cameraChanges = mode.isVoice != (state.mode.isVoice);
+    final wasVoiceOnly = state.voiceOnly;
     // D212: a podcast starts on the owner's podcast background; leaving the
     // podcast takes its background back to the classic one.
     final podcastTheme = LiveThemeArt.of(state.theme).podcast;
@@ -446,14 +449,15 @@ class LiveHostController extends Notifier<GoLiveState> {
         ? LiveThemes.classic
         : state.theme;
     state = state.copyWith(mode: mode, theme: theme);
-    if (wasPreview && cameraChanges) {
-      if (!mode.isVoice &&
+    // D363: a video podcast keeps the camera like a video live.
+    if (wasPreview && wasVoiceOnly != state.voiceOnly) {
+      if (!state.voiceOnly &&
           !await _ensurePermission(camera: true, explain: explain)) {
         return;
       }
       if (!ref.mounted) return;
       try {
-        await _engine.startPreview(video: !mode.isVoice);
+        await _engine.startPreview(video: !state.voiceOnly);
       } on LiveCaptureException catch (e) {
         if (!ref.mounted) return;
         state = state.copyWith(
@@ -469,7 +473,32 @@ class LiveHostController extends Notifier<GoLiveState> {
   /// [setPodcastSettings].
   void setPodcastSetup(PodcastSetup setup) {
     if (state.phase == GoLivePhase.live) return;
+    final video = state.podcast.video;
     state = state.copyWith(podcast: setup);
+    // D363: «صوت / فيديو» starts or stops the camera of the preview.
+    if (setup.video != video &&
+        state.mode == LiveRoomMode.podcast &&
+        state.phase == GoLivePhase.preview) {
+      unawaited(_followPodcastCamera());
+    }
+  }
+
+  /// D363: the preview's camera follows the podcast's «صوت / فيديو».
+  Future<void> _followPodcastCamera() async {
+    final video = !state.voiceOnly;
+    if (video && !await _ensurePermission(camera: true)) return;
+    if (!ref.mounted) return;
+    try {
+      await _engine.startPreview(video: video);
+      if (!ref.mounted) return;
+      state = state.copyWith(frontCamera: _engine.frontCamera);
+    } on LiveCaptureException catch (e) {
+      if (!ref.mounted) return;
+      state = state.copyWith(
+        phase: GoLivePhase.captureFailed,
+        capture: e.problem,
+      );
+    }
   }
 
   /// D212: the guests picked in the setup (up to 3).
@@ -690,7 +719,7 @@ class LiveHostController extends Notifier<GoLiveState> {
   /// published camera track is muted (as a seated guest's, D174a, and the
   /// background pause, D123): nothing new on the server.
   Future<void> setCameraOff({required bool off}) async {
-    if (state.mode.isVoice) return;
+    if (state.voiceOnly) return;
     // D213: a streamer's camera is the bubble (shown / hidden for everyone).
     if (state.mode == LiveRoomMode.streamer) {
       await ref
@@ -822,7 +851,7 @@ class LiveHostController extends Notifier<GoLiveState> {
       // An audio room's media token allows the microphone only (CP-011): a
       // camera left running would be refused and the publish would fail.
       stage = 'camera';
-      if (state.mode.isVoice && _engine.videoEnabled) {
+      if (state.voiceOnly && _engine.videoEnabled) {
         await _engine.startPreview(video: false);
       }
       // The core of going live: joining the media room and publishing the
@@ -919,7 +948,7 @@ class LiveHostController extends Notifier<GoLiveState> {
       _holdStreamer(texts);
       return;
     }
-    final video = !state.mode.isVoice;
+    final video = !state.voiceOnly;
     _keeper.hold(
       this,
       LiveBackgroundSpec.of(LiveBackgroundRole.host, texts),

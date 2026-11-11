@@ -36,9 +36,17 @@ const REFUSALS_TTL_SECONDS = 8 * 86_400;
 
 export type CapacityMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER';
 
-/** The weight of one room of [mode], in percent of a video room. */
-export function capacityWeightOf(mode: CapacityMode, capacity: AppConfig['live']['capacity']): number {
-  return mode === 'AUDIO' || mode === 'PODCAST' ? capacity.audioWeightPercent : capacity.videoWeightPercent;
+/**
+ * The weight of one room of [mode], in percent of a video room. v1.114-live (D363, §10.157): a video podcast
+ * ([podcastVideo]) weighs as a video room.
+ */
+export function capacityWeightOf(
+  mode: CapacityMode,
+  capacity: AppConfig['live']['capacity'],
+  podcastVideo = false,
+): number {
+  const voice = mode === 'AUDIO' || (mode === 'PODCAST' && !podcastVideo);
+  return voice ? capacity.audioWeightPercent : capacity.videoWeightPercent;
 }
 
 /** True when a new room of [weight] percent no longer fits next to [usedPercent] (ceiling [maxRooms] video rooms). */
@@ -82,13 +90,15 @@ export class LiveCapacityGuard {
     mode: CapacityMode,
     cutoff: Date,
     now: Date,
+    podcastVideo = false,
   ): Promise<void> {
     const capacity = this.config.live.capacity;
     if (capacity.maxRooms <= 0) return;
     if (capacity.bypassUserIds.includes(callerId.toLowerCase())) return;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${CAPACITY_LOCK}))`;
     const [row] = await tx.$queryRaw<{ used: number; rooms: number; mine: boolean }[]>`
-      SELECT COALESCE(SUM(CASE WHEN mode IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode)
+      SELECT COALESCE(SUM(CASE WHEN mode = 'AUDIO'::live_room_mode
+                                    OR (mode = 'PODCAST'::live_room_mode AND NOT podcast_video)
                                THEN ${capacity.audioWeightPercent}::int
                                ELSE ${capacity.videoWeightPercent}::int END), 0)::int AS used,
              COUNT(*)::int AS rooms,
@@ -96,7 +106,7 @@ export class LiveCapacityGuard {
         FROM live_rooms
        WHERE status = 'LIVE' AND last_heartbeat_at > ${cutoff.toISOString()}::timestamptz`;
     if (!row || row.mine) return;
-    const weight = capacityWeightOf(mode, capacity);
+    const weight = capacityWeightOf(mode, capacity, podcastVideo);
     if (!capacityExceeded(row.used, weight, capacity.maxRooms)) return;
     this.recordRefusal(now, {
       mode,

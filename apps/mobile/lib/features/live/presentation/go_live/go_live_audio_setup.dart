@@ -12,6 +12,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_blocked_words_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cover_picture.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_sheets.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
@@ -63,6 +64,7 @@ class GoLiveAudioSetup extends StatelessWidget {
     this.onPodcast,
     this.podcastConfig = const LivePodcastConfig(),
     this.podcastGuests = const [],
+    this.preview,
     this.onGuests,
     this.schedule = false,
     this.onSchedule,
@@ -88,6 +90,13 @@ class GoLiveAudioSetup extends StatelessWidget {
 
   static Key topicKey(PodcastTopic t) => Key('goLive.podcast.topic.${t.name}');
   static const questionsKey = Key('goLive.podcast.questions');
+
+  /// D363: the podcast's «صوت / فيديو» chips.
+  static const audioFormatKey = Key('goLive.podcast.format.audio');
+  static const videoFormatKey = Key('goLive.podcast.format.video');
+
+  /// D363 scope extension: a video podcast's segments editor.
+  static const segmentsKey = Key('goLive.podcast.segments');
   static const guestsPickKey = Key('goLive.podcast.guests');
   static const nowKey = Key('goLive.podcast.now');
   static const scheduleKey = Key('goLive.podcast.schedule');
@@ -139,6 +148,19 @@ class GoLiveAudioSetup extends StatelessWidget {
   static const _seat = 55.2;
   static const _seatPitch = 84.0;
 
+  /// D363 (§10.157): the camera preview behind a video podcast's setup (null:
+  /// the room's theme, as for audio rooms and audio podcasts).
+  final Widget? preview;
+
+  /// D363: over the camera, the podcast settings sit on Kabso's frosted
+  /// glass (the camera blurred behind them); over a theme, as before.
+  Widget _framed(Widget panel) => preview == null
+      ? panel
+      : Padding(
+          padding: const EdgeInsets.fromLTRB(14.9, 14, 14.9, 8),
+          child: LiveGlass(radius: 14, child: panel),
+        );
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -146,7 +168,12 @@ class GoLiveAudioSetup extends StatelessWidget {
     final background = Stack(
       fit: StackFit.expand,
       children: [
-        if (theme == LiveThemes.classic)
+        // D363: a video podcast's setup shows the camera.
+        if (preview case final camera?) ...[
+          camera,
+          // The camera stays visible but dimmed, so the settings read.
+          const ColoredBox(color: Color(0x730A0820)),
+        ] else if (theme == LiveThemes.classic)
           const LiveAudioRoomBackground()
         else
           LiveThemeBackground(theme: theme, waves: true),
@@ -216,17 +243,21 @@ class GoLiveAudioSetup extends StatelessWidget {
               ),
               if (_podcast)
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(14.9, 14, 14.9, 8),
-                    child: _PodcastPanel(
-                      key: podcastPanelKey,
-                      setup: podcast,
-                      config: podcastConfig,
-                      onSetup: enabled ? onPodcast : null,
-                      guests: podcastGuests,
-                      onGuests: enabled ? onGuests : null,
-                      schedule: schedule,
-                      onSchedule: enabled ? onSchedule : null,
+                  child: _framed(
+                    SingleChildScrollView(
+                      padding: preview == null
+                          ? const EdgeInsets.fromLTRB(14.9, 14, 14.9, 8)
+                          : const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                      child: _PodcastPanel(
+                        key: podcastPanelKey,
+                        setup: podcast,
+                        config: podcastConfig,
+                        onSetup: enabled ? onPodcast : null,
+                        guests: podcastGuests,
+                        onGuests: enabled ? onGuests : null,
+                        schedule: schedule,
+                        onSchedule: enabled ? onSchedule : null,
+                      ),
                     ),
                   ),
                 )
@@ -1114,12 +1145,17 @@ class _PodcastPanel extends StatelessWidget {
   static const _glass = Color(0x33000000);
   static const _on = Color(0xFFE50914);
 
-  PodcastSetup _with({PodcastTopic? topic, bool? open, int? Function()? s}) =>
-      PodcastSetup(
-        topic: topic ?? setup.topic,
-        questionsOpen: open ?? setup.questionsOpen,
-        questionSeconds: s == null ? setup.questionSeconds : s(),
-      );
+  PodcastSetup _with({
+    PodcastTopic? topic,
+    bool? open,
+    int? Function()? s,
+    bool? video,
+  }) => setup.copyWith(
+    topic: topic,
+    questionsOpen: open,
+    questionSeconds: s,
+    video: video,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -1171,6 +1207,26 @@ class _PodcastPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // D363 (§10.157): «صوت / فيديو» — audio by default (D212's podcast).
+        Row(
+          children: [
+            Expanded(child: Text(l10n.podcastFormat, style: label)),
+            chip(
+              l10n.podcastFormatAudio,
+              set == null ? null : () => set(_with(video: false)),
+              on: !setup.video,
+              key: GoLiveAudioSetup.audioFormatKey,
+            ),
+            const SizedBox(width: 6),
+            chip(
+              l10n.podcastFormatVideo,
+              set == null ? null : () => set(_with(video: true)),
+              on: setup.video,
+              key: GoLiveAudioSetup.videoFormatKey,
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
         Text(l10n.podcastSetupTopic, style: label),
         Wrap(
           spacing: 8,
@@ -1205,6 +1261,37 @@ class _PodcastPanel extends StatelessWidget {
             ),
           ],
         ),
+        // D363 scope extension: a video podcast's segments «فقرات الحلقة».
+        if (setup.video)
+          Row(
+            children: [
+              Expanded(child: Text(l10n.podcastSegments, style: label)),
+              if (setup.segments.isNotEmpty)
+                Text(
+                  l10n.podcastSegmentsCount(setup.segments.length),
+                  style: label.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              IconButton(
+                key: GoLiveAudioSetup.segmentsKey,
+                tooltip: l10n.podcastSegments,
+                onPressed: set == null
+                    ? null
+                    : () async {
+                        final segments = await showPodcastSegmentsSheet(
+                          context,
+                          segments: setup.segments,
+                        );
+                        if (segments != null) {
+                          set(setup.copyWith(segments: segments));
+                        }
+                      },
+                icon: const Icon(Icons.view_agenda_rounded, color: _white),
+              ),
+            ],
+          ),
         const SizedBox(height: 4),
         Row(
           children: [

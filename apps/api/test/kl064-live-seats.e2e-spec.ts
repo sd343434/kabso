@@ -50,6 +50,10 @@ describe('CP-011 seats contract coverage', () => {
             o.path,
           ),
         )
+        // v1.114-live (D363): the video podcast's question upvotes; d363-video-podcast covers them.
+        .filter((o) => !o.path.endsWith('/seat-requests/{requestId}/vote'))
+        // v1.114-live (D363 scope extension): a backstage guest goes on air; d363-video-podcast covers it.
+        .filter((o) => !o.path.endsWith('/seats/{seatIndex}/on-air'))
         .map((o) => `${o.operationId} ${o.method.toUpperCase()} ${o.path}`)
         .sort(),
     ).toEqual(

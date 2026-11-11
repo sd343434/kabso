@@ -111,6 +111,14 @@ describe('capacity arithmetic (D351)', () => {
     expect(capacityWeightOf('PODCAST', capacity)).toBe(25);
   });
 
+  it('weighs a video podcast as a video room (D363) and an audio podcast as before', () => {
+    expect(capacityWeightOf('PODCAST', capacity, true)).toBe(100);
+    expect(capacityWeightOf('PODCAST', capacity, false)).toBe(25);
+    // The flag only means something for a PODCAST.
+    expect(capacityWeightOf('AUDIO', capacity, true)).toBe(25);
+    expect(capacityWeightOf('SOLO', capacity, true)).toBe(100);
+  });
+
   it('refuses exactly when the new room no longer fits («≥ the limit» for video rooms)', () => {
     expect(capacityExceeded(0, 100, 1)).toBe(false);
     expect(capacityExceeded(100, 100, 1)).toBe(true);
@@ -170,6 +178,17 @@ describe('LiveCapacityGuard.assertFits (D351)', () => {
     await expect(
       g.assertFits(tx({ used: 150, rooms: 3, mine: false }).tx, HOST, 'STREAMER', CUTOFF, NOW),
     ).rejects.toThrow(AppException);
+  });
+
+  it('refuses a video podcast where an audio podcast still fits, and counts video podcasts as video (D363)', async () => {
+    const { guard: g } = guard({ LIVE_CAPACITY_MAX_ROOMS: '2' });
+    await g.assertFits(tx({ used: 150, rooms: 3, mine: false }).tx, HOST, 'PODCAST', CUTOFF, NOW, false);
+    await expect(
+      g.assertFits(tx({ used: 150, rooms: 3, mine: false }).tx, HOST, 'PODCAST', CUTOFF, NOW, true),
+    ).rejects.toThrow(AppException);
+    const t = tx({ used: 0, rooms: 0, mine: false });
+    await g.assertFits(t.tx, HOST, 'SOLO', CUTOFF, NOW);
+    expect(t.statements[1]).toContain('NOT podcast_video');
   });
 
   it('leaves a caller who is already live to the 409 of the insert', async () => {

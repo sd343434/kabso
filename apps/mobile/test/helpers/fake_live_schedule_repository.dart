@@ -25,6 +25,7 @@ class FakeLiveScheduleRepository implements LiveScheduleRepository {
     required String title,
     required DateTime startsAt,
     String? podcastTopic,
+    bool podcastVideo = false,
   }) async {
     if (failure case final f?) throw f;
     created.add((title: title, startsAt: startsAt));
@@ -33,6 +34,7 @@ class FakeLiveScheduleRepository implements LiveScheduleRepository {
       title: title.trim(),
       startsAt: startsAt,
       podcastTopic: podcastTopic,
+      podcastVideo: podcastVideo,
     );
     slots = [...slots, slot]..sort((a, b) => a.startsAt.compareTo(b.startsAt));
     return slot;

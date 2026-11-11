@@ -254,12 +254,12 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     let sources: LiveMediaSource[] = [];
     if (isHost) {
       role = 'HOST';
-      sources = hostSources(row.mode);
+      sources = hostSources(row.mode, row.podcast_video);
     } else if (callerId !== null && hasGuestSeats(row.mode)) {
       const seat = await this.seats.seatOfUser(row.id, callerId);
       if (seat) {
         role = 'SPEAKER';
-        sources = [...seatPermission(row.mode, seat.mutedByHost).sources];
+        sources = [...seatPermission(row.mode, seat.mutedByHost, row.podcast_video).sources];
       }
     }
     const token = await this.media.issueToken({

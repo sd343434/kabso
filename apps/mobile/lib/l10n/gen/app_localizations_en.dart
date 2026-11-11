@@ -17653,4 +17653,182 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveTypeTagMulti => 'Multi';
+
+  @override
+  String get podcastFormat => 'Episode format';
+
+  @override
+  String get podcastFormatAudio => 'Audio';
+
+  @override
+  String get podcastFormatVideo => 'Video';
+
+  @override
+  String get podcastVideoBadge => 'Video';
+
+  @override
+  String get podcastShotSpeaker => 'Speaker shot';
+
+  @override
+  String get podcastShotSplit => 'Discussion';
+
+  @override
+  String get podcastShotGrid => 'Group talk';
+
+  @override
+  String get podcastShotHotSeat => 'Hot seat';
+
+  @override
+  String get podcastBackToDirector => 'Back to director';
+
+  @override
+  String podcastGuestLowerThird(String name, String title) {
+    return 'Guest: $name — $title';
+  }
+
+  @override
+  String podcastGuestLowerThirdName(String name) {
+    return 'Guest: $name';
+  }
+
+  @override
+  String get podcastGuestTitleHint => 'Guest title (optional)';
+
+  @override
+  String get podcastQuestionsTitle => 'Listeners\' questions';
+
+  @override
+  String get podcastVote => 'Upvote the question';
+
+  @override
+  String get podcastUnvote => 'Remove upvote';
+
+  @override
+  String podcastVotes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count votes',
+      one: '1 vote',
+      zero: 'No votes',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get podcastNoQuestions => 'No questions yet.';
+
+  @override
+  String get podcastDirector => 'Director';
+
+  @override
+  String get podcastDirectorAuto => 'Auto';
+
+  @override
+  String podcastDirectorPinned(String name) {
+    return 'Keep the shot on $name';
+  }
+
+  @override
+  String podcastHotSeatFrom(String name) {
+    return 'Question from $name';
+  }
+
+  @override
+  String get podcastBackstage => 'Backstage';
+
+  @override
+  String get podcastBringOnAir => 'On air';
+
+  @override
+  String get podcastBackstageCheckTitle => 'You\'re backstage';
+
+  @override
+  String get podcastBackstageCheckBody =>
+      'Only the host can see and hear you now. Check your camera and microphone; the host will bring you on air.';
+
+  @override
+  String get podcastBackstageMicOk => 'Your microphone works';
+
+  @override
+  String get podcastBackstageMicQuiet =>
+      'Say something to test your microphone';
+
+  @override
+  String get podcastBackstageCameraOff => 'Camera off';
+
+  @override
+  String get podcastBackstageLeave => 'Leave backstage';
+
+  @override
+  String podcastControlPinned(String name) {
+    return 'Pinned: $name';
+  }
+
+  @override
+  String podcastControlLayout(String layout) {
+    return 'Locked: $layout';
+  }
+
+  @override
+  String get podcastDirectorLayout => 'Layout';
+
+  @override
+  String get podcastDirectorPeople => 'Pin a person';
+
+  @override
+  String get podcastSegments => 'Segments';
+
+  @override
+  String podcastSegmentsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count segments',
+      one: '1 segment',
+      zero: 'No segments',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String podcastSegmentOf(int current, int total) {
+    return 'Segment $current of $total';
+  }
+
+  @override
+  String get podcastSegmentNext => 'Next segment';
+
+  @override
+  String get podcastSegmentStart => 'Start segments';
+
+  @override
+  String get podcastSegmentAdd => 'Add a segment';
+
+  @override
+  String get podcastSegmentRemove => 'Remove the segment';
+
+  @override
+  String get podcastSegmentTitleHint => 'Segment title';
+
+  @override
+  String get podcastSegmentMinutesHint => 'Min';
+
+  @override
+  String get podcastSegmentsSave => 'Save segments';
+
+  @override
+  String get podcastClosingTitle => 'End of the episode';
+
+  @override
+  String get podcastClosingBody => 'Thanks for watching';
+
+  @override
+  String get podcastShowOnScreen => 'Show on screen';
+
+  @override
+  String get podcastOnScreenTag => 'Audience question';
+
+  @override
+  String get podcastOnScreenHide => 'Hide the question';
 }

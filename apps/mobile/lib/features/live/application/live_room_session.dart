@@ -146,6 +146,13 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   late LiveMediaEngine _engine;
   late LiveRepository _repo;
   LiveRoomMode _mode = LiveRoomMode.solo;
+
+  /// v1.114-live (D363): the room is a video podcast (guests on camera).
+  bool _podcastVideo = false;
+
+  /// D363: no camera for guests — AUDIO and an audio podcast.
+  bool get _voiceOnly =>
+      _mode.isVoice && !(_mode == LiveRoomMode.podcast && _podcastVideo);
   Timer? _poll;
   LiveTapBatcher? _taps;
   StreamSubscription<String>? _invites;
@@ -282,6 +289,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       return;
     }
     _mode = room.mode;
+    _podcastVideo = room.podcast?.video ?? false;
     try {
       final user = ref.read(currentUserProvider);
       final access = await _repo.mediaToken(
@@ -348,7 +356,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       return;
     }
     // D174: a solo live's guests are on camera too.
-    final video = role == LiveBackgroundRole.guest && !_mode.isVoice;
+    final video = role == LiveBackgroundRole.guest && !_voiceOnly;
     _keeper.hold(
       this,
       LiveBackgroundSpec.of(role, texts),
@@ -371,6 +379,11 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
     _cameraOff = !on;
     await _pauseVideo(paused: !on);
   }
+
+  /// The caller's seat now, if seated.
+  LiveSeat? _mySeat() => state.seats?.seats
+      .where((s) => s.index == state.mine?.seatIndex)
+      .firstOrNull;
 
   /// D174a: the seated guest's own microphone. Muted by the host, it stays
   /// off (returns false).
@@ -479,8 +492,13 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       if (want && !state.publishing && !state.captureFailed) {
         try {
           // D174: a SOLO live's guests are on camera too.
-          await _engine.publishLocal(video: !_mode.isVoice);
+          await _engine.publishLocal(video: !_voiceOnly);
           if (ref.mounted) state = state.copyWith(publishing: true);
+          // D363 (§10.157): the hot seat is an audio bubble — the camera is
+          // allowed but starts off.
+          if (_podcastVideo && _mySeat()?.hotSeat != null) {
+            await setCamera(on: false);
+          }
         } on LiveCaptureException {
           if (ref.mounted) state = state.copyWith(captureFailed: true);
         }
@@ -533,10 +551,24 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
 
   // ---- host and moderators ---------------------------------------------
 
-  Future<void> accept(LiveSeatRequest request, {int? seatIndex}) async =>
-      _apply(
-        await _repo.acceptSeatRequest(roomId, request.id, seatIndex: seatIndex),
-      );
+  Future<void> accept(
+    LiveSeatRequest request, {
+    int? seatIndex,
+    bool hotSeat = false,
+  }) async => _apply(
+    await _repo.acceptSeatRequest(
+      roomId,
+      request.id,
+      seatIndex: seatIndex,
+      hotSeat: hotSeat,
+    ),
+  );
+
+  /// D363 (§10.157): a video podcast listener's upvote (or its removal).
+  Future<LivePodcastQuestionVotes> vote(
+    LivePodcastQuestion question, {
+    required bool vote,
+  }) => _repo.voteQuestion(roomId, question.requestId, vote: vote);
 
   /// D212: «لاحقاً» on a podcast hand.
   Future<void> defer(LiveSeatRequest request) async =>

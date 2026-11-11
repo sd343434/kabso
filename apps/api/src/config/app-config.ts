@@ -150,6 +150,10 @@ export interface AppConfig {
     /** CP-011: seat requests and invitations; host/moderator seat actions; seat reads (per user). */
     readonly liveSeatAskUser: RateLimitRule;
     readonly liveSeatActionUser: RateLimitRule;
+    /** v1.114-live (D363): question upvotes (video podcast). */
+    readonly liveQuestionVoteUser: RateLimitRule;
+    /** v1.114-live (D363): the host's director relay (video podcast). */
+    readonly livePodcastDirectorUser: RateLimitRule;
     readonly liveSeatsReadUser: RateLimitRule;
     /** v1.43-live (D195): PK invitations; every other PK action (per user). */
     readonly livePkInviteUser: RateLimitRule;
@@ -786,6 +790,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveGuestReadIp: e.RATE_LIMIT_LIVE_GUEST_READ_IP,
       liveSeatAskUser: e.RATE_LIMIT_LIVE_SEAT_ASK_USER,
       liveSeatActionUser: e.RATE_LIMIT_LIVE_SEAT_ACTION_USER,
+      liveQuestionVoteUser: e.RATE_LIMIT_LIVE_QUESTION_VOTE_USER,
+      livePodcastDirectorUser: e.RATE_LIMIT_LIVE_PODCAST_DIRECTOR_USER,
       liveSeatsReadUser: e.RATE_LIMIT_LIVE_SEATS_READ_USER,
       livePkInviteUser: e.RATE_LIMIT_LIVE_PK_INVITE_USER,
       livePkActionUser: e.RATE_LIMIT_LIVE_PK_ACTION_USER,

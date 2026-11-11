@@ -38,6 +38,9 @@ class ScheduledPodcastsSection extends ConsumerWidget {
   static const sectionKey = Key('podcastHub.scheduled');
   static Key remindKey(String id) => Key('podcastHub.remind.$id');
 
+  /// D363: the «فيديو» badge of an announced video episode.
+  static const videoBadgeKey = Key('podcastHub.videoBadge');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = ref.watch(scheduledPodcastsProvider).value ?? const [];
@@ -132,6 +135,8 @@ class _ScheduledPodcastCardState extends ConsumerState<ScheduledPodcastCard> {
                     style: text.caption.copyWith(color: p.textSecondary),
                   ),
                 ),
+                // D363: an announced video episode.
+                if (e.video) ...[const _VideoBadge(), const SizedBox(width: 4)],
                 _TopicChip(label: podcastTopicLabel(l10n, e.podcastTopic)),
               ],
             ),
@@ -256,6 +261,35 @@ class StreamerSoon extends StatelessWidget {
       ),
     );
   }
+}
+
+/// D363 (§10.157): the small «فيديو» badge of a video episode.
+class _VideoBadge extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: ScheduledPodcastsSection.videoBadgeKey,
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: KPodcast.liveTag,
+      borderRadius: BorderRadius.circular(KRadius.pill),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.videocam_rounded, size: 12, color: Colors.white),
+        const SizedBox(width: 3),
+        Text(
+          context.l10n.podcastVideoBadge,
+          style: context.textStyles.caption.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _TopicChip extends StatelessWidget {

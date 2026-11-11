@@ -475,6 +475,8 @@ describe('D212 live categories and podcasts', () => {
       'reminder',
       'startsAt',
       'title',
+      // v1.114-live (D363, §10.157): the video episode flag.
+      'video',
     ]);
 
     // At most 20, soonest first (two more hosts, 10 each: 22 listable episodes in the window).

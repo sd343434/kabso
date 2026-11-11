@@ -117,8 +117,14 @@ class FakeLiveMediaEngine
     required bool enhance,
   }) async => voice = (noiseReduction: noiseReduction, enhance: enhance);
 
+  /// D363: what the preview and remote videos draw instead of the flat
+  /// boxes (goldens: neutral placeholder frames), when set.
+  Widget Function(String? identity)? videoBuilder;
+
   @override
-  Widget? preview() => videoEnabled
+  Widget? preview() => videoEnabled && videoBuilder != null
+      ? videoBuilder!(null)
+      : videoEnabled
       ? ColoredBox(
           key: previewKey,
           color: _front ? const Color(0xFF203040) : const Color(0xFF402030),
@@ -281,7 +287,11 @@ class FakeLiveMediaEngine
   Widget? remoteVideo(String identity) => !receiveVideo
       ? null
       : present.contains(identity) && !videoMutedIds.contains(identity)
-      ? ColoredBox(key: Key('remote.$identity'), color: const Color(0xFF304050))
+      ? (videoBuilder?.call(identity) ??
+            ColoredBox(
+              key: Key('remote.$identity'),
+              color: const Color(0xFF304050),
+            ))
       : null;
 
   @override
@@ -369,6 +379,23 @@ class FakeLiveMediaEngine
 
   /// v1.43-live (D195): what the media room delivers to [pkEvents].
   final pk = StreamController<PkEvent>.broadcast();
+
+  /// D363: `podcast` data messages pushed by a test.
+  final podcast = StreamController<PodcastEvent>.broadcast();
+
+  @override
+  Stream<PodcastEvent> get podcastEvents => podcast.stream;
+
+  /// D363 scope extension: the last `restrictSubscribers` (null: everyone)
+  /// and every call.
+  String? subscribersOnly;
+  final List<String?> subscriberCalls = [];
+
+  @override
+  Future<void> restrictSubscribers(String? onlyIdentity) async {
+    subscribersOnly = onlyIdentity;
+    subscriberCalls.add(onlyIdentity);
+  }
 
   @override
   Stream<PkEvent> get pkEvents => pk.stream;

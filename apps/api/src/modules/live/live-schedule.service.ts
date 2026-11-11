@@ -51,6 +51,8 @@ export const createLiveScheduleSlotSchema = z.strictObject({
   mode: z.literal('PODCAST').optional(),
   /** v1.47-live (D212): the episode's topic — required with `mode` PODCAST, refused without it. */
   podcastTopic: z.enum(PODCAST_TOPICS).optional(),
+  /** v1.114-live (D363, §10.157): a video episode — with `mode` PODCAST only. */
+  podcastVideo: z.boolean().optional(),
 });
 
 /** v1.47-live (D212): announced podcasts listed in the hub — the next 7 days, at most 20. */
@@ -67,6 +69,8 @@ export interface LiveScheduleSlotDto {
   mode: 'PODCAST' | null;
   /** v1.47-live (D212): the episode's topic slug (PODCAST only), else null. */
   podcastTopic: string | null;
+  /** v1.114-live (D363): a video episode (false when not a podcast). */
+  podcastVideo: boolean;
 }
 
 /** v1.47-live (D212, §10.69): `LiveScheduledPodcast` — an announced episode as the hub lists it. */
@@ -76,6 +80,8 @@ export interface LiveScheduledPodcastDto {
   startsAt: string;
   podcastTopic: string;
   host: UserSummaryDto;
+  /** v1.114-live (D363): a video episode (the hub card's video badge). */
+  video: boolean;
   /**
    * The caller will be reminded 15 minutes before (they follow the host: the CP-016 C reminder goes
    * to the host's followers); false for guests and the host themself.
@@ -90,6 +96,7 @@ function toDto(row: {
   createdAt: Date;
   mode: string | null;
   podcastTopic: string | null;
+  podcastVideo: boolean;
 }): LiveScheduleSlotDto {
   return {
     id: row.id,
@@ -98,6 +105,7 @@ function toDto(row: {
     createdAt: row.createdAt.toISOString(),
     mode: row.mode === 'PODCAST' ? 'PODCAST' : null,
     podcastTopic: row.podcastTopic,
+    podcastVideo: row.podcastVideo,
   };
 }
 
@@ -150,6 +158,10 @@ export class LiveScheduleService {
     if (mode === null && podcastTopic !== null) {
       throw AppException.validation([{ field: 'podcastTopic', issue: 'invalid_value' }]);
     }
+    const podcastVideo = parsed.data.podcastVideo ?? false;
+    if (mode === null && parsed.data.podcastVideo !== undefined) {
+      throw AppException.validation([{ field: 'podcastVideo', issue: 'invalid_value' }]);
+    }
     const startsAt = new Date(parsed.data.startsAt);
     const now = this.clock.now();
     if (startsAt.getTime() < now.getTime() + LIVE_SCHEDULE_MIN_LEAD_MS) {
@@ -165,7 +177,7 @@ export class LiveScheduleService {
       });
       if (upcoming >= LIVE_SCHEDULE_MAX) throw new AppException(ErrorCode.LIVE_SCHEDULE_FULL);
       const created = await tx.liveScheduleSlot.create({
-        data: { hostUserId: userId, title, startsAt, createdAt: now, mode, podcastTopic },
+        data: { hostUserId: userId, title, startsAt, createdAt: now, mode, podcastTopic, podcastVideo },
       });
       await this.audit.recordIn(tx, {
         action: AuditAction.LIVE_SCHEDULE_CREATE,
@@ -224,6 +236,7 @@ export class LiveScheduleService {
         startsAt: r.startsAt.toISOString(),
         podcastTopic: r.podcastTopic ?? 'other',
         host: userSummary(r.host),
+        video: r.podcastVideo,
         reminder: followed.has(r.hostUserId),
       })),
     };

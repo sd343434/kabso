@@ -87,6 +87,7 @@ model User {
   liveSeatRequests       LiveSeatRequest[]
   liveSeatInvites        LiveSeatInvite[]           @relation("LiveSeatInvitee")
   liveSeatInvitesBy      LiveSeatInvite[]           @relation("LiveSeatInviter")
+  liveQuestionVotes      LiveQuestionVote[]         @relation("LiveQuestionVotes")
   liveModeratorOf        LiveRoomModerator[]
   liveTaps               LiveRoomTapper[]
   liveChatMessages       LiveChatMessage[]          @relation("LiveChatAuthor")
@@ -812,6 +813,9 @@ model LiveRoom {
   /// v1.47-live (D212): how long an accepted hand speaks before going back to the listeners
   /// (60, 120, 180 or 300 s); null = no limit. PODCAST only.
   questionSeconds       Int?               @map("question_seconds") @db.SmallInt
+  /// v1.114-live (D363, §10.157): a video podcast «بودكاست فيديو» (host and speakers on camera); always false
+  /// outside PODCAST (CHECK `live_rooms_podcast_fields`).
+  podcastVideo          Boolean            @default(false) @map("podcast_video")
   /// v1.56-live (D213, §10.86): a STREAMER's screen orientation (`PORTRAIT` / `LANDSCAPE`); null for
   /// other modes (CHECK `live_rooms_streamer_fields`).
   streamerOrientation   String?            @map("streamer_orientation") @db.VarChar(16)
@@ -843,6 +847,8 @@ model LiveRoom {
   /// v1.60-live (D250): what the team did on this live from the panel.
   moderations        LiveModerationAction[]
   seats              LiveRoomSeat[]
+  /// v1.114-live (D363, §10.157): a video podcast's studio (manual control, segments, the question on screen).
+  podcastStudio      LivePodcastStudio?
   seatRequests       LiveSeatRequest[]
   seatInvites        LiveSeatInvite[]
   moderators         LiveRoomModerator[]
@@ -887,21 +893,31 @@ model LiveRoom {
 /// no row. Seats are numbered 1 … seat_count-1 (the host is 0). CHECKs `live_room_seats_index`
 /// and `live_room_seats_locked_or_taken` (migration 20261027090000_live_seats).
 model LiveRoomSeat {
-  roomId      String    @map("room_id") @db.Uuid
-  seatIndex   Int       @map("seat_index") @db.SmallInt
-  locked      Boolean   @default(false)
-  userId      String?   @map("user_id") @db.Uuid
-  mutedByHost Boolean   @default(false) @map("muted_by_host")
-  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  roomId           String    @map("room_id") @db.Uuid
+  seatIndex        Int       @map("seat_index") @db.SmallInt
+  locked           Boolean   @default(false)
+  userId           String?   @map("user_id") @db.Uuid
+  mutedByHost      Boolean   @default(false) @map("muted_by_host")
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
   /// v1.47-live (D212, §10.69): a PODCAST question's end — the sweeper moves the speaker back to the
   /// listeners at this time; null = no limit (and always null outside PODCAST).
-  demoteAt    DateTime? @map("demote_at") @db.Timestamptz(3)
+  demoteAt         DateTime? @map("demote_at") @db.Timestamptz(3)
+  /// v1.114-live (D363, §10.157): the guest's lower-third title the host gave when inviting (video podcasts).
+  guestTitle       String?   @map("guest_title") @db.VarChar(160)
+  /// v1.114-live (D363): the hand seated «في الكرسي الساخن» (its question and votes); null otherwise.
+  hotSeatRequestId String?   @map("hot_seat_request_id") @db.Uuid
+  /// v1.114-live (D363): an accepted guest waits «خلف الكواليس» (self-check, seen by the host only) until the host
+  /// brings them on air; false everywhere else.
+  backstage        Boolean   @default(false)
 
-  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room           LiveRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user           User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hotSeatRequest LiveSeatRequest? @relation("LiveHotSeat", fields: [hotSeatRequestId], references: [id], onDelete: SetNull)
 
   @@id([roomId, seatIndex], map: "live_room_seats_pkey")
   @@unique([roomId, userId], map: "live_room_seats_one_per_user")
+  /// v1.114-live (D363): one hot seat per room at a time.
+  @@unique([roomId], map: "live_room_seats_one_hot_seat", where: raw("hot_seat_request_id IS NOT NULL"))
   @@index([demoteAt], map: "live_room_seats_demote_idx", where: raw("demote_at IS NOT NULL"))
   @@index([userId], map: "live_room_seats_user_idx")
   @@map("live_room_seats")
@@ -933,13 +949,64 @@ model LiveSeatRequest {
   /// v1.47-live (D212): the host said «لاحقاً» — still PENDING, listed after the others.
   deferredAt DateTime?           @map("deferred_at") @db.Timestamptz(3)
 
-  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room     LiveRoom            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// v1.114-live (D363): upvotes of a video podcast hand's question.
+  votes    LiveQuestionVote[]
+  hotSeats LiveRoomSeat[]      @relation("LiveHotSeat")
+  onScreen LivePodcastStudio[] @relation("LivePodcastOnScreen")
 
   @@unique([roomId, userId], map: "live_seat_requests_one_pending", where: raw("status = 'PENDING'::live_seat_offer_status"))
   @@index([roomId, createdAt, id], map: "live_seat_requests_pending_idx", where: raw("status = 'PENDING'::live_seat_offer_status"))
   @@index([userId], map: "live_seat_requests_user_idx")
   @@map("live_seat_requests")
+}
+
+/// v1.114-live (D363, §10.157): one listener's upvote of a video podcast hand's question (one per person and
+/// question; deleted with the request, the room or the voter).
+model LiveQuestionVote {
+  requestId String   @map("request_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  request LiveSeatRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User            @relation("LiveQuestionVotes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([requestId, userId], map: "live_question_votes_pkey")
+  @@index([userId], map: "live_question_votes_user_idx")
+  @@map("live_question_votes")
+}
+
+/// v1.114-live (D363, §10.157): a video podcast's studio state, one row per room (created on the first change, or
+/// at go-live with segments): the host's manual control (a pinned person, a locked layout), the episode's segments
+/// and the current one, and the listener question shown on screen. Everyone reads it in `LiveSeats.studio`; each
+/// change is sent as the `studio` data message (topic `podcast`). The person ids are checked when set and read
+/// back only while that person is on stage.
+model LivePodcastStudio {
+  roomId            String    @id @map("room_id") @db.Uuid
+  /// Raised with every change (apps drop an older state).
+  seq               Int       @default(0)
+  pinUserId         String?   @map("pin_user_id") @db.Uuid
+  /// `SPEAKER` / `SPLIT` / `HOT_SEAT`; null = the automatic director.
+  layout            String?   @db.VarChar(16)
+  /// `[{"title": "…", "minutes": 10 | null}]`, at most 8 (CHECK `live_podcast_studios_shape`).
+  segments          Json      @default("[]")
+  /// The current segment (0-based); null = not started.
+  segmentIndex      Int?      @map("segment_index") @db.SmallInt
+  segmentStartedAt  DateTime? @map("segment_started_at") @db.Timestamptz(3)
+  /// The closing card «نهاية الحلقة» after the last segment.
+  closing           Boolean   @default(false)
+  onScreenRequestId String?   @map("on_screen_request_id") @db.Uuid
+  /// Who answers the question on screen (the director prefers them); null = whoever speaks.
+  answerUserId      String?   @map("answer_user_id") @db.Uuid
+  onScreenAt        DateTime? @map("on_screen_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @map("updated_at") @db.Timestamptz(3)
+
+  room            LiveRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  onScreenRequest LiveSeatRequest? @relation("LivePodcastOnScreen", fields: [onScreenRequestId], references: [id], onDelete: SetNull)
+
+  @@index([onScreenRequestId], map: "live_podcast_studios_on_screen_idx")
+  @@map("live_podcast_studios")
 }
 
 /// CP-011: the host or a moderator invites a viewer; expires after 60 s. At most one PENDING per
@@ -955,9 +1022,11 @@ model LiveSeatInvite {
   expiresAt   DateTime            @map("expires_at") @db.Timestamptz(3)
   handledAt   DateTime?           @map("handled_at") @db.Timestamptz(3)
 
-  room      LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user      User     @relation("LiveSeatInvitee", fields: [userId], references: [id], onDelete: Cascade)
-  invitedBy User     @relation("LiveSeatInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  room       LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User     @relation("LiveSeatInvitee", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy  User     @relation("LiveSeatInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  /// v1.114-live (D363, §10.157): the guest's lower-third title (video podcasts); null = none.
+  guestTitle String?  @map("guest_title") @db.VarChar(160)
 
   @@unique([roomId, userId], map: "live_seat_invites_one_pending", where: raw("status = 'PENDING'::live_seat_offer_status"))
   @@index([expiresAt], map: "live_seat_invites_pending_expiry_idx", where: raw("status = 'PENDING'::live_seat_offer_status"))
@@ -1043,6 +1112,8 @@ model LiveScheduleSlot {
   mode         LiveRoomMode?
   /// v1.47-live (D212): the episode's topic slug (PODCAST only).
   podcastTopic String?       @map("podcast_topic") @db.VarChar(32)
+  /// v1.114-live (D363): an announced video podcast episode (PODCAST only).
+  podcastVideo Boolean       @default(false) @map("podcast_video")
 
   host          User           @relation("LiveScheduleSlots", fields: [hostUserId], references: [id], onDelete: Cascade)
   notifications Notification[]

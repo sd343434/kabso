@@ -17664,4 +17664,187 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveTypeTagMulti => 'Multi';
+
+  @override
+  String get podcastFormat => 'نوع الحلقة';
+
+  @override
+  String get podcastFormatAudio => 'صوت';
+
+  @override
+  String get podcastFormatVideo => 'فيديو';
+
+  @override
+  String get podcastVideoBadge => 'فيديو';
+
+  @override
+  String get podcastShotSpeaker => 'لقطة المتحدث';
+
+  @override
+  String get podcastShotSplit => 'نقاش';
+
+  @override
+  String get podcastShotGrid => 'نقاش جماعي';
+
+  @override
+  String get podcastShotHotSeat => 'الكرسي الساخن';
+
+  @override
+  String get podcastBackToDirector => 'رجوع للمخرج';
+
+  @override
+  String podcastGuestLowerThird(String name, String title) {
+    return 'الضيف: $name — $title';
+  }
+
+  @override
+  String podcastGuestLowerThirdName(String name) {
+    return 'الضيف: $name';
+  }
+
+  @override
+  String get podcastGuestTitleHint => 'لقب الضيف (اختياري)';
+
+  @override
+  String get podcastQuestionsTitle => 'أسئلة المستمعين';
+
+  @override
+  String get podcastVote => 'صوّت للسؤال';
+
+  @override
+  String get podcastUnvote => 'ألغِ التصويت';
+
+  @override
+  String podcastVotes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count صوت',
+      many: '$count صوتاً',
+      few: '$count أصوات',
+      two: 'صوتان',
+      one: 'صوت واحد',
+      zero: 'لا أصوات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get podcastNoQuestions => 'لا أسئلة بعد.';
+
+  @override
+  String get podcastDirector => 'المخرج';
+
+  @override
+  String get podcastDirectorAuto => 'تلقائي';
+
+  @override
+  String podcastDirectorPinned(String name) {
+    return 'ثبّت اللقطة على $name';
+  }
+
+  @override
+  String podcastHotSeatFrom(String name) {
+    return 'سؤال من $name';
+  }
+
+  @override
+  String get podcastBackstage => 'خلف الكواليس';
+
+  @override
+  String get podcastBringOnAir => 'على الهواء';
+
+  @override
+  String get podcastBackstageCheckTitle => 'أنت خلف الكواليس';
+
+  @override
+  String get podcastBackstageCheckBody =>
+      'المضيف وحده يراك ويسمعك الآن. تأكد من الكاميرا والميكروفون، وسيُدخلك على الهواء.';
+
+  @override
+  String get podcastBackstageMicOk => 'الميكروفون يعمل';
+
+  @override
+  String get podcastBackstageMicQuiet => 'تكلّم لاختبار الميكروفون';
+
+  @override
+  String get podcastBackstageCameraOff => 'الكاميرا مغلقة';
+
+  @override
+  String get podcastBackstageLeave => 'مغادرة الكواليس';
+
+  @override
+  String podcastControlPinned(String name) {
+    return 'مثبّت: $name';
+  }
+
+  @override
+  String podcastControlLayout(String layout) {
+    return 'تخطيط ثابت: $layout';
+  }
+
+  @override
+  String get podcastDirectorLayout => 'التخطيط';
+
+  @override
+  String get podcastDirectorPeople => 'تثبيت شخص';
+
+  @override
+  String get podcastSegments => 'فقرات الحلقة';
+
+  @override
+  String podcastSegmentsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count فقرة',
+      many: '$count فقرة',
+      few: '$count فقرات',
+      two: 'فقرتان',
+      one: 'فقرة واحدة',
+      zero: 'لا فقرات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String podcastSegmentOf(int current, int total) {
+    return 'الفقرة $current من $total';
+  }
+
+  @override
+  String get podcastSegmentNext => 'الفقرة التالية';
+
+  @override
+  String get podcastSegmentStart => 'ابدأ الفقرات';
+
+  @override
+  String get podcastSegmentAdd => 'إضافة فقرة';
+
+  @override
+  String get podcastSegmentRemove => 'حذف الفقرة';
+
+  @override
+  String get podcastSegmentTitleHint => 'عنوان الفقرة';
+
+  @override
+  String get podcastSegmentMinutesHint => 'دقائق';
+
+  @override
+  String get podcastSegmentsSave => 'حفظ الفقرات';
+
+  @override
+  String get podcastClosingTitle => 'نهاية الحلقة';
+
+  @override
+  String get podcastClosingBody => 'شكراً لمتابعتكم';
+
+  @override
+  String get podcastShowOnScreen => 'اعرض على الشاشة';
+
+  @override
+  String get podcastOnScreenTag => 'سؤال الجمهور';
+
+  @override
+  String get podcastOnScreenHide => 'إخفاء السؤال';
 }

@@ -341,7 +341,54 @@ class DemoLiveRepository implements LiveRepository {
     String roomId,
     String requestId, {
     int? seatIndex,
+    bool hotSeat = false,
+    int? hotSeatSeconds,
   }) async => throw _serverOnly;
+
+  @override
+  Future<LivePodcastQuestionVotes> voteQuestion(
+    String roomId,
+    String requestId, {
+    required bool vote,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<void> setPodcastDirector(
+    String roomId,
+    PodcastDirectorShot shot,
+  ) async => throw _serverOnly;
+
+  @override
+  Future<LivePodcastStudio> setPodcastControl(
+    String roomId, {
+    String? pinUserId,
+    PodcastShotKind? layout,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<LivePodcastStudio> setPodcastSegments(
+    String roomId,
+    List<LivePodcastSegment> segments,
+  ) async => throw _serverOnly;
+
+  @override
+  Future<LivePodcastStudio> nextPodcastSegment(String roomId) async =>
+      throw _serverOnly;
+
+  @override
+  Future<LivePodcastStudio> showPodcastQuestion(
+    String roomId,
+    String requestId, {
+    String? answerUserId,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<LivePodcastStudio> hidePodcastQuestion(String roomId) async =>
+      throw _serverOnly;
+
+  @override
+  Future<LiveSeats> bringSeatOnAir(String roomId, int seatIndex) async =>
+      throw _serverOnly;
 
   @override
   Future<void> declineSeatRequest(String roomId, String requestId) async =>
@@ -352,6 +399,7 @@ class DemoLiveRepository implements LiveRepository {
     String roomId,
     String username, {
     int? seatIndex,
+    String? guestTitle,
   }) async => throw _serverOnly;
 
   @override

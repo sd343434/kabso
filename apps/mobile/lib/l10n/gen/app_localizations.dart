@@ -29763,6 +29763,294 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'Multi'**
   String get liveTypeTagMulti;
+
+  /// D363: the podcast setup's «صوت / فيديو» row label.
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع الحلقة'**
+  String get podcastFormat;
+
+  /// D363: the audio choice of the podcast format (today's podcast, the default).
+  ///
+  /// In ar, this message translates to:
+  /// **'صوت'**
+  String get podcastFormatAudio;
+
+  /// D363: the video choice of the podcast format (host and guests on camera, the automatic director).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو'**
+  String get podcastFormatVideo;
+
+  /// D363: the small badge on a video podcast's hub card and announced-episode card.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو'**
+  String get podcastVideoBadge;
+
+  /// D363: the shot chip — the current speaker full screen.
+  ///
+  /// In ar, this message translates to:
+  /// **'لقطة المتحدث'**
+  String get podcastShotSpeaker;
+
+  /// D363: the shot chip — two people alternating, top / bottom.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاش'**
+  String get podcastShotSplit;
+
+  /// D363: the shot chip — three or more speaking at once (everyone).
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاش جماعي'**
+  String get podcastShotGrid;
+
+  /// D363: the hot seat — the shot chip, the host's button on a question and the question card's tag.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكرسي الساخن'**
+  String get podcastShotHotSeat;
+
+  /// D363: the chip a viewer taps to leave their own pick and follow the automatic director again.
+  ///
+  /// In ar, this message translates to:
+  /// **'رجوع للمخرج'**
+  String get podcastBackToDirector;
+
+  /// D363: the lower third when a guest appears; title = the short title the host gave.
+  ///
+  /// In ar, this message translates to:
+  /// **'الضيف: {name} — {title}'**
+  String podcastGuestLowerThird(String name, String title);
+
+  /// D363: the lower third of a guest without a title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الضيف: {name}'**
+  String podcastGuestLowerThirdName(String name);
+
+  /// D363: the field for the guest's short title when the host invites in a video podcast.
+  ///
+  /// In ar, this message translates to:
+  /// **'لقب الضيف (اختياري)'**
+  String get podcastGuestTitleHint;
+
+  /// D363: the questions list of a video podcast, most votes first.
+  ///
+  /// In ar, this message translates to:
+  /// **'أسئلة المستمعين'**
+  String get podcastQuestionsTitle;
+
+  /// D363: a listener's upvote button on a question (screen-reader label).
+  ///
+  /// In ar, this message translates to:
+  /// **'صوّت للسؤال'**
+  String get podcastVote;
+
+  /// D363: taking back an upvote (screen-reader label).
+  ///
+  /// In ar, this message translates to:
+  /// **'ألغِ التصويت'**
+  String get podcastUnvote;
+
+  /// D363: a question's upvotes (screen readers; the card shows the digits).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا أصوات} =1{صوت واحد} =2{صوتان} few{{count} أصوات} many{{count} صوتاً} other{{count} صوت}}'**
+  String podcastVotes(int count);
+
+  /// D363: the questions list is empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أسئلة بعد.'**
+  String get podcastNoQuestions;
+
+  /// D363: the host's controls row for the automatic director.
+  ///
+  /// In ar, this message translates to:
+  /// **'المخرج'**
+  String get podcastDirector;
+
+  /// D363: the director chooses the shot (no pinned guest).
+  ///
+  /// In ar, this message translates to:
+  /// **'تلقائي'**
+  String get podcastDirectorAuto;
+
+  /// D363: the host pins the shot on one person.
+  ///
+  /// In ar, this message translates to:
+  /// **'ثبّت اللقطة على {name}'**
+  String podcastDirectorPinned(String name);
+
+  /// D363: the hot seat card's asker line.
+  ///
+  /// In ar, this message translates to:
+  /// **'سؤال من {name}'**
+  String podcastHotSeatFrom(String name);
+
+  /// D363 scope extension: the host's strip of accepted guests waiting backstage (seen by the host only).
+  ///
+  /// In ar, this message translates to:
+  /// **'خلف الكواليس'**
+  String get podcastBackstage;
+
+  /// D363 scope extension: the host's button that brings a backstage guest on air.
+  ///
+  /// In ar, this message translates to:
+  /// **'على الهواء'**
+  String get podcastBringOnAir;
+
+  /// D363 scope extension: the guest's self-check screen title.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت خلف الكواليس'**
+  String get podcastBackstageCheckTitle;
+
+  /// D363 scope extension: the guest's self-check explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف وحده يراك ويسمعك الآن. تأكد من الكاميرا والميكروفون، وسيُدخلك على الهواء.'**
+  String get podcastBackstageCheckBody;
+
+  /// D363 scope extension: the self-check while the guest's voice is heard.
+  ///
+  /// In ar, this message translates to:
+  /// **'الميكروفون يعمل'**
+  String get podcastBackstageMicOk;
+
+  /// D363 scope extension: the self-check while the guest is silent.
+  ///
+  /// In ar, this message translates to:
+  /// **'تكلّم لاختبار الميكروفون'**
+  String get podcastBackstageMicQuiet;
+
+  /// D363 scope extension: the self-check when the guest's camera is off.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا مغلقة'**
+  String get podcastBackstageCameraOff;
+
+  /// D363 scope extension: the guest leaves backstage without going on air (back to the audience).
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة الكواليس'**
+  String get podcastBackstageLeave;
+
+  /// D363 scope extension: the chip while the host keeps the shot on one person.
+  ///
+  /// In ar, this message translates to:
+  /// **'مثبّت: {name}'**
+  String podcastControlPinned(String name);
+
+  /// D363 scope extension: the chip while the host keeps a layout; layout = the shot's name.
+  ///
+  /// In ar, this message translates to:
+  /// **'تخطيط ثابت: {layout}'**
+  String podcastControlLayout(String layout);
+
+  /// D363 scope extension: the director sheet's layout section (keep a layout).
+  ///
+  /// In ar, this message translates to:
+  /// **'التخطيط'**
+  String get podcastDirectorLayout;
+
+  /// D363 scope extension: the director sheet's people section.
+  ///
+  /// In ar, this message translates to:
+  /// **'تثبيت شخص'**
+  String get podcastDirectorPeople;
+
+  /// D363 scope extension: the episode's agenda — the setup row, the host's tool and the editor's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'فقرات الحلقة'**
+  String get podcastSegments;
+
+  /// D363 scope extension: how many segments are prepared.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا فقرات} =1{فقرة واحدة} =2{فقرتان} few{{count} فقرات} many{{count} فقرة} other{{count} فقرة}}'**
+  String podcastSegmentsCount(int count);
+
+  /// D363 scope extension: the segment card and the progress bar's label.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفقرة {current} من {total}'**
+  String podcastSegmentOf(int current, int total);
+
+  /// D363 scope extension: the host's control that moves to the next segment (after the last: the closing card).
+  ///
+  /// In ar, this message translates to:
+  /// **'الفقرة التالية'**
+  String get podcastSegmentNext;
+
+  /// D363 scope extension: the host's control before the first segment.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ الفقرات'**
+  String get podcastSegmentStart;
+
+  /// D363 scope extension: the editor's add button.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة فقرة'**
+  String get podcastSegmentAdd;
+
+  /// D363 scope extension: the editor's remove button (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الفقرة'**
+  String get podcastSegmentRemove;
+
+  /// D363 scope extension: the editor's title field (1–40 characters).
+  ///
+  /// In ar, this message translates to:
+  /// **'عنوان الفقرة'**
+  String get podcastSegmentTitleHint;
+
+  /// D363 scope extension: the editor's optional planned minutes field.
+  ///
+  /// In ar, this message translates to:
+  /// **'دقائق'**
+  String get podcastSegmentMinutesHint;
+
+  /// D363 scope extension: the editor's save button.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ الفقرات'**
+  String get podcastSegmentsSave;
+
+  /// D363 scope extension: the closing card after the last segment.
+  ///
+  /// In ar, this message translates to:
+  /// **'نهاية الحلقة'**
+  String get podcastClosingTitle;
+
+  /// D363 scope extension: the closing card's line.
+  ///
+  /// In ar, this message translates to:
+  /// **'شكراً لمتابعتكم'**
+  String get podcastClosingBody;
+
+  /// D363 scope extension: the host's button on a hand's question (the question card over the video).
+  ///
+  /// In ar, this message translates to:
+  /// **'اعرض على الشاشة'**
+  String get podcastShowOnScreen;
+
+  /// D363 scope extension: the question card's tag over the video.
+  ///
+  /// In ar, this message translates to:
+  /// **'سؤال الجمهور'**
+  String get podcastOnScreenTag;
+
+  /// D363 scope extension: the host's dismiss button on the question card.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء السؤال'**
+  String get podcastOnScreenHide;
 }
 
 class _AppLocalizationsDelegate

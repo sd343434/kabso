@@ -113,6 +113,14 @@ export function isVoiceMode(mode: string): boolean {
   return mode === 'AUDIO' || mode === 'PODCAST';
 }
 
+/**
+ * v1.114-live (D363, §10.157): the room publishes no video — AUDIO, and a PODCAST unless it is a video podcast
+ * (`podcast_video`). What the media permissions follow; `isVoiceMode` stays the room's kind (lists, themes).
+ */
+export function isVoiceMedia(mode: string, podcastVideo: boolean): boolean {
+  return mode === 'AUDIO' || (mode === 'PODCAST' && !podcastVideo);
+}
+
 // ---- v1.47-live (D212, CONVENTIONS §10.69): podcast episodes ---------------------------------
 
 /** Owner D212: at most 4 speakers — the host and up to 3 guests (stored as `seat_count` 4). */
@@ -146,12 +154,88 @@ const questionSecondsSchema = z
   .nullable();
 
 /** `PodcastSetup` of `StartLiveRoomRequest` (required with mode PODCAST, refused otherwise). */
+// ---- v1.114-live (D363, §10.157, owner scope extension 2026-11-11): the video podcast's studio ----------
+
+/** At most this many segments «فقرات» in an episode. */
+export const PODCAST_SEGMENTS_MAX = 8;
+/** A segment's title: 1–40 code points after the chat text rules (§10.11). */
+export const PODCAST_SEGMENT_TITLE_MAX_CODE_POINTS = 40;
+/** A segment's planned length in minutes (optional). */
+export const PODCAST_SEGMENT_MINUTES_MAX = 180;
+/** The layouts the host may lock (`LivePodcastStudio.layout`). */
+export const PODCAST_LOCK_LAYOUTS = ['SPEAKER', 'SPLIT', 'HOT_SEAT'] as const;
+export type PodcastLockLayout = (typeof PODCAST_LOCK_LAYOUTS)[number];
+
+/** `LivePodcastSegment`. */
+export const podcastSegmentSchema = z.strictObject({
+  title: z
+    .string()
+    .max(PODCAST_SEGMENT_TITLE_MAX_CODE_POINTS * 8)
+    .transform((raw, ctx) => {
+      const result = normalizeLiveChatText(raw, PODCAST_SEGMENT_TITLE_MAX_CODE_POINTS);
+      if ('issue' in result) {
+        ctx.addIssue({ code: 'custom', message: result.issue, params: { issue: result.issue } });
+        return z.NEVER;
+      }
+      return result.value;
+    }),
+  minutes: z.number().int().min(1).max(PODCAST_SEGMENT_MINUTES_MAX).nullable().optional(),
+});
+export type PodcastSegmentInput = z.infer<typeof podcastSegmentSchema>;
+
+const podcastSegmentsSchema = z.array(podcastSegmentSchema).max(PODCAST_SEGMENTS_MAX);
+
+/** `LivePodcastSegmentsBody` (`PUT …/podcast/segments`). */
+export const livePodcastSegmentsBodySchema = z.strictObject({ segments: podcastSegmentsSchema });
+
+/** `LivePodcastControlBody` (`PUT …/podcast/control`): both null (or absent) = the automatic director. */
+export const livePodcastControlBodySchema = z.strictObject({
+  pinUserId: z.uuid().nullable().optional(),
+  layout: z.enum(PODCAST_LOCK_LAYOUTS).nullable().optional(),
+});
+
+/** `LivePodcastOnScreenBody` (`PUT …/podcast/on-screen`). */
+export const livePodcastOnScreenBodySchema = z.strictObject({
+  requestId: z.uuid(),
+  answerUserId: z.uuid().nullable().optional(),
+});
+
 const podcastSetupSchema = z.strictObject({
   topic: z.enum(PODCAST_TOPICS),
   /** Default true: listeners may raise a hand. */
   questionsOpen: z.boolean().optional(),
   /** Default {@link DEFAULT_PODCAST_QUESTION_SECONDS}; null = no limit. */
   questionSeconds: questionSecondsSchema.optional(),
+  /** v1.114-live (D363, §10.157): a video podcast; default false (audio). */
+  video: z.boolean().optional(),
+  /** v1.114-live (D363, scope extension): the episode's segments (video podcasts only). */
+  segments: podcastSegmentsSchema.optional(),
+});
+
+// ---- v1.114-live (D363, CONVENTIONS §10.157): the video podcast ----------------------------------
+
+/** The guest's lower-third title: 1–40 code points after the chat text rules (§10.11). */
+export const PODCAST_GUEST_TITLE_MAX_CODE_POINTS = 40;
+/** The hot seat's default time (owner D363: one minute; the question times of D212 may be chosen). */
+export const DEFAULT_HOT_SEAT_SECONDS = 60;
+/** At most this many questions are listed in `LiveSeats.questions`. */
+export const PODCAST_QUESTIONS_MAX = 50;
+/** The director's shots. */
+export const PODCAST_DIRECTOR_SHOTS = ['SPEAKER', 'SPLIT', 'GRID', 'HOT_SEAT'] as const;
+export type PodcastDirectorShot = (typeof PODCAST_DIRECTOR_SHOTS)[number];
+
+/** `LivePodcastDirectorShot`. */
+export const livePodcastDirectorBodySchema = z.strictObject({
+  shot: z.enum(PODCAST_DIRECTOR_SHOTS),
+  userIds: z
+    .array(z.uuid())
+    .min(1)
+    .max(5)
+    .refine((ids) => new Set(ids.map((id) => id.toLowerCase())).size === ids.length, {
+      params: { issue: 'invalid_value' },
+    }),
+  locked: z.boolean(),
+  seq: z.number().int().min(0).max(2_147_483_647),
 });
 
 // ---- v1.56-live (D213, CONVENTIONS §10.86): streamer lives ------------------------------------
@@ -279,6 +363,10 @@ export const startLiveRoomSchema = z
     if (mode === 'PODCAST' && input.podcast === undefined) {
       ctx.addIssue({ code: 'custom', path: ['podcast'], params: { issue: 'required' } });
     }
+    // v1.114-live (D363): segments belong to a video podcast.
+    if (input.podcast?.segments !== undefined && input.podcast.video !== true) {
+      ctx.addIssue({ code: 'custom', path: ['podcast', 'segments'], params: { issue: 'invalid_value' } });
+    }
     if (mode !== 'STREAMER' && input.streamer !== undefined) {
       ctx.addIssue({ code: 'custom', path: ['streamer'], params: { issue: 'invalid_value' } });
     }
@@ -398,7 +486,39 @@ export const liveSeatAskBodySchema = z.strictObject({
 export const liveSeatInviteBodySchema = z.strictObject({
   username: z.string().max(1000),
   seatIndex: seatIndexSchema.optional(),
+  /** v1.114-live (D363): the guest's lower-third title (video podcasts only, checked by the service). */
+  guestTitle: z
+    .string()
+    .max(PODCAST_GUEST_TITLE_MAX_CODE_POINTS * 8)
+    .transform((raw, ctx) => {
+      const result = normalizeLiveChatText(raw, PODCAST_GUEST_TITLE_MAX_CODE_POINTS);
+      if ('issue' in result) {
+        ctx.addIssue({ code: 'custom', message: result.issue, params: { issue: result.issue } });
+        return z.NEVER;
+      }
+      return result.value;
+    })
+    .optional(),
 });
+
+/** v1.114-live (D363): `LiveSeatAcceptBody` — `LiveSeatRequestBody` + the hot seat. */
+export const liveSeatAcceptBodySchema = z
+  .strictObject({
+    seatIndex: seatIndexSchema.optional(),
+    hotSeat: z.boolean().optional(),
+    hotSeatSeconds: z
+      .number()
+      .int()
+      .refine((v) => (PODCAST_QUESTION_SECONDS as readonly number[]).includes(v), {
+        params: { issue: 'invalid_value' },
+      })
+      .optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (input.hotSeatSeconds !== undefined && input.hotSeat !== true) {
+      ctx.addIssue({ code: 'custom', path: ['hotSeatSeconds'], params: { issue: 'invalid_value' } });
+    }
+  });
 
 /** `LiveKickRequest` (v1.20-live, D105); a malformed username is simply not found (404). */
 export const liveKickBodySchema = z.strictObject({ username: z.string().max(1000) });

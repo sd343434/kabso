@@ -55,6 +55,8 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/go_live/live_settings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_strip_settings.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_video_podcast_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_video_podcast_studio.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/go_live/viewer_live_ref_parts.dart';
@@ -158,6 +160,10 @@ class LiveRoomScreen extends ConsumerWidget {
   static const guestCancelKey = Key('room.guest.cancel');
   static const guestLeaveKey = Key('room.guest.leave');
   static const guestCameraKey = Key('room.guest.camera');
+
+  /// D363: a video podcast's hand and questions buttons.
+  static const podcastHandKey = Key('room.podcast.hand');
+  static const podcastQuestionsKey = Key('room.podcast.questions');
   static const guestMicKey = Key('room.guest.mic');
 
   /// D181: minimize into the floating window (viewers and guests).
@@ -995,8 +1001,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final ok = await ensureSeatCapturePermission(
       context,
       ref.read(livePermissionsProvider),
-      // D174: a SOLO live's guests are on camera too.
-      camera: !_room.mode.isVoice,
+      // D174: a SOLO live's guests are on camera too; D363: a video
+      // podcast's speakers.
+      camera: !_room.voiceOnly,
     );
     if (!ok && mounted) {
       KSnack.info(context, context.l10n.livePermissionSeatRefused);
@@ -1176,8 +1183,47 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       config: const LivePodcastConfig(),
       onBringUp: _session.accept,
       onLater: _session.defer,
+      // D363: «الكرسي الساخن» and the hands by votes (a video podcast).
+      onHotSeat: _room.videoPodcast
+          ? (r) => _session.accept(r, hotSeat: true)
+          : null,
     );
   }
+
+  /// D363 scope extension: this phone's guest waits backstage (a video
+  /// podcast's accepted invitation, until the host brings them on air).
+  bool _backstage(LiveRoomSessionState session) {
+    if (!_room.videoPodcast) return false;
+    final mine = session.mine?.seatIndex;
+    if (mine == null) return false;
+    return session.seats?.seats.any((s) => s.index == mine && s.backstage) ??
+        false;
+  }
+
+  /// The last subscriber rule sent to the media server (null: everyone).
+  bool? _restricted;
+
+  /// D363 scope extension: backstage, only the host receives this phone's
+  /// camera and microphone; on air (or as a listener), everyone.
+  void _syncBackstage(LiveRoomSessionState session, LiveMediaEngine engine) {
+    final backstage = _backstage(session);
+    if (_restricted == backstage) return;
+    if (_restricted == null && !backstage) {
+      _restricted = false;
+      return;
+    }
+    _restricted = backstage;
+    unawaited(engine.restrictSubscribers(backstage ? _room.host.id : null));
+  }
+
+  /// D363 (§10.157): a video podcast's questions with their upvotes.
+  Future<void> _openQuestions(LiveRoomSessionState session) =>
+      showPodcastQuestionsSheet(
+        context,
+        questions: session.seats?.questions ?? const [],
+        me: ref.read(currentUserProvider)?.id,
+        onVote: _session.vote,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -1232,6 +1278,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       return LiveRoomScreen.kickedMessage(l10n, widget.onClose);
     }
     final engine = _session.engine;
+    _syncBackstage(session, engine);
     final viewerPrefs = ref.watch(liveViewerPrefsProvider);
     final entrancesHidden = viewerPrefs.entrancesHidden;
     _syncDataSaver(room, viewerPrefs.dataSaver);
@@ -1262,7 +1309,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 // and video alike; beside a video live's wish column.
                 stripsStart: LiveGiftEffectsLayer.videoStripsStart(
                   sideColumn:
-                      !room.mode.isVoice &&
+                      !room.voiceOnly &&
                       (room.wishGifts.isNotEmpty ||
                           LiveRoomPromoBox.shows(ref, room.id)),
                 ),
@@ -1279,7 +1326,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 hostUsername: room.host.username,
                 // Over the audio bar, or over the video live's quick
                 // replies.
-                bottom: room.mode.isVoice
+                bottom: room.voiceOnly
                     ? LuckyComboLayer.audioBottom
                     : LuckyComboLayer.videoBottom,
               ),
@@ -1294,6 +1341,22 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               LiveVipEntranceLayer(
                 key: LiveVipEntranceLayer.layerKey,
                 roomId: room.id,
+              ),
+            // D363 scope extension: a video podcast's guest waiting
+            // backstage checks their camera and microphone (the host only
+            // sees them); «مغادرة الكواليس» is back to the audience.
+            if (_backstage(session) && room.status == LiveRoomStatus.live)
+              Positioned.fill(
+                child: VideoPodcastBackstageCheck(
+                  preview: engine.videoPaused ? null : engine.preview(),
+                  speaking: engine.speaking.contains(
+                    ref.read(currentUserProvider)?.id,
+                  ),
+                  name: ref.read(currentUserProvider)?.displayName ?? '',
+                  avatarUrl: ref.read(currentUserProvider)?.avatarUrl,
+                  onLeave: () =>
+                      unawaited(runSeatAction(context, _session.leaveSeat)),
+                ),
               ),
             // D273: «أدوات فريق كابسو» while in the live as staff.
             if (session.staff != null && room.status == LiveRoomStatus.live)
@@ -1345,7 +1408,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       chat: ref.watch(liveChatProvider(room.id)),
       role: _chatRole(session),
     );
-    if (!ended && room.mode.isVoice) {
+    // D363: a video podcast is drawn as a video live (its stage is the
+    // video layer).
+    if (!ended && room.voiceOnly) {
       return _audioRoom(
         session: session,
         engine: engine,
@@ -1392,7 +1457,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       stageEdgeToEdge: pkStage != null,
       stage:
           pkStage ??
-          (!ended && room.mode.hasSeats ? _stage(session, engine) : null),
+          (!ended && room.mode.hasSeats && !room.videoPodcast
+              ? _stage(session, engine)
+              : null),
       // D238: the «PK أحكام» card, small at the bottom over the chat; a
       // signed-in viewer may report the dare (⚠️).
       dock: pkState?.match == null
@@ -1594,7 +1661,38 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         // D174a (owner: «الضيوف في البث الفردي يمكن إقفال
                         // الكاميرا»): a seated guest on camera turns their
                         // own camera and mic off or on.
-                        if (session.seated && !room.mode.isVoice) ...[
+                        // D363: a video podcast's hand (with a question),
+                        // the questions to upvote, and the host's or a
+                        // moderator's hands sheet («الكرسي الساخن»).
+                        if (room.videoPodcast && me != null) ...[
+                          if (!session.seated && session.mine != null)
+                            KViewerBarButton(
+                              key: LiveRoomScreen.podcastHandKey,
+                              icon: Icons.front_hand_rounded,
+                              label: session.mine!.request != null
+                                  ? l10n.podcastLowerHand
+                                  : l10n.podcastRaiseHand,
+                              onTap: () => unawaited(
+                                session.mine!.request != null
+                                    ? runSeatAction(
+                                        context,
+                                        _session.cancelRequest,
+                                      )
+                                    : _raiseHand(),
+                              ),
+                            ),
+                          KViewerBarButton(
+                            key: LiveRoomScreen.podcastQuestionsKey,
+                            icon: Icons.how_to_vote_rounded,
+                            label: l10n.podcastQuestionsTitle,
+                            onTap: () => unawaited(
+                              session.canModerate
+                                  ? _openHands(session)
+                                  : _openQuestions(session),
+                            ),
+                          ),
+                        ],
+                        if (session.seated && !room.voiceOnly) ...[
                           KViewerBarButton(
                             key: LiveRoomScreen.guestCameraKey,
                             icon: engine.videoPaused
@@ -2010,7 +2108,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   bool? _dataSaverSent;
 
   void _syncDataSaver(LiveRoom room, bool on) {
-    final want = on && !room.mode.isVoice;
+    final want = on && !room.voiceOnly;
     if (_dataSaverSent == want) return;
     _dataSaverSent = want;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2122,7 +2220,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 onSelected: (i) =>
                     prefsCtl.setChatTextSize(LiveChatTextSize.values[i]),
               ),
-              if (!room.mode.isVoice)
+              if (!room.voiceOnly)
                 LiveSettingsSwitch(
                   id: 'dataSaver',
                   icon: Icons.data_saver_on_rounded,
@@ -2486,6 +2584,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// away, or the join failure. Seat rooms: the theme (seats are the stage).
   Widget _video(LiveRoomSessionState session, LiveMediaEngine engine) {
     final room = _room;
+    // D363 (§10.157): a video podcast — the director's full-screen shot.
+    if (room.videoPodcast) {
+      return VideoPodcastRoomStage(
+        roomId: room.id,
+        host: room.host,
+        seats: session.seats,
+        engine: engine,
+        me: ref.read(currentUserProvider)?.id,
+      );
+    }
     if (room.mode.hasSeats) {
       if (room.mode.isVoice && room.theme == LiveThemes.classic) {
         return const LiveAudioRoomBackground();
@@ -2727,7 +2835,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     .seats
                     ?.seats ??
                 const <LiveSeat>[])
-          ?seat.user,
+          // D363 scope extension: a guest backstage is not on stage yet.
+          if (!seat.backstage) ?seat.user,
       ],
       onSeatsStale: () {
         if (mounted) unawaited(_session.refreshSeats());
