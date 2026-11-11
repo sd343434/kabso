@@ -224,7 +224,7 @@ final class CherryGift {
     quantity: _int(json['quantity']),
     giftCoins: _int(json['giftCoins']),
     shareBps: _int(json['shareBps']),
-    context: json['context'] == 'DM' ? EarningContext.dm : EarningContext.live,
+    context: EarningContext.fromWire(json['context']),
     sender: json['sender'] == null
         ? null
         : UserSummary.fromJson(json['sender']! as Map<String, dynamic>),

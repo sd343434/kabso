@@ -121,6 +121,8 @@ class Post {
     this.editedAt,
     this.repostedBy,
     this.viewerFollowsAuthor,
+    this.giftCherries = 0,
+    this.giftable = false,
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -172,6 +174,9 @@ class Post {
         _ => null,
       },
       viewerFollowsAuthor: json['viewerFollowsAuthor'] as bool?,
+      // v1.127-social (D372); absent from older servers.
+      giftCherries: json['giftCherries'] as int? ?? 0,
+      giftable: json['giftable'] == true,
     );
   }
 
@@ -234,6 +239,16 @@ class Post {
   /// caller's own post); null when the server did not say (older servers,
   /// a locally edited copy). The feed card's «متابعة» shows only when false.
   final bool? viewerFollowsAuthor;
+
+  /// v1.127-social (D372, §10.164): the cherries the author earned from the
+  /// gifts sent on it «هدية الدعم» (the counter beside the cherry). 0 from
+  /// older servers.
+  final int giftCherries;
+
+  /// v1.127-social (D372): the viewer may send a gift on it (its author is
+  /// a host or a content creator and not the viewer): the composer shows
+  /// the gift button. False from older servers.
+  final bool giftable;
 }
 
 /// One page of a list (`PostPage`, `UserSummaryPage`, …).
@@ -375,6 +390,7 @@ class Comment {
     required this.pinned,
     required this.canDelete,
     this.viewerHasDisliked = false,
+    this.gift,
   });
 
   factory fromJson(Map<String, dynamic> json) => Comment(
@@ -395,6 +411,12 @@ class Comment {
     ],
     pinned: json['pinned']! as bool,
     canDelete: json['canDelete']! as bool,
+    // v1.127-social (D372): a gift line (kind GIFT) and its gift; an
+    // unknown kind reads as a text comment.
+    gift: switch ((json['kind'], json['gift'])) {
+      ('GIFT', final Map<String, dynamic> g) => CommentGift.fromJson(g),
+      _ => null,
+    },
   );
 
   final String id;
@@ -419,6 +441,13 @@ class Comment {
   /// The caller wrote it or owns the post.
   final bool canDelete;
 
+  /// v1.127-social (D372): the gift of a gift line «فلان أرسل … ×N» (its
+  /// [text] is empty); null for a text comment.
+  final CommentGift? gift;
+
+  /// A gift line (`kind: GIFT`).
+  bool get isGift => gift != null;
+
   Comment copyWith({
     int? likeCount,
     bool? viewerHasLiked,
@@ -439,8 +468,48 @@ class Comment {
     mentions: mentions,
     pinned: pinned ?? this.pinned,
     canDelete: canDelete,
+    gift: gift,
   );
 }
+
+/// `CommentGift` (v1.127-social, D372, §10.164): what a gift line shows.
+@immutable
+class CommentGift {
+  const new({
+    required this.giftCode,
+    required this.name,
+    required this.quantity,
+    required this.assetKey,
+    this.imageUrl,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => CommentGift(
+    giftCode: json['giftCode']! as String,
+    name: json['name']! as String,
+    quantity: json['quantity']! as int,
+    assetKey: json['assetKey']! as String,
+    imageUrl: json['imageUrl'] as String?,
+  );
+
+  final String giftCode;
+
+  /// In the viewer's account language (the server's).
+  final String name;
+  final int quantity;
+
+  /// The bundled art when there is no hosted picture.
+  final String assetKey;
+  final String? imageUrl;
+}
+
+/// `ContentGiftResult` (v1.127-social, D372): the gift line, the post's
+/// gift cherries, and the sender's balance and bag after the send.
+typedef ContentGiftResult = ({
+  Comment comment,
+  int giftCherries,
+  int coins,
+  int bagQuantity,
+});
 
 /// `Hashtag`: a tag (lower case, no `#`) and its visible post count.
 @immutable

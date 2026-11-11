@@ -18062,4 +18062,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String vipPointsPer(String days) {
     return 'points / $days days';
   }
+
+  @override
+  String get contentGiftButton => 'Send a gift';
+
+  @override
+  String commentsGiftSent(String sender, String gift, String count) {
+    return '$sender sent $gift ×$count';
+  }
+
+  @override
+  String contentGiftCherriesLabel(String amount) {
+    return 'Gift cherries: $amount';
+  }
+
+  @override
+  String notifContentGiftReceived(String who) {
+    return '$who sent you a gift';
+  }
+
+  @override
+  String get walletReasonContentGift => 'Gift on a post';
+
+  @override
+  String get earnContextContent => 'On a post';
+
+  @override
+  String get errorContentGiftRecipientUnavailable =>
+      'Gifts can\'t be sent on this post.';
 }

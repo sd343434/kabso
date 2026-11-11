@@ -449,6 +449,9 @@ class NotificationRow extends StatelessWidget {
         KFormat.bidiIsolate(KFormat.grouped(item.target?.coins ?? 0)),
       ),
       NotificationType.rechargeCherryRequest => l10n.notifRechargeCherry(who),
+      NotificationType.contentGiftReceived => l10n.notifContentGiftReceived(
+        who,
+      ),
       NotificationType.rechargeOrderUpdate => rechargeOrderNotificationText(
         l10n,
         item.target?.orderEvent,

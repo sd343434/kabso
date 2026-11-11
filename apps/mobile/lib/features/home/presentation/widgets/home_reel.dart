@@ -13,6 +13,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/media/inline_video.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -59,6 +60,8 @@ class FeedReelData {
     this.mentions = const {},
     this.premiumMentions = const {},
     this.commentsOpen = true,
+    this.giftCherries = 0,
+    this.giftTo,
   });
 
   final String authorName;
@@ -124,6 +127,13 @@ class FeedReelData {
 
   /// Whether the viewer may comment (the sheet still opens to read).
   final bool commentsOpen;
+
+  /// D372 «هدية الدعم»: the cherries the author earned from gifts on this
+  /// reel (`Post.giftCherries`), shown under the comments when above 0.
+  final int giftCherries;
+
+  /// D372: the author to send a gift to (`Post.giftable`), or null.
+  final UserSummary? giftTo;
 
   /// The handle shown at the bottom (`@layla`, a premium one bare), or the
   /// name when the source has no username.
@@ -315,6 +325,9 @@ class HomeReelPage extends ConsumerStatefulWidget {
   static const handleKey = Key('home.reel.handle');
   static const likeKey = Key('home.reel.like');
   static const commentKey = Key('home.reel.comment');
+
+  /// D372: the gift counter (cherries) under the comments.
+  static const giftCherriesKey = Key('home.reel.giftCherries');
   static const saveKey = Key('home.reel.save');
   static const shareKey = Key('home.reel.share');
   static const discKey = Key('home.reel.disc');
@@ -336,6 +349,7 @@ class _HomeReelPageState extends ConsumerState<HomeReelPage>
   late int? _likes = widget.reel.likes;
   late bool _saved = widget.reel.saved;
   late int? _comments = widget.reel.comments;
+  late int _giftCherries = widget.reel.giftCherries;
   late int? _shares = widget.reel.shares;
   bool _liking = false;
   bool _saving = false;
@@ -466,9 +480,13 @@ class _HomeReelPageState extends ConsumerState<HomeReelPage>
         authorId: reel.authorId,
         isSelf: reel.isSelf,
         commentsOpen: reel.commentsOpen,
+        giftTo: reel.giftTo,
       ),
       onCount: (n) {
         if (mounted) setState(() => _comments = n);
+      },
+      onGiftCherries: (n) {
+        if (mounted) setState(() => _giftCherries = n);
       },
     );
   }
@@ -642,6 +660,15 @@ class _HomeReelPageState extends ConsumerState<HomeReelPage>
         semanticLabel: l10n.reelsCommentsLabel(n(comments ?? 0)),
         onTap: () => unawaited(_openComments()),
       ),
+      // D372 «هدية الدعم»: the cherries earned from gifts on this reel.
+      if (_giftCherries > 0) ...[
+        gap,
+        _RailCherries(
+          key: HomeReelPage.giftCherriesKey,
+          label: n(_giftCherries),
+          semanticLabel: l10n.contentGiftCherriesLabel(n(_giftCherries)),
+        ),
+      ],
       gap,
       _RailAction(
         key: HomeReelPage.saveKey,
@@ -933,6 +960,45 @@ class _RailAction extends StatelessWidget {
       ),
     );
   }
+}
+
+/// D372: the rail's gift counter — the cherry art and the compact amount of
+/// cherries the author earned from gifts on the reel (display only).
+class _RailCherries extends StatelessWidget {
+  const new({required this.label, required this.semanticLabel, super.key});
+
+  final String label;
+  final String semanticLabel;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: semanticLabel,
+    excludeSemantics: true,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(
+        minWidth: KSizes.minTouchTarget,
+        minHeight: KSizes.minTouchTarget,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const KCherryIcon(size: KHomeReels.railIcon),
+          const SizedBox(height: KSpacing.xs),
+          Text(
+            label,
+            maxLines: 1,
+            softWrap: false,
+            style: context.textStyles.caption.copyWith(
+              color: KPalette.dark.textPrimary,
+              fontWeight: FontWeight.w600,
+              height: 1.25,
+              shadows: _shadows,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// The rail's author photo (opens the profile) with the follow badge

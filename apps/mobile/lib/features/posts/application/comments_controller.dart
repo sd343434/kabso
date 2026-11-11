@@ -284,6 +284,25 @@ class CommentsController extends AsyncNotifier<CommentsState> {
     return created;
   }
 
+  /// D372: a gift line the caller just sent on the post (`sendContentGift`
+  /// answered it): shown below the pinned comment, above the rest, and
+  /// counted. A line already listed is not added twice.
+  void addGiftLine(Comment line) {
+    final s = _current;
+    if (s == null || s.threads.any((t) => t.comment.id == line.id)) return;
+    final pinned = s.threads.takeWhile((t) => t.comment.pinned).length;
+    _set(
+      s.copyWith(
+        threads: [
+          ...s.threads.take(pinned),
+          CommentThread(comment: line, repliesLoaded: true),
+          ...s.threads.skip(pinned),
+        ],
+        countDelta: s.countDelta + 1,
+      ),
+    );
+  }
+
   /// Deletes [comment] (and, for a top-level one, its replies).
   Future<void> delete(Comment comment) async {
     await _repo.deleteComment(comment.id);

@@ -12,6 +12,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/media/inline_video.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -71,6 +72,8 @@ class FeedPostData {
     this.hashtags = const {},
     this.mentions = const {},
     this.premiumMentions = const {},
+    this.giftCherries = 0,
+    this.giftTo,
   });
 
   final String authorName;
@@ -157,6 +160,13 @@ class FeedPostData {
   /// The viewer may try to comment: comments are on and not "nobody" (the
   /// author always may; "followers only" is decided by the server).
   final bool commentsOpen;
+
+  /// D372 «هدية الدعم»: the cherries the author earned from gifts on this
+  /// post (`Post.giftCherries`), shown in the footer when above 0.
+  final int giftCherries;
+
+  /// D372: the author to send a gift to (`Post.giftable`), or null.
+  final UserSummary? giftTo;
 
   /// The caption's linked hashtags (lower case, no `#`) and mentions
   /// (usernames): only these are links (§11.6).
@@ -266,6 +276,9 @@ class FeedPostTile extends StatefulWidget {
   static const followActionKey = Key('feed.post.more.follow');
   static const likeKey = Key('feed.post.like');
   static const commentKey = Key('feed.post.comment');
+
+  /// D372: the footer's gift counter (cherries).
+  static const giftCherriesKey = Key('feed.post.giftCherries');
   static const saveKey = Key('feed.post.save');
   static const repostKey = Key('feed.post.repost');
   static const likersKey = Key('feed.post.likers');
@@ -1377,6 +1390,7 @@ class _ActionsState extends ConsumerState<_Actions> {
   late int? _likes = widget.post.likes;
   late bool _saved = widget.post.saved;
   late int _comments = widget.post.comments ?? 0;
+  late int _giftCherries = widget.post.giftCherries;
   late bool _reposted = widget.post.reposted;
   late int _reposts = widget.post.reposts;
   bool _liking = false;
@@ -1493,9 +1507,13 @@ class _ActionsState extends ConsumerState<_Actions> {
       authorId: widget.post.authorId,
       isSelf: widget.post.isSelf,
       commentsOpen: widget.post.commentsOpen,
+      giftTo: widget.post.giftTo,
     ),
     onCount: (n) {
       if (mounted) setState(() => _comments = n);
+    },
+    onGiftCherries: (n) {
+      if (mounted) setState(() => _giftCherries = n);
     },
   );
 
@@ -1548,6 +1566,7 @@ class _ActionsState extends ConsumerState<_Actions> {
         // The padded units after the like: comment, share, repost, views.
         final units = [
           width(_comments),
+          if (_giftCherries > 0) width(_giftCherries),
           width(shares),
           if (repost) width(_reposts),
           if (views != null) width(views),
@@ -1685,6 +1704,22 @@ class _ActionsState extends ConsumerState<_Actions> {
                       ),
                     ),
                   ),
+                  // D372 «هدية الدعم»: the cherries earned from gifts on it.
+                  if (_giftCherries > 0)
+                    Semantics(
+                      key: FeedPostTile.giftCherriesKey,
+                      container: true,
+                      label: l10n.contentGiftCherriesLabel(
+                        KFormat.compact(_giftCherries, l10n),
+                      ),
+                      excludeSemantics: true,
+                      child: unitBox(
+                        child: iconCount(
+                          const KCherryIcon(size: KPostCard.actionIcon),
+                          count(_giftCherries),
+                        ),
+                      ),
+                    ),
                   shown(
                     AppIcons.send,
                     shares,

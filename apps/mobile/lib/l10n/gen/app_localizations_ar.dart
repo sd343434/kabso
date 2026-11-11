@@ -18078,4 +18078,32 @@ class AppLocalizationsAr extends AppLocalizations {
   String vipPointsPer(String days) {
     return 'نقطة / $days يوماً';
   }
+
+  @override
+  String get contentGiftButton => 'هدية الدعم';
+
+  @override
+  String commentsGiftSent(String sender, String gift, String count) {
+    return '$sender أرسل $gift ×$count';
+  }
+
+  @override
+  String contentGiftCherriesLabel(String amount) {
+    return 'كرز الهدايا: $amount';
+  }
+
+  @override
+  String notifContentGiftReceived(String who) {
+    return 'أرسل لك $who هدية';
+  }
+
+  @override
+  String get walletReasonContentGift => 'هدية على منشور';
+
+  @override
+  String get earnContextContent => 'على منشور';
+
+  @override
+  String get errorContentGiftRecipientUnavailable =>
+      'لا يمكن إرسال هدية على هذا المنشور.';
 }

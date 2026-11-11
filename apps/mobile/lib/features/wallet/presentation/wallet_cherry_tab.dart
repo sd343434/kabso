@@ -498,9 +498,11 @@ class _CherryTile extends StatelessWidget {
           );
     final where = gift == null
         ? null
-        : gift.context == EarningContext.dm
-        ? l10n.earnContextDm
-        : l10n.earnContextLive;
+        : switch (gift.context) {
+            EarningContext.dm => l10n.earnContextDm,
+            EarningContext.content => l10n.earnContextContent,
+            EarningContext.live => l10n.earnContextLive,
+          };
     final subtitle = gift == null
         ? null
         : e.reason == CherryLedgerReason.giftReversal

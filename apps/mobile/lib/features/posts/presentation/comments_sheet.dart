@@ -7,11 +7,15 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/posts/application/comments_controller.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
@@ -79,6 +83,14 @@ abstract final class KCommentsSheet {
     BoxShadow(color: Color(0x40000000), blurRadius: 18, offset: Offset(0, 6)),
   ];
   static const double inputHeight = 38;
+
+  /// D372: the gift box button sits this far after «+»; its art is a little
+  /// larger than the line icons (a picture, not a glyph).
+  static const double composerGap = 4;
+  static const double composerGiftArt = 26;
+
+  /// D372: the gift line's picture.
+  static const double giftArt = 28;
 }
 
 /// The frame of a comments sheet: the tab handle (tap to close, or swipe
@@ -322,6 +334,7 @@ class CommentRow extends StatelessWidget {
     this.dislikeKey,
     this.replyKey,
     this.moreKey,
+    this.gift,
     super.key,
   });
 
@@ -329,6 +342,9 @@ class CommentRow extends StatelessWidget {
 
   /// Shown as is (callers isolate `@handles` first).
   final String text;
+
+  /// D372: a gift line's body ([CommentGiftLine]) in place of [text].
+  final Widget? gift;
   final String when;
   final int likeCount;
   final bool liked;
@@ -437,14 +453,16 @@ class CommentRow extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: KSpacing.xxs),
-                KabiEmojiText(
-                  text,
-                  style: t.body.copyWith(
-                    fontSize: KCommentsSheet.bodySize,
-                    height: KCommentsSheet.bodyHeight,
-                    color: p.textSecondary,
+                ?gift,
+                if (gift == null)
+                  KabiEmojiText(
+                    text,
+                    style: t.body.copyWith(
+                      fontSize: KCommentsSheet.bodySize,
+                      height: KCommentsSheet.bodyHeight,
+                      color: p.textSecondary,
+                    ),
                   ),
-                ),
                 Row(
                   children: [
                     if (onReply != null)
@@ -590,6 +608,8 @@ class CommentComposer extends StatelessWidget {
     this.onCancelReply,
     this.cancelReplyKey,
     this.maxLength,
+    this.onGift,
+    this.giftKey,
     super.key,
   });
 
@@ -609,11 +629,18 @@ class CommentComposer extends StatelessWidget {
   final Key? cancelReplyKey;
   final int? maxLength;
 
+  /// D372 «هدية الدعم»: opens the gift panel (a gift box beside «+»); null
+  /// hides the button (the author is not a host or a content creator, or
+  /// it is the viewer's own post).
+  final VoidCallback? onGift;
+  final Key? giftKey;
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final l10n = context.l10n;
     final ar = Directionality.of(context) == TextDirection.rtl;
+    final gift = onGift;
     const noBorder = OutlineInputBorder(borderSide: BorderSide.none);
     final reply = replyingTo;
     return SafeArea(
@@ -708,6 +735,28 @@ class CommentComposer extends StatelessWidget {
                         color: p.textPrimary,
                       ),
                     ),
+                    if (gift != null) ...[
+                      const SizedBox(width: KCommentsSheet.composerGap),
+                      IconButton(
+                        key: giftKey,
+                        tooltip: l10n.contentGiftButton,
+                        onPressed: sending ? null : gift,
+                        style: IconButton.styleFrom(
+                          backgroundColor: p.surfaceRaised,
+                          fixedSize: const Size.square(
+                            KCommentsSheet.composerButton,
+                          ),
+                          minimumSize: const Size.square(
+                            KCommentsSheet.composerButton,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                        icon: const KabsoArtIcon(
+                          KabsoArt.giftBox,
+                          size: KCommentsSheet.composerGiftArt,
+                        ),
+                      ),
+                    ],
                     Expanded(
                       // Direction follows the first letter outside tags: a
                       // reply's lone @handle reads left to right.
@@ -823,6 +872,86 @@ final RegExp _trailingDots = RegExp(r'\.+$');
 
 final RegExp _handle = RegExp(r'(?<![\p{L}\p{N}_])@[a-z0-9._]+', unicode: true);
 
+/// D372 «هدية الدعم»: a gift line's body — «فلان أرسل الهدية ×N» in
+/// gold with the gift's picture, on a soft gold pill. Readable in light and
+/// dark (a deeper gold on light surfaces).
+class CommentGiftLine extends StatelessWidget {
+  const new({required this.sender, required this.gift, super.key});
+
+  /// The sender's name as the row shows it.
+  final String sender;
+  final CommentGift gift;
+
+  static const lineKey = Key('comments.giftLine');
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    // #F5C451 on dark; a deeper gold (≥ 4.5:1 on white) on light.
+    final ink = dark ? KBrandColors.gold : const Color(0xFF8A5A00);
+    final text = l10n.commentsGiftSent(
+      KFormat.bidiIsolate(sender),
+      KFormat.bidiIsolate(gift.name),
+      KFormat.grouped(gift.quantity),
+    );
+    return Semantics(
+      key: lineKey,
+      container: true,
+      label: text,
+      excludeSemantics: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              KBrandColors.gold.withValues(alpha: dark ? 0.22 : 0.20),
+              KBrandColors.gold.withValues(alpha: dark ? 0.08 : 0.06),
+            ],
+            begin: AlignmentDirectional.centerStart,
+            end: AlignmentDirectional.centerEnd,
+          ),
+          borderRadius: BorderRadius.circular(KRadius.pill),
+          border: Border.all(
+            color: KBrandColors.gold.withValues(alpha: dark ? 0.55 : 0.7),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            KSpacing.md,
+            KSpacing.xxs,
+            KSpacing.xs,
+            KSpacing.xxs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.body.copyWith(
+                    fontSize: KCommentsSheet.bodySize,
+                    height: KCommentsSheet.bodyHeight,
+                    fontWeight: FontWeight.w700,
+                    color: ink,
+                  ),
+                ),
+              ),
+              const SizedBox(width: KSpacing.xs),
+              KGiftImage(
+                gift.assetKey,
+                imageUrl: gift.imageUrl,
+                size: KCommentsSheet.giftArt,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The post a comments sheet belongs to.
 @immutable
 class CommentsTarget {
@@ -832,6 +961,7 @@ class CommentsTarget {
     required this.authorId,
     required this.isSelf,
     required this.commentsOpen,
+    this.giftTo,
   });
 
   final String postId;
@@ -846,14 +976,20 @@ class CommentsTarget {
   /// `false` when comments are off or nobody may comment (the author
   /// always may, §11.5). "Followers only" is decided by the server.
   final bool commentsOpen;
+
+  /// D372: the author to send a gift to «هدية الدعم» (`Post.giftable`);
+  /// null hides the composer's gift button.
+  final UserSummary? giftTo;
 }
 
 /// Opens the comments of [target]; [onCount] hears the post's comment count
-/// whenever it changes here.
+/// whenever it changes here, [onGiftCherries] the post's gift cherries after
+/// a gift sent here (D372).
 Future<void> showCommentsSheet(
   BuildContext context,
   CommentsTarget target, {
   ValueChanged<int>? onCount,
+  ValueChanged<int>? onGiftCherries,
 }) => showModalBottomSheet<void>(
   context: context,
   // Above the bottom bar, like every full sheet.
@@ -861,7 +997,11 @@ Future<void> showCommentsSheet(
   isScrollControlled: true,
   barrierColor: KCommentsSheet.barrier,
   backgroundColor: const Color(0x00000000),
-  builder: (_) => CommentsSheet(target: target, onCount: onCount),
+  builder: (_) => CommentsSheet(
+    target: target,
+    onCount: onCount,
+    onGiftCherries: onGiftCherries,
+  ),
 );
 
 /// The comments of a post on the comments API (CONVENTIONS §11.5): the
@@ -872,16 +1012,27 @@ Future<void> showCommentsSheet(
 /// a reply; a Kabi emoji posts at once as its own comment (D66). With
 /// comments closed the bar says so.
 class CommentsSheet extends ConsumerStatefulWidget {
-  const new({required this.target, this.onCount, super.key});
+  const new({
+    required this.target,
+    this.onCount,
+    this.onGiftCherries,
+    super.key,
+  });
 
   final CommentsTarget target;
   final ValueChanged<int>? onCount;
+
+  /// D372: the post's gift cherries after a gift sent from this sheet.
+  final ValueChanged<int>? onGiftCherries;
 
   static const sheetKey = Key('comments.sheet');
   static const listKey = Key('comments.list');
   static const inputKey = Key('comments.input');
   static const postKey = Key('comments.post');
   static const emojiKey = Key('comments.emoji');
+
+  /// D372: the composer's gift box button.
+  static const giftKey = Key('comments.gift');
   static const closeKey = Key('comments.close');
   static const retryKey = Key('comments.retry');
   static const closedKey = Key('comments.closed');
@@ -961,6 +1112,41 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// D372 «هدية الدعم»: the live gift panel in its content mode; a send
+  /// adds the gold line to the list and tells the post its gift cherries.
+  Future<void> _openGift(UserSummary author) async {
+    final repo = ref.read(postsRepositoryProvider);
+    final comments = _comments;
+    await KLiveGiftSheet.show(
+      context,
+      room: LiveGiftRoom.content(
+        author: author,
+        send:
+            ({
+              required giftCode,
+              required quantity,
+              required source,
+              required clientId,
+            }) async {
+              final result = await repo.sendContentGift(
+                _postId,
+                giftCode: giftCode,
+                quantity: quantity,
+                source: source == LiveGiftSource.bag ? 'BAG' : 'COINS',
+                clientId: clientId,
+              );
+              comments.addGiftLine(result.comment);
+              widget.onGiftCherries?.call(result.giftCherries);
+              return (
+                coins: result.coins,
+                bagQuantity: result.bagQuantity,
+                lucky: null,
+              );
+            },
+      ),
+    );
   }
 
   void _reply(Comment c) {
@@ -1135,6 +1321,11 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               onPost: _send,
               // D66: a Kabi emoji posts at once, as its own comment.
               onEmoji: (e) => _send(e.token),
+              giftKey: CommentsSheet.giftKey,
+              onGift: switch (widget.target.giftTo) {
+                final author? => () => unawaited(_openGift(author)),
+                null => null,
+              },
             )
           : _ClosedBar(message: l10n.commentsClosed),
     );
@@ -1326,10 +1517,13 @@ class _CommentTile extends StatelessWidget {
           Localizations.localeOf(context).toLanguageTag(),
         ) ??
         l10n.feedPostJustNow;
+    final gift = c.gift;
     return CommentRow(
       name: name,
       avatarUrl: c.author.avatarUrl,
       text: isolateHandles(c.text, mentions: c.mentions),
+      // D372: a gift line «فلان أرسل … ×N».
+      gift: gift == null ? null : CommentGiftLine(sender: name, gift: gift),
       when: when,
       likeCount: c.likeCount,
       liked: c.viewerHasLiked,

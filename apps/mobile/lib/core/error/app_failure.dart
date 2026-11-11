@@ -374,6 +374,10 @@ enum ErrorCode {
   /// not cover the tier's points price; nothing was charged.
   insufficientRechargePoints('INSUFFICIENT_RECHARGE_POINTS'),
 
+  /// v1.127-social (D372, §10.164, 409): a gift cannot be sent on this post
+  /// or reel (`own_content`, `not_creator`); nothing was charged.
+  contentGiftRecipientUnavailable('CONTENT_GIFT_RECIPIENT_UNAVAILABLE'),
+
   /// D270 (§10.98, 409): this store item cannot be bought now (`details`:
   /// `item` `item_off` / `owned_permanent`, `days` `not_priced` /
   /// `too_far`); nothing was charged.

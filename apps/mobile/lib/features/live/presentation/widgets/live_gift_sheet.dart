@@ -45,7 +45,7 @@ class LiveGiftRoom {
     this.direct,
     this.soundboard,
     this.pk,
-  });
+  }) : content = false;
 
   /// D155: the panel inside a direct conversation — [host] is the person,
   /// nobody else can receive, and [direct] sends (`POST /dm/gifts`) instead
@@ -58,7 +58,22 @@ class LiveGiftRoom {
       direct = send,
       // D154 × D155: no soundboard in a conversation (no room to hear it).
       soundboard = null,
-      pk = null;
+      pk = null,
+      content = false;
+
+  /// D372 «هدية الدعم»: the panel on a post or reel — [host] is its author,
+  /// nobody else can receive, and [direct] sends (`POST /posts/{id}/gifts`):
+  /// the live catalogue, Recent and the bag without lucky gifts, quips, the
+  /// PK tab or the MAX X combo; the gift line shows in the comments.
+  const new content({required UserSummary author, required DmGiftSend send})
+    : roomId = '',
+      host = author,
+      seated = _nobody,
+      onSeatsStale = null,
+      direct = send,
+      soundboard = null,
+      pk = null,
+      content = true;
 
   static List<UserSummary> _nobody(WidgetRef _) => const [];
 
@@ -79,6 +94,9 @@ class LiveGiftRoom {
   /// `ref`), or null: no PK. During a battle the booster gifts are offered
   /// in a «PK» tab (to the host, one at a time); otherwise never.
   final PkMatch? Function(WidgetRef ref)? pk;
+
+  /// D372: the panel sends on a post or reel ([LiveGiftRoom.content]).
+  final bool content;
 }
 
 /// D155: a gift sent in a direct conversation; the balance, the bag and a
@@ -324,6 +342,11 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   bool _offered(Gift gift) =>
       // v1.43-live (D195): boosters only in the «PK» tab.
       gift.pkBooster == null &&
+      // D372 (owner: «بدون هدايا الحظ»): no lucky gift and no quip on a
+      // post or reel (the server refuses them with GIFT_UNAVAILABLE).
+      !(room.content &&
+          (gift.category == GiftCategory.lucky ||
+              gift.category == GiftCategory.quips)) &&
       (room.direct == null ||
           gift.category != GiftCategory.quips ||
           gift.priceCoins > 0);
@@ -775,7 +798,8 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     final shown = [
       for (final c in categories)
         if ((c != GiftCategory.lucky ||
-                (catalogue?.of(GiftCategory.lucky).isNotEmpty ?? false)) &&
+                (!room.content &&
+                    (catalogue?.of(GiftCategory.lucky).isNotEmpty ?? false))) &&
             // D154: «إفيهات» only when the catalogue has quips (D155: in a
             // conversation, paid ones).
             (c != GiftCategory.quips ||
@@ -864,7 +888,9 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     if (isBag) {
       tabCells = [
         for (final item in bagAsync?.value ?? const <GiftBagItem>[])
-          _Cell(item.gift, bagQuantity: item.quantity),
+          // D372: on a post or reel only what can be sent there.
+          if (!room.content || _offered(item.gift))
+            _Cell(item.gift, bagQuantity: item.quantity),
       ];
     } else if (isPk) {
       tabCells = [

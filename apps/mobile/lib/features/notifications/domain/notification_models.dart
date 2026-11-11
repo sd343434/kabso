@@ -138,6 +138,10 @@ enum NotificationType {
   /// v1.97-social (D303, system; target EVENT): a prize of an event board was
   /// paid to you — opens the event.
   eventPrizeWon('EVENT_PRIZE_WON'),
+
+  /// v1.127-social (D372; actor the sender(s), target POST): someone sent a
+  /// gift on your post or reel «هدية الدعم» — one row per post.
+  contentGiftReceived('CONTENT_GIFT_RECEIVED'),
   unknown('');
 
   new(this.wire);

@@ -38,6 +38,8 @@ enum WalletLedgerReason {
   // the store refunded them.
   storeIap('STORE_IAP'),
   storeIapReversal('STORE_IAP_REVERSAL'),
+  // D372: a gift sent on a post or reel «هدية الدعم».
+  contentGift('CONTENT_GIFT'),
   other('');
 
   new(this.wire);
@@ -103,7 +105,18 @@ final class MyEarnings {
 }
 
 /// `EarningContext`: where the gift was sent.
-enum EarningContext { live, dm }
+/// Where an earning gift was sent; D372 [content]: a post or reel.
+enum EarningContext {
+  live,
+  dm,
+  content;
+
+  static EarningContext fromWire(Object? wire) => switch (wire) {
+    'DM' => dm,
+    'CONTENT' => content,
+    _ => live,
+  };
+}
 
 /// `Earning`: one gift send that gave the caller earnings.
 @immutable
@@ -124,7 +137,7 @@ final class Earning {
   factory fromJson(Map<String, dynamic> json) => Earning(
     id: json['id']! as String,
     createdAt: DateTime.parse(json['createdAt']! as String),
-    context: json['context'] == 'DM' ? EarningContext.dm : EarningContext.live,
+    context: EarningContext.fromWire(json['context']),
     giftCode: json['giftCode']! as String,
     giftName: json['giftName']! as String,
     quantity: _int(json['quantity']),

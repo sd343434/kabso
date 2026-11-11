@@ -241,5 +241,8 @@ FeedReelData feedReelOf(Post post) {
     isSelf: post.isSelf,
     pendingModeration: post.pendingModeration,
     announcement: post.announcement,
+    // D372 «هدية الدعم».
+    giftCherries: post.giftCherries,
+    giftTo: post.giftable ? post.author : null,
   );
 }
