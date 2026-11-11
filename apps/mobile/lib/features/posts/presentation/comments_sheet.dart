@@ -893,7 +893,8 @@ class CommentGiftLine extends StatelessWidget {
     final text = l10n.commentsGiftSent(
       KFormat.bidiIsolate(sender),
       KFormat.bidiIsolate(gift.name),
-      KFormat.grouped(gift.quantity),
+      // «×10» stays in that order inside Arabic text.
+      KFormat.bidiIsolate('×${KFormat.grouped(gift.quantity)}'),
     );
     return Semantics(
       key: lineKey,

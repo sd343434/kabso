@@ -30430,10 +30430,10 @@ abstract class AppLocalizations {
   /// **'هدية الدعم'**
   String get contentGiftButton;
 
-  /// D372: a gift line in the comments (gold), e.g. «سارة أرسل وردة ×10».
+  /// D372: a gift line in the comments (gold), e.g. «سارة أرسل وردة ×10»; {count} is «×10», isolated left to right.
   ///
   /// In ar, this message translates to:
-  /// **'{sender} أرسل {gift} ×{count}'**
+  /// **'{sender} أرسل {gift} {count}'**
   String commentsGiftSent(String sender, String gift, String count);
 
   /// D372: screen-reader label of the gift counter on a post or reel (the cherries the author earned from gifts on it).

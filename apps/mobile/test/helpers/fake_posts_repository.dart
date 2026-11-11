@@ -711,6 +711,8 @@ Post testPost(
   bool reel = false,
   bool video = false,
   bool? viewerFollowsAuthor,
+  int giftCherries = 0,
+  bool giftable = false,
 }) => Post(
   id: id,
   author: UserSummary(
@@ -764,6 +766,8 @@ Post testPost(
   hideLikeCount: hideLikeCount,
   pendingModeration: pending,
   viewerFollowsAuthor: viewerFollowsAuthor,
+  giftCherries: giftCherries,
+  giftable: giftable,
 );
 
 /// A contract-shaped `Post` body (tests only).

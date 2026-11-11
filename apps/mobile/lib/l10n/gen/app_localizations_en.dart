@@ -18068,7 +18068,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String commentsGiftSent(String sender, String gift, String count) {
-    return '$sender sent $gift ×$count';
+    return '$sender sent $gift $count';
   }
 
   @override

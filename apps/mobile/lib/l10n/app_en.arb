@@ -5593,7 +5593,7 @@
   "rechargePointsReasonOther": "Points change",
   "vipPointsPer": "points / {days} days",
   "contentGiftButton": "Send a gift",
-  "commentsGiftSent": "{sender} sent {gift} ×{count}",
+  "commentsGiftSent": "{sender} sent {gift} {count}",
   "contentGiftCherriesLabel": "Gift cherries: {amount}",
   "notifContentGiftReceived": "{who} sent you a gift",
   "walletReasonContentGift": "Gift on a post",
