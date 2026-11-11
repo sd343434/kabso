@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ENTRY_CAR_KIND, ENTRY_DISPLAYS } from '../store/store-rules.js';
 import {
   VIP_CODE_PATTERN,
   VIP_COLOR_PATTERN,
@@ -54,8 +55,21 @@ export const vipPerkInput = z
      * (1–100 %); refused for other codes.
      */
     amount: z.number().int().min(1).max(1_000_000_000).nullable().optional(),
+    /**
+     * v1.128-social (D373, §10.165): the ENTRY_EFFECT perk's display «طريقة العرض» — FULL_SCREEN «شاشة كاملة» or
+     * HALF_SCREEN «نصف الشاشة»; absent: kept as it was (FULL_SCREEN for a new perk). Refused for other codes.
+     */
+    entryDisplay: z.enum(ENTRY_DISPLAYS).optional(),
   })
   .superRefine((p, ctx) => {
+    if (p.entryDisplay !== undefined && p.code !== ENTRY_CAR_KIND) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['entryDisplay'],
+        message: 'only the entry car perk has a display',
+        params: { issue: 'not_allowed' },
+      });
+    }
     if (p.amount === null || p.amount === undefined) return;
     const bounds = VIP_PERK_AMOUNTS[p.code];
     if (!bounds) {

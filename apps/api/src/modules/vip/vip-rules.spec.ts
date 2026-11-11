@@ -253,3 +253,17 @@ describe('D252c twelve tiers (owner: «لدينا ١٢ في اي بي وكل ف�
     );
   });
 });
+
+describe('D373 the ENTRY_EFFECT perk display (v1.128-social, §10.165)', () => {
+  const perk = (code: string, extra: object = {}) => ({ code, titleAr: 'س', titleEn: 'x', ...extra });
+  it('only the ENTRY_EFFECT perk takes FULL_SCREEN / HALF_SCREEN; absent is allowed (kept)', () => {
+    const body = (perks: object[]) => updateVipTierBody.safeParse({ perks, reason: 'r' });
+    expect(body([perk('ENTRY_EFFECT', { entryDisplay: 'HALF_SCREEN' })]).success).toBe(true);
+    expect(body([perk('ENTRY_EFFECT', { entryDisplay: 'FULL_SCREEN' })]).success).toBe(true);
+    expect(body([perk('ENTRY_EFFECT')]).success).toBe(true);
+    expect(body([perk('ENTRY_EFFECT', { entryDisplay: 'HALF' })]).success).toBe(false);
+    const banner = body([perk('ENTRY_BANNER', { entryDisplay: 'HALF_SCREEN' })]);
+    expect(banner.success).toBe(false);
+    expect(banner.error!.issues[0]!.path).toEqual(['perks', 0, 'entryDisplay']);
+  });
+});

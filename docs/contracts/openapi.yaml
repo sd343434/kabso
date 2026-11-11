@@ -615,6 +615,17 @@ info:
     (`POST /admin/users/{userId}/recharge-points/adjustments`, audited `recharge_points.adjust`). A reversed top-up or
     a refunded store purchase takes its points back (the balance may go below 0). Migration
     `20270430090000_recharge_points`. Additive (an older app sends no `payWith` and buys with coins as before).
+    **D373 (DRAFT v1.128-social)** an entry car plays full screen or half screen «شاشة كاملة / نصف الشاشة»
+    (CONVENTIONS §10.165; owner 2026-11-11 «سيارات الدخول ستكون اما بشاشة كاملة او نصف الشاشة … من لوحة الادمن انت
+    تحدد كيف ستكون الدخلة»): `EntryDisplay` FULL_SCREEN | HALF_SCREEN, set in the panel per entry car —
+    `AdminStoreItem.entryDisplay` (create / update of a store item of kind ENTRY_EFFECT; null for other kinds, sending it
+    for another kind → 400 `entryDisplay` / `not_allowed`; audited in `store.item.*` before / after) and
+    `AdminVipPerk.entryDisplay` / `AdminVipPerkInput.entryDisplay` (the ENTRY_EFFECT perk only; absent keeps the stored
+    value; audited in `vip.tier.update`). The app reads it where it reads the car: `StoreWornItem.entryDisplay` (the
+    worn store car, `UserSummary.wear.entryEffect` — also in the live `join` data message's `user`) and
+    `VipPerk.entryDisplay` (the VIP catalogue's ENTRY_EFFECT perk). Every existing car is FULL_SCREEN (today's look,
+    D331). Migration `20270502090000_entry_car_display`. Additive (an older app ignores the field and plays every car
+    full screen as before).
     **D367 (DRAFT v1.124-social)** a Kabso Team profile shows no account category (CONVENTIONS §10.160; owner
     2026-11-11 «في صفحة الموظفين يظهر تصنيف مثل شاعر، يجب إلغاؤه من صفحة المشرفين»): `Me.category` and
     `PublicProfile.category` are null for an account holding any panel role (`kabsoTeam`, a limited `staff`, the
@@ -25458,7 +25469,7 @@ components:
         height: { type: [integer, 'null'], minimum: 1 }
     AdminVipPerk:
       type: object
-      required: [code, titleAr, titleEn, descriptionAr, descriptionEn, enabled, available, animation, still, artWidth, artHeight, amount]
+      required: [code, titleAr, titleEn, descriptionAr, descriptionEn, enabled, available, animation, still, artWidth, artHeight, amount, entryDisplay]
       properties:
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
         titleAr: { type: string, maxLength: 40 }
@@ -25472,6 +25483,11 @@ components:
         artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — the perk's number for this tier: DAILY_BULLET free public messages a day (1–100), DAILY_COINS coins a day (1–10^9), LEVEL_SPEEDUP the level speed-up in percent (1–100); null for any other perk or not set yet." }
+        entryDisplay:
+          description: "(v1.128-social, D373, §10.165) The ENTRY_EFFECT perk's display «طريقة العرض» (FULL_SCREEN by default); null for every other perk."
+          oneOf:
+            - $ref: '#/components/schemas/EntryDisplay'
+            - type: 'null'
     AdminVipPerkInput:
       type: object
       additionalProperties: false
@@ -25488,6 +25504,9 @@ components:
         artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — only for DAILY_BULLET (1–100), DAILY_COINS (1–10^9) and LEVEL_SPEEDUP (1–100 %); another code with an amount, or one out of its range → 400 `perks.N.amount` `not_allowed` / `out_of_range`." }
+        entryDisplay:
+          $ref: '#/components/schemas/EntryDisplay'
+          description: "(v1.128-social, D373, §10.165) The ENTRY_EFFECT perk only: how its car plays. Absent: the perk keeps the display it had (FULL_SCREEN for a new perk). Another code with it → 400 `perks.N.entryDisplay` `not_allowed`."
     AdminVipTier:
       type: object
       required: [id, code, nameAr, nameEn, sortOrder, color, nameColor, renewalDiscountPercent, badgeAnimation, badgeStill, priceCoins, pointsPrice, durationDays, enabled, activeMembers, perks, updatedAt]
@@ -37305,6 +37324,13 @@ components:
         alpha: { type: [string, 'null'], enum: [NONE, SIDE_BY_SIDE, null] }
         width: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         height: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        entryDisplay:
+          $ref: '#/components/schemas/EntryDisplay'
+          description: "(v1.128-social, D373, §10.165) The entry car only (`StoreWear.entryEffect`, always present there): how it plays, set in the panel. Absent for every other kind. An app that does not know it plays the car full screen."
+    EntryDisplay:
+      type: string
+      enum: [FULL_SCREEN, HALF_SCREEN]
+      description: "(v1.128-social, D373, §10.165; owner: «اما بشاشة كاملة او نصف الشاشة») How an entry car plays when its wearer joins a live: FULL_SCREEN «شاشة كاملة» — over the whole live screen like a full-screen gift (D331; every car before D373); HALF_SCREEN «نصف الشاشة» — in a full-width band about half the screen high, below the room's top bar and above the chat, the entry banner still readable. Never takes taps either way. Clients treat an unknown value as FULL_SCREEN."
     StoreWear:
       type: object
       additionalProperties: false
@@ -37411,7 +37437,7 @@ components:
     AdminStoreItem:
       type: object
       additionalProperties: false
-      required: [id, code, kind, nameAr, nameEn, still, animation, animationFormat, animationAlpha, artWidth, artHeight, prices, sortOrder, isNew, badges, enabled, hiddenAt, owners, sold, createdAt, updatedAt]
+      required: [id, code, kind, nameAr, nameEn, still, animation, animationFormat, animationAlpha, artWidth, artHeight, entryDisplay, prices, sortOrder, isNew, badges, enabled, hiddenAt, owners, sold, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         code: { type: string, pattern: '^store_[0-9a-f]{12}$' }
@@ -37424,6 +37450,11 @@ components:
         animationAlpha: { type: [string, 'null'], enum: [NONE, SIDE_BY_SIDE, null] }
         artWidth: { type: [integer, 'null'] }
         artHeight: { type: [integer, 'null'] }
+        entryDisplay:
+          description: "(v1.128-social, D373, §10.165) An entry car's display «طريقة العرض» (kind ENTRY_EFFECT; FULL_SCREEN by default); null for every other kind."
+          oneOf:
+            - $ref: '#/components/schemas/EntryDisplay'
+            - type: 'null'
         prices:
           type: array
           maxItems: 6
@@ -37507,6 +37538,9 @@ components:
         animationAlpha: { type: [string, 'null'], enum: [NONE, SIDE_BY_SIDE, null], description: "MP4 only (default NONE)." }
         artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        entryDisplay:
+          $ref: '#/components/schemas/EntryDisplay'
+          description: "(v1.128-social, D373, §10.165) Kind ENTRY_EFFECT only (absent: FULL_SCREEN); with another kind → 400 `entryDisplay` / `not_allowed`."
         prices:
           type: array
           maxItems: 6
@@ -37532,6 +37566,9 @@ components:
         animationAlpha: { type: [string, 'null'], enum: [NONE, SIDE_BY_SIDE, null] }
         artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        entryDisplay:
+          $ref: '#/components/schemas/EntryDisplay'
+          description: "(v1.128-social, D373, §10.165) An entry car's display; for an item of another kind → 400 `entryDisplay` / `not_allowed`."
         prices:
           type: array
           maxItems: 6
@@ -39249,7 +39286,7 @@ components:
       description: "D252b: a hosted https URL (an SVGA animation or a still), uploaded from the admin panel. Null = a token placeholder. Nothing is bundled in the app."
     VipPerk:
       type: object
-      required: [code, title, description, available, animation, still, artWidth, artHeight, amount]
+      required: [code, title, description, available, animation, still, artWidth, artHeight, amount, entryDisplay]
       properties:
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
         title: { type: string, maxLength: 40 }
@@ -39260,6 +39297,11 @@ components:
         artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — the perk's number for this tier: DAILY_BULLET free public messages a day (1–100), DAILY_COINS coins a day (1–10^9), LEVEL_SPEEDUP the level speed-up in percent (1–100); null for any other perk or not set yet." }
+        entryDisplay:
+          description: "(v1.128-social, D373, §10.165) The ENTRY_EFFECT perk's car: how it plays when the member joins a live (set in the panel); null for every other perk. An app that does not know it plays the car full screen."
+          oneOf:
+            - $ref: '#/components/schemas/EntryDisplay'
+            - type: 'null'
     VipTier:
       type: object
       required: [id, code, name, level, color, nameColor, renewalDiscountPercent, renewPriceCoins, badgeAnimation, badgeStill, priceCoins, pricePoints, renewPricePoints, durationDays, perks]

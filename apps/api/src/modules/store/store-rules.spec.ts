@@ -14,6 +14,8 @@ import {
   storeRequestHash,
   storeWearOf,
   wearHasEntrance,
+  ENTRY_DISPLAYS,
+  STORE_ART_SELECT,
 } from './store-rules.js';
 import { buyStoreItemBody, createStoreItemBody, updateStoreItemBody } from './store.schemas.js';
 
@@ -173,5 +175,68 @@ describe('D270 store rules', () => {
     expect(createStoreItemBody.safeParse({ ...item, kind: 'MIC_WAVE', prices: [] }).success).toBe(false);
     expect(updateStoreItemBody.safeParse({ kind: 'AVATAR_FRAME', reason: 'r' }).success).toBe(false);
     expect(updateStoreItemBody.safeParse({ reason: 'r' }).success).toBe(false);
+  });
+});
+
+describe('D373 an entry car display (v1.128-social, §10.165)', () => {
+  const now = new Date('2026-11-11T00:00:00Z');
+  const art = (entryDisplay?: 'FULL_SCREEN' | 'HALF_SCREEN') => ({
+    still: null,
+    animation: 'https://media.example.test/media/store/car.svga',
+    animationFormat: 'SVGA' as const,
+    animationAlpha: null,
+    artWidth: 750,
+    artHeight: 1334,
+    ...(entryDisplay ? { entryDisplay } : {}),
+  });
+  const worn = (category: string, entryDisplay?: 'FULL_SCREEN' | 'HALF_SCREEN') =>
+    storeWearOf(
+      [{ category, itemCode: 'store_dddddddddddd', expiresAt: null, item: { storeItem: art(entryDisplay) } }],
+      now,
+    );
+
+  it('the worn car carries its display; FULL_SCREEN when the select had none; no other kind has one', () => {
+    expect(ENTRY_DISPLAYS).toEqual(['FULL_SCREEN', 'HALF_SCREEN']);
+    expect(STORE_ART_SELECT).toHaveProperty('entryDisplay', true);
+    expect(worn('ENTRY_EFFECT', 'HALF_SCREEN')!.entryEffect!.entryDisplay).toBe('HALF_SCREEN');
+    expect(worn('ENTRY_EFFECT', 'FULL_SCREEN')!.entryEffect!.entryDisplay).toBe('FULL_SCREEN');
+    expect(worn('ENTRY_EFFECT')!.entryEffect!.entryDisplay).toBe('FULL_SCREEN');
+    for (const [kind, key] of [
+      ['ENTRY_BANNER', 'entryBanner'],
+      ['CHAT_BUBBLE', 'chatBubble'],
+      ['AVATAR_FRAME', 'avatarFrame'],
+      ['PROFILE_CARD', 'profileCard'],
+    ] as const) {
+      expect(worn(kind, 'HALF_SCREEN')![key], kind).not.toHaveProperty('entryDisplay');
+    }
+  });
+
+  it('the panel bodies: an entry car takes FULL_SCREEN / HALF_SCREEN; another kind or value is refused', () => {
+    const car = { kind: 'ENTRY_EFFECT', nameAr: 'س', nameEn: 'Car', prices: [], reason: 'r' };
+    expect(createStoreItemBody.safeParse({ ...car, entryDisplay: 'HALF_SCREEN' }).success).toBe(true);
+    expect(createStoreItemBody.safeParse({ ...car, entryDisplay: 'FULL_SCREEN' }).success).toBe(true);
+    expect(createStoreItemBody.safeParse({ ...car, entryDisplay: 'HALF' }).success).toBe(false);
+    const frame = createStoreItemBody.safeParse({
+      ...car,
+      kind: 'AVATAR_FRAME',
+      entryDisplay: 'HALF_SCREEN',
+    });
+    expect(frame.success).toBe(false);
+    expect(frame.error!.issues[0]!.path).toEqual(['entryDisplay']);
+    expect(updateStoreItemBody.safeParse({ entryDisplay: 'HALF_SCREEN', reason: 'r' }).success).toBe(true);
+    expect(updateStoreItemBody.safeParse({ entryDisplay: 'SIDE', reason: 'r' }).success).toBe(false);
+  });
+
+  it('the migration keeps every existing car FULL_SCREEN (a NOT NULL default on both tables)', () => {
+    const sql = readFileSync(
+      new URL('../../../prisma/migrations/20270502090000_entry_car_display/migration.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain(`CREATE TYPE "entry_display" AS ENUM ('FULL_SCREEN', 'HALF_SCREEN');`);
+    for (const table of ['store_items', 'vip_tier_perks']) {
+      expect(sql).toContain(
+        `ALTER TABLE "${table}" ADD COLUMN "entry_display" "entry_display" NOT NULL DEFAULT 'FULL_SCREEN';`,
+      );
+    }
   });
 });

@@ -23,12 +23,14 @@ import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { GiftArtError, storeAnimationFile, storeStillFile, type StoreArtFile } from './store-art.js';
 import {
+  ENTRY_CAR_KIND,
   newStoreBagCode,
   sortedPrices,
   STORE_CURRENCIES,
   STORE_DAYS,
   STORE_KINDS,
   STORE_MAX_ITEMS,
+  type EntryDisplay,
   type StoreCurrency,
   type StoreKind,
 } from './store-rules.js';
@@ -56,6 +58,8 @@ export interface AdminStoreItemDto {
   animationAlpha: 'NONE' | 'SIDE_BY_SIDE' | null;
   artWidth: number | null;
   artHeight: number | null;
+  /** v1.128-social (D373, §10.165): an entry car's display «طريقة العرض»; null for every other kind. */
+  entryDisplay: EntryDisplay | null;
   prices: AdminStorePriceDto[];
   sortOrder: number;
   /** Deprecated v1.79-live (D289): «جديد» is in `badges` (running or not). */
@@ -156,6 +160,8 @@ function snapshot(i: ItemRow): Prisma.InputJsonObject {
     animationAlpha: i.animationAlpha,
     artWidth: i.artWidth,
     artHeight: i.artHeight,
+    // v1.128-social (D373): an entry car's display (audited before / after like the art).
+    ...(i.kind === ENTRY_CAR_KIND ? { entryDisplay: i.entryDisplay } : {}),
     prices: sortedPrices(i.prices).map((p) => ({
       currency: p.currency,
       days: p.days,
@@ -342,6 +348,8 @@ export class StoreAdminService {
           animationAlpha: (art.animationAlpha as 'NONE' | 'SIDE_BY_SIDE' | null | undefined) ?? null,
           artWidth: (art.artWidth as number | null | undefined) ?? null,
           artHeight: (art.artHeight as number | null | undefined) ?? null,
+          // v1.128-social (D373): an entry car's display (the schema refuses it for any other kind).
+          entryDisplay: body.entryDisplay ?? 'FULL_SCREEN',
           sortOrder,
           ...badges,
           enabled: body.eventId === undefined ? (body.enabled ?? false) : false,
@@ -370,9 +378,16 @@ export class StoreAdminService {
     panelBadges(body.badges, now);
     return this.prisma.$transaction(async (tx) => {
       const before = await this.lockItem(tx, id);
+      // v1.128-social (D373): only an entry car has a display «طريقة العرض».
+      if (body.entryDisplay !== undefined && before.kind !== ENTRY_CAR_KIND) {
+        throw new AppException(ErrorCode.VALIDATION_FAILED, 'Only an entry car has a display.', [
+          { field: 'entryDisplay', issue: 'not_allowed' },
+        ]);
+      }
       await tx.storeItem.update({
         where: { id },
         data: {
+          ...(body.entryDisplay !== undefined ? { entryDisplay: body.entryDisplay } : {}),
           ...(body.nameAr !== undefined ? { nameAr: body.nameAr } : {}),
           ...(body.nameEn !== undefined ? { nameEn: body.nameEn } : {}),
           ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
@@ -638,6 +653,7 @@ export class StoreAdminService {
       animationAlpha: i.animationAlpha,
       artWidth: i.artWidth,
       artHeight: i.artHeight,
+      entryDisplay: i.kind === ENTRY_CAR_KIND ? i.entryDisplay : null,
       prices: sortedPrices(i.prices).map((p) => ({
         currency: p.currency,
         days: p.days,

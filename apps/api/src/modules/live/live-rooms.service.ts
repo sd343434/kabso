@@ -413,6 +413,8 @@ export interface RoomRow {
         animationAlpha: 'NONE' | 'SIDE_BY_SIDE' | null;
         artWidth: number | null;
         artHeight: number | null;
+        /** v1.128-social (D373): the entry car's display. */
+        entryDisplay: 'FULL_SCREEN' | 'HALF_SCREEN';
       }[]
     | null;
   category_slug: string | null;
@@ -505,7 +507,8 @@ const ROOM_COLUMNS = Prisma.sql`
                                             'expiresAt', b.expires_at, 'still', si.still,
                                             'animation', si.animation, 'animationFormat', si.animation_format::text,
                                             'animationAlpha', si.animation_alpha::text,
-                                            'artWidth', si.art_width, 'artHeight', si.art_height))
+                                            'artWidth', si.art_width, 'artHeight', si.art_height,
+                                            'entryDisplay', si.entry_display::text))
             FROM user_bag_items b JOIN store_items si ON si.bag_code = b.item_code
            WHERE b.user_id = r.host_user_id AND b.equipped
              AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_wear,

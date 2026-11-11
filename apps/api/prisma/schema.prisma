@@ -3323,6 +3323,16 @@ enum GiftVideoAlpha {
   @@map("gift_video_alpha")
 }
 
+/// v1.128-social (D373, CONVENTIONS §10.165; owner: «اما بشاشة كاملة او نصف الشاشة»): how an entry car plays, set in
+/// the panel per store entry car and per VIP ENTRY_EFFECT perk. FULL_SCREEN: the whole live screen (D331, the default
+/// and every car before D373); HALF_SCREEN: a band about half the screen high, above the chat.
+enum EntryDisplay {
+  FULL_SCREEN
+  HALF_SCREEN
+
+  @@map("entry_display")
+}
+
 /// v1.46-live (D207, CONVENTIONS §10.66): the gift panel's tabs, managed in the admin panel (and `gift-admin
 /// category-*`). Seeded with the five tabs that were the `gift_category` enum (POPULAR, EVENT, FUN, LUCKY, QUIPS).
 /// `code` never changes; a category is deleted only while no gift is in it (FK RESTRICT) and never when special.
@@ -7241,24 +7251,26 @@ model VipTier {
 
 /// D252: one perk of a tier, in order. Whether the app really does it (`available`) is the server's list, never stored.
 model VipTierPerk {
-  id            String  @id @default(uuid(7)) @db.Uuid
-  tierId        String  @map("tier_id") @db.Uuid
-  code          String  @db.VarChar(40)
-  titleAr       String  @map("title_ar") @db.VarChar(40)
-  titleEn       String  @map("title_en") @db.VarChar(40)
-  descriptionAr String? @map("description_ar") @db.VarChar(200)
-  descriptionEn String? @map("description_en") @db.VarChar(200)
-  sortOrder     Int     @map("sort_order")
-  enabled       Boolean @default(true)
+  id            String       @id @default(uuid(7)) @db.Uuid
+  tierId        String       @map("tier_id") @db.Uuid
+  code          String       @db.VarChar(40)
+  titleAr       String       @map("title_ar") @db.VarChar(40)
+  titleEn       String       @map("title_en") @db.VarChar(40)
+  descriptionAr String?      @map("description_ar") @db.VarChar(200)
+  descriptionEn String?      @map("description_en") @db.VarChar(200)
+  sortOrder     Int          @map("sort_order")
+  enabled       Boolean      @default(true)
   /// The perk's own art (avatar frame, entry bar, …): an SVGA animation and a still (asset path or https URL), plus
   /// the art's intrinsic size so the client fits it (not all square: the card is 720×1280, the entrance 660×150).
-  animation     String? @db.VarChar(2048)
-  still         String? @db.VarChar(2048)
-  artWidth      Int?    @map("art_width")
-  artHeight     Int?    @map("art_height")
+  animation     String?      @db.VarChar(2048)
+  still         String?      @db.VarChar(2048)
+  artWidth      Int?         @map("art_width")
+  artHeight     Int?         @map("art_height")
   /// D258 (§10.94): the perk's number for this tier — free public messages a day (DAILY_BULLET), coins a day
   /// (DAILY_COINS), the level speed-up in percent (LEVEL_SPEEDUP); null for other perks or not set yet.
   amount        Int?
+  /// v1.128-social (D373, §10.165): how the ENTRY_EFFECT perk's car plays (read for that code only).
+  entryDisplay  EntryDisplay @default(FULL_SCREEN) @map("entry_display")
 
   tier VipTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
 
@@ -7459,6 +7471,8 @@ model StoreItem {
   animationAlpha     GiftVideoAlpha?      @map("animation_alpha")
   artWidth           Int?                 @map("art_width")
   artHeight          Int?                 @map("art_height")
+  /// v1.128-social (D373, §10.165): how an entry car (kind ENTRY_EFFECT) plays; read for that kind only.
+  entryDisplay       EntryDisplay         @default(FULL_SCREEN) @map("entry_display")
   sortOrder          Int                  @map("sort_order")
   /// Deprecated v1.79-live (D289): true exactly when `badges` holds NEW (kept for a rollback).
   isNew              Boolean              @default(false) @map("is_new")

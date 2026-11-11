@@ -1,6 +1,13 @@
 import { z } from 'zod';
 import { itemBadgesInput } from '../gifts/item-badges.schemas.js';
-import { STORE_CURRENCIES, STORE_DAYS, STORE_KINDS, STORE_MAX_PRICE } from './store-rules.js';
+import {
+  ENTRY_CAR_KIND,
+  ENTRY_DISPLAYS,
+  STORE_CURRENCIES,
+  STORE_DAYS,
+  STORE_KINDS,
+  STORE_MAX_PRICE,
+} from './store-rules.js';
 
 /** D270 (CONVENTIONS §10.98): request bodies of «المتجر» and its panel page. */
 
@@ -54,6 +61,12 @@ const art = {
   artHeight: artSize.nullable().optional(),
 };
 
+/**
+ * v1.128-social (D373, §10.165): an entry car's display «طريقة العرض» — FULL_SCREEN «شاشة كاملة» or HALF_SCREEN «نصف
+ * الشاشة». Only for an entry car (kind ENTRY_EFFECT): 400 `not_allowed` for any other kind.
+ */
+const entryDisplay = z.enum(ENTRY_DISPLAYS);
+
 /** v1.79-live (D289): `badges` (the set) or the deprecated `isNew` switch, not both. */
 const badgesOrIsNew = {
   message: 'isNew and badges together',
@@ -67,6 +80,8 @@ export const createStoreItemBody = z
     nameAr: itemName,
     nameEn: itemName,
     ...art,
+    /** v1.128-social (D373): an entry car's display (absent: FULL_SCREEN). */
+    entryDisplay: entryDisplay.optional(),
     prices,
     sortOrder: z.number().int().min(0).max(100_000).optional(),
     /** Deprecated v1.79-live (D289): true sets «جديد» (14 days), false takes it off. */
@@ -81,6 +96,11 @@ export const createStoreItemBody = z
     reason,
   })
   .refine((v) => v.isNew === undefined || v.badges === undefined, badgesOrIsNew)
+  .refine((v) => v.entryDisplay === undefined || v.kind === ENTRY_CAR_KIND, {
+    message: 'only an entry car has a display',
+    path: ['entryDisplay'],
+    params: { issue: 'not_allowed' },
+  })
   .refine((v) => v.eventId === undefined || (v.prices.length === 0 && v.enabled !== true), {
     message: 'an event prize item has no prices and is never on sale',
     path: ['eventId'],
@@ -94,6 +114,8 @@ export const updateStoreItemBody = z
     nameAr: itemName.optional(),
     nameEn: itemName.optional(),
     ...art,
+    /** v1.128-social (D373): an entry car's display; refused (400 `not_allowed`) for any other kind. */
+    entryDisplay: entryDisplay.optional(),
     prices: prices.optional(),
     sortOrder: z.number().int().min(0).max(100_000).optional(),
     isNew: z.boolean().optional(),
