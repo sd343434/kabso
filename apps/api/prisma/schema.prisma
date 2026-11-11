@@ -353,6 +353,9 @@ model User {
   // v1.82-social (D252): «شراء VIP» — the person's membership and purchases.
   vipMembership           VipMembership?
   vipPurchases            VipPurchase[]
+  /// v1.126-social (D370, §10.163): recharge points «نقاط الشحن» — the balance and the append-only ledger.
+  rechargePoints          RechargePointsBalance?
+  rechargePointsLedger    RechargePointsEntry[]
   /// D270 (§10.98).
   storePurchases          StorePurchase[]          @relation("StorePurchaseBuyer")
   storeGiftsReceived      StorePurchase[]          @relation("StorePurchaseRecipient")
@@ -7144,6 +7147,59 @@ enum VipPurchaseKind {
   @@map("vip_purchase_kind")
 }
 
+/// v1.126-social (D370, §10.163): what paid for a VIP purchase.
+enum VipPayWith {
+  COINS
+  POINTS
+
+  @@map("vip_pay_with")
+}
+
+/// v1.126-social (D370, §10.163): why a recharge-points balance changed. RECHARGE_WEB (a website card top-up),
+/// RECHARGE_STORE (an App Store / Google Play purchase), RECHARGE_AGENT (coins received from a recharge agent: a direct
+/// sale or an order) earn; VIP_REDEEM spends; REVERSAL takes back (or, for a won dispute, gives back) a reversed
+/// recharge's points; ADMIN_ADJUST is the team's audited correction.
+enum RechargePointsReason {
+  RECHARGE_WEB
+  RECHARGE_STORE
+  RECHARGE_AGENT
+  VIP_REDEEM
+  REVERSAL
+  ADMIN_ADJUST
+
+  @@map("recharge_points_reason")
+}
+
+/// v1.126-social (D370, §10.163): a person's recharge points «نقاط الشحن» — one point per recharged coin, never
+/// expiring. May be below 0 after a reversal (nothing can be redeemed until it is positive again).
+model RechargePointsBalance {
+  userId    String   @id @map("user_id") @db.Uuid
+  points    BigInt   @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("recharge_points_balances")
+}
+
+/// v1.126-social (D370, §10.163): append-only (the runtime group may not UPDATE / DELETE). `(reason, referenceId)` is
+/// unique: a source earns, spends or reverses once.
+model RechargePointsEntry {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  userId       String               @map("user_id") @db.Uuid
+  delta        BigInt
+  balanceAfter BigInt               @map("balance_after")
+  reason       RechargePointsReason
+  referenceId  String               @map("reference_id") @db.VarChar(64)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reason, referenceId], map: "recharge_points_ledger_reference_once")
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_points_ledger_user_idx")
+  @@map("recharge_points_ledger")
+}
+
 /// D252: a VIP tier, managed in the admin panel (catalog.manage). `sortOrder` 1 … n is both the order the app shows and
 /// the rank (higher = higher tier). CHECK `vip_tiers_shape` (code, names, colour `#RRGGBB`, https emblem, price 1 …
 /// 10^12 coins, 1 … 365 days). Never deleted: switched off (`enabled`), so memberships and purchases keep their tier.
@@ -7165,6 +7221,9 @@ model VipTier {
   badgeAnimation         String?  @map("badge_animation") @db.VarChar(2048)
   badgeStill             String?  @map("badge_still") @db.VarChar(2048)
   priceCoins             BigInt   @map("price_coins")
+  /// v1.126-social (D370, §10.163): the tier's price in recharge points «نقاط الشحن» for one period (`durationDays`),
+  /// set in the panel; null = not redeemable with points.
+  pointsPrice            BigInt?  @map("points_price")
   durationDays           Int      @map("duration_days")
   enabled                Boolean  @default(false)
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -7230,8 +7289,14 @@ model VipPurchase {
   userId            String          @map("user_id") @db.Uuid
   tierId            String          @map("tier_id") @db.Uuid
   kind              VipPurchaseKind
-  /// The coins charged (after any renewal discount).
+  /// The coins charged (after any renewal discount); 0 when paid with recharge points (v1.126-social, D370).
   priceCoins        BigInt          @map("price_coins")
+  /// v1.126-social (D370, §10.163): what paid — coins or recharge points; with POINTS the points charged, the tier's
+  /// points price then and the points balance right after.
+  payWith           VipPayWith      @default(COINS) @map("pay_with")
+  pricePoints       BigInt?         @map("price_points")
+  listPricePoints   BigInt?         @map("list_price_points")
+  pointsAfter       BigInt?         @map("points_after")
   /// v1.83-social (D258): the tier's list price then, and the renewal discount applied (0 = none).
   listPriceCoins    BigInt?         @map("list_price_coins")
   discountPercent   Int             @default(0) @map("discount_percent")

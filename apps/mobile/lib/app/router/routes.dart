@@ -316,6 +316,10 @@ abstract final class AppRoutes {
 
   /// D177: the coin history (D164's ledger), behind the gold card's button.
   static const walletHistory = '/wallet/history';
+
+  /// D370: «نقاط الشحن» — the recharge points and their history, behind the
+  /// wallet's row.
+  static const rechargePoints = '/wallet/recharge-points';
   static const creatorCenter = '/creator';
 
   /// D172: the Creator Center's detailed statistics (D164's page).

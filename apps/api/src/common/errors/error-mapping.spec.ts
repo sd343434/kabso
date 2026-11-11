@@ -62,6 +62,8 @@ describe('ErrorCode', () => {
         // v1.82-social (D252).
         'VIP_UNAVAILABLE',
         'VIP_PRICE_CHANGED',
+        // v1.126-social (D370).
+        'INSUFFICIENT_RECHARGE_POINTS',
         // D270.
         'STORE_UNAVAILABLE',
         'STORE_PRICE_CHANGED',
@@ -359,6 +361,7 @@ describe('ErrorCode', () => {
       DEVICE_BANNED: 403,
       VIP_UNAVAILABLE: 409,
       VIP_PRICE_CHANGED: 409,
+      INSUFFICIENT_RECHARGE_POINTS: 409,
       STORE_UNAVAILABLE: 409,
       STORE_PRICE_CHANGED: 409,
       STAFF_PROTECTED: 403,

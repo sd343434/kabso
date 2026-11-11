@@ -82,6 +82,9 @@ class WalletScreen extends ConsumerStatefulWidget {
   /// D190: «الشحن من الموقع» (hidden unless the server sends the URL).
   static const websiteTopupKey = Key('wallet.websiteTopup');
   static const historyButtonKey = Key('wallet.historyButton');
+
+  /// D370: «نقاط الشحن» → `/wallet/recharge-points`.
+  static const rechargePointsKey = Key('wallet.rechargePoints');
   static const packagesEmptyKey = Key('wallet.packages.empty');
   static const rewardsKey = Key('wallet.rewards');
   static const rewardsSheetKey = Key('wallet.rewards.sheet');
@@ -159,7 +162,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       ..invalidate(liveCoinsProvider)
       ..invalidate(rechargeOfferProvider)
       ..invalidate(walletBannersProvider)
-      ..invalidate(storeOfferProvider);
+      ..invalidate(storeOfferProvider)
+      ..invalidate(rechargePointsBalanceProvider);
     try {
       await ref.read(rechargeOfferProvider.future);
     } on Object {
@@ -297,7 +301,21 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         ),
       ],
     };
+    final points = ref.watch(rechargePointsBalanceProvider).value;
     return [
+      // D370: «نقاط الشحن» — one point per recharged coin, redeemed for VIP.
+      Padding(
+        padding: const EdgeInsets.only(bottom: KSpacing.md),
+        child: RechargeNavRow(
+          key: WalletScreen.rechargePointsKey,
+          icon: Icons.stars_rounded,
+          title: l10n.rechargePointsTitle,
+          subtitle: points == null
+              ? l10n.vipPointsHint
+              : l10n.rechargePointsRowHint(KFormat.grouped(points)),
+          onTap: () => context.push(AppRoutes.rechargePoints),
+        ),
+      ),
       if (banners.isNotEmpty)
         Padding(
           key: WalletScreen.bannerKey,

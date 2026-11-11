@@ -4,6 +4,11 @@ import { AuditAction } from '../../common/audit/audit.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { recordRechargeIn, type RechargeCreditRules } from '../recharge/recharge-badges.js';
 import { referralRechargeIn } from '../referrals/referral-core.js';
+import {
+  earnRechargePointsIn,
+  movePointsIn,
+  reversalReference,
+} from '../recharge-points/recharge-points-ledger.js';
 import { creditIn, reverseTopupIn } from '../wallet/wallet-ledger.js';
 import type { StripeApi } from './stripe-api.js';
 import { fifoAttribution, GIFT_SPEND_REASONS, targetReversal } from './topup-rules.js';
@@ -15,6 +20,15 @@ import { fifoAttribution, GIFT_SPEND_REASONS, targetReversal } from './topup-rul
  */
 
 type Tx = Prisma.TransactionClient;
+
+/** Whether the recharge [referenceId] earned points (it was credited after D370). */
+async function earnedPointsIn(tx: Tx, referenceId: string): Promise<boolean> {
+  const row = await tx.rechargePointsEntry.findUnique({
+    where: { reason_referenceId: { reason: 'RECHARGE_WEB', referenceId } },
+    select: { id: true },
+  });
+  return row !== null;
+}
 
 /** Locks and reads an order (the row lock serializes every event of one purchase). */
 export async function lockOrderIn(tx: Tx, orderId: string): Promise<TopupOrder | null> {
@@ -53,6 +67,11 @@ export async function reconcileOrderIn(
     delta > 0n
       ? await reverseTopupIn(tx, order.userId, delta, referenceId)
       : await creditIn(tx, order.userId, -delta, 'CARD_TOPUP_RESTORE', referenceId);
+  // v1.126-social (D370, §10.163): the reversed coins' points go too (the balance may go below 0); a won dispute
+  // gives them back. Orders credited before the points existed earned none, so nothing is taken from them.
+  if (await earnedPointsIn(tx, order.id)) {
+    await movePointsIn(tx, order.userId, -delta, 'REVERSAL', reversalReference('web', referenceId));
+  }
   await tx.topupOrder.update({ where: { id: order.id }, data: { coinsReversed: target, updatedAt: now } });
   await tx.auditLog.create({
     data: {
@@ -93,6 +112,13 @@ export async function creditOrderIn(
     { userId: order.userId, coins: order.coins, source: 'WEBSITE_TOPUP', now },
     badges,
   );
+  // v1.126-social (D370, §10.163): one recharge point per coin, once per order.
+  await earnRechargePointsIn(tx, {
+    userId: order.userId,
+    coins: order.coins,
+    reason: 'RECHARGE_WEB',
+    referenceId: order.id,
+  });
   // v1.74-social (D217): the invitee's first recharge pays the inviter a share (held).
   await referralRechargeIn(
     tx,

@@ -4277,3 +4277,20 @@ CONVENTIONS §10.19 (owner 2026-11-11 «اريد جعل سعر الرسائل ا
 - **Older apps** still show «رسالة عامة بـ 15 عملة» in the chat hint and «تحتاج 15 عملة» when refused, but the server
   charges 10 000. Ship the APK with this change right after the API, and tell users (or the team) about the new price.
 - **Order:** deploy the API image → ship the APK.
+### 5.116 Recharge points «نقاط الشحن» buy VIP (D370; migration `20270430090000_recharge_points`) — [IMPLEMENTED, draft contract v1.126-social; not deployed, not device-tested]
+
+CONVENTIONS §10.163 (owner 2026-11-11). One migration, no new setting, no new secret, no new host.
+
+- **Migration** `20270430090000_recharge_points` (the usual `migrate` job, as the migration role): tables
+  `recharge_points_balances` and `recharge_points_ledger` (granted by the default privileges; the migration then REVOKEs
+  UPDATE / DELETE on the ledger from `kabso_runtime_<database>` — it needs that group, as every recent migration), enums
+  `recharge_points_reason` and `vip_pay_with`, `vip_tiers.points_price` and four `vip_purchases` columns. It sets the
+  points price of the tiers that exist by code (`VIP_1` → 2 000 000; `VIP_2` … `VIP_12` only if a tier with that code
+  exists). Small tables; no long lock.
+- **After deploy (owner / panel):** for every VIP tier the owner adds later, set «سعر النقاط» in the tier form from the
+  owner's table (VIP2 3 500 000 · VIP3 6 000 000 · VIP4 10 000 000 · VIP5 16 000 000 · VIP6 25 000 000 · VIP7 40 000 000 ·
+  VIP8 65 000 000 · VIP9 100 000 000 · VIP10 160 000 000 · VIP11 250 000 000 · VIP12 400 000 000). Empty = not redeemable.
+- **No back-fill:** recharges before the deploy earn no points (CTO choice; a one-off back-fill from `wallet_ledger` is
+  possible later if the owner asks).
+- **Order:** deploy the API image (the migration runs first) → the admin panel → ship the APK. An older app never sends
+  `payWith` (it buys with coins as before) and ignores the new fields.

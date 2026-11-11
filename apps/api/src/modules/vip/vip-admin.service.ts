@@ -70,6 +70,8 @@ export interface AdminVipTierDto {
   badgeAnimation: string | null;
   badgeStill: string | null;
   priceCoins: number;
+  /** v1.126-social (D370, §10.163): the price in recharge points; null = not redeemable with points. */
+  pointsPrice: number | null;
   durationDays: number;
   enabled: boolean;
   /** People whose membership of this tier is active now. */
@@ -124,6 +126,7 @@ function snapshot(t: TierWithPerks): Prisma.InputJsonObject {
     badgeAnimation: t.badgeAnimation,
     badgeStill: t.badgeStill,
     priceCoins: Number(t.priceCoins),
+    pointsPrice: t.pointsPrice === null ? null : Number(t.pointsPrice),
     durationDays: t.durationDays,
     enabled: t.enabled,
     perks: t.perks.map((p) => ({
@@ -233,6 +236,8 @@ export class VipAdminService {
             badgeAnimation: body.badgeAnimation ?? null,
             badgeStill: body.badgeStill ?? null,
             priceCoins: BigInt(body.priceCoins),
+            pointsPrice:
+              body.pointsPrice === undefined || body.pointsPrice === null ? null : BigInt(body.pointsPrice),
             durationDays: body.durationDays,
             enabled: body.enabled ?? false,
             updatedById: by.actorUserId,
@@ -273,6 +278,9 @@ export class VipAdminService {
           ...(body.badgeAnimation !== undefined ? { badgeAnimation: body.badgeAnimation } : {}),
           ...(body.badgeStill !== undefined ? { badgeStill: body.badgeStill } : {}),
           ...(body.priceCoins !== undefined ? { priceCoins: BigInt(body.priceCoins) } : {}),
+          ...(body.pointsPrice !== undefined
+            ? { pointsPrice: body.pointsPrice === null ? null : BigInt(body.pointsPrice) }
+            : {}),
           ...(body.durationDays !== undefined ? { durationDays: body.durationDays } : {}),
           updatedById: by.actorUserId,
         },
@@ -419,6 +427,7 @@ export class VipAdminService {
       badgeAnimation: t.badgeAnimation,
       badgeStill: t.badgeStill,
       priceCoins: Number(t.priceCoins),
+      pointsPrice: t.pointsPrice === null ? null : Number(t.pointsPrice),
       durationDays: t.durationDays,
       enabled: t.enabled,
       activeMembers: counts.get(t.id) ?? 0,

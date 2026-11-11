@@ -370,6 +370,10 @@ enum ErrorCode {
   /// nothing was charged; the app reloads the tiers.
   vipPriceChanged('VIP_PRICE_CHANGED'),
 
+  /// v1.126-social (D370, §10.163, 409): the caller's recharge points do
+  /// not cover the tier's points price; nothing was charged.
+  insufficientRechargePoints('INSUFFICIENT_RECHARGE_POINTS'),
+
   /// D270 (§10.98, 409): this store item cannot be bought now (`details`:
   /// `item` `item_off` / `owned_permanent`, `days` `not_priced` /
   /// `too_far`); nothing was charged.

@@ -231,6 +231,7 @@ All non-2xx responses use one envelope:
 | 502 | `WHATSAPP_SEND_FAILED` | *(v1.116-social, DRAFT, D355)* Meta refused or did not answer: `details: [{field: whatsapp \| templates, issue: meta_<code> \| http_<status>}]`. Nothing was stored; the staff member may retry. Meta's throughput codes (130429, 131056, 80007, 4) answer 429 `RATE_LIMITED` with `Retry-After: 60` instead. §10.151.4. |
 | 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). |
 | 409 | `VIP_PRICE_CHANGED` | *(v1.82-social, DRAFT, D252)* `buyVip`: `priceCoins` differs from the tier's price now (the owner changed it in the panel). Nothing was charged; the app reloads the tiers and shows the new price. §10.93. |
+| 409 | `INSUFFICIENT_RECHARGE_POINTS` | *(v1.126-social, DRAFT, D370)* `buyVip` with `payWith: POINTS`: the caller's recharge points «نقاط الشحن» do not cover the tier's points price (also while the balance is below 0 after a reversal). Nothing was charged; the app shows the balance and how points are earned. `VIP_PRICE_CHANGED` and `VIP_UNAVAILABLE` (new issue `no_points_price`: the tier has no points price) apply to a points purchase as to a coin one. §10.163. |
 | 409 | `STORE_UNAVAILABLE` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: the item cannot be bought now — `details: [{field: "item", issue: "item_off" \| "owned_permanent"}]` (switched off in the panel; the recipient holds it with no end) or `[{field: "days", issue: "not_priced" \| "too_far"}]` (no price for that currency and duration; the end would pass 3 650 days from now). Nothing was charged. §10.98. |
 | 409 | `STORE_PRICE_CHANGED` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: `price` differs from the item's price for that currency and duration now (the owner changed it in the panel). Nothing was charged; the app reloads the items and shows the new price. §10.98. |
 | 403 | `STAFF_PROTECTED` | *(v1.68-live, DRAFT, D273)* The target holds a panel role (OWNER, MODERATION, SUPPORT, FINANCE): nobody acts on «فريق كابسو» from the app — a live kick or chat mute, removing their chat message, a seat mute / removal, a family kick or chat mute. The app says «لا يمكن اتخاذ إجراء ضد فريق كابسو». Nothing changed. §10.96.7. |
@@ -654,6 +655,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.75-social)* Table `storage_settings` (the object-storage keys sealed, the two buckets, the switch, the last test); capability `storage.settings`; audit `storage.settings.*` (§10.72) | Backend — `storage-settings` module (`StorageSettingsService` the only writer; `StorageSettingsStore` the only reader: the media storage `OBJECT_STORAGE`, the upload switch and every public media URL); web — `apps/admin` «التخزين (R2 / S3)» | CTO; Security (storage keys, encryption at rest, the private bucket) |
 | *(v1.81-social)* Tables `fx_rates` (the latest automatic rate per currency, its source and times, a value held for review), `fx_settings` (the paid provider's key sealed, the switch, the last test, the poller's state); capability `fx.settings`; audit `fx.*`; server config `FX_*` (§10.87) | Backend — `fx` module (`FxRatesService` the only writer of `fx_rates` and of the poller state, and the one resolver every price reads; `FxSettingsService` the only writer of the provider settings). `recharge_exchange_rates` stays the `recharge` module's (the manual rates). | CTO |
 | *(v1.82-social)* Tables `vip_tiers`, `vip_tier_perks`, `vip_memberships`, `vip_purchases` | Backend — `vip` module (`VipService` takes the coins through `wallet-ledger.ts`, `VIP_PURCHASE`; the tiers and perks written only by the panel's `VipAdminService`, `catalog.manage`, audited `vip.tier.*`) | CTO; Security (coin path, prices) |
+| *(v1.126-social)* Tables `recharge_points_balances` (CHECK `recharge_points_balances_range`), `recharge_points_ledger` (append-only for the runtime group; unique `recharge_points_ledger_reference_once` (reason, reference); CHECK `recharge_points_ledger_sign`); enums `recharge_points_reason`, `vip_pay_with`; columns `vip_tiers.points_price` (CHECK `vip_tiers_points_price_range`), `vip_purchases.pay_with`, `price_points`, `list_price_points`, `points_after` (CHECK `vip_purchases_pay_with_shape`; `vip_purchases_shape` re-added) | Backend — `recharge-points` module (`recharge-points-ledger.ts`, the only writer: earned in the `topup`, `store-iap` and `recharge` credit transactions, reversed in `topup` / `store-iap` refunds, spent by `vip` `VipService.buy`, adjusted by the panel's `adminControl`, audited `recharge_points.adjust`) | CTO; Security (a value path that buys VIP) |
 | *(v1.80-kyc)* Tables `kyc_settings` (the Didit API key and webhook secret sealed, the workflows, the daily limit, the switch, the last test), `kyc_checks` (one Didit session of a person: status, decision, reasons, name, birth date, document country, document HMAC), `kyc_webhook_events` (the deliveries applied); capabilities `kyc.settings`, `kyc.view`; audit `kyc.*` (§10.77) | Backend — `kyc` module (`KycSettingsService` the only writer of the settings, `KycService` of the checks; `KycSettingsStore` the only reader of the secrets; `kyc-core.ts` the gates shared with `host-applications`, `economy` (agency open) and `recharge`); web — `apps/admin` «التحقق من الهوية (Didit)» and the KYC block of the three application pages; app — `features/kyc` | CTO; Security (Didit secrets, the minimum personal data, the webhook signature); Privacy (Didit as a processor, export and purge) |
 | *(v1.64-social)* Table `payment_settings` (the Stripe keys sealed, the top-up options); capability `payments.settings`; audit `payment.settings.*` (§10.53.1) | Backend — `payment-settings` module (`PaymentSettingsService` the only writer; `PaymentSettingsStore` the only reader, used by `topup`, `wallet`, `site-settings`); web — `apps/admin` «الدفع (Stripe)» | CTO; Security (Stripe keys, encryption at rest) |
 | *(v1.66-social)* Tables `legal_documents`, `user_consents`, `data_exports`; column `pending_registrations.legal_consent`; notification type `DATA_EXPORT_READY`; the 428 gate (`ConsentGuard`); server config `DATA_EXPORT_*`, `RATE_LIMIT_DATA_EXPORT_*`; CLIs `legal-admin`, `privacy-admin`; private prefix `private/data-exports/`; `scripts/check-site-no-tracking.sh` (§10.61) | Backend — `privacy` module (`legal.ts` and `data-export.ts` shared with the CLIs; `auth`, `topup` and `gifts` record consents through `legal.ts`; D193's purge deletes exports and clears consents' IP/UA) | CTO; Security (the export's content, the download token); Legal (the documents' text and versions) |
@@ -777,6 +779,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.126-social (draft) | 2026-11-11 | **D370 (owner 2026-11-11: «نقاط الشحن» — every recharged coin is one point, the points accumulate and never expire «النقاط لا تصفر كل شهر بل تبقى مجموع», and buy VIP «استبدل بالنقاط» beside «ادفع بالعملات الذهبية»; owner-approved points prices VIP1 2 000 000 … VIP12 400 000 000):** `getMyRechargePoints` (`GET /me/recharge-points`; `RechargePoints`, `RechargePointsEntry`, `RechargePointsReason`); `BuyVipRequest.payWith` (`VipPayWith` COINS default \| POINTS) and `pricePoints` (`priceCoins` required only with COINS); `VipTier.pricePoints` / `renewPricePoints`; `MyVip.rechargePoints`, `MyVip.renewal.pricePoints`; `VipPurchaseResult.payWith` / `pricePoints` / `listPricePoints` / `rechargePoints` (`priceCoins` 0 with POINTS); code `INSUFFICIENT_RECHARGE_POINTS` (409), `VIP_UNAVAILABLE` issue `no_points_price`; the panel's `AdminVipTier.pointsPrice` (+ create / update), `listAdminUserLedger?kind=recharge_points`, `AdminUserDetail.balances.rechargePoints` / `ledger.rechargePoints`, `adjustAdminUserRechargePoints` (`AdminRechargePointsAdjustRequest` / `Result`; audit `recharge_points.adjust`). Migration `20270430090000_recharge_points`. §4, §8, §10.163. | **Additive.** An older app sends no `payWith` and buys with coins exactly as before (the coin purchase's idempotency hash is unchanged); new response fields are ignored by older clients. No back-fill: points start with the recharges after the deploy. |
 | v1.117-live (draft) | 2026-11-11 | **D371 (owner: «اريد جعل سعر الرسائل العامة ب ١٠ الاف كوينز»):** a bullet message «رسالة عامة» (`sendLiveBullet`) costs **10 000 coins** instead of 15 (`LIVE_BULLET_COST_COINS`); a balance under 10 000 → 409 `INSUFFICIENT_COINS`. VIP free public messages (D258) unchanged (still free); a paid bullet still counts its coins as family points (now 10 000). §4 (409 row), §10.19. | **Behaviour change, shapes unchanged.** An older app's hint and «not enough coins» text still say 15 coins; the server charges 10 000. |
 | v1.116-live (draft) | 2026-11-11 | **D369 (owner: «الغي البث المتعدد لا اريده»): the multi-guest live is retired.** `startLiveRoom` `mode` MULTI → 400 `VALIDATION_FAILED` `mode` / `invalid_value` (as PK); `StartLiveRoomRequest.mode` enum SOLO, AUDIO, PODCAST, STREAMER. No list returns a MULTI room (`listLiveRooms` every `kind` and no kind, `listActiveLiveBoosts`); `kind=multi` stays valid and answers an empty page; `kind=party` = AUDIO; `party_all` loses MULTI. A MULTI room started before the deploy runs on until it ends (no migration, no job); `LiveRoomMode.MULTI`, the rows, `LiveConfig.seatCounts.MULTI`, the capacity weights and the panel's mode filter are kept. §10.4, §10.141, §10.162. | **Behaviour change** (a request enum value removed; lists no longer return MULTI rooms). Older apps: their multi-guest go-live is refused with 400 (the app shows its validation error); their hub and party lists simply contain no MULTI room. |
 | v1.115-live (draft) | 2026-11-11 | **D368 (owner: «بودكاست الحي يظهر في صفحة البث وليس الحفلة لكن الصوتي يظهر في صفحة الحفلة»; «ازل من بودكاست زر الكاميرة التي خلف التصنيف»):** a live VIDEO podcast (PODCAST with `LivePodcast.video`, §10.157) is listed by `listLiveRooms` `kind=solo` and `kind=video` under every hub filter, not by `kind=party_all` (audio podcasts only); `kind=podcast` keeps every podcast; «رائج» (§10.89) counts a video podcast in the video lives' top. App: the hub's camera card with the «Podcast» tag and no camera icon after the tag; a «مميز» slot pinned only where its kind lists the room. No migration, no shape change. §10.4, §10.89, §10.141, §10.161. | **Behaviour change** in list membership only (shapes unchanged). An older app sees a video podcast on its hub (`solo`) and no longer on its party page. |
@@ -12117,3 +12120,95 @@ Owner (2026-11-11): «الغي البث المتعدد لا اريده».
 - **App.** No multi-guest mode in Go Live, no multi kind / category / tag / label in the hub or the party page (l10n
   keys `goLiveModeMulti`, `liveCategoryMulti`, `liveTypeTagMulti` removed); the host's multi seat grid is gone. The app
   still parses `MULTI` (a card draws it as a camera live) and a viewer of a legacy MULTI room keeps its seat grid.
+### 10.163 «نقاط الشحن» — recharge points that buy VIP *(v1.126-social, DRAFT — D370)*
+
+Owner (2026-11-11): every coin a person **recharges** is one recharge point; the points accumulate and never expire
+(«النقاط لا تصفر كل شهر بل تبقى مجموع»); the VIP page gets a second way to pay, «استبدل بالنقاط», beside «ادفع بالعملات
+الذهبية». The points have no cash value, cannot be transferred and buy nothing but VIP.
+
+#### 10.163.1 What earns (one point per coin, to the person who RECEIVES the coins)
+
+| Source | Ledger reason | Reference (earns once) |
+|---|---|---|
+| A website card top-up credited (`CARD_TOPUP`, §10.53) | `RECHARGE_WEB` | the `topup_orders` row |
+| An App Store / Google Play purchase credited (`STORE_IAP`, §10.144) | `RECHARGE_STORE` | the `iap_purchases` row |
+| A recharge agent's direct sale to the buyer (`RECHARGE_PURCHASE`, §10.48) | `RECHARGE_AGENT` | the `recharge_sales` row |
+| A recharge order's coins credited to the buyer (`RECHARGE_ORDER`, §10.64) | `RECHARGE_AGENT` | the `recharge_orders` row |
+
+The points are written in the same transaction as the coins (`earnRechargePointsIn`, next to the D187 badge hook), so
+a recharge earns exactly once (the ledger's unique `(reason, reference)`). **Never counted:** daily coins and check-ins,
+tasks, lucky and event prizes, VIP daily coins, cherry → coin conversions, admin grants (`wallet-admin`, the panel's
+balance adjustment), gifts received, refunds of any kind, a gift owner's royalty. **Agents:** the points go to the
+buyer, never to the agent or the employee who sold; an agent's stock purchases go to the stock (not a wallet) and earn
+nothing; an agent cannot sell to their own account (the sale refuses the agent and the seller as buyer). Coins an agent
+buys for their **own wallet** on the website or in a store are a recharge like anyone's and earn (CTO choice: the
+owner's rule is "the person who receives the coins"; unlike the D187 badge, agents are not excluded here).
+
+#### 10.163.2 Balance and reversals
+
+`recharge_points_balances.points` (one row per person, created on the first change) and the append-only
+`recharge_points_ledger` (`delta`, `balance_after`, `reason`, `reference_id`). A reversed recharge takes its points
+back with `REVERSAL` (reference `web:<step>` / `store:<purchase>`), the balance **may go below 0** — then nothing can
+be redeemed until it is positive again:
+
+- A website top-up refunded, disputed or flagged early-fraud: the coins the order reconciles back (`CARD_TOPUP_REVERSAL`)
+  are taken as points too; a won dispute (`CARD_TOPUP_RESTORE`) gives them back (a positive `REVERSAL`).
+- A store refund (`STORE_IAP_REVERSAL`) takes the purchase's points.
+- A recharge agent's sale or order has no reversal path after the buyer is credited (a dispute is decided before the
+  coins move, §10.64), so nothing is reversed there.
+- Recharges credited before the deploy earned nothing and lose nothing (the reversal checks the earning row).
+
+**No back-fill (CTO choice):** points start with the recharges after the migration; past recharges earn nothing. The
+owner may ask for a one-off back-fill from the wallet ledger later.
+
+#### 10.163.3 Redeeming for VIP (`buyVip` with `payWith: POINTS`)
+
+- `vip_tiers.points_price` (nullable; null = not redeemable with points), set in the panel per tier. The owner's table:
+  VIP1 2 000 000 · VIP2 3 500 000 · VIP3 6 000 000 · VIP4 10 000 000 · VIP5 16 000 000 · VIP6 25 000 000 ·
+  VIP7 40 000 000 · VIP8 65 000 000 · VIP9 100 000 000 · VIP10 160 000 000 · VIP11 250 000 000 · VIP12 400 000 000. The
+  migration sets the price of the tiers that exist, by code `VIP_1` … `VIP_12` (only `VIP_1` is seeded); a tier the
+  owner adds later gets its price in the tier form.
+- One period (the tier's `durationDays`) per purchase, with **the same NEW / RENEW / UPGRADE rules** as coins
+  (§10.93.2): full points price on an upgrade, the renewal limit, no downgrade, a switched-off tier refused.
+- **Renewal discount (CTO choice):** the tier's `renewalDiscountPercent` applies to the points price as to the coins
+  (rounded down, at least 1 point): `VipTier.renewPricePoints`, `MyVip.renewal.pricePoints`.
+- Order after the D252 checks: 409 `VIP_UNAVAILABLE` `no_points_price` → 409 `VIP_PRICE_CHANGED` (`pricePoints` is not
+  the points price now) → 409 `INSUFFICIENT_RECHARGE_POINTS`. One conditional `UPDATE … WHERE points >= price` takes the
+  points (`VIP_REDEEM`, reference the `vip_purchases` row) inside the purchase's transaction, which is serialized per
+  person (the D252 advisory lock) — two concurrent redemptions never both pass.
+- `Idempotency-Key` as for coins: the same key and body → 200 with the first result, nothing taken again; another body
+  → 409 `IDEMPOTENCY_CONFLICT`. The coin purchase's request hash is unchanged.
+- `vip_purchases.pay_with` = POINTS, `price_coins` 0, `price_points`, `list_price_points`, `points_after`; audit
+  `vip.purchase` with `payWith` and `pricePoints`. The coin balance is not touched.
+
+#### 10.163.4 Reading
+
+- `getMyRechargePoints` (`GET /me/recharge-points?cursor&limit`): the balance and the caller's ledger, newest first
+  (signed keyset cursor bound to the caller; the reference is never returned).
+- `MyVip.rechargePoints` (the VIP page's balance), `VipTier.pricePoints` / `renewPricePoints`.
+
+#### 10.163.5 The app
+
+- **VIP page:** the purchase panel (above the sticky bar) offers «ادفع بالعملات الذهبية» and, when the selected tier has
+  a points price, «استبدل بالنقاط» with the points price (the renewal's when it applies) and the balance «رصيدك: N نقطة»;
+  the sticky button and the confirm card follow the chosen way; short of points, the button reads «نقاط غير كافية» and is
+  disabled. The existing VIP page style, light and dark.
+- **Wallet:** a row «نقاط الشحن» with the balance opens the history page (reasons named: «شحن من الموقع», «شحن من
+  المتجر», «شحن من وكيل», «استبدال VIP», «استرجاع», «تعديل من الإدارة»; an unknown reason as a generic change).
+- Errors: `INSUFFICIENT_RECHARGE_POINTS` has its own message (ar / en).
+
+#### 10.163.6 The panel
+
+- The tier form gains «سعر النقاط» (empty = not redeemable), audited in `vip.tier.add` / `vip.tier.update` (before /
+  after include `pointsPrice`).
+- The user page shows the balance (`AdminUserDetail.balances.rechargePoints`, `users.balances`) and the 20 latest rows
+  (`ledger.rechargePoints`, `users.ledger`), and the full ledger with `listAdminUserLedger?kind=recharge_points`.
+- `adjustAdminUserRechargePoints` (`users.balance_adjust`: OWNER, FINANCE; the authenticator code; a reason): ledger
+  `ADMIN_ADJUST`; a debit below 0 only with `allowNegative` (OWNER), else 409 `ADMIN_ACTION_REFUSED` `below_zero`;
+  audited `recharge_points.adjust` {delta, before, after, entryId, reason}.
+
+#### 10.163.7 Account deletion
+
+Like the other ledgers (§10.56): the balance and the ledger are kept under the tombstone id (they hold no free text;
+the adjustment's reason lives only in the audit row, which ends with the retention). A negative balance does not block a
+deletion (points have no cash value).

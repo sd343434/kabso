@@ -111,7 +111,7 @@ interface BagRow {
   expired: boolean;
 }
 
-function LedgerTable({ id, kind }: { id: string; kind: 'coins' | 'cherries' }) {
+function LedgerTable({ id, kind }: { id: string; kind: 'coins' | 'cherries' | 'recharge_points' }) {
   const { t, lang } = useApp();
   return (
     <DataTable<LedgerRow>
@@ -120,7 +120,11 @@ function LedgerTable({ id, kind }: { id: string; kind: 'coins' | 'cherries' }) {
       extraQuery={{ kind }}
       rowKey={(r) => r.id}
       pageSize={10}
-      header={<h2 className="table-title">{t(kind === 'coins' ? 'ledgerCoins' : 'ledgerCherries')}</h2>}
+      header={
+        <h2 className="table-title">
+          {t(kind === 'coins' ? 'ledgerCoins' : kind === 'cherries' ? 'ledgerCherries' : 'ledgerRechargePoints')}
+        </h2>
+      }
       columns={[
         {
           key: 'delta',
@@ -418,6 +422,12 @@ export function UserDetail({ id }: { id: string }) {
                   <span className="muted small">{t('coinsSentLifetime')}</span>
                   <strong className="num">{n(data.balances.coinsSent)}</strong>
                 </div>
+                {data.balances.rechargePoints !== undefined && (
+                  <div className="mini-stat">
+                    <span className="muted small">{t('rechargePoints')}</span>
+                    <strong className="num">{n(data.balances.rechargePoints)}</strong>
+                  </div>
+                )}
               </>
             ) : (
               <p className="muted small">{t('balancesHidden')}</p>
@@ -427,6 +437,7 @@ export function UserDetail({ id }: { id: string }) {
             <div className="grid cols-2">
               <LedgerTable id={id} kind="coins" />
               <LedgerTable id={id} kind="cherries" />
+              <LedgerTable id={id} kind="recharge_points" />
             </div>
           ) : (
             <p className="muted small">{t('ledgerHidden')}</p>

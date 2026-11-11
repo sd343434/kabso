@@ -104,10 +104,15 @@ final class VipTier {
     this.nameColor,
     this.renewalDiscountPercent = 0,
     int? renewPriceCoins,
-  }) : renewPriceCoins = renewPriceCoins ?? priceCoins;
+    this.pricePoints,
+    int? renewPricePoints,
+  }) : renewPriceCoins = renewPriceCoins ?? priceCoins,
+       renewPricePoints = renewPricePoints ?? pricePoints;
 
   factory fromJson(Map<String, dynamic> json) => VipTier(
     renewalDiscountPercent: _int(json['renewalDiscountPercent']),
+    pricePoints: _intOrNull(json['pricePoints']),
+    renewPricePoints: _intOrNull(json['renewPricePoints']),
     renewPriceCoins: json['renewPriceCoins'] == null
         ? null
         : _int(json['renewPriceCoins']),
@@ -138,6 +143,11 @@ final class VipTier {
   /// the renewal's price.
   final int renewalDiscountPercent;
   final int renewPriceCoins;
+
+  /// v1.126-social (D370, §10.163): the price in recharge points for one
+  /// period, and a renewal's (the same discount); null = not redeemable.
+  final int? pricePoints;
+  final int? renewPricePoints;
 
   /// D258 (§10.94.10): the special text colour of the tier's members (ARGB;
   /// the name, messages and entry line in a gradient of its hue), or null.
@@ -198,6 +208,8 @@ typedef VipRenewal = ({
   int priceCoins,
   int discountPercent,
   DateTime until,
+  // v1.126-social (D370): the renewal's points price, or null.
+  int? pricePoints,
 });
 
 /// `VipDailyCoinsClaim`: what a claim credited (0 when already claimed
@@ -302,6 +314,14 @@ typedef VipPurchase = ({
   int coins,
 });
 
+/// v1.126-social (D370, §10.163): a purchase paid with recharge points —
+/// what it did, the membership and the points left.
+typedef VipRedemption = ({
+  VipPurchaseKind kind,
+  VipMembership membership,
+  int rechargePoints,
+});
+
 /// The VIP API. Every method throws an `AppFailure`.
 abstract interface class VipRepository {
   /// `GET /vip/tiers`.
@@ -316,6 +336,15 @@ abstract interface class VipRepository {
   Future<VipPurchase> buy({
     required String tierId,
     required int priceCoins,
+    required String idempotencyKey,
+  });
+
+  /// `POST /me/vip/purchases` with `payWith: POINTS` (D370 «استبدل
+  /// بالنقاط»): the same NEW / RENEW / UPGRADE rules, paid with
+  /// [pricePoints] recharge points — the points price the person agreed to.
+  Future<VipRedemption> redeemWithPoints({
+    required String tierId,
+    required int pricePoints,
     required String idempotencyKey,
   });
 
@@ -366,6 +395,7 @@ class VipRepositoryImpl implements VipRepository {
       priceCoins: _int(r['priceCoins']),
       discountPercent: _int(r['discountPercent']),
       until: DateTime.parse(r['until']! as String),
+      pricePoints: _intOrNull(r['pricePoints']),
     );
   });
 
@@ -410,6 +440,27 @@ class VipRepositoryImpl implements VipRepository {
         body['membership']! as Map<String, dynamic>,
       ),
       coins: _int(body['coins']),
+    );
+  });
+
+  @override
+  Future<VipRedemption> redeemWithPoints({
+    required String tierId,
+    required int pricePoints,
+    required String idempotencyKey,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/me/vip/purchases',
+      data: {'tierId': tierId, 'payWith': 'POINTS', 'pricePoints': pricePoints},
+      options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+    );
+    final body = res.data!;
+    return (
+      kind: VipPurchaseKind.fromWire(body['kind']),
+      membership: VipMembership.fromJson(
+        body['membership']! as Map<String, dynamic>,
+      ),
+      rechargePoints: _int(body['rechargePoints']),
     );
   });
 }

@@ -210,7 +210,7 @@ export class AdminV2Controller {
   @RequireCapability('users.ledger')
   ledger(
     @Param('userId') id: string,
-    @Query(new ZodValidationPipe(ledgerQuery)) q: Page & { kind: 'coins' | 'cherries' },
+    @Query(new ZodValidationPipe(ledgerQuery)) q: Page & { kind: 'coins' | 'cherries' | 'recharge_points' },
   ) {
     return this.people.ledger(pathUuid(id), q.kind, q.page, q.pageSize);
   }

@@ -33,6 +33,7 @@ import { activeSpecialOf, specialHolderOf } from '../users/special-usernames.js'
 import { isReservedUsername } from '../users/username.js';
 import { dayStart } from '../recharge/recharge-rules.js';
 import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
+import { RechargePointsService } from '../recharge-points/recharge-points.service.js';
 import type { ContentType } from './admin-control.schemas.js';
 import { isPanelRole } from './admin-permissions.js';
 import { refused, viaOf } from './admin-users.service.js';
@@ -106,6 +107,7 @@ export class AdminControlService {
     private readonly live: LiveRoomsService,
     private readonly liveMedia: LiveMediaService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly rechargePoints: RechargePointsService,
   ) {}
 
   /** The account an action targets: not one's own; a panel admin only by an OWNER. */
@@ -888,6 +890,39 @@ export class AdminControlService {
         usedToday: Number(out.usedToday),
       };
     });
+  }
+
+  /**
+   * v1.126-social (D370, §10.163): the team's recharge-points correction — `users.balance_adjust` (OWNER, FINANCE),
+   * the authenticator code, a reason; a debit below 0 only with `allowNegative` (OWNER). Audited
+   * `recharge_points.adjust`.
+   */
+  async adjustRechargePoints(
+    id: string,
+    body: {
+      direction: 'CREDIT' | 'DEBIT';
+      amount: string;
+      allowNegative: boolean;
+      reason: string;
+      totpCode: string;
+    },
+    ctx: AdminContext,
+  ) {
+    await this.target(id, ctx);
+    if (body.allowNegative && !ctx.roles.includes('OWNER')) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+    if (body.allowNegative && body.direction !== 'DEBIT')
+      throw refused('«Allow negative» is for a debit only.');
+    await this.adminAuth.reauthenticate(ctx, body.totpCode);
+    const amount = BigInt(body.amount);
+    return this.rechargePoints.adjust(
+      id,
+      {
+        delta: body.direction === 'CREDIT' ? amount : -amount,
+        allowNegative: body.allowNegative,
+        reason: body.reason,
+      },
+      viaOf(ctx),
+    );
   }
 
   // ---- deletion (D193) -------------------------------------------------------------------------------------------

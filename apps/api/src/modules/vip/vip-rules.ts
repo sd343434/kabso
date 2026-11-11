@@ -16,6 +16,8 @@ export const VIP_COLOR_PATTERN = /^#[0-9A-F]{6}$/;
 export const VIP_MAX_TIERS = 20;
 export const VIP_MAX_PERKS = 20;
 export const VIP_MAX_PRICE_COINS = 1_000_000_000_000;
+/** v1.126-social (D370, §10.163): the highest points price of a tier. */
+export const VIP_MAX_PRICE_POINTS = 1_000_000_000_000;
 export const VIP_MAX_DURATION_DAYS = 365;
 /** A renewal may not take the end further than this many days from now (prepaying is capped, as premium usernames). */
 export const VIP_MAX_AHEAD_DAYS = 400;
@@ -34,6 +36,15 @@ export const VIP_RENEWAL_DISCOUNT_DEFAULT = 15;
 export function vipDiscounted(price: bigint, percent: number): bigint {
   if (percent <= 0) return price;
   return (price * BigInt(100 - percent)) / 100n;
+}
+
+/**
+ * v1.126-social (D370, §10.163): a points price with [percent] off (the same renewal discount as the coins), rounded
+ * down, never below 1 point.
+ */
+export function vipPointsCharge(pointsPrice: bigint, percent: number): bigint {
+  const charged = vipDiscounted(pointsPrice, percent);
+  return charged < 1n ? 1n : charged;
 }
 
 /**

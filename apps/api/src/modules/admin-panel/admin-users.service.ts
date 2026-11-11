@@ -241,10 +241,15 @@ export class AdminUsersService {
       lockedTaskCherries: number;
       cherriesReceived: number;
       coinsSent: number;
+      rechargePoints: number;
     } | null = null;
-    let ledger: { coins: LedgerRowDto[]; cherries: LedgerRowDto[] } | null = null;
+    let ledger: {
+      coins: LedgerRowDto[];
+      cherries: LedgerRowDto[];
+      rechargePoints: LedgerRowDto[];
+    } | null = null;
     if (withBalances) {
-      const [wallet, cherryWallet, lock, coins, cherries, totals] = await Promise.all([
+      const [wallet, cherryWallet, lock, coins, cherries, totals, points, pointRows] = await Promise.all([
         this.prisma.wallet.findUnique({ where: { userId: id }, select: { coins: true } }),
         this.prisma.cherryWallet.findUnique({ where: { userId: id }, select: { cherries: true } }),
         taskCherryLockIn(this.prisma, id, this.config.economy),
@@ -259,6 +264,13 @@ export class AdminUsersService {
           take: 20,
         }),
         profileStatsTotals(this.prisma, id),
+        // v1.126-social (D370, §10.163): «نقاط الشحن».
+        this.prisma.rechargePointsBalance.findUnique({ where: { userId: id }, select: { points: true } }),
+        this.prisma.rechargePointsEntry.findMany({
+          where: { userId: id },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 20,
+        }),
       ]);
       balances = {
         coins: Number(wallet?.coins ?? 0n),
@@ -266,6 +278,7 @@ export class AdminUsersService {
         lockedTaskCherries: Number(lock.lockedCherries),
         cherriesReceived: totals.cherriesReceived ?? 0,
         coinsSent: totals.coinsSent ?? 0,
+        rechargePoints: Number(points?.points ?? 0n),
       };
       const row = (r: {
         id: string;
@@ -280,7 +293,9 @@ export class AdminUsersService {
         reason: r.reason,
         createdAt: r.createdAt.toISOString(),
       });
-      if (withLedger) ledger = { coins: coins.map(row), cherries: cherries.map(row) };
+      if (withLedger) {
+        ledger = { coins: coins.map(row), cherries: cherries.map(row), rechargePoints: pointRows.map(row) };
+      }
     }
     await this.audit.record({
       action: AuditAction.ADMIN_USER_VIEW,

@@ -602,6 +602,19 @@ info:
     `get…WhatsAppAgents?department=`. A transfer is pushed to the receiver (the department's members for the queue).
     Migration `20270428090000_whatsapp_departments`. Additive (an older client keeps working; every conversation and
     person starts in GENERAL).
+    **D370 (DRAFT v1.126-social)** recharge points «نقاط الشحن» buy VIP (CONVENTIONS §10.163; owner 2026-11-11): every
+    coin a person RECEIVES from a paid recharge — a website card top-up, a store purchase, a recharge agent's sale or
+    order (the buyer, never the agent) — is one point; the points never expire. `getMyRechargePoints`
+    (`GET /me/recharge-points`, `RechargePoints`, `RechargePointsEntry`, `RechargePointsReason`); `buyVip` gains
+    `payWith` COINS (default, as before) | POINTS «استبدل بالنقاط» with `pricePoints` (the same NEW / RENEW / UPGRADE
+    rules and renewal discount; 409 `INSUFFICIENT_RECHARGE_POINTS` (new), `VIP_PRICE_CHANGED`, `VIP_UNAVAILABLE`
+    `no_points_price`); `VipTier.pricePoints` / `renewPricePoints`, `MyVip.rechargePoints`, `MyVip.renewal.pricePoints`,
+    `VipPurchaseResult.payWith` / `pricePoints` / `listPricePoints` / `rechargePoints`; the panel's
+    `AdminVipTier.pointsPrice` (create / update, null = not redeemable), `listAdminUserLedger?kind=recharge_points`,
+    `AdminUserDetail.balances.rechargePoints` / `ledger.rechargePoints`, `adjustAdminUserRechargePoints`
+    (`POST /admin/users/{userId}/recharge-points/adjustments`, audited `recharge_points.adjust`). A reversed top-up or
+    a refunded store purchase takes its points back (the balance may go below 0). Migration
+    `20270430090000_recharge_points`. Additive (an older app sends no `payWith` and buys with coins as before).
     **D367 (DRAFT v1.124-social)** a Kabso Team profile shows no account category (CONVENTIONS §10.160; owner
     2026-11-11 «في صفحة الموظفين يظهر تصنيف مثل شاعر، يجب إلغاؤه من صفحة المشرفين»): `Me.category` and
     `PublicProfile.category` are null for an account holding any panel role (`kabsoTeam`, a limited `staff`, the
@@ -11803,6 +11816,30 @@ paths:
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/me/recharge-points:
+    get:
+      tags: [wallet]
+      operationId: getMyRechargePoints
+      summary: "The caller's recharge points «نقاط الشحن» and their history, newest first (v1.126-social, D370)"
+      description: |
+        CONVENTIONS §10.163. `balance`: every coin the caller received from a paid recharge (a website card top-up, a
+        store purchase, a recharge agent's sale or order) is one point; the points never expire and buy VIP (`buyVip`
+        `payWith: POINTS`). It may be below 0 after a reversed top-up or a refunded store purchase (nothing can be
+        redeemed until it is positive). `data`: the caller's own ledger rows (signed keyset cursor bound to the caller;
+        the internal reference is never returned). Checks: 401; 400 `cursor` / `limit`.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: The balance and one page of the history.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargePoints' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
   /api/v1/me/profile-visitors:
     get:
       tags: [vip]
@@ -11841,6 +11878,14 @@ paths:
         `VIP_UNAVAILABLE` (`tier`: `tier_off` — switched off, even to renew; `downgrade` — lower than (or as high as) the
         active tier; `renewal_limit`) → 409 `VIP_PRICE_CHANGED` → 409 `INSUFFICIENT_COINS`. A refused request charges and
         changes nothing. Audited `vip.purchase`.
+
+        **v1.126-social (D370, §10.163) «استبدل بالنقاط»:** `payWith: POINTS` with `pricePoints` (the tier's
+        `pricePoints`, or `renewPricePoints` / `MyVip.renewal.pricePoints` for a renewal — the same discount as the
+        coins) pays with recharge points instead: the same NEW / RENEW / UPGRADE rules (full points price on an
+        upgrade), one period (`durationDays`), the coins untouched (`priceCoins` 0 in the result). Order after the
+        VIP_UNAVAILABLE checks: 409 `VIP_UNAVAILABLE` (`tier`: `no_points_price` — the tier has no points price) → 409
+        `VIP_PRICE_CHANGED` → 409 `INSUFFICIENT_RECHARGE_POINTS` (one conditional debit; also while the balance is
+        below 0). Recharge-points ledger `VIP_REDEEM` (reference the purchase). The same `Idempotency-Key` rules.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -14120,9 +14165,11 @@ paths:
         required: false
         schema:
           type: string
+          description: "v1.126-social (D370): `recharge_points` — the «نقاط الشحن» ledger."
           enum:
           - coins
           - cherries
+          - recharge_points
           default: coins
       responses:
         '200':
@@ -14639,6 +14686,37 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AdminAdjustResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/recharge-points/adjustments:
+    post:
+      tags: [admin-panel]
+      operationId: adjustAdminUserRechargePoints
+      summary: "Credit or debit a user's recharge points «نقاط الشحن» (users.balance_adjust, code again; v1.126-social, D370)"
+      description: |
+        CONVENTIONS §10.163.6. Recharge-points ledger `ADMIN_ADJUST` (reference: a new id). A debit never takes the
+        balance below 0 unless `allowNegative` (OWNER only; else 403) → 409 `ADMIN_ACTION_REFUSED`
+        (`amount`: `below_zero`). Audited `recharge_points.adjust` {delta, before, after, reason}.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminRechargePointsAdjustRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargePointsAdjustResult' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
@@ -25412,7 +25490,7 @@ components:
         amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — only for DAILY_BULLET (1–100), DAILY_COINS (1–10^9) and LEVEL_SPEEDUP (1–100 %); another code with an amount, or one out of its range → 400 `perks.N.amount` `not_allowed` / `out_of_range`." }
     AdminVipTier:
       type: object
-      required: [id, code, nameAr, nameEn, sortOrder, color, nameColor, renewalDiscountPercent, badgeAnimation, badgeStill, priceCoins, durationDays, enabled, activeMembers, perks, updatedAt]
+      required: [id, code, nameAr, nameEn, sortOrder, color, nameColor, renewalDiscountPercent, badgeAnimation, badgeStill, priceCoins, pointsPrice, durationDays, enabled, activeMembers, perks, updatedAt]
       properties:
         id: { type: string, format: uuid }
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
@@ -25425,6 +25503,7 @@ components:
         badgeAnimation: { $ref: '#/components/schemas/VipArtRef' }
         badgeStill: { $ref: '#/components/schemas/VipArtRef' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        pointsPrice: { type: ['integer', 'null'], format: int64, minimum: 1, maximum: 1000000000000, description: "v1.126-social (D370, §10.163): the price in recharge points «نقاط الشحن» for one period; null = not redeemable with points." }
         durationDays: { type: integer, minimum: 1, maximum: 365 }
         enabled: { type: boolean }
         activeMembers: { type: integer, minimum: 0 }
@@ -25459,6 +25538,7 @@ components:
         badgeAnimation: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         badgeStill: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        pointsPrice: { type: ['integer', 'null'], format: int64, minimum: 1, maximum: 1000000000000, description: "v1.126-social (D370, §10.163): the price in recharge points for one period; null clears it (not redeemable with points)." }
         durationDays: { type: integer, minimum: 1, maximum: 365 }
         enabled: { type: boolean, default: false }
         perks:
@@ -25480,6 +25560,7 @@ components:
         badgeAnimation: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         badgeStill: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        pointsPrice: { type: ['integer', 'null'], format: int64, minimum: 1, maximum: 1000000000000, description: "v1.126-social (D370, §10.163): the price in recharge points for one period; null clears it (not redeemable with points)." }
         durationDays: { type: integer, minimum: 1, maximum: 365 }
         perks:
           type: array
@@ -26230,6 +26311,7 @@ components:
             lockedTaskCherries: { type: integer, description: Task cherries not withdrawable yet (D184). }
             cherriesReceived: { type: integer, minimum: 0, description: "v1.77-social (D220, §10.74): the lifetime cherries received from gifts (`PublicProfile.cherriesReceived`), also when the user hides it from others." }
             coinsSent: { type: integer, minimum: 0, description: "v1.77-social (D220, §10.74): the lifetime coins sent on gifts (`PublicProfile.coinsSent`), also when the user hides it from others." }
+            rechargePoints: { type: integer, description: "v1.126-social (D370, §10.163): the recharge points «نقاط الشحن» now (may be below 0)." }
         ledger:
           type: [object, 'null']
           description: The 20 latest coin and cherry ledger rows; null without `users.ledger`.
@@ -26237,6 +26319,7 @@ components:
           properties:
             coins: { type: array, items: { $ref: '#/components/schemas/AdminLedgerRow' } }
             cherries: { type: array, items: { $ref: '#/components/schemas/AdminLedgerRow' } }
+            rechargePoints: { type: array, items: { $ref: '#/components/schemas/AdminLedgerRow' }, description: "v1.126-social (D370): the 20 latest recharge-points rows." }
         rechargeAgent:
           type: [object, 'null']
           required: [status, code, stockCoins, dailyCherryCap, suspendReason]
@@ -39179,7 +39262,7 @@ components:
         amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — the perk's number for this tier: DAILY_BULLET free public messages a day (1–100), DAILY_COINS coins a day (1–10^9), LEVEL_SPEEDUP the level speed-up in percent (1–100); null for any other perk or not set yet." }
     VipTier:
       type: object
-      required: [id, code, name, level, color, nameColor, renewalDiscountPercent, renewPriceCoins, badgeAnimation, badgeStill, priceCoins, durationDays, perks]
+      required: [id, code, name, level, color, nameColor, renewalDiscountPercent, renewPriceCoins, badgeAnimation, badgeStill, priceCoins, pricePoints, renewPricePoints, durationDays, perks]
       properties:
         id: { type: string, format: uuid }
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
@@ -39192,6 +39275,8 @@ components:
         badgeAnimation: { $ref: '#/components/schemas/VipArtRef' }
         badgeStill: { $ref: '#/components/schemas/VipArtRef' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        pricePoints: { type: ['integer', 'null'], format: int64, minimum: 1, maximum: 1000000000000, description: "v1.126-social (D370, §10.163): the price in recharge points for one period (`durationDays`); null: the tier cannot be redeemed with points." }
+        renewPricePoints: { type: ['integer', 'null'], format: int64, minimum: 1, description: "v1.126-social (D370): a renewal's points price (pricePoints with the same renewal discount, rounded down, at least 1); null with no points price." }
         durationDays: { type: integer, minimum: 1, maximum: 365 }
         perks:
           type: array
@@ -39224,8 +39309,9 @@ components:
         daysLeft: { type: integer, minimum: 0, description: "Whole days left, rounded up." }
     MyVip:
       type: object
-      required: [membership]
+      required: [membership, rechargePoints]
       properties:
+        rechargePoints: { type: integer, format: int64, description: "v1.126-social (D370, §10.163): the caller's recharge points «نقاط الشحن» now; may be below 0 after a reversal (nothing redeemable then)." }
         membership:
           oneOf:
             - $ref: '#/components/schemas/VipMembership'
@@ -39235,11 +39321,12 @@ components:
           description: "v1.83-social (D258, §10.94.5) — present while the active membership holds DAILY_COINS with an amount."
         renewal:
           type: object
-          required: [tierId, priceCoins, discountPercent, until]
+          required: [tierId, priceCoins, pricePoints, discountPercent, until]
           description: "v1.83-social (D258, §10.94.12): present while buying the caller's tier again earns its renewal discount (the membership is active or ended at most 7 days ago, the tier on sale, a discount set) — send `priceCoins` as `BuyVipRequest.priceCoins` for that tier."
           properties:
             tierId: { type: string, format: uuid }
             priceCoins: { type: integer, format: int64, minimum: 1 }
+            pricePoints: { type: ['integer', 'null'], format: int64, minimum: 1, description: "v1.126-social (D370): the renewal's points price (`BuyVipRequest.pricePoints` with `payWith: POINTS`); null when the tier has no points price." }
             discountPercent: { type: integer, minimum: 1, maximum: 90 }
             until: { type: string, format: date-time, description: "The discount holds until then (the end + 7 days)." }
     VipDailyCoins:
@@ -39278,16 +39365,71 @@ components:
     BuyVipRequest:
       type: object
       additionalProperties: false
-      required: [tierId, priceCoins]
+      required: [tierId]
+      description: "v1.126-social (D370): with `payWith` COINS (default) `priceCoins` is required and `pricePoints` absent; with POINTS `pricePoints` is required and `priceCoins` absent (400 `required` / `not_allowed`)."
       properties:
         tierId: { type: string, format: uuid }
-        priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000, description: "The price the person was shown." }
+        payWith: { $ref: '#/components/schemas/VipPayWith' }
+        priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000, description: "The price the person was shown (coins)." }
+        pricePoints: { type: integer, format: int64, minimum: 1, maximum: 1000000000000, description: "v1.126-social (D370): the points price the person was shown." }
+    VipPayWith:
+      type: string
+      enum: [COINS, POINTS]
+      default: COINS
+      description: "v1.126-social (D370, §10.163): what pays for a VIP purchase — coins, or recharge points «استبدل بالنقاط»."
+    RechargePointsReason:
+      type: string
+      enum: [RECHARGE_WEB, RECHARGE_STORE, RECHARGE_AGENT, VIP_REDEEM, REVERSAL, ADMIN_ADJUST]
+      description: |
+        v1.126-social (D370, §10.163): why a recharge-points balance changed — a website card top-up, a store
+        purchase, coins from a recharge agent (earning, +); a VIP redemption (−); a reversed recharge (− taken back, +
+        given back after a won dispute); the team's correction. Clients show an unknown value as a generic change.
+    RechargePointsEntry:
+      type: object
+      required: [id, reason, delta, balanceAfter, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        reason: { $ref: '#/components/schemas/RechargePointsReason' }
+        delta: { type: integer, format: int64, description: "Signed; never 0." }
+        balanceAfter: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+    RechargePoints:
+      type: object
+      required: [balance, data, page]
+      description: "v1.126-social (D370, §10.163): the caller's recharge points and one page of their history, newest first."
+      properties:
+        balance: { type: integer, format: int64, description: "May be below 0 after a reversal." }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/RechargePointsEntry' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    AdminRechargePointsAdjustRequest:
+      type: object
+      additionalProperties: false
+      required: [direction, amount, reason, totpCode]
+      properties:
+        direction: { type: string, enum: [CREDIT, DEBIT] }
+        amount: { type: string, pattern: '^[1-9][0-9]{0,12}$', description: "Whole points, 1 … 10^13 − 1, as a decimal string." }
+        allowNegative: { type: boolean, default: false, description: "OWNER only: a debit may take the balance below 0." }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminRechargePointsAdjustResult:
+      type: object
+      required: [delta, before, after]
+      properties:
+        delta: { type: integer, format: int64 }
+        before: { type: integer, format: int64 }
+        after: { type: integer, format: int64 }
     VipPurchaseResult:
       type: object
-      required: [kind, priceCoins, listPriceCoins, discountPercent, durationDays, membership, coins]
+      required: [kind, payWith, priceCoins, listPriceCoins, pricePoints, listPricePoints, discountPercent, durationDays, membership, coins, rechargePoints]
       properties:
         kind: { type: string, enum: [NEW, RENEW, UPGRADE] }
-        priceCoins: { type: integer, format: int64, minimum: 1, description: "The coins charged (after a renewal discount, v1.83-social)." }
+        payWith: { $ref: '#/components/schemas/VipPayWith' }
+        priceCoins: { type: integer, format: int64, minimum: 0, description: "The coins charged (after a renewal discount, v1.83-social); 0 when paid with points (v1.126-social)." }
+        pricePoints: { type: ['integer', 'null'], format: int64, minimum: 1, description: "v1.126-social (D370): the points charged (after the renewal discount); null when paid with coins." }
+        listPricePoints: { type: ['integer', 'null'], format: int64, minimum: 1, description: "v1.126-social (D370): the tier's points price then; null when paid with coins." }
+        rechargePoints: { type: integer, format: int64, description: "v1.126-social (D370): the caller's recharge points right after the purchase." }
         listPriceCoins: { type: integer, format: int64, minimum: 1, description: "v1.83-social (D258, §10.94.12): the tier's list price then." }
         discountPercent: { type: integer, minimum: 0, maximum: 90, description: "v1.83-social (D258, §10.94.12): the renewal discount applied; 0 = none." }
         durationDays: { type: integer, minimum: 1 }

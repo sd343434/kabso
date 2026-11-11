@@ -231,6 +231,8 @@ describe('KL-013 runtime role DML', () => {
         'staff_recruit_commissions',
         // v1.82-live (D295): an agency is banned once (migration 20270329090100_creator_lives).
         'agency_bans',
+        // v1.126-social (D370): the recharge-points ledger (migration 20270430090000_recharge_points).
+        'recharge_points_ledger',
       ].includes(row.table);
       // KL-058: admin permissions are granted by the migration role only. v1.73-live (D283c): the staff IDs are given
       // only by the SECURITY DEFINER `kabso_assign_staff_id` (through `kabso_admin_panel_role`).

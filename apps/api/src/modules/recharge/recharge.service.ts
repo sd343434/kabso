@@ -22,6 +22,7 @@ import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec, type SocialPosition } from '../posts/social-cursor.js';
 import { creditIn } from '../wallet/wallet-ledger.js';
 import { recordRechargeIn } from './recharge-badges.js';
+import { earnRechargePointsIn } from '../recharge-points/recharge-points-ledger.js';
 import { employeeStatsIn, type SalesStatsDto } from './recharge-employee-stats.js';
 import { referralRechargeIn } from '../referrals/referral-core.js';
 import { blockError, RechargeOrdersService } from './recharge-orders.service.js';
@@ -679,6 +680,13 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
           { userId: buyer.id, coins, source: 'AGENT_SALE', now },
           this.config.recharge.badges,
         );
+        // v1.126-social (D370, §10.163): the buyer's recharge points (never the agent's), once per sale.
+        await earnRechargePointsIn(tx, {
+          userId: buyer.id,
+          coins,
+          reason: 'RECHARGE_AGENT',
+          referenceId: saleId,
+        });
         // v1.74-social (D217): the invitee's first recharge pays the inviter a share (held).
         await referralRechargeIn(
           tx,

@@ -335,6 +335,11 @@ export enum ErrorCode {
   /** v1.82-social (DRAFT, D252, §10.93): the tier's price changed since the app showed it. Nothing was charged. */
   VIP_PRICE_CHANGED = 'VIP_PRICE_CHANGED',
   /**
+   * v1.126-social (DRAFT, D370, §10.163): the caller's recharge points «نقاط الشحن» do not cover the tier's points
+   * price (also while the balance is below 0 after a reversal). Nothing was charged.
+   */
+  INSUFFICIENT_RECHARGE_POINTS = 'INSUFFICIENT_RECHARGE_POINTS',
+  /**
    * D270 (DRAFT, §10.98): this store item cannot be bought now — `details: [{field: 'item' | 'days' | 'currency',
    * issue: 'item_off' | 'not_priced' | 'owned_permanent' | 'too_far'}]`. Nothing was charged.
    */
@@ -541,6 +546,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.DEVICE_BANNED]: 403,
   [ErrorCode.VIP_UNAVAILABLE]: 409,
   [ErrorCode.VIP_PRICE_CHANGED]: 409,
+  [ErrorCode.INSUFFICIENT_RECHARGE_POINTS]: 409,
   [ErrorCode.STORE_UNAVAILABLE]: 409,
   [ErrorCode.STORE_PRICE_CHANGED]: 409,
   [ErrorCode.STAFF_PROTECTED]: 403,
@@ -717,6 +723,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.DEVICE_BANNED]: 'This device is banned by the Kabso team.',
   [ErrorCode.VIP_UNAVAILABLE]: 'This VIP tier cannot be bought now.',
   [ErrorCode.VIP_PRICE_CHANGED]: 'The price of this VIP tier changed.',
+  [ErrorCode.INSUFFICIENT_RECHARGE_POINTS]: 'Not enough recharge points.',
   [ErrorCode.STORE_UNAVAILABLE]: 'This store item cannot be bought now.',
   [ErrorCode.STORE_PRICE_CHANGED]: 'The price of this store item changed.',
   [ErrorCode.STAFF_PROTECTED]: 'This cannot be done to the Kabso Team.',

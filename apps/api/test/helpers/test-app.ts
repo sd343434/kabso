@@ -375,11 +375,12 @@ export function seedLevelRaiseAppsSql(): string {
 }
 
 /**
- * The VIP 1 tier, mirroring migration `20270305090100_vip` (art NULL). D252.
+ * The VIP 1 tier, mirroring migration `20270305090100_vip` (art NULL). D252. v1.126-social (D370): its points price,
+ * as `20270430090000_recharge_points` sets it.
  */
 export const SEED_VIP_TIER_SQL = `
-  INSERT INTO vip_tiers (id, code, name_ar, name_en, sort_order, color, name_color, price_coins, duration_days, enabled)
-    VALUES ('01a25200-0000-7000-8000-000000000001', 'VIP_1', 'في آي بي 1', 'VIP 1', 1, '#2E8B3D', '#FFC928', 1000000, 30, true)
+  INSERT INTO vip_tiers (id, code, name_ar, name_en, sort_order, color, name_color, price_coins, points_price, duration_days, enabled)
+    VALUES ('01a25200-0000-7000-8000-000000000001', 'VIP_1', 'في آي بي 1', 'VIP 1', 1, '#2E8B3D', '#FFC928', 1000000, 2000000, 30, true)
     ON CONFLICT (id) DO NOTHING`;
 
 /**

@@ -5,6 +5,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/home_banners_repository.dart';
 import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/wallet/data/cherry_repository.dart';
+import 'package:kabso_live/features/wallet/data/recharge_points_repository.dart';
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
 
 /// The caller's coin history, newest first (`GET /wallet/me/ledger`, D164).
@@ -94,3 +95,38 @@ final FutureProvider<List<CherryWithdrawal>> myWithdrawalsProvider =
       ref.watch(currentUserProvider.select((u) => u?.id));
       return (await ref.watch(cherryRepositoryProvider).withdrawals()).items;
     });
+
+/// D370 (§10.163): the caller's recharge points «نقاط الشحن» now (the
+/// wallet row and the VIP page's «استبدل بالنقاط»).
+final FutureProvider<int> rechargePointsBalanceProvider =
+    FutureProvider.autoDispose((ref) async {
+      ref.watch(currentUserProvider.select((u) => u?.id));
+      final page = await ref
+          .watch(rechargePointsRepositoryProvider)
+          .page(limit: 1);
+      return page.balance;
+    });
+
+/// D370: every change of the caller's recharge points, newest first
+/// (`GET /me/recharge-points`).
+class RechargePointsLedgerController
+    extends PagedListController<RechargePointsEntry> {
+  @override
+  Future<PageResult<RechargePointsEntry>> fetch(String? cursor) async {
+    final page = await ref
+        .read(rechargePointsRepositoryProvider)
+        .page(cursor: cursor);
+    return (items: page.items, next: page.next);
+  }
+
+  @override
+  String idOf(RechargePointsEntry item) => item.id;
+}
+
+final AsyncNotifierProvider<
+  RechargePointsLedgerController,
+  FeedItems<RechargePointsEntry>
+>
+rechargePointsLedgerProvider = AsyncNotifierProvider.autoDispose(
+  RechargePointsLedgerController.new,
+);

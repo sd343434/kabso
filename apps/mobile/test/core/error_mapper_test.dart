@@ -145,6 +145,8 @@ const Map<ErrorCode, int> _statusFor = {
   // v1.82-social (D252).
   ErrorCode.vipUnavailable: 409,
   ErrorCode.vipPriceChanged: 409,
+  // v1.126-social (D370).
+  ErrorCode.insufficientRechargePoints: 409,
   // D270.
   ErrorCode.storeUnavailable: 409,
   ErrorCode.storePriceChanged: 409,
@@ -345,6 +347,8 @@ void main() {
           // v1.82-social (D252).
           'VIP_UNAVAILABLE',
           'VIP_PRICE_CHANGED',
+          // v1.126-social (D370)
+          'INSUFFICIENT_RECHARGE_POINTS',
           'STORE_UNAVAILABLE',
           'STORE_PRICE_CHANGED',
           'STORE_IAP_UNAVAILABLE',

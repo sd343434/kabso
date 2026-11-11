@@ -44,6 +44,8 @@ export interface AdminVipTier {
   badgeAnimation: string | null;
   badgeStill: string | null;
   priceCoins: number;
+  /** v1.126-social (D370): the price in recharge points; null = not redeemable with points. */
+  pointsPrice?: number | null;
   durationDays: number;
   enabled: boolean;
   activeMembers: number;
@@ -86,6 +88,8 @@ export interface TierDraft {
   badgeAnimation: string;
   badgeStill: string;
   priceCoins: string;
+  /** D370: "" = not redeemable with points. */
+  pointsPrice: string;
   durationDays: string;
   enabled: boolean;
   perks: PerkDraft[];
@@ -131,6 +135,10 @@ export function draftOf(tier: AdminVipTier | null): TierDraft {
     badgeAnimation: tier?.badgeAnimation ?? "",
     badgeStill: tier?.badgeStill ?? "",
     priceCoins: tier ? String(tier.priceCoins) : "",
+    pointsPrice:
+      tier?.pointsPrice === null || tier?.pointsPrice === undefined
+        ? ""
+        : String(tier.pointsPrice),
     durationDays: tier ? String(tier.durationDays) : "30",
     enabled: tier?.enabled ?? false,
     perks: (tier?.perks ?? []).map((p) => ({
@@ -148,6 +156,14 @@ export function draftOf(tier: AdminVipTier | null): TierDraft {
         p.amount === null || p.amount === undefined ? "" : String(p.amount),
     })),
   };
+}
+
+/** D370: empty (not redeemable) or a whole number of points, 1 … 10^12. */
+function pointsOk(v: string): boolean {
+  const s = v.trim();
+  if (s === "") return true;
+  const n = Number(s);
+  return /^\d+$/.test(s) && Number.isSafeInteger(n) && n >= 1 && n <= 1_000_000_000_000;
 }
 
 /** The same rules as the server (it checks them again): code, names, colour, price, length, unique perk codes. */
@@ -168,6 +184,7 @@ export function draftValid(d: TierDraft, creating: boolean): boolean {
     Number.isInteger(price) &&
     price >= 1 &&
     price <= 1_000_000_000_000 &&
+    pointsOk(d.pointsPrice) &&
     Number.isInteger(days) &&
     days >= 1 &&
     days <= 365 &&
@@ -217,6 +234,7 @@ export function tierBody(
     badgeAnimation: d.badgeAnimation.trim() || null,
     badgeStill: d.badgeStill.trim() || null,
     priceCoins: Number(d.priceCoins),
+    pointsPrice: d.pointsPrice.trim() === "" ? null : Number(d.pointsPrice),
     durationDays: Number(d.durationDays),
   };
   const perks = perksBody(d.perks);
@@ -325,7 +343,16 @@ export function VipTiersTable({
               </td>
               <td dir="ltr">{tier.nameEn}</td>
               <td className="mono small ltr">{tier.code}</td>
-              <td className="num">🪙 {formatNumber(tier.priceCoins, lang)}</td>
+              <td className="num">
+                🪙 {formatNumber(tier.priceCoins, lang)}
+                <div className="muted small">
+                  {tier.pointsPrice === null || tier.pointsPrice === undefined
+                    ? t("vipPointsPriceNone")
+                    : t("vipPointsPriceShort", {
+                        n: formatNumber(tier.pointsPrice, lang),
+                      })}
+                </div>
+              </td>
               <td>
                 {t("vipDays", { n: formatNumber(tier.durationDays, lang) })}
               </td>
@@ -870,6 +897,18 @@ function TierForm({
             value={draft.priceCoins}
             onChange={set("priceCoins")}
           />
+        </div>
+        <div className="field">
+          <label htmlFor="vip-points-price">{t("vipPointsPrice")}</label>
+          <input
+            id="vip-points-price"
+            type="number"
+            min={1}
+            className="ltr mono"
+            value={draft.pointsPrice}
+            onChange={set("pointsPrice")}
+          />
+          <span className="hint">{t("vipPointsPriceHint")}</span>
         </div>
         <div className="field">
           <label htmlFor="vip-days">{t("vipDuration")}</label>
