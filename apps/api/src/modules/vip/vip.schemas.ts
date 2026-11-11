@@ -5,6 +5,7 @@ import {
   VIP_MAX_DURATION_DAYS,
   VIP_MAX_PERKS,
   VIP_MAX_PRICE_COINS,
+  VIP_MAX_PRICE_POINTS,
   VIP_PERK_AMOUNTS,
   VIP_RENEWAL_DISCOUNT_MAX,
 } from './vip-rules.js';
@@ -16,6 +17,8 @@ const tierName = z.string().trim().min(1).max(30);
 const perkTitle = z.string().trim().min(1).max(40);
 const perkText = z.string().trim().max(200);
 const price = z.number().int().min(1).max(VIP_MAX_PRICE_COINS);
+/** v1.126-social (D370, §10.162): a tier's price in recharge points; null = not redeemable with points. */
+const pointsPrice = z.number().int().min(1).max(VIP_MAX_PRICE_POINTS);
 const days = z.number().int().min(1).max(VIP_MAX_DURATION_DAYS);
 const color = z
   .string()
@@ -95,6 +98,7 @@ export const createVipTierBody = z.strictObject({
   badgeAnimation: artRef.nullable().optional(),
   badgeStill: artRef.nullable().optional(),
   priceCoins: price,
+  pointsPrice: pointsPrice.nullable().optional(),
   durationDays: days,
   enabled: z.boolean().optional(),
   perks: perks.optional(),
@@ -112,6 +116,7 @@ export const updateVipTierBody = z
     badgeAnimation: artRef.nullable().optional(),
     badgeStill: artRef.nullable().optional(),
     priceCoins: price.optional(),
+    pointsPrice: pointsPrice.nullable().optional(),
     durationDays: days.optional(),
     perks: perks.optional(),
     reason,
@@ -126,7 +131,36 @@ export const reorderVipTiersBody = z.strictObject({
   reason,
 });
 
-export const buyVipBody = z.strictObject({
-  tierId: z.uuid(),
-  priceCoins: price,
-});
+/**
+ * `BuyVipRequest`. v1.126-social (D370, §10.162): `payWith` COINS (default; `priceCoins` required, as before) or
+ * POINTS (`pricePoints` required: the points price the person was shown); the other price must be absent.
+ */
+export const buyVipBody = z
+  .strictObject({
+    tierId: z.uuid(),
+    payWith: z.enum(['COINS', 'POINTS']).optional(),
+    priceCoins: price.optional(),
+    pricePoints: pointsPrice.optional(),
+  })
+  .superRefine((b, ctx) => {
+    const points = b.payWith === 'POINTS';
+    const need = points ? 'pricePoints' : 'priceCoins';
+    const other = points ? 'priceCoins' : 'pricePoints';
+    if (b[need] === undefined) {
+      ctx.addIssue({ code: 'custom', path: [need], message: 'required', params: { issue: 'required' } });
+    }
+    if (b[other] !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [other],
+        message: 'not allowed',
+        params: { issue: 'not_allowed' },
+      });
+    }
+  })
+  .transform((b) =>
+    b.payWith === 'POINTS'
+      ? { tierId: b.tierId, payWith: 'POINTS' as const, price: b.pricePoints! }
+      : { tierId: b.tierId, payWith: 'COINS' as const, price: b.priceCoins! },
+  );
+export type BuyVipBody = z.output<typeof buyVipBody>;

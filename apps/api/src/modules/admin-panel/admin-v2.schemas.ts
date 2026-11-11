@@ -42,7 +42,10 @@ export const pageOnlyQuery = z.strictObject({
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });
 
-export const ledgerQuery = pageOnlyQuery.extend({ kind: z.enum(['coins', 'cherries']).default('coins') });
+/** v1.126-social (D370): `recharge_points` — the «نقاط الشحن» ledger. */
+export const ledgerQuery = pageOnlyQuery.extend({
+  kind: z.enum(['coins', 'cherries', 'recharge_points']).default('coins'),
+});
 
 export const usersTableQuery = tableQuery(['createdAt', 'lastActiveAt', 'username', 'email'], 'createdAt')
   .extend({

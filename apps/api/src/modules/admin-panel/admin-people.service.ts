@@ -142,8 +142,34 @@ export class AdminPeopleService {
   }
 
   /** The coin or cherry ledger of a user, newest first, by pages. */
-  async ledger(id: string, kind: 'coins' | 'cherries', page: number, pageSize: number) {
+  async ledger(id: string, kind: 'coins' | 'cherries' | 'recharge_points', page: number, pageSize: number) {
     await this.exists(id);
+    if (kind === 'recharge_points') {
+      // v1.126-social (D370, §10.162): «نقاط الشحن».
+      const where = { userId: id };
+      const [rows, total] = await Promise.all([
+        this.prisma.rechargePointsEntry.findMany({
+          where,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          select: { id: true, delta: true, balanceAfter: true, reason: true, createdAt: true },
+        }),
+        this.prisma.rechargePointsEntry.count({ where }),
+      ]);
+      return {
+        data: rows.map((r) => ({
+          id: r.id,
+          delta: Number(r.delta),
+          balanceAfter: Number(r.balanceAfter),
+          reason: r.reason,
+          createdAt: r.createdAt.toISOString(),
+        })),
+        total,
+        page,
+        pageSize,
+      };
+    }
     const args = {
       where: { userId: id },
       orderBy: [{ createdAt: 'desc' as const }, { id: 'desc' as const }],

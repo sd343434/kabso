@@ -10,6 +10,7 @@ import type { AdjustCurrency, RestrictionKind } from '../users/account-control.j
 import type { AdminContext } from './admin-auth.service.js';
 import {
   adjustBody,
+  rechargePointsAdjustBody,
   CONTENT_TYPES,
   emailChangeBody,
   liftBody,
@@ -236,6 +237,25 @@ export class AdminControlController {
   }
 
   // ---- money -----------------------------------------------------------------------------------------------------
+
+  /** v1.126-social (D370, §10.162): «نقاط الشحن» — an audited correction of the user's recharge points. */
+  @Post('users/:userId/recharge-points/adjustments')
+  @HttpCode(200)
+  @RequireCapability('users.balance_adjust')
+  adjustRechargePoints(
+    @Param('userId') id: string,
+    @Body(new ZodValidationPipe(rechargePointsAdjustBody))
+    body: {
+      direction: 'CREDIT' | 'DEBIT';
+      amount: string;
+      allowNegative: boolean;
+      reason: string;
+      totpCode: string;
+    },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.control.adjustRechargePoints(pathUuid(id), body, admin);
+  }
 
   @Post('users/:userId/balance-adjustments')
   @HttpCode(200)

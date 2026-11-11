@@ -6,6 +6,7 @@ import { TopupModule } from '../topup/topup.module.js';
 import { MediaModule } from '../media/media.module.js';
 import { RechargeModule } from '../recharge/recharge.module.js';
 import { VipModule } from '../vip/vip.module.js';
+import { RechargePointsModule } from '../recharge-points/recharge-points.module.js';
 import { StoreModule } from '../store/store.module.js';
 import { MedalsModule } from '../medals/medals.module.js';
 import { SafetyModule } from '../safety/safety.module.js';
@@ -84,6 +85,8 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
     RechargeModule,
     // v1.82-social (D252): «VIP».
     VipModule,
+    // v1.126-social (D370): «نقاط الشحن» — the user page's balance, ledger and adjustment.
+    RechargePointsModule,
     StoreModule,
     // v1.81-live (D291): the medals' levels.
     MedalsModule,

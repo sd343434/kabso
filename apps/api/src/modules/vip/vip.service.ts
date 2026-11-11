@@ -11,6 +11,8 @@ import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { dateValue, programWindowsIn } from '../programs/programs-time.js';
 import { creditIn, debitIn } from '../wallet/wallet-ledger.js';
+import { pointsBalanceIn, spendPointsIn } from '../recharge-points/recharge-points-ledger.js';
+import type { BuyVipBody } from './vip.schemas.js';
 import { wearVipItemsIn } from './vip-bag.js';
 import { vipHoldsPerkIn, vipPerkAmountIn } from './vip-perks.js';
 import { PROFILE_VISITORS_DAYS, PROFILE_VISITORS_MAX } from './profile-visits.js';
@@ -22,6 +24,7 @@ import {
   VIP_RENEWAL_GRACE_DAYS,
   vipActive,
   vipDiscounted,
+  vipPointsCharge,
   vipRenewalApplies,
   vipDaysLeft,
   vipPerkAvailable,
@@ -68,6 +71,12 @@ export interface VipTierDto {
   badgeAnimation: string | null;
   badgeStill: string | null;
   priceCoins: number;
+  /**
+   * v1.126-social (D370, §10.162): the price in recharge points for one period, and a renewal's (with the same
+   * discount); null when the tier cannot be redeemed with points.
+   */
+  pricePoints: number | null;
+  renewPricePoints: number | null;
   durationDays: number;
   perks: VipPerkDto[];
 }
@@ -111,7 +120,16 @@ export interface MyVipDto {
    * is active or ended at most 7 days ago, the tier on sale, a discount set): the tier, the price to send and until
    * when it holds.
    */
-  renewal?: { tierId: string; priceCoins: number; discountPercent: number; until: string };
+  renewal?: {
+    tierId: string;
+    priceCoins: number;
+    /** v1.126-social (D370): the renewal's points price, or null when the tier has none. */
+    pricePoints: number | null;
+    discountPercent: number;
+    until: string;
+  };
+  /** v1.126-social (D370, §10.162): the caller's recharge points now (may be below 0 after a reversal). */
+  rechargePoints: number;
   /** v1.83-social (D258): present while the member holds DAILY_COINS with an amount. */
   dailyCoins?: VipDailyCoinsDto;
 }
@@ -141,8 +159,15 @@ export interface VipDailyCoinsClaimDto {
 /** `VipPurchaseResult`. */
 export interface VipPurchaseResultDto {
   kind: VipPurchaseKind;
-  /** The coins charged (after a renewal discount). */
+  /** v1.126-social (D370): what paid — COINS or recharge POINTS. */
+  payWith: 'COINS' | 'POINTS';
+  /** The coins charged (after a renewal discount); 0 when paid with points. */
   priceCoins: number;
+  /** v1.126-social (D370): the points charged and the tier's points price then; null when paid with coins. */
+  pricePoints: number | null;
+  listPricePoints: number | null;
+  /** v1.126-social (D370): the caller's recharge points right after the purchase. */
+  rechargePoints: number;
   /** v1.83-social (D258, §10.94.12): the tier's list price and the discount applied (0 = none). */
   listPriceCoins: number;
   discountPercent: number;
@@ -231,6 +256,9 @@ export class VipService {
         badgeAnimation: t.badgeAnimation,
         badgeStill: t.badgeStill,
         priceCoins: Number(t.priceCoins),
+        pricePoints: t.pointsPrice === null ? null : Number(t.pointsPrice),
+        renewPricePoints:
+          t.pointsPrice === null ? null : Number(vipPointsCharge(t.pointsPrice, t.renewalDiscountPercent)),
         durationDays: t.durationDays,
         perks: t.perks.map((p) => vipPerkDto(lang, p)),
       })),
@@ -247,16 +275,24 @@ export class VipService {
         ? {
             tierId: m.tierId,
             priceCoins: Number(vipDiscounted(m.tier.priceCoins, m.tier.renewalDiscountPercent)),
+            pricePoints:
+              m.tier.pointsPrice === null
+                ? null
+                : Number(vipPointsCharge(m.tier.pointsPrice, m.tier.renewalDiscountPercent)),
             discountPercent: m.tier.renewalDiscountPercent,
             until: new Date(m.expiresAt.getTime() + VIP_RENEWAL_GRACE_DAYS * 86_400_000).toISOString(),
           }
         : undefined;
-    if (!m || !vipActive(m.expiresAt, now)) return { membership: null, ...(renewal ? { renewal } : {}) };
+    const rechargePoints = Number(await pointsBalanceIn(this.prisma, userId));
+    if (!m || !vipActive(m.expiresAt, now)) {
+      return { membership: null, ...(renewal ? { renewal } : {}), rechargePoints };
+    }
     const daily = await this.dailyCoinsState(this.prisma, userId, now);
     return {
       membership: membershipDto(lang, m, m.tier, now),
       ...(renewal ? { renewal } : {}),
       ...(daily ? { dailyCoins: daily.dto } : {}),
+      rechargePoints,
     };
   }
 
@@ -360,17 +396,24 @@ export class VipService {
    * within 24 h: the same body → the first result, nothing charged; another body → 409 `IDEMPOTENCY_CONFLICT`) → 404
    * unknown tier → 409 `VIP_UNAVAILABLE` (`tier_off` | `downgrade` | `renewal_limit`) → 409 `VIP_PRICE_CHANGED` → 409
    * `INSUFFICIENT_COINS`. A refused request charges and changes nothing.
+   *
+   * v1.126-social (D370, §10.162) `payWith: POINTS` «استبدل بالنقاط»: the same NEW / RENEW / UPGRADE rules and renewal
+   * discount, paid with the tier's points price (409 `VIP_UNAVAILABLE` `no_points_price` when it has none) — the
+   * points taken by one conditional debit (`VIP_REDEEM`, reference the purchase; 409 `INSUFFICIENT_RECHARGE_POINTS`
+   * when the balance does not cover it), the price checked like the coins' (409 `VIP_PRICE_CHANGED`).
    */
   async buy(
     userId: string,
     idempotencyKey: string,
-    body: { tierId: string; priceCoins: number },
+    body: BuyVipBody,
     lang: ContentLanguage,
   ): Promise<{ replay: boolean; result: VipPurchaseResultDto }> {
     const key = idempotencyKey.toLowerCase();
     const tierId = body.tierId.toLowerCase();
+    const withPoints = body.payWith === 'POINTS';
+    // A coin purchase hashes as before D370 (a retry across the upgrade still matches).
     const requestHash = createHash('sha256')
-      .update(`${tierId}\n${String(body.priceCoins)}`)
+      .update(withPoints ? `${tierId}\nPOINTS\n${String(body.price)}` : `${tierId}\n${String(body.price)}`)
       .digest('hex');
     const replay = await this.findReplay(userId, key, requestHash, lang);
     if (replay) return { replay: true, result: replay };
@@ -422,11 +465,32 @@ export class VipService {
         // renewal discount; the price the person saw must match what is charged.
         const discount =
           plan.kind !== 'UPGRADE' && vipRenewalApplies(held, tier.id, now) ? tier.renewalDiscountPercent : 0;
-        const charged = vipDiscounted(tier.priceCoins, discount);
-        if (charged !== BigInt(body.priceCoins)) throw new AppException(ErrorCode.VIP_PRICE_CHANGED);
         const purchaseId = randomUUID();
-        const change = await debitIn(tx, userId, charged, 'VIP_PURCHASE', purchaseId);
-        if (!change) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
+        let charged: bigint;
+        let coinsAfter: bigint;
+        let points: { charged: bigint; list: bigint; after: bigint } | null = null;
+        if (withPoints) {
+          // D370: «استبدل بالنقاط» — the tier's points price, the same discount; the coins are not touched.
+          if (tier.pointsPrice === null) {
+            throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [
+              { field: 'tier', issue: 'no_points_price' },
+            ]);
+          }
+          const pointsCharged = vipPointsCharge(tier.pointsPrice, discount);
+          if (pointsCharged !== BigInt(body.price)) throw new AppException(ErrorCode.VIP_PRICE_CHANGED);
+          const spent = await spendPointsIn(tx, userId, pointsCharged, purchaseId);
+          if (!spent) throw new AppException(ErrorCode.INSUFFICIENT_RECHARGE_POINTS);
+          points = { charged: pointsCharged, list: tier.pointsPrice, after: spent.points };
+          charged = 0n;
+          const wallet = await tx.wallet.findUnique({ where: { userId }, select: { coins: true } });
+          coinsAfter = wallet?.coins ?? 0n;
+        } else {
+          charged = vipDiscounted(tier.priceCoins, discount);
+          if (charged !== BigInt(body.price)) throw new AppException(ErrorCode.VIP_PRICE_CHANGED);
+          const change = await debitIn(tx, userId, charged, 'VIP_PURCHASE', purchaseId);
+          if (!change) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
+          coinsAfter = change.coins;
+        }
         const active = held !== null && vipActive(held.expiresAt, now);
         await tx.vipPurchase.create({
           data: {
@@ -437,11 +501,15 @@ export class VipService {
             priceCoins: charged,
             listPriceCoins: tier.priceCoins,
             discountPercent: discount,
+            payWith: withPoints ? 'POINTS' : 'COINS',
+            pricePoints: points?.charged ?? null,
+            listPricePoints: points?.list ?? null,
+            pointsAfter: points?.after ?? null,
             durationDays: tier.durationDays,
             previousTierId: active ? held.tierId : null,
             previousExpiresAt: active ? held.expiresAt : null,
             expiresAt: plan.expiresAt,
-            coinsAfter: change.coins,
+            coinsAfter,
             idempotencyKey: key,
             requestHash,
           },
@@ -472,8 +540,11 @@ export class VipService {
               kind: plan.kind,
               tierId: tier.id,
               tierCode: tier.code,
+              payWith: withPoints ? 'POINTS' : 'COINS',
               priceCoins: Number(charged),
               listPriceCoins: Number(tier.priceCoins),
+              pricePoints: points ? Number(points.charged) : null,
+              listPricePoints: points ? Number(points.list) : null,
               discountPercent: discount,
               durationDays: tier.durationDays,
               previousTierId: active ? held.tierId : null,
@@ -485,12 +556,16 @@ export class VipService {
         });
         return {
           kind: plan.kind,
+          payWith: withPoints ? ('POINTS' as const) : ('COINS' as const),
           priceCoins: Number(charged),
           listPriceCoins: Number(tier.priceCoins),
+          pricePoints: points ? Number(points.charged) : null,
+          listPricePoints: points ? Number(points.list) : null,
           discountPercent: discount,
           durationDays: tier.durationDays,
           membership: membershipDto(lang, membership, tier, now),
-          coins: Number(change.coins),
+          coins: Number(coinsAfter),
+          rechargePoints: Number(points ? points.after : await pointsBalanceIn(tx, userId)),
         };
       });
       return { replay: false, result };
@@ -530,12 +605,16 @@ export class VipService {
           );
     return {
       kind: purchase.kind,
+      payWith: purchase.payWith,
       priceCoins: Number(purchase.priceCoins),
       listPriceCoins: Number(purchase.listPriceCoins ?? purchase.priceCoins),
+      pricePoints: purchase.pricePoints === null ? null : Number(purchase.pricePoints),
+      listPricePoints: purchase.listPricePoints === null ? null : Number(purchase.listPricePoints),
       discountPercent: purchase.discountPercent,
       durationDays: purchase.durationDays,
       membership,
       coins: Number(purchase.coinsAfter),
+      rechargePoints: Number(purchase.pointsAfter ?? (await pointsBalanceIn(this.prisma, userId))),
     };
   }
 }

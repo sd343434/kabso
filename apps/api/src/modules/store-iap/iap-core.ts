@@ -8,6 +8,11 @@ import { referralRechargeIn } from '../referrals/referral-core.js';
 import { fifoAttribution } from '../topup/topup-rules.js';
 import { endSessionsIn } from '../users/account-control.js';
 import { creditIn, reverseStoreIapIn } from '../wallet/wallet-ledger.js';
+import {
+  earnRechargePointsIn,
+  movePointsIn,
+  reversalReference,
+} from '../recharge-points/recharge-points-ledger.js';
 import { consumptionPercentage, type IapPlatformName } from './iap-rules.js';
 
 /**
@@ -139,6 +144,13 @@ export async function recordPurchaseIn(
     { userId: facts.userId, coins: facts.product.coins, source: 'STORE_IAP', now },
     badges,
   );
+  // v1.126-social (D370, §10.162): one recharge point per coin, once per purchase.
+  await earnRechargePointsIn(tx, {
+    userId: facts.userId,
+    coins: facts.product.coins,
+    reason: 'RECHARGE_STORE',
+    referenceId: id,
+  });
   await referralRechargeIn(
     tx,
     { userId: facts.userId, coins: facts.product.coins, reason: 'STORE_IAP', reference: id, now },
@@ -252,6 +264,21 @@ export async function refundPurchaseIn(
   if (!purchase || purchase.status !== 'CREDITED') return none;
   const { unspent, spends } = await unspentOfIn(tx, purchase);
   const change = await reverseStoreIapIn(tx, purchase.userId, purchase.coins, purchase.id);
+  // v1.126-social (D370, §10.162): the refunded purchase's points go too (the balance may go below 0) — only when it
+  // earned some (purchases credited before the points existed earned none).
+  const earned = await tx.rechargePointsEntry.findUnique({
+    where: { reason_referenceId: { reason: 'RECHARGE_STORE', referenceId: purchase.id } },
+    select: { delta: true },
+  });
+  if (earned) {
+    await movePointsIn(
+      tx,
+      purchase.userId,
+      -earned.delta,
+      'REVERSAL',
+      reversalReference('store', purchase.id),
+    );
+  }
   await tx.iapPurchase.update({
     where: { id: purchase.id },
     data: {

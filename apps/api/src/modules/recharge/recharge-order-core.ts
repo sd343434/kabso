@@ -10,6 +10,7 @@ import type {
 import { uuidv7 } from '../levels/uuidv7.js';
 import { creditIn } from '../wallet/wallet-ledger.js';
 import { recordRechargeIn, type RechargeCreditRules } from './recharge-badges.js';
+import { earnRechargePointsIn } from '../recharge-points/recharge-points-ledger.js';
 import { referralRechargeIn } from '../referrals/referral-core.js';
 import { moveStockIn, RechargeAdminError } from './recharge-core.js';
 import type { DisputeOutcome, OrderStatus } from './recharge-order-rules.js';
@@ -187,6 +188,13 @@ async function creditBuyerIn(
     { userId: order.buyerUserId, coins: order.coins, source: 'AGENT_SALE', now },
     badges,
   );
+  // v1.126-social (D370, §10.162): the buyer's recharge points (never the agent's), once per order.
+  await earnRechargePointsIn(tx, {
+    userId: order.buyerUserId,
+    coins: order.coins,
+    reason: 'RECHARGE_AGENT',
+    referenceId: order.id,
+  });
   // v1.74-social (D217): the invitee's first recharge pays the inviter a share (held).
   await referralRechargeIn(
     tx,

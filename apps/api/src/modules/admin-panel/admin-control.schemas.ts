@@ -97,6 +97,19 @@ export const adjustBody = z.strictObject({
   totpCode,
 });
 
+/**
+ * v1.126-social (D370, §10.162): `AdminRechargePointsAdjustRequest` — like a coin adjustment (TOTP, reason; a debit
+ * below 0 only with `allowNegative`, OWNER).
+ */
+export const rechargePointsAdjustBody = z.strictObject({
+  direction: z.enum(['CREDIT', 'DEBIT']),
+  /** Whole points as a decimal string (1 … 10^12). */
+  amount: z.string().regex(/^[1-9][0-9]{0,12}$/),
+  allowNegative: z.boolean().default(false),
+  reason,
+  totpCode,
+});
+
 export const userContentQuery = z.strictObject({
   kind: z.enum(['stories', 'comments']),
   page: z.coerce.number().int().min(1).max(10_000).default(1),

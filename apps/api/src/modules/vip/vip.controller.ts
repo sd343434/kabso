@@ -7,7 +7,7 @@ import type { AppRequest, AuthContext } from '../../common/http/request-context.
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import { UsersService } from '../users/users.service.js';
-import { buyVipBody } from './vip.schemas.js';
+import { buyVipBody, type BuyVipBody } from './vip.schemas.js';
 import {
   VipService,
   type MyVipDto,
@@ -66,7 +66,7 @@ export class VipController {
     @CurrentAuth() auth: AuthContext,
     @Req() req: AppRequest,
     @Headers('idempotency-key') rawKey: string | undefined,
-    @Body(new ZodValidationPipe(buyVipBody)) body: z.output<typeof buyVipBody>,
+    @Body(new ZodValidationPipe(buyVipBody)) body: BuyVipBody,
     @Res({ passthrough: true }) res: Response,
   ): Promise<VipPurchaseResultDto> {
     if (rawKey === undefined || rawKey === '') {

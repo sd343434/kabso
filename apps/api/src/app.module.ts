@@ -39,6 +39,7 @@ import { PublicProfileModule } from './modules/users/profiles/public-profile.mod
 import { UsersModule } from './modules/users/users.module.js';
 import { PremiumUsernamesModule } from './modules/premium-usernames/premium-usernames.module.js';
 import { WalletModule } from './modules/wallet/wallet.module.js';
+import { RechargePointsModule } from './modules/recharge-points/recharge-points.module.js';
 import { CreatorModule } from './modules/creator/creator.module.js';
 import { ProgramsModule } from './modules/programs/programs.module.js';
 import { VipModule } from './modules/vip/vip.module.js';
@@ -112,6 +113,8 @@ export class AppModule {
         PublicProfileModule,
         // v1.19-live (DRAFT, CP-017).
         WalletModule,
+        // v1.126-social (DRAFT, D370): «نقاط الشحن».
+        RechargePointsModule,
         // v1.28-live (D146): premium usernames and PUT /me/username.
         PremiumUsernamesModule,
         // v1.21-live (DRAFT, CP-018).

@@ -584,6 +584,11 @@ export enum AuditAction {
   ADMIN_CONTENT_DELETE = 'admin.content.delete',
   /** A coin or cherry adjustment {currency, delta, before, after, adjustmentId}. */
   ADMIN_BALANCE_ADJUST = 'admin.balance.adjust',
+  /**
+   * v1.126-social (D370, §10.162): the team's recharge-points correction {delta, before, after, entryId, allowNegative,
+   * reason, via}.
+   */
+  RECHARGE_POINTS_ADJUST = 'recharge_points.adjust',
 }
 
 export interface AuditEntry {
