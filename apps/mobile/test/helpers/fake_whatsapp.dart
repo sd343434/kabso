@@ -11,7 +11,7 @@ final d355Now = DateTime.utc(2026, 11, 10, 9, 30);
 const waMe = WaStaffRef(userId: 'me', displayName: 'هدى', staffId: 'Kabso03');
 const waMona = WaStaffRef(userId: 's2', displayName: 'منى', staffId: 'Kabso02');
 
-/// D364: the payments agents of the transfer sheet.
+/// D366: the payments agents of the transfer sheet.
 const waKhalid = WaStaffRef(
   userId: 's3',
   displayName: 'خالد',
@@ -111,7 +111,7 @@ List<WaMessage> waMessages({required bool ar, bool reaction = true}) => [
     at: d355Now.subtract(const Duration(minutes: 15)),
     text: 'السلام عليكم',
   ),
-  // D363: the day before — the chat's «أمس» separator.
+  // D365: the day before — the chat's «أمس» separator.
   WaMessage(
     id: 'm0',
     outbound: false,
@@ -141,16 +141,16 @@ class FakeWaRepository implements WaRepository {
 
   final List<WaFilter> filters = [];
 
-  /// D364: the department of each list read (null: all).
+  /// D366: the department of each list read (null: all).
   final List<WaDepartment?> departments = [];
 
-  /// D364: each transfer (department, to, note).
+  /// D366: each transfer (department, to, note).
   final List<(WaDepartment, String?, String?)> transfers = [];
 
-  /// D364: what a transfer answers (default: [current] moved as asked).
+  /// D366: what a transfer answers (default: [current] moved as asked).
   WaConversation Function(WaDepartment department, String? to)? afterTransfer;
 
-  /// D364: the agents of each department (default: [waMona] in GENERAL,
+  /// D366: the agents of each department (default: [waMona] in GENERAL,
   /// [waKhalid] and [waRana] in PAYMENTS).
   Map<WaDepartment, List<WaAgent>> agentsBy = {
     WaDepartment.general: const [WaAgent(ref: waMona, onShift: true)],

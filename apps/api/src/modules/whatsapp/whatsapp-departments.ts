@@ -1,7 +1,7 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 
 /**
- * v1.122-social (D364, CONVENTIONS §10.157): the WhatsApp departments «الأقسام» — a fixed set. A staff member at REPLY
+ * v1.123-social (D366, CONVENTIONS §10.159): the WhatsApp departments «الأقسام» — a fixed set. A staff member at REPLY
  * or above belongs to one or more (`wa_staff_departments`; no row: GENERAL); a conversation is in exactly one (GENERAL
  * until a transfer moves it). Plain functions over a Prisma client so the transfer, the agents list and the team page
  * share one rule.
@@ -59,7 +59,7 @@ export interface RoutingCandidate {
 }
 
 /**
- * «أول متاح في القسم» (§10.157.3): the candidate with the fewest open assigned conversations; a tie goes to the one
+ * «أول متاح في القسم» (§10.159.3): the candidate with the fewest open assigned conversations; a tie goes to the one
  * assigned least recently (never assigned first), then the lowest id (stable). Null when there is none.
  */
 export function firstAvailable(candidates: readonly RoutingCandidate[]): RoutingCandidate | null {

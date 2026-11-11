@@ -3,7 +3,7 @@
 //   whatsapp.inbox          the list: unread, with me / with someone / closed
 //   whatsapp.chat           a conversation inside the 24-hour window: bubbles,
 //                           ticks (read / failed), a voice note, a refused
-//                           file type, a reaction, the composer; D363: the
+//                           file type, a reaction, the composer; D365: the
 //                           DM look — grouped runs, «أمس» / «اليوم», the
 //                           window countdown chip, «تعذّر الإرسال»
 //   whatsapp.window_closed  outside the window: the banner and only
@@ -53,7 +53,7 @@ void main() {
             overrides: [waRepositoryProvider.overrideWithValue(repo)],
           );
           await tester.pumpAndSettle();
-          // D363: the avatars' default picture decoded before the shot
+          // D365: the avatars' default picture decoded before the shot
           // (the first shot of a run had none).
           await precacheImages(tester);
         });
@@ -135,7 +135,7 @@ void main() {
     }
   });
 
-  // D363: 360 × 800 with text at 130 % (Arabic, dark): the header, the
+  // D365: 360 × 800 with text at 130 % (Arabic, dark): the header, the
   // status strip, the bubbles and the composer fit without overflow.
   for (final (file, closed) in [
     ('whatsapp.chat', false),

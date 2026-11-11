@@ -9,8 +9,8 @@ import {
   WA_DEPARTMENTS,
 } from './whatsapp-departments.js';
 
-/** D364 (CONVENTIONS §10.157): the departments and «أول متاح في القسم». */
-describe('WhatsApp departments (D364)', () => {
+/** D366 (CONVENTIONS §10.159): the departments and «أول متاح في القسم». */
+describe('WhatsApp departments (D366)', () => {
   it('the fixed set, the catalogue order and GENERAL by default', () => {
     expect(WA_DEPARTMENTS).toEqual(['PAYMENTS', 'AGENCIES', 'TECHNICAL', 'REPORTS', 'GENERAL']);
     expect(isWaDepartment('REPORTS')).toBe(true);
@@ -63,7 +63,7 @@ describe('WhatsApp departments (D364)', () => {
     ).toBe('m');
   });
 
-  it('the transfer body: D364 with a department, D355 with toUserId only, never neither', () => {
+  it('the transfer body: D366 with a department, D355 with toUserId only, never neither', () => {
     const uuid = '0190f1f2-0000-7000-8000-000000000001';
     expect(transferBody.safeParse({ toUserId: uuid }).success).toBe(true);
     expect(transferBody.safeParse({ department: 'PAYMENTS' }).success).toBe(true);

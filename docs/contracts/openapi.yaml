@@ -586,8 +586,8 @@ info:
     `invalid_value`); `dislikeComment` / `undislikeComment` (`PUT`/`DELETE /comments/{commentId}/dislike`,
     `CommentDislikeState`) — a like and a dislike exclude each other; the dislike count is never returned;
     `Comment.viewerHasDisliked`. Migration `20270427090000_comment_dislikes_newest`. Additive.
-    **D364 (DRAFT v1.122-social)** WhatsApp departments and the transfer with a department «الأقسام والتحويل»
-    (CONVENTIONS §10.157; owner approved): `WaDepartment` PAYMENTS / AGENCIES / TECHNICAL / REPORTS / GENERAL. A staff
+    **D366 (DRAFT v1.123-social)** WhatsApp departments and the transfer with a department «الأقسام والتحويل»
+    (CONVENTIONS §10.159; owner approved): `WaDepartment` PAYMENTS / AGENCIES / TECHNICAL / REPORTS / GENERAL. A staff
     member at REPLY or above belongs to one or more (none set = GENERAL), set by `team.manage` with
     `setAdminTeamWhatsAppDepartments` (`PUT /admin/team/{userId}/whatsapp/departments`, code + reason, audited
     `admin.team.whatsapp_departments`; refusals `team_not_member`, `team_departments_level`);
@@ -599,7 +599,7 @@ info:
     `not_in_department`). D355's `{toUserId}` alone still works (GENERAL, no membership check). `WaAssignment` gains
     `department`, `fromDepartment` and `note`; `WaAgent` gains `departments` and `openCount`;
     `get…WhatsAppAgents?department=`. A transfer is pushed to the receiver (the department's members for the queue).
-    Migration `20270426090000_whatsapp_departments`. Additive (an older client keeps working; every conversation and
+    Migration `20270428090000_whatsapp_departments`. Additive (an older client keeps working; every conversation and
     person starts in GENERAL).
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
@@ -19605,7 +19605,7 @@ paths:
       operationId: setAdminTeamWhatsAppDepartments
       summary: Sets a staff member's WhatsApp departments «الأقسام» (code again; reason; audited) (team.manage)
       description: >-
-        (v1.122-social, DRAFT, D364, §10.157.1) One or more of PAYMENTS / AGENCIES / TECHNICAL / REPORTS / GENERAL, or
+        (v1.123-social, DRAFT, D366, §10.159.1) One or more of PAYMENTS / AGENCIES / TECHNICAL / REPORTS / GENERAL, or
         [] to go back to the default (GENERAL). Only for a staff member at the WhatsApp level REPLY or above (409
         `ADMIN_ACTION_REFUSED` `team_departments_level`; `team_not_member` without a panel role). The departments route
         later transfers; conversations already assigned stay. Audited `admin.team.whatsapp_departments` {before, after,
@@ -21799,7 +21799,7 @@ paths:
         - name: department
           in: query
           required: false
-          description: "(v1.122-social, D364, §10.157.4) Only the conversations of this department."
+          description: "(v1.123-social, D366, §10.159.4) Only the conversations of this department."
           schema: { $ref: '#/components/schemas/WaDepartment' }
         - name: q
           in: query
@@ -22284,7 +22284,7 @@ paths:
         - name: department
           in: query
           required: false
-          description: "(v1.122-social, D364, §10.157.2) Only the members of this department, on shift first, then the fewest open conversations."
+          description: "(v1.123-social, D366, §10.159.2) Only the members of this department, on shift first, then the fewest open conversations."
           schema: { $ref: '#/components/schemas/WaDepartment' }
       responses:
         '200':
@@ -22441,7 +22441,7 @@ paths:
         - name: department
           in: query
           required: false
-          description: "(v1.122-social, D364, §10.157.4) Only the conversations of this department."
+          description: "(v1.123-social, D366, §10.159.4) Only the conversations of this department."
           schema: { $ref: '#/components/schemas/WaDepartment' }
         - name: q
           in: query
@@ -22944,7 +22944,7 @@ paths:
         - name: department
           in: query
           required: false
-          description: "(v1.122-social, D364, §10.157.2) Only the members of this department, on shift first, then the fewest open conversations."
+          description: "(v1.123-social, D366, §10.159.2) Only the members of this department, on shift first, then the fewest open conversations."
           schema: { $ref: '#/components/schemas/WaDepartment' }
       responses:
         '200':
@@ -23706,16 +23706,16 @@ components:
     WaDepartment:
       type: string
       enum: [PAYMENTS, AGENCIES, TECHNICAL, REPORTS, GENERAL]
-      description: "(v1.122-social, D364, §10.157) A WhatsApp department: PAYMENTS «الشحن والمدفوعات», AGENCIES «الوكالات والمضيفون», TECHNICAL «المشاكل التقنية», REPORTS «البلاغات والحظر», GENERAL «عام» (the default)."
+      description: "(v1.123-social, D366, §10.159) A WhatsApp department: PAYMENTS «الشحن والمدفوعات», AGENCIES «الوكالات والمضيفون», TECHNICAL «المشاكل التقنية», REPORTS «البلاغات والحظر», GENERAL «عام» (the default)."
     WaTransferRequest:
       type: object
       additionalProperties: false
       description: >-
-        (D355) `{toUserId}`; (v1.122-social, D364, §10.157.2) `{department, toUserId?, note?}`. With a `department` and
+        (D355) `{toUserId}`; (v1.123-social, D366, §10.159.2) `{department, toUserId?, note?}`. With a `department` and
         no `toUserId`: «أول متاح في القسم» — the department's REPLY+ member ON SHIFT (not the current assignee) with the
         fewest open assigned conversations, a tie to the one assigned least recently; nobody: the department's
         unassigned queue (`assignedTo` null, `department` set). A `toUserId` must be REPLY+ (400 `not_an_agent`) and,
-        with a `department`, a member of it (400 `not_in_department`). Without a `department` (a client before D364)
+        with a `department`, a member of it (400 `not_in_department`). Without a `department` (a client before D366)
         `toUserId` is required (400 `required`) and the department becomes GENERAL with no membership check.
       properties:
         toUserId: { type: string, format: uuid }
@@ -23728,17 +23728,17 @@ components:
         id: { type: string, format: uuid }
         action: { type: string, enum: [CLAIM, RELEASE, TRANSFER, CLOSE, REOPEN] }
         from: { oneOf: [{ $ref: '#/components/schemas/WaStaffRef' }, { type: 'null' }] }
-        to: { oneOf: [{ $ref: '#/components/schemas/WaStaffRef' }, { type: 'null' }], description: "A TRANSFER with null: the department's unassigned queue (D364)." }
+        to: { oneOf: [{ $ref: '#/components/schemas/WaStaffRef' }, { type: 'null' }], description: "A TRANSFER with null: the department's unassigned queue (D366)." }
         by: { oneOf: [{ $ref: '#/components/schemas/WaStaffRef' }, { type: 'null' }], description: "null: the customer's message reopened it." }
         at: { type: string, format: date-time }
         department:
-          description: "(v1.122-social, D364) A TRANSFER's department; null for the other actions (and transfers before D364)."
+          description: "(v1.123-social, D366) A TRANSFER's department; null for the other actions (and transfers before D366)."
           oneOf: [{ $ref: '#/components/schemas/WaDepartment' }, { type: 'null' }]
         fromDepartment:
-          description: "(v1.122-social, D364) The department the conversation was in before the TRANSFER."
+          description: "(v1.123-social, D366) The department the conversation was in before the TRANSFER."
           oneOf: [{ $ref: '#/components/schemas/WaDepartment' }, { type: 'null' }]
         note:
-          description: "(v1.122-social, D364) The internal note written with the TRANSFER (also in the notes)."
+          description: "(v1.123-social, D366) The internal note written with the TRANSFER (also in the notes)."
           oneOf:
             - type: object
               required: [id, body]
@@ -23801,8 +23801,8 @@ components:
               type: array
               minItems: 1
               items: { $ref: '#/components/schemas/WaDepartment' }
-              description: "(v1.122-social, D364) The person's departments (GENERAL when none is set), catalogue order."
-            openCount: { type: integer, minimum: 0, description: "(v1.122-social, D364) Open conversations assigned to the person now." }
+              description: "(v1.123-social, D366) The person's departments (GENERAL when none is set), catalogue order."
+            openCount: { type: integer, minimum: 0, description: "(v1.123-social, D366) Open conversations assigned to the person now." }
     WaAgentList:
       type: object
       required: [data]
@@ -26022,7 +26022,7 @@ components:
     AdminTeamWhatsAppDepartments:
       type: object
       required: [departments, isDefault]
-      description: (v1.122-social, D364, §10.157.1) A staff member's WhatsApp departments.
+      description: (v1.123-social, D366, §10.159.1) A staff member's WhatsApp departments.
       properties:
         departments:
           type: array
@@ -30839,7 +30839,7 @@ components:
                 description: (v1.120-social, D360, §10.155) The person's WhatsApp level «مستوى واتساب»; set with `setAdminTeamWhatsApp`.
               whatsappDepartments:
                 $ref: '#/components/schemas/AdminTeamWhatsAppDepartments'
-                description: (v1.122-social, D364, §10.157.1) The person's WhatsApp departments «الأقسام»; set with `setAdminTeamWhatsAppDepartments`.
+                description: (v1.123-social, D366, §10.159.1) The person's WhatsApp departments «الأقسام»; set with `setAdminTeamWhatsAppDepartments`.
     AdminTeamGrantRequest:
       type: object
       description: (v1.66-live, D271) Exactly one of `account` and `email` (400 `VALIDATION_FAILED` otherwise).

@@ -347,7 +347,7 @@ export enum AuditAction {
   WHATSAPP_PURGE = 'whatsapp.retention.purge',
   /** v1.120-social (D360, §10.155): a staff member's WhatsApp level set or reset {before, after, released, reason}. */
   WHATSAPP_LEVEL = 'admin.team.whatsapp',
-  /** v1.122-social (D364, §10.157.1): a staff member's WhatsApp departments set or reset {before, after, reason}. */
+  /** v1.123-social (D366, §10.159.1): a staff member's WhatsApp departments set or reset {before, after, reason}. */
   WHATSAPP_DEPARTMENTS = 'admin.team.whatsapp_departments',
   TOPUP_EVENT_UNMATCHED = 'topup.event.unmatched',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).

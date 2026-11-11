@@ -433,7 +433,7 @@ export const teamWhatsAppBody = z.strictObject({
   totpCode,
 });
 
-/** v1.122-social (D364, §10.157.1): a staff member's WhatsApp departments; [] = back to the default (GENERAL). */
+/** v1.123-social (D366, §10.159.1): a staff member's WhatsApp departments; [] = back to the default (GENERAL). */
 export const teamWaDepartmentsBody = z.strictObject({
   departments: z
     .array(z.enum(WA_DEPARTMENTS))

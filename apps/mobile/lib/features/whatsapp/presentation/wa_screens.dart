@@ -34,7 +34,7 @@ class WaInboxScreen extends ConsumerStatefulWidget {
   static const searchKey = Key('wa.search');
   static Key row(String id) => Key('wa.row.$id');
 
-  /// D364: the department filter's chips (null: «كل الأقسام»).
+  /// D366: the department filter's chips (null: «كل الأقسام»).
   static const departmentsKey = Key('wa.departments');
   static Key departmentChip(WaDepartment? d) =>
       Key('wa.department.${d?.wire ?? 'all'}');
@@ -129,7 +129,7 @@ class _WaInboxScreenState extends ConsumerState<WaInboxScreen> {
               },
             ),
           ),
-          // D364 (§10.157.4): one department's conversations — with
+          // D366 (§10.159.4): one department's conversations — with
           // «غير مسندة», its queue.
           SingleChildScrollView(
             key: WaInboxScreen.departmentsKey,
@@ -258,12 +258,12 @@ class _MuteButtonState extends ConsumerState<_MuteButton> {
   }
 }
 
-/// A phone number reads left to right inside Arabic. D363: grouped for the
+/// A phone number reads left to right inside Arabic. D365: grouped for the
 /// eye («+966 50 000 1001») and isolated left to right (LRI … PDI) so the
 /// «+» stays in front inside an Arabic line.
 String waPhone(String e164) => '\u2066${waPhoneGroups(e164)}\u2069';
 
-/// D363: an E.164 number in its national groups — the Gulf / Arab codes the
+/// D365: an E.164 number in its national groups — the Gulf / Arab codes the
 /// customers write from, North America and the UK; any other number as
 /// `+cc rest` in threes. Not a number → unchanged.
 String waPhoneGroups(String e164) {
@@ -334,7 +334,7 @@ String waPhoneGroups(String e164) {
 String _staff(AppLocalizations l10n, WaStaffRef? s) =>
     s?.label ?? l10n.waSomeone;
 
-/// D364 (§10.157): a department's name in the app's language.
+/// D366 (§10.159): a department's name in the app's language.
 String waDepartmentName(AppLocalizations l10n, WaDepartment d) => switch (d) {
   WaDepartment.payments => l10n.waDeptPAYMENTS,
   WaDepartment.agencies => l10n.waDeptAGENCIES,
@@ -343,7 +343,7 @@ String waDepartmentName(AppLocalizations l10n, WaDepartment d) => switch (d) {
   WaDepartment.general => l10n.waDeptGENERAL,
 };
 
-/// D364: each department's icon (the chip, the sheet).
+/// D366: each department's icon (the chip, the sheet).
 IconData waDepartmentIcon(WaDepartment d) => switch (d) {
   WaDepartment.payments => Icons.payments_outlined,
   WaDepartment.agencies => Icons.groups_outlined,
@@ -352,7 +352,7 @@ IconData waDepartmentIcon(WaDepartment d) => switch (d) {
   WaDepartment.general => Icons.forum_outlined,
 };
 
-/// D364: the conversation's department as a small neutral pill (inbox rows,
+/// D366: the conversation's department as a small neutral pill (inbox rows,
 /// the chat's status strip), read as «القسم: …».
 class WaDepartmentPill extends StatelessWidget {
   const new({required this.department, super.key});
@@ -378,7 +378,7 @@ class WaDepartmentPill extends StatelessWidget {
   }
 }
 
-/// D363: one inbox row, in the Messages tab's language (D336): the picture,
+/// D365: one inbox row, in the Messages tab's language (D336): the picture,
 /// the name (or the number, formatted), the time and the unread count under
 /// it, the last message, and who has it as a small tinted chip.
 class WaConversationTile extends StatelessWidget {
@@ -496,7 +496,7 @@ class WaConversationTile extends StatelessWidget {
   }
 }
 
-/// D363: a small tinted label (who has the conversation, the reply window,
+/// D365: a small tinted label (who has the conversation, the reply window,
 /// «مشاهدة فقط»): the colour at 14 % behind its own text.
 class WaPill extends StatelessWidget {
   const new({required this.label, required this.color, super.key, this.icon});
@@ -588,7 +588,7 @@ class WaCountBadge extends StatelessWidget {
 /// release / transfer / close / reopen, and the customer's details (the
 /// linked Kabso account, the internal notes).
 ///
-/// D363 (owner: «شكل مسجات واتساب في التطبيق سيء»): the look of Kabso's own
+/// D365 (owner: «شكل مسجات واتساب في التطبيق سيء»): the look of Kabso's own
 /// conversation (D68/D69/D336) — the header with the picture, the name and
 /// the number, a status strip (the window's countdown, who has it, «مشاهدة
 /// فقط»), DM bubbles grouped by sender with day separators, and the DM
@@ -605,7 +605,7 @@ class WaChatScreen extends ConsumerStatefulWidget {
   static const menuKey = Key('wa.menu');
   static const detailsKey = Key('wa.details');
 
-  /// D364: the header's «تحويل» button (REPLY+, open conversations).
+  /// D366: the header's «تحويل» button (REPLY+, open conversations).
   static const transferKey = Key('wa.transfer');
 
   @override
@@ -662,7 +662,7 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
     }
   }
 
-  /// D364 (§10.157.2): the transfer sheet — a department, «أول متاح في
+  /// D366 (§10.159.2): the transfer sheet — a department, «أول متاح في
   /// القسم» or one of its agents, a note — then a toast with where it went.
   Future<void> _transfer(WaConversation c) async {
     final choice = await showModalBottomSheet<WaTransferChoice>(
@@ -752,7 +752,7 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
                 builder: (_) => WaCustomerSheet(conversationId: _id),
               ),
             ),
-          // D364: «تحويل» in the header, beside the customer button (not in
+          // D366: «تحويل» in the header, beside the customer button (not in
           // the menu any more); never for VIEW or a closed conversation.
           if (c != null && !viewOnly && c.open)
             IconButton(
@@ -817,7 +817,7 @@ String waErrorMessage(AppLocalizations l10n, Object error) {
   };
 }
 
-/// D363: why Meta refused a sent message, in the app's language — Meta's
+/// D365: why Meta refused a sent message, in the app's language — Meta's
 /// own title (English) is never shown.
 String waFailReason(AppLocalizations l10n, int? metaCode) => switch (metaCode) {
   131047 || 470 => l10n.waErrWindow,
@@ -846,7 +846,7 @@ class WaChatBody extends StatelessWidget {
   final VoidCallback onClaim;
   final VoidCallback onReopen;
 
-  /// D363: sends a failed text again (a new message); null hides it.
+  /// D365: sends a failed text again (a new message); null hides it.
   final ValueChanged<WaMessage>? onRetry;
 
   /// D360 (§10.155): the WhatsApp level VIEW — no composer, no reopen, the
@@ -924,7 +924,7 @@ bool _sameDay(DateTime a, DateTime b) {
   return x.year == y.year && x.month == y.month && x.day == y.day;
 }
 
-/// D363: two messages read as one run — same side, same sender, same day,
+/// D365: two messages read as one run — same side, same sender, same day,
 /// at most [_runGap] apart.
 const _runGap = Duration(minutes: 5);
 
@@ -938,7 +938,7 @@ bool _joins(WaMessage? older, WaMessage newer) {
   return newer.at.difference(older.at).abs() <= _runGap;
 }
 
-/// D363: the centred day pill — «اليوم», «أمس», else the date.
+/// D365: the centred day pill — «اليوم», «أمس», else the date.
 class WaDaySeparator extends StatelessWidget {
   const new({required this.day, super.key});
 
@@ -996,7 +996,7 @@ Color _incomingFill(BuildContext context) =>
     ? context.palette.surfaceRaised
     : context.palette.surfaceOverlay;
 
-/// D363: the status strip under the header (the place of DM's notice, D155):
+/// D365: the status strip under the header (the place of DM's notice, D155):
 /// the reply window's countdown — or «مغلقة — قالب فقط» — who has the
 /// conversation, and «مشاهدة فقط» for the level VIEW (D360).
 class WaWindowBanner extends StatelessWidget {
@@ -1103,7 +1103,7 @@ class WaBubble extends StatelessWidget {
   final bool first;
   final bool last;
 
-  /// D363: «إعادة الإرسال» under a failed text (null: not offered).
+  /// D365: «إعادة الإرسال» under a failed text (null: not offered).
   final VoidCallback? onRetry;
 
   static const failedKey = Key('wa.failed');
@@ -1319,7 +1319,7 @@ class WaBubble extends StatelessWidget {
   }
 }
 
-/// D363: under a failed staff message — «تعذّر الإرسال» (tap: the reason in
+/// D365: under a failed staff message — «تعذّر الإرسال» (tap: the reason in
 /// words) and, for a text inside the window, «إعادة الإرسال».
 class _FailedLine extends StatelessWidget {
   const new({required this.m, this.onRetry});
@@ -1435,7 +1435,7 @@ TextDirection? _dirOf(String text) {
 }
 
 /// ✓ sent, ✓✓ delivered, ✓✓ read (full strength, a little larger), ⚠
-/// failed. D363: inside the red bubble the ticks take its text colour
+/// failed. D365: inside the red bubble the ticks take its text colour
 /// ([color]); without one, the palette's (blue for read).
 class WaTicks extends StatelessWidget {
   const new({required this.tick, super.key, this.color});
@@ -1790,7 +1790,7 @@ class _ComposerSurface extends StatelessWidget {
 }
 
 /// v1.120-social (D360, §10.155): «مشاهدة فقط» — the chip for a staff
-/// member whose WhatsApp level is VIEW (no actions menu). D363: in the
+/// member whose WhatsApp level is VIEW (no actions menu). D365: in the
 /// status strip.
 class WaViewOnlyLabel extends StatelessWidget {
   const new({super.key});
@@ -2270,7 +2270,7 @@ class _WaTemplateSheetState extends ConsumerState<WaTemplateSheet> {
   }
 }
 
-/// D364 (CONVENTIONS §10.157.2; owner «نعم موافق»): the transfer sheet —
+/// D366 (CONVENTIONS §10.159.2; owner «نعم موافق»): the transfer sheet —
 /// the department chips, then «أول متاح في القسم» first, then that
 /// department's agents (an on-shift dot and their open conversations), an
 /// internal note (never sent), and «تحويل». Pops a [WaTransferChoice].

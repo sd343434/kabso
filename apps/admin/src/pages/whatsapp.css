@@ -283,7 +283,7 @@
   unicode-bidi: isolate;
 }
 
-/* D364 (§10.157): the department tag, the inbox filter and the transfer dialog. */
+/* D366 (§10.159): the department tag, the inbox filter and the transfer dialog. */
 .wa-row-tags {
   display: flex;
   flex-wrap: wrap;

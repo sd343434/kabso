@@ -1,9 +1,9 @@
 /**
- * D364 (owner approved «نعم موافق»; CONVENTIONS §10.157): WhatsApp departments and the transfer with a department, a
+ * D366 (owner approved «نعم موافق»; CONVENTIONS §10.159): WhatsApp departments and the transfer with a department, a
  * target and a note — the chat's transfer dialog, the inbox's department filter and chips, and the departments on the
  * staff card. Merged into i18n.ts.
  */
-export const AR_D364 = {
+export const AR_D366 = {
   waDeptPAYMENTS: "الشحن والمدفوعات",
   waDeptAGENCIES: "الوكالات والمضيفون",
   waDeptTECHNICAL: "المشاكل التقنية",
@@ -39,7 +39,7 @@ export const AR_D364 = {
   waDepartmentsReplyOnly: "الأقسام لمن مستواه في واتساب «رد» أو «إدارة».",
 };
 
-export const EN_D364: Record<keyof typeof AR_D364, string> = {
+export const EN_D366: Record<keyof typeof AR_D366, string> = {
   waDeptPAYMENTS: "Top-ups & payments",
   waDeptAGENCIES: "Agencies & hosts",
   waDeptTECHNICAL: "Technical issues",

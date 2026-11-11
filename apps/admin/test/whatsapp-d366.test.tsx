@@ -1,5 +1,5 @@
 /**
- * D364 (owner approved «نعم موافق»; CONVENTIONS §10.157): WhatsApp departments and the transfer in the panel — rendered
+ * D366 (owner approved «نعم موافق»; CONVENTIONS §10.159): WhatsApp departments and the transfer in the panel — rendered
  * to HTML in Node: the transfer dialog (the department chips, «أول متاح في القسم» first and picked by default, the
  * department's agents with the on-shift dot and their open conversations, the note, «تحويل»), the department tag on the
  * inbox rows and in the chat head, the department queue's name, the inbox's department filter, the history lines with
@@ -10,7 +10,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { AppContext, type AppState } from '../src/context';
 import { DICTIONARIES, translate, type Lang } from '../src/i18n';
-import { AR_D364, EN_D364 } from '../src/i18n-d364';
+import { AR_D366, EN_D366 } from '../src/i18n-d366';
 import {
   MemberCard,
   WaDepartmentsDialog,
@@ -98,24 +98,24 @@ const member = (
 });
 const REPLY: TeamWhatsApp = { level: 'REPLY', setLevel: null, defaultLevel: 'REPLY', locked: false };
 
-describe('D364 strings', () => {
+describe('D366 strings', () => {
   it('has every string in both languages, merged into the dictionaries', () => {
-    expect(Object.keys(EN_D364).sort()).toEqual(Object.keys(AR_D364).sort());
-    for (const k of Object.keys(AR_D364) as (keyof typeof AR_D364)[]) {
-      expect(EN_D364[k], k).toBeTruthy();
-      expect(DICTIONARIES.ar[k as keyof typeof DICTIONARIES.ar], k).toBe(AR_D364[k]);
-      expect(DICTIONARIES.en[k as keyof typeof DICTIONARIES.en], k).toBe(EN_D364[k]);
+    expect(Object.keys(EN_D366).sort()).toEqual(Object.keys(AR_D366).sort());
+    for (const k of Object.keys(AR_D366) as (keyof typeof AR_D366)[]) {
+      expect(EN_D366[k], k).toBeTruthy();
+      expect(DICTIONARIES.ar[k as keyof typeof DICTIONARIES.ar], k).toBe(AR_D366[k]);
+      expect(DICTIONARIES.en[k as keyof typeof DICTIONARIES.en], k).toBe(EN_D366[k]);
     }
-    expect(AR_D364.waDeptPAYMENTS).toBe('الشحن والمدفوعات');
-    expect(AR_D364.waDeptAGENCIES).toBe('الوكالات والمضيفون');
-    expect(AR_D364.waDeptTECHNICAL).toBe('المشاكل التقنية');
-    expect(AR_D364.waDeptREPORTS).toBe('البلاغات والحظر');
-    expect(AR_D364.waDeptGENERAL).toBe('عام');
-    expect(AR_D364.waTransferFirst).toBe('أول متاح في القسم');
+    expect(AR_D366.waDeptPAYMENTS).toBe('الشحن والمدفوعات');
+    expect(AR_D366.waDeptAGENCIES).toBe('الوكالات والمضيفون');
+    expect(AR_D366.waDeptTECHNICAL).toBe('المشاكل التقنية');
+    expect(AR_D366.waDeptREPORTS).toBe('البلاغات والحظر');
+    expect(AR_D366.waDeptGENERAL).toBe('عام');
+    expect(AR_D366.waTransferFirst).toBe('أول متاح في القسم');
   });
 });
 
-describe('D364 the transfer dialog', () => {
+describe('D366 the transfer dialog', () => {
   it('department chips, «أول متاح» first and picked, the agents with shift and load, the note, «تحويل»', () => {
     const html = wrap('ar', OWNER_CAPS, (
       <WaTransferView
@@ -156,7 +156,7 @@ describe('D364 the transfer dialog', () => {
   });
 });
 
-describe('D364 the inbox and the chat', () => {
+describe('D366 the inbox and the chat', () => {
   it('rows and the chat head carry the department; an unassigned one reads as the department queue', () => {
     const rows = wrap('ar', OWNER_CAPS, (
       <WaConversationList items={[CONV, { ...CONV, id: 'c2', department: undefined }]} selected={null} onOpen={noop} />
@@ -201,12 +201,12 @@ describe('D364 the inbox and the chat', () => {
     };
     expect(historyLine(t('en'), base)).toBe('Ali transferred it to Badr — Top-ups & payments · Note: paid the agent');
     expect(historyLine(t('ar'), { ...base, to: null, note: null })).toBe('حوّلها Ali إلى قائمة الشحن والمدفوعات');
-    // Before D364 (no department): D355's line.
+    // Before D366 (no department): D355's line.
     expect(historyLine(t('en'), { ...base, department: undefined, note: undefined })).toBe('Ali transferred it to Badr');
   });
 });
 
-describe('D364 the staff card', () => {
+describe('D366 the staff card', () => {
   it('shows the departments (GENERAL by default) with the change button for REPLY+', () => {
     const m = member(REPLY, { departments: ['GENERAL'], isDefault: true });
     const ar = wrap('ar', OWNER_CAPS, (

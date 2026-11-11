@@ -1008,7 +1008,7 @@ export class AdminV2Controller {
     return this.team.setWhatsApp(pathUuid(id), body, admin);
   }
 
-  /** v1.122-social (D364, §10.157.1): a staff member's WhatsApp departments (team.manage, code + reason, audited). */
+  /** v1.123-social (D366, §10.159.1): a staff member's WhatsApp departments (team.manage, code + reason, audited). */
   @Put('team/:userId/whatsapp/departments')
   @HttpCode(200)
   @TEAM_LIMIT

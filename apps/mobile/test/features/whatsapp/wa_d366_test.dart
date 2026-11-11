@@ -1,4 +1,4 @@
-// D364 (CONVENTIONS §10.157; owner «نعم موافق»): WhatsApp departments and
+// D366 (CONVENTIONS §10.159; owner «نعم موافق»): WhatsApp departments and
 // the transfer on the phone — the header's «تحويل» button (REPLY+, open
 // conversations; never VIEW or closed; no longer in the ⋮ menu), the transfer
 // sheet (department chips, «أول متاح في القسم» first, the department's
@@ -345,7 +345,7 @@ void main() {
       expect(b.openCount, 4);
     });
 
-    test('transfer, agents and the list send the D364 fields', () async {
+    test('transfer, agents and the list send the D366 fields', () async {
       final http = FakeHttpAdapter();
       final prefs = await testPrefs(language: 'ar');
       final container = ProviderContainer.test(

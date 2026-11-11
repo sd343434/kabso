@@ -14,7 +14,7 @@ abstract interface class WaRepository {
   /// `GET …/summary` — the badge (`enabled` false when WhatsApp is off).
   Future<WaSummary> summary();
 
-  /// D364: [department] keeps one department's conversations.
+  /// D366: [department] keeps one department's conversations.
   Future<List<WaConversation>> conversations(
     WaFilter filter, {
     String? q,
@@ -51,7 +51,7 @@ abstract interface class WaRepository {
   /// `claim` / `release` / `close` / `reopen`.
   Future<WaConversation> act(String id, String action);
 
-  /// D364 (§10.157.2): to [department] — [toUserId] in it, or (null) its
+  /// D366 (§10.159.2): to [department] — [toUserId] in it, or (null) its
   /// first available agent / its queue — with an optional internal [note].
   Future<WaConversation> transfer(
     String id, {
@@ -70,7 +70,7 @@ abstract interface class WaRepository {
 
   Future<List<WaQuickReply>> quickReplies();
 
-  /// D364: [department] keeps its members (on shift first, then the least
+  /// D366: [department] keeps its members (on shift first, then the least
   /// busy).
   Future<List<WaAgent>> agents({WaDepartment? department});
 

@@ -1,5 +1,5 @@
 /**
- * D364 (owner approved «نعم موافق»; contract v1.122-social, CONVENTIONS §10.157): WhatsApp departments and the transfer
+ * D366 (owner approved «نعم موافق»; contract v1.123-social, CONVENTIONS §10.159): WhatsApp departments and the transfer
  * with a department, a target and a note. End to end against PostgreSQL + Redis with the fake Graph API of D355: the
  * defaults (everyone and every conversation GENERAL), setting departments from «الموظفون والصلاحيات» (team.manage, code +
  * reason, audited; REPLY+ only), a transfer to a person (refused outside the department or below REPLY), «أول متاح في
@@ -41,8 +41,8 @@ const WABA = '2098765432164';
 const auth = (u: { token: string }) => ({ Authorization: `Bearer ${u.token}` });
 const unix = (d = new Date()) => String(Math.floor(d.getTime() / 1000));
 
-describe('D364 contract coverage', () => {
-  it('openapi v1.122-social declares the departments operation', () => {
+describe('D366 contract coverage', () => {
+  it('openapi v1.123-social declares the departments operation', () => {
     const ids = operations().map((o) => `${o.operationId} ${o.method.toUpperCase()} ${o.path}`);
     expect(ids).toContain(
       'setAdminTeamWhatsAppDepartments PUT /api/v1/admin/team/{userId}/whatsapp/departments',
@@ -50,7 +50,7 @@ describe('D364 contract coverage', () => {
   });
 });
 
-describe('D364 WhatsApp departments and the transfer', { timeout: 600_000 }, () => {
+describe('D366 WhatsApp departments and the transfer', { timeout: 600_000 }, () => {
   const accessToken = randomBytes(24).toString('base64url');
   const appSecret = randomBytes(16).toString('hex');
   const verifyToken = randomBytes(16).toString('base64url');
@@ -82,7 +82,7 @@ describe('D364 WhatsApp departments and the transfer', { timeout: 600_000 }, () 
     seq += 1;
     return {
       contacts: [{ profile: { name }, wa_id: phone }],
-      messages: [{ from: phone, id: `wamid.D364-${seq}`, timestamp: unix(), type: 'text', text: { body } }],
+      messages: [{ from: phone, id: `wamid.D366-${seq}`, timestamp: unix(), type: 'text', text: { body } }],
     };
   };
   const staff = (u: { token: string }, method: 'get' | 'post' | 'put', path: string) =>
@@ -102,7 +102,7 @@ describe('D364 WhatsApp departments and the transfer', { timeout: 600_000 }, () 
     const totpCode = p.nextCode(by.secret);
     const r = await p.send(by, 'put', `/admin/team/${target.id}/whatsapp/departments`, {
       departments,
-      reason: 'D364 test',
+      reason: 'D366 test',
       totpCode,
     });
     vi.useRealTimers();
@@ -112,7 +112,7 @@ describe('D364 WhatsApp departments and the transfer', { timeout: 600_000 }, () 
     const totpCode = p.nextCode(owner.secret);
     const r = await p.send(owner, 'put', `/admin/team/${target.id}/whatsapp`, {
       level,
-      reason: 'D364 test',
+      reason: 'D366 test',
       totpCode,
     });
     vi.useRealTimers();
@@ -270,7 +270,7 @@ describe('D364 WhatsApp departments and the transfer', { timeout: 600_000 }, () 
       after: ['PAYMENTS', 'TECHNICAL'],
       setBefore: [],
       setAfter: ['PAYMENTS', 'TECHNICAL'],
-      reason: 'D364 test',
+      reason: 'D366 test',
       via: 'panel',
     });
     // [] goes back to the default; set again for the next tests.
@@ -519,7 +519,7 @@ describe('D364 WhatsApp departments and the transfer', { timeout: 600_000 }, () 
     const totpCode = p.nextCode(owner.secret);
     const rv = await p.send(owner, 'post', `/admin/team/${badr.id}/revoke`, {
       role: 'SUPPORT',
-      reason: 'D364 revoke',
+      reason: 'D366 revoke',
       totpCode,
     });
     vi.useRealTimers();

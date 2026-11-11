@@ -24,7 +24,7 @@ Future<void> _pump(
   FakeWaRepository repo, {
   AppLanguage language = AppLanguage.ar,
 }) async {
-  // D363: a tall phone, so the whole sample thread (two days, grouped
+  // D365: a tall phone, so the whole sample thread (two days, grouped
   // bubbles) is built at once.
   tester.view
     ..physicalSize = const Size(800, 1600)
@@ -102,7 +102,7 @@ void main() {
       final repo = FakeWaRepository();
       await _pump(tester, const WaChatScreen(conversationId: 'c1'), repo);
       expect(find.text('السلام عليكم'), findsOneWidget);
-      // D363: Meta's English title never shows; the failure in words.
+      // D365: Meta's English title never shows; the failure in words.
       expect(find.text('Message undeliverable'), findsNothing);
       expect(find.text('تعذّر الإرسال'), findsOneWidget);
       expect(find.text('نوع الملف غير مسموح ولم يُحفظ.'), findsOneWidget);
@@ -126,7 +126,7 @@ void main() {
     },
   );
 
-  testWidgets('D363: day separators, the window countdown, a formatted number, '
+  testWidgets('D365: day separators, the window countdown, a formatted number, '
       'a failed send in words with «إعادة الإرسال»', (tester) async {
     final repo = FakeWaRepository(
       conversation: waConversation(
@@ -152,7 +152,7 @@ void main() {
     });
   });
 
-  testWidgets('D363: the «+» sheet offers a photo and a template', (
+  testWidgets('D365: the «+» sheet offers a photo and a template', (
     tester,
   ) async {
     final repo = FakeWaRepository();
@@ -172,7 +172,7 @@ void main() {
     await _end(tester);
   });
 
-  test('D363: numbers in their groups; Meta codes in words', () async {
+  test('D365: numbers in their groups; Meta codes in words', () async {
     expect(waPhoneGroups('+966500001001'), '+966 50 000 1001');
     expect(waPhoneGroups('+97455512345'), '+974 5551 2345');
     expect(waPhoneGroups('+201001234567'), '+20 10 0123 4567');

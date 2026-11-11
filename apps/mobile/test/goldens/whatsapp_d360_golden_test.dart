@@ -56,7 +56,7 @@ void main() {
             ],
           );
           await tester.pumpAndSettle();
-          // D363: the avatars' default picture decoded before the shot
+          // D365: the avatars' default picture decoded before the shot
           // (the first shot of a run had none).
           await precacheImages(tester);
         });

@@ -30076,205 +30076,205 @@ abstract class AppLocalizations {
   /// **'إخفاء السؤال'**
   String get podcastOnScreenHide;
 
-  /// D363: under a staff message WhatsApp did not deliver (never Meta's English text).
+  /// D365: under a staff message WhatsApp did not deliver (never Meta's English text).
   ///
   /// In ar, this message translates to:
   /// **'تعذّر الإرسال'**
   String get waFailed;
 
-  /// D363: the tooltip of the failed-send line (tap to read the reason).
+  /// D365: the tooltip of the failed-send line (tap to read the reason).
   ///
   /// In ar, this message translates to:
   /// **'سبب التعذّر'**
   String get waFailDetails;
 
-  /// D363: Meta 131026, in words.
+  /// D365: Meta 131026, in words.
   ///
   /// In ar, this message translates to:
   /// **'لم يصل إلى الرقم: قد لا يستخدم واتساب أو لم يوافق على شروطه.'**
   String get waFailUndeliverable;
 
-  /// D363: Meta's rate limits (130429, 131056, 80007, 4), in words.
+  /// D365: Meta's rate limits (130429, 131056, 80007, 4), in words.
   ///
   /// In ar, this message translates to:
   /// **'أُرسلت رسائل كثيرة في وقت قصير: حاول بعد قليل.'**
   String get waFailRate;
 
-  /// D363: Meta 131051, in words.
+  /// D365: Meta 131051, in words.
   ///
   /// In ar, this message translates to:
   /// **'واتساب لا يقبل هذا النوع من الرسائل لهذا الرقم.'**
   String get waFailUnsupported;
 
-  /// D363: sends a failed text again (a new message).
+  /// D365: sends a failed text again (a new message).
   ///
   /// In ar, this message translates to:
   /// **'إعادة الإرسال'**
   String get waRetry;
 
-  /// D363: the chat's day separator for yesterday.
+  /// D365: the chat's day separator for yesterday.
   ///
   /// In ar, this message translates to:
   /// **'أمس'**
   String get waYesterday;
 
-  /// D363: the chat's window chip, more than an hour left.
+  /// D365: the chat's window chip, more than an hour left.
   ///
   /// In ar, this message translates to:
   /// **'نافذة الرد: {hours} س متبقية'**
   String waWindowLeftHours(int hours);
 
-  /// D363: the chat's window chip, under an hour left.
+  /// D365: the chat's window chip, under an hour left.
   ///
   /// In ar, this message translates to:
   /// **'نافذة الرد: {minutes} د متبقية'**
   String waWindowLeftMinutes(int minutes);
 
-  /// D363: the chat's window chip outside the 24-hour window.
+  /// D365: the chat's window chip outside the 24-hour window.
   ///
   /// In ar, this message translates to:
   /// **'مغلقة — قالب فقط'**
   String get waWindowClosedChip;
 
-  /// D363: the tooltip of the chat's actions menu.
+  /// D365: the tooltip of the chat's actions menu.
   ///
   /// In ar, this message translates to:
   /// **'إجراءات المحادثة'**
   String get waMenu;
 
-  /// D363: the attach sheet's photo item.
+  /// D365: the attach sheet's photo item.
   ///
   /// In ar, this message translates to:
   /// **'صورة'**
   String get waAttachPhoto;
 
-  /// D364: the WhatsApp department PAYMENTS.
+  /// D366: the WhatsApp department PAYMENTS.
   ///
   /// In ar, this message translates to:
   /// **'الشحن والمدفوعات'**
   String get waDeptPAYMENTS;
 
-  /// D364: the WhatsApp department AGENCIES.
+  /// D366: the WhatsApp department AGENCIES.
   ///
   /// In ar, this message translates to:
   /// **'الوكالات والمضيفون'**
   String get waDeptAGENCIES;
 
-  /// D364: the WhatsApp department TECHNICAL.
+  /// D366: the WhatsApp department TECHNICAL.
   ///
   /// In ar, this message translates to:
   /// **'المشاكل التقنية'**
   String get waDeptTECHNICAL;
 
-  /// D364: the WhatsApp department REPORTS.
+  /// D366: the WhatsApp department REPORTS.
   ///
   /// In ar, this message translates to:
   /// **'البلاغات والحظر'**
   String get waDeptREPORTS;
 
-  /// D364: the WhatsApp department GENERAL (the default).
+  /// D366: the WhatsApp department GENERAL (the default).
   ///
   /// In ar, this message translates to:
   /// **'عام'**
   String get waDeptGENERAL;
 
-  /// D364: the inbox's department filter, no department chosen.
+  /// D366: the inbox's department filter, no department chosen.
   ///
   /// In ar, this message translates to:
   /// **'كل الأقسام'**
   String get waDeptAll;
 
-  /// D364: the semantics of a department chip.
+  /// D366: the semantics of a department chip.
   ///
   /// In ar, this message translates to:
   /// **'القسم: {department}'**
   String waDeptLabel(String department);
 
-  /// D364: the transfer sheet's title.
+  /// D366: the transfer sheet's title.
   ///
   /// In ar, this message translates to:
   /// **'تحويل المحادثة'**
   String get waTransferTitle;
 
-  /// D364: the transfer sheet's department section.
+  /// D366: the transfer sheet's department section.
   ///
   /// In ar, this message translates to:
   /// **'القسم'**
   String get waTransferDepartment;
 
-  /// D364: the transfer sheet's target section.
+  /// D366: the transfer sheet's target section.
   ///
   /// In ar, this message translates to:
   /// **'إلى من'**
   String get waTransferWho;
 
-  /// D364: route to the department's first available agent.
+  /// D366: route to the department's first available agent.
   ///
   /// In ar, this message translates to:
   /// **'أول متاح في القسم'**
   String get waTransferFirst;
 
-  /// D364: what «أول متاح في القسم» does.
+  /// D366: what «أول متاح في القسم» does.
   ///
   /// In ar, this message translates to:
   /// **'أقل موظف مناوب انشغالاً، أو قائمة القسم إن لم يكن أحد مناوباً'**
   String get waTransferFirstHint;
 
-  /// D364: a department with no agent.
+  /// D366: a department with no agent.
   ///
   /// In ar, this message translates to:
   /// **'لا يوجد موظفون في هذا القسم بعد.'**
   String get waTransferNoAgents;
 
-  /// D364: the transfer sheet's note field.
+  /// D366: the transfer sheet's note field.
   ///
   /// In ar, this message translates to:
   /// **'ملاحظة داخلية (اختياري)'**
   String get waTransferNote;
 
-  /// D364: the note field's helper text.
+  /// D366: the note field's helper text.
   ///
   /// In ar, this message translates to:
   /// **'تُحفظ مع التحويل ولا تُرسل للعميل أبداً'**
   String get waTransferNoteHint;
 
-  /// D364: the transfer sheet's confirm button.
+  /// D366: the transfer sheet's confirm button.
   ///
   /// In ar, this message translates to:
   /// **'تحويل'**
   String get waTransferConfirm;
 
-  /// D364: the toast after a transfer to a person.
+  /// D366: the toast after a transfer to a person.
   ///
   /// In ar, this message translates to:
   /// **'حُوّلت المحادثة إلى {name}'**
   String waTransferDoneTo(String name);
 
-  /// D364: the toast after a transfer to the department queue.
+  /// D366: the toast after a transfer to the department queue.
   ///
   /// In ar, this message translates to:
   /// **'حُوّلت المحادثة إلى قائمة {department}'**
   String waTransferDoneQueue(String department);
 
-  /// D364: an agent's open assigned conversations.
+  /// D366: an agent's open assigned conversations.
   ///
   /// In ar, this message translates to:
   /// **'{count, plural, =0{لا محادثات مفتوحة} =1{محادثة مفتوحة} =2{محادثتان مفتوحتان} few{{count} محادثات مفتوحة} many{{count} محادثة مفتوحة} other{{count} محادثة مفتوحة}}'**
   String waAgentOpen(int count);
 
-  /// D364: the on-shift dot's label.
+  /// D366: the on-shift dot's label.
   ///
   /// In ar, this message translates to:
   /// **'مناوب'**
   String get waOnShift;
 
-  /// D364: the off-shift dot's label.
+  /// D366: the off-shift dot's label.
   ///
   /// In ar, this message translates to:
   /// **'خارج المناوبة'**
   String get waOffShift;
 
-  /// D364: the chat strip when the conversation waits in a department queue.
+  /// D366: the chat strip when the conversation waits in a department queue.
   ///
   /// In ar, this message translates to:
   /// **'قائمة {department}'**

@@ -31,27 +31,27 @@ export interface Member {
   recruits?: RecruitCounts;
   /** D360: the WhatsApp level «مستوى واتساب» (absent from an older API). */
   whatsapp?: TeamWhatsApp;
-  /** D364: the WhatsApp departments «الأقسام» (absent from an older API). */
+  /** D366: the WhatsApp departments «الأقسام» (absent from an older API). */
   whatsappDepartments?: TeamWaDepartments;
 }
 
-/** D364 (v1.122-social, §10.157.1): a staff member's WhatsApp departments (GENERAL when none is set). */
+/** D366 (v1.123-social, §10.159.1): a staff member's WhatsApp departments (GENERAL when none is set). */
 export interface TeamWaDepartments {
   departments: WaDepartment[];
   isDefault: boolean;
 }
 
-/** D364: set the departments ([] = back to GENERAL) — team.manage, the reason and a fresh code; audited. */
+/** D366: set the departments ([] = back to GENERAL) — team.manage, the reason and a fresh code; audited. */
 export const setStaffWaDepartments = (userId: string, departments: WaDepartment[], reason: string, totpCode: string) =>
   api.put<{ userId: string; before: WaDepartment[]; whatsappDepartments: TeamWaDepartments }>(
     `/admin/team/${userId}/whatsapp/departments`,
     { departments, reason, totpCode },
   );
 
-/** D364: whether the departments can be set — the WhatsApp level REPLY or MANAGE. */
+/** D366: whether the departments can be set — the WhatsApp level REPLY or MANAGE. */
 export const answersWhatsApp = (m: Member) => m.whatsapp?.level === 'REPLY' || m.whatsapp?.level === 'MANAGE';
 
-/** D364: the departments row of a member card, under the WhatsApp level. */
+/** D366: the departments row of a member card, under the WhatsApp level. */
 export function WaDepartmentsRow({
   m,
   onEdit,
@@ -85,7 +85,7 @@ export function WaDepartmentsRow({
   );
 }
 
-/** D364: pick the departments (checkboxes in the catalogue's order; none = GENERAL), then the reason and the code. */
+/** D366: pick the departments (checkboxes in the catalogue's order; none = GENERAL), then the reason and the code. */
 export function WaDepartmentsDialog({
   member,
   onClose,
@@ -432,7 +432,7 @@ export function MemberCard({
   onRegions?: () => void;
   /** D360: change the WhatsApp level (never an OWNER's). */
   onWhatsApp?: () => void;
-  /** D364: change the WhatsApp departments (REPLY / MANAGE only). */
+  /** D366: change the WhatsApp departments (REPLY / MANAGE only). */
   onWaDepartments?: () => void;
 }) {
   const { t, lang } = useApp();

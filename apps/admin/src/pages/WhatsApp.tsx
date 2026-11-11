@@ -74,12 +74,12 @@ export function useWhatsAppBadge(enabled: boolean, path: string): number | null 
   return enabled ? n : null;
 }
 
-/** D364 (§10.157): a department's name. */
+/** D366 (§10.159): a department's name. */
 export function departmentName(t: T, d: WaDepartment | null | undefined): string {
   return t(`waDept${d ?? 'GENERAL'}` as Key);
 }
 
-/** D364: the department tag (inbox rows, the chat head). */
+/** D366: the department tag (inbox rows, the chat head). */
 export function DepartmentTag({ d }: { d: WaDepartment | undefined }) {
   const { t } = useApp();
   const name = departmentName(t, d);
@@ -90,7 +90,7 @@ export function DepartmentTag({ d }: { d: WaDepartment | undefined }) {
   );
 }
 
-/** D364: who has it — a person, me, the unassigned queue (named by its department unless GENERAL), or closed. */
+/** D366: who has it — a person, me, the unassigned queue (named by its department unless GENERAL), or closed. */
 export function ownerText(t: T, c: WaConversation): string {
   if (c.status === 'CLOSED') return t('waClosed');
   if (c.assignedTo) return c.assignedToMe ? t('waAssignedToMe') : t('waAssignedTo', { name: staffName(t, c.assignedTo) });
@@ -603,7 +603,7 @@ export function historyLine(t: T, a: WaAssignment): string {
   const by = staffName(t, a.by);
   const to = staffName(t, a.to);
   if (a.action === 'REOPEN') return a.by ? t('waActREOPENBy', { by }) : t('waActREOPEN');
-  // D364: a transfer with its department — to a person or to the department's queue — and its note.
+  // D366: a transfer with its department — to a person or to the department's queue — and its note.
   if (a.action === 'TRANSFER' && a.department) {
     const department = departmentName(t, a.department);
     const line = a.to ? t('waActTRANSFERDept', { by, to, department }) : t('waActTRANSFERQueue', { by, department });
@@ -793,7 +793,7 @@ export function WhatsAppInbox() {
   );
 }
 
-/** D364 (§10.157.4): the inbox's department filter (with «غير مسندة»: that department's queue). */
+/** D366 (§10.159.4): the inbox's department filter (with «غير مسندة»: that department's queue). */
 export function DepartmentFilter({
   value,
   onChange,
@@ -940,7 +940,7 @@ function OpenConversation({
   );
 }
 
-/** D364: what the transfer dialog chose — the department, a person (null: «أول متاح في القسم») and the note. */
+/** D366: what the transfer dialog chose — the department, a person (null: «أول متاح في القسم») and the note. */
 export interface TransferChoice {
   department: WaDepartment;
   to: string | null;
@@ -948,7 +948,7 @@ export interface TransferChoice {
 }
 
 /**
- * D364 (CONVENTIONS §10.157.2): the transfer dialog's body without its loading (the tests render it) — the department
+ * D366 (CONVENTIONS §10.159.2): the transfer dialog's body without its loading (the tests render it) — the department
  * chips, «أول متاح في القسم» first, the department's agents (the on-shift dot and their open conversations), the
  * internal note (never sent) and «تحويل».
  */

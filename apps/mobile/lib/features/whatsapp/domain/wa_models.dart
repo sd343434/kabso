@@ -56,7 +56,7 @@ class WaAccountCard {
   final DateTime createdAt;
 }
 
-/// v1.122-social (D364, CONVENTIONS §10.157): the WhatsApp departments — a
+/// v1.123-social (D366, CONVENTIONS §10.159): the WhatsApp departments — a
 /// fixed set. Every conversation is in one (GENERAL until a transfer moves
 /// it); a staff member answers for one or more (GENERAL by default).
 enum WaDepartment {
@@ -70,7 +70,7 @@ enum WaDepartment {
 
   final String wire;
 
-  /// An unknown or missing value (a server before D364) reads as GENERAL.
+  /// An unknown or missing value (a server before D366) reads as GENERAL.
   static WaDepartment fromWire(Object? v) => WaDepartment.values.firstWhere(
     (d) => d.wire == v,
     orElse: () => WaDepartment.general,
@@ -172,7 +172,7 @@ class WaConversation {
   final DateTime? windowClosesAt;
   final WaAccountCard? linkedAccount;
 
-  /// D364: the department «القسم» (changed only by a transfer).
+  /// D366: the department «القسم» (changed only by a transfer).
   final WaDepartment department;
 
   String get title => name ?? phone;
@@ -278,7 +278,7 @@ class WaMessage {
   final WaTick tick;
 
   /// Meta's own words for a failed send (English, never shown in the app:
-  /// D363 shows [errorCode] in words instead).
+  /// D365 shows [errorCode] in words instead).
   final String? errorTitle;
 
   /// Meta's numeric error code (131047 the window, 131026 undeliverable, …).
@@ -366,14 +366,14 @@ class WaAgent {
   final WaStaffRef ref;
   final bool onShift;
 
-  /// D364: the departments the agent answers for.
+  /// D366: the departments the agent answers for.
   final List<WaDepartment> departments;
 
-  /// D364: open conversations assigned to the agent now.
+  /// D366: open conversations assigned to the agent now.
   final int openCount;
 }
 
-/// D364 (§10.157.2): what the transfer sheet chose — a department, a person
+/// D366 (§10.159.2): what the transfer sheet chose — a department, a person
 /// in it (null: «أول متاح في القسم») and an internal note.
 class WaTransferChoice {
   const new({required this.department, this.to, this.note});

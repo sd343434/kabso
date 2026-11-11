@@ -54,7 +54,7 @@ function maskedPhoneOf(e164: string): string {
   return `${e164.slice(0, 5)}${'•'.repeat(Math.max(e164.length - 9, 2))}${e164.slice(-4)}`;
 }
 
-/** D364 (§10.157.2): a transfer — a department, optionally a person, optionally an internal note. */
+/** D366 (§10.159.2): a transfer — a department, optionally a person, optionally an internal note. */
 export interface WaTransferInput {
   readonly toUserId?: string | undefined;
   readonly department?: WaDepartment | undefined;
@@ -92,7 +92,7 @@ export interface WaConversationDto {
   linkedAccount: WaAccountCardDto | null;
   closedAt: string | null;
   createdAt: string;
-  /** D364 (§10.157): the department «القسم». */
+  /** D366 (§10.159): the department «القسم». */
   department: WaDepartment;
 }
 
@@ -771,11 +771,11 @@ export class WhatsAppService {
   }
 
   /**
-   * D364 (CONVENTIONS §10.157.2): the transfer — to a `department` (required since D364), optionally to a person in it
+   * D366 (CONVENTIONS §10.159.2): the transfer — to a `department` (required since D366), optionally to a person in it
    * (REPLY+, a member of that department), else «أول متاح في القسم» (the on-shift member with the fewest open assigned
    * conversations, ties to the one assigned least recently) or, nobody on shift, the department's unassigned queue. An
    * optional note is stored as an internal note (never sent) linked to the history row. Without a department (an app
-   * or panel before D364): D355's call — `toUserId` required, the department GENERAL, no membership check.
+   * or panel before D366): D355's call — `toUserId` required, the department GENERAL, no membership check.
    */
   async transfer(ctx: AdminContext, id: string, input: WaTransferInput | string): Promise<WaConversationDto> {
     this.requireGraph();
@@ -945,7 +945,7 @@ export class WhatsAppService {
   }
 
   /**
-   * D364 (§10.157.5): who a transfer is pushed to — the receiver; for the queue, the department's REPLY+ members on
+   * D366 (§10.159.5): who a transfer is pushed to — the receiver; for the queue, the department's REPLY+ members on
    * shift, else all of them (somebody who can reply is always told, as D360). Never the one who transferred, never a
    * muted one, never below REPLY. Exported for the tests through {@link transferPushRecipients}.
    */
@@ -1064,7 +1064,7 @@ export class WhatsAppService {
         to: ref(r.toUserId),
         by: ref(r.actorId),
         at: r.createdAt.toISOString(),
-        // D364 (§10.157.6): a transfer's departments and its internal note (null for other actions).
+        // D366 (§10.159.6): a transfer's departments and its internal note (null for other actions).
         department: r.department,
         fromDepartment: r.fromDepartment,
         note: r.noteId ? (notes.get(r.noteId) ?? null) : null,
@@ -1081,7 +1081,7 @@ export class WhatsAppService {
   }
 
   /**
-   * The agents (REPLY+). D364 (§10.157.2): each with their departments and open assigned conversations;
+   * The agents (REPLY+). D366 (§10.159.2): each with their departments and open assigned conversations;
    * `department` keeps the members of one (the transfer sheet's list), on shift first, then the fewest open.
    */
   async agents(department?: WaDepartment) {

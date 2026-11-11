@@ -4,7 +4,7 @@ import { WA_DEPARTMENTS } from './whatsapp-departments.js';
 /** v1.116-social (D355, CONVENTIONS §10.151): the request shapes of «واتساب». */
 export const listQuery = z.strictObject({
   filter: z.enum(['unassigned', 'mine', 'all', 'closed']).default('all'),
-  /** D364 (§10.157.4): only the conversations of one department. */
+  /** D366 (§10.159.4): only the conversations of one department. */
   department: z.enum(WA_DEPARTMENTS).optional(),
   q: z.string().trim().max(80).optional(),
   cursor: z.string().max(512).optional(),
@@ -45,8 +45,8 @@ export const mediaQuery = z.strictObject({
 export type MediaQuery = z.output<typeof mediaQuery>;
 
 /**
- * D355 `{toUserId}`; D364 (§10.157.2) `{department, toUserId?, note?}` — no `toUserId`: «أول متاح في القسم». Without a
- * department (an app or panel before D364) `toUserId` is required and the department is GENERAL.
+ * D355 `{toUserId}`; D366 (§10.159.2) `{department, toUserId?, note?}` — no `toUserId`: «أول متاح في القسم». Without a
+ * department (an app or panel before D366) `toUserId` is required and the department is GENERAL.
  */
 export const transferBody = z
   .strictObject({

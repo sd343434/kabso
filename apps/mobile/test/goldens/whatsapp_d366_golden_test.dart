@@ -1,4 +1,4 @@
-// D364 (owner «نعم موافق»): WhatsApp departments and the transfer.
+// D366 (owner «نعم موافق»): WhatsApp departments and the transfer.
 //
 //   whatsapp.transfer_sheet  the sheet opened from the header's «تحويل»: the
 //                            department chips (PAYMENTS picked), «أول متاح في
@@ -14,7 +14,7 @@
 //
 // Arabic and English, dark and light, on the phone (393 × 852). A fixed clock;
 // synthetic customers and staff. Regenerate on Linux with the pinned Flutter:
-//   flutter test --update-goldens test/goldens/whatsapp_d364_golden_test.dart
+//   flutter test --update-goldens test/goldens/whatsapp_d366_golden_test.dart
 @Tags(['golden'])
 library;
 

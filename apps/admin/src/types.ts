@@ -1331,10 +1331,10 @@ export interface WaConversation {
   linkedAccount: WaAccountCard | null;
   closedAt: string | null;
   createdAt: string;
-  /** D364 (§10.157): the department (absent from an older API: GENERAL). */
+  /** D366 (§10.159): the department (absent from an older API: GENERAL). */
   department?: WaDepartment;
 }
-/** D364 (v1.122-social, §10.157): the WhatsApp departments, catalogue order. */
+/** D366 (v1.123-social, §10.159): the WhatsApp departments, catalogue order. */
 export type WaDepartment = 'PAYMENTS' | 'AGENCIES' | 'TECHNICAL' | 'REPORTS' | 'GENERAL';
 export const WA_DEPARTMENTS: WaDepartment[] = ['PAYMENTS', 'AGENCIES', 'TECHNICAL', 'REPORTS', 'GENERAL'];
 export interface WaMessage {
@@ -1365,7 +1365,7 @@ export interface WaAssignment {
   to: WaStaffRef | null;
   by: WaStaffRef | null;
   at: string;
-  /** D364: a TRANSFER's departments and its internal note (absent from an older API). */
+  /** D366: a TRANSFER's departments and its internal note (absent from an older API). */
   department?: WaDepartment | null;
   fromDepartment?: WaDepartment | null;
   note?: { id: string; body: string } | null;
@@ -1385,7 +1385,7 @@ export interface WaQuickReply {
 }
 export interface WaAgent extends WaStaffRef {
   onShift: boolean;
-  /** D364: the agent's departments and open assigned conversations (absent from an older API). */
+  /** D366: the agent's departments and open assigned conversations (absent from an older API). */
   departments?: WaDepartment[];
   openCount?: number;
 }

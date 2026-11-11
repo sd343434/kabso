@@ -1,4 +1,4 @@
--- v1.122-social (D364, CONVENTIONS §10.157): WhatsApp departments and the transfer with a department «الأقسام والتحويل».
+-- v1.123-social (D366, CONVENTIONS §10.159): WhatsApp departments and the transfer with a department «الأقسام والتحويل».
 --
 -- Owner (approved «نعم موافق»): five fixed departments. A staff member at REPLY or above belongs to one or more of them
 -- (`wa_staff_departments`, one row per membership; NO ROW = GENERAL «عام», so nothing changes on deploy: the table starts

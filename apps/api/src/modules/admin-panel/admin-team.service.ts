@@ -60,7 +60,7 @@ export interface TeamWhatsAppBody {
   readonly totpCode: string;
 }
 
-/** `setAdminTeamWhatsAppDepartments` (v1.122-social, D364): the departments, [] to go back to the default (GENERAL). */
+/** `setAdminTeamWhatsAppDepartments` (v1.123-social, D366): the departments, [] to go back to the default (GENERAL). */
 export interface TeamWaDepartmentsBody {
   readonly departments: readonly WaDepartment[];
   readonly reason: string;
@@ -265,7 +265,7 @@ export class AdminTeamService {
           u.adminPermissions.map((p) => p.permission as string).filter(isPanelRole),
           waSet.get(u.id) ?? null,
         ),
-        // v1.122-social (D364, §10.157.1): the person's WhatsApp departments «الأقسام» (GENERAL when none is set).
+        // v1.123-social (D366, §10.159.1): the person's WhatsApp departments «الأقسام» (GENERAL when none is set).
         whatsappDepartments: teamDepartmentsOf(waDepartments.get(u.id)),
       })),
     };
@@ -376,7 +376,7 @@ export class AdminTeamService {
   }
 
   /**
-   * v1.122-social (D364, CONVENTIONS §10.157.1) `setAdminTeamWhatsAppDepartments`: `team.manage` sets the departments a
+   * v1.123-social (D366, CONVENTIONS §10.159.1) `setAdminTeamWhatsAppDepartments`: `team.manage` sets the departments a
    * staff member answers for (one or more of the five; [] = back to the default GENERAL) — the code again and a reason,
    * like the level. Refused for an account on no team role (`team_not_member`) and for someone below REPLY now
    * (`team_departments_level`: a viewer is never a transfer target). Under the lock of the person's `users` row (a
@@ -489,7 +489,7 @@ export class AdminTeamService {
             : [];
         const dropped = out.left.length === 0 && setBefore !== null;
         if (dropped) await tx.waStaffAccess.deleteMany({ where: { userId } });
-        // v1.122-social (D364): off the team, the departments go too (a later grant starts from GENERAL).
+        // v1.123-social (D366): off the team, the departments go too (a later grant starts from GENERAL).
         const departmentsDropped =
           out.left.length === 0 ? (await tx.waStaffDepartment.deleteMany({ where: { userId } })).count : 0;
         if (released.length > 0 || dropped || departmentsDropped > 0) {
