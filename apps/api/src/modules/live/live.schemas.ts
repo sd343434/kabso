@@ -336,7 +336,8 @@ export const wishGiftsSchema = z
 
 /**
  * `StartLiveRoomRequest`: CP-011 adds `mode` (SOLO default; PK cannot be started), `seatCount`
- * (required for MULTI and AUDIO with a count of that mode, forbidden for SOLO) and `theme`.
+ * (required for AUDIO with a count of that mode, forbidden for SOLO) and `theme`.
+ * v1.116-live (D369, §10.162): MULTI is retired — it cannot be started either (400 `mode` / `invalid_value`, like PK).
  */
 export const startLiveRoomSchema = z
   .strictObject({
@@ -344,7 +345,7 @@ export const startLiveRoomSchema = z
     categorySlug: categorySlugSchema.optional(),
     /** CP-010: default true (owner D93). */
     allowGuests: z.boolean().optional(),
-    mode: z.enum(['SOLO', 'MULTI', 'AUDIO', 'PODCAST', 'STREAMER']).optional(),
+    mode: z.enum(['SOLO', 'AUDIO', 'PODCAST', 'STREAMER']).optional(),
     seatCount: seatCountSchema.optional(),
     /** v1.47-live (D212): the episode's topic and question settings (PODCAST only). */
     podcast: podcastSetupSchema.optional(),
@@ -736,6 +737,7 @@ export const listLiveRoomsQuerySchema = z.strictObject({
   // v1.27.1-live (D133): `solo` = SOLO and PK, `multi` = MULTI, `party` = AUDIO and MULTI.
   // v1.47-live (D212): `podcast` = PODCAST (the hub's «بث بودكاست» tab).
   // v1.107-live (D342): `party_all` = AUDIO, PODCAST and MULTI (the party page's one mixed list).
+  // v1.115-live / v1.116-live (D368, D369): a live video podcast is in `solo` / `video`, not `party_all`; MULTI is in no list.
   kind: z.enum(LIVE_KINDS).optional(),
   // v1.27.1-live (D133): rooms of the caller's country; rooms of featured hosts.
   scope: z.enum(LIVE_SCOPES).optional(),

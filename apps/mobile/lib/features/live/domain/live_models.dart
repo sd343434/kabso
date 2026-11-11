@@ -256,7 +256,10 @@ abstract class LiveCategory with _$LiveCategory {
 }
 
 /// `LiveRoomMode`: SOLO, PK (L5), MULTI and AUDIO (CP-011). An unrecognised
-/// future value is rendered as SOLO (contract).
+/// future value is rendered as SOLO (contract). v1.116-live (D369): MULTI is
+/// retired — it is never started or listed any more, but a room started
+/// before can still be read (a viewer opening it gets the legacy seats; a
+/// card draws it as a camera live).
 enum LiveRoomMode {
   @JsonValue('SOLO')
   solo,
@@ -578,59 +581,75 @@ enum LiveRoomsTab {
 }
 
 /// The hub's room kind (`kind` of `GET /live/rooms`, v1.26.4-live, D129):
-/// voice rooms (`AUDIO`) or video lives (`SOLO`, `PK`, `MULTI`); D212
-/// adds `podcast` (`PODCAST`, in no other kind).
+/// voice rooms (`AUDIO`) or video lives (`SOLO`, `PK`); D212 adds `podcast`
+/// (`PODCAST`). v1.115-live (D368): a live VIDEO podcast is a camera live —
+/// `video` and `solo` list it, `partyAll` does not. v1.116-live (D369): the
+/// multi-guest live (`MULTI`) is retired — no kind lists it.
 enum LiveRoomsKind {
   audio('audio'),
   video('video'),
 
-  /// v1.27.1-live (D133): `SOLO` and `PK`.
+  /// v1.27.1-live (D133): `SOLO` and `PK` (D213: `STREAMER`; D368: the
+  /// live video podcasts).
   solo('solo'),
 
-  /// v1.27.1-live (D133): `MULTI`.
+  /// v1.27.1-live (D133): `MULTI`. v1.116-live (D369): still a valid
+  /// `kind`, and it lists nothing (the multi-guest live is retired).
   multi('multi'),
 
-  /// v1.27.1-live (D133): `AUDIO` and `MULTI`.
+  /// v1.27.1-live (D133): `AUDIO` (and `MULTI` until D369).
   party('party'),
 
-  /// v1.47-live (D212): `PODCAST`.
+  /// v1.47-live (D212): `PODCAST` — every podcast, audio or video.
   podcast('podcast'),
 
   /// v1.56-live (D213): `STREAMER` (also in [video] and [solo]).
   streamer('streamer'),
 
-  /// v1.107-live (D342): `AUDIO`, `PODCAST` and `MULTI` in one list — the
-  /// party page's mixed list (its kind tabs are gone).
+  /// v1.107-live (D342): the party page's mixed list (its kind tabs are
+  /// gone) — `AUDIO` and the AUDIO podcasts (D368, D369).
   partyAll('party_all');
 
   new(this.wire);
 
   final String wire;
 
-  /// The kind a room of [mode] is listed under (audio or video).
-  static LiveRoomsKind of(LiveRoomMode mode) => switch (mode) {
-    LiveRoomMode.audio => audio,
-    LiveRoomMode.podcast => podcast,
-    _ => video,
-  };
+  /// The kind a room of [mode] is listed under (audio, podcast or video;
+  /// D368: a live video podcast ([podcastVideo]) is a video live).
+  static LiveRoomsKind of(LiveRoomMode mode, {bool podcastVideo = false}) =>
+      switch (mode) {
+        LiveRoomMode.audio => audio,
+        LiveRoomMode.podcast => podcastVideo ? video : podcast,
+        _ => video,
+      };
 
-  /// Whether a room of [mode] is listed under this kind.
-  bool includes(LiveRoomMode mode) => switch (this) {
-    audio => mode == LiveRoomMode.audio,
-    video => !mode.isVoice,
-    podcast => mode == LiveRoomMode.podcast,
-    solo =>
-      mode == LiveRoomMode.solo ||
-          mode == LiveRoomMode.pk ||
-          mode == LiveRoomMode.streamer,
-    streamer => mode == LiveRoomMode.streamer,
-    multi => mode == LiveRoomMode.multi,
-    party => mode == LiveRoomMode.audio || mode == LiveRoomMode.multi,
-    partyAll =>
-      mode == LiveRoomMode.audio ||
-          mode == LiveRoomMode.podcast ||
-          mode == LiveRoomMode.multi,
-  };
+  /// Whether a room of [mode] is listed under this kind (the server's
+  /// rule). [podcastVideo]: a PODCAST that is a live video podcast (D363
+  /// `LivePodcast.video`).
+  bool includes(LiveRoomMode mode, {bool podcastVideo = false}) {
+    final videoPodcast = mode == LiveRoomMode.podcast && podcastVideo;
+    final camera =
+        mode == LiveRoomMode.solo ||
+        mode == LiveRoomMode.pk ||
+        mode == LiveRoomMode.streamer ||
+        videoPodcast;
+    return switch (this) {
+      audio => mode == LiveRoomMode.audio,
+      video || solo => camera,
+      podcast => mode == LiveRoomMode.podcast,
+      streamer => mode == LiveRoomMode.streamer,
+      multi => false,
+      party => mode == LiveRoomMode.audio,
+      partyAll =>
+        mode == LiveRoomMode.audio ||
+            (mode == LiveRoomMode.podcast && !podcastVideo),
+    };
+  }
+
+  /// Whether [room] is listed under this kind ([includes] with its video
+  /// podcast flag).
+  bool includesRoom(LiveRoomSummary room) =>
+      includes(room.mode, podcastVideo: room.podcast?.video ?? false);
 
   /// [wire] back to a kind; anything else is `null`.
   static LiveRoomsKind? tryParse(String? wire) {

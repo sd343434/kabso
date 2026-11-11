@@ -3,6 +3,8 @@
  * the kinds `solo`, `multi` and `party` on `GET /live/rooms`, the caller's own country
  * (`PATCH /me` `country`, `Me.country`) and the `feature-admin` CLI, end to end against
  * PostgreSQL + Redis with the API as the DML-only runtime role.
+ * v1.116-live (D369, §10.162): MULTI is retired — the legacy MULTI rooms below (started SOLO, set to MULTI in the
+ * database as a room of an older app) are in no list: `multi` lists nothing and `party` / `video` lose them.
  */
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -102,12 +104,8 @@ describe('D133 nearby, featured and kinds', { timeout: 240_000 }, () => {
     category?: string,
   ) => {
     clock.advance(1);
-    const body =
-      mode === 'AUDIO'
-        ? { mode: 'AUDIO', seatCount: 10 }
-        : mode === 'MULTI'
-          ? { mode: 'MULTI', seatCount: 4 }
-          : {};
+    // SOLO; PK and a legacy MULTI (D369: no longer started) are set below.
+    const body = mode === 'AUDIO' ? { mode: 'AUDIO', seatCount: 10 } : {};
     const res = await ctx.http
       .post('/api/v1/live/rooms')
       .set(auth(u))
@@ -118,7 +116,12 @@ describe('D133 nearby, featured and kinds', { timeout: 240_000 }, () => {
     await ctx.prisma.liveRoom.update({
       where: { id },
       // v1.86-live (D310): `popular` orders by the room cherries; the fixture sets both to the same value.
-      data: { score: BigInt(score), cherries: BigInt(score), ...(mode === 'PK' ? { mode: 'PK' } : {}) },
+      data: {
+        score: BigInt(score),
+        cherries: BigInt(score),
+        ...(mode === 'PK' ? { mode: 'PK' } : {}),
+        ...(mode === 'MULTI' ? { mode: 'MULTI', seatCount: 4 } : {}),
+      },
     });
     return id;
   };
@@ -232,17 +235,19 @@ describe('D133 nearby, featured and kinds', { timeout: 240_000 }, () => {
       const viewer = await signup('SA');
       for (const h of [sa[0]!, sa[3]!, eg[0]!]) await follow(viewer, h);
 
-      const nearbyAll = [r.solo, r.pk, r.multi, r.audio, r.audio2];
+      // v1.116-live (D369): the legacy MULTI is in no list.
+      const nearbyAll = [r.solo, r.pk, r.audio, r.audio2];
       const byKind: Record<(typeof KINDS)[number], string[]> = {
         audio: [r.audio, r.audio2],
-        video: [r.solo, r.pk, r.multi],
+        video: [r.solo, r.pk],
         solo: [r.solo, r.pk],
-        multi: [r.multi],
-        party: [r.multi, r.audio, r.audio2],
+        multi: [],
+        party: [r.audio, r.audio2],
       };
       const newest = (list: string[]) => nearbyAll.filter((id) => list.includes(id)).reverse();
       const followed = [r.solo, r.audio];
-      const music = [r.solo, r.multi, r.audio2];
+      const music = [r.solo, r.audio2];
+      expect(await ids('tab=popular&scope=nearby', viewer)).not.toContain(r.multi);
 
       const res = await list('tab=popular&scope=nearby', viewer);
       expect(res.body.emptyReason).toBeNull();
@@ -320,21 +325,21 @@ describe('D133 nearby, featured and kinds', { timeout: 240_000 }, () => {
 
       const viewer = await signup('SA');
       for (const h of [a, c]) await follow(viewer, h);
-      // Rank 1, then rank 5 by score (b 99 > c 50), then rank 100; e is not featured.
-      const featured = [r.a, r.b, r.c, r.d];
+      // Rank 1, then rank 5 (b), then rank 100; e is not featured; c (a legacy MULTI, D369) is in no list.
+      const featured = [r.a, r.b, r.d];
       for (const tab of ['popular', 'new'] as const) {
         expect(await ids(`tab=${tab}&featured=true`)).toEqual(featured);
         expect(await ids(`tab=${tab}&featured=true`, viewer)).toEqual(featured);
         expect(await pages(`tab=${tab}&featured=true`, viewer)).toEqual(featured);
         expect(await ids(`tab=${tab}&featured=false`)).toContain(r.e);
       }
-      expect(await ids('tab=following&featured=true', viewer)).toEqual([r.a, r.c]);
+      expect(await ids('tab=following&featured=true', viewer)).toEqual([r.a]);
       const byKind: Record<(typeof KINDS)[number], string[]> = {
         audio: [r.b],
-        video: [r.a, r.c, r.d],
+        video: [r.a, r.d],
         solo: [r.a, r.d],
-        multi: [r.c],
-        party: [r.b, r.c],
+        multi: [],
+        party: [r.b],
       };
       for (const kind of KINDS) {
         for (const tab of TABS) {
@@ -365,9 +370,9 @@ describe('D133 nearby, featured and kinds', { timeout: 240_000 }, () => {
         where: { status: 'LIVE' },
         data: { lastHeartbeatAt: clock.now() },
       });
-      expect(await ids('tab=popular&featured=true')).toEqual([r.a, r.b, r.c]);
+      expect(await ids('tab=popular&featured=true')).toEqual([r.a, r.b]);
       expect(featureAdmin('add', '--user', c.username, '--rank', '0').status).toBe(0);
-      expect(await ids('tab=popular&featured=true')).toEqual([r.c, r.a, r.b]);
+      expect(await ids('tab=popular&featured=true')).toEqual([r.a, r.b]);
       expect(featureAdmin('remove', '--user', a.email)).toEqual({
         status: 0,
         out: `-@${a.username} is no longer featured.\n`,
@@ -376,11 +381,11 @@ describe('D133 nearby, featured and kinds', { timeout: 240_000 }, () => {
         status: 0,
         out: `@${a.username} is not featured; nothing changed.\n`,
       });
-      expect(await ids('tab=popular&featured=true')).toEqual([r.c, r.b]);
+      expect(await ids('tab=popular&featured=true')).toEqual([r.b]);
 
       // An end in the past: listed with `-`, never in the hub (the CLI uses the real time).
       expect(featureAdmin('add', '--user', e.username, '--until', '2001-01-01T00:00:00Z').status).toBe(0);
-      expect(await ids('tab=popular&featured=true')).toEqual([r.c, r.b]);
+      expect(await ids('tab=popular&featured=true')).toEqual([r.b]);
       const listed = featureAdmin('list');
       expect(listed.status).toBe(0);
       expect(listed.out.split('\n').filter(Boolean)).toEqual([
@@ -411,7 +416,7 @@ describe('D133 nearby, featured and kinds', { timeout: 240_000 }, () => {
   });
 
   describe('kinds', () => {
-    it('solo, multi and party filter every tab, with and without a category; unknown kinds → 400', async () => {
+    it('solo, multi and party filter every tab, with and without a category; unknown kinds → 400 (D369: no MULTI)', async () => {
       const hs = [await host(null), await host(null), await host(null), await host(null)];
       const r = {
         solo: await goLive(hs[0]!, 'SOLO', 4, 'music'),
@@ -423,10 +428,10 @@ describe('D133 nearby, featured and kinds', { timeout: 240_000 }, () => {
       for (const h of hs) await follow(viewer, h);
       const want: Record<(typeof KINDS)[number], string[]> = {
         audio: [r.audio],
-        video: [r.solo, r.pk, r.multi],
+        video: [r.solo, r.pk],
         solo: [r.solo, r.pk],
-        multi: [r.multi],
-        party: [r.multi, r.audio],
+        multi: [],
+        party: [r.audio],
       };
       const order = [r.solo, r.pk, r.multi, r.audio];
       for (const kind of KINDS) {

@@ -42,7 +42,8 @@ import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 
 /// The mode of fixture room [i]: 0–3 voice rooms (D342: room 1 a podcast),
-/// 4–11 video lives (solo, multi, PK).
+/// 4–11 video lives (solo, a legacy multi, PK). D369: the server lists no
+/// MULTI room in any kind (the multi-guest live is retired).
 LiveRoomMode _mode(int i) => i < 4
     ? (i == 1 ? LiveRoomMode.podcast : LiveRoomMode.audio)
     : const [LiveRoomMode.solo, LiveRoomMode.multi, LiveRoomMode.pk][i % 3];
@@ -507,22 +508,20 @@ void main() {
       );
       // Not pushed here: no back button.
       expect(find.byKey(VoiceRoomsScreen.backKey), findsNothing);
-      // Every party room of the server's page, in its order — audio,
-      // podcast and multi mixed — and no video live.
-      const expected = [0, 1, 2, 3, 4, 7, 10];
+      // Every party room of the server's page, in its order — audio and
+      // podcast mixed (D369: no multi) — and no video live.
+      const expected = [0, 1, 2, 3];
       final shown = [
         for (final row in tester.widgetList<VoiceRoomRow>(
           find.byType(VoiceRoomRow),
         ))
           int.parse(row.room.roomId!.split('-').last),
       ];
-      expect(shown, expected.take(shown.length).toList());
-      expect(shown.length, greaterThanOrEqualTo(5));
+      expect(shown, expected);
       // Each card's badge says its own kind.
       for (final (i, n) in shown.indexed) {
         final kind = switch (_mode(n)) {
           LiveRoomMode.podcast => PartyKind.podcast,
-          LiveRoomMode.multi => PartyKind.multi,
           _ => PartyKind.audio,
         };
         final row = find.byKey(VoiceRoomList.rowKey(i));
@@ -643,7 +642,6 @@ void main() {
         final n = int.parse(card.room.roomId!.split('-').last);
         final kind = switch (_mode(n)) {
           LiveRoomMode.podcast => PartyKind.podcast,
-          LiveRoomMode.multi => PartyKind.multi,
           _ => PartyKind.audio,
         };
         expect(
@@ -690,8 +688,8 @@ void main() {
 
     testWidgets('cards show only the API facts: «رائج» (popular), «PK» '
         '(inPk), the level (roomLevel), «مميز» (a paid slot), the flag '
-        '(hostCountry), the topic under the title, a mic for audio and a '
-        'camera for multi', (tester) async {
+        '(hostCountry), the topic under the title, a mic for audio; D368: '
+        'no camera after the tag of a video podcast', (tester) async {
       setViewport(tester, GoldenViewport.phone);
       await pumpScreen(
         tester,
@@ -719,7 +717,13 @@ void main() {
                   hostName: 'Omar',
                   title: 'Game night',
                   viewerCount: 84,
-                  isMulti: true,
+                  isAudio: true,
+                  isPodcast: true,
+                  podcast: LivePodcast(
+                    episodeNumber: 3,
+                    topic: PodcastTopic.society,
+                    video: true,
+                  ),
                 ),
               ),
               VoiceRoomRow(
@@ -783,12 +787,24 @@ void main() {
       expect(inCard('m', find.byKey(VoiceRoomRow.featuredKey)), findsNothing);
       expect(inCard('m', find.byKey(VoiceRoomRow.topicKey)), findsNothing);
       expect(inCard('m', find.byKey(VoiceRoomRow.seatsKey)), findsNothing);
-      expect(
-        inCard('m', find.byKey(LiveTypeTag.keyOf(PartyKind.multi.cardKind))),
-        findsOneWidget,
+      // D368 (owner: «ازل من بودكاست زر الكاميرة التي خلف التصنيف»): a video
+      // podcast's tag is the podcast's, with no camera after it; «فيديو» is
+      // only spoken.
+      final videoTag = inCard(
+        'm',
+        find.byKey(LiveTypeTag.keyOf(PartyKind.podcast.cardKind)),
       );
-      expect(inCard('m', find.text(en.liveTypeTagMulti)), findsOneWidget);
-      expect(inCard('m', find.byIcon(Icons.videocam_rounded)), findsOneWidget);
+      expect(videoTag, findsOneWidget);
+      expect(inCard('m', find.text(en.liveTypeTagPodcast)), findsOneWidget);
+      expect(
+        find.descendant(of: videoTag, matching: find.byType(Icon)),
+        findsNothing,
+      );
+      expect(inCard('m', find.byIcon(Icons.videocam_rounded)), findsNothing);
+      expect(
+        tester.getSemantics(videoTag).label,
+        '${en.liveCategoryPodcast} · ${en.podcastVideoBadge}',
+      );
       // A podcast: its badge, and its episode and topic under the title.
       expect(
         inCard('p', find.byKey(LiveTypeTag.keyOf(PartyKind.podcast.cardKind))),
@@ -871,7 +887,6 @@ void main() {
         // D362: the owner's short English tags in Arabic too.
         (PartyKind.audio, ar.liveTypeTagVoice),
         (PartyKind.podcast, ar.liveTypeTagPodcast),
-        (PartyKind.multi, ar.liveTypeTagMulti),
       ]) {
         final badge = find.byKey(LiveTypeTag.keyOf(kind.cardKind)).first;
         expect(

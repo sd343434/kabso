@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { livesQuery } from '../admin-panel/admin-v2.schemas.js';
-import { LIVE_KIND_MODES, LIVE_KINDS } from './live-cursor.js';
+import { LIVE_KIND_MEMBERS, LIVE_KINDS } from './live-cursor.js';
 import { roomMetadataJson } from './live-metadata.service.js';
 import { streamerOf } from './live-rooms.service.js';
 import { hostSources } from './live-seats.service.js';
@@ -17,11 +17,12 @@ import {
 describe('D213 streamer rules', () => {
   it('`kind=streamer` is STREAMER; the main hub kinds `solo` and `video` list it too, no other', () => {
     expect(LIVE_KINDS).toContain('streamer');
-    expect(LIVE_KIND_MODES.streamer).toEqual(['STREAMER']);
-    expect(LIVE_KIND_MODES.solo).toEqual(['SOLO', 'PK', 'STREAMER']);
-    expect(LIVE_KIND_MODES.video).toEqual(['SOLO', 'PK', 'MULTI', 'STREAMER']);
+    expect(LIVE_KIND_MEMBERS.streamer).toEqual(['STREAMER']);
+    // v1.115-live (D368): the main hub also lists a live video podcast; v1.116-live (D369): MULTI is in no list.
+    expect(LIVE_KIND_MEMBERS.solo).toEqual(['SOLO', 'PK', 'STREAMER', 'PODCAST_VIDEO']);
+    expect(LIVE_KIND_MEMBERS.video).toEqual(['SOLO', 'PK', 'STREAMER', 'PODCAST_VIDEO']);
     for (const kind of ['audio', 'multi', 'party', 'podcast', 'party_all'] as const) {
-      expect(LIVE_KIND_MODES[kind]).not.toContain('STREAMER');
+      expect(LIVE_KIND_MEMBERS[kind]).not.toContain('STREAMER');
     }
   });
 

@@ -14,6 +14,7 @@ import { AccountLifecycleService } from '../src/modules/users/profiles/account-l
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 
 interface TestUser {
   readonly id: string;
@@ -99,7 +100,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
     await ctx.prisma.liveHost.create({ data: { userId: u.id, source: 'ADMIN' } });
     return u;
   };
-  const goLive = async (u: TestUser, extra: object = { mode: 'MULTI', seatCount: 4 }): Promise<string> => {
+  const goLive = async (u: TestUser, extra: object = {}): Promise<string> => {
     const res = await ctx.http
       .post('/api/v1/live/rooms')
       .set(auth(u))
@@ -198,7 +199,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       });
 
       const [h1, h2, h3] = [await host(), await host(), await host()];
-      const multi = await goLive(h1, { mode: 'MULTI', seatCount: 6, theme: 'ice-palace' });
+      const multi = await startLegacyMulti(ctx, h1.token, { seatCount: 6, theme: 'ice-palace' });
       const audio = await goLive(h2, { mode: 'AUDIO', seatCount: 10 });
       const solo = await goLive(h3, {});
       const detail = await ctx.http.get(`/api/v1/live/rooms/${multi}`);
@@ -255,12 +256,14 @@ describe('CP-011 multi-guest and audio rooms', () => {
     it('validates mode, seatCount and theme (400)', async () => {
       const h = await host();
       const cases: [object, { field: string; issue: string }[]][] = [
-        [{ mode: 'MULTI' }, [{ field: 'seatCount', issue: 'required' }]],
+        // v1.116-live (D369, §10.162): MULTI is retired — refused like PK.
+        [{ mode: 'MULTI' }, [{ field: 'mode', issue: 'invalid_value' }]],
+        [{ mode: 'MULTI', seatCount: 4 }, [{ field: 'mode', issue: 'invalid_value' }]],
+        [{ mode: 'AUDIO' }, [{ field: 'seatCount', issue: 'required' }]],
         [{ mode: 'AUDIO', seatCount: 4 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
         [{ mode: 'AUDIO', seatCount: 6 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
         [{ mode: 'AUDIO', seatCount: 9 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
-        [{ mode: 'MULTI', seatCount: 5 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
-        [{ mode: 'MULTI', seatCount: 13 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+        [{ mode: 'AUDIO', seatCount: 13 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
         [{ seatCount: 4 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
         [{ mode: 'PK' }, [{ field: 'mode', issue: 'invalid_value' }]],
         [{ theme: 'no-such-theme' }, [{ field: 'theme', issue: 'invalid_value' }]],
@@ -326,7 +329,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
   describe('asking for a seat', () => {
     it('request, list, accept (permission, metadata, version), decline, cancel', async () => {
       const [h, a, b, c] = [await host(), await signup(), await signup(), await signup()];
-      const roomId = await goLive(h, { mode: 'MULTI', seatCount: 4 });
+      const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 4 });
       await watch(roomId, a, b, c);
 
       const created = await ask(roomId, a, { seatIndex: 2 });
@@ -490,7 +493,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       const solo = await goLive(h1, {});
       // v1.40-live (D174): a SOLO live has guest seats now (was 409 LIVE_SEAT_UNAVAILABLE).
       expect((await ask(solo, a)).status).toBe(201);
-      const roomId = await goLive(h2, { mode: 'MULTI', seatCount: 4 });
+      const roomId = await startLegacyMulti(ctx, h2.token, { seatCount: 4 });
       await seat(roomId, h2, a);
       await seat(roomId, h2, b);
       await seat(roomId, h2, c);
@@ -502,7 +505,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
 
     it('two accepts racing for the last seat: exactly one wins', async () => {
       const [h, a, b, x, y] = [await host(), await signup(), await signup(), await signup(), await signup()];
-      const roomId = await goLive(h, { mode: 'MULTI', seatCount: 4 });
+      const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 4 });
       await seat(roomId, h, a);
       await seat(roomId, h, b);
       const rx = await ask(roomId, x);
@@ -661,7 +664,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
         await signup(),
         await signup(),
       ];
-      const roomId = await goLive(h, { mode: 'MULTI', seatCount: 4 });
+      const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 4 });
       await seat(roomId, h, a);
 
       const muted = await call('post', `${roomId}/seats/1/mute`, h, { muted: true });
@@ -799,7 +802,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       const h = await host();
       const mods = [await signup(), await signup(), await signup(), await signup(), await signup()];
       const [sixth, guest, blocked] = [await signup(), await signup(), await signup()];
-      const roomId = await goLive(h, { mode: 'MULTI', seatCount: 6 });
+      const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 6 });
 
       const added = await call('put', `${roomId}/moderators/${mods[0]!.username}`, h);
       expect(added.status).toBe(200);
@@ -902,7 +905,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
 
     it('PATCH changes seatCount (not below an occupied seat) and theme', async () => {
       const [h, h2, a] = [await host(), await host(), await signup()];
-      const roomId = await goLive(h, { mode: 'MULTI', seatCount: 9 });
+      const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 9 });
       await seat(roomId, h, a, { seatIndex: 5 });
       await call('post', `${roomId}/seats/7/lock`, h, { locked: true }).expect(200);
 
@@ -954,7 +957,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
   describe('losing a seat', () => {
     it('leaving the media session (webhook or reconciliation) ends the seat, the request and the invitation', async () => {
       const [h, a, b, c] = [await host(), await signup(), await signup(), await signup()];
-      const roomId = await goLive(h, { mode: 'MULTI', seatCount: 4 });
+      const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 4 });
       await watch(roomId, a, b, c);
       await seat(roomId, h, a);
       const pending = await ask(roomId, b);
@@ -1110,7 +1113,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
   describe('media server failures', () => {
     it('never undo a seat change; reconciliation repairs permission and metadata', async () => {
       const [h, a] = [await host(), await signup()];
-      const roomId = await goLive(h, { mode: 'MULTI', seatCount: 4 });
+      const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 4 });
       await watch(roomId, a);
       const r = await ask(roomId, a);
       media.failing = true;
@@ -1140,7 +1143,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
   describe('authentication', () => {
     it('every seat operation but reading needs a token (401); guests read the seats', async () => {
       const h = await host();
-      const roomId = await goLive(h, { mode: 'MULTI', seatCount: 4 });
+      const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 4 });
       const id = randomUUID();
       const calls: [string, () => Promise<request.Response>][] = [
         ['requestLiveSeat', () => call('post', `${roomId}/seat-requests`, undefined, {})],
@@ -1195,11 +1198,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       const [h, a] = [await reg(), await reg()];
       await limited.prisma.liveHost.create({ data: { userId: h.id, source: 'ADMIN' } });
       const bearer = (u: { token: string }) => ({ Authorization: `Bearer ${u.token}` });
-      const room = await limited.http
-        .post('/api/v1/live/rooms')
-        .set(bearer(h))
-        .send({ title: 'x', mode: 'MULTI', seatCount: 4 });
-      const roomId = room.body.id as string;
+      const roomId = await startLegacyMulti(limited, h.token, { title: 'x', seatCount: 4 });
       const base = `/api/v1/live/rooms/${roomId}`;
 
       for (let i = 0; i < 2; i += 1)

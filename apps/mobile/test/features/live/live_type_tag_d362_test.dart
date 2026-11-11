@@ -60,12 +60,6 @@ const _rooms = [
     viewerCount: 3,
     isAudio: true,
   ),
-  LiveRoomCardData(
-    hostName: 'E',
-    title: 'multi',
-    viewerCount: 3,
-    isMulti: true,
-  ),
   LiveRoomCardData(hostName: 'F', title: 'live', viewerCount: 1234567),
 ];
 
@@ -81,7 +75,9 @@ void main() {
         _summary('SOLO'): (LiveCardKind.live, en.liveTypeTagCam),
         _summary('SOLO', inPk: true): (LiveCardKind.pk, en.pkBadge),
         _summary('PK'): (LiveCardKind.pk, en.pkBadge),
-        _summary('MULTI'): (LiveCardKind.multi, en.liveTypeTagMulti),
+        // D369: the multi-guest live is retired; a legacy MULTI room is a
+        // camera live on its card.
+        _summary('MULTI'): (LiveCardKind.live, en.liveTypeTagCam),
         _summary('AUDIO'): (LiveCardKind.audio, en.liveTypeTagVoice),
         _summary('PODCAST'): (LiveCardKind.podcast, en.liveTypeTagPodcast),
         _summary('STREAMER'): (LiveCardKind.streamer, en.liveTypeTagStreamer),
@@ -93,10 +89,10 @@ void main() {
         expect(LiveCardKind.of(room), kind, reason: summary.mode.name);
         expect(kind.tag(en), tag);
       }
-      // The six words the owner listed.
+      // The words the owner listed (D369: «Multi» is gone with the mode).
       expect(
         [for (final k in LiveCardKind.values) k.tag(en)],
-        ['PK', 'Streamer', 'Podcast', 'Voice', 'Multi', 'Live Cam'],
+        ['PK', 'Streamer', 'Podcast', 'Voice', 'Live Cam'],
       );
       // The party list shows «PK» in its own pill: its mark keeps the kind.
       final audioPk = LiveRoomCardData.fromSummary(
@@ -149,6 +145,70 @@ void main() {
         expect(LiveCardKind.audio.semanticLabel(l10n), l10n.liveCategoryAudio);
         expect(tester.takeException(), isNull);
       });
+
+      testWidgets(
+        'D368: the card of a video podcast shows the «Podcast» tag with '
+        'no camera after it; «Video» is only spoken (${language.name})',
+        (tester) async {
+          final l10n = l10nFor(language);
+          setViewport(tester, GoldenViewport.phone);
+          await pumpComponent(
+            tester,
+            _grid(const [
+              LiveRoomCardData(
+                hostName: 'V',
+                title: 'video podcast',
+                viewerCount: 3,
+                isAudio: true,
+                isPodcast: true,
+                podcast: LivePodcast(
+                  episodeNumber: 1,
+                  topic: PodcastTopic.business,
+                  video: true,
+                ),
+              ),
+            ]),
+            language: language,
+          );
+          final card = find.byKey(LiveHubGrid.cardKey(0));
+          final tag = find.descendant(
+            of: card,
+            matching: find.byKey(KLiveGridCard.typeKey),
+          );
+          expect(tester.widget<LiveTypeTag>(tag).kind, LiveCardKind.podcast);
+          expect(tester.widget<LiveTypeTag>(tag).video, isTrue);
+          for (final type in [Icon, Row, CustomPaint]) {
+            expect(
+              find.descendant(of: tag, matching: find.byType(type)),
+              findsNothing,
+              reason: '$type',
+            );
+          }
+          expect(
+            find.descendant(
+              of: card,
+              matching: find.byIcon(Icons.videocam_rounded),
+            ),
+            findsNothing,
+          );
+          expect(
+            find.descendant(
+              of: tag,
+              matching: find.text(l10n.liveTypeTagPodcast),
+            ),
+            findsOneWidget,
+          );
+          expect(
+            tester
+                .getSemantics(
+                  find.byKey(LiveTypeTag.keyOf(LiveCardKind.podcast)),
+                )
+                .label,
+            '${l10n.liveCategoryPodcast} · ${l10n.podcastVideoBadge}',
+          );
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
   });
 

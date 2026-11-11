@@ -574,9 +574,10 @@ class GoLiveStartPill extends StatelessWidget {
   }
 }
 
-/// The modes (ref 164) on a black band: Multi-guest · LIVE · Audio LIVE in
-/// a row centred on the chosen one, which is white and bold over a dot.
-/// D224: the row scrolls sideways ([GoLiveModeScroller]).
+/// The modes (ref 164) on a black band: LIVE · Audio LIVE · Podcast in a
+/// row centred on the chosen one, which is white and bold over a dot.
+/// D224: the row scrolls sideways ([GoLiveModeScroller]). D369: no
+/// multi-guest mode any more (retired).
 class GoLiveModePager extends StatelessWidget {
   const new({required this.selected, required this.onSelect, super.key});
 
@@ -588,7 +589,6 @@ class GoLiveModePager extends StatelessWidget {
     final l10n = context.l10n;
     final text = context.textStyles;
     final modes = [
-      (LiveRoomMode.multi, l10n.goLiveModeMulti),
       (LiveRoomMode.solo, l10n.goLiveModeSolo),
       (LiveRoomMode.audio, l10n.goLiveModeAudio),
       // D212: the podcast, then the streamer (D213: a mode on Android,

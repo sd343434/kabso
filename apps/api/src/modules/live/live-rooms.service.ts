@@ -19,7 +19,7 @@ import { LiveScheduleService } from './live-schedule.service.js';
 import { LiveCategoriesService, localizedCategory, type LiveCategoryDto } from './live-categories.service.js';
 import {
   cursorScope,
-  LIVE_KIND_MODES,
+  liveKindSql,
   LiveCursorCodec,
   type CursorMerge,
   type CursorPosition,
@@ -545,12 +545,15 @@ const ROOM_FROM = Prisma.sql`
 
 /**
  * v1.58-live (D246, §10.89): the kind a live counts in for «رائج» — the party page's kinds and the
- * hub's video (SOLO and PK; D213's STREAMER is a video live too).
+ * hub's video (SOLO and PK; D213's STREAMER is a video live too). v1.115-live (D368, §10.161): a live video podcast
+ * counts with the video lives (0); an audio podcast keeps its own kind (2).
  */
 function popularKindSql(alias: string): Prisma.Sql {
   const mode = Prisma.raw(`${alias}.mode`);
-  return Prisma.sql`CASE ${mode} WHEN 'AUDIO'::live_room_mode THEN 1 WHEN 'PODCAST'::live_room_mode THEN 2
-                         WHEN 'MULTI'::live_room_mode THEN 3 ELSE 0 END`;
+  const video = Prisma.raw(`${alias}.podcast_video`);
+  return Prisma.sql`CASE WHEN ${mode} = 'AUDIO'::live_room_mode THEN 1
+                         WHEN ${mode} = 'PODCAST'::live_room_mode AND NOT ${video} THEN 2
+                         WHEN ${mode} = 'MULTI'::live_room_mode THEN 3 ELSE 0 END`;
 }
 
 /**
@@ -1293,12 +1296,10 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         Prisma.sql`r.category_id = (SELECT id FROM live_categories WHERE slug = ${query.category} AND is_active)`,
       );
     }
-    if (query.kind !== undefined) {
-      // v1.26.4-live (D129): voice rooms (podcasts included) apart from video lives (solo, PK, multi).
-      // v1.27.1-live (D133): solo (SOLO, PK), multi (MULTI), party (AUDIO, MULTI).
-      const modes = LIVE_KIND_MODES[query.kind].map((m) => Prisma.sql`${m}::live_room_mode`);
-      conditions.push(Prisma.sql`r.mode IN (${Prisma.join(modes)})`);
-    }
+    // v1.26.4-live (D129) / v1.27.1-live (D133): the kind's rooms. v1.115-live (D368, §10.161): a live video podcast
+    // is a camera live of the main hub (`solo`, `video`), not of the party page (`party_all`). v1.116-live (D369,
+    // §10.162): a MULTI room is in no list, with or without a kind (`multi` lists nothing).
+    conditions.push(liveKindSql(query.kind));
     if (nearbyCountry !== null) conditions.push(Prisma.sql`p.country_code = ${nearbyCountry}`);
     if (query.tab === 'following') {
       conditions.push(
@@ -1434,6 +1435,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   /**
    * v1.33-live (D154b): the summaries of the rooms in `roomIds` that are LIVE and fresh now, with an
    * ACTIVE host and no block with `viewerId` (the traffic-card slots of `GET /live/boosts/active`).
+   * v1.116-live (D369, §10.162): never a (retired) MULTI room.
    */
   async liveSummaries(
     roomIds: readonly string[],
@@ -1445,7 +1447,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     const rows = await this.prisma.$queryRaw<RoomRow[]>`
       SELECT ${ROOM_COLUMNS}, ${popularSql(this.cutoff(now), this.config.live.popularTopN)} AS popular
              ${ROOM_FROM}
-       WHERE r.id = ANY(${[...roomIds]}::uuid[]) AND r.status = 'LIVE'
+       WHERE r.id = ANY(${[...roomIds]}::uuid[]) AND r.status = 'LIVE' AND ${liveKindSql(undefined)}
          AND r.last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
          AND u.status = 'ACTIVE' AND ${notBlockedSql(viewerId)}`;
     return new Map(rows.map((row) => [row.id, this.toSummary(row, lang)]));
@@ -1583,7 +1585,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   ): Promise<LiveRoomDto> {
     this.assertHostingEnabled();
     // v1.72-live (D283, §10.96.10): a Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) never goes live —
-    // every mode (solo, audio, podcast, streamer, multi-guest) comes through here (403 STAFF_ACCOUNT_LIMITED `live`).
+    // every mode (solo, audio, podcast, streamer) comes through here (403 STAFF_ACCOUNT_LIMITED `live`).
     await refuseLimitedStaff(this.prisma, callerId, 'live');
     // CP-010 (§10.8): the hosting permission, checked right after the hosting switch.
     if ((await this.prisma.liveHost.count({ where: { userId: callerId } })) === 0) {

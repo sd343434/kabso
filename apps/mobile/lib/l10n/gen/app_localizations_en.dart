@@ -3509,9 +3509,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goLiveUnavailableTitle => 'Going live isn\'t available yet';
 
   @override
-  String get goLiveModeMulti => 'Multi-guest';
-
-  @override
   String get goLiveModeSolo => 'LIVE';
 
   @override
@@ -12547,9 +12544,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveCategoryPodcast => 'Podcast';
 
   @override
-  String get liveCategoryMulti => 'Multi';
-
-  @override
   String get liveCategoryStreamer => 'Streamer';
 
   @override
@@ -17662,9 +17656,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveTypeTagStreamer => 'Streamer';
-
-  @override
-  String get liveTypeTagMulti => 'Multi';
 
   @override
   String get podcastFormat => 'Episode format';

@@ -62,15 +62,11 @@ class KLiveCoverCard extends StatelessWidget {
         ? l10n.pkBadge
         : guests != null
         ? l10n.liveMultiGuest(guests)
-        : room.isMulti
-        ? l10n.liveCategoryMulti
         : voiceLabel ?? l10n.liveBadge;
     final Widget? typeBadge = room.inPk
         ? const KBadge.pk()
         : guests != null
         ? KBadge.multiGuest(count: guests)
-        : room.isMulti
-        ? _TypePill(label: l10n.liveCategoryMulti)
         : voiceLabel != null
         ? _TypePill(label: voiceLabel)
         : showLiveBadge

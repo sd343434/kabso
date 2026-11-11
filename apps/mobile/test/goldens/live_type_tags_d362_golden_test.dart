@@ -22,6 +22,7 @@ import 'package:flutter/rendering.dart' show OffsetLayer;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
@@ -87,12 +88,20 @@ List<LiveRoomCardData> _rooms(AppLanguage language) {
       cover: coverBlue,
       isAudio: true,
     ),
+    // D368: a live video podcast is a camera card of the hub, with the
+    // podcast's tag and no camera after it (D369: no multi-guest card).
     LiveRoomCardData(
       hostName: ar ? 'مريم' : 'Maryam',
       title: ar ? 'ضيوف على المسرح' : 'Guests on stage',
       viewerCount: 12345,
       cover: coverRed,
-      isMulti: true,
+      isAudio: true,
+      isPodcast: true,
+      podcast: const LivePodcast(
+        episodeNumber: 4,
+        topic: PodcastTopic.society,
+        video: true,
+      ),
     ),
     LiveRoomCardData(
       hostName: ar ? 'أحمد' : 'Ahmad',

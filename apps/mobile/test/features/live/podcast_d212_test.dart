@@ -203,11 +203,12 @@ void main() {
                     ar: ar,
                   ).first.copyWith(mode: LiveRoomMode.audio, seatCount: 8),
                   _podcastSummary(ar: ar),
+                  // D369: no multi-guest room any more (retired).
                   apiRooms(
                     1,
                     start: 6,
                     ar: ar,
-                  ).first.copyWith(mode: LiveRoomMode.multi, seatCount: 4),
+                  ).first.copyWith(mode: LiveRoomMode.audio, seatCount: 5),
                 ]
               : apiRooms(3, ar: ar),
         ),
@@ -235,7 +236,7 @@ void main() {
 
     testWidgets('D237: no category row on the hub. D342: the party page '
         'has no kinds row — one server list (kind=party_all) under each '
-        'filter, the podcast among the audio and multi rooms, each card with '
+        'filter, the podcast among the audio rooms, each card with '
         "its kind's badge", (tester) async {
       final live = await hub(tester);
       final l10n = lookupAppLocalizations(AppLanguage.ar.locale);
@@ -258,7 +259,7 @@ void main() {
       for (final (i, kind) in [
         (0, PartyKind.audio),
         (1, PartyKind.podcast),
-        (2, PartyKind.multi),
+        (2, PartyKind.audio),
       ]) {
         expect(
           find.descendant(

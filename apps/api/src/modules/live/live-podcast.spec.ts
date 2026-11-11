@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LIVE_KIND_MODES, LIVE_KINDS } from './live-cursor.js';
+import { LIVE_KIND_MEMBERS, LIVE_KINDS, LIVE_LISTED_MEMBERS, liveKindSql } from './live-cursor.js';
 import { hostSources, seatPermission } from './live-seats.service.js';
 import {
   DEFAULT_PODCAST_THEME,
@@ -107,14 +107,31 @@ describe('D212 podcast schemas and rules', () => {
     expect(seatPermission('PODCAST', true)).toEqual({ visible: true, sources: [] });
   });
 
-  it('`kind=podcast` is PODCAST only; no other kind lists a podcast but D342’s `party_all`', () => {
+  it('`kind=podcast` lists every podcast; an audio podcast is on the party page, a video podcast on the main hub', () => {
     expect(LIVE_KINDS).toContain('podcast');
-    expect(LIVE_KIND_MODES.podcast).toEqual(['PODCAST']);
-    // v1.107-live (D342): the party page's one mixed list.
-    expect(LIVE_KIND_MODES.party_all).toEqual(['AUDIO', 'PODCAST', 'MULTI']);
+    expect(LIVE_KIND_MEMBERS.podcast).toEqual(['PODCAST_AUDIO', 'PODCAST_VIDEO']);
+    // v1.107-live (D342): the party page's one mixed list; v1.115-live (D368): audio podcasts only.
+    expect(LIVE_KIND_MEMBERS.party_all).toEqual(['AUDIO', 'PODCAST_AUDIO']);
+    // v1.115-live (D368): a live video podcast is a camera live of the main hub.
+    expect(LIVE_KIND_MEMBERS.solo).toContain('PODCAST_VIDEO');
+    expect(LIVE_KIND_MEMBERS.video).toContain('PODCAST_VIDEO');
     for (const kind of LIVE_KINDS.filter((k) => k !== 'podcast' && k !== 'party_all')) {
-      expect(LIVE_KIND_MODES[kind]).not.toContain('PODCAST');
+      expect(LIVE_KIND_MEMBERS[kind]).not.toContain('PODCAST_AUDIO');
     }
+    for (const kind of LIVE_KINDS.filter((k) => k !== 'podcast' && k !== 'solo' && k !== 'video')) {
+      expect(LIVE_KIND_MEMBERS[kind]).not.toContain('PODCAST_VIDEO');
+    }
+  });
+
+  it('v1.116-live (D369): MULTI is retired — no kind lists it, `multi` lists nothing, `party` is AUDIO', () => {
+    expect(LIVE_KINDS).toContain('multi');
+    expect(LIVE_KIND_MEMBERS.multi).toEqual([]);
+    expect(LIVE_KIND_MEMBERS.party).toEqual(['AUDIO']);
+    expect(LIVE_LISTED_MEMBERS).not.toContain('MULTI');
+    const text = (sql: { strings: readonly string[] }): string => sql.strings.join('?');
+    expect(text(liveKindSql('multi'))).toBe('FALSE');
+    expect(text(liveKindSql(undefined))).not.toContain('MULTI');
+    expect(text(liveKindSql('party_all'))).toContain('NOT r.podcast_video');
   });
 
   it('the owner’s podcast backgrounds are room themes; the studio is the default', () => {

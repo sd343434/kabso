@@ -127,7 +127,7 @@ class GoLiveAudioSetup extends StatelessWidget {
   final VoidCallback? onStart;
   final VoidCallback? onClose;
 
-  /// A mode tab: switch to multi-guest or LIVE.
+  /// A mode tab: switch to another mode (LIVE, podcast, …).
   final ValueChanged<LiveRoomMode>? onMode;
   final String hostName;
   final String? hostAvatarUrl;
@@ -815,8 +815,9 @@ class _GoLiveButton extends StatelessWidget {
   );
 }
 
-/// Multi-guest · LIVE · Audio LIVE (ref 65): the chosen mode centred,
-/// larger, with a dot under it; the others run off the start edge.
+/// LIVE · Audio LIVE · Podcast (ref 65; D369: no multi-guest mode): the
+/// chosen mode centred, larger, with a dot under it; the others run off the
+/// start edge.
 class _ModeTabs extends StatelessWidget {
   const new({required this.selected, required this.onSelect});
 
@@ -828,7 +829,6 @@ class _ModeTabs extends StatelessWidget {
     final l10n = context.l10n;
     final text = context.textStyles;
     final modes = [
-      (LiveRoomMode.multi, l10n.goLiveModeMulti),
       (LiveRoomMode.solo, l10n.goLiveModeSolo),
       (LiveRoomMode.audio, l10n.goLiveModeAudio),
       // D212: the podcast (the streamer tab follows, «قريباً»; D213: a

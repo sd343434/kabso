@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { LiveKitMediaProvider } from '../src/modules/live/media/livekit-media.provider.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 
 const url = process.env.LIVEKIT_TEST_URL;
 const key = process.env.LIVEKIT_TEST_API_KEY ?? 'devkey';
@@ -242,12 +243,8 @@ describe.skipIf(!url)('CP-011 seats through the API on a real LiveKit server', (
     const [host, guest] = [await signup(), await signup()];
     await ctx.prisma.liveHost.create({ data: { userId: host.id, source: 'ADMIN' } });
     const bearer = (u: { token: string }) => ({ Authorization: `Bearer ${u.token}` });
-    const created = await ctx.http
-      .post('/api/v1/live/rooms')
-      .set(bearer(host))
-      .send({ title: 'Real seats', mode: 'MULTI', seatCount: 4 });
-    expect(created.status).toBe(201);
-    const roomId = created.body.id as string;
+    // v1.116-live (D369): a legacy MULTI room (no longer started; one started before runs on).
+    const roomId = await startLegacyMulti(ctx, host.token, { title: 'Real seats', seatCount: 4 });
     const base = `/api/v1/live/rooms/${roomId}`;
 
     // The guest watches with the token the API gives them (a hidden viewer).

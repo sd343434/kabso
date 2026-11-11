@@ -591,7 +591,8 @@ class GoLiveToolsBar extends StatelessWidget {
   );
 }
 
-/// Multi-guest · LIVE · Audio LIVE.
+/// LIVE · Audio LIVE · Podcast (· Streamer). D369 (owner: «الغي البث
+/// المتعدد لا اريده»): no multi-guest mode any more.
 class GoLiveModeBar extends StatelessWidget {
   const new({
     required this.selected,
@@ -663,7 +664,6 @@ class GoLiveModeBar extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          mode(LiveRoomMode.multi, l10n.goLiveModeMulti),
           mode(LiveRoomMode.solo, l10n.goLiveModeSolo),
           mode(LiveRoomMode.audio, l10n.goLiveModeAudio),
           mode(LiveRoomMode.podcast, l10n.goLiveModePodcast),

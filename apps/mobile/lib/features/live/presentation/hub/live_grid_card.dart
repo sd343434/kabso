@@ -55,8 +55,9 @@ abstract final class KLiveGrid {
 ///   room type right beside it — D362 (owner: «ايقونة تكون ببطاقة البث من
 ///   الخارج حسب نوع البث بخط صغير جداً», then 2026-11-10: «لا ازل الايقونات
 ///   فقط جنبي موجة الكلمة بتصنيف لايف»): the tiny English tag only, no glyph
-///   ([LiveTypeTag], [LiveCardKind.of]: PK, streamer, podcast, audio, multi
-///   or a camera live), the same for every kind (it replaced the type text
+///   ([LiveTypeTag], [LiveCardKind.of]: PK, streamer, podcast, audio or a
+///   camera live — D369: a legacy multi-guest live too), the same for every
+///   kind (it replaced the type text
 ///   and D342b's party chip). Top end: the viewer count with
 ///   a person icon (owner 2026-11-08: «المعلومات على بطاقة البث كثيرة» —
 ///   one type and the viewers; the «جديد» chip is gone, 0 is shown as 0:
@@ -102,8 +103,9 @@ class KLiveGridCard extends StatelessWidget {
     ];
     // D237 (owner): every card names its live's category, from the room's
     // own mode (the hub has no category row any more): «بث مباشر»,
-    // «بث صوتي», «بث بودكاست», «بث متعدد»; a PK keeps «PK». D213: a
-    // streamer's card «ستريمر».
+    // «بث صوتي», «بث بودكاست»; a PK keeps «PK». D213: a streamer's card
+    // «ستريمر». D369: the multi-guest live is retired — a legacy MULTI room
+    // is a camera live («بث مباشر»).
     final type = room.inPk
         ? l10n.pkBadge
         : room.isStreamer
@@ -112,8 +114,6 @@ class KLiveGridCard extends StatelessWidget {
         ? l10n.liveCategoryPodcast
         : room.isAudio
         ? l10n.liveCategoryAudio
-        : room.isMulti
-        ? l10n.liveCategoryMulti
         : l10n.liveCategoryLive;
     // D362: the same kind as a tiny tag beside the live wave.
     final kind = LiveCardKind.of(room);
@@ -179,7 +179,8 @@ class KLiveGridCard extends StatelessWidget {
                               child: LiveTypeTag(
                                 key: typeKey,
                                 kind: kind,
-                                // D363: a video podcast's camera.
+                                // D363: a video podcast («فيديو» in the
+                                // spoken label only; D368: no camera).
                                 video: room.podcast?.video ?? false,
                               ),
                             ),

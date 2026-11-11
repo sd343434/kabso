@@ -91,8 +91,6 @@ describe('live-room title (CONVENTIONS §10.3)', () => {
     };
     for (const body of [
       { title: 'ok', mode: 'SOLO' },
-      { title: 'ok', mode: 'MULTI', seatCount: 4 },
-      { title: 'ok', mode: 'MULTI', seatCount: 12 },
       { title: 'ok', mode: 'AUDIO', seatCount: 5 },
       { title: 'ok', mode: 'AUDIO', seatCount: 10 },
       { title: 'ok', mode: 'AUDIO', seatCount: 15 },
@@ -104,20 +102,21 @@ describe('live-room title (CONVENTIONS §10.3)', () => {
     }
     const cases: [unknown, { field: string; issue: string }[]][] = [
       [{ title: 'ok', mode: 'PK' }, [{ field: 'mode', issue: 'invalid_value' }]],
-      [{ title: 'ok', mode: 'MULTI' }, [{ field: 'seatCount', issue: 'required' }]],
-      [{ title: 'ok', mode: 'MULTI', seatCount: 5 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      // v1.116-live (D369, §10.162): MULTI is retired — refused like PK, whatever the seat count.
+      [{ title: 'ok', mode: 'MULTI', seatCount: 4 }, [{ field: 'mode', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'MULTI', seatCount: 12 }, [{ field: 'mode', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'AUDIO' }, [{ field: 'seatCount', issue: 'required' }]],
       [{ title: 'ok', mode: 'AUDIO', seatCount: 4 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
       [{ title: 'ok', mode: 'AUDIO', seatCount: 7 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
       // D103: the former AUDIO sizes 6 and 9 (D100) and 13 (before D100) are gone; 5 / 10 / 15 /
-      // 20 are AUDIO only (MULTI 5 is refused above, MULTI 15 below). D123: 25 is gone too.
+      // 20 are AUDIO only. D123: 25 is gone too.
       [{ title: 'ok', mode: 'AUDIO', seatCount: 25 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
       [{ title: 'ok', mode: 'AUDIO', seatCount: 6 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
       [{ title: 'ok', mode: 'AUDIO', seatCount: 9 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
       [{ title: 'ok', mode: 'AUDIO', seatCount: 13 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
-      [{ title: 'ok', mode: 'MULTI', seatCount: 10 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
-      [{ title: 'ok', mode: 'MULTI', seatCount: 15 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'AUDIO', seatCount: 12 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
       [{ title: 'ok', seatCount: 4 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
-      [{ title: 'ok', mode: 'MULTI', seatCount: '4' }, [{ field: 'seatCount', issue: 'invalid_type' }]],
+      [{ title: 'ok', mode: 'AUDIO', seatCount: '5' }, [{ field: 'seatCount', issue: 'invalid_type' }]],
       [{ title: 'ok', theme: 'Bad Theme' }, [{ field: 'theme', issue: 'invalid_format' }]],
       [{ title: 'ok', theme: 'not-a-theme' }, [{ field: 'theme', issue: 'invalid_value' }]],
     ];

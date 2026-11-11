@@ -32,14 +32,14 @@ import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 
-/// The server's mixed party list: audio, podcast, multi, audio, multi,
-/// podcast (rooms 0–5).
+/// The server's mixed party list: audio, podcast, audio, audio, podcast,
+/// podcast (rooms 0–5). D369: no multi-guest room any more (retired).
 const List<LiveRoomMode> _modes = [
   LiveRoomMode.audio,
   LiveRoomMode.podcast,
-  LiveRoomMode.multi,
   LiveRoomMode.audio,
-  LiveRoomMode.multi,
+  LiveRoomMode.audio,
+  LiveRoomMode.podcast,
   LiveRoomMode.podcast,
 ];
 
@@ -47,7 +47,6 @@ LiveRoomMode _modeOf(String id) => _modes[int.parse(id.split('-').last)];
 
 PartyKind _kindOf(LiveRoomMode mode) => switch (mode) {
   LiveRoomMode.podcast => PartyKind.podcast,
-  LiveRoomMode.multi => PartyKind.multi,
   _ => PartyKind.audio,
 };
 
@@ -172,7 +171,6 @@ void main() {
       for (final (index, mode) in [
         (0, LiveRoomMode.audio),
         (1, LiveRoomMode.podcast),
-        (2, LiveRoomMode.multi),
       ]) {
         testWidgets('a tap on the ${mode.name} card (its badge) opens that '
             'room; the swipe list is the mixed list', (tester) async {

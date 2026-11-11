@@ -23,7 +23,6 @@ class LiveRoomCardData {
     this.roomId,
     this.score = 0,
     this.isAudio = false,
-    this.isMulti = false,
     this.isPodcast = false,
     this.isStreamer = false,
     this.hostId,
@@ -66,7 +65,6 @@ class LiveRoomCardData {
       roomId: room.id,
       score: room.score,
       isAudio: room.mode.isVoice,
-      isMulti: room.mode == LiveRoomMode.multi,
       isPodcast: room.mode == LiveRoomMode.podcast,
       isStreamer: room.mode == LiveRoomMode.streamer,
       hostId: room.host.id,
@@ -121,9 +119,6 @@ class LiveRoomCardData {
   /// D124: an audio room (CP-011 `AUDIO`); every other mode has video. The
   /// grid card names the room type next to the live mark.
   final bool isAudio;
-
-  /// D131: a multi-guest video live (CP-011 `MULTI`).
-  final bool isMulti;
 
   /// D237: a podcast (v1.47-live `PODCAST`; [isAudio] too).
   final bool isPodcast;

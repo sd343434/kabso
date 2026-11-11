@@ -9,6 +9,7 @@ import { Clock } from '../src/common/time/clock.js';
 import { LiveRoomsService } from '../src/modules/live/live-rooms.service.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 
 class FakeClock extends Clock {
   private ms = Date.now();
@@ -179,7 +180,7 @@ describe('D170 host away', { timeout: 120_000 }, () => {
 
   it('a MULTI (video with guests) live is a video live too', async () => {
     const h = await host();
-    const roomId = await goLive(h, { mode: 'MULTI', seatCount: 6 });
+    const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 6 });
     await away(roomId, h, true);
     clock.advance(300);
     expect(await rooms.sweepHostAway()).toBe(1);

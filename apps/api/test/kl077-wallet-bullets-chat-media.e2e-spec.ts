@@ -24,6 +24,7 @@ import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { MemoryObjectStorage } from './helpers/memory-storage.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, settle, type TestContext } from './helpers/test-app.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 
 class FakeClock extends Clock {
   private ms = Date.now();
@@ -231,7 +232,7 @@ describe('CP-017 coins, bullet messages, voice clips and images', { timeout: 120
       const viewer = await signup();
       const solo = await goLive(h1);
       const audio = await goLive(h2, { mode: 'AUDIO', seatCount: 10 });
-      const multi = await goLive(h3, { mode: 'MULTI', seatCount: 4 });
+      const multi = await startLegacyMulti(ctx, h3.token, { seatCount: 4 });
       const ended = await goLive(h4);
       await end(ended, h4);
       await join(solo, viewer);

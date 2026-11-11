@@ -209,7 +209,7 @@ describe('D283 the Kabso Team accounts and regions', { timeout: 900_000 }, () =>
       for (const body of [
         { title: 'x' },
         { title: 'x', mode: 'AUDIO', seatCount: 9 },
-        { title: 'x', mode: 'MULTI', seatCount: 4 },
+        { title: 'x', mode: 'PODCAST', podcast: { topic: 'business', video: true } },
         { title: 'x', mode: 'STREAMER' },
       ]) {
         const res = await ctx.http.post('/api/v1/live/rooms').set(auth(s)).send(body);

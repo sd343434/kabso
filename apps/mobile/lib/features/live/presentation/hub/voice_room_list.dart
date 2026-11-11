@@ -215,8 +215,6 @@ class VoiceRoomRow extends StatelessWidget {
         : l10n.liveViewers(room.viewerCount, KFormat.grouped(room.viewerCount));
     final kind = room.isPodcast
         ? l10n.liveCategoryPodcast
-        : room.isMulti
-        ? l10n.liveCategoryMulti
         : room.isAudio
         ? l10n.liveCategoryAudio
         : l10n.liveCategoryLive;
@@ -313,7 +311,8 @@ class VoiceRoomRow extends StatelessWidget {
                                           withPk: false,
                                         ),
                                         fontSize: 9,
-                                        // D363: a video podcast's camera.
+                                        // D363: a video podcast (D368: no
+                                        // camera after the tag).
                                         video: room.podcast?.video ?? false,
                                       ),
                                     ),
@@ -467,10 +466,8 @@ class VoiceRoomRow extends StatelessWidget {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     if (!isNew) ...[
-                                      Icon(
-                                        room.isMulti
-                                            ? Icons.videocam_rounded
-                                            : Icons.mic_rounded,
+                                      const Icon(
+                                        Icons.mic_rounded,
                                         size: 13,
                                         color: KVoiceRoomRow.mic,
                                       ),

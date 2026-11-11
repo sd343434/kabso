@@ -15,6 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { refusalsKey } from '../src/modules/live/live-capacity.js';
 import { expectContract } from './helpers/openapi.js';
 import { createTestApp, registerVerified, resetDatabase, type TestContext } from './helpers/test-app.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 
 interface TestUser {
   readonly id: string;
@@ -66,9 +67,10 @@ describe('D351 capacity guard — off by default', { timeout: 120_000 }, () => {
 
   it('every host goes live as before, in every mode', async () => {
     expect(ctx.config.live.capacity.maxRooms).toBe(0);
+    // v1.116-live (D369): MULTI is retired (400 `mode`, d239 / kl064 cover it); the video podcast (D363) instead.
     for (const body of [
       {},
-      { mode: 'MULTI', seatCount: 4 },
+      { mode: 'PODCAST', podcast: { topic: 'business', video: true } },
       { mode: 'AUDIO', seatCount: 5 },
       { mode: 'STREAMER' },
     ]) {
@@ -99,7 +101,8 @@ describe('D351 capacity guard — on', { timeout: 180_000 }, () => {
     const a = await h.signup();
     const b = await h.signup();
     const viewer = await h.signup(false);
-    const roomA = await h.live(a, { mode: 'MULTI', seatCount: 4 });
+    // A running (legacy) MULTI room — D369: no longer started, but one started before runs on.
+    const roomA = await startLegacyMulti(ctx, a.token, { seatCount: 4 });
 
     const refused = await h.start(b);
     h.expectFull(refused, '45');
@@ -218,7 +221,7 @@ describe('D351 capacity guard — weights, bypass and concurrency', { timeout: 1
     await h.live(await h.signup(), { mode: 'AUDIO', seatCount: 5 }); // 150
     await h.live(await h.signup(), { mode: 'PODCAST', podcast: { topic: 'business' } }); // 200
     await h.live(await h.signup(), { mode: 'AUDIO', seatCount: 5 }); // 250
-    h.expectFull(await h.start(await h.signup(), { mode: 'MULTI', seatCount: 4 }), '60'); // 350 > 300
+    h.expectFull(await h.start(await h.signup()), '60'); // 350 > 300
     await h.live(await h.signup(), { mode: 'AUDIO', seatCount: 5 }); // 300
     h.expectFull(await h.start(await h.signup(), { mode: 'AUDIO', seatCount: 5 }), '60'); // 350 > 300
     expect(await h.liveCount()).toBe(5);
@@ -233,7 +236,7 @@ describe('D351 capacity guard — weights, bypass and concurrency', { timeout: 1
     capacity.bypassUserIds = [vip.id];
     try {
       // Still full (300 of 300 from the test above): the bypass user goes live, nobody else does.
-      await h.live(vip, { mode: 'MULTI', seatCount: 4 });
+      await h.live(vip);
       h.expectFull(await h.start(other), '60');
       expect(await h.liveCount()).toBe(6);
     } finally {

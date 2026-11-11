@@ -17,6 +17,7 @@ import {
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 
 const VIDEO = 'aaaaaaaaaaa';
 
@@ -251,12 +252,8 @@ describe('D173 cinema seats', { timeout: 180_000 }, () => {
   it('a video live (MULTI) is never a cinema', async () => {
     const h = await signup();
     await ctx.prisma.liveHost.create({ data: { userId: h.id, source: 'ADMIN' } });
-    const res = await ctx.http
-      .post('/api/v1/live/rooms')
-      .set(auth(h))
-      .send({ title: 'Multi', mode: 'MULTI', seatCount: 12 });
-    expect(res.status).toBe(201);
-    const roomId = res.body.id as string;
+    // v1.116-live (D369): a legacy MULTI room (no longer started; one started before runs on).
+    const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 12 });
     expect((await watch(roomId, h, VIDEO)).status).toBe(200);
     const after = await seats(roomId);
     expect(after.cinema).toBe(false);

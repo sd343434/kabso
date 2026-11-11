@@ -3539,9 +3539,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get goLiveUnavailableTitle => 'البث المباشر غير متاح بعد';
 
   @override
-  String get goLiveModeMulti => 'بث متعدد';
-
-  @override
   String get goLiveModeSolo => 'بث مباشر';
 
   @override
@@ -12559,9 +12556,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveCategoryPodcast => 'بث بودكاست';
 
   @override
-  String get liveCategoryMulti => 'بث متعدد';
-
-  @override
   String get liveCategoryStreamer => 'بث ستريمر';
 
   @override
@@ -17673,9 +17667,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveTypeTagStreamer => 'Streamer';
-
-  @override
-  String get liveTypeTagMulti => 'Multi';
 
   @override
   String get podcastFormat => 'نوع الحلقة';

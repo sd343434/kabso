@@ -4007,10 +4007,6 @@
   "@goLiveUnavailableTitle": {
     "description": "hostingEnabled false title"
   },
-  "goLiveModeMulti": "بث متعدد",
-  "@goLiveModeMulti": {
-    "description": "Go-live mode: multi-guest video (CP-011)"
-  },
   "goLiveModeSolo": "بث مباشر",
   "@goLiveModeSolo": {
     "description": "Go-live mode: one host on camera"
@@ -11933,10 +11929,6 @@
   "@liveCategoryPodcast": {
     "description": "D212 (live categories and the podcast live)."
   },
-  "liveCategoryMulti": "بث متعدد",
-  "@liveCategoryMulti": {
-    "description": "D212 (live categories and the podcast live)."
-  },
   "liveCategoryStreamer": "بث ستريمر",
   "@liveCategoryStreamer": {
     "description": "D212 (live categories and the podcast live)."
@@ -15110,8 +15102,6 @@
   "@liveTypeTagPodcast": {"description": "D362: the tiny type tag beside the animated glyph on a live card: a PODCAST. The owner's short English tag, deliberately the same in Arabic and English (his file: short English tag next to the small icon); screen readers hear the full Arabic type name instead."},
   "liveTypeTagStreamer": "Streamer",
   "@liveTypeTagStreamer": {"description": "D362: the tiny type tag beside the animated glyph on a live card: a STREAMER live. The owner's short English tag, deliberately the same in Arabic and English (his file: short English tag next to the small icon); screen readers hear the full Arabic type name instead."},
-  "liveTypeTagMulti": "Multi",
-  "@liveTypeTagMulti": {"description": "D362: the tiny type tag beside the animated glyph on a live card: a MULTI (multi-guest) live. The owner's short English tag, deliberately the same in Arabic and English (his file: short English tag next to the small icon); screen readers hear the full Arabic type name instead."},
   "podcastFormat": "نوع الحلقة",
   "@podcastFormat": {"description": "D363: the podcast setup's «صوت / فيديو» row label."},
   "podcastFormatAudio": "صوت",

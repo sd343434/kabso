@@ -18,6 +18,7 @@ import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provid
 import { LiveKitMediaProvider } from '../src/modules/live/media/livekit-media.provider.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 import {
   createTestApp,
   registerVerified,
@@ -150,7 +151,7 @@ function helpers(get: () => TestContext) {
     get().http.patch(`/api/v1/live/rooms/${roomId}`).set(auth(by)).send(body);
   /** A MULTI room with `mod` as moderator (in the room) and `speaker` on seat 1. */
   const seatedRoom = async (h: TestUser, mod: TestUser, speaker?: TestUser) => {
-    const roomId = await goLive(h, { mode: 'MULTI', seatCount: 4 });
+    const roomId = await startLegacyMulti(get(), h.token, { seatCount: 4 });
     await join(roomId, mod);
     const added = await get()
       .http.put(`/api/v1/live/rooms/${roomId}/moderators/${mod.username}`)

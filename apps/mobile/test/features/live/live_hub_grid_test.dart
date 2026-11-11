@@ -175,11 +175,11 @@ void main() {
                   viewerCount: 3,
                   inPk: true,
                 ),
+                // D369: a legacy MULTI room reads as a camera live.
                 const LiveRoomCardData(
                   hostName: 'B',
                   title: 'multi',
                   viewerCount: 3,
-                  isMulti: true,
                 ),
               ])
                 SizedBox(
@@ -192,7 +192,7 @@ void main() {
         ),
       );
       expect(find.text(l10n.pkBadge), findsOneWidget);
-      expect(find.text(l10n.liveTypeTagMulti), findsOneWidget);
+      expect(find.text(l10n.liveTypeTagCam), findsOneWidget);
     });
   });
 

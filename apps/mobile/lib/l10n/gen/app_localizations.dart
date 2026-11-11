@@ -6194,12 +6194,6 @@ abstract class AppLocalizations {
   /// **'البث المباشر غير متاح بعد'**
   String get goLiveUnavailableTitle;
 
-  /// Go-live mode: multi-guest video (CP-011)
-  ///
-  /// In ar, this message translates to:
-  /// **'بث متعدد'**
-  String get goLiveModeMulti;
-
   /// Go-live mode: one host on camera
   ///
   /// In ar, this message translates to:
@@ -21319,12 +21313,6 @@ abstract class AppLocalizations {
   /// D212 (live categories and the podcast live).
   ///
   /// In ar, this message translates to:
-  /// **'بث متعدد'**
-  String get liveCategoryMulti;
-
-  /// D212 (live categories and the podcast live).
-  ///
-  /// In ar, this message translates to:
   /// **'بث ستريمر'**
   String get liveCategoryStreamer;
 
@@ -29781,12 +29769,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'Streamer'**
   String get liveTypeTagStreamer;
-
-  /// D362: the tiny type tag beside the animated glyph on a live card: a MULTI (multi-guest) live. The owner's short English tag, deliberately the same in Arabic and English (his file: short English tag next to the small icon); screen readers hear the full Arabic type name instead.
-  ///
-  /// In ar, this message translates to:
-  /// **'Multi'**
-  String get liveTypeTagMulti;
 
   /// D363: the podcast setup's «صوت / فيديو» row label.
   ///

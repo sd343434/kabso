@@ -3,6 +3,8 @@
  * SOLO and PK, the existing `kind=solo` of `GET /live/rooms` (CONVENTIONS §10.4) — under every hub
  * filter (following, nearby, popular, featured, explore); AUDIO, PODCAST and MULTI rooms are the party
  * page's (`kind=audio|podcast|multi`). Server-side, so every page of a cursor walk agrees.
+ * v1.115-live (D368, §10.161): a live VIDEO podcast is a camera live of the hub (`kind=solo`), not the party page's.
+ * v1.116-live (D369, §10.162): a (legacy) MULTI room is in no list.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Clock } from '../src/common/time/clock.js';
@@ -27,7 +29,7 @@ interface TestUser {
   readonly token: string;
 }
 
-type Mode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST';
+type Mode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'VPODCAST';
 
 describe('D239 the main hub: video lives only', { timeout: 240_000 }, () => {
   const clock = new FakeClock();
@@ -58,11 +60,11 @@ describe('D239 the main hub: video lives only', { timeout: 240_000 }, () => {
     const body =
       mode === 'AUDIO'
         ? { mode: 'AUDIO', seatCount: 10 }
-        : mode === 'MULTI'
-          ? { mode: 'MULTI', seatCount: 4 }
-          : mode === 'PODCAST'
-            ? { mode: 'PODCAST', podcast: { topic: 'business' } }
-            : {};
+        : mode === 'PODCAST'
+          ? { mode: 'PODCAST', podcast: { topic: 'business' } }
+          : mode === 'VPODCAST'
+            ? { mode: 'PODCAST', podcast: { topic: 'business', video: true } }
+            : {}; // SOLO; PK and a legacy MULTI (D369: no longer started) are set below
     const res = await ctx.http
       .post('/api/v1/live/rooms')
       .set(auth(u))
@@ -71,7 +73,11 @@ describe('D239 the main hub: video lives only', { timeout: 240_000 }, () => {
     const id = res.body.id as string;
     await ctx.prisma.liveRoom.update({
       where: { id },
-      data: { score: BigInt(score), ...(mode === 'PK' ? { mode: 'PK' } : {}) },
+      data: {
+        score: BigInt(score),
+        ...(mode === 'PK' ? { mode: 'PK' } : {}),
+        ...(mode === 'MULTI' ? { mode: 'MULTI', seatCount: 4 } : {}),
+      },
     });
     return id;
   };
@@ -114,13 +120,14 @@ describe('D239 the main hub: video lives only', { timeout: 240_000 }, () => {
     await ctx.prisma.liveFeaturedHost.deleteMany({});
   });
 
-  it('every hub filter with kind=solo lists SOLO and PK only, the same over limit=1 pages', async () => {
+  it('every hub filter with kind=solo lists SOLO, PK and the video podcast only, the same over limit=1 pages', async () => {
     const r = {
       solo: await goLive('SOLO', 40),
       pk: await goLive('PK', 50),
       multi: await goLive('MULTI', 60),
       audio: await goLive('AUDIO', 70),
       podcast: await goLive('PODCAST', 80),
+      vpodcast: await goLive('VPODCAST', 90),
     };
     const viewer = await signup('SA');
     for (const h of hosts) {
@@ -138,17 +145,26 @@ describe('D239 the main hub: video lives only', { timeout: 240_000 }, () => {
     };
     for (const [name, base] of Object.entries(filters)) {
       const hub = await ids(`${base}&kind=solo`, viewer);
-      expect(new Set(hub), name).toEqual(new Set([r.solo, r.pk]));
+      expect(new Set(hub), name).toEqual(new Set([r.solo, r.pk, r.vpodcast]));
       for (const id of party) expect(hub, `${name} ${id}`).not.toContain(id);
       // Pagination stays correct: the cursor walk is the single page.
       expect(await pages(`${base}&kind=solo`, viewer), name).toEqual(hub);
-      // Without a kind every room is there (the party kinds are the party page's).
-      expect(new Set(await ids(base, viewer)), name).toEqual(new Set(Object.values(r)));
+      // `kind=video` lists the same camera lives.
+      expect(new Set(await ids(`${base}&kind=video`, viewer)), name).toEqual(new Set(hub));
+      // The party page (D342): AUDIO and the audio podcast — never the video podcast or a MULTI.
+      const partyAll = await ids(`${base}&kind=party_all`, viewer);
+      expect(new Set(partyAll), name).toEqual(new Set([r.audio, r.podcast]));
+      expect(await pages(`${base}&kind=party_all`, viewer), name).toEqual(partyAll);
+      // Without a kind every room is there but the retired MULTI (D369).
+      expect(new Set(await ids(base, viewer)), name).toEqual(
+        new Set([r.solo, r.pk, r.audio, r.podcast, r.vpodcast]),
+      );
     }
-    // The party page's tabs keep their rooms.
+    // The party page's tabs keep their rooms; `podcast` keeps every podcast (older apps).
     expect(await ids('tab=popular&kind=audio', viewer)).toEqual([r.audio]);
-    expect(await ids('tab=popular&kind=podcast', viewer)).toEqual([r.podcast]);
-    expect(await ids('tab=popular&kind=multi', viewer)).toEqual([r.multi]);
+    expect(new Set(await ids('tab=popular&kind=podcast', viewer))).toEqual(new Set([r.podcast, r.vpodcast]));
+    expect(await ids('tab=popular&kind=party', viewer)).toEqual([r.audio]);
+    expect(await ids('tab=popular&kind=multi', viewer)).toEqual([]);
   });
 
   it('a hub cursor is bound to kind=solo (no reuse without it)', async () => {

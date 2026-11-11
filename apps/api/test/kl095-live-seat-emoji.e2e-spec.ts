@@ -11,6 +11,7 @@ import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provid
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 
 class FakeClock extends Clock {
   private ms = Date.now();
@@ -198,7 +199,7 @@ describe('D138 an emoji on one’s own seat', () => {
   it('MULTI: a seated guest plays on their seat', async () => {
     const h = await host();
     const g = await signup();
-    const roomId = await goLive(h, { mode: 'MULTI', seatCount: 4 });
+    const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 4 });
     const index = await seat(roomId, h, g);
     expect((await sendOk(roomId, g, ':gogo_roar:')).seat).toBe(index);
   });

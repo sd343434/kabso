@@ -139,23 +139,6 @@ Future<void> _pump(
 void main() {
   forEachLanguage((language) {
     for (final viewport in GoldenViewport.values) {
-      testWidgets('go live: multi-guest ($language, $viewport)', (
-        tester,
-      ) async {
-        await _pump(
-          tester,
-          language: language,
-          viewport: viewport,
-          mode: LiveRoomMode.multi,
-          theme: 'ice-palace',
-        );
-        await expectScreenGolden(
-          'go_live.multi',
-          language: language,
-          viewport: viewport,
-        );
-      });
-
       testWidgets('go live: audio ($language, $viewport)', (tester) async {
         await _pump(
           tester,
@@ -184,16 +167,6 @@ void main() {
         );
       });
     }
-
-    testWidgets('go live: multi-guest 12, classic ($language)', (tester) async {
-      await _pump(
-        tester,
-        language: language,
-        mode: LiveRoomMode.multi,
-        seats: 12,
-      );
-      await expectScreenGolden('go_live.multi12', language: language);
-    });
 
     testWidgets('go live: audio on air, waves ($language)', (tester) async {
       final ar = language == AppLanguage.ar;

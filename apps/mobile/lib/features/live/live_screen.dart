@@ -358,7 +358,8 @@ class LiveRoomsPage extends ConsumerWidget {
     final boosted = ref.watch(liveBoostedRoomsProvider).value ?? const [];
     return [
       for (final b in boosted)
-        if (query.kind?.includes(b.room.mode) ?? true) b,
+        // D368: a video podcast's slot on the hub, not the party page.
+        if (query.kind?.includesRoom(b.room) ?? true) b,
     ];
   }
 

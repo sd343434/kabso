@@ -209,6 +209,19 @@ describe('D154b traffic cards', { timeout: 180_000 }, () => {
     expect(list.body.data[0].state).toBe('DONE');
   });
 
+  it('v1.116-live (D369): a running card of a (legacy) MULTI live is never in the active slots', async () => {
+    await reset();
+    const h = await host();
+    const roomId = await goLive(h);
+    await coins(h, 30_000);
+    expect((await buy(roomId, h, { minutes: 10 })).status).toBe(201);
+    expect((await active()).map((a) => a.room.id)).toEqual([roomId]);
+    // A MULTI room started by an older app before the deploy runs on, but no list shows it.
+    await ctx.prisma.liveRoom.update({ where: { id: roomId }, data: { mode: 'MULTI', seatCount: 4 } });
+    expect(await active()).toEqual([]);
+    expect(await active(h)).toEqual([]);
+  });
+
   it('a viewer gifts a card to the host; a full set of slots queues the next with an honest start', async () => {
     await reset();
     const [h1, h2, h3] = [await host(), await host(), await host()];

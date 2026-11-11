@@ -125,11 +125,11 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// `/live/new` — go live (CP-010, CP-011), designed after the owner's two
-/// references (D94) in Kabso's own look: Multi-guest · LIVE · Audio LIVE.
+/// references (D94) in Kabso's own look: LIVE · Audio LIVE · Podcast. D369
+/// (owner: «الغي البث المتعدد لا اريده»): the multi-guest mode and its host
+/// seat grid are gone (a viewer of a legacy MULTI room keeps its grid).
 ///
 /// - **LIVE:** the camera fills the screen.
-/// - **Multi-guest:** the room theme behind a grid of 4, 6, 9 or 12 tiles,
-///   the host's camera in the first.
 /// - **Audio:** the room theme behind the host's crowned circle and rows of
 ///   seats (5, 10, 15 or 20 with the host, D103, D123).
 ///
@@ -1031,11 +1031,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     }
 
     final hostName = user?.displayName ?? '';
-    final hostPicture = KAvatar(
-      name: hostName,
-      imageUrl: user?.avatarUrl,
-      size: 96,
-    );
 
     Widget? middle;
     if (gate != null) {
@@ -1047,18 +1042,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       middle = Align(
         alignment: Alignment.topCenter,
         child: SingleChildScrollView(child: _streamerPanel(state, previewing)),
-      );
-    } else if (state.mode == LiveRoomMode.multi) {
-      middle = Align(
-        alignment: Alignment.topCenter,
-        child: VideoSeatGrid(
-          count: seatCount!,
-          accent: art.accent,
-          seats: liveSeats?.seats ?? const [],
-          host: _camera(state, fallback: Center(child: hostPicture)),
-          guestVideo: (seat) => engine.remoteVideo(seat.user!.id),
-          onSeat: onSeat,
-        ),
       );
     }
 

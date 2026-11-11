@@ -14,6 +14,7 @@ import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provid
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 
 class FakeClock extends Clock {
   private ms = Date.now();
@@ -270,7 +271,7 @@ describe('D105 kicking someone out of a live', () => {
   it('a moderator kicks a viewer; nobody kicks the host or themselves; a moderator never kicks a moderator; viewers cannot kick', async () => {
     const owner = await host();
     const [mod, mod2, v, w] = [await signup(), await signup(), await signup(), await signup()];
-    const roomId = await goLive(owner, { mode: 'MULTI', seatCount: 4 });
+    const roomId = await startLegacyMulti(ctx, owner.token, { seatCount: 4 });
     for (const u of [mod, mod2, v, w]) await join(roomId, u);
     expect((await addModerator(roomId, owner, mod.username)).status).toBe(200);
     expect((await addModerator(roomId, owner, mod2.username)).status).toBe(200);

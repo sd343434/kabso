@@ -1,5 +1,6 @@
 import { createHmac, hkdfSync, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
+import { Prisma } from '../../generated/prisma/client.js';
 
 /**
  * Signed keyset cursors for `GET /live/rooms` (CONVENTIONS §5, §10.4).
@@ -33,6 +34,12 @@ export const LIVE_KINDS = [
 export type LiveKind = (typeof LIVE_KINDS)[number];
 
 /**
+ * What a kind lists: a room mode, except that a PODCAST is split by `live_rooms.podcast_video` (D363, §10.157) into
+ * an audio podcast (`PODCAST_AUDIO`) and a live video podcast (`PODCAST_VIDEO`).
+ */
+export type LiveKindMember = 'SOLO' | 'PK' | 'AUDIO' | 'PODCAST_AUDIO' | 'PODCAST_VIDEO' | 'STREAMER';
+
+/**
  * v1.27.1-live (D133): `solo` = SOLO and PK, `multi` = MULTI, `party` = AUDIO and MULTI.
  * v1.47-live (D212, §10.69): `podcast` = PODCAST. A podcast is in no other kind (the hub's five
  * category tabs are `solo`, `audio`, `podcast`, `multi` and the streamer tab of D213), so `audio`
@@ -41,19 +48,57 @@ export type LiveKind = (typeof LIVE_KINDS)[number];
  * `solo` (the main hub, D239) list it too.
  * v1.107-live (D342, §10.141): `party_all` = AUDIO, PODCAST and MULTI — the party page's one mixed list (the owner
  * removed its three kind tabs); the only kind besides `podcast` that lists a podcast. `party` keeps its meaning.
+ * v1.115-live (D368, §10.161): a live VIDEO podcast is a camera live of the main hub — `video` and `solo` list it,
+ * `party_all` lists only the audio podcasts; `podcast` keeps every podcast (older apps).
+ * v1.116-live (D369, §10.162): MULTI is retired — no kind lists it (`multi` stays valid and lists nothing, `party` =
+ * AUDIO), and neither does the list without a kind ({@link LIVE_LISTED_MEMBERS}).
  */
-export const LIVE_KIND_MODES: Readonly<
-  Record<LiveKind, readonly ('SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER')[]>
-> = {
-  podcast: ['PODCAST'],
+export const LIVE_KIND_MEMBERS: Readonly<Record<LiveKind, readonly LiveKindMember[]>> = {
+  podcast: ['PODCAST_AUDIO', 'PODCAST_VIDEO'],
   audio: ['AUDIO'],
-  video: ['SOLO', 'PK', 'MULTI', 'STREAMER'],
-  solo: ['SOLO', 'PK', 'STREAMER'],
+  video: ['SOLO', 'PK', 'STREAMER', 'PODCAST_VIDEO'],
+  solo: ['SOLO', 'PK', 'STREAMER', 'PODCAST_VIDEO'],
   streamer: ['STREAMER'],
-  multi: ['MULTI'],
-  party: ['AUDIO', 'MULTI'],
-  party_all: ['AUDIO', 'PODCAST', 'MULTI'],
+  multi: [],
+  party: ['AUDIO'],
+  party_all: ['AUDIO', 'PODCAST_AUDIO'],
 };
+
+/** v1.116-live (D369): what the list without a kind returns — every member (a MULTI room is never listed). */
+export const LIVE_LISTED_MEMBERS: readonly LiveKindMember[] = [
+  'SOLO',
+  'PK',
+  'AUDIO',
+  'PODCAST_AUDIO',
+  'PODCAST_VIDEO',
+  'STREAMER',
+];
+
+function memberSql(member: LiveKindMember, alias: string): Prisma.Sql {
+  const mode = Prisma.raw(`${alias}.mode`);
+  const video = Prisma.raw(`${alias}.podcast_video`);
+  switch (member) {
+    case 'PODCAST_AUDIO':
+      return Prisma.sql`(${mode} = 'PODCAST'::live_room_mode AND NOT ${video})`;
+    case 'PODCAST_VIDEO':
+      return Prisma.sql`(${mode} = 'PODCAST'::live_room_mode AND ${video})`;
+    default:
+      return Prisma.sql`${mode} = ${member}::live_room_mode`;
+  }
+}
+
+/**
+ * v1.115-live / v1.116-live (D368, D369): the `WHERE` condition of a kind (absent: the list without a kind) on the room alias
+ * `alias`. `multi` lists nothing (`FALSE`).
+ */
+export function liveKindSql(kind: LiveKind | undefined, alias = 'r'): Prisma.Sql {
+  const members = kind === undefined ? LIVE_LISTED_MEMBERS : LIVE_KIND_MEMBERS[kind];
+  if (members.length === 0) return Prisma.sql`FALSE`;
+  return Prisma.sql`(${Prisma.join(
+    members.map((m) => memberSql(m, alias)),
+    ' OR ',
+  )})`;
+}
 
 /** v1.27.1-live (D133): the only `scope`. */
 export const LIVE_SCOPES = ['nearby'] as const;

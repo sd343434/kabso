@@ -11,6 +11,7 @@ import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provid
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 
 class FakeClock extends Clock {
   private ms = Date.now();
@@ -114,11 +115,12 @@ describe('D129 the hub kind filter and the per-live ranking', { timeout: 120_000
     });
   });
 
-  it('kind=audio lists only voice rooms; kind=video lists solo, multi and PK lives; no kind lists all', async () => {
+  it('kind=audio lists only voice rooms; kind=video lists solo and PK lives; no kind lists all but MULTI', async () => {
     const [h1, h2, h3, h4] = [await host(), await host(), await host(), await host()];
     const solo = await goLive(h1, {});
     const audio = await goLive(h2, { mode: 'AUDIO', seatCount: 10 });
-    const multi = await goLive(h3, { mode: 'MULTI', seatCount: 4 });
+    // v1.116-live (D369, §10.162): MULTI is retired — a running legacy MULTI room is in no list.
+    const multi = await startLegacyMulti(ctx, h3.token, { seatCount: 4 });
     const pk = await goLive(h4, {});
     // PK has no start route yet (a battle turns a live into PK); it is a video live.
     await ctx.prisma.liveRoom.update({ where: { id: pk }, data: { mode: 'PK' } });
@@ -126,9 +128,11 @@ describe('D129 the hub kind filter and the per-live ranking', { timeout: 120_000
 
     for (const tab of ['popular', 'new'] as const) {
       expect(await ids(`tab=${tab}&kind=audio`)).toEqual([audio]);
-      expect(await ids(`tab=${tab}&kind=video`)).toEqual([pk, multi, solo]);
-      expect(await ids(`tab=${tab}`)).toEqual([pk, multi, audio, solo]);
-      expect(await ids(`tab=${tab}&kind=video`, viewer)).toEqual([pk, multi, solo]);
+      expect(await ids(`tab=${tab}&kind=video`)).toEqual([pk, solo]);
+      expect(await ids(`tab=${tab}`)).toEqual([pk, audio, solo]);
+      expect(await ids(`tab=${tab}&kind=video`, viewer)).toEqual([pk, solo]);
+      expect(await ids(`tab=${tab}&kind=multi`)).toEqual([]);
+      expect(await ids(`tab=${tab}`)).not.toContain(multi);
     }
 
     // Following: the same filter over the hosts the caller follows.
@@ -142,7 +146,7 @@ describe('D129 the hub kind filter and the per-live ranking', { timeout: 120_000
 
     // The listed rooms carry their mode, so the filter is checkable by the client.
     const res = await list('tab=popular&kind=video');
-    expect((res.body.data as { mode: string }[]).map((r) => r.mode).sort()).toEqual(['MULTI', 'PK', 'SOLO']);
+    expect((res.body.data as { mode: string }[]).map((r) => r.mode).sort()).toEqual(['PK', 'SOLO']);
   });
 
   it('kind combines with category and a cursor is bound to it', async () => {

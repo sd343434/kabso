@@ -12,6 +12,7 @@ import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provid
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 
 class FakeClock extends Clock {
   private offset = 0;
@@ -181,7 +182,7 @@ describe('D212 live categories and podcasts', () => {
     const podcast = await goLive(a);
     const audio = await goLive(b, { mode: 'AUDIO', seatCount: 5 });
     const solo = await goLive(c, { mode: 'SOLO' });
-    const multi = await goLive(d, { mode: 'MULTI', seatCount: 4 });
+    const multi = await startLegacyMulti(ctx, d.token, { seatCount: 4 });
     const ids = async (kind?: string) => {
       const res = await ctx.http.get(`/api/v1/live/rooms?tab=new&limit=50${kind ? `&kind=${kind}` : ''}`);
       expect(res.status).toBe(200);
@@ -194,8 +195,10 @@ describe('D212 live categories and podcasts', () => {
     expect(audioIds).not.toContain(podcast);
     expect(await ids('solo')).toContain(solo);
     expect(await ids('solo')).not.toContain(podcast);
-    expect(await ids('multi')).toEqual(expect.arrayContaining([multi]));
-    expect(await ids()).toEqual(expect.arrayContaining([podcast, audio, solo, multi]));
+    // v1.116-live (D369): a (legacy) MULTI room is in no list; `multi` stays valid and lists nothing.
+    expect(await ids('multi')).toEqual([]);
+    expect(await ids()).toEqual(expect.arrayContaining([podcast, audio, solo]));
+    expect(await ids()).not.toContain(multi);
     const card = (await ctx.http.get('/api/v1/live/rooms?tab=new&kind=podcast')).body.data[0];
     expect(card.podcast).toMatchObject({ episodeNumber: 1, topic: 'business', speakers: [] });
     const page = await ctx.http.get('/api/v1/live/rooms?tab=new&kind=nope');

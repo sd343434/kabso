@@ -31,15 +31,15 @@ enum LiveHubFilter {
 /// D212 (owner: «بث مباشر، بث صوتي، بث بودكاست، بث متعدد، بث ستريمر»):
 /// the live categories, each a `kind` of `GET /live/rooms` (server-side);
 /// «ستريمر» (phone screen share, D213) has no rooms yet. D237 (owner): the
-/// hub no longer has a category row — audio, podcast and multi are the
-/// tabs of the party page ([partyPage]), and every hub card names its
-/// room's category. D239: and only there (the hub is solo and PK).
+/// hub no longer has a category row — audio and podcast are the tabs of
+/// the party page ([partyPage]), and every hub card names its room's
+/// category. D239: and only there (the hub is solo and PK). D369 (owner:
+/// «الغي البث المتعدد لا اريده»): the multi-guest category is gone.
 enum LiveHubCategory {
   all(null),
   live(LiveRoomsKind.solo),
   audio(LiveRoomsKind.audio),
   podcast(LiveRoomsKind.podcast),
-  multi(LiveRoomsKind.multi),
   streamer(null);
 
   new(this.kind);
@@ -51,14 +51,13 @@ enum LiveHubCategory {
   bool get comingSoon => this == streamer;
 
   /// D237: the party page's tabs, in order.
-  static const List<LiveHubCategory> partyPage = [audio, podcast, multi];
+  static const List<LiveHubCategory> partyPage = [audio, podcast];
 
   String label(AppLocalizations l10n) => switch (this) {
     all => l10n.liveCategoryAll,
     live => l10n.liveCategoryLive,
     audio => l10n.liveCategoryAudio,
     podcast => l10n.liveCategoryPodcast,
-    multi => l10n.liveCategoryMulti,
     streamer => l10n.liveCategoryStreamer,
   };
 }
@@ -67,7 +66,11 @@ enum LiveHubCategory {
 /// one server category). D237: no category row; each card names its kind.
 /// D239 (owner: «بث صوتي يظهر في غير مكانه»): the main hub lists video
 /// lives only — solo and PK (`kind=solo`, server-side, so every filter and
-/// its pages agree); audio, podcast and multi are the party page's.
+/// its pages agree); audio and podcast are the party page's. D368 (owner:
+/// «بودكاست الحي يظهر في صفحة البث وليس الحفلة»): a live VIDEO podcast is a
+/// camera live of the hub (`kind=solo` lists it, v1.115-live); an audio
+/// podcast stays the party page's.
+/// D369: no list has a multi-guest live any more (retired).
 @immutable
 class LiveHubSelection {
   const new({this.filter = LiveHubFilter.popular, this.category});
@@ -87,21 +90,24 @@ class LiveHubSelection {
   /// Popular's menu: a category slug (`null`: All).
   final String? category;
 
-  /// The room list behind this selection: D239 — video lives only (SOLO
-  /// and PK; «ستريمر» has no rooms yet), under every filter.
+  /// The room list behind this selection: D239 — video lives only (SOLO,
+  /// PK, STREAMER and — D368 — the live video podcasts), under every
+  /// filter.
   LiveRoomsQuery get query => _filterQuery.withKind(hubKind);
 
   /// D240: the same filter's list of one party kind.
   LiveRoomsQuery queryOf(LiveRoomsKind kind) => _filterQuery.withKind(kind);
 
   /// D342 (owner: «ازل فلاتر بث صوتي بث بوكاست و بث متعدد … ان يكونو بنفس
-  /// الصف»): the party page's one list — every party kind (audio, podcast,
-  /// multi) mixed in this filter's own order, one server list
-  /// (v1.107-live `kind=party_all`), never three lists merged here.
+  /// الصف»): the party page's one list — every party kind (audio and the
+  /// audio podcasts; D368: a video podcast is the hub's, D369: no multi)
+  /// mixed in this filter's own order, one server list (v1.107-live
+  /// `kind=party_all`), never several lists merged here.
   LiveRoomsQuery get partyQuery =>
       _filterQuery.withKind(LiveRoomsKind.partyAll);
 
-  /// D239: the main hub's server `kind` (SOLO and PK).
+  /// D239: the main hub's server `kind` (SOLO, PK, STREAMER; D368: and the
+  /// live video podcasts).
   static const LiveRoomsKind hubKind = LiveRoomsKind.solo;
 
   LiveRoomsQuery get _filterQuery => switch (filter) {

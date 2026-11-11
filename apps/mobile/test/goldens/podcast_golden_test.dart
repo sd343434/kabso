@@ -403,9 +403,10 @@ void main() {
                           mode: LiveRoomMode.audio,
                           seatCount: 8,
                         ),
+                        // D369: no multi-guest room any more (retired).
                         apiRooms(1, start: 3, ar: ar).first.copyWith(
-                          mode: LiveRoomMode.multi,
-                          seatCount: 4,
+                          mode: LiveRoomMode.audio,
+                          seatCount: 5,
                         ),
                       ]
                     : apiRooms(6, ar: ar),
@@ -599,8 +600,10 @@ void main() {
         find.byKey(LiveTypeTag.keyOf(PartyKind.podcast.cardKind)),
         findsNWidgets(2),
       );
-      expect(find.byKey(LiveTypeTag.keyOf(PartyKind.audio.cardKind)), findsOne);
-      expect(find.byKey(LiveTypeTag.keyOf(PartyKind.multi.cardKind)), findsOne);
+      expect(
+        find.byKey(LiveTypeTag.keyOf(PartyKind.audio.cardKind)),
+        findsNWidgets(2),
+      );
       expect(find.byType(ScheduledPodcastCard), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(seconds: 12));

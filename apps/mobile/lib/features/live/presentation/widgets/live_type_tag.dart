@@ -3,20 +3,20 @@ import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dar
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// D342 (owner: «ان يكونو بنفس الصف لكن ميز كل واحده بهم»): the three party
-/// kinds the party page lists together, each told apart on its card (D362:
-/// by [LiveTypeTag]; D342b's chip `PartyKindBadge` was replaced).
+/// D342 (owner: «ان يكونو بنفس الصف لكن ميز كل واحده بهم»): the party kinds
+/// the party page lists together, each told apart on its card (D362: by
+/// [LiveTypeTag]; D342b's chip `PartyKindBadge` was replaced). D369 (owner:
+/// «الغي البث المتعدد لا اريده»): the multi-guest live is retired — audio
+/// and podcast are left.
 enum PartyKind {
   audio,
-  podcast,
-  multi;
+  podcast;
 
-  /// The party kind of [room] (`null`: a video live — solo, PK, streamer).
-  /// A podcast is a voice room too, so it is checked first.
+  /// The party kind of [room] (`null`: a video live — solo, PK, streamer,
+  /// a legacy multi-guest live). A podcast is a voice room too, so it is
+  /// checked first.
   static PartyKind? of(LiveRoomCardData room) => room.isPodcast
       ? podcast
-      : room.isMulti
-      ? multi
       : room.isAudio
       ? audio
       : null;
@@ -25,7 +25,6 @@ enum PartyKind {
   LiveCardKind get cardKind => switch (this) {
     audio => LiveCardKind.audio,
     podcast => LiveCardKind.podcast,
-    multi => LiveCardKind.multi,
   };
 }
 
@@ -39,16 +38,14 @@ enum LiveCardKind {
   /// STREAMER (D213).
   streamer,
 
-  /// PODCAST (D212, voice only).
+  /// PODCAST (D212; D363: an audio or a video podcast — the same tag).
   podcast,
 
   /// AUDIO.
   audio,
 
-  /// MULTI (a multi-guest video live).
-  multi,
-
-  /// SOLO (a camera live).
+  /// SOLO (a camera live). D369: a legacy MULTI room (the multi-guest live
+  /// is retired) is drawn as a camera live too.
   live;
 
   /// The kind of [room]. A PK wins on the grid card; the party list passes
@@ -61,8 +58,6 @@ enum LiveCardKind {
       ? streamer
       : room.isPodcast
       ? podcast
-      : room.isMulti
-      ? multi
       : room.isAudio
       ? audio
       : live;
@@ -74,7 +69,6 @@ enum LiveCardKind {
     streamer => l10n.liveTypeTagStreamer,
     podcast => l10n.liveTypeTagPodcast,
     audio => l10n.liveTypeTagVoice,
-    multi => l10n.liveTypeTagMulti,
     live => l10n.liveTypeTagCam,
   };
 
@@ -84,7 +78,6 @@ enum LiveCardKind {
     streamer => l10n.liveCardTagStreamer,
     podcast => l10n.liveCategoryPodcast,
     audio => l10n.liveCategoryAudio,
-    multi => l10n.liveCategoryMulti,
     live => l10n.liveCategoryLive,
   };
 }
@@ -109,10 +102,10 @@ class LiveTypeTag extends StatelessWidget {
   final LiveCardKind kind;
   final double fontSize;
 
-  /// D363 (§10.157): a video podcast — a tiny camera after the tag.
+  /// D363 (§10.157): a video podcast. D368 (owner: «ازل من بودكاست زر
+  /// الكاميرة التي خلف التصنيف»): no camera is drawn after the tag any more —
+  /// «فيديو» is only in the spoken label.
   final bool video;
-
-  static const videoKey = Key('liveTypeTag.video');
 
   static Key keyOf(LiveCardKind kind) => Key('liveTypeTag.${kind.name}');
 
@@ -155,22 +148,7 @@ class LiveTypeTag extends StatelessWidget {
           key: keyOf(kind),
           fit: BoxFit.scaleDown,
           alignment: AlignmentDirectional.centerStart,
-          child: !videoPodcast
-              ? tag
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    tag,
-                    const SizedBox(width: 2),
-                    Icon(
-                      Icons.videocam_rounded,
-                      key: videoKey,
-                      size: fontSize + 2,
-                      color: const Color(0xFFFFFFFF),
-                      shadows: shadows,
-                    ),
-                  ],
-                ),
+          child: tag,
         ),
       ),
     );

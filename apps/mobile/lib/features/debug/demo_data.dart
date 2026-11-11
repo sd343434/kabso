@@ -215,7 +215,7 @@ class DemoLiveRepository implements LiveRepository {
     if (kind != null) {
       rooms = [
         for (final r in rooms)
-          if (kind.includes(r.mode)) r,
+          if (kind.includesRoom(r)) r,
       ];
     }
     if (category != null) {

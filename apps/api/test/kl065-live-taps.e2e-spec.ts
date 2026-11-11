@@ -16,6 +16,7 @@ import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provid
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import { startLegacyMulti } from './helpers/legacy-multi.js';
 
 class FakeClock extends Clock {
   private ms = Date.now();
@@ -277,7 +278,7 @@ describe('CP-012 live taps and the room score', () => {
     it('seated guests and moderators count like any viewer', async () => {
       const h = await host();
       const [guest, mod] = [await signup(), await signup()];
-      const roomId = await goLive(h, { mode: 'MULTI', seatCount: 4 });
+      const roomId = await startLegacyMulti(ctx, h.token, { seatCount: 4 });
       const asked = await ctx.http
         .post(`/api/v1/live/rooms/${roomId}/seat-requests`)
         .set(auth(guest))

@@ -469,7 +469,15 @@ void main() {
         find.byKey(ScheduledPodcastsSection.videoBadgeKey),
         findsOneWidget,
       );
-      expect(find.byKey(LiveTypeTag.videoKey), findsOneWidget);
+      // D368 (owner: «ازل من بودكاست زر الكاميرة التي خلف التصنيف»): no
+      // camera after a video podcast's tag (the scheduled episode's labelled
+      // «فيديو» badge stays).
+      for (final tag in tester.widgetList(find.byType(LiveTypeTag))) {
+        expect(
+          find.descendant(of: find.byWidget(tag), matching: find.byType(Icon)),
+          findsNothing,
+        );
+      }
       await expectScreenGolden('video_podcast.hub_badges', language: language);
     });
   });

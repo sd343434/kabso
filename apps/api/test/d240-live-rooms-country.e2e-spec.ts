@@ -27,7 +27,7 @@ interface TestUser {
   readonly token: string;
 }
 
-type Mode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST';
+type Mode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'VPODCAST';
 
 describe('D240 contract coverage', () => {
   it('openapi declares the optional country parameter on listLiveRooms', () => {
@@ -68,11 +68,11 @@ describe('D240 country on GET /live/rooms', { timeout: 240_000 }, () => {
     const body =
       mode === 'AUDIO'
         ? { mode: 'AUDIO', seatCount: 10 }
-        : mode === 'MULTI'
-          ? { mode: 'MULTI', seatCount: 4 }
-          : mode === 'PODCAST'
-            ? { mode: 'PODCAST', podcast: { topic: 'business' } }
-            : {};
+        : mode === 'PODCAST'
+          ? { mode: 'PODCAST', podcast: { topic: 'business' } }
+          : mode === 'VPODCAST'
+            ? { mode: 'PODCAST', podcast: { topic: 'business', video: true } }
+            : {}; // SOLO; PK and a legacy MULTI (D369: no longer started) are set below
     const res = await ctx.http
       .post('/api/v1/live/rooms')
       .set(auth(u))
@@ -82,7 +82,11 @@ describe('D240 country on GET /live/rooms', { timeout: 240_000 }, () => {
     hostOf.set(id, u);
     await ctx.prisma.liveRoom.update({
       where: { id },
-      data: { score: BigInt(score), ...(mode === 'PK' ? { mode: 'PK' } : {}) },
+      data: {
+        score: BigInt(score),
+        ...(mode === 'PK' ? { mode: 'PK' } : {}),
+        ...(mode === 'MULTI' ? { mode: 'MULTI', seatCount: 4 } : {}),
+      },
     });
     return id;
   };
@@ -137,22 +141,30 @@ describe('D240 country on GET /live/rooms', { timeout: 240_000 }, () => {
       joAudio: await goLive('JO', 'AUDIO', 50),
       joPodcast: await goLive('JO', 'PODCAST', 55),
       joMulti: await goLive('JO', 'MULTI', 60),
+      joVideoPodcast: await goLive('JO', 'VPODCAST', 65),
       saSolo: await goLive('SA', 'SOLO', 70),
       none: await goLive(null, 'SOLO', 80),
     };
     // A viewer of another country (SA) chooses Jordan; a guest may too; any case.
     const viewer = await signup('SA');
-    const jo = [r.joSolo, r.joPk, r.joAudio, r.joPodcast, r.joMulti];
+    // v1.116-live (D369): the legacy MULTI is in no list.
+    const jo = [r.joSolo, r.joPk, r.joAudio, r.joPodcast, r.joVideoPodcast];
     for (const tab of ['popular', 'new'] as const) {
       expect(new Set(await ids(`tab=${tab}&country=JO`, viewer)), tab).toEqual(new Set(jo));
       expect(new Set(await ids(`tab=${tab}&country=jo`)), `${tab} guest`).toEqual(new Set(jo));
       // The hub (D239: kind=solo) and each party tab.
+      // v1.115-live (D368): the video podcast is the hub's, the audio podcast the party page's.
       expect(new Set(await ids(`tab=${tab}&country=JO&kind=solo`, viewer))).toEqual(
-        new Set([r.joSolo, r.joPk]),
+        new Set([r.joSolo, r.joPk, r.joVideoPodcast]),
+      );
+      expect(new Set(await ids(`tab=${tab}&country=JO&kind=party_all`, viewer))).toEqual(
+        new Set([r.joAudio, r.joPodcast]),
       );
       expect(await ids(`tab=${tab}&country=JO&kind=audio`, viewer)).toEqual([r.joAudio]);
-      expect(await ids(`tab=${tab}&country=JO&kind=podcast`, viewer)).toEqual([r.joPodcast]);
-      expect(await ids(`tab=${tab}&country=JO&kind=multi`, viewer)).toEqual([r.joMulti]);
+      expect(new Set(await ids(`tab=${tab}&country=JO&kind=podcast`, viewer))).toEqual(
+        new Set([r.joPodcast, r.joVideoPodcast]),
+      );
+      expect(await ids(`tab=${tab}&country=JO&kind=multi`, viewer)).toEqual([]);
       // The cursor walk is the page.
       expect(await pages(`tab=${tab}&country=JO`, viewer)).toEqual(
         await ids(`tab=${tab}&country=JO`, viewer),
@@ -167,7 +179,7 @@ describe('D240 country on GET /live/rooms', { timeout: 240_000 }, () => {
     const both = await list('tab=popular&scope=nearby&country=JO&kind=solo', viewer);
     expect(both.status).toBe(200);
     expect(new Set((both.body.data as { id: string }[]).map((x) => x.id))).toEqual(
-      new Set([r.joSolo, r.joPk]),
+      new Set([r.joSolo, r.joPk, r.joVideoPodcast]),
     );
     expect(both.body.emptyReason).toBeNull();
     // Without a country of their own, a caller still gets the chosen one; scope=nearby alone is honest.

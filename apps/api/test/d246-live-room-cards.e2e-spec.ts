@@ -34,7 +34,7 @@ interface Card {
   hostCountry?: string;
 }
 
-type Mode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST';
+type Mode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'VPODCAST';
 
 describe('D246 contract coverage', () => {
   it('openapi declares roomLevel, popular and hostCountry on LiveRoomSummary', () => {
@@ -75,11 +75,11 @@ describe('D246 room cards on GET /live/rooms', { timeout: 300_000 }, () => {
     const body =
       mode === 'AUDIO'
         ? { mode: 'AUDIO', seatCount: 10 }
-        : mode === 'MULTI'
-          ? { mode: 'MULTI', seatCount: 4 }
-          : mode === 'PODCAST'
-            ? { mode: 'PODCAST', podcast: { topic: 'business' } }
-            : {};
+        : mode === 'PODCAST'
+          ? { mode: 'PODCAST', podcast: { topic: 'business' } }
+          : mode === 'VPODCAST'
+            ? { mode: 'PODCAST', podcast: { topic: 'business', video: true } }
+            : {}; // SOLO; PK below; a legacy MULTI (D369: no longer started) too
     const res = await ctx.http
       .post('/api/v1/live/rooms')
       .set(auth(u))
@@ -87,6 +87,7 @@ describe('D246 room cards on GET /live/rooms', { timeout: 300_000 }, () => {
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     const id = res.body.id as string;
     hostOf.set(id, u);
+    if (mode === 'MULTI') await ctx.prisma.liveRoom.update({ where: { id }, data: { mode: 'MULTI', seatCount: 4 } });
     await setScore(id, score, mode === 'PK');
     return id;
   };
@@ -170,15 +171,29 @@ describe('D246 room cards on GET /live/rooms', { timeout: 300_000 }, () => {
     // N = 2 per kind (LIVE_POPULAR_TOP_N): each kind its own top, whatever the other kinds score.
     expect(await popularIds('audio')).toEqual(new Set([a[1], a[2]]));
     expect(await popularIds('podcast')).toEqual(new Set([p[0], p[2]]));
-    expect(await popularIds('multi')).toEqual(new Set([m[0]]));
+    // v1.116-live (D369): a legacy MULTI is in no list (and takes no video slot).
+    expect(await popularIds('multi')).toEqual(new Set());
     expect(await popularIds('solo')).toEqual(new Set([v[1], v[2]]));
+    const multiRoom = await ctx.http.get(`/api/v1/live/rooms/${m[0]}`);
+    expect(multiRoom.body.popular).toBe(true);
+    // v1.115-live (D368): a live video podcast counts in the video lives' top, not the audio podcasts'.
+    const vp = await goLive('VPODCAST', 10);
+    expect(await popularIds('solo')).toEqual(new Set([vp, v[1]]));
+    expect(await popularIds('video')).toEqual(new Set([vp, v[1]]));
+    // `kind=podcast` (older apps) lists it too, with its video flag; the audio podcasts keep their own top.
+    expect(await popularIds('podcast')).toEqual(new Set([vp, p[0], p[2]]));
+    expect(await popularIds('party_all')).toEqual(new Set([a[1], a[2], p[0], p[2]]));
+    await ctx.prisma.liveRoom.update({
+      where: { id: vp },
+      data: { status: 'ENDED', endReason: 'ADMIN', endedAt: clock.now() },
+    });
     // Every listed room carries the boolean; the flag is the same whatever the tab or filter.
     const latest = await cards('tab=new&kind=audio&limit=50');
     expect([...latest.values()].every((c) => typeof c.popular === 'boolean')).toBe(true);
     expect(latest.get(a[0])?.popular).toBe(false);
     expect(latest.get(a[1])?.popular).toBe(true);
     const party = await cards('tab=popular&kind=party&limit=50');
-    expect(party.get(m[0])?.popular).toBe(true);
+    expect(party.has(m[0])).toBe(false);
     expect(party.get(a[0])?.popular).toBe(false);
 
     // Scores move: the third audio room overtakes; the next request says so.
