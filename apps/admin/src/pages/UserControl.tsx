@@ -572,7 +572,9 @@ export function AdjustDialog({
 }) {
   const { t, lang, session } = useApp();
   const owner = session?.roles.includes('OWNER') ?? false;
-  const [currency, setCurrency] = useState<'COINS' | 'CHERRIES'>('COINS');
+  // D370: «نقاط الشحن» use their own endpoint (no daily cap; audited `recharge_points.adjust`).
+  const [currency, setCurrency] = useState<'COINS' | 'CHERRIES' | 'RECHARGE_POINTS'>('COINS');
+  const points = currency === 'RECHARGE_POINTS';
   const [direction, setDirection] = useState<'CREDIT' | 'DEBIT'>('CREDIT');
   const [amount, setAmount] = useState('');
   const [allowNegative, setAllowNegative] = useState(false);
@@ -581,11 +583,19 @@ export function AdjustDialog({
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const n = (v: number) => formatNumber(v, lang);
-  const balance = detail.balances ? (currency === 'COINS' ? detail.balances.coins : detail.balances.cherries) : null;
-  const value = /^[1-9][0-9]{0,9}$/.test(amount) ? Number(amount) : null;
+  const balance = detail.balances
+    ? currency === 'COINS'
+      ? detail.balances.coins
+      : currency === 'CHERRIES'
+        ? detail.balances.cherries
+        : (detail.balances.rechargePoints ?? null)
+    : null;
+  const value = (points ? /^[1-9][0-9]{0,12}$/ : /^[1-9][0-9]{0,9}$/).test(amount) ? Number(amount) : null;
   const after = balance !== null && value !== null ? balance + (direction === 'CREDIT' ? value : -value) : null;
-  const used = control ? (currency === 'COINS' ? control.adjustToday.coins : control.adjustToday.cherries) : null;
-  const cap = control ? (currency === 'COINS' ? control.adjustToday.capCoins : control.adjustToday.capCherries) : null;
+  const used =
+    control && !points ? (currency === 'COINS' ? control.adjustToday.coins : control.adjustToday.cherries) : null;
+  const cap =
+    control && !points ? (currency === 'COINS' ? control.adjustToday.capCoins : control.adjustToday.capCherries) : null;
   const ok = value !== null && reason.trim() !== '' && /^[0-9]{6}$/.test(code);
   return (
     <Dialog title={t('ctAdjust')} onClose={onClose}>
@@ -597,28 +607,29 @@ export function AdjustDialog({
           if (!ok || busy) return;
           setBusy(true);
           setError(null);
-          api
-            .post(`/admin/users/${userId}/balance-adjustments`, {
-              currency,
-              direction,
-              amount,
-              allowNegative: direction === 'DEBIT' && allowNegative,
-              reason: reason.trim(),
-              totpCode: code,
-            })
-            .then(onDone, (err: unknown) => {
-              setError(err);
-              setBusy(false);
-            });
+          const common = {
+            direction,
+            amount,
+            allowNegative: direction === 'DEBIT' && allowNegative,
+            reason: reason.trim(),
+            totpCode: code,
+          };
+          (points
+            ? api.post(`/admin/users/${userId}/recharge-points/adjustments`, common)
+            : api.post(`/admin/users/${userId}/balance-adjustments`, { currency, ...common })
+          ).then(onDone, (err: unknown) => {
+            setError(err);
+            setBusy(false);
+          });
         }}
       >
         <div className="grid cols-2">
           <div className="field">
             <span>{t('ctCurrency')}</span>
             <div className="segmented" role="group" aria-label={t('ctCurrency')}>
-              {(['COINS', 'CHERRIES'] as const).map((c) => (
+              {(['COINS', 'CHERRIES', 'RECHARGE_POINTS'] as const).map((c) => (
                 <button key={c} type="button" aria-pressed={currency === c} onClick={() => setCurrency(c)}>
-                  {t(c === 'COINS' ? 'coins' : 'cherries')}
+                  {t(c === 'COINS' ? 'coins' : c === 'CHERRIES' ? 'cherries' : 'rechargePoints')}
                 </button>
               ))}
             </div>
@@ -636,11 +647,12 @@ export function AdjustDialog({
         </div>
         <div className="field">
           <label htmlFor="adj-amount">{t('ctAmount')}</label>
-          <input id="adj-amount" type="text" inputMode="numeric" className="ltr" maxLength={10} value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
+          <input id="adj-amount" type="text" inputMode="numeric" className="ltr" maxLength={points ? 13 : 10} value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
           <span className="hint">
             {balance !== null && t('ctBalanceNow', { value: n(balance) })}
             {after !== null && ` · ${t('ctAfter', { value: n(after) })}`}
             {used !== null && cap !== null && ` · ${t('ctCapToday', { used: n(used), cap: n(cap) })}`}
+            {points && ` · ${t('ctRechargePointsNote')}`}
           </span>
         </div>
         {owner && direction === 'DEBIT' && (

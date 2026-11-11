@@ -197,8 +197,10 @@ export interface UserDetail {
     lockedTaskCherries: number;
     cherriesReceived: number;
     coinsSent: number;
+    /** v1.126-social (D370): «نقاط الشحن» (may be below 0); absent from an older server. */
+    rechargePoints?: number;
   } | null;
-  ledger: { coins: LedgerRow[]; cherries: LedgerRow[] } | null;
+  ledger: { coins: LedgerRow[]; cherries: LedgerRow[]; rechargePoints?: LedgerRow[] } | null;
   rechargeAgent: {
     status: string;
     code: string | null;

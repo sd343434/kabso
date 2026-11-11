@@ -277,7 +277,7 @@ async function freeTombstoneUsername(tx: Tx): Promise<string> {
  * couple (ended). (Admin permissions are not writable by the runtime role; they are inert on a DELETED account.)
  *
  * **Kept, pseudonymised under the tombstone id (accounting, fraud, legal):** wallets and the coin, cherry, family,
- * CP and level ledgers, gifts sent and received, lucky draws, boosts, bag items and transfers, premium-username
+ * CP and level ledgers, the recharge points and their ledger (v1.126-social, D370), gifts sent and received, lucky draws, boosts, bag items and transfers, premium-username
  * leases and payments, recharge sales, stock and cherry requests, agency rows and earnings, cherry withdrawals (the
  * payout details reduced to their last 4 characters), task and event rewards, live-room history and statistics,
  * reports made and received, the 18+ statement, special usernames (system codes held forever), the audit log (its IP
