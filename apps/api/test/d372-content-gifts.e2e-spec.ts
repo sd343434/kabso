@@ -7,11 +7,12 @@
  * `Post.giftable`, the grouped notification, a reversal, concurrent sends and the rate limit.
  */
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { reverseGiftCherriesIn } from '../src/modules/economy/cherry-ledger.js';
 import { giftCherries } from '../src/modules/economy/economy-math.js';
 import { addGiftIn, type GiftFields } from '../src/modules/gifts/gift-catalogue.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
+import { panel, type Admin } from './helpers/admin-panel.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
 
@@ -450,6 +451,76 @@ describe('D372 rate limit', { timeout: 120_000 }, () => {
     expect(third.body.error.code).toBe('RATE_LIMITED');
     expect(Number((await ctx.prisma.wallet.findUniqueOrThrow({ where: { userId: fan.id } })).coins)).toBe(
       980,
+    );
+  });
+});
+
+describe('D372 the panel', { timeout: 120_000 }, () => {
+  let ctx: TestContext;
+  const p = panel(() => ctx);
+  let owner: Admin;
+  beforeAll(async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: p.start() });
+    ctx = await createTestApp({
+      ADMIN_TOTP_KEY: 'admin-totp-test-key-0123456789-abcdefghijklmnop',
+      ADMIN_SESSION_IDLE_SECONDS: '86400',
+      ADMIN_SESSION_MAX_SECONDS: '604800',
+      RATE_LIMIT_ADMIN_LOGIN_IP: '10000/900',
+      RATE_LIMIT_ADMIN_IP: '100000/900',
+    });
+    owner = await p.makeAdmin(['OWNER']);
+  });
+  afterAll(async () => {
+    await ctx?.close();
+    vi.useRealTimers();
+  });
+
+  it('the sender’s coin ledger shows CONTENT_GIFT; the author’s cherries GIFT_RECEIVED', async () => {
+    const reg = async () => {
+      const { res } = await registerVerified(ctx);
+      return { id: res.body.user.id as string, token: res.body.tokens.accessToken as string };
+    };
+    const [host, fan] = [await reg(), await reg()];
+    await ctx.prisma.liveHost.create({ data: { userId: host.id, source: 'ADMIN' } });
+    const post = await ctx.http
+      .post('/api/v1/posts')
+      .set({ Authorization: `Bearer ${host.token}` })
+      .set('Idempotency-Key', randomUUID())
+      .send({ text: 'panel' });
+    const code = `pn_${randomUUID().slice(0, 6)}`;
+    await ctx.prisma.$transaction(async (tx) => {
+      await addGiftIn(tx, code, {
+        category: 'POPULAR',
+        nameAr: 'هدية',
+        nameEn: 'Gift',
+        priceCoins: 100,
+        assetKey: 'gift_pn',
+        animationKey: null,
+        sortOrder: 1,
+        badge: 'NONE',
+        tagCode: null,
+        tagNameAr: null,
+        tagNameEn: null,
+      });
+      await creditIn(tx, fan.id, 1000n, 'ADMIN_GRANT', randomUUID());
+    });
+    const sent = await ctx.http
+      .post(`/api/v1/posts/${post.body.id as string}/gifts`)
+      .set({ Authorization: `Bearer ${fan.token}` })
+      .send({ giftCode: code, quantity: 1, source: 'COINS', clientId: randomUUID() });
+    expect(sent.status, JSON.stringify(sent.body)).toBe(201);
+    const coins = await p.send(owner, 'get', `/admin/users/${fan.id}/ledger?kind=coins`);
+    expect(coins.status, JSON.stringify(coins.body)).toBe(200);
+    expectContract(coins, 'listAdminUserLedger');
+    // Both rows carry the same (faked) clock, so look the row up instead of relying on the order.
+    expect(coins.body.data).toEqual(
+      expect.arrayContaining([expect.objectContaining({ reason: 'CONTENT_GIFT', delta: -100 })]),
+    );
+    const cherries = await p.send(owner, 'get', `/admin/users/${host.id}/ledger?kind=cherries`);
+    expect(cherries.status).toBe(200);
+    expectContract(cherries, 'listAdminUserLedger');
+    expect(cherries.body.data).toEqual(
+      expect.arrayContaining([expect.objectContaining({ reason: 'GIFT_RECEIVED' })]),
     );
   });
 });

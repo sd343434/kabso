@@ -125,7 +125,6 @@ void main() {
         );
       final gifts = FakeLiveGiftRepository(
         codes: ['rose', 'crown', 'lucky_clover', 'quip_ghazal_01'],
-        coins: 1000,
       )..categories = const ['POPULAR', 'EVENT', 'FUN', 'LUCKY', 'QUIPS'];
       setViewport(tester, GoldenViewport.phone);
       await pumpScreen(
@@ -145,7 +144,7 @@ void main() {
       return (posts, gifts);
     }
 
-    testWidgets('a creator\'s post: the counter, the gift box, the content '
+    testWidgets("a creator's post: the counter, the gift box, the content "
         'panel (no lucky, no quips, no recipients), the send and the gold '
         'line', (tester) async {
       final (posts, gifts) = await pump(

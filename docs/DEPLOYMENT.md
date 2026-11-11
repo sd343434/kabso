@@ -4294,3 +4294,26 @@ CONVENTIONS §10.163 (owner 2026-11-11). One migration, no new setting, no new s
   possible later if the owner asks).
 - **Order:** deploy the API image (the migration runs first) → the admin panel → ship the APK. An older app never sends
   `payWith` (it buys with coins as before) and ignores the new fields.
+
+### 5.117 «هدية الدعم» — gifts on posts and reels (D372; migrations `20270501090000_content_gift_enums`, `20270501090100_content_gifts`) — [IMPLEMENTED, draft contract v1.127-social; not deployed, not device-tested]
+
+CONVENTIONS §10.164 (owner 2026-11-11). Two migrations, no new setting, no new secret, no new host.
+
+- **Migrations** (the usual `migrate` job, as the migration role, in order): `20270501090000_content_gift_enums` adds
+  the enum values `wallet_ledger_reason` CONTENT_GIFT and `notification_type` CONTENT_GIFT_RECEIVED (their own
+  migration: a new enum value cannot be used in the transaction that adds it); `20270501090100_content_gifts` adds the
+  enum `comment_kind`, the columns `live_gifts.post_id` (FK posts SET NULL, partial index, CHECK
+  `live_gifts_post_place`), `comments.kind` (default TEXT) and `comments.gift_id` (unique, CHECK `comments_gift_shape`),
+  `posts.gift_cherries` (default 0, CHECK ≥ 0), and extends `wallet_ledger_reason_sign` in place (CONTENT_GIFT is a
+  debit). Columns with constant defaults are metadata-only on PostgreSQL 16; the new CHECKs scan `comments`, `posts` and
+  `live_gifts` once under their locks (short at today's sizes; run it off-peak). No GRANT: the default privileges cover
+  it.
+- **Settings reused, nothing to set:** the live gift rate limits (`RATE_LIMIT_LIVE_LUCKY_GIFT_USER` for the route bucket
+  `live:gift:any`, `RATE_LIMIT_LIVE_GIFT_USER` for `live:gift`), the gift shares (`GIFT_HOST_SHARE_PERCENTS`,
+  `GIFT_CREATOR_SHARE_PERCENT`, `GIFT_DIRECT_HOST_SHARE_PERCENT`, `GIFT_DIRECT_CREATOR_SHARE_PERCENT`,
+  `GIFT_CUSTOM_SHARE_PERCENT`) and `CHERRIES_PER_COIN`.
+- **No back-fill:** `posts.gift_cherries` starts at 0 (no gift was ever sent on a post before).
+- **Order:** deploy the API image (the migrations run first) → ship the APK. An older app shows a gift line as an empty
+  comment by its sender and has no gift button; it ignores the new fields, the notification type and the ledger reason.
+- **Panel:** nothing to deploy; the user page's coin ledger lists the reason `CONTENT_GIFT` and the cherry ledger the
+  author's `GIFT_RECEIVED`, as for live gifts.
