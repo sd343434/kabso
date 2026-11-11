@@ -5481,5 +5481,17 @@
   "liveTypeTagCam": "Live Cam",
   "liveTypeTagPodcast": "Podcast",
   "liveTypeTagStreamer": "Streamer",
-  "liveTypeTagMulti": "Multi"
+  "liveTypeTagMulti": "Multi",
+  "waFailed": "Couldn’t send",
+  "waFailDetails": "Why it failed",
+  "waFailUndeliverable": "It did not reach the number: it may not use WhatsApp or has not accepted its terms.",
+  "waFailRate": "Too many messages in a short time: try again shortly.",
+  "waFailUnsupported": "WhatsApp does not accept this kind of message for this number.",
+  "waRetry": "Send again",
+  "waYesterday": "Yesterday",
+  "waWindowLeftHours": "Reply window: {hours}h left",
+  "waWindowLeftMinutes": "Reply window: {minutes}m left",
+  "waWindowClosedChip": "Closed — template only",
+  "waMenu": "Conversation actions",
+  "waAttachPhoto": "Photo"
 }

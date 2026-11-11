@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,8 +11,11 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/messages/widgets/chat_composer.dart';
+import 'package:kabso_live/features/messages/widgets/dm_message_view.dart';
 import 'package:kabso_live/features/whatsapp/application/wa_providers.dart';
 import 'package:kabso_live/features/whatsapp/data/wa_repository.dart';
 import 'package:kabso_live/features/whatsapp/domain/wa_models.dart';
@@ -224,17 +229,92 @@ class _MuteButtonState extends ConsumerState<_MuteButton> {
   }
 }
 
-/// A phone number reads left to right inside Arabic.
-String waPhone(String e164) => KFormat.bidiIsolate(e164);
+/// A phone number reads left to right inside Arabic. D363: grouped for the
+/// eye («+966 50 000 1001») and isolated left to right (LRI … PDI) so the
+/// «+» stays in front inside an Arabic line.
+String waPhone(String e164) => '\u2066${waPhoneGroups(e164)}\u2069';
+
+/// D363: an E.164 number in its national groups — the Gulf / Arab codes the
+/// customers write from, North America and the UK; any other number as
+/// `+cc rest` in threes. Not a number → unchanged.
+String waPhoneGroups(String e164) {
+  final digits = e164.replaceAll(RegExp('[^0-9]'), '');
+  if (!e164.trim().startsWith('+') || digits.length < 8) return e164.trim();
+  // Country code → the national number's groups (by its length).
+  const plans = <String, Map<int, List<int>>>{
+    '966': {
+      9: [2, 3, 4],
+    },
+    '971': {
+      9: [2, 3, 4],
+    },
+    '965': {
+      8: [4, 4],
+    },
+    '974': {
+      8: [4, 4],
+    },
+    '973': {
+      8: [4, 4],
+    },
+    '968': {
+      8: [4, 4],
+    },
+    '962': {
+      9: [1, 4, 4],
+    },
+    '964': {
+      10: [3, 3, 4],
+    },
+    '20': {
+      10: [2, 4, 4],
+    },
+    '212': {
+      9: [3, 2, 2, 2],
+    },
+    '44': {
+      10: [4, 6],
+    },
+    '1': {
+      10: [3, 3, 4],
+    },
+  };
+  for (final cc in plans.keys) {
+    if (!digits.startsWith(cc)) continue;
+    final rest = digits.substring(cc.length);
+    final groups = plans[cc]![rest.length];
+    if (groups == null) continue;
+    final out = <String>[];
+    var i = 0;
+    for (final g in groups) {
+      out.add(rest.substring(i, i + g));
+      i += g;
+    }
+    return '+$cc ${out.join(' ')}';
+  }
+  // Unknown plan: the first 3 digits as the code, the rest in threes.
+  final cc = digits.substring(0, 3);
+  final rest = digits.substring(3);
+  final out = <String>[
+    for (var i = 0; i < rest.length; i += 3)
+      rest.substring(i, math.min(i + 3, rest.length)),
+  ];
+  return '+$cc ${out.join(' ')}';
+}
 
 String _staff(AppLocalizations l10n, WaStaffRef? s) =>
     s?.label ?? l10n.waSomeone;
 
+/// D363: one inbox row, in the Messages tab's language (D336): the picture,
+/// the name (or the number, formatted), the time and the unread count under
+/// it, the last message, and who has it as a small tinted chip.
 class WaConversationTile extends StatelessWidget {
   const new({required this.c, required this.onTap, super.key});
 
   final WaConversation c;
   final VoidCallback onTap;
+
+  static const double avatar = 52;
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +322,11 @@ class WaConversationTile extends StatelessWidget {
     final p = context.palette;
     final t = context.textStyles;
     final locale = Localizations.localeOf(context).toLanguageTag();
+    final now = clock.now();
     final unread = c.unreadCount > 0;
+    final time =
+        KFormat.relativeShort(c.lastMessageAt, now, l10n, locale) ??
+        l10n.feedPostJustNow;
     final tag = !c.open
         ? l10n.waClosed
         : c.assignedToMe
@@ -250,67 +334,126 @@ class WaConversationTile extends StatelessWidget {
         : c.assignedTo != null
         ? l10n.waAssignedTo(_staff(l10n, c.assignedTo))
         : l10n.waUnassigned;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: KSpacing.lg,
-          vertical: KSpacing.md,
-        ),
-        child: Row(
-          children: [
-            KAvatar(name: c.title, size: 44),
-            const SizedBox(width: KSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    final tagColor = !c.open
+        ? p.textTertiary
+        : c.assignedToMe
+        ? p.info
+        : c.assignedTo == null
+        ? p.success
+        : p.textSecondary;
+    final named = c.name != null;
+    return Material(
+      color: p.background,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            KSpacing.lg,
+            KSpacing.sm + 2,
+            KSpacing.lg,
+            KSpacing.sm + 2,
+          ),
+          child: Row(
+            children: [
+              KAvatar(name: c.title, size: avatar),
+              const SizedBox(width: KSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      named ? c.name! : waPhone(c.phone),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.bodyStrong.copyWith(
+                        fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
+                        color: p.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: KSpacing.xxs),
+                    Text(
+                      c.lastPreview ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.body.copyWith(
+                        fontSize: 14,
+                        color: unread ? p.textSecondary : p.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(height: KSpacing.xs),
+                    WaPill(label: tag, color: tagColor),
+                  ],
+                ),
+              ),
+              const SizedBox(width: KSpacing.sm),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          c.name ?? waPhone(c.phone),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: unread ? t.bodyStrong : t.body,
-                        ),
-                      ),
-                      Text(
-                        KFormat.time(c.lastMessageAt.toLocal(), locale),
-                        style: t.caption.copyWith(color: p.textSecondary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: KSpacing.xxs),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          c.lastPreview ?? '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.caption.copyWith(color: p.textSecondary),
-                        ),
-                      ),
-                      if (unread) WaCountBadge(count: c.unreadCount),
-                    ],
-                  ),
-                  const SizedBox(height: KSpacing.xxs),
                   Text(
-                    tag,
+                    time,
+                    maxLines: 1,
                     style: t.caption.copyWith(
-                      color: c.assignedToMe
-                          ? p.info
-                          : (c.assignedTo == null && c.open
-                                ? p.success
-                                : p.textTertiary),
+                      color: unread ? p.primaryText : p.textTertiary,
+                      fontWeight: unread ? FontWeight.w600 : null,
                     ),
                   ),
+                  const SizedBox(height: KSpacing.sm),
+                  if (unread)
+                    WaCountBadge(count: c.unreadCount)
+                  else
+                    const SizedBox(height: 22),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// D363: a small tinted label (who has the conversation, the reply window,
+/// «مشاهدة فقط»): the colour at 14 % behind its own text.
+class WaPill extends StatelessWidget {
+  const new({required this.label, required this.color, super.key, this.icon});
+
+  final String label;
+  final Color color;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: KSpacing.sm,
+        vertical: KSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(KRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: KSpacing.xs),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.caption.copyWith(
+                color: Color.lerp(color, p.textPrimary, 0.25),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -359,9 +502,15 @@ class WaCountBadge extends StatelessWidget {
 // ---- the chat --------------------------------------------------------
 
 /// One conversation: the bubbles (media, voice, ticks, reactions), the 24-hour
-/// window banner — closed → the composer is «إرسال قالب» only — claim /
+/// window chip — closed → the composer is «إرسال قالب» only — claim /
 /// release / transfer / close / reopen, and the customer's details (the
 /// linked Kabso account, the internal notes).
+///
+/// D363 (owner: «شكل مسجات واتساب في التطبيق سيء»): the look of Kabso's own
+/// conversation (D68/D69/D336) — the header with the picture, the name and
+/// the number, a status strip (the window's countdown, who has it, «مشاهدة
+/// فقط»), DM bubbles grouped by sender with day separators, and the DM
+/// composer's shape. Behaviour unchanged.
 class WaChatScreen extends ConsumerStatefulWidget {
   const new({required this.conversationId, super.key});
 
@@ -439,22 +588,42 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
     final thread = ref.watch(waThreadProvider(_id));
     final viewOnly = ref.watch(waViewOnlyProvider);
     final c = thread.value?.conversation;
     if (c != null) _markReadOnce(c);
     return Scaffold(
-      appBar: AppBar(
+      backgroundColor: p.background,
+      appBar: KAppBar(
+        backgroundColor: p.background,
+        titleSpacing: 0,
         title: c == null
             ? Text(l10n.waTitle)
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            : Row(
                 children: [
-                  Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text(
-                    waPhone(c.phone),
-                    style: context.textStyles.caption.copyWith(
-                      color: context.palette.textSecondary,
+                  KAvatar(name: c.title, size: KSizes.avatarSm + 4),
+                  const SizedBox(width: KSpacing.sm),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          c.name ?? waPhone(c.phone),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.bodyStrong.copyWith(color: p.textPrimary),
+                        ),
+                        if (c.name != null)
+                          Text(
+                            waPhone(c.phone),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.caption.copyWith(color: p.textSecondary),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -471,11 +640,13 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
                 builder: (_) => WaCustomerSheet(conversationId: _id),
               ),
             ),
-          // D360: VIEW reads only — the label instead of the actions.
-          if (c != null && viewOnly) const WaViewOnlyLabel(),
+          // D360: VIEW reads only — no actions menu (the label is in the
+          // status strip).
           if (c != null && !viewOnly)
             PopupMenuButton<String>(
               key: WaChatScreen.menuKey,
+              tooltip: l10n.waMenu,
+              icon: const Icon(Icons.more_vert_rounded),
               onSelected: (a) => a == 'transfer'
                   ? unawaited(_transfer())
                   : unawaited(_run((r) => r.act(_id, a))),
@@ -495,6 +666,7 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
                   PopupMenuItem(value: 'reopen', child: Text(l10n.waReopen)),
               ],
             ),
+          const SizedBox(width: KSpacing.xs),
         ],
       ),
       body: switch (thread) {
@@ -504,6 +676,7 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
           onSent: _reload,
           onClaim: () => unawaited(_run((r) => r.act(_id, 'claim'))),
           onReopen: () => unawaited(_run((r) => r.act(_id, 'reopen'))),
+          onRetry: (m) => unawaited(_run((r) => r.sendText(_id, m.text!))),
         ),
         AsyncError(:final error) => KErrorState(
           title: l10n.waTitle,
@@ -530,6 +703,16 @@ String waErrorMessage(AppLocalizations l10n, Object error) {
   };
 }
 
+/// D363: why Meta refused a sent message, in the app's language — Meta's
+/// own title (English) is never shown.
+String waFailReason(AppLocalizations l10n, int? metaCode) => switch (metaCode) {
+  131047 || 470 => l10n.waErrWindow,
+  131026 => l10n.waFailUndeliverable,
+  131051 => l10n.waFailUnsupported,
+  130429 || 131056 || 80007 || 4 => l10n.waFailRate,
+  _ => l10n.waErrSend,
+};
+
 /// The chat without its loading (the goldens pump it with a fixed thread).
 class WaChatBody extends StatelessWidget {
   const new({
@@ -537,6 +720,7 @@ class WaChatBody extends StatelessWidget {
     required this.onSent,
     required this.onClaim,
     required this.onReopen,
+    this.onRetry,
     this.viewOnly = false,
     super.key,
   });
@@ -548,6 +732,9 @@ class WaChatBody extends StatelessWidget {
   final VoidCallback onClaim;
   final VoidCallback onReopen;
 
+  /// D363: sends a failed text again (a new message); null hides it.
+  final ValueChanged<WaMessage>? onRetry;
+
   /// D360 (§10.155): the WhatsApp level VIEW — no composer, no reopen, the
   /// «مشاهدة فقط» note instead.
   final bool viewOnly;
@@ -556,24 +743,60 @@ class WaChatBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = thread.conversation;
     final l10n = context.l10n;
+    final messages = thread.messages;
+    final canRetry = !viewOnly && c.open && c.windowOpen && !c.takenByOther;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        WaWindowBanner(c: c),
+        WaWindowBanner(c: c, viewOnly: viewOnly),
         Expanded(
           child: ListView.builder(
             reverse: true,
-            padding: const EdgeInsets.all(KSpacing.md),
-            itemCount: thread.messages.length,
-            itemBuilder: (_, i) => WaBubble(m: thread.messages[i]),
+            padding: const EdgeInsets.symmetric(vertical: KSpacing.md),
+            itemCount: messages.length,
+            // The API answers newest first: [i + 1] is the older neighbour.
+            itemBuilder: (context, i) {
+              final m = messages[i];
+              final older = i + 1 < messages.length ? messages[i + 1] : null;
+              final newer = i > 0 ? messages[i - 1] : null;
+              final newDay = older == null || !_sameDay(older.at, m.at);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (newDay) WaDaySeparator(day: m.at),
+                  WaBubble(
+                    m: m,
+                    first: newDay || !_joins(older, m),
+                    last: newer == null || !_joins(m, newer),
+                    onRetry:
+                        canRetry &&
+                            m.outbound &&
+                            m.tick == WaTick.failed &&
+                            m.type == 'TEXT' &&
+                            (m.text?.isNotEmpty ?? false) &&
+                            onRetry != null
+                        ? () => onRetry!(m)
+                        : null,
+                  ),
+                ],
+              );
+            },
           ),
         ),
         if (viewOnly)
-          _BottomNote(key: viewOnlyKey, text: l10n.waViewOnlyHint)
+          _BottomNote(
+            key: viewOnlyKey,
+            icon: Icons.visibility_outlined,
+            text: l10n.waViewOnlyHint,
+          )
         else if (!c.open)
           _BottomAction(label: l10n.waReopen, onPressed: onReopen)
         else if (c.takenByOther)
-          _BottomNote(text: l10n.waErrAssigned)
+          _BottomNote(
+            icon: Icons.lock_outline_rounded,
+            text: l10n.waErrAssigned,
+          )
         else
           WaComposer(c: c, onSent: onSent, onClaim: onClaim),
       ],
@@ -581,156 +804,504 @@ class WaChatBody extends StatelessWidget {
   }
 }
 
+bool _sameDay(DateTime a, DateTime b) {
+  final x = a.toLocal();
+  final y = b.toLocal();
+  return x.year == y.year && x.month == y.month && x.day == y.day;
+}
+
+/// D363: two messages read as one run — same side, same sender, same day,
+/// at most [_runGap] apart.
+const _runGap = Duration(minutes: 5);
+
+bool _joins(WaMessage? older, WaMessage newer) {
+  if (older == null) return false;
+  if (older.outbound != newer.outbound) return false;
+  if (older.outbound && older.sentBy?.userId != newer.sentBy?.userId) {
+    return false;
+  }
+  if (!_sameDay(older.at, newer.at)) return false;
+  return newer.at.difference(older.at).abs() <= _runGap;
+}
+
+/// D363: the centred day pill — «اليوم», «أمس», else the date.
+class WaDaySeparator extends StatelessWidget {
+  const new({required this.day, super.key});
+
+  final DateTime day;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l10n = context.l10n;
+    final now = clock.now();
+    final local = day.toLocal();
+    final today = DateTime(
+      now.toLocal().year,
+      now.toLocal().month,
+      now.toLocal().day,
+    );
+    final that = DateTime(local.year, local.month, local.day);
+    final days = today.difference(that).inDays;
+    final label = days == 0
+        ? l10n.chatToday
+        : days == 1
+        ? l10n.waYesterday
+        : KFormat.date(local, Localizations.localeOf(context).toLanguageTag());
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
+      child: Center(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: _incomingFill(context),
+            borderRadius: BorderRadius.circular(KRadius.pill),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: KSpacing.md,
+              vertical: KSpacing.xs,
+            ),
+            child: Text(
+              label,
+              style: context.textStyles.caption.copyWith(
+                color: p.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A received bubble's fill: raised in the dark theme, the overlay grey in
+/// the light one (where `surfaceRaised` is the page white, D68).
+Color _incomingFill(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+    ? context.palette.surfaceRaised
+    : context.palette.surfaceOverlay;
+
+/// D363: the status strip under the header (the place of DM's notice, D155):
+/// the reply window's countdown — or «مغلقة — قالب فقط» — who has the
+/// conversation, and «مشاهدة فقط» for the level VIEW (D360).
 class WaWindowBanner extends StatelessWidget {
-  const new({required this.c, super.key});
+  const new({required this.c, this.viewOnly = false, super.key});
 
   final WaConversation c;
+  final bool viewOnly;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
-    if (!c.open) return const SizedBox.shrink();
     final closes = c.windowClosesAt;
-    if (c.windowOpen && closes != null) {
-      final locale = Localizations.localeOf(context).toLanguageTag();
-      return Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: KSpacing.lg,
-          vertical: KSpacing.xs,
+    final Widget window;
+    if (!c.open) {
+      window = WaPill(
+        label: l10n.waClosed,
+        color: p.textTertiary,
+        icon: Icons.archive_outlined,
+      );
+    } else if (c.windowOpen && closes != null) {
+      final left = closes.difference(clock.now());
+      final minutes = left.isNegative ? 0 : (left.inSeconds / 60).ceil();
+      final tag = Localizations.localeOf(context).toLanguageTag();
+      window = Semantics(
+        label: l10n.waWindowOpen(
+          '${KFormat.date(closes.toLocal(), tag)} '
+          '${KFormat.time(closes.toLocal(), tag)}',
         ),
-        child: Text(
-          l10n.waWindowOpen(
-            '${KFormat.date(closes.toLocal(), locale)} '
-            '${KFormat.time(closes.toLocal(), locale)}',
-          ),
-          style: context.textStyles.caption.copyWith(color: p.success),
+        excludeSemantics: true,
+        child: WaPill(
+          label: minutes >= 60
+              ? l10n.waWindowLeftHours(minutes ~/ 60)
+              : l10n.waWindowLeftMinutes(minutes),
+          color: minutes >= 60 ? p.success : p.warning,
+          icon: Icons.schedule_rounded,
+        ),
+      );
+    } else {
+      window = Semantics(
+        key: WaChatScreen.windowClosedKey,
+        label: closes == null ? l10n.waWindowNever : l10n.waWindowClosed,
+        excludeSemantics: true,
+        child: WaPill(
+          label: l10n.waWindowClosedChip,
+          color: p.warning,
+          icon: Icons.lock_clock_outlined,
         ),
       );
     }
+    final owner = !c.open
+        ? null
+        : c.assignedToMe
+        ? (l10n.waAssignedToMe, p.info)
+        : c.assignedTo != null
+        ? (l10n.waAssignedTo(_staff(l10n, c.assignedTo)), p.textSecondary)
+        : (l10n.waUnassigned, p.success);
     return Container(
-      key: WaChatScreen.windowClosedKey,
-      margin: const EdgeInsets.all(KSpacing.md),
-      padding: const EdgeInsets.all(KSpacing.md),
-      decoration: BoxDecoration(
-        color: p.surfaceOverlay,
-        border: Border.all(color: p.warning),
-        borderRadius: BorderRadius.circular(KRadius.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: KSpacing.md,
+        vertical: KSpacing.xs + 2,
       ),
-      child: Row(
+      decoration: BoxDecoration(
+        color: p.surface,
+        border: Border(bottom: BorderSide(color: p.border)),
+      ),
+      child: Wrap(
+        spacing: KSpacing.xs,
+        runSpacing: KSpacing.xs,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Icon(Icons.schedule_rounded, color: p.warning, size: 20),
-          const SizedBox(width: KSpacing.sm),
-          Expanded(
-            child: Text(
-              closes == null ? l10n.waWindowNever : l10n.waWindowClosed,
-              style: context.textStyles.body,
+          window,
+          if (owner != null)
+            WaPill(
+              label: owner.$1,
+              color: owner.$2,
+              icon: Icons.support_agent_rounded,
             ),
-          ),
+          if (viewOnly) const WaViewOnlyLabel(),
         ],
       ),
     );
   }
 }
 
+/// One message as a Kabso DM bubble (D68/D69, [KDmBubble]): the staff's on
+/// the end side in the red gradient, the customer's on the start side in the
+/// raised grey. [first] / [last]: its place in a run of the same sender —
+/// the joined corners tighten, the tail only on the last, the staff name
+/// only on the first.
 class WaBubble extends StatelessWidget {
-  const new({required this.m, super.key});
+  const new({
+    required this.m,
+    super.key,
+    this.first = true,
+    this.last = true,
+    this.onRetry,
+  });
 
   final WaMessage m;
+  final bool first;
+  final bool last;
+
+  /// D363: «إعادة الإرسال» under a failed text (null: not offered).
+  final VoidCallback? onRetry;
+
+  static const failedKey = Key('wa.failed');
+  static const retryKey = Key('wa.retry');
+
+  static const double _joined = 6;
+
+  BorderRadiusDirectional _corners() {
+    const round = Radius.circular(KDmBubble.radius);
+    final top = first ? round : const Radius.circular(_joined);
+    final bottom = last
+        ? const Radius.circular(KDmBubble.tailRadius)
+        : const Radius.circular(_joined);
+    return m.outbound
+        ? BorderRadiusDirectional.only(
+            topStart: round,
+            bottomStart: round,
+            topEnd: top,
+            bottomEnd: bottom,
+          )
+        : BorderRadiusDirectional.only(
+            topEnd: round,
+            bottomEnd: round,
+            topStart: top,
+            bottomStart: bottom,
+          );
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    final locale = Localizations.localeOf(context).toLanguageTag();
     final out = m.outbound;
-    final bubble = Container(
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.sizeOf(context).width * 0.78,
-      ),
-      margin: const EdgeInsets.symmetric(vertical: KSpacing.xs),
-      padding: const EdgeInsets.symmetric(
-        horizontal: KSpacing.md,
-        vertical: KSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: out ? p.primary.withValues(alpha: 0.12) : p.surfaceRaised,
-        border: Border.all(color: p.border),
-        borderRadius: BorderRadius.circular(KRadius.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (m.templateName != null)
-            Text(
-              l10n.waTemplateTag(m.templateName!),
+    final fg = out ? p.onPrimary : p.textPrimary;
+    final soft = out ? p.onPrimary.withValues(alpha: 0.78) : p.textTertiary;
+    final corners = _corners();
+    final picture =
+        (m.type == 'IMAGE' || m.type == 'STICKER') &&
+        m.media?.state == WaMediaState.stored;
+    final textStyle = t.body.copyWith(
+      fontSize: KDmBubble.textSize,
+      height: KDmBubble.textHeight,
+      color: fg,
+    );
+    final meta = _WaMeta(m: m, color: soft);
+    final body = <Widget>[
+      if (out && first && m.sentBy != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: KSpacing.xxs),
+          child: Semantics(
+            label: l10n.waSentBy(_staff(l10n, m.sentBy)),
+            excludeSemantics: true,
+            child: Text(
+              _staff(l10n, m.sentBy),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: t.caption.copyWith(
-                color: p.textSecondary,
-                fontStyle: FontStyle.italic,
+                color: soft,
+                fontWeight: FontWeight.w700,
               ),
             ),
-          if (m.media != null) _MediaPart(m: m),
-          if (m.latitude != null && m.longitude != null)
-            Text(
-              '📍 ${m.locationName ?? l10n.waLocation}\n'
-              '${KFormat.bidiIsolate(_coords(m.latitude!, m.longitude!))}',
-              style: t.body,
-            ),
-          if (m.type == 'UNSUPPORTED')
-            Text(
-              l10n.waUnsupported,
-              style: t.caption.copyWith(color: p.textSecondary),
-            ),
-          if (m.text != null && m.text!.isNotEmpty)
-            Text(m.text!, style: t.body, textDirection: _dirOf(m.text!)),
-          if (m.errorTitle != null)
-            Text(m.errorTitle!, style: t.caption.copyWith(color: p.error)),
-          const SizedBox(height: KSpacing.xxs),
-          Row(
+          ),
+        ),
+      if (m.templateName != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: KSpacing.xxs),
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (out && m.sentBy != null)
-                Flexible(
-                  child: Text(
-                    '${l10n.waSentBy(_staff(l10n, m.sentBy))} · ',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.caption.copyWith(color: p.textTertiary),
-                  ),
+              Icon(Icons.description_outlined, size: 13, color: soft),
+              const SizedBox(width: KSpacing.xxs),
+              Flexible(
+                child: Text(
+                  l10n.waTemplateTag(m.templateName!),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.caption.copyWith(color: soft),
                 ),
-              Text(
-                KFormat.time(m.at.toLocal(), locale),
-                style: t.caption.copyWith(color: p.textTertiary),
               ),
-              if (out) ...[
-                const SizedBox(width: KSpacing.xs),
-                WaTicks(tick: m.tick),
-              ],
             ],
           ),
+        ),
+      if (m.media != null && !picture) _MediaPart(m: m, color: fg),
+      if (m.latitude != null && m.longitude != null)
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.place_outlined, size: 20, color: fg),
+            const SizedBox(width: KSpacing.xs),
+            Flexible(
+              child: Text(
+                '${m.locationName ?? l10n.waLocation}\n'
+                '${KFormat.bidiIsolate(_coords(m.latitude!, m.longitude!))}',
+                style: textStyle,
+              ),
+            ),
+          ],
+        ),
+      if (m.type == 'UNSUPPORTED')
+        Text(
+          l10n.waUnsupported,
+          style: t.caption.copyWith(color: soft, fontStyle: FontStyle.italic),
+        ),
+      if (m.text != null && m.text!.isNotEmpty)
+        Text(m.text!, style: textStyle, textDirection: _dirOf(m.text!)),
+    ];
+    final maxWidth = math.min(
+      KDmBubble.maxWidth,
+      MediaQuery.sizeOf(context).width * 0.78,
+    );
+    final Widget bubble;
+    if (picture) {
+      bubble = _WaPicture(m: m, corners: corners, meta: meta, out: out);
+    } else {
+      bubble = Container(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        padding: const EdgeInsets.symmetric(
+          horizontal: KDmBubble.paddingH,
+          vertical: KDmBubble.paddingV - 2,
+        ),
+        decoration: BoxDecoration(
+          color: out ? null : _incomingFill(context),
+          gradient: out
+              ? LinearGradient(
+                  begin: AlignmentDirectional.topStart,
+                  end: AlignmentDirectional.bottomEnd,
+                  colors: [
+                    Color.lerp(p.primary, KBrandColors.red400, 0.35)!,
+                    p.primary,
+                  ],
+                )
+              : null,
+          borderRadius: corners,
+          // A soft lift; none under a received bubble in the dark theme
+          // (a light shadow there reads as a rim).
+          boxShadow: [
+            if (out || Theme.of(context).brightness == Brightness.light)
+              BoxShadow(
+                color: (out ? p.primary : p.textPrimary).withValues(
+                  alpha: out ? 0.16 : 0.05,
+                ),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ...body,
+            // The time and ticks sit small at the bubble's bottom end.
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              widthFactor: 1,
+              child: Padding(
+                padding: const EdgeInsets.only(top: KSpacing.xxs),
+                child: meta,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: EdgeInsetsDirectional.only(
+        start: KSpacing.md,
+        end: KSpacing.md,
+        top: first ? KDmBubble.rowGap : KSpacing.xxs / 2,
+        bottom:
+            (last ? KDmBubble.rowGap : KSpacing.xxs / 2) +
+            (m.reaction != null ? KSpacing.sm : 0),
+      ),
+      child: Column(
+        crossAxisAlignment: out
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              bubble,
+              if (m.reaction != null)
+                PositionedDirectional(
+                  start: KSpacing.sm,
+                  bottom: -14,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: KSpacing.xs + 2,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: p.surfaceRaised,
+                      borderRadius: BorderRadius.circular(KRadius.pill),
+                      border: Border.all(color: p.background, width: 2),
+                    ),
+                    child: Text(
+                      m.reaction!,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (out && m.tick == WaTick.failed)
+            _FailedLine(m: m, onRetry: onRetry),
         ],
       ),
     );
-    return Align(
-      alignment: out
-          ? AlignmentDirectional.centerEnd
-          : AlignmentDirectional.centerStart,
-      child: Stack(
-        clipBehavior: Clip.none,
+  }
+}
+
+/// D363: under a failed staff message — «تعذّر الإرسال» (tap: the reason in
+/// words) and, for a text inside the window, «إعادة الإرسال».
+class _FailedLine extends StatelessWidget {
+  const new({required this.m, this.onRetry});
+
+  final WaMessage m;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final reason = waFailReason(l10n, m.errorCode);
+    return Padding(
+      padding: const EdgeInsets.only(top: KSpacing.xs),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: KSpacing.xs,
         children: [
-          bubble,
-          if (m.reaction != null)
-            PositionedDirectional(
-              end: KSpacing.sm,
-              bottom: -8,
-              child: Text(m.reaction!, style: const TextStyle(fontSize: 16)),
+          Tooltip(
+            key: WaBubble.failedKey,
+            message: reason,
+            triggerMode: TooltipTriggerMode.tap,
+            showDuration: const Duration(seconds: 5),
+            child: Semantics(
+              label: '${l10n.waFailed}. $reason',
+              excludeSemantics: true,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: KSpacing.xxs),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.error_outline_rounded, size: 15, color: p.error),
+                    const SizedBox(width: KSpacing.xxs),
+                    Text(
+                      l10n.waFailed,
+                      style: t.caption.copyWith(
+                        color: p.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: KSpacing.xxs),
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 14,
+                      color: p.textTertiary,
+                      semanticLabel: l10n.waFailDetails,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (onRetry != null)
+            TextButton.icon(
+              key: WaBubble.retryKey,
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
+                foregroundColor: p.primaryText,
+                textStyle: t.caption.copyWith(fontWeight: FontWeight.w700),
+              ),
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: Text(l10n.waRetry),
             ),
         ],
       ),
     );
   }
+}
+
+/// The time and, on the staff's messages, the ticks.
+class _WaMeta extends StatelessWidget {
+  const new({required this.m, required this.color});
+
+  final WaMessage m;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        KFormat.time(
+          m.at.toLocal(),
+          Localizations.localeOf(context).toLanguageTag(),
+        ),
+        style: context.textStyles.caption.copyWith(
+          fontSize: KDmBubble.metaSize,
+          color: color,
+        ),
+      ),
+      if (m.outbound) ...[
+        const SizedBox(width: KSpacing.xxs),
+        WaTicks(tick: m.tick, color: color),
+      ],
+    ],
+  );
 }
 
 String _coords(double lat, double lng) =>
@@ -746,47 +1317,123 @@ TextDirection? _dirOf(String text) {
       : TextDirection.ltr;
 }
 
-/// ✓ sent, ✓✓ delivered, blue ✓✓ read, ⚠ failed.
+/// ✓ sent, ✓✓ delivered, ✓✓ read (full strength, a little larger), ⚠
+/// failed. D363: inside the red bubble the ticks take its text colour
+/// ([color]); without one, the palette's (blue for read).
 class WaTicks extends StatelessWidget {
-  const new({required this.tick, super.key});
+  const new({required this.tick, super.key, this.color});
 
   final WaTick tick;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
-    final (IconData icon, Color color, String label) = switch (tick) {
-      WaTick.sent => (Icons.done_rounded, p.textTertiary, l10n.waStatusSent),
+    final base = color ?? p.textTertiary;
+    final strong = color?.withValues(alpha: 1) ?? p.info;
+    final (IconData icon, Color c, String label) = switch (tick) {
+      WaTick.sent => (Icons.done_rounded, base, l10n.waStatusSent),
       WaTick.delivered => (
         Icons.done_all_rounded,
-        p.textTertiary,
+        base,
         l10n.waStatusDelivered,
       ),
-      WaTick.read => (Icons.done_all_rounded, p.info, l10n.waStatusRead),
+      WaTick.read => (Icons.done_all_rounded, strong, l10n.waStatusRead),
       WaTick.failed => (
         Icons.error_outline_rounded,
-        p.error,
+        color == null ? p.error : strong,
         l10n.waStatusFailed,
       ),
-      WaTick.received => (Icons.done_rounded, p.textTertiary, ''),
+      WaTick.received => (Icons.done_rounded, base, ''),
     };
     return Semantics(
       label: label,
-      child: Icon(icon, size: 16, color: color),
+      child: Icon(
+        icon,
+        size: tick == WaTick.read ? KDmBubble.tickSize + 1 : KDmBubble.tickSize,
+        color: c,
+      ),
     );
   }
 }
 
-class _MediaPart extends ConsumerWidget {
-  const new({required this.m});
+/// A stored picture, as DM shows one (D68): no bubble, the corners of its
+/// run, the time on a dark pill at its bottom end.
+class _WaPicture extends ConsumerWidget {
+  const new({
+    required this.m,
+    required this.corners,
+    required this.meta,
+    required this.out,
+  });
 
   final WaMessage m;
+  final BorderRadiusDirectional corners;
+  final Widget meta;
+  final bool out;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
     final p = context.palette;
+    final bytes = ref.watch(waMediaProvider(m.id));
+    Widget placeholder() => ColoredBox(
+      color: _incomingFill(context),
+      child: Icon(Icons.image_outlined, color: p.textTertiary),
+    );
+    return ClipRRect(
+      borderRadius: corners,
+      child: SizedBox(
+        width: KDmBubble.picture.width + 40,
+        height: KDmBubble.picture.width,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            switch (bytes) {
+              AsyncData(:final value) => Image.memory(
+                Uint8List.fromList(value),
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                errorBuilder: (_, _, _) => placeholder(),
+              ),
+              AsyncError() => placeholder(),
+              _ => ColoredBox(color: _incomingFill(context)),
+            },
+            PositionedDirectional(
+              end: KSpacing.sm,
+              bottom: KSpacing.sm,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: KPalette.dark.scrim.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: KSpacing.sm,
+                    vertical: KSpacing.xxs,
+                  ),
+                  child: _WaMeta(m: m, color: KPalette.dark.textPrimary),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaPart extends StatelessWidget {
+  const new({required this.m, required this.color});
+
+  final WaMessage m;
+
+  /// The bubble's text colour.
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final t = context.textStyles;
     final media = m.media!;
     final note = switch (media.state) {
@@ -796,67 +1443,68 @@ class _MediaPart extends ConsumerWidget {
       WaMediaState.stored => null,
     };
     if (note != null) {
-      return Text(
-        note,
-        style: t.caption.copyWith(
-          color: p.textSecondary,
-          fontStyle: FontStyle.italic,
-        ),
-      );
-    }
-    if (m.type == 'IMAGE' || m.type == 'STICKER') {
-      final bytes = ref.watch(waMediaProvider(m.id));
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(KRadius.sm),
-        child: SizedBox(
-          width: 220,
-          height: 160,
-          child: switch (bytes) {
-            AsyncData(:final value) => Image.memory(
-              Uint8List.fromList(value),
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-              errorBuilder: (_, _, _) => _filePlaceholder(context),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.block_rounded,
+            size: 16,
+            color: color.withValues(alpha: 0.7),
+          ),
+          const SizedBox(width: KSpacing.xs),
+          Flexible(
+            child: Text(
+              note,
+              style: t.caption.copyWith(
+                color: color.withValues(alpha: 0.85),
+                fontStyle: FontStyle.italic,
+              ),
             ),
-            AsyncError() => _filePlaceholder(context),
-            _ => ColoredBox(color: p.surfaceOverlay),
-          },
-        ),
+          ),
+        ],
       );
     }
-    if (m.type == 'AUDIO') return _VoicePlayer(m: m);
+    if (m.type == 'AUDIO') return _VoicePlayer(m: m, color: color);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          m.type == 'VIDEO' ? Icons.movie_outlined : Icons.description_outlined,
-          color: p.textSecondary,
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            m.type == 'VIDEO'
+                ? Icons.movie_outlined
+                : Icons.description_outlined,
+            size: 20,
+            color: color,
+          ),
         ),
-        const SizedBox(width: KSpacing.xs),
+        const SizedBox(width: KSpacing.sm),
         Flexible(
           child: Text(
             media.filename ?? l10n.waOpenFile,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: t.body,
+            style: t.body.copyWith(color: color),
           ),
         ),
       ],
     );
   }
-
-  Widget _filePlaceholder(BuildContext context) => ColoredBox(
-    color: context.palette.surfaceOverlay,
-    child: Icon(Icons.image_outlined, color: context.palette.textSecondary),
-  );
 }
 
-/// A voice note / audio file: the bytes are read on the first tap (never a
-/// public URL), then played from memory.
+/// A voice note / audio file, in DM's voice-note shape (D155): play, a wave,
+/// the label. The bytes are read on the first tap (never a public URL), then
+/// played from memory.
 class _VoicePlayer extends ConsumerStatefulWidget {
-  const new({required this.m});
+  const new({required this.m, required this.color});
 
   final WaMessage m;
+  final Color color;
 
   @override
   ConsumerState<_VoicePlayer> createState() => _VoicePlayerState();
@@ -900,26 +1548,44 @@ class _VoicePlayerState extends ConsumerState<_VoicePlayer> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final p = context.palette;
+    final fg = widget.color;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          tooltip: _playing ? l10n.waPause : l10n.waPlay,
-          onPressed: _loading ? null : () => unawaited(_toggle()),
-          icon: Icon(
-            _playing
-                ? Icons.pause_circle_filled_rounded
-                : Icons.play_circle_fill_rounded,
-            color: p.primary,
-            size: 32,
+        SizedBox.square(
+          dimension: 40,
+          child: IconButton(
+            tooltip: _playing ? l10n.waPause : l10n.waPlay,
+            padding: EdgeInsets.zero,
+            onPressed: _loading ? null : () => unawaited(_toggle()),
+            icon: Icon(
+              _playing
+                  ? Icons.pause_circle_filled_rounded
+                  : Icons.play_circle_fill_rounded,
+              color: fg,
+              size: 34,
+            ),
           ),
         ),
-        Text(
-          widget.m.media!.voice
-              ? l10n.waVoice
-              : (widget.m.media!.filename ?? l10n.waVoice),
-          style: context.textStyles.caption,
+        const SizedBox(width: KSpacing.xxs),
+        Icon(
+          Icons.graphic_eq_rounded,
+          size: 22,
+          color: fg.withValues(alpha: 0.8),
+        ),
+        const SizedBox(width: KSpacing.xs),
+        Flexible(
+          child: Text(
+            widget.m.media!.voice
+                ? l10n.waVoice
+                : (widget.m.media!.filename ?? l10n.waVoice),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.textStyles.caption.copyWith(
+              color: fg,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ],
     );
@@ -933,8 +1599,7 @@ class _BottomAction extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
+  Widget build(BuildContext context) => _ComposerSurface(
     child: Padding(
       padding: const EdgeInsets.all(KSpacing.md),
       child: KButton(
@@ -946,77 +1611,92 @@ class _BottomAction extends StatelessWidget {
   );
 }
 
+/// The bar in the composer's place (VIEW, another agent's conversation).
 class _BottomNote extends StatelessWidget {
-  const new({required this.text, super.key});
+  const new({required this.text, required this.icon, super.key});
 
   final String text;
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    child: Padding(
-      padding: const EdgeInsets.all(KSpacing.lg),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: context.textStyles.caption.copyWith(
-          color: context.palette.textSecondary,
-        ),
-      ),
-    ),
-  );
-}
-
-/// v1.120-social (D360, §10.155): «مشاهدة فقط» — the chip in the chat's app
-/// bar for a staff member whose WhatsApp level is VIEW (no actions menu).
-class WaViewOnlyLabel extends StatelessWidget {
-  const new({super.key});
-
-  static const labelKey = Key('wa.viewOnlyLabel');
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(end: KSpacing.md),
-      child: Center(
-        child: Semantics(
-          label: context.l10n.waViewOnlyHint,
-          excludeSemantics: true,
-          child: Container(
-            key: labelKey,
-            padding: const EdgeInsets.symmetric(
-              horizontal: KSpacing.sm,
-              vertical: KSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              color: p.warning.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(KRadius.pill),
-              border: Border.all(color: p.warning.withValues(alpha: 0.5)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.visibility_outlined, size: 14, color: p.warning),
-                const SizedBox(width: KSpacing.xs),
-                Text(
-                  context.l10n.waViewOnly,
-                  style: context.textStyles.caption.copyWith(
-                    color: p.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
+    return _ComposerSurface(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: KSpacing.lg,
+          vertical: KSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: p.textSecondary),
+            const SizedBox(width: KSpacing.sm),
+            Expanded(
+              child: Text(
+                text,
+                style: context.textStyles.caption.copyWith(
+                  color: p.textSecondary,
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// The composer: text + quick replies + a photo inside the window; outside it
-/// only «إرسال قالب». «إرسال» is disabled while a send is in flight (a send
+/// The composer's floor, as DM's (D69): the page colour, a soft shadow over
+/// the thread.
+class _ComposerSurface extends StatelessWidget {
+  const new({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: p.background,
+        boxShadow: [
+          BoxShadow(
+            color: p.textPrimary.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(top: false, child: child),
+    );
+  }
+}
+
+/// v1.120-social (D360, §10.155): «مشاهدة فقط» — the chip for a staff
+/// member whose WhatsApp level is VIEW (no actions menu). D363: in the
+/// status strip.
+class WaViewOnlyLabel extends StatelessWidget {
+  const new({super.key});
+
+  static const labelKey = Key('wa.viewOnlyLabel');
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: context.l10n.waViewOnlyHint,
+    excludeSemantics: true,
+    child: WaPill(
+      key: labelKey,
+      label: context.l10n.waViewOnly,
+      color: context.palette.warning,
+      icon: Icons.visibility_outlined,
+    ),
+  );
+}
+
+/// The composer, in DM's shape (D68, [KChatComposer]): a round «+» (a photo,
+/// a template), the pill field with the quick replies inside it, and the
+/// round red send button. Outside the window only «إرسال قالب», with the
+/// reason above it. «إرسال» is disabled while a send is in flight (a send
 /// to Meta cannot be undone, §10.151.4).
 class WaComposer extends ConsumerStatefulWidget {
   const new({
@@ -1029,6 +1709,11 @@ class WaComposer extends ConsumerStatefulWidget {
   final WaConversation c;
   final VoidCallback onSent;
   final VoidCallback onClaim;
+
+  static const attachKey = Key('wa.attach');
+  static const attachPhotoKey = Key('wa.attach.photo');
+  static const attachTemplateKey = Key('wa.attach.template');
+  static const quickKey = Key('wa.quick');
 
   @override
   ConsumerState<WaComposer> createState() => _WaComposerState();
@@ -1094,49 +1779,113 @@ class _WaComposerState extends ConsumerState<WaComposer> {
     if (sent ?? false) widget.onSent();
   }
 
+  Future<void> _attach() async {
+    final l10n = context.l10n;
+    final pick = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              key: WaComposer.attachPhotoKey,
+              leading: const Icon(Icons.image_outlined),
+              title: Text(l10n.waAttachPhoto),
+              onTap: () => Navigator.of(sheet).pop('photo'),
+            ),
+            ListTile(
+              key: WaComposer.attachTemplateKey,
+              leading: const Icon(Icons.description_outlined),
+              title: Text(l10n.waSendTemplate),
+              onTap: () => Navigator.of(sheet).pop('template'),
+            ),
+          ],
+        ),
+      ),
+    );
+    switch (pick) {
+      case 'photo':
+        await _photo();
+      case 'template':
+        await _template();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
+    final t = context.textStyles;
     if (!widget.c.windowOpen) {
-      return SafeArea(
-        top: false,
+      return _ComposerSurface(
         child: Padding(
-          padding: const EdgeInsets.all(KSpacing.md),
-          child: KButton(
-            key: WaChatScreen.templateKey,
-            label: l10n.waSendTemplate,
-            icon: Icons.description_outlined,
-            onPressed: () => unawaited(_template()),
+          padding: const EdgeInsets.fromLTRB(
+            KSpacing.md,
+            KSpacing.sm + 2,
+            KSpacing.md,
+            KSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.lock_clock_outlined, size: 16, color: p.warning),
+                  const SizedBox(width: KSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      widget.c.windowClosesAt == null
+                          ? l10n.waWindowNever
+                          : l10n.waWindowClosed,
+                      style: t.caption.copyWith(color: p.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: KSpacing.sm),
+              KButton(
+                key: WaChatScreen.templateKey,
+                label: l10n.waSendTemplate,
+                icon: Icons.description_outlined,
+                onPressed: () => unawaited(_template()),
+              ),
+            ],
           ),
         ),
       );
     }
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: p.border)),
-        ),
-        padding: const EdgeInsets.fromLTRB(
-          KSpacing.sm,
-          KSpacing.xs,
-          KSpacing.sm,
-          KSpacing.xs,
-        ),
+    final pill = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(KRadius.pill),
+      borderSide: BorderSide(color: p.border),
+    );
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    return _ComposerSurface(
+      child: Padding(
+        padding: const EdgeInsets.all(KSpacing.sm),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            IconButton(
-              tooltip: l10n.waQuickReplies,
-              icon: const Icon(Icons.bolt_rounded),
-              onPressed: () => unawaited(_quick()),
+            SizedBox.square(
+              dimension: KChatComposer.button,
+              child: IconButton(
+                key: WaComposer.attachKey,
+                tooltip: l10n.waAttach,
+                padding: EdgeInsets.zero,
+                onPressed: _busy ? null : () => unawaited(_attach()),
+                style: IconButton.styleFrom(
+                  shape: CircleBorder(side: BorderSide(color: p.border)),
+                ),
+                icon: Icon(
+                  Icons.add_rounded,
+                  size: KChatComposer.icon + 4,
+                  color: p.textPrimary,
+                ),
+              ),
             ),
-            IconButton(
-              tooltip: l10n.waAttach,
-              icon: const Icon(Icons.image_outlined),
-              onPressed: _busy ? null : () => unawaited(_photo()),
-            ),
+            const SizedBox(width: KSpacing.xs),
             Expanded(
               child: TextField(
                 key: WaChatScreen.composerKey,
@@ -1150,31 +1899,74 @@ class _WaComposerState extends ConsumerState<WaComposer> {
                   required isFocused,
                   maxLength,
                 }) => null,
+                style: t.body,
                 decoration: InputDecoration(
                   hintText: l10n.waComposerHint,
+                  hintMaxLines: 1,
+                  filled: true,
+                  fillColor: p.surface,
                   isDense: true,
+                  constraints: const BoxConstraints(
+                    minHeight: KChatComposer.fieldMinHeight,
+                  ),
+                  contentPadding: const EdgeInsetsDirectional.fromSTEB(
+                    KSpacing.md,
+                    KSpacing.sm + 2,
+                    KSpacing.xs,
+                    KSpacing.sm + 2,
+                  ),
+                  border: pill,
+                  enabledBorder: pill,
+                  disabledBorder: pill,
+                  focusedBorder: pill.copyWith(
+                    borderSide: BorderSide(color: p.focusRing, width: 1.5),
+                  ),
+                  suffixIcon: IconButton(
+                    key: WaComposer.quickKey,
+                    tooltip: l10n.waQuickReplies,
+                    onPressed: () => unawaited(_quick()),
+                    icon: Icon(
+                      Icons.bolt_rounded,
+                      size: KChatComposer.icon,
+                      color: p.textSecondary,
+                    ),
+                  ),
                 ),
               ),
             ),
+            const SizedBox(width: KSpacing.xs),
             ValueListenableBuilder(
               valueListenable: _text,
-              builder: (_, value, _) => IconButton(
-                key: WaChatScreen.sendKey,
-                tooltip: l10n.waSend,
-                icon: Icon(Icons.send_rounded, color: p.primary),
-                onPressed: _busy || value.text.trim().isEmpty
-                    ? null
-                    : () => unawaited(
-                        _send(
-                          (r) => r.sendText(widget.c.id, value.text.trim()),
+              builder: (_, value, _) => SizedBox.square(
+                dimension: KChatComposer.button,
+                child: IconButton.filled(
+                  key: WaChatScreen.sendKey,
+                  tooltip: l10n.waSend,
+                  padding: EdgeInsets.zero,
+                  style: IconButton.styleFrom(
+                    backgroundColor: p.primary,
+                    foregroundColor: p.onPrimary,
+                    disabledBackgroundColor: p.primary.withValues(alpha: 0.35),
+                    disabledForegroundColor: p.onPrimary.withValues(alpha: 0.8),
+                  ),
+                  onPressed: _busy || value.text.trim().isEmpty
+                      ? null
+                      : () => unawaited(
+                          _send(
+                            (r) => r.sendText(widget.c.id, value.text.trim()),
+                          ),
                         ),
-                      ),
+                  // The paper plane points along the reading direction.
+                  icon: Transform.flip(
+                    flipX: rtl,
+                    child: AppIcon(
+                      AppIcons.send,
+                      size: KChatComposer.icon,
+                      color: p.onPrimary,
+                    ),
+                  ),
+                ),
               ),
-            ),
-            IconButton(
-              tooltip: l10n.waSendTemplate,
-              icon: const Icon(Icons.description_outlined),
-              onPressed: () => unawaited(_template()),
             ),
           ],
         ),

@@ -82,6 +82,7 @@ List<WaMessage> waMessages({required bool ar, bool reaction = true}) => [
     at: d355Now.subtract(const Duration(minutes: 12)),
     text: ar ? 'لحظة من فضلك' : 'One moment please',
     errorTitle: 'Message undeliverable',
+    errorCode: 131026,
     sentBy: waMe,
   ),
   WaMessage(
@@ -99,6 +100,15 @@ List<WaMessage> waMessages({required bool ar, bool reaction = true}) => [
     tick: WaTick.received,
     at: d355Now.subtract(const Duration(minutes: 15)),
     text: 'السلام عليكم',
+  ),
+  // D363: the day before — the chat's «أمس» separator.
+  WaMessage(
+    id: 'm0',
+    outbound: false,
+    type: 'TEXT',
+    tick: WaTick.received,
+    at: d355Now.subtract(const Duration(hours: 20)),
+    text: ar ? 'مرحباً، عندي مشكلة في الشحن' : 'Hi, I have a top-up problem',
   ),
 ];
 

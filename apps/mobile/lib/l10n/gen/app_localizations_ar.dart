@@ -17664,4 +17664,46 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveTypeTagMulti => 'Multi';
+
+  @override
+  String get waFailed => 'تعذّر الإرسال';
+
+  @override
+  String get waFailDetails => 'سبب التعذّر';
+
+  @override
+  String get waFailUndeliverable =>
+      'لم يصل إلى الرقم: قد لا يستخدم واتساب أو لم يوافق على شروطه.';
+
+  @override
+  String get waFailRate => 'أُرسلت رسائل كثيرة في وقت قصير: حاول بعد قليل.';
+
+  @override
+  String get waFailUnsupported =>
+      'واتساب لا يقبل هذا النوع من الرسائل لهذا الرقم.';
+
+  @override
+  String get waRetry => 'إعادة الإرسال';
+
+  @override
+  String get waYesterday => 'أمس';
+
+  @override
+  String waWindowLeftHours(int hours) {
+    return 'نافذة الرد: $hours س متبقية';
+  }
+
+  @override
+  String waWindowLeftMinutes(int minutes) {
+    return 'نافذة الرد: $minutes د متبقية';
+  }
+
+  @override
+  String get waWindowClosedChip => 'مغلقة — قالب فقط';
+
+  @override
+  String get waMenu => 'إجراءات المحادثة';
+
+  @override
+  String get waAttachPhoto => 'صورة';
 }

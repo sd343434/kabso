@@ -17653,4 +17653,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveTypeTagMulti => 'Multi';
+
+  @override
+  String get waFailed => 'Couldn’t send';
+
+  @override
+  String get waFailDetails => 'Why it failed';
+
+  @override
+  String get waFailUndeliverable =>
+      'It did not reach the number: it may not use WhatsApp or has not accepted its terms.';
+
+  @override
+  String get waFailRate =>
+      'Too many messages in a short time: try again shortly.';
+
+  @override
+  String get waFailUnsupported =>
+      'WhatsApp does not accept this kind of message for this number.';
+
+  @override
+  String get waRetry => 'Send again';
+
+  @override
+  String get waYesterday => 'Yesterday';
+
+  @override
+  String waWindowLeftHours(int hours) {
+    return 'Reply window: ${hours}h left';
+  }
+
+  @override
+  String waWindowLeftMinutes(int minutes) {
+    return 'Reply window: ${minutes}m left';
+  }
+
+  @override
+  String get waWindowClosedChip => 'Closed — template only';
+
+  @override
+  String get waMenu => 'Conversation actions';
+
+  @override
+  String get waAttachPhoto => 'Photo';
 }

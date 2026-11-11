@@ -203,6 +203,7 @@ class WaMessage {
     this.reaction,
     this.templateName,
     this.errorTitle,
+    this.errorCode,
     this.sentBy,
   });
 
@@ -232,6 +233,7 @@ class WaMessage {
       errorTitle: error == null
           ? null
           : (error['title'] as String? ?? '${error['code'] ?? ''}'),
+      errorCode: (error?['code'] as num?)?.toInt(),
       sentBy: WaStaffRef.maybe(j['sentBy']),
       at: _date(j['at']) ?? DateTime.now(),
     );
@@ -248,7 +250,13 @@ class WaMessage {
   final String? reaction;
   final String? templateName;
   final WaTick tick;
+
+  /// Meta's own words for a failed send (English, never shown in the app:
+  /// D363 shows [errorCode] in words instead).
   final String? errorTitle;
+
+  /// Meta's numeric error code (131047 the window, 131026 undeliverable, …).
+  final int? errorCode;
   final WaStaffRef? sentBy;
   final DateTime at;
 }

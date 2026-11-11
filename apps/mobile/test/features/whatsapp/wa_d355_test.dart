@@ -3,6 +3,7 @@
 // media states, the composer inside the 24-hour window; outside it only
 // «إرسال قالب» with the template's variables; another agent's conversation;
 // a closed one), the server's WhatsApp codes in words and the push route.
+import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -23,6 +24,12 @@ Future<void> _pump(
   FakeWaRepository repo, {
   AppLanguage language = AppLanguage.ar,
 }) async {
+  // D363: a tall phone, so the whole sample thread (two days, grouped
+  // bubbles) is built at once.
+  tester.view
+    ..physicalSize = const Size(800, 1600)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   await pumpScreen(
     tester,
     screen,
@@ -95,7 +102,9 @@ void main() {
       final repo = FakeWaRepository();
       await _pump(tester, const WaChatScreen(conversationId: 'c1'), repo);
       expect(find.text('السلام عليكم'), findsOneWidget);
-      expect(find.text('Message undeliverable'), findsOneWidget);
+      // D363: Meta's English title never shows; the failure in words.
+      expect(find.text('Message undeliverable'), findsNothing);
+      expect(find.text('تعذّر الإرسال'), findsOneWidget);
       expect(find.text('نوع الملف غير مسموح ولم يُحفظ.'), findsOneWidget);
       expect(find.text('رسالة صوتية'), findsOneWidget);
       expect(
@@ -116,6 +125,66 @@ void main() {
       await _end(tester);
     },
   );
+
+  testWidgets('D363: day separators, the window countdown, a formatted number, '
+      'a failed send in words with «إعادة الإرسال»', (tester) async {
+    final repo = FakeWaRepository(
+      conversation: waConversation(
+        assignedTo: waMe,
+        assignedToMe: true,
+        unread: 0,
+      ),
+    );
+    await withClock(Clock.fixed(d355Now), () async {
+      await _pump(tester, const WaChatScreen(conversationId: 'c1'), repo);
+      expect(find.text('اليوم'), findsOneWidget);
+      expect(find.text('أمس'), findsOneWidget);
+      expect(find.text('نافذة الرد: 20 س متبقية'), findsOneWidget);
+      expect(find.text('معي'), findsOneWidget);
+      expect(find.text('\u2066+966 50 000 1001\u2069'), findsOneWidget);
+      // The staff name once for the run of هدى's two messages.
+      expect(find.text('هدى'), findsOneWidget);
+      expect(find.byKey(WaBubble.failedKey), findsOneWidget);
+      await tester.tap(find.byKey(WaBubble.retryKey));
+      await tester.pumpAndSettle();
+      expect(repo.sentTexts, ['لحظة من فضلك']);
+      await _end(tester);
+    });
+  });
+
+  testWidgets('D363: the «+» sheet offers a photo and a template', (
+    tester,
+  ) async {
+    final repo = FakeWaRepository();
+    await _pump(tester, const WaChatScreen(conversationId: 'c1'), repo);
+    expect(find.byKey(WaComposer.quickKey), findsOneWidget);
+    await tester.tap(find.byKey(WaComposer.attachKey));
+    await tester.pumpAndSettle();
+    expect(find.byKey(WaComposer.attachPhotoKey), findsOneWidget);
+    await tester.tap(find.byKey(WaComposer.attachTemplateKey));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('wa.param.0')), 'سارة');
+    await tester.enterText(find.byKey(const Key('wa.param.1')), '#42');
+    await tester.pump();
+    await tester.tap(find.text('إرسال').last);
+    await tester.pumpAndSettle();
+    expect(repo.sentTemplates.single.$1, 'kabso_followup');
+    await _end(tester);
+  });
+
+  test('D363: numbers in their groups; Meta codes in words', () async {
+    expect(waPhoneGroups('+966500001001'), '+966 50 000 1001');
+    expect(waPhoneGroups('+97455512345'), '+974 5551 2345');
+    expect(waPhoneGroups('+201001234567'), '+20 10 0123 4567');
+    expect(waPhoneGroups('+12025550143'), '+1 202 555 0143');
+    expect(waPhoneGroups('+4930123456'), '+493 012 345 6');
+    expect(waPhoneGroups('abc'), 'abc');
+    final ar = await AppLocalizations.delegate.load(const Locale('ar'));
+    expect(waFailReason(ar, 131047), ar.waErrWindow);
+    expect(waFailReason(ar, 131026), ar.waFailUndeliverable);
+    expect(waFailReason(ar, 130429), ar.waFailRate);
+    expect(waFailReason(ar, null), ar.waErrSend);
+  });
 
   testWidgets(
     'the window closed: only «إرسال قالب», then the template is sent',
@@ -253,6 +322,17 @@ void main() {
     });
     expect(m.media?.state, WaMediaState.tooLarge);
     expect(m.tick, WaTick.delivered);
+    final failed = WaMessage.fromJson({
+      'id': 'f',
+      'direction': 'OUTBOUND',
+      'type': 'TEXT',
+      'text': 'x',
+      'status': 'FAILED',
+      'error': {'code': 131026, 'title': 'Message undeliverable'},
+      'at': '2026-11-10T09:00:00.000Z',
+    });
+    expect(failed.errorCode, 131026);
+    expect(failed.tick, WaTick.failed);
   });
 
   test('the WhatsApp texts exist in both languages', () async {

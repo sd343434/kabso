@@ -29763,6 +29763,78 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'Multi'**
   String get liveTypeTagMulti;
+
+  /// D363: under a staff message WhatsApp did not deliver (never Meta's English text).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر الإرسال'**
+  String get waFailed;
+
+  /// D363: the tooltip of the failed-send line (tap to read the reason).
+  ///
+  /// In ar, this message translates to:
+  /// **'سبب التعذّر'**
+  String get waFailDetails;
+
+  /// D363: Meta 131026, in words.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يصل إلى الرقم: قد لا يستخدم واتساب أو لم يوافق على شروطه.'**
+  String get waFailUndeliverable;
+
+  /// D363: Meta's rate limits (130429, 131056, 80007, 4), in words.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت رسائل كثيرة في وقت قصير: حاول بعد قليل.'**
+  String get waFailRate;
+
+  /// D363: Meta 131051, in words.
+  ///
+  /// In ar, this message translates to:
+  /// **'واتساب لا يقبل هذا النوع من الرسائل لهذا الرقم.'**
+  String get waFailUnsupported;
+
+  /// D363: sends a failed text again (a new message).
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة الإرسال'**
+  String get waRetry;
+
+  /// D363: the chat's day separator for yesterday.
+  ///
+  /// In ar, this message translates to:
+  /// **'أمس'**
+  String get waYesterday;
+
+  /// D363: the chat's window chip, more than an hour left.
+  ///
+  /// In ar, this message translates to:
+  /// **'نافذة الرد: {hours} س متبقية'**
+  String waWindowLeftHours(int hours);
+
+  /// D363: the chat's window chip, under an hour left.
+  ///
+  /// In ar, this message translates to:
+  /// **'نافذة الرد: {minutes} د متبقية'**
+  String waWindowLeftMinutes(int minutes);
+
+  /// D363: the chat's window chip outside the 24-hour window.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغلقة — قالب فقط'**
+  String get waWindowClosedChip;
+
+  /// D363: the tooltip of the chat's actions menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'إجراءات المحادثة'**
+  String get waMenu;
+
+  /// D363: the attach sheet's photo item.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة'**
+  String get waAttachPhoto;
 }
 
 class _AppLocalizationsDelegate

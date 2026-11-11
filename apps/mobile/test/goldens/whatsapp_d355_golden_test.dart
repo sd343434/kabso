@@ -3,7 +3,9 @@
 //   whatsapp.inbox          the list: unread, with me / with someone / closed
 //   whatsapp.chat           a conversation inside the 24-hour window: bubbles,
 //                           ticks (read / failed), a voice note, a refused
-//                           file type, a reaction, the composer
+//                           file type, a reaction, the composer; D363: the
+//                           DM look — grouped runs, «أمس» / «اليوم», the
+//                           window countdown chip, «تعذّر الإرسال»
 //   whatsapp.window_closed  outside the window: the banner and only
 //                           «إرسال قالب»
 //
@@ -51,6 +53,9 @@ void main() {
             overrides: [waRepositoryProvider.overrideWithValue(repo)],
           );
           await tester.pumpAndSettle();
+          // D363: the avatars' default picture decoded before the shot
+          // (the first shot of a run had none).
+          await precacheImages(tester);
         });
         await expectLater(
           find.byType(MaterialApp),
@@ -129,4 +134,57 @@ void main() {
       });
     }
   });
+
+  // D363: 360 × 800 with text at 130 % (Arabic, dark): the header, the
+  // status strip, the bubbles and the composer fit without overflow.
+  for (final (file, closed) in [
+    ('whatsapp.chat', false),
+    ('whatsapp.window_closed', true),
+  ]) {
+    testWidgets('$file ar android scale 1.3', (tester) async {
+      await loadAppFonts();
+      setViewport(tester, GoldenViewport.android);
+      await withClock(Clock.fixed(d355Now), () async {
+        await pumpScreen(
+          tester,
+          const _Scaled(child: WaChatScreen(conversationId: 'c1')),
+          language: AppLanguage.ar,
+          overrides: [
+            waRepositoryProvider.overrideWithValue(
+              FakeWaRepository(
+                conversation: waConversation(
+                  windowOpen: !closed,
+                  assignedTo: waMe,
+                  assignedToMe: true,
+                  unread: 0,
+                ),
+                messages: waMessages(ar: true, reaction: false),
+              ),
+            ),
+          ],
+        );
+        await tester.pumpAndSettle();
+        await precacheImages(tester);
+      });
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('png/$file.ar.android.scale13.png'),
+      );
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+    });
+  }
+}
+
+class _Scaled extends StatelessWidget {
+  const new({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => MediaQuery(
+    data: MediaQuery.of(context)
+        .copyWith(textScaler: const TextScaler.linear(1.3)),
+    child: child,
+  );
 }
