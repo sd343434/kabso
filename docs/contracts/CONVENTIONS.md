@@ -656,6 +656,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.81-social)* Tables `fx_rates` (the latest automatic rate per currency, its source and times, a value held for review), `fx_settings` (the paid provider's key sealed, the switch, the last test, the poller's state); capability `fx.settings`; audit `fx.*`; server config `FX_*` (§10.87) | Backend — `fx` module (`FxRatesService` the only writer of `fx_rates` and of the poller state, and the one resolver every price reads; `FxSettingsService` the only writer of the provider settings). `recharge_exchange_rates` stays the `recharge` module's (the manual rates). | CTO |
 | *(v1.82-social)* Tables `vip_tiers`, `vip_tier_perks`, `vip_memberships`, `vip_purchases` | Backend — `vip` module (`VipService` takes the coins through `wallet-ledger.ts`, `VIP_PURCHASE`; the tiers and perks written only by the panel's `VipAdminService`, `catalog.manage`, audited `vip.tier.*`) | CTO; Security (coin path, prices) |
 | *(v1.126-social)* Tables `recharge_points_balances` (CHECK `recharge_points_balances_range`), `recharge_points_ledger` (append-only for the runtime group; unique `recharge_points_ledger_reference_once` (reason, reference); CHECK `recharge_points_ledger_sign`); enums `recharge_points_reason`, `vip_pay_with`; columns `vip_tiers.points_price` (CHECK `vip_tiers_points_price_range`), `vip_purchases.pay_with`, `price_points`, `list_price_points`, `points_after` (CHECK `vip_purchases_pay_with_shape`; `vip_purchases_shape` re-added) | Backend — `recharge-points` module (`recharge-points-ledger.ts`, the only writer: earned in the `topup`, `store-iap` and `recharge` credit transactions, reversed in `topup` / `store-iap` refunds, spent by `vip` `VipService.buy`, adjusted by the panel's `adminControl`, audited `recharge_points.adjust`) | CTO; Security (a value path that buys VIP) |
+| *(v1.128-social)* Enum `entry_display`; columns `store_items.entry_display`, `vip_tier_perks.entry_display` (NOT NULL DEFAULT 'FULL_SCREEN') | Backend — `store` module (`store-rules.ts`: `ENTRY_DISPLAYS`, the worn car's `entryDisplay`; `StoreAdminService` writes it, audited `store.item.*`), `vip` module (`VipAdminService` writes the ENTRY_EFFECT perk's, audited `vip.tier.update`; `vipPerkDto` reads it), `live` (the room host's raw wear select) | CTO |
 | *(v1.80-kyc)* Tables `kyc_settings` (the Didit API key and webhook secret sealed, the workflows, the daily limit, the switch, the last test), `kyc_checks` (one Didit session of a person: status, decision, reasons, name, birth date, document country, document HMAC), `kyc_webhook_events` (the deliveries applied); capabilities `kyc.settings`, `kyc.view`; audit `kyc.*` (§10.77) | Backend — `kyc` module (`KycSettingsService` the only writer of the settings, `KycService` of the checks; `KycSettingsStore` the only reader of the secrets; `kyc-core.ts` the gates shared with `host-applications`, `economy` (agency open) and `recharge`); web — `apps/admin` «التحقق من الهوية (Didit)» and the KYC block of the three application pages; app — `features/kyc` | CTO; Security (Didit secrets, the minimum personal data, the webhook signature); Privacy (Didit as a processor, export and purge) |
 | *(v1.64-social)* Table `payment_settings` (the Stripe keys sealed, the top-up options); capability `payments.settings`; audit `payment.settings.*` (§10.53.1) | Backend — `payment-settings` module (`PaymentSettingsService` the only writer; `PaymentSettingsStore` the only reader, used by `topup`, `wallet`, `site-settings`); web — `apps/admin` «الدفع (Stripe)» | CTO; Security (Stripe keys, encryption at rest) |
 | *(v1.66-social)* Tables `legal_documents`, `user_consents`, `data_exports`; column `pending_registrations.legal_consent`; notification type `DATA_EXPORT_READY`; the 428 gate (`ConsentGuard`); server config `DATA_EXPORT_*`, `RATE_LIMIT_DATA_EXPORT_*`; CLIs `legal-admin`, `privacy-admin`; private prefix `private/data-exports/`; `scripts/check-site-no-tracking.sh` (§10.61) | Backend — `privacy` module (`legal.ts` and `data-export.ts` shared with the CLIs; `auth`, `topup` and `gifts` record consents through `legal.ts`; D193's purge deletes exports and clears consents' IP/UA) | CTO; Security (the export's content, the download token); Legal (the documents' text and versions) |
@@ -780,6 +781,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
 | v1.126-social (draft) | 2026-11-11 | **D370 (owner 2026-11-11: «نقاط الشحن» — every recharged coin is one point, the points accumulate and never expire «النقاط لا تصفر كل شهر بل تبقى مجموع», and buy VIP «استبدل بالنقاط» beside «ادفع بالعملات الذهبية»; owner-approved points prices VIP1 2 000 000 … VIP12 400 000 000):** `getMyRechargePoints` (`GET /me/recharge-points`; `RechargePoints`, `RechargePointsEntry`, `RechargePointsReason`); `BuyVipRequest.payWith` (`VipPayWith` COINS default \| POINTS) and `pricePoints` (`priceCoins` required only with COINS); `VipTier.pricePoints` / `renewPricePoints`; `MyVip.rechargePoints`, `MyVip.renewal.pricePoints`; `VipPurchaseResult.payWith` / `pricePoints` / `listPricePoints` / `rechargePoints` (`priceCoins` 0 with POINTS); code `INSUFFICIENT_RECHARGE_POINTS` (409), `VIP_UNAVAILABLE` issue `no_points_price`; the panel's `AdminVipTier.pointsPrice` (+ create / update), `listAdminUserLedger?kind=recharge_points`, `AdminUserDetail.balances.rechargePoints` / `ledger.rechargePoints`, `adjustAdminUserRechargePoints` (`AdminRechargePointsAdjustRequest` / `Result`; audit `recharge_points.adjust`). Migration `20270430090000_recharge_points`. §4, §8, §10.163. | **Additive.** An older app sends no `payWith` and buys with coins exactly as before (the coin purchase's idempotency hash is unchanged); new response fields are ignored by older clients. No back-fill: points start with the recharges after the deploy. |
+| v1.128-social (draft) | 2026-11-11 | **D373 (owner 2026-11-11: «سيارات الدخول ستكون اما بشاشة كاملة او نصف الشاشة مثل سيارة دخول … — من لوحة الادمن انت تحدد كيف ستكون الدخلة اما بشاشة كاملة او نصف شاشة»): an entry car plays full screen or half screen, set per car in the panel (§10.165).** New `EntryDisplay` FULL_SCREEN «شاشة كاملة» / HALF_SCREEN «نصف الشاشة». `AdminStoreItem.entryDisplay` (required; null for every kind but ENTRY_EFFECT), `AdminStoreItemCreateRequest.entryDisplay` / `AdminStoreItemUpdateRequest.entryDisplay` (ENTRY_EFFECT only, else 400 `VALIDATION_FAILED` `entryDisplay` / `not_allowed`; audited in `store.item.add` / `store.item.update` before / after); `AdminVipPerk.entryDisplay` (required; null for every perk but ENTRY_EFFECT), `AdminVipPerkInput.entryDisplay` (ENTRY_EFFECT only, else 400 `perks.N.entryDisplay` / `not_allowed`; absent keeps the stored value; audited in `vip.tier.update`). The app reads it where it reads the car: `StoreWornItem.entryDisplay` (optional; present on `StoreWear.entryEffect` only — `UserSummary.wear`, so also every live `join` data message's `user` and a room's `host`) and `VipPerk.entryDisplay` (required; null for every perk but ENTRY_EFFECT). Every car that exists is FULL_SCREEN (today's look, D331). Migration `20270502090000_entry_car_display`. Additive: an older app ignores the field and plays every car full screen; an older panel sends no `entryDisplay` and changes nothing. |
 | v1.117-live (draft) | 2026-11-11 | **D371 (owner: «اريد جعل سعر الرسائل العامة ب ١٠ الاف كوينز»):** a bullet message «رسالة عامة» (`sendLiveBullet`) costs **10 000 coins** instead of 15 (`LIVE_BULLET_COST_COINS`); a balance under 10 000 → 409 `INSUFFICIENT_COINS`. VIP free public messages (D258) unchanged (still free); a paid bullet still counts its coins as family points (now 10 000). §4 (409 row), §10.19. | **Behaviour change, shapes unchanged.** An older app's hint and «not enough coins» text still say 15 coins; the server charges 10 000. |
 | v1.116-live (draft) | 2026-11-11 | **D369 (owner: «الغي البث المتعدد لا اريده»): the multi-guest live is retired.** `startLiveRoom` `mode` MULTI → 400 `VALIDATION_FAILED` `mode` / `invalid_value` (as PK); `StartLiveRoomRequest.mode` enum SOLO, AUDIO, PODCAST, STREAMER. No list returns a MULTI room (`listLiveRooms` every `kind` and no kind, `listActiveLiveBoosts`); `kind=multi` stays valid and answers an empty page; `kind=party` = AUDIO; `party_all` loses MULTI. A MULTI room started before the deploy runs on until it ends (no migration, no job); `LiveRoomMode.MULTI`, the rows, `LiveConfig.seatCounts.MULTI`, the capacity weights and the panel's mode filter are kept. §10.4, §10.141, §10.162. | **Behaviour change** (a request enum value removed; lists no longer return MULTI rooms). Older apps: their multi-guest go-live is refused with 400 (the app shows its validation error); their hub and party lists simply contain no MULTI room. |
 | v1.115-live (draft) | 2026-11-11 | **D368 (owner: «بودكاست الحي يظهر في صفحة البث وليس الحفلة لكن الصوتي يظهر في صفحة الحفلة»; «ازل من بودكاست زر الكاميرة التي خلف التصنيف»):** a live VIDEO podcast (PODCAST with `LivePodcast.video`, §10.157) is listed by `listLiveRooms` `kind=solo` and `kind=video` under every hub filter, not by `kind=party_all` (audio podcasts only); `kind=podcast` keeps every podcast; «رائج» (§10.89) counts a video podcast in the video lives' top. App: the hub's camera card with the «Podcast» tag and no camera icon after the tag; a «مميز» slot pinned only where its kind lists the room. No migration, no shape change. §10.4, §10.89, §10.141, §10.161. | **Behaviour change** in list membership only (shapes unchanged). An older app sees a video podcast on its hub (`solo`) and no longer on its party page. |
@@ -12212,3 +12214,64 @@ owner may ask for a one-off back-fill from the wallet ledger later.
 Like the other ledgers (§10.56): the balance and the ledger are kept under the tombstone id (they hold no free text;
 the adjustment's reason lives only in the audit row, which ends with the retention). A negative balance does not block a
 deletion (points have no cash value).
+
+### 10.165 An entry car plays full screen or half screen «شاشة كاملة / نصف الشاشة» *(v1.128-social, DRAFT — D373)*
+
+Owner, 2026-11-11: «سيارات الدخول ستكون اما بشاشة كاملة او نصف الشاشة مثل سيارة دخول دراجون لورد — من لوحة الادمن انت
+تحدد كيف ستكون الدخلة اما بشاشة كاملة او نصف شاشة». The reference named there is only the layout idea (a car crossing a
+band in the middle of the screen): no third-party art, name or asset is used anywhere.
+
+#### 10.165.1 The value
+
+`EntryDisplay`: FULL_SCREEN «شاشة كاملة» or HALF_SCREEN «نصف الشاشة». One value per **entry car**: a store item of kind
+ENTRY_EFFECT «سيارات الدخول» (`store_items.entry_display`) and a VIP tier's ENTRY_EFFECT perk «مؤثر الدخول»
+(`vip_tier_perks.entry_display`). Both columns are `NOT NULL DEFAULT 'FULL_SCREEN'`: every car that existed before this
+change keeps today's look (D331: the car covers the whole live screen), so nothing changes until the owner picks
+HALF_SCREEN for a car. The column exists on every row; the API reads and returns it **only** for an entry car.
+
+#### 10.165.2 The panel
+
+- «المتجر» item form: with kind ENTRY_EFFECT, a select «طريقة العرض: شاشة كاملة / نصف الشاشة» (default «شاشة كاملة»);
+  the items table shows it under the kind. `createAdminStoreItem` / `updateAdminStoreItem` take `entryDisplay`; for any
+  other kind → 400 `VALIDATION_FAILED` with `entryDisplay` / `not_allowed`. Audited in the item's `store.item.add` /
+  `store.item.update` row (`before` / `after` carry `entryDisplay` for an entry car only), with the reason, as every
+  item edit.
+- «VIP» tier form: the ENTRY_EFFECT perk row has the same select; `AdminVipPerkInput.entryDisplay` (another code → 400
+  `perks.N.entryDisplay` / `not_allowed`). A perk sent without it keeps the value it had (an older panel resends the
+  perk list without the field: nothing changes); a new perk is FULL_SCREEN. Audited in `vip.tier.update` (the perk's
+  `before` / `after`). The tiers table shows it beside the perk's title.
+- `AdminStoreItem.entryDisplay` and `AdminVipPerk.entryDisplay` are always present: the value for an entry car, null
+  for anything else.
+
+#### 10.165.3 What the app reads
+
+The value travels with the car, from the server; the app never guesses it:
+
+- a worn store car: `StoreWornItem.entryDisplay` on `StoreWear.entryEffect` (always present there; absent on every
+  other kind) — in every `UserSummary.wear`, so in the live `join` data message's `user`, a room's `host` and a profile;
+- a VIP car: `VipPerk.entryDisplay` of the ENTRY_EFFECT perk in the VIP catalogue (`listVipTiers`; null on other perks).
+
+The store car worn wins over the VIP one as before (one worn item per kind, §10.98.4), with its own display. The Kabso
+Team's car (D283) stays full screen. A missing or unknown value is FULL_SCREEN.
+
+#### 10.165.4 How each plays (app)
+
+Both play once, at most 15.5 s, with their own sound, queue one after another and never take taps (D272, D331); reduced
+motion plays no car and «إخفاء تأثيرات الدخول» (D225) hides every entrance, as before.
+
+- **FULL_SCREEN** — unchanged (D331): over the whole live screen like a full-screen gift (D145d / D317): a portrait or
+  square car covers it, its drawn bottom on the screen's bottom edge; a landscape one keeps the full width at the
+  bottom.
+- **HALF_SCREEN** — a band across the screen's full width, from under the room's header row (the status bar inset, the
+  10 dp header gap and the 48 dp row) down to the top of the chat's space (the bottom inset, the 48 dp bar and the
+  chat's cap of 30 % of the screen), at most half the screen high (397 of 852 dp at 393 × 852 with insets 59 / 34; 400
+  of 800 at 360 × 800; 453 of 932 at 430 × 932). The car is drawn whole in it (contained, centred: a car wider than the
+  band takes its full width) and nothing it draws leaves the band, so the header and the chat stay readable. The
+  entrant's banner keeps its place (D185) inside the band, drawn over the car. Art made for this mode is best wide
+  (about 4 : 3 or wider).
+
+#### 10.165.5 Compatibility
+
+Additive. An older app ignores the field and plays every car full screen (today's look). An older panel never sends
+`entryDisplay` and leaves it as it is. Migration `20270502090000_entry_car_display` (an enum and two columns with a
+constant default: no table rewrite).
