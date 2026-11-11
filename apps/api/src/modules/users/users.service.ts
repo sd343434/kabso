@@ -3,6 +3,7 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Prisma, type UserRole, type UserStatus } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { isPanelStaff } from '../live/live-staff.js';
 import { grantFreeItemsIn } from '../bag/bag-grants.js';
 import type { PremiumTier } from '../premium-usernames/premium-username-rules.js';
 import { regularUsernameIssue } from '../premium-usernames/premium-username-rules.js';
@@ -276,7 +277,11 @@ export class UsersService {
 
   async getMe(userId: string): Promise<MeDto | null> {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, include: ME_INCLUDE });
-    return user ? toMeDto(user) : null;
+    if (!user) return null;
+    const me = toMeDto(user);
+    // v1.124-social (D367, §10.160): a Kabso Team account (any panel role, the founder too) shows no account category;
+    // the stored value is kept (it shows again if the role ends).
+    return me.category !== null && (await isPanelStaff(this.prisma, userId)) ? { ...me, category: null } : me;
   }
 
   /**

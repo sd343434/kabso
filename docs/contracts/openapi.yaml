@@ -601,6 +601,11 @@ info:
     `get…WhatsAppAgents?department=`. A transfer is pushed to the receiver (the department's members for the queue).
     Migration `20270428090000_whatsapp_departments`. Additive (an older client keeps working; every conversation and
     person starts in GENERAL).
+    **D367 (DRAFT v1.124-social)** a Kabso Team profile shows no account category (CONVENTIONS §10.160; owner
+    2026-11-11 «في صفحة الموظفين يظهر تصنيف مثل شاعر، يجب إلغاؤه من صفحة المشرفين»): `Me.category` and
+    `PublicProfile.category` are null for an account holding any panel role (`kabsoTeam`, a limited `staff`, the
+    founder), for itself and for visitors; the stored value is kept (shown again if the role ends). Shapes unchanged
+    (already nullable); behaviour change for staff accounts only.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -32298,7 +32303,10 @@ components:
             - type: 'null'
         showGender: { type: boolean, description: "v1.47-social (D175). Whether others see the gender (default false)." }
         category:
-          description: v1.47-social (D175). The account category shown under the name, or null.
+          description: >-
+            v1.47-social (D175). The account category shown under the name, or null. v1.124-social (D367,
+            CONVENTIONS §10.160): always null for a Kabso Team account (any panel role, the founder too), even when
+            one is stored; the stored value is kept and shows again if the role ends.
           oneOf:
             - $ref: '#/components/schemas/AccountCategory'
             - type: 'null'
@@ -32982,7 +32990,10 @@ components:
           enum: [MALE, FEMALE, null]
           description: v1.47-social (D175). Only when the user chose to show it (`showGender`) and it is MALE or FEMALE; else null.
         category:
-          description: v1.47-social (D175). The account category shown under the name, or null.
+          description: >-
+            v1.47-social (D175). The account category shown under the name, or null. v1.124-social (D367,
+            CONVENTIONS §10.160): always null for a Kabso Team account (any panel role, the founder too), even when
+            one is stored; the stored value is kept and shows again if the role ends.
           oneOf:
             - $ref: '#/components/schemas/AccountCategory'
             - type: 'null'

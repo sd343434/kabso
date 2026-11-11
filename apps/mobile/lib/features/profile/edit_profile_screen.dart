@@ -118,6 +118,14 @@ class EditProfileScreen extends ConsumerWidget {
     // v1.72-live (D283): a Kabso Team account's picture and cover are the
     // team's, fixed — no «تغيير الصورة» / «الغلاف», a short note instead.
     final locked = user?.staff != null;
+    // D367: no «التصنيف» for a Kabso Team account (the founder too).
+    final hideCategory =
+        user != null &&
+        profileHidesCategory(
+          kabsoTeam: user.kabsoTeam,
+          hasStaffIdentity: user.staff != null,
+          hasStaffId: user.staffId != null,
+        );
     Widget divider() => Divider(
       height: KMetrics.hairline,
       thickness: KMetrics.hairline,
@@ -319,18 +327,21 @@ class EditProfileScreen extends ConsumerWidget {
                   },
                   placeholder: l10n.profileEditNotSet,
                   onTap: () => editGender(context, ref, user),
+                  last: hideCategory,
                 ),
-                _Row(
-                  key: categoryKey,
-                  label: l10n.profileEditCategory,
-                  value: switch (user.category) {
-                    final c? => categoryLabel(l10n, c),
-                    null => '',
-                  },
-                  placeholder: l10n.profileEditNotSet,
-                  onTap: () => editCategory(context, ref, user),
-                  last: true,
-                ),
+                // D367: a Kabso Team account has no account category.
+                if (!hideCategory)
+                  _Row(
+                    key: categoryKey,
+                    label: l10n.profileEditCategory,
+                    value: switch (user.category) {
+                      final c? => categoryLabel(l10n, c),
+                      null => '',
+                    },
+                    placeholder: l10n.profileEditNotSet,
+                    onTap: () => editCategory(context, ref, user),
+                    last: true,
+                  ),
                 divider(),
                 // D175 (owner: «التثبيت يكفي»): the grid keeps its order;
                 // pinning up to 3 posts is how the person puts posts first.

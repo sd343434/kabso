@@ -2009,7 +2009,16 @@ class ProfileInfoBlock extends StatelessWidget {
       ],
     );
     final category = ProfileFieldsLine(
-      category: profile.category,
+      // D367: never on a Kabso Team profile (the founder too).
+      category:
+          profileHidesCategory(
+            kabsoTeam: profile.kabsoTeam,
+            hasStaffIdentity: profile.staff != null,
+            hasStaffId: profile.staffId != null,
+            kabsoOwner: profile.kabsoOwner,
+          )
+          ? null
+          : profile.category,
       gender: profile.gender,
     );
     return Padding(

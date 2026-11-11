@@ -257,6 +257,8 @@ Future<void> pumpOwn(
   GoldenViewport viewport = GoldenViewport.phone,
   bool cover = true,
   PublicProfile? stats,
+  // D367: another signed-in person (a staff account) instead of [me].
+  User? user,
 }) async {
   setViewport(tester, viewport);
   insets(tester);
@@ -268,7 +270,7 @@ Future<void> pumpOwn(
     brightness: brightness,
     disableAnimations: true,
     overrides: [
-      meProvider.overrideWith((ref) => me(ar: ar, cover: cover)),
+      meProvider.overrideWith((ref) => user ?? me(ar: ar, cover: cover)),
       profileStatsProvider.overrideWith(
         (ref, username) =>
             stats ??

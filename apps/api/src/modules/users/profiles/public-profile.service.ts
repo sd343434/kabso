@@ -274,6 +274,8 @@ export class PublicProfileService {
     const staff = await staffIdentityOf(this.prisma, user.id);
     // v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while a panel role is held (the OWNER too).
     const staffId = await staffIdOf(this.prisma, user.id);
+    // v1.124-social (D367, §10.160): a Kabso Team account (any panel role, the founder too) shows no account category.
+    const kabsoTeam = await isPanelStaff(this.prisma, user.id);
     return {
       id: user.id,
       username: user.username,
@@ -288,7 +290,7 @@ export class PublicProfileService {
       followRequested,
       isMuted,
       isSelf,
-      ...((await isPanelStaff(this.prisma, user.id)) ? { kabsoTeam: true as const } : {}),
+      ...(kabsoTeam ? { kabsoTeam: true as const } : {}),
       ...(staffId ? { staffId } : {}),
       ...(staff ? { staff: { ...staff, ...(staffId ? { staffId } : {}) } } : {}),
       liveRoomId,
@@ -298,7 +300,7 @@ export class PublicProfileService {
       medals,
       profileCard,
       gender: user.gender,
-      category: user.category,
+      category: kabsoTeam ? null : user.category,
       links: user.links,
       tags: user.tags,
       tagIcons: user.tagIcons,

@@ -18,6 +18,18 @@ import 'package:url_launcher/url_launcher.dart' as launcher;
 /// directly; any other link — WhatsApp and Snapchat too since D361 — only
 /// after «أنت تغادر Kabso» with the full URL).
 
+/// D367 (owner: «في صفحة الموظفين يظهر تصنيف مثل شاعر، يجب إلغاؤه من صفحة
+/// المشرفين»; v1.124-social, CONVENTIONS §10.160): a Kabso Team account (a
+/// panel role, a limited staff member, the founder) shows no account
+/// category. The server already sends null; this also covers an older
+/// server's payload.
+bool profileHidesCategory({
+  required bool kabsoTeam,
+  required bool hasStaffIdentity,
+  required bool hasStaffId,
+  bool kabsoOwner = false,
+}) => kabsoTeam || hasStaffIdentity || hasStaffId || kabsoOwner;
+
 String genderLabel(AppLocalizations l10n, Gender gender) => switch (gender) {
   Gender.male => l10n.genderMale,
   Gender.female => l10n.genderFemale,

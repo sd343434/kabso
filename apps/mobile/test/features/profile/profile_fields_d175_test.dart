@@ -1004,4 +1004,88 @@ void main() {
       'tagIcons': ['crown', 'flag:SA'],
     });
   });
+
+  // D367 (owner: «في صفحة الموظفين يظهر تصنيف مثل شاعر، يجب إلغاؤه من صفحة
+  // المشرفين»): a Kabso Team profile shows no category, even when an older
+  // server still sends one; a regular account keeps it.
+  group('D367 staff profiles show no category', () {
+    final staffMe = _me().copyWith(kabsoTeam: true, staffId: 'Kabso01');
+
+    test('the rule: any staff marker hides it, none keeps it', () {
+      expect(
+        profileHidesCategory(
+          kabsoTeam: false,
+          hasStaffIdentity: false,
+          hasStaffId: false,
+        ),
+        isFalse,
+      );
+      for (final (team, identity, id, owner) in [
+        (true, false, false, false),
+        (false, true, false, false),
+        (false, false, true, false),
+        (false, false, false, true),
+      ]) {
+        expect(
+          profileHidesCategory(
+            kabsoTeam: team,
+            hasStaffIdentity: identity,
+            hasStaffId: id,
+            kabsoOwner: owner,
+          ),
+          isTrue,
+        );
+      }
+    });
+
+    for (final language in AppLanguage.values) {
+      testWidgets('a staff profile hides «${language.name}» category; '
+          'a regular one shows it', (tester) async {
+        final l10n = l10nFor(language);
+        await _pumpPublic(
+          tester,
+          apiProfile().copyWith(
+            category: AccountCategory.poet,
+            kabsoTeam: true,
+            staffId: 'Kabso01',
+          ),
+          language: language,
+        );
+        expect(find.text(l10n.categoryPoet), findsNothing);
+        expect(find.byKey(ProfileFieldsLine.lineKey), findsNothing);
+
+        await _pumpPublic(
+          tester,
+          apiProfile().copyWith(category: AccountCategory.poet),
+          language: language,
+        );
+        expect(find.text(l10n.categoryPoet), findsOneWidget);
+      });
+    }
+
+    testWidgets("the founder's payload with a category shows none", (
+      tester,
+    ) async {
+      final l10n = l10nFor(AppLanguage.ar);
+      await _pumpPublic(
+        tester,
+        apiProfile().copyWith(category: AccountCategory.poet, kabsoOwner: true),
+        language: AppLanguage.ar,
+      );
+      expect(find.text(l10n.categoryPoet), findsNothing);
+    });
+
+    testWidgets('«تعديل الملف»: no «التصنيف» row for staff', (tester) async {
+      await _pumpEdit(tester, user: staffMe, language: AppLanguage.ar);
+      expect(find.byKey(EditProfileScreen.categoryKey), findsNothing);
+      expect(find.byKey(EditProfileScreen.genderKey), findsOneWidget);
+    });
+
+    testWidgets('«تعديل الملف»: a regular account keeps «التصنيف»', (
+      tester,
+    ) async {
+      await _pumpEdit(tester, language: AppLanguage.ar);
+      expect(find.byKey(EditProfileScreen.categoryKey), findsOneWidget);
+    });
+  });
 }
