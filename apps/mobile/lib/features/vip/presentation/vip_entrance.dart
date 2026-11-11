@@ -31,7 +31,8 @@ import 'package:material_ui/material_ui.dart';
 /// isolate); the car starts only when it can play ([carWait] to get
 /// there, else it is skipped — its file stays read for the next time) and
 /// then has its own length (D331: the whole file, at most [carLimit], an
-/// MP4 too; full screen, [carFitFor]); its SVGA's own sound
+/// MP4 too; full screen, [carFitFor] — or, D373, in the half-screen band
+/// [halfBand] when the panel set the car HALF_SCREEN); its SVGA's own sound
 /// plays with it while «المؤثرات الصوتية» is on (the banner's, when there
 /// is no car); one entrance's sound at a time, none with reduced motion.
 class LiveVipEntranceLayer extends ConsumerStatefulWidget {
@@ -107,6 +108,48 @@ class LiveVipEntranceLayer extends ConsumerStatefulWidget {
       canvas.isEmpty || canvas.width <= canvas.height
       ? carFit
       : BoxFit.fitWidth;
+
+  /// v1.128-social (D373, §10.165; owner: «سيارات الدخول ستكون اما بشاشة
+  /// كاملة او نصف الشاشة … من لوحة الادمن انت تحدد»): how a car plays is
+  /// the server's value for that car ([VipPerk.entryDisplay]: the VIP
+  /// ENTRY_EFFECT perk's, or the worn store car's); none (an older server)
+  /// is [EntryDisplay.fullScreen], today's look (D331).
+  static EntryDisplay displayOf(VipPerk car) =>
+      car.entryDisplay ?? EntryDisplay.fullScreen;
+
+  /// D373: a HALF_SCREEN car's band is at most this part of the screen's
+  /// height.
+  static const double halfBandHeightFactor = 0.5;
+
+  /// D373: in its band the car is drawn whole (its aspect kept, centred):
+  /// the band's full width for a car wider than the band, its full height
+  /// for a taller one. Nothing it draws leaves the band.
+  static const BoxFit halfFit = BoxFit.contain;
+  static const Alignment halfAlignment = Alignment.center;
+
+  /// D373: the half-screen band on a [screen] with the system [padding] —
+  /// the screen's full width, from under the room's header row (the status
+  /// bar inset, the header gap and its 48 dp row) down to the top of the
+  /// chat's space (the bottom bar's 48 dp row over the bottom inset and the
+  /// chat's cap, [KMetrics.chatMaxHeightFactor]), at most
+  /// [halfBandHeightFactor] of the screen high (its top moves down to keep
+  /// it so). About half the screen on a phone: 397 of 852 at 393 × 852
+  /// with insets 59 / 34. The banner (above the chat, D185's place) is
+  /// inside the band and drawn over the car.
+  static Rect halfBand(Size screen, EdgeInsets padding) {
+    final headerBottom =
+        padding.top + KMetrics.liveHeaderGap + KSizes.minTouchTarget;
+    final chatTop =
+        screen.height -
+        padding.bottom -
+        KSizes.minTouchTarget -
+        screen.height * KMetrics.chatMaxHeightFactor;
+    final top = math.max(
+      headerBottom,
+      chatTop - screen.height * halfBandHeightFactor,
+    );
+    return Rect.fromLTRB(0, top, screen.width, math.max(top, chatTop));
+  }
 
   /// D331: how long after it starts the layer lets a car of [length] play
   /// (its length and [carGrace], at most [carLimit]).
@@ -322,10 +365,47 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     final car = current.car;
     // D272: the SVGA's own sound, while the app's sound effects are on.
     final soundOn = ref.watch(soundEffectsProvider);
+    final half =
+        car != null &&
+        LiveVipEntranceLayer.displayOf(car) == EntryDisplay.halfScreen;
     return IgnorePointer(
       child: Stack(
         children: [
-          if (car != null && !_carDone)
+          if (car != null && !_carDone && half)
+            // D373 (owner: «نصف الشاشة»): the car in its band, whole; the
+            // room's header and chat stay clear. Never takes taps (the
+            // layer ignores them), and plays once like a full-screen car.
+            LayoutBuilder(
+              builder: (context, box) => Stack(
+                children: [
+                  Positioned.fromRect(
+                    key: LiveVipEntranceLayer.carKey,
+                    rect: LiveVipEntranceLayer.halfBand(
+                      box.biggest,
+                      MediaQuery.paddingOf(context),
+                    ),
+                    child: ClipRect(
+                      child: VipAnimatedArt(
+                        key: ValueKey('vipCar.${identityHashCode(current)}'),
+                        animation: car.animation,
+                        still: car.still,
+                        video: car.video,
+                        // [LiveVipEntranceLayer.halfFit] and
+                        // [LiveVipEntranceLayer.halfAlignment] are the art's
+                        // defaults (contain, centred); the file's own canvas
+                        // keeps them.
+                        fitFor: (_) => LiveVipEntranceLayer.halfFit,
+                        once: true,
+                        onDone: _onCarDone,
+                        onStarted: _onCarStarted,
+                        sound: soundOn,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (car != null && !_carDone && !half)
             // D280 (owner: «تبدأ من اسفل الشاشة بحيث لا يظهر فراغ من
             // اسفل»): its art's bottom (the rows it never draws left out)
             // on the screen's bottom edge. D331 (owner: «لا تُعرض بشاشة
