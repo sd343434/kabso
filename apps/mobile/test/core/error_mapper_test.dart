@@ -347,6 +347,8 @@ void main() {
           // v1.82-social (D252).
           'VIP_UNAVAILABLE',
           'VIP_PRICE_CHANGED',
+          // v1.126-social (D370)
+          'INSUFFICIENT_RECHARGE_POINTS',
           'STORE_UNAVAILABLE',
           'STORE_PRICE_CHANGED',
           'STORE_IAP_UNAVAILABLE',
