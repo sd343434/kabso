@@ -19,6 +19,12 @@ abstract final class VipPerks {
   static const dailyBullet = 'DAILY_BULLET';
   static const profileVisitors = 'PROFILE_VISITORS';
   static const levelSpeedup = 'LEVEL_SPEEDUP';
+
+  /// D380 (§10.170): the privacy perks.
+  static const hiddenVisit = 'HIDDEN_VISIT';
+  static const rankingAnonymous = 'RANKING_ANONYMOUS';
+  static const kickMuteShield = 'KICK_MUTE_SHIELD';
+  static const anonymousGift = 'ANONYMOUS_GIFT';
 }
 
 /// D258: the VIP catalogue kept for the whole session (every chat line, seat

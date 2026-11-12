@@ -228,6 +228,10 @@ String _hex6(int argb) =>
     (argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase();
 
 /// The wire shape of [userVipFromJson].
+/// D380: a flag sent only when true (`UserSummary.anonymous`).
+// ignore: avoid_positional_boolean_parameters
+bool? trueOrNull(bool value) => value ? true : null;
+
 Map<String, dynamic>? userVipToJson(UserVip? vip) => vip == null
     ? null
     : {
@@ -324,6 +328,14 @@ abstract class UserSummary with _$UserSummary {
       toJson: verificationBadgeToJson,
     )
     VerificationBadge? verification,
+
+    /// v1.133-social (D380, §10.170): the stand-in «مجهول» the server shows
+    /// instead of a VIP member (RANKING_ANONYMOUS on a public board, the
+    /// sender of an ANONYMOUS_GIFT): a random id, no picture, no badges. The
+    /// app shows its own «مجهول» with the generic avatar and opens nothing.
+    @JsonKey(includeIfNull: false, toJson: trueOrNull)
+    @Default(false)
+    bool anonymous,
   }) = _UserSummary;
 
   factory fromJson(Map<String, dynamic> json) => _$UserSummaryFromJson(json);

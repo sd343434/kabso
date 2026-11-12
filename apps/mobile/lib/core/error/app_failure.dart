@@ -416,6 +416,11 @@ enum ErrorCode {
   /// app never acts on «فريق كابسو» (kick, mute, message, seat, family).
   staffProtected('STAFF_PROTECTED'),
 
+  /// v1.133-social (D380, §10.170.4, 403): the member's VIP holds
+  /// KICK_MUTE_SHIELD — a room moderator cannot kick or mute them (the host
+  /// and the Kabso Team still can).
+  vipProtected('VIP_PROTECTED'),
+
   /// v1.68-live (D273, §10.96.6, 403): «فريق كابسو» sends no gifts, taps or
   /// bullets in a live and takes no seat; a hidden observer does not chat.
   liveStaffRefused('LIVE_STAFF_REFUSED'),

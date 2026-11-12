@@ -17,6 +17,7 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
+import 'package:kabso_live/features/vip/presentation/vip_anonymous.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -978,20 +979,23 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               Semantics(
                 label: l10n.liveContributionRow(
                   i + 1,
-                  c.user.displayName,
+                  c.user.shownName(l10n),
                   l10n.liveScore(c.points, KFormat.grouped(c.points)),
                 ),
                 excludeSemantics: true,
                 child: _row(
                   context,
                   key: SeatControlKeys.contributor(c.user.username),
-                  name: c.user.displayName,
+                  // D380 (§10.170.3): «مجهول» shows no handle.
+                  name: c.user.shownName(l10n),
                   verification: c.user.verification,
-                  handle: KHandle.plain(
-                    c.user.username,
-                    premiumTier: c.user.premiumTier,
-                    staffId: c.user.staffId,
-                  ),
+                  handle: c.user.anonymous
+                      ? null
+                      : KHandle.plain(
+                          c.user.username,
+                          premiumTier: c.user.premiumTier,
+                          staffId: c.user.staffId,
+                        ),
                   staffId: c.user.staffId,
                   avatar: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1008,11 +1012,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      KAvatar(
-                        name: c.user.displayName,
-                        imageUrl: c.user.avatarUrl,
-                        size: 40,
-                      ),
+                      personAvatar(c.user, size: 40),
                     ],
                   ),
                   actions: [

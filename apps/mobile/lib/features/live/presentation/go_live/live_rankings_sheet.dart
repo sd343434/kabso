@@ -11,6 +11,7 @@ import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveConfigProvider;
 import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/vip/presentation/vip_anonymous.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -617,7 +618,7 @@ class _Podium extends StatelessWidget {
               key: LiveRankingsKeys.entry(e.host.id),
               label: context.l10n.liveRankRow(
                 e.rank,
-                e.host.displayName,
+                e.host.shownName(context.l10n),
                 _amountLabel(context, e.points, board: board),
               ),
               excludeSemantics: true,
@@ -641,7 +642,7 @@ class _Podium extends StatelessWidget {
                     _FramedPicture(entry: e, size: first ? 104 : 92),
                     const SizedBox(height: 2),
                     Text(
-                      KFormat.bidiIsolate(e.host.displayName),
+                      KFormat.bidiIsolate(e.host.shownName(context.l10n)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: context.textStyles.bodyStrong.copyWith(
@@ -691,13 +692,13 @@ class _Row extends StatelessWidget {
   }) : this(
          key: LiveRankingsKeys.entry(e.host.id),
          rankLabel: '${e.rank}',
-         name: e.host.displayName,
+         name: e.host.shownName(context.l10n),
          picture: _Picture.of(e, size: 44),
          points: e.points,
          board: board,
          semantics: context.l10n.liveRankRow(
            e.rank,
-           e.host.displayName,
+           e.host.shownName(context.l10n),
            _amountLabel(context, e.points, board: board),
          ),
        );

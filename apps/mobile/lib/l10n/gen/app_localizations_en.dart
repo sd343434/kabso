@@ -18039,4 +18039,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String vipPointsPer(String days) {
     return 'points / $days days';
   }
+
+  @override
+  String get privacyVipTitle => 'VIP perks';
+
+  @override
+  String get privacyVipHiddenVisit => 'Hidden visit';
+
+  @override
+  String get privacyVipHiddenVisitHint =>
+      'Your profile visits are not shown in «Profile visitors».';
+
+  @override
+  String get privacyVipRankingAnonymous => 'Anonymous in rankings';
+
+  @override
+  String get privacyVipRankingAnonymousHint =>
+      'You show as «Anonymous» on rankings and supporter lists.';
+
+  @override
+  String get privacyVipKickMuteShield => 'Shield from moderators';
+
+  @override
+  String get privacyVipKickMuteShieldHint =>
+      'A room\'s moderators cannot kick or mute you; the host and the Kabso Team still can.';
+
+  @override
+  String get errorVipProtected =>
+      'This member\'s VIP protects them from moderators; only the host or the Kabso Team can.';
+
+  @override
+  String get vipAnonymousName => 'Anonymous';
+
+  @override
+  String get liveGiftAnonymousToggle => 'Send anonymously';
+
+  @override
+  String get liveGiftAnonymousOn => 'Anonymous: you show as «Anonymous»';
+
+  @override
+  String get liveGiftAnonymousFrom => 'A gift from «Anonymous»';
+
+  @override
+  String get liveGiftAnonymousHint =>
+      'The sender is not shown to you; the team keeps their name.';
+
+  @override
+  String get liveGiftAnonymousReport => 'Report the sender';
+
+  @override
+  String get liveGiftAnonymousRefuse =>
+      'Refuse anonymous gifts from this sender';
+
+  @override
+  String get liveGiftAnonymousRefused =>
+      'You will get no more anonymous gifts from this sender.';
+
+  @override
+  String get liveGiftReported => 'Reported. Thank you.';
 }

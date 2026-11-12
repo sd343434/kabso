@@ -162,6 +162,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.whatsappSendFailed: 502,
   // v1.68-live (D273).
   ErrorCode.staffProtected: 403,
+  // v1.133-social (D380).
+  ErrorCode.vipProtected: 403,
   ErrorCode.liveStaffRefused: 403,
   ErrorCode.staffStepUpRequired: 403,
   ErrorCode.staffTotpNotEnrolled: 409,
@@ -363,6 +365,8 @@ void main() {
           'WHATSAPP_SEND_FAILED',
           // v1.68-live (D273): the staff tools in the app.
           'STAFF_PROTECTED',
+          // v1.133-social (D380): KICK_MUTE_SHIELD.
+          'VIP_PROTECTED',
           'LIVE_STAFF_REFUSED',
           'STAFF_STEP_UP_REQUIRED',
           'STAFF_TOTP_NOT_ENROLLED',

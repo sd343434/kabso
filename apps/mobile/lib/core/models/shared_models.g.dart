@@ -29,6 +29,7 @@ _UserSummary _$UserSummaryFromJson(Map<String, dynamic> json) => _UserSummary(
   vip: userVipFromJson(userVipWithWear(json, 'vip')),
   staffId: json['staffId'] as String?,
   verification: verificationBadgeFromJson(json['verification']),
+  anonymous: json['anonymous'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
@@ -45,4 +46,5 @@ Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
       'vip': ?userVipToJson(instance.vip),
       'staffId': ?instance.staffId,
       'verification': ?verificationBadgeToJson(instance.verification),
+      'anonymous': ?trueOrNull(instance.anonymous),
     };

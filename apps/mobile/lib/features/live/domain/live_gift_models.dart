@@ -344,6 +344,13 @@ abstract class LiveGift with _$LiveGift {
     String? audioUrl,
     int? audioBytes,
     int? audioDurationMs,
+
+    /// v1.133-social (D380, §10.170.5): an ANONYMOUS_GIFT send — [sender] is
+    /// «مجهول» for everyone but the sender; its recipients may report it or
+    /// refuse the sender's anonymous gifts by its [id].
+    @JsonKey(includeIfNull: false, toJson: trueOrNull)
+    @Default(false)
+    bool anonymous,
   }) = _LiveGift;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveGiftFromJson(json);

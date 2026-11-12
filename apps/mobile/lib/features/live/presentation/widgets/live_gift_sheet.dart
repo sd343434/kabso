@@ -29,6 +29,8 @@ import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart
     show pkBoosterFailureMessage;
 import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -204,6 +206,10 @@ class KLiveGiftSheet extends ConsumerStatefulWidget {
   static Key giftOwnerKey(String code) => Key('gift.owner.$code');
   static const giftOwnerDetailsKey = Key('gift.details.owner');
 
+  /// v1.133-social (D380, §10.170.5): «إهداء مجهول» — the per-send switch,
+  /// shown only to ANONYMOUS_GIFT holders in a live (not a PK booster).
+  static const anonymousKey = Key('gift.anonymous');
+
   @override
   ConsumerState<KLiveGiftSheet> createState() => _KLiveGiftSheetState();
 }
@@ -296,6 +302,9 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   /// Sends waiting behind the one in flight (quick taps).
   int _queued = 0;
   bool _busy = false;
+
+  /// D380: «إهداء مجهول» switched on for the next sends.
+  bool _anonymous = false;
 
   /// The send whose answer was lost: the same intent reuses its id.
   ({String intent, String clientId})? _pending;
@@ -528,6 +537,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
             recipients: intent.recipients,
             source: intent.source,
             clientId: clientId,
+            anonymous: intent.anonymous && !intent.soundboard,
           );
       _pending = null;
       if (ref.exists(liveCoinsProvider)) {
@@ -568,6 +578,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
                 unitPrice: result.gift.unitPrice,
                 assetKey: result.gift.assetKey,
                 imageUrl: result.gift.imageUrl ?? art?.imageUrl,
+                anonymous: intent.anonymous,
               ),
               result,
               pending: pending,
@@ -947,6 +958,13 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     } else {
       reason = null;
     }
+    // D380 (§10.170.5): an ANONYMOUS_GIFT holder may send as «مجهول» in a
+    // live (never a conversation gift, never a PK booster, never the
+    // soundboard).
+    final canAnonymous =
+        room.direct == null &&
+        !boosterSelected &&
+        ref.watch(myVipHoldsProvider(VipPerks.anonymousGift));
     final intent = reason != null || selected == null
         ? null
         : _Intent(
@@ -970,6 +988,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
                 quipSelected &&
                 selected.gift.priceCoins == 0 &&
                 (room.soundboard?.call(ref) ?? false),
+            anonymous: canAnonymous && _anonymous,
           );
     final pre = widget.preselect;
     final notOnMic = pre != null && !names.contains(pre.username)
@@ -1227,6 +1246,16 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
                           ),
                         ),
                       ),
+                    if (canAnonymous)
+                      _AnonymousSwitch(
+                        key: KLiveGiftSheet.anonymousKey,
+                        value: _anonymous,
+                        onChanged: (v) => setState(() {
+                          _anonymous = v;
+                          _error = null;
+                          _resetCombo();
+                        }),
+                      ),
                     _BottomBar(
                       quantities: quantities,
                       quantity: quantity,
@@ -1260,6 +1289,62 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   }
 }
 
+/// v1.133-social (D380, §10.170.5): «إهداء مجهول» — a slim row above the
+/// bottom bar; on: the room and the recipients see «مجهول».
+class _AnonymousSwitch extends StatelessWidget {
+  const new({required this.value, required this.onChanged, super.key});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Semantics(
+      toggled: value,
+      label: l10n.liveGiftAnonymousToggle,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            KSpacing.md,
+            0,
+            KSpacing.sm,
+            0,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.visibility_off_rounded,
+                size: 16,
+                color: value ? KBrandColors.red400 : _Sheet.bagIcon,
+              ),
+              const SizedBox(width: KSpacing.xs),
+              Expanded(
+                child: Text(
+                  value
+                      ? l10n.liveGiftAnonymousOn
+                      : l10n.liveGiftAnonymousToggle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.caption.copyWith(
+                    color: const Color(0xE6FFFFFF),
+                  ),
+                ),
+              ),
+              Transform.scale(
+                scale: 0.75,
+                child: Switch(value: value, onChanged: onChanged),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// What one Send sends.
 @immutable
 class _Intent {
@@ -1271,9 +1356,13 @@ class _Intent {
     this.lucky = false,
     this.quip = false,
     this.soundboard = false,
+    this.anonymous = false,
   });
 
   final String code;
+
+  /// D380: sent as «مجهول» (ANONYMOUS_GIFT).
+  final bool anonymous;
   final int quantity;
   final List<String> recipients;
   final LiveGiftSource source;
@@ -1290,7 +1379,8 @@ class _Intent {
 
   /// Same key, same intent: a lost answer's retry reuses its `clientId`.
   String get key =>
-      '${source.name}|$code|$quantity|${([...recipients]..sort()).join(',')}';
+      '${source.name}|$code|$quantity|${([...recipients]..sort()).join(',')}'
+      '${anonymous ? '|anon' : ''}';
 }
 
 class _Cell {
