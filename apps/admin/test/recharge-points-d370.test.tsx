@@ -82,6 +82,9 @@ describe("D370 the tier form's points price", () => {
       data: [tier("VIP_1", 1, 2_000_000), tier("VIP_2", 2, null)],
       builtPerks: [],
       suggestedPerks: [],
+      // D374: the perk catalogue (not needed by the table).
+      catalogue: [],
+      maxPerks: 64,
     };
     const noop = () => undefined;
     const ar = render("ar", <VipTiersTable list={list} onEdit={noop} onToggle={noop} onMove={noop} />);

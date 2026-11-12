@@ -58,3 +58,40 @@
 .vip-perk .hint.ok {
   color: var(--ok, inherit);
 }
+/* D374: the perk catalogue's checkbox grid, by category. */
+.vip-perk-cat {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px 12px;
+  margin: 0;
+}
+.vip-perk-cat > legend {
+  font-weight: 600;
+  padding-inline: 6px;
+}
+.vip-perk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.vip-perk.on {
+  grid-column: 1 / -1;
+  border-color: var(--border-strong);
+  background: var(--raised);
+}
+.vip-perk .check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vip-perk-title {
+  flex: 1;
+  font-weight: 600;
+}
+.vip-perk-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-block-start: 1px solid var(--border);
+  padding-block-start: 8px;
+}

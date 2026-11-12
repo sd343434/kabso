@@ -1,11 +1,13 @@
 /**
  * D258 (owner's VIP 1 perks; contract v1.83-social, CONVENTIONS §10.94.4–§10.94.5): a VIP's free public messages a
- * day (DAILY_BULLET 3) and the level speed-up (LEVEL_SPEEDUP 1 % on the points a gift earns). End to end against
+ * day (DAILY_BULLET 3) and the level speed-up (LEVEL_SPEEDUP 1 % on the points a gift earns). D374 (§10.166.6): the
+ * daily coins are retired. End to end against
  * PostgreSQL + Redis with the API as the DML-only runtime role.
  */
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Clock } from '../src/common/time/clock.js';
+import { Prisma } from '../src/generated/prisma/client.js';
 import { addGiftIn } from '../src/modules/gifts/gift-catalogue.js';
 import { presetLadder } from '../src/modules/levels/level-preset.js';
 import { LIVE_BULLET_COST_COINS } from '../src/modules/live/live-bullets.service.js';
@@ -214,60 +216,53 @@ describe('D258 VIP daily perks', { timeout: 120_000 }, () => {
     expect(sped[0]!.reason).toBe('VIP level speed-up +1%');
     expect(plain[0]!.reason).toBeNull();
   });
-  it('daily coins: the panel sets the amount; a member claims once a day; no perk → 409 no_perk', async () => {
+  it('D374: the owner removed the daily coins — the claim is refused `retired`, nothing credited; old ledger rows still list', async () => {
     const plain = await signup();
     const refused = await ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(plain));
     expect(refused.status).toBe(409);
+    expectContract(refused, 'claimVipDailyCoins');
     expect(refused.body.error).toMatchObject({
       code: 'VIP_UNAVAILABLE',
-      details: [{ field: 'perk', issue: 'no_perk' }],
+      details: [{ field: 'perk', issue: 'retired' }],
     });
 
     const member = await signup();
     await vip(member);
-    // VIP 1's DAILY_COINS is seeded without an amount: nothing to claim yet.
-    const none = await ctx.http.get('/api/v1/me/vip').set(auth(member));
-    expect(none.status).toBe(200);
-    expectContract(none, 'getMyVip');
-    expect(none.body.dailyCoins).toBeUndefined();
-    expect((await ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member))).status).toBe(409);
-
-    // The owner sets it (as `updateAdminVipTier` does).
+    // Even with the seeded DAILY_COINS row given an amount (as a panel could before D374): no state, no credit.
     await ctx.prisma.vipTierPerk.updateMany({
       where: { tierId: VIP1, code: 'DAILY_COINS' },
-      data: { amount: 500 },
+      data: { amount: 500, value: 500 },
     });
-    const before = Number((await ctx.http.get('/api/v1/wallet/me').set(auth(member))).body.coins);
     const state = await ctx.http.get('/api/v1/me/vip').set(auth(member));
+    expect(state.status).toBe(200);
     expectContract(state, 'getMyVip');
-    expect(state.body.dailyCoins).toMatchObject({ amount: 500, claimedToday: false });
+    expect(state.body.dailyCoins).toBeUndefined();
+    const before = Number((await ctx.http.get('/api/v1/wallet/me').set(auth(member))).body.coins);
+    const claim = await ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member));
+    expect(claim.status).toBe(409);
+    expect(claim.body.error.details).toEqual([{ field: 'perk', issue: 'retired' }]);
+    expect(Number((await ctx.http.get('/api/v1/wallet/me').set(auth(member))).body.coins)).toBe(before);
+    expect(
+      await ctx.prisma.walletLedgerEntry.count({ where: { userId: member.id, reason: 'VIP_DAILY_COINS' } }),
+    ).toBe(0);
+    // The VIP page lists no DAILY_COINS (the row is ignored).
+    const tiers = await ctx.http.get('/api/v1/vip/tiers').set(auth(member));
+    const vip1 = (
+      tiers.body.data as { code: string; perks: { code: string }[]; effectivePerks: { code: string }[] }[]
+    ).find((t) => t.code === 'VIP_1')!;
+    expect(vip1.perks.some((pk) => pk.code === 'DAILY_COINS')).toBe(false);
+    expect(vip1.effectivePerks.some((pk) => pk.code === 'DAILY_COINS')).toBe(false);
 
-    const first = await ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member));
-    expect(first.status, JSON.stringify(first.body)).toBe(200);
-    expectContract(first, 'claimVipDailyCoins');
-    expect(first.body).toMatchObject({
-      coins: 500,
-      balance: before + 500,
-      dailyCoins: { amount: 500, claimedToday: true },
+    // History: a row credited before D374 keeps its reason and still lists.
+    await ctx.prisma.$transaction((tx) => creditIn(tx, member.id, 500n, 'VIP_DAILY_COINS', randomUUID()));
+    const ledger = await ctx.http.get('/api/v1/wallet/me/ledger').set(auth(member));
+    expect(ledger.status).toBe(200);
+    expectContract(ledger, 'listMyWalletLedger');
+    expect(JSON.stringify(ledger.body)).toContain('VIP_DAILY_COINS');
+    await ctx.prisma.vipTierPerk.updateMany({
+      where: { tierId: VIP1, code: 'DAILY_COINS' },
+      data: { amount: null, value: Prisma.DbNull },
     });
-    // The same day: nothing more (also two at once).
-    const [again, racing] = await Promise.all([
-      ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member)),
-      ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member)),
-    ]);
-    for (const res of [again, racing]) {
-      expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({ coins: 0, balance: before + 500 });
-    }
-    const ledger = await ctx.prisma.walletLedgerEntry.findMany({
-      where: { userId: member.id, reason: 'VIP_DAILY_COINS' },
-    });
-    expect(ledger.map((l) => l.delta)).toEqual([500n]);
-
-    // The next day: once more.
-    clock.advance(86_400);
-    const tomorrow = await ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member));
-    expect(tomorrow.body).toMatchObject({ coins: 500, balance: before + 1000 });
   });
   it('profile visitors: someone else opening the profile is listed for a member holding the perk', async () => {
     const owner = await signup();

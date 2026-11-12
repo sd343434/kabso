@@ -229,7 +229,7 @@ All non-2xx responses use one envelope:
 | 409 | `WHATSAPP_CONVERSATION_ASSIGNED` | *(v1.116-social, DRAFT, D355)* The conversation belongs to another staff member: reply, claim, release or close needs it to be the caller's or unassigned (a transfer, release or close by `support.whatsapp.manage` is allowed). §10.151.4. |
 | 409 | `WHATSAPP_CONVERSATION_CLOSED` | *(v1.116-social, DRAFT, D355)* The conversation is closed: reopen it first (a new customer message reopens it by itself). §10.151.4. |
 | 502 | `WHATSAPP_SEND_FAILED` | *(v1.116-social, DRAFT, D355)* Meta refused or did not answer: `details: [{field: whatsapp \| templates, issue: meta_<code> \| http_<status>}]`. Nothing was stored; the staff member may retry. Meta's throughput codes (130429, 131056, 80007, 4) answer 429 `RATE_LIMITED` with `Retry-After: 60` instead. §10.151.4. |
-| 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). |
+| 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). *(v1.129-social, D374)* `claimVipDailyCoins`: always `{field: "perk", issue: "retired"}` (the owner removed the daily coins). |
 | 409 | `VIP_PRICE_CHANGED` | *(v1.82-social, DRAFT, D252)* `buyVip`: `priceCoins` differs from the tier's price now (the owner changed it in the panel). Nothing was charged; the app reloads the tiers and shows the new price. §10.93. |
 | 409 | `INSUFFICIENT_RECHARGE_POINTS` | *(v1.126-social, DRAFT, D370)* `buyVip` with `payWith: POINTS`: the caller's recharge points «نقاط الشحن» do not cover the tier's points price (also while the balance is below 0 after a reversal). Nothing was charged; the app shows the balance and how points are earned. `VIP_PRICE_CHANGED` and `VIP_UNAVAILABLE` (new issue `no_points_price`: the tier has no points price) apply to a points purchase as to a coin one. §10.163. |
 | 409 | `CONTENT_GIFT_RECIPIENT_UNAVAILABLE` | *(v1.127-social, DRAFT, D372)* `sendContentGift`: a gift on this post or reel «هدية الدعم» cannot be sent — `details: [{field: "post", issue: "own_content" \| "not_creator"}]` (the caller's own post; its author is neither a host nor a content creator). Checked again under the post's lock. Nothing was charged. A post the caller cannot see (deleted, removed, a block either way, an author who is not ACTIVE) is 404 `NOT_FOUND` as on every post route. §10.164. |
@@ -782,9 +782,10 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.129-social (draft) | 2026-11-11 | **D374 (owner 2026-11-11: each VIP tier gets the perks the admin PICKS in the panel, with art uploads where needed — the owner's list: the eleven built perks kept, thirty new ones registered «قريباً»; and «ازلها»: DAILY_COINS removed):** the VIP perk catalogue — `AdminVipTierList.catalogue` (`VipPerkCatalogueEntry`: code, category, ar / en title and description, `built`, `value` (`VipPerkValueSchema`: none \| int \| enum \| color \| list \| art_list \| composite), `art` (kinds SVGA / PNG / WEBP / MP4 and a size hint), `legacyAmount`), `maxPerks` (64; was 20), `artLimits` (`VipArtLimit`); `suggestedPerks` = every catalogue code; `AdminVipPerk` / `VipPerk` gain `value` (`VipPerkValue`), `video`, `category`; `AdminVipPerk.catalogued` / `retired`; `AdminVipPerkInput` gains `value` and `video`, its titles become optional (the catalogue's by default) and its `code` must be a catalogue code (400 `unknown_perk`; value issues at `perks.N.value[.…]`); `VipTier.effectivePerks` (with `VipPerk.fromTier`); `uploadAdminVipArt` `kind=video` (MP4, `contentType: video/mp4`); `claimVipDailyCoins` **deprecated** — always 409 `VIP_UNAVAILABLE` `perk` `retired`; `MyVip.dailyCoins` never sent. Migration `20270503090000_vip_perk_catalogue`. §10.93.1, §10.94.5, §10.166. | **Additive for the app** (new fields ignored by older clients; an older app hides the daily-coins row because `dailyCoins` is absent). **Stricter for the panel** (a save naming a code outside the catalogue — any free-text code, or DAILY_COINS — is refused; the new panel ships with the API). |
+| v1.128-social (draft) | 2026-11-11 | **D373 (owner 2026-11-11: «سيارات الدخول ستكون اما بشاشة كاملة او نصف الشاشة مثل سيارة دخول … — من لوحة الادمن انت تحدد كيف ستكون الدخلة اما بشاشة كاملة او نصف شاشة»): an entry car plays full screen or half screen, set per car in the panel (§10.165).** New `EntryDisplay` FULL_SCREEN «شاشة كاملة» / HALF_SCREEN «الجزء السفلي (٧٠٪)» (owner corrections the same day: the bottom 70 % of the screen, measured up from its bottom edge; the wire name is kept). `AdminStoreItem.entryDisplay` (required; null for every kind but ENTRY_EFFECT), `AdminStoreItemCreateRequest.entryDisplay` / `AdminStoreItemUpdateRequest.entryDisplay` (ENTRY_EFFECT only, else 400 `VALIDATION_FAILED` `entryDisplay` / `not_allowed`; audited in `store.item.add` / `store.item.update` before / after); `AdminVipPerk.entryDisplay` (required; null for every perk but ENTRY_EFFECT), `AdminVipPerkInput.entryDisplay` (ENTRY_EFFECT only, else 400 `perks.N.entryDisplay` / `not_allowed`; absent keeps the stored value; audited in `vip.tier.update`). The app reads it where it reads the car: `StoreWornItem.entryDisplay` (optional; present on `StoreWear.entryEffect` only — `UserSummary.wear`, so also every live `join` data message's `user` and a room's `host`) and `VipPerk.entryDisplay` (required; null for every perk but ENTRY_EFFECT). Every car that exists is FULL_SCREEN (today's look, D331). Migration `20270502090000_entry_car_display`. Additive: an older app ignores the field and plays every car full screen; an older panel sends no `entryDisplay` and changes nothing. |
 | v1.127-social (draft) | 2026-11-11 | **D372 (owner 2026-11-11: «هدية الدعم» on reels and posts — «المضيفون وصناع المحتوى فقط»; the same gifts, prices, tabs, quantities and bag as a live, no lucky gifts and no CP gifts; a gift box button beside «+» in the comment composer; a gold gift line in the comments; the author notified; correction the same day: the counter on the post / reel is the TOTAL VALUE IN CHERRIES the author earned, compact 10.1k / 12.6m / 1.2b, beside the cherry icon):** `sendContentGift` (`POST /posts/{postId}/gifts`; `ContentGiftSendRequest`, `ContentGiftResult`); `Comment.kind` TEXT \| GIFT and `Comment.gift` (`CommentGift`; a GIFT line's `text` is empty, `Comment.text` minLength dropped in responses); `Post.giftCherries` (int64) and `Post.giftable`; notification `CONTENT_GIFT_RECEIVED` (target POST, grouped per post); wallet ledger reason `CONTENT_GIFT`; `EarningContext` CONTENT (cherry history, earnings); code `CONTENT_GIFT_RECIPIENT_UNAVAILABLE` (409). Migrations `20270501090000_content_gift_enums`, `20270501090100_content_gifts`. §4, §8, §10.164. | **Additive.** An older app shows a gift line as an empty comment by its sender and ignores the new fields; it cannot send content gifts. Clients ignore an unknown notification type, ledger reason and earning context. |
 | v1.126-social (draft) | 2026-11-11 | **D370 (owner 2026-11-11: «نقاط الشحن» — every recharged coin is one point, the points accumulate and never expire «النقاط لا تصفر كل شهر بل تبقى مجموع», and buy VIP «استبدل بالنقاط» beside «ادفع بالعملات الذهبية»; owner-approved points prices VIP1 2 000 000 … VIP12 400 000 000):** `getMyRechargePoints` (`GET /me/recharge-points`; `RechargePoints`, `RechargePointsEntry`, `RechargePointsReason`); `BuyVipRequest.payWith` (`VipPayWith` COINS default \| POINTS) and `pricePoints` (`priceCoins` required only with COINS); `VipTier.pricePoints` / `renewPricePoints`; `MyVip.rechargePoints`, `MyVip.renewal.pricePoints`; `VipPurchaseResult.payWith` / `pricePoints` / `listPricePoints` / `rechargePoints` (`priceCoins` 0 with POINTS); code `INSUFFICIENT_RECHARGE_POINTS` (409), `VIP_UNAVAILABLE` issue `no_points_price`; the panel's `AdminVipTier.pointsPrice` (+ create / update), `listAdminUserLedger?kind=recharge_points`, `AdminUserDetail.balances.rechargePoints` / `ledger.rechargePoints`, `adjustAdminUserRechargePoints` (`AdminRechargePointsAdjustRequest` / `Result`; audit `recharge_points.adjust`). Migration `20270430090000_recharge_points`. §4, §8, §10.163. | **Additive.** An older app sends no `payWith` and buys with coins exactly as before (the coin purchase's idempotency hash is unchanged); new response fields are ignored by older clients. No back-fill: points start with the recharges after the deploy. |
-| v1.128-social (draft) | 2026-11-11 | **D373 (owner 2026-11-11: «سيارات الدخول ستكون اما بشاشة كاملة او نصف الشاشة مثل سيارة دخول … — من لوحة الادمن انت تحدد كيف ستكون الدخلة اما بشاشة كاملة او نصف شاشة»): an entry car plays full screen or half screen, set per car in the panel (§10.165).** New `EntryDisplay` FULL_SCREEN «شاشة كاملة» / HALF_SCREEN «الجزء السفلي (٧٠٪)» (owner corrections the same day: the bottom 70 % of the screen, measured up from its bottom edge; the wire name is kept). `AdminStoreItem.entryDisplay` (required; null for every kind but ENTRY_EFFECT), `AdminStoreItemCreateRequest.entryDisplay` / `AdminStoreItemUpdateRequest.entryDisplay` (ENTRY_EFFECT only, else 400 `VALIDATION_FAILED` `entryDisplay` / `not_allowed`; audited in `store.item.add` / `store.item.update` before / after); `AdminVipPerk.entryDisplay` (required; null for every perk but ENTRY_EFFECT), `AdminVipPerkInput.entryDisplay` (ENTRY_EFFECT only, else 400 `perks.N.entryDisplay` / `not_allowed`; absent keeps the stored value; audited in `vip.tier.update`). The app reads it where it reads the car: `StoreWornItem.entryDisplay` (optional; present on `StoreWear.entryEffect` only — `UserSummary.wear`, so also every live `join` data message's `user` and a room's `host`) and `VipPerk.entryDisplay` (required; null for every perk but ENTRY_EFFECT). Every car that exists is FULL_SCREEN (today's look, D331). Migration `20270502090000_entry_car_display`. Additive: an older app ignores the field and plays every car full screen; an older panel sends no `entryDisplay` and changes nothing. |
 | v1.117-live (draft) | 2026-11-11 | **D371 (owner: «اريد جعل سعر الرسائل العامة ب ١٠ الاف كوينز»):** a bullet message «رسالة عامة» (`sendLiveBullet`) costs **10 000 coins** instead of 15 (`LIVE_BULLET_COST_COINS`); a balance under 10 000 → 409 `INSUFFICIENT_COINS`. VIP free public messages (D258) unchanged (still free); a paid bullet still counts its coins as family points (now 10 000). §4 (409 row), §10.19. | **Behaviour change, shapes unchanged.** An older app's hint and «not enough coins» text still say 15 coins; the server charges 10 000. |
 | v1.116-live (draft) | 2026-11-11 | **D369 (owner: «الغي البث المتعدد لا اريده»): the multi-guest live is retired.** `startLiveRoom` `mode` MULTI → 400 `VALIDATION_FAILED` `mode` / `invalid_value` (as PK); `StartLiveRoomRequest.mode` enum SOLO, AUDIO, PODCAST, STREAMER. No list returns a MULTI room (`listLiveRooms` every `kind` and no kind, `listActiveLiveBoosts`); `kind=multi` stays valid and answers an empty page; `kind=party` = AUDIO; `party_all` loses MULTI. A MULTI room started before the deploy runs on until it ends (no migration, no job); `LiveRoomMode.MULTI`, the rows, `LiveConfig.seatCounts.MULTI`, the capacity weights and the panel's mode filter are kept. §10.4, §10.141, §10.162. | **Behaviour change** (a request enum value removed; lists no longer return MULTI rooms). Older apps: their multi-guest go-live is refused with 400 (the app shows its validation error); their hub and party lists simply contain no MULTI room. |
 | v1.115-live (draft) | 2026-11-11 | **D368 (owner: «بودكاست الحي يظهر في صفحة البث وليس الحفلة لكن الصوتي يظهر في صفحة الحفلة»; «ازل من بودكاست زر الكاميرة التي خلف التصنيف»):** a live VIDEO podcast (PODCAST with `LivePodcast.video`, §10.157) is listed by `listLiveRooms` `kind=solo` and `kind=video` under every hub filter, not by `kind=party_all` (audio podcasts only); `kind=podcast` keeps every podcast; «رائج» (§10.89) counts a video podcast in the video lives' top. App: the hub's camera card with the «Podcast» tag and no camera icon after the tag; a «مميز» slot pinned only where its kind lists the room. No migration, no shape change. §10.4, §10.89, §10.141, §10.161. | **Behaviour change** in list membership only (shapes unchanged). An older app sees a video podcast on its hub (`solo`) and no longer on its party page. |
@@ -6663,15 +6664,20 @@ programme and is unchanged.
   `enabled`. At most 20 tiers. **VIP 1 is seeded** enabled (1 000 000 coins / 30 days) with six perks, its art URLs null
   until the owner uploads them (D252b); other tiers are added from the panel (CP-024's 3 000 / 8 000 / 20 000 placeholders
   predate D194's coin price and are not used).
-- Each tier has **its own perks** (`vip_tier_perks`, at most 20, in order): `code` (unique in the tier), `titleAr` /
-  `titleEn` (1–40), optional descriptions (≤ 200), `enabled` (shown or hidden) and its own hosted art (`animation` = SVGA,
-  `still`, `artWidth` / `artHeight` — all https, from the panel; D252b). The panel suggests SVIP's vocabulary (`BADGE`,
-  `AVATAR_FRAME`, `PROFILE_CARD`, `CHAT_BUBBLE`, `CHAT_NAME_COLOR`, `ENTRY_BANNER`, `ENTRY_EFFECT`, `MIC_SOUND_WAVE`,
-  `DAILY_BULLET`, `VIEWER_LIST_PRIORITY`, `MONTHLY_GIFT`); any other code is allowed.
+- Each tier has **its own perks** (`vip_tier_perks`, at most 20 — **64 since D374** — in order): `code` (unique in the
+  tier), `titleAr` / `titleEn` (1–40), optional descriptions (≤ 200), `enabled` (shown or hidden) and its own hosted art
+  (`animation` = SVGA, `still`, `artWidth` / `artHeight` — all https, from the panel; D252b). The panel suggested SVIP's
+  vocabulary (`BADGE`, `AVATAR_FRAME`, `PROFILE_CARD`, `CHAT_BUBBLE`, `CHAT_NAME_COLOR`, `ENTRY_BANNER`, `ENTRY_EFFECT`,
+  `MIC_WAVE` — the code the server and the app use; earlier drafts of this list said `MIC_SOUND_WAVE` —, `DAILY_BULLET`,
+  `VIEWER_LIST_PRIORITY`, `MONTHLY_GIFT`) and any other code was allowed. **Since D374 (§10.166) a code must be one of
+  the perk catalogue's**, picked in a checkbox grid; any other is refused.
 - **Honest perks:** `available` is **not** an admin field: it is true only for a code in the server's list of perks the
-  app really does (`VIP_BUILT_PERKS`, empty today). Every perk is therefore `available: false` and the app shows it as
-  listed «قريباً», never as active — as SVIP's perks (§10.41). Building a perk (art by the owner, a change in the live
-  room) adds its code to the list.
+  app really does (`VIP_BUILT_PERKS`). That list was empty at D252; D258 filled it phase by phase (§10.94) and since D374
+  it is derived from the catalogue's `built` flags — eleven codes today: `BADGE`, `AVATAR_FRAME`, `CHAT_NAME_COLOR`,
+  `PROFILE_CARD`, `ENTRY_BANNER`, `ENTRY_EFFECT`, `CHAT_BUBBLE`, `MIC_WAVE`, `DAILY_BULLET`, `PROFILE_VISITORS`,
+  `LEVEL_SPEEDUP` (`DAILY_COINS` was the twelfth until the owner removed it, §10.166.6). Every other perk is
+  `available: false` and the app shows it as listed «قريباً», never as active — as SVIP's perks (§10.41). Building a perk
+  (art by the owner, a change in the live room) flips its catalogue entry to `built`.
 - Tiers are never deleted (memberships and purchases point at them). One switched off is no longer listed, bought or
   renewed; people holding it keep it to its end (`onSale: false`). A new price or length applies to purchases from then
   on; memberships keep their end.
@@ -6738,8 +6744,8 @@ crown divider is drawn in code. The grid's two sections are grouped by perk code
   until it decodes; widget tests and screenshots show the still.
 - **VIP 1 is seeded** enabled (1 000 000 coins / 30 days) with six perks (BADGE, AVATAR_FRAME, PROFILE_CARD, ENTRY_BANNER,
   CHAT_BUBBLE, ENTRY_EFFECT); its art URLs are null until the owner uploads them (a token placeholder shows meanwhile).
-- `available` stays the server's list (`VIP_BUILT_PERKS`, empty): a perk shows its art as a preview with «قريباً» and is
-  not yet rendered in the profile / live / DMs (separate features).
+- `available` stays the server's list (`VIP_BUILT_PERKS`; empty at D252b, eleven built perks since D258 / D374 —
+  §10.93.1): a perk not in it shows its art as a preview with «قريباً».
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
@@ -6800,7 +6806,12 @@ viewers, followers, a live room's `host` — D265, …) and `PublicProfile` carr
   (rounded down; `points + points·n/100`), the ledger entry's reason `VIP level speed-up +n%`. A one-point batch
   (taps' charm) rounds to nothing and is left as is.
 
-#### 10.94.5 Daily coins (DAILY_COINS, `claimVipDailyCoins`)
+#### 10.94.5 Daily coins (DAILY_COINS, `claimVipDailyCoins`) — **retired by D374 (§10.166.6)**
+
+*The owner removed this perk on 2026-11-11 («ازلها»). What follows describes D258 as it was; since v1.129-social the
+claim always answers 409 `VIP_UNAVAILABLE` `{field: "perk", issue: "retired"}` and `getMyVip` never carries
+`dailyCoins`.*
+
 
 `POST /me/vip/daily-coins` credits the perk's `amount` once a day (in `LIVE_RANKINGS_TIME_ZONE`), wallet reason
 `VIP_DAILY_COINS`; a second claim the same day answers `coins: 0` with `dailyCoins.claimedToday: true`, never a second credit.
@@ -12382,3 +12393,80 @@ motion plays no car and «إخفاء تأثيرات الدخول» (D225) hides 
 Additive. An older app ignores the field and plays every car full screen (today's look). An older panel never sends
 `entryDisplay` and leaves it as it is. Migration `20270502090000_entry_car_display` (an enum and two columns with a
 constant default: no table rewrite).
+### 10.166 The VIP perk catalogue — each tier gets the perks the owner picks *(v1.129-social, DRAFT — D374)*
+
+Owner (2026-11-11): «each VIP tier gets the perks the admin PICKS in the panel, with art uploads where needed», from his
+list (board D374). This section is the foundation: the list, the typed values, the panel's grid and the app's page.
+Each perk not built yet is registered «قريباً» and is built by a later branch (which flips its `built` flag and keeps
+its value shape, or widens it compatibly). Inheritance is unchanged (D258: a tier holds every lower tier's enabled perks,
+the highest tier's row winning for a code — `vipEffectivePerks`).
+
+#### 10.166.1 The catalogue (`apps/api/src/modules/vip/vip-catalogue.ts`, the one source of truth)
+
+Each entry: `code`, `category` (`IDENTITY` · `ENTRANCE` · `CHAT` · `ROOM` · `PRIVACY` · `GIFTS` · `REWARDS` · `SERVICE`,
+the panel's groups), default `titleAr` / `titleEn` / `descriptionAr` / `descriptionEn`, `built` (the app really does it:
+`VipPerk.available`; `VIP_BUILT_PERKS` is derived from it), `value` (the shape of the per-tier value, below), `art` (the
+kinds it takes — SVGA → `animation`, PNG / WebP → `still`, MP4 → `video` — and a canvas hint) and `legacyAmount`. It is
+served to the panel as `AdminVipTierList.catalogue` (a `VIP_TIER` enum's `options` are the tiers that exist), with
+`maxPerks` (64) and `artLimits` (SVGA 25 MB · PNG / WebP 2 MB · MP4 8 MB and 15 s).
+
+| Category | Built (11) | Not built «قريباً» (31) |
+|---|---|---|
+| IDENTITY | `BADGE` (art), `AVATAR_FRAME` (art), `PROFILE_CARD` (art), `CHAT_NAME_COLOR` | `GLOWING_NAME`, `ANIMATED_COVER` (art SVGA / MP4 / still), `PREMIUM_USERNAME` (enum: LEGEND · RUBY · GOLD · SILVER), `GOLDEN_ID` (none — no golden-ID classes exist yet; the branch that builds it adds an enum), `ANIMATED_SIGNATURE` (art), `POST_BADGE`, `STORY_RING` (colour + art) |
+| ENTRANCE | `ENTRY_BANNER` (art), `ENTRY_EFFECT` (art) | `HOST_GREETING` |
+| CHAT | `CHAT_BUBBLE` (art), `DAILY_BULLET` (int 1–100 a day, legacy amount) | `DM_BUBBLE` (draws CHAT_BUBBLE's art), `PINNED_MESSAGE` (composite: `count` 1–20 a day, `seconds` 10–600), `TICKER_HOLD` (int 1–60 s), `LONGER_VOICE` (int 31–600 s) |
+| ROOM | `MIC_WAVE` (art) | `SEAT_EMOJI` (art pack: ≤ 24 https files), `SEAT_CROWN` (art), `SEAT_REQUEST_PRIORITY`, `SEAT_RESERVE` (int 1–60 min), `VIEWER_LIST_PRIORITY`, `KICK_MUTE_SHIELD`, `VIP_ROOM` (enum: a tier code, the lowest tier let in) |
+| PRIVACY | `PROFILE_VISITORS` | `HIDDEN_VISIT`, `RANKING_ANONYMOUS`, `HIDE_COINS_SENT`, `ANONYMOUS_GIFT` |
+| GIFTS | — | `EXCLUSIVE_GIFTS` (list: ≤ 50 gift codes that exist), `BIG_GIFT_RAIN` (int threshold 1–10^9 coins + art incl. MP4), `SCHEDULED_GIFT`, `HIGHER_GIFT_QUANTITY` (int 1–99 999), `MONTHLY_GIFT` (kept from the earlier suggestions) |
+| REWARDS | `LEVEL_SPEEDUP` (int 1–100 %, legacy amount) | `MONTHLY_ROCKETS` (composite: `count` 1–30 a month, `stage` STAGE_1…STAGE_4 — the live boost «صاروخ» stages, D233), `FREE_CP_REQUEST` (int 1–30 a month) |
+| SERVICE | — | `PRIORITY_SUPPORT` |
+
+#### 10.166.2 Values per tier perk
+
+`vip_tier_perks.value` (JSONB, null = not set) holds the perk's value, checked by the API against the entry
+(`vipPerkValueIssues`): `none` → only null; `int` → a whole number in `min … max`; `enum` → one of `options`
+(`VIP_TIER`: a tier code that exists, or the tier being created); `color` → `#RRGGBB`; `list` → distinct gift codes that
+exist (`not_found` otherwise); `art_list` → distinct https URLs; `composite` → an object with exactly its fields, each
+checked. A wrong value → 400 `VALIDATION_FAILED` at `perks.N.value[.key|.i]` (`not_allowed`, `invalid_type`,
+`out_of_range`, `invalid_value`, `invalid_format`, `too_few`, `too_many`, `duplicate_value`, `unknown_field`,
+`required`, `not_found`). `vip_tier_perks.video` holds an MP4 (`perks.N.video` `not_allowed` for a perk whose art takes
+no MP4). The three D258 numbers keep `amount` (the server's reads and older apps use it): for `DAILY_BULLET` and
+`LEVEL_SPEEDUP` the API writes the same number to both (either may be sent; both must agree), and the migration copied
+every existing amount into `value` (CHECK `vip_tier_perks_amount_value`). Every save is audited (`vip.tier.add` /
+`vip.tier.update` with the whole before / after, values and video included).
+
+#### 10.166.3 The panel
+
+A tier holds at most `maxPerks` = 64 perks (was 20). The tier form's free-text perk code is replaced by a **checkbox
+grid by category**: each catalogue perk with its title, description and «مبنية / قريباً»; ticking a perk adds it with the
+catalogue's titles and shows its fields — the value (a number with its unit and range, a select, a colour, gift codes,
+an art pack with uploads, the composite's fields), its art (still / SVGA / MP4 per the entry's kinds, each with an upload
+through `uploadAdminVipArt`, `kind=video` new for MP4) with the canvas hint, «ظاهرة في التطبيق», and optional custom
+title / description. A one-line hint says a tier also holds the lower tiers' perks. A code outside the catalogue is
+refused by the API (400 `perks.N.code` `unknown_perk`); a row saved before that is outside it (a free-text code, or the
+retired DAILY_COINS) is listed to the panel (`catalogued: false`, `retired`) as «removed on save» and dropped the next
+time the tier's perks are saved.
+
+#### 10.166.4 Uploads
+
+`uploadAdminVipArt` `kind=video`: an MP4 (H.264, ≤ 8 MB, ≤ 15 s — the gifts' checks, `giftVideoFile`), stored under
+`media/vip/<tier>/` with a content-addressed key; the answer carries its size. `animation` and `still` are unchanged.
+
+#### 10.166.5 The app
+
+`VipTier.effectivePerks` is what a holder of the tier has: every enabled perk of the tiers ranked up to it (on sale or
+not), one per code (the highest tier's row), in the catalogue's order, an inherited one carrying `fromTier`; a retired
+perk is never listed. The «شراء VIP» page lists the selected tier's `effectivePerks` in its hexagon grid; a perk not
+built shows «قريباً» under its title (dimmed unless held); «(x/y)» counts the selected tier's effective perks against
+the most any tier has. `VipTier.perks` (the tier's own) is unchanged. An older app keeps reading `perks`.
+
+#### 10.166.6 DAILY_COINS removed (owner 2026-11-11, «ازلها»)
+
+The D258 perk «كوينز VIP اليومية» is retired: it is not in the catalogue (the panel cannot pick it; a save naming it →
+400 `unknown_perk`); existing tier rows with it are **kept** in the database (configuration, not money; nothing deleted
+by the migration) and **ignored** — never listed to the app, never granted, shown to the panel as retired and dropped on
+the tier's next perk save. `claimVipDailyCoins` (`POST /me/vip/daily-coins`) stays routed and always answers 409
+`VIP_UNAVAILABLE` `{field: "perk", issue: "retired"}` (nothing credited); `getMyVip` never sends `dailyCoins`, so an older
+app hides its claim row. The wallet ledger reason `VIP_DAILY_COINS`, the past ledger rows and `vip_daily_coin_claims`
+stay (history); the wallet keeps naming the reason «كوينز VIP اليومية». The app drops the «الخاص بي VIP» daily-coins row
+and its strings, and the purchase panel's daily-coins total line.

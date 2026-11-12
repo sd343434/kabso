@@ -8,8 +8,8 @@ import {
   useAsync,
 } from "../components";
 import { useApp } from "../context";
-import { formatNumber } from "../format";
 import type { Key } from "../i18n";
+import { formatNumber } from "../format";
 import { Icon } from "../ui/icons";
 import { ENTRY_CAR, EntryDisplaySelect, type EntryDisplay } from "./Store";
 import "./vip.css";
@@ -27,10 +27,59 @@ export interface AdminVipPerk {
   still: string | null;
   artWidth: number | null;
   artHeight: number | null;
-  /** v1.83-social (D258): the perk's number for this tier (bullets / coins a day, level speed-up %). */
+  /** v1.83-social (D258): the perk's number for this tier (bullets a day, level speed-up %). */
   amount: number | null;
+  /** v1.129-social (D374): the perk's value (its catalogue schema), or null. */
+  value?: PerkValue | null;
+  /** v1.129-social (D374): the perk's MP4 art, or null. */
+  video?: string | null;
+  category?: string | null;
+  /** v1.129-social (D374): the code is in the catalogue (false: saved before; dropped on the next save). */
+  catalogued?: boolean;
+  /** v1.129-social (D374): a perk the owner removed (DAILY_COINS). */
+  retired?: boolean;
   /** v1.128-social (D373): the ENTRY_EFFECT perk's display; null for other perks (absent from an older server). */
   entryDisplay?: EntryDisplay | null;
+}
+
+/** v1.129-social (D374): a stored perk value. */
+export type PerkValue =
+  | number
+  | string
+  | string[]
+  | Record<string, number | string>;
+
+/** v1.129-social (D374): `VipPerkValueSchema`. */
+export interface PerkValueSchema {
+  kind: "none" | "int" | "enum" | "color" | "list" | "art_list" | "composite";
+  min?: number;
+  max?: number;
+  unit?: string;
+  source?: string;
+  options?: string[];
+  item?: string;
+  maxItems?: number;
+  kinds?: string[];
+  fields?: {
+    key: string;
+    labelAr: string;
+    labelEn: string;
+    schema: PerkValueSchema;
+  }[];
+}
+
+/** v1.129-social (D374, §10.166.1): `VipPerkCatalogueEntry`. */
+export interface CatalogueEntry {
+  code: string;
+  category: string;
+  titleAr: string;
+  titleEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  built: boolean;
+  value: PerkValueSchema;
+  art: { kinds: string[]; width: number | null; height: number | null } | null;
+  legacyAmount: boolean;
 }
 
 /** `AdminVipTier` (v1.82-social, D252). `sortOrder` is the order and the rank. */
@@ -62,7 +111,14 @@ export interface AdminVipTierList {
   data: AdminVipTier[];
   builtPerks: string[];
   suggestedPerks: string[];
+  /** v1.129-social (D374): the perk catalogue, in order (the checkbox grid). */
+  catalogue: CatalogueEntry[];
+  /** v1.129-social (D374): the most perks a tier holds (64). */
+  maxPerks: number;
 }
+
+/** v1.129-social (D374): a value as the form holds it — text, a list of texts, or the composite's texts. */
+export type ValueDraft = string | string[] | Record<string, string>;
 
 /** One perk row of the form. */
 export interface PerkDraft {
@@ -74,9 +130,14 @@ export interface PerkDraft {
   enabled: boolean;
   animation: string;
   still: string;
+  /** D374: the MP4 art. */
+  video: string;
   artWidth: string;
   artHeight: string;
-  amount: string;
+  /** D374: the value (D258's amount for DAILY_BULLET / LEVEL_SPEEDUP too). */
+  value: ValueDraft;
+  /** D374: saved before but outside the catalogue (retired or unknown): shown, never sent (removed on save). */
+  stale?: "retired" | "unknown";
   /** v1.128-social (D373): the ENTRY_EFFECT perk's display (sent for that code only); absent: FULL_SCREEN. */
   entryDisplay?: EntryDisplay;
 }
@@ -105,23 +166,10 @@ const CODE = /^[A-Z][A-Z0-9_]{0,39}$/;
 const COLOR = /^#[0-9A-Fa-f]{6}$/;
 /** A hosted https URL (the server checks it again). Art is uploaded; nothing is bundled. */
 const ART = /^https:\/\/\S{1,2040}$/;
+const GIFT_CODE = /^[a-z0-9][a-z0-9_]{0,39}$/;
 
 function artOk(v: string): boolean {
   return v.trim() === "" || ART.test(v.trim());
-}
-/** D258: the perks that take a number and its bounds (the server checks them again). */
-export const PERK_AMOUNTS: Record<string, [number, number]> = {
-  DAILY_BULLET: [1, 100],
-  DAILY_COINS: [1, 1_000_000_000],
-  LEVEL_SPEEDUP: [1, 100],
-};
-
-export function amountOk(code: string, v: string): boolean {
-  if (v.trim() === "") return true;
-  const bounds = PERK_AMOUNTS[code.trim()];
-  if (!bounds) return false;
-  const n = Number(v);
-  return Number.isInteger(n) && n >= bounds[0] && n <= bounds[1];
 }
 
 function sizeOk(v: string): boolean {
@@ -130,7 +178,140 @@ function sizeOk(v: string): boolean {
   return Number.isInteger(n) && n >= 1 && n <= 8192;
 }
 
-export function draftOf(tier: AdminVipTier | null): TierDraft {
+/** D374: a stored value → the form's draft. */
+export function valueDraftOf(v: PerkValue | null | undefined): ValueDraft {
+  if (v === null || v === undefined) return "";
+  if (Array.isArray(v)) return [...v];
+  if (typeof v === "object")
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, String(x)]));
+  return String(v);
+}
+
+const asText = (d: ValueDraft): string => (typeof d === "string" ? d : "");
+const asList = (d: ValueDraft): string[] =>
+  Array.isArray(d) ? d : typeof d === "string" && d.trim() !== "" ? d.split(",") : [];
+const asFields = (d: ValueDraft): Record<string, string> =>
+  typeof d === "object" && !Array.isArray(d) ? d : {};
+
+function scalarBody(schema: PerkValueSchema, s: string): number | string | null {
+  const v = s.trim();
+  if (v === "") return null;
+  if (schema.kind === "int") return Number(v);
+  if (schema.kind === "color") return v.toUpperCase();
+  return v;
+}
+
+function scalarOk(schema: PerkValueSchema, s: string): boolean {
+  const v = s.trim();
+  if (v === "") return true;
+  switch (schema.kind) {
+    case "int": {
+      const n = Number(v);
+      return (
+        /^\d+$/.test(v) &&
+        Number.isSafeInteger(n) &&
+        n >= (schema.min ?? 1) &&
+        n <= (schema.max ?? Number.MAX_SAFE_INTEGER)
+      );
+    }
+    case "enum":
+      return schema.source === "VIP_TIER"
+        ? CODE.test(v)
+        : (schema.options ?? []).includes(v);
+    case "color":
+      return COLOR.test(v);
+    default:
+      return false;
+  }
+}
+
+/** D374: the form's value → the request's `value` (null = not set). */
+export function valueBody(
+  schema: PerkValueSchema,
+  d: ValueDraft,
+): PerkValue | null {
+  switch (schema.kind) {
+    case "none":
+      return null;
+    case "int":
+    case "enum":
+    case "color":
+      return scalarBody(schema, asText(d));
+    case "list":
+    case "art_list": {
+      const list = asList(d)
+        .map((x) => x.trim())
+        .filter((x) => x !== "");
+      return list.length === 0 ? null : list;
+    }
+    case "composite": {
+      const f = asFields(d);
+      const fields = schema.fields ?? [];
+      if (fields.every((x) => (f[x.key] ?? "").trim() === "")) return null;
+      return Object.fromEntries(
+        fields.map((x) => [x.key, scalarBody(x.schema, f[x.key] ?? "") ?? ""]),
+      );
+    }
+  }
+}
+
+/** D374: the same value rules as the server (it checks them again; gift / tier existence is the server's). */
+export function valueOk(schema: PerkValueSchema, d: ValueDraft): boolean {
+  switch (schema.kind) {
+    case "none":
+      return true;
+    case "int":
+    case "enum":
+    case "color":
+      return scalarOk(schema, asText(d));
+    case "list":
+    case "art_list": {
+      const list = asList(d)
+        .map((x) => x.trim())
+        .filter((x) => x !== "");
+      const re = schema.kind === "list" ? GIFT_CODE : ART;
+      return (
+        list.length <= (schema.maxItems ?? 50) &&
+        new Set(list).size === list.length &&
+        list.every((x) => re.test(x))
+      );
+    }
+    case "composite": {
+      const f = asFields(d);
+      const fields = schema.fields ?? [];
+      const filled = fields.filter((x) => (f[x.key] ?? "").trim() !== "");
+      // All or nothing: every field once one is set.
+      return (
+        (filled.length === 0 || filled.length === fields.length) &&
+        fields.every((x) => scalarOk(x.schema, f[x.key] ?? ""))
+      );
+    }
+  }
+}
+
+/** D374: a new perk row of [e] (ticked in the grid): the catalogue's titles, no value, no art. */
+export function perkOf(e: CatalogueEntry): PerkDraft {
+  return {
+    code: e.code,
+    titleAr: e.titleAr,
+    titleEn: e.titleEn,
+    descriptionAr: "",
+    descriptionEn: "",
+    enabled: true,
+    animation: "",
+    still: "",
+    video: "",
+    artWidth: "",
+    artHeight: "",
+    value: e.value.kind === "composite" ? {} : e.value.kind.endsWith("list") ? [] : "",
+  };
+}
+
+export function draftOf(
+  tier: AdminVipTier | null,
+  catalogue: readonly CatalogueEntry[] = [],
+): TierDraft {
+  const known = new Set(catalogue.map((e) => e.code));
   return {
     code: tier?.code ?? "",
     nameAr: tier?.nameAr ?? "",
@@ -156,10 +337,16 @@ export function draftOf(tier: AdminVipTier | null): TierDraft {
       enabled: p.enabled,
       animation: p.animation ?? "",
       still: p.still ?? "",
+      video: p.video ?? "",
       artWidth: p.artWidth === null ? "" : String(p.artWidth),
       artHeight: p.artHeight === null ? "" : String(p.artHeight),
-      amount:
-        p.amount === null || p.amount === undefined ? "" : String(p.amount),
+      // D258's amount is the value of DAILY_BULLET / LEVEL_SPEEDUP (an older server sends only `amount`).
+      value: valueDraftOf(p.value ?? p.amount),
+      ...(p.retired
+        ? { stale: "retired" as const }
+        : catalogue.length > 0 && !known.has(p.code)
+          ? { stale: "unknown" as const }
+          : {}),
       ...(p.code === ENTRY_CAR ? { entryDisplay: p.entryDisplay ?? "FULL_SCREEN" } : {}),
     })),
   };
@@ -173,11 +360,18 @@ function pointsOk(v: string): boolean {
   return /^\d+$/.test(s) && Number.isSafeInteger(n) && n >= 1 && n <= 1_000_000_000_000;
 }
 
-/** The same rules as the server (it checks them again): code, names, colour, price, length, unique perk codes. */
-export function draftValid(d: TierDraft, creating: boolean): boolean {
+/** The same rules as the server (it checks them again): code, names, colour, price, length, catalogue perks. */
+export function draftValid(
+  d: TierDraft,
+  creating: boolean,
+  catalogue: readonly CatalogueEntry[] = [],
+  maxPerks = 64,
+): boolean {
   const price = Number(d.priceCoins);
   const days = Number(d.durationDays);
-  const codes = d.perks.map((p) => p.code.trim());
+  const live = d.perks.filter((p) => p.stale === undefined);
+  const codes = live.map((p) => p.code.trim());
+  const byCode = new Map(catalogue.map((e) => [e.code, e]));
   return (
     (!creating || CODE.test(d.code.trim())) &&
     d.nameAr.trim() !== "" &&
@@ -195,45 +389,55 @@ export function draftValid(d: TierDraft, creating: boolean): boolean {
     Number.isInteger(days) &&
     days >= 1 &&
     days <= 365 &&
-    d.perks.length <= 20 &&
-    d.perks.every(
-      (p) =>
-        CODE.test(p.code.trim()) &&
+    live.length <= maxPerks &&
+    live.every((p) => {
+      const e = byCode.get(p.code.trim());
+      return (
+        e !== undefined &&
         p.titleAr.trim() !== "" &&
         p.titleEn.trim() !== "" &&
         artOk(p.animation) &&
         artOk(p.still) &&
+        artOk(p.video) &&
+        (p.video.trim() === "" || (e.art?.kinds ?? []).includes("MP4")) &&
         sizeOk(p.artWidth) &&
         sizeOk(p.artHeight) &&
-        amountOk(p.code, p.amount),
-    ) &&
+        valueOk(e.value, p.value)
+      );
+    }) &&
     new Set(codes).size === codes.length
   );
 }
 
-function perksBody(perks: PerkDraft[]) {
-  return perks.map((p) => ({
-    code: p.code.trim(),
-    titleAr: p.titleAr.trim(),
-    titleEn: p.titleEn.trim(),
-    descriptionAr: p.descriptionAr.trim() || null,
-    descriptionEn: p.descriptionEn.trim() || null,
-    enabled: p.enabled,
-    animation: p.animation.trim() || null,
-    still: p.still.trim() || null,
-    artWidth: p.artWidth.trim() === "" ? null : Number(p.artWidth),
-    artHeight: p.artHeight.trim() === "" ? null : Number(p.artHeight),
-    amount: p.amount.trim() === "" ? null : Number(p.amount),
-    // v1.128-social (D373): only the entry car perk has a display (the server refuses it elsewhere); none chosen yet:
-    // not sent (the server keeps the stored one, FULL_SCREEN for a new perk).
-    ...(p.code.trim() === ENTRY_CAR && p.entryDisplay ? { entryDisplay: p.entryDisplay } : {}),
-  }));
+/** The perks to send: the catalogue's only (a stale row is dropped — the server refuses it), each with its value. */
+function perksBody(perks: PerkDraft[], catalogue: readonly CatalogueEntry[]) {
+  const byCode = new Map(catalogue.map((e) => [e.code, e]));
+  return perks
+    .filter((p) => p.stale === undefined && byCode.has(p.code.trim()))
+    .map((p) => ({
+      code: p.code.trim(),
+      titleAr: p.titleAr.trim(),
+      titleEn: p.titleEn.trim(),
+      descriptionAr: p.descriptionAr.trim() || null,
+      descriptionEn: p.descriptionEn.trim() || null,
+      enabled: p.enabled,
+      animation: p.animation.trim() || null,
+      still: p.still.trim() || null,
+      video: p.video.trim() || null,
+      artWidth: p.artWidth.trim() === "" ? null : Number(p.artWidth),
+      artHeight: p.artHeight.trim() === "" ? null : Number(p.artHeight),
+      value: valueBody(byCode.get(p.code.trim())!.value, p.value),
+      // v1.128-social (D373): only the entry car perk has a display (the server refuses it elsewhere); none chosen
+      // yet: not sent (the server keeps the stored one, FULL_SCREEN for a new perk).
+      ...(p.code.trim() === ENTRY_CAR && p.entryDisplay ? { entryDisplay: p.entryDisplay } : {}),
+    }));
 }
 
 /** The form → the request body: on create every field; on an edit only what changed (the perks as a whole list). */
 export function tierBody(
   d: TierDraft,
   before: AdminVipTier | null,
+  catalogue: readonly CatalogueEntry[] = [],
 ): Record<string, unknown> {
   const fields: Record<string, unknown> = {
     nameAr: d.nameAr.trim(),
@@ -247,7 +451,7 @@ export function tierBody(
     pointsPrice: d.pointsPrice.trim() === "" ? null : Number(d.pointsPrice),
     durationDays: Number(d.durationDays),
   };
-  const perks = perksBody(d.perks);
+  const perks = perksBody(d.perks, catalogue);
   if (before === null) {
     return { code: d.code.trim(), ...fields, enabled: d.enabled, perks };
   }
@@ -257,8 +461,16 @@ export function tierBody(
         ((before as unknown as Record<string, unknown>)[k] ?? null) !== v,
     ),
   );
-  const beforePerks = perksBody(draftOf(before).perks);
-  if (JSON.stringify(beforePerks) !== JSON.stringify(perks)) out.perks = perks;
+  const beforeDraft = draftOf(before, catalogue).perks;
+  const beforePerks = perksBody(beforeDraft, catalogue);
+  // D374: a stale row (retired / outside the catalogue) is removed by sending the list without it.
+  const hadStale = beforeDraft.some((p) => p.stale !== undefined);
+  const hasStale = d.perks.some((p) => p.stale !== undefined);
+  if (
+    JSON.stringify(beforePerks) !== JSON.stringify(perks) ||
+    (hadStale && !hasStale)
+  )
+    out.perks = perks;
   return out;
 }
 
@@ -368,7 +580,7 @@ export function VipTiersTable({
               </td>
               <td>
                 <span className="vip-perks">
-                  {tier.perks.map((p) => (
+                  {tier.perks.filter((p) => !p.retired).map((p) => (
                     <span
                       key={p.code}
                       className={`badge ${p.available ? "ok" : ""} ${p.enabled ? "" : "muted"}`}
@@ -422,309 +634,536 @@ export function VipTiersTable({
   );
 }
 
-/** The perks editor of the form (pure: rendered in the tests). */
+/** D374: the upload kind of an art kind (SVGA → animation, PNG / WebP → still, MP4 → video). */
+type UploadKind = "animation" | "still" | "video";
+
+/** D374: one value field (int / enum / color) of a perk. */
+function ScalarInput({
+  id,
+  schema,
+  value,
+  onChange,
+  label,
+}: {
+  id: string;
+  schema: PerkValueSchema;
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+}) {
+  const { t } = useApp();
+  const bad = !scalarOk(schema, value);
+  if (schema.kind === "enum") {
+    return (
+      <div className="field">
+        <label htmlFor={id}>{label}</label>
+        <select
+          id={id}
+          data-vip-value={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">{t("vipPickNone")}</option>
+          {(schema.options ?? []).map((o) => (
+            <option key={o} value={o}>
+              {schema.source === "ROCKET_STAGE"
+                ? t("vipRocketStage", { n: o.replace("STAGE_", "") })
+                : o}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+  if (schema.kind === "color") {
+    return (
+      <div className="field">
+        <label htmlFor={id}>{label}</label>
+        <span className="vip-color">
+          <input
+            type="color"
+            aria-label={label}
+            value={COLOR.test(value) ? value : "#FFC928"}
+            onChange={(e) => onChange(e.target.value.toUpperCase())}
+          />
+          <input
+            id={id}
+            data-vip-value={id}
+            className="ltr mono"
+            maxLength={7}
+            aria-invalid={bad}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="field">
+      <label htmlFor={id}>
+        {label} ({t(`vipUnit_${schema.unit ?? "count"}` as Key)})
+      </label>
+      <input
+        id={id}
+        data-vip-value={id}
+        type="number"
+        min={schema.min}
+        max={schema.max}
+        className="num"
+        aria-invalid={bad}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <span className="hint">
+        {t("vipPerkValueRange", { min: schema.min ?? 1, max: schema.max ?? "" })}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The perks of the form (pure: rendered in the tests). D374 (§10.166.3): a checkbox grid of the perk catalogue, by
+ * category, «مبنية / قريباً» on each; a ticked perk shows its value and art fields (uploads via `uploadAdminVipArt`).
+ * Perks are kept in the catalogue's order. A row saved before that is outside the catalogue is listed and dropped.
+ */
 export function PerksEditor({
   perks,
-  built,
-  suggested,
+  catalogue,
+  maxPerks = 64,
   onChange,
   tierCode = "",
 }: {
   perks: PerkDraft[];
-  built: readonly string[];
-  suggested: readonly string[];
+  catalogue: readonly CatalogueEntry[];
+  maxPerks?: number;
   onChange: (p: PerkDraft[]) => void;
   /** D258: the tier's code (the uploads' folder); empty while it is not set. */
   tierCode?: string;
 }) {
-  const { t } = useApp();
-  const set = (i: number, patch: Partial<PerkDraft>) =>
-    onChange(perks.map((p, j) => (j === i ? { ...p, ...patch } : p)));
-  // D258: one upload at a time («i:kind»), and the last failure.
+  const { t, lang } = useApp();
+  const order = new Map(catalogue.map((e, i) => [e.code, i]));
+  const live = perks.filter((p) => p.stale === undefined);
+  const stale = perks.filter((p) => p.stale !== undefined);
+  const byCode = new Map(perks.map((p) => [p.code, p]));
+  const sorted = (list: PerkDraft[]) =>
+    [...list].sort(
+      (a, b) =>
+        (order.get(a.code) ?? catalogue.length) -
+        (order.get(b.code) ?? catalogue.length),
+    );
+  const setPerk = (code: string, patch: Partial<PerkDraft>) =>
+    onChange(perks.map((p) => (p.code === code ? { ...p, ...patch } : p)));
+  const toggle = (e: CatalogueEntry, on: boolean) =>
+    onChange(
+      on
+        ? sorted([...perks, perkOf(e)])
+        : perks.filter((p) => p.code !== e.code),
+    );
+  // D258: one upload at a time («code:kind»), and the last failure.
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const upload = async (
-    i: number,
-    kind: "animation" | "still",
-    file: File | undefined,
+    code: string,
+    kind: UploadKind,
+    files: FileList | null | undefined,
+    pack = false,
   ) => {
-    if (!file || !CODE.test(tierCode)) return;
-    setUploading(`${i}:${kind}`);
+    const list = files ? Array.from(files) : [];
+    if (list.length === 0 || !CODE.test(tierCode)) return;
+    setUploading(`${code}:${pack ? "pack" : kind}`);
     setUploadError(null);
     try {
-      const up = await uploadVipArt(kind, tierCode, file);
-      set(
-        i,
-        kind === "animation"
-          ? { animation: up.url }
-          : {
-              still: up.url,
-              artWidth: up.width === null ? "" : String(up.width),
-              artHeight: up.height === null ? "" : String(up.height),
-            },
-      );
-    } catch (e) {
-      setUploadError(e instanceof Error ? e.message : t("vipUploadFailed"));
+      const urls: string[] = [];
+      let last: { width: number | null; height: number | null } | null = null;
+      for (const file of pack ? list : list.slice(0, 1)) {
+        const fileKind: UploadKind = pack
+          ? file.name.toLowerCase().endsWith(".svga")
+            ? "animation"
+            : "still"
+          : kind;
+        const up = await uploadVipArt(fileKind, tierCode, file);
+        urls.push(up.url);
+        last = up;
+      }
+      const p = byCode.get(code);
+      if (!p) return;
+      if (pack) {
+        setPerk(code, { value: [...asList(p.value).filter((x) => x.trim() !== ""), ...urls] });
+      } else if (kind === "animation") {
+        setPerk(code, { animation: urls[0]! });
+      } else if (kind === "video") {
+        setPerk(code, { video: urls[0]! });
+      } else {
+        setPerk(code, {
+          still: urls[0]!,
+          artWidth: last?.width === null || !last ? "" : String(last.width),
+          artHeight: last?.height === null || !last ? "" : String(last.height),
+        });
+      }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : t("vipUploadFailed"));
     } finally {
       setUploading(null);
     }
   };
-  const move = (i: number, step: -1 | 1) => {
-    const to = i + step;
-    if (to < 0 || to >= perks.length) return;
-    const out = [...perks];
-    [out[i], out[to]] = [out[to]!, out[i]!];
-    onChange(out);
-  };
+  const uploadButton = (
+    code: string,
+    kind: UploadKind,
+    label: string,
+    accept: string,
+  ) => (
+    <label className="btn small">
+      {uploading === `${code}:${kind}` ? t("vipUploading") : label}
+      <input
+        type="file"
+        hidden
+        accept={accept}
+        data-vip-upload={`${code}:${kind}`}
+        disabled={uploading !== null || !CODE.test(tierCode)}
+        onChange={(ev) => void upload(code, kind, ev.target.files)}
+      />
+    </label>
+  );
+  const categories = [...new Set(catalogue.map((e) => e.category))];
   return (
     <div className="span-2 vip-perk-editor" data-vip-perks>
       <div className="row">
-        <strong>{t("vipPerks")}</strong>
-        <button
-          type="button"
-          className="btn small"
-          disabled={perks.length >= 20}
-          onClick={() =>
-            onChange([
-              ...perks,
-              {
-                code: "",
-                titleAr: "",
-                titleEn: "",
-                descriptionAr: "",
-                descriptionEn: "",
-                enabled: true,
-                animation: "",
-                still: "",
-                amount: "",
-                artWidth: "",
-                artHeight: "",
-                entryDisplay: "FULL_SCREEN",
-              },
-            ])
-          }
-          data-vip-perk-add
-        >
-          <Icon name="plus" size={14} />
-          {t("vipPerkAdd")}
-        </button>
+        <strong>{t("vipPerksPick")}</strong>
+        <span className="muted small" data-vip-perk-count>
+          {t("vipPerksCount", { n: live.length, max: maxPerks })}
+        </span>
       </div>
-      <p className="muted small">{t("vipPerksNote")}</p>
-      <datalist id="vip-perk-codes">
-        {suggested.map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
-      {perks.map((p, i) => (
-        <div className="vip-perk" key={i} data-vip-perk={i}>
-          {p.code.trim() === "BADGE" && (
-            // D268: the BADGE perk's art is the badge right after the name.
-            <div className="field" data-vip-name-badge>
-              <strong>{t("vipNameBadgeTitle")}</strong>
-              <p className="muted small">{t("vipNameBadgeHint")}</p>
-            </div>
-          )}
-          <div className="form-grid">
-            <div className="field">
-              <label htmlFor={`vp-code-${i}`}>{t("vipPerkCode")}</label>
-              <input
-                id={`vp-code-${i}`}
-                className="ltr mono"
-                list="vip-perk-codes"
-                maxLength={40}
-                value={p.code}
-                onChange={(e) => set(i, { code: e.target.value.toUpperCase() })}
-              />
-              <span className={`hint ${built.includes(p.code) ? "ok" : ""}`}>
-                {built.includes(p.code)
-                  ? t("vipPerkBuilt")
-                  : t("vipPerkNotBuilt")}
-              </span>
-            </div>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={p.enabled}
-                onChange={(e) => set(i, { enabled: e.target.checked })}
-              />
-              {t("vipPerkShown")}
-            </label>
-            <div className="field">
-              <label htmlFor={`vp-tar-${i}`}>{t("vipPerkTitleAr")}</label>
-              <input
-                id={`vp-tar-${i}`}
-                dir="rtl"
-                maxLength={40}
-                value={p.titleAr}
-                onChange={(e) => set(i, { titleAr: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`vp-ten-${i}`}>{t("vipPerkTitleEn")}</label>
-              <input
-                id={`vp-ten-${i}`}
-                dir="ltr"
-                maxLength={40}
-                value={p.titleEn}
-                onChange={(e) => set(i, { titleEn: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`vp-dar-${i}`}>{t("vipPerkDescAr")}</label>
-              <input
-                id={`vp-dar-${i}`}
-                dir="rtl"
-                maxLength={200}
-                value={p.descriptionAr}
-                onChange={(e) => set(i, { descriptionAr: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`vp-den-${i}`}>{t("vipPerkDescEn")}</label>
-              <input
-                id={`vp-den-${i}`}
-                dir="ltr"
-                maxLength={200}
-                value={p.descriptionEn}
-                onChange={(e) => set(i, { descriptionEn: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`vp-still-${i}`}>{t("vipPerkStill")}</label>
-              <input
-                id={`vp-still-${i}`}
-                className="ltr"
-                maxLength={2048}
-                value={p.still}
-                onChange={(e) => set(i, { still: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`vp-anim-${i}`}>{t("vipPerkAnimation")}</label>
-              <input
-                id={`vp-anim-${i}`}
-                className="ltr"
-                maxLength={2048}
-                value={p.animation}
-                onChange={(e) => set(i, { animation: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`vp-aw-${i}`}>{t("vipArtW")}</label>
-              <input
-                id={`vp-aw-${i}`}
-                type="number"
-                min={1}
-                max={8192}
-                className="num"
-                value={p.artWidth}
-                onChange={(e) => set(i, { artWidth: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`vp-ah-${i}`}>{t("vipArtH")}</label>
-              <input
-                id={`vp-ah-${i}`}
-                type="number"
-                min={1}
-                max={8192}
-                className="num"
-                value={p.artHeight}
-                onChange={(e) => set(i, { artHeight: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor={`vp-amount-${i}`}>{t("vipPerkAmount")}</label>
-            <input
-              id={`vp-amount-${i}`}
-              type="number"
-              min={1}
-              className="num"
-              data-vip-amount={p.code}
-              disabled={!PERK_AMOUNTS[p.code.trim()] && p.amount === ""}
-              aria-invalid={!amountOk(p.code, p.amount)}
-              value={p.amount}
-              onChange={(e) => set(i, { amount: e.target.value })}
-            />
-            {!amountOk(p.code, p.amount) && (
-              <span className="error small">{t("vipPerkAmountBad")}</span>
-            )}
-          </div>
-          {p.code.trim() === ENTRY_CAR && (
-            <EntryDisplaySelect
-              id={`vp-entry-display-${i}`}
-              value={p.entryDisplay ?? "FULL_SCREEN"}
-              onChange={(entryDisplay) => set(i, { entryDisplay })}
-            />
-          )}
-          <div className="field">
-            <span>
-              {t("vipUploadStill")} / {t("vipUploadAnimation")}
+      <p className="muted small" data-vip-inherit-hint>
+        {t("vipPerksInherit")}
+      </p>
+      {stale.length > 0 && (
+        <div className="alert" data-vip-stale>
+          {t("vipPerkStale")}{" "}
+          {stale.map((p) => (
+            <span key={p.code} className="badge muted">
+              <span className="mono ltr">{p.code}</span>
+              {p.stale === "retired" && ` · ${t("vipPerkRetired")}`}{" "}
+              <button
+                type="button"
+                className="btn small danger"
+                data-vip-stale-remove={p.code}
+                onClick={() => onChange(perks.filter((x) => x !== p))}
+              >
+                {t("remove")}
+              </button>
             </span>
-            <div className="row">
-              <label className="btn small">
-                {uploading === `${i}:still`
-                  ? t("vipUploading")
-                  : p.code.trim() === "BADGE"
-                    ? t("vipNameBadgeUpload")
-                    : t("vipUploadStill")}
-                <input
-                  type="file"
-                  hidden
-                  accept="image/png,image/webp"
-                  data-vip-upload={`${i}:still`}
-                  disabled={uploading !== null || !CODE.test(tierCode)}
-                  onChange={(e) => void upload(i, "still", e.target.files?.[0])}
-                />
-              </label>
-              <label className="btn small">
-                {uploading === `${i}:animation`
-                  ? t("vipUploading")
-                  : t("vipUploadAnimation")}
-                <input
-                  type="file"
-                  hidden
-                  accept=".svga"
-                  data-vip-upload={`${i}:animation`}
-                  disabled={uploading !== null || !CODE.test(tierCode)}
-                  onChange={(e) =>
-                    void upload(i, "animation", e.target.files?.[0])
-                  }
-                />
-              </label>
-            </div>
-          </div>
-          <p className="muted small">{t("vipPerkAmountHint")}</p>
-          {uploadError && <div className="alert error">{uploadError}</div>}
-          <p className="muted small">{t("vipArtHint")}</p>
-          <div className="row end">
-            <button
-              type="button"
-              className="btn small"
-              disabled={i === 0}
-              onClick={() => move(i, -1)}
-            >
-              {t("vipPerkUp")}
-            </button>
-            <button
-              type="button"
-              className="btn small"
-              disabled={i === perks.length - 1}
-              onClick={() => move(i, 1)}
-            >
-              {t("vipPerkDown")}
-            </button>
-            <button
-              type="button"
-              className="btn small danger"
-              onClick={() => onChange(perks.filter((_, j) => j !== i))}
-            >
-              {t("remove")}
-            </button>
-          </div>
+          ))}
         </div>
+      )}
+      {categories.map((cat) => (
+        <fieldset className="vip-perk-cat" key={cat} data-vip-cat={cat}>
+          <legend>{t(`vipCat${cat}` as Key)}</legend>
+          <div className="vip-perk-grid">
+            {catalogue
+              .filter((e) => e.category === cat)
+              .map((e) => {
+                const p = byCode.get(e.code);
+                const on = p !== undefined && p.stale === undefined;
+                const title = lang === "ar" ? e.titleAr : e.titleEn;
+                const ok = !on || valueOk(e.value, p.value);
+                // Owner: a perk with no art and no value is just a tick, no box opens for it
+                // (one that was switched off keeps its box, so it can be switched back on).
+                const simple =
+                  e.art === null &&
+                  e.value.kind === "none" &&
+                  e.code !== "BADGE" &&
+                  p?.enabled !== false;
+                return (
+                  <div
+                    className={`vip-perk ${on ? "on" : ""}`}
+                    key={e.code}
+                    data-vip-perk={e.code}
+                  >
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        disabled={!on && live.length >= maxPerks}
+                        data-vip-perk-pick={e.code}
+                        onChange={(ev) => toggle(e, ev.target.checked)}
+                      />
+                      <span className="vip-perk-title">{title}</span>
+                      <span
+                        className={`badge ${e.built ? "ok" : ""}`}
+                        data-vip-built={e.built ? "built" : "soon"}
+                        title={e.built ? t("vipPerkBuilt") : t("vipPerkNotBuilt")}
+                      >
+                        {e.built ? t("vipPerkBuiltShort") : t("vipPerkSoon")}
+                      </span>
+                    </label>
+                    <span className="muted small">
+                      {lang === "ar" ? e.descriptionAr : e.descriptionEn}
+                    </span>
+                    {on && !simple && (
+                      <div className="vip-perk-fields" data-vip-perk-fields={e.code}>
+                        {e.code === "BADGE" && (
+                          // D268: the BADGE perk's art is the badge right after the name.
+                          <div className="field" data-vip-name-badge>
+                            <strong>{t("vipNameBadgeTitle")}</strong>
+                            <p className="muted small">{t("vipNameBadgeHint")}</p>
+                          </div>
+                        )}
+                        <label className="check">
+                          <input
+                            type="checkbox"
+                            checked={p.enabled}
+                            onChange={(ev) =>
+                              setPerk(e.code, { enabled: ev.target.checked })
+                            }
+                          />
+                          {t("vipPerkShown")}
+                        </label>
+                        {(e.value.kind === "int" ||
+                          e.value.kind === "enum" ||
+                          e.value.kind === "color") && (
+                          <ScalarInput
+                            id={`vp-${e.code}`}
+                            schema={e.value}
+                            label={t("vipPerkValue")}
+                            value={asText(p.value)}
+                            onChange={(v) => setPerk(e.code, { value: v })}
+                          />
+                        )}
+                        {e.value.kind === "composite" &&
+                          (e.value.fields ?? []).map((f) => (
+                            <ScalarInput
+                              key={f.key}
+                              id={`vp-${e.code}-${f.key}`}
+                              schema={f.schema}
+                              label={lang === "ar" ? f.labelAr : f.labelEn}
+                              value={asFields(p.value)[f.key] ?? ""}
+                              onChange={(v) =>
+                                setPerk(e.code, {
+                                  value: { ...asFields(p.value), [f.key]: v },
+                                })
+                              }
+                            />
+                          ))}
+                        {e.value.kind === "list" && (
+                          <div className="field">
+                            <label htmlFor={`vp-${e.code}`}>
+                              {t("vipPerkGiftCodes")}
+                            </label>
+                            <input
+                              id={`vp-${e.code}`}
+                              data-vip-value={`vp-${e.code}`}
+                              className="ltr mono"
+                              value={asList(p.value).join(",")}
+                              onChange={(ev) =>
+                                setPerk(e.code, {
+                                  value: ev.target.value.split(","),
+                                })
+                              }
+                            />
+                          </div>
+                        )}
+                        {e.value.kind === "art_list" && (
+                          <div className="field" data-vip-art-pack={e.code}>
+                            <span>{t("vipPerkArtPack")}</span>
+                            {asList(p.value).map((url, j) => (
+                              <span className="row" key={`${url}-${j}`}>
+                                <span className="mono ltr small">{url}</span>
+                                <button
+                                  type="button"
+                                  className="btn small danger"
+                                  onClick={() =>
+                                    setPerk(e.code, {
+                                      value: asList(p.value).filter(
+                                        (_, k) => k !== j,
+                                      ),
+                                    })
+                                  }
+                                >
+                                  {t("remove")}
+                                </button>
+                              </span>
+                            ))}
+                            <label className="btn small">
+                              {uploading === `${e.code}:pack`
+                                ? t("vipUploading")
+                                : t("vipPerkArtPackAdd")}
+                              <input
+                                type="file"
+                                hidden
+                                multiple
+                                accept=".svga,image/png,image/webp"
+                                data-vip-upload={`${e.code}:pack`}
+                                disabled={uploading !== null || !CODE.test(tierCode)}
+                                onChange={(ev) =>
+                                  void upload(e.code, "still", ev.target.files, true)
+                                }
+                              />
+                            </label>
+                          </div>
+                        )}
+                        {e.code === ENTRY_CAR && (
+                          <EntryDisplaySelect
+                            id={`vp-entry-display-${e.code}`}
+                            value={p.entryDisplay ?? "FULL_SCREEN"}
+                            onChange={(entryDisplay) => setPerk(e.code, { entryDisplay })}
+                          />
+                        )}
+                        {!ok && (
+                          <span className="error small">{t("vipPerkValueBad")}</span>
+                        )}
+                        {e.art && (
+                          <div className="field" data-vip-art={e.code}>
+                            <span className="muted small">
+                              {t("vipPerkArtKinds", { kinds: e.art.kinds.join(" · ") })}
+                              {e.art.width !== null &&
+                                e.art.height !== null &&
+                                ` — ${t("vipPerkArtCanvas", { w: e.art.width, h: e.art.height })}`}
+                            </span>
+                            <div className="form-grid">
+                              {(e.art.kinds.includes("PNG") ||
+                                e.art.kinds.includes("WEBP")) && (
+                                <div className="field">
+                                  <label htmlFor={`vp-still-${e.code}`}>
+                                    {t("vipPerkStill")}
+                                  </label>
+                                  <input
+                                    id={`vp-still-${e.code}`}
+                                    className="ltr"
+                                    maxLength={2048}
+                                    value={p.still}
+                                    onChange={(ev) =>
+                                      setPerk(e.code, { still: ev.target.value })
+                                    }
+                                  />
+                                  {uploadButton(
+                                    e.code,
+                                    "still",
+                                    e.code === "BADGE"
+                                      ? t("vipNameBadgeUpload")
+                                      : t("vipUploadStill"),
+                                    "image/png,image/webp",
+                                  )}
+                                </div>
+                              )}
+                              {e.art.kinds.includes("SVGA") && (
+                                <div className="field">
+                                  <label htmlFor={`vp-anim-${e.code}`}>
+                                    {t("vipPerkAnimation")}
+                                  </label>
+                                  <input
+                                    id={`vp-anim-${e.code}`}
+                                    className="ltr"
+                                    maxLength={2048}
+                                    value={p.animation}
+                                    onChange={(ev) =>
+                                      setPerk(e.code, { animation: ev.target.value })
+                                    }
+                                  />
+                                  {uploadButton(
+                                    e.code,
+                                    "animation",
+                                    t("vipUploadAnimation"),
+                                    ".svga",
+                                  )}
+                                </div>
+                              )}
+                              {e.art.kinds.includes("MP4") && (
+                                <div className="field">
+                                  <label htmlFor={`vp-video-${e.code}`}>
+                                    {t("vipPerkVideo")}
+                                  </label>
+                                  <input
+                                    id={`vp-video-${e.code}`}
+                                    className="ltr"
+                                    maxLength={2048}
+                                    value={p.video}
+                                    onChange={(ev) =>
+                                      setPerk(e.code, { video: ev.target.value })
+                                    }
+                                  />
+                                  {uploadButton(
+                                    e.code,
+                                    "video",
+                                    t("vipUploadVideo"),
+                                    "video/mp4",
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        <details>
+                          <summary className="small">{t("vipPerkTexts")}</summary>
+                          <div className="form-grid">
+                            <div className="field">
+                              <label htmlFor={`vp-tar-${e.code}`}>
+                                {t("vipPerkTitleAr")}
+                              </label>
+                              <input
+                                id={`vp-tar-${e.code}`}
+                                dir="rtl"
+                                maxLength={40}
+                                value={p.titleAr}
+                                onChange={(ev) =>
+                                  setPerk(e.code, { titleAr: ev.target.value })
+                                }
+                              />
+                            </div>
+                            <div className="field">
+                              <label htmlFor={`vp-ten-${e.code}`}>
+                                {t("vipPerkTitleEn")}
+                              </label>
+                              <input
+                                id={`vp-ten-${e.code}`}
+                                dir="ltr"
+                                maxLength={40}
+                                value={p.titleEn}
+                                onChange={(ev) =>
+                                  setPerk(e.code, { titleEn: ev.target.value })
+                                }
+                              />
+                            </div>
+                            <div className="field">
+                              <label htmlFor={`vp-dar-${e.code}`}>
+                                {t("vipPerkDescAr")}
+                              </label>
+                              <input
+                                id={`vp-dar-${e.code}`}
+                                dir="rtl"
+                                maxLength={200}
+                                value={p.descriptionAr}
+                                onChange={(ev) =>
+                                  setPerk(e.code, { descriptionAr: ev.target.value })
+                                }
+                              />
+                            </div>
+                            <div className="field">
+                              <label htmlFor={`vp-den-${e.code}`}>
+                                {t("vipPerkDescEn")}
+                              </label>
+                              <input
+                                id={`vp-den-${e.code}`}
+                                dir="ltr"
+                                maxLength={200}
+                                value={p.descriptionEn}
+                                onChange={(ev) =>
+                                  setPerk(e.code, { descriptionEn: ev.target.value })
+                                }
+                              />
+                            </div>
+                          </div>
+                        </details>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </fieldset>
       ))}
+      {uploadError && <div className="alert error">{uploadError}</div>}
+      <p className="muted small">{t("vipArtHint")}</p>
     </div>
   );
 }
@@ -741,12 +1180,14 @@ function TierForm({
   onDone: () => void;
 }) {
   const { t } = useApp();
-  const [draft, setDraft] = useState<TierDraft>(() => draftOf(tier));
+  const [draft, setDraft] = useState<TierDraft>(() =>
+    draftOf(tier, list.catalogue),
+  );
   const [reason, setReason] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
-  const body = tierBody(draft, tier);
-  const valid = draftValid(draft, tier === null);
+  const body = tierBody(draft, tier, list.catalogue);
+  const valid = draftValid(draft, tier === null, list.catalogue, list.maxPerks);
   const ok =
     reason.trim() !== "" &&
     valid &&
@@ -988,8 +1429,8 @@ function TierForm({
         <PerksEditor
           tierCode={draft.code.trim()}
           perks={draft.perks}
-          built={list.builtPerks}
-          suggested={list.suggestedPerks}
+          catalogue={list.catalogue}
+          maxPerks={list.maxPerks}
           onChange={(perks) => setDraft((d) => ({ ...d, perks }))}
         />
         {!valid && <div className="span-2 alert error">{t("vipInvalid")}</div>}

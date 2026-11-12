@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
-import { GiftArtError, giftAnimationFile, type GiftArtFile } from '../gifts/gift-art.js';
+import { GiftArtError, giftAnimationFile, giftVideoFile, type GiftArtFile } from '../gifts/gift-art.js';
 
 /**
  * v1.83-social (D258, CONVENTIONS §10.94.6): a VIP badge's or perk's art uploaded from the panel — an SVGA 2.x
@@ -11,7 +11,8 @@ export const VIP_STILL_MAX_BYTES = 2 * 1024 * 1024;
 const STILL_MIN_SIDE = 16;
 const STILL_MAX_SIDE = 4096;
 
-export type VipUploadKind = 'animation' | 'still';
+/** D374 (§10.166): `video` — an MP4 (H.264, ≤ 8 MB, ≤ 15 s, the gifts' checks) for a perk whose art takes MP4. */
+export type VipUploadKind = 'animation' | 'still' | 'video';
 
 export interface VipArtFile extends GiftArtFile {
   readonly width?: number;
@@ -31,6 +32,19 @@ export function vipAnimationFile(tier: string, body: Buffer): VipArtFile {
     body: checked.body,
     size: checked.size,
     key: key(tier, body, 'svga'),
+  };
+}
+
+/** v1.129-social (D374): checks an MP4 (as a gift's full-screen effect) and keys it under the tier. */
+export async function vipVideoFile(tier: string, body: Buffer): Promise<VipArtFile> {
+  const checked = await giftVideoFile(tier.toLowerCase(), body);
+  return {
+    contentType: checked.contentType,
+    body: checked.body,
+    size: checked.size,
+    key: key(tier, body, 'mp4'),
+    width: checked.width,
+    height: checked.height,
   };
 }
 

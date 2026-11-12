@@ -7280,6 +7280,7 @@ model VipTier {
 }
 
 /// D252: one perk of a tier, in order. Whether the app really does it (`available`) is the server's list, never stored.
+/// D374 (§10.166): a saved code is one of the perk catalogue's (`vip-catalogue.ts`); rows saved before keep theirs.
 model VipTierPerk {
   id            String       @id @default(uuid(7)) @db.Uuid
   tierId        String       @map("tier_id") @db.Uuid
@@ -7297,10 +7298,17 @@ model VipTierPerk {
   artWidth      Int?         @map("art_width")
   artHeight     Int?         @map("art_height")
   /// D258 (§10.94): the perk's number for this tier — free public messages a day (DAILY_BULLET), coins a day
-  /// (DAILY_COINS), the level speed-up in percent (LEVEL_SPEEDUP); null for other perks or not set yet.
+  /// (DAILY_COINS — removed by D374, its rows ignored), the level speed-up in percent (LEVEL_SPEEDUP); null for other
+  /// perks or not set yet.
   amount        Int?
   /// v1.128-social (D373, §10.165): how the ENTRY_EFFECT perk's car plays (read for that code only).
   entryDisplay  EntryDisplay @default(FULL_SCREEN) @map("entry_display")
+  /// v1.129-social (D374, §10.166): the perk's value for this tier, validated against the perk catalogue
+  /// (`vip-catalogue.ts`): a number, a string, a list of strings or an object; null = not set. Wherever `amount` is
+  /// set (DAILY_BULLET, LEVEL_SPEEDUP) it equals it (CHECK `vip_tier_perks_amount_value`).
+  value         Json?
+  /// v1.129-social (D374): the perk's MP4 art (https, uploaded from the panel), beside the SVGA `animation`.
+  video         String? @db.VarChar(2048)
 
   tier VipTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
 
@@ -7361,7 +7369,7 @@ model VipPurchase {
 }
 
 /// D258 (§10.94.5): a VIP's daily coins claimed (at most one a day; the day in LIVE_RANKINGS_TIME_ZONE). The wallet
-/// ledger row (`VIP_DAILY_COINS`) references this row.
+/// ledger row (`VIP_DAILY_COINS`) references this row. D374: the owner removed the perk — no new rows; kept as history.
 model VipDailyCoinClaim {
   id        String   @id @default(uuid(7)) @db.Uuid
   userId    String   @map("user_id") @db.Uuid

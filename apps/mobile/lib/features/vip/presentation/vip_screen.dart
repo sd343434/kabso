@@ -358,9 +358,14 @@ class _VipScreenState extends ConsumerState<VipScreen> {
           height:
               KVipRef.headerGap - KVipRef.dividerMiddle - KVipRef.dividerEnd,
         ),
+        // D374 (§10.166.5): the tier's EFFECTIVE perks (its own and the
+        // lower tiers'), «قريباً» on the ones not built; x/y counts them
+        // against the top tier's.
         VipPrivilegesHeader(
-          count: tier.perks.length,
-          total: list.tiers.map((t) => t.perks.length).reduce(math.max),
+          count: tier.effectivePerks.length,
+          total: list.tiers
+              .map((t) => t.effectivePerks.length)
+              .reduce(math.max),
         ),
         const SizedBox(height: KVipRef.gridGap),
         VipHexPerkGrid(tier: tier, active: held),
@@ -509,11 +514,8 @@ class _VipScreenState extends ConsumerState<VipScreen> {
                     },
                   ),
                 ],
-                // D258: the daily coins (DAILY_COINS), claimed here.
-                if (membership.dailyCoins case final daily?) ...[
-                  const SizedBox(height: KSpacing.md),
-                  VipDailyCoinsRow(initial: daily),
-                ],
+                // D374: the daily coins row is gone (the owner removed
+                // DAILY_COINS, 2026-11-11).
               ],
             ),
           ),
@@ -670,24 +672,15 @@ class _BottomBar extends StatelessWidget {
           };
     const white = Color(0xFFFFFFFF);
     final soft = white.withValues(alpha: 0.78);
-    // D258 (owner, reference 40): the package's real value — the daily
-    // coins over the length, the level speed-up — and the renewal discount.
-    final daily = tier.perks
-        .where((p) => p.code == VipPerks.dailyCoins)
-        .firstOrNull
-        ?.amount;
-    final speedup = tier.perks
+    // D258 (owner, reference 40): the package's real value — the level
+    // speed-up (D374: with inheritance; the daily coins were removed) — and
+    // the renewal discount.
+    final speedup = tier.effectivePerks
         .where((p) => p.code == VipPerks.levelSpeedup)
         .firstOrNull
-        ?.amount;
-    final value = [
-      if (daily != null)
-        l10n.vipCashback(
-          KFormat.grouped(daily * tier.durationDays),
-          KFormat.grouped(daily),
-        ),
-      if (speedup != null) l10n.vipSpeedupLine('$speedup'),
-    ].join('، ');
+        ?.number;
+    final value = [if (speedup != null) l10n.vipSpeedupLine('$speedup')]
+        .join('، ');
     final discounted = points != null
         ? points < (tier.pricePoints ?? points)
         : chargeCoins < tier.priceCoins;
@@ -1199,81 +1192,6 @@ class _ConfirmCard extends StatelessWidget {
           key: VipScreen.cancelKey,
           label: MaterialLocalizations.of(context).cancelButtonLabel,
           onPressed: () => Navigator.of(context).pop(),
-        ),
-      ],
-    );
-  }
-}
-
-/// D258 (DAILY_COINS, §10.94.5): «الكوينز اليومية: 500» and «استلام» (once a
-/// day; «تم الاستلام اليوم» after). A claim credits the wallet and refreshes
-/// the balance and the membership.
-class VipDailyCoinsRow extends ConsumerStatefulWidget {
-  const new({required this.initial, super.key});
-
-  final VipDailyCoins initial;
-
-  static const rowKey = Key('vip.dailyCoins');
-  static const claimKey = Key('vip.dailyCoins.claim');
-
-  @override
-  ConsumerState<VipDailyCoinsRow> createState() => _VipDailyCoinsRowState();
-}
-
-class _VipDailyCoinsRowState extends ConsumerState<VipDailyCoinsRow> {
-  late VipDailyCoins _daily = widget.initial;
-  bool _busy = false;
-
-  Future<void> _claim() async {
-    if (_busy) return;
-    final l10n = context.l10n;
-    setState(() => _busy = true);
-    try {
-      final result = await ref.read(vipRepositoryProvider).claimDailyCoins();
-      if (!mounted) return;
-      setState(() => _daily = result.daily);
-      ref
-        ..invalidate(myVipProvider)
-        ..invalidate(liveCoinsProvider);
-      if (result.coins > 0) {
-        KSnack.success(context, l10n.vipDailyCoinsAdded('${result.coins}'));
-      }
-    } on Object catch (e) {
-      if (mounted) KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final t = context.textStyles;
-    final claimed = _daily.claimedToday;
-    return Row(
-      key: VipDailyCoinsRow.rowKey,
-      children: [
-        Expanded(
-          child: Text(
-            l10n.vipDailyCoins(KFormat.compact(_daily.amount, l10n)),
-            // The sheet's own text colour (dark on light, white on dark).
-            style: t.body.copyWith(
-              color: VipPalette.of(context).text,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(width: KSpacing.sm),
-        FilledButton(
-          key: VipDailyCoinsRow.claimKey,
-          onPressed: claimed || _busy ? null : () => unawaited(_claim()),
-          style: FilledButton.styleFrom(
-            backgroundColor: vipGold,
-            foregroundColor: const Color(0xFF2A1A00),
-          ),
-          child: Text(
-            claimed ? l10n.vipDailyCoinsClaimed : l10n.vipDailyCoinsClaim,
-          ),
         ),
       ],
     );

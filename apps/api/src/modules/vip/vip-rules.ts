@@ -7,6 +7,8 @@
  * own, CP-024 §3).
  */
 
+import { VIP_CATALOGUE_AMOUNTS, VIP_CATALOGUE_BUILT, VIP_PERK_CATALOGUE } from './vip-catalogue.js';
+
 const DAY_MS = 86_400_000;
 
 /** A tier's or a perk's code: stable, upper case. */
@@ -14,7 +16,8 @@ export const VIP_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,39}$/;
 /** A tier's colour, `#RRGGBB` upper case. */
 export const VIP_COLOR_PATTERN = /^#[0-9A-F]{6}$/;
 export const VIP_MAX_TIERS = 20;
-export const VIP_MAX_PERKS = 20;
+/** D374 (§10.166): room for the whole perk catalogue (was 20). */
+export const VIP_MAX_PERKS = 64;
 export const VIP_MAX_PRICE_COINS = 1_000_000_000_000;
 /** v1.126-social (D370, §10.163): the highest points price of a tier. */
 export const VIP_MAX_PRICE_POINTS = 1_000_000_000_000;
@@ -62,54 +65,21 @@ export function vipRenewalApplies(
 
 /**
  * The perk codes the app really does today. A perk whose code is not here is shown as listed («قريباً»), never as
- * active — the owner can describe any perk in the panel, but only the server says whether it works (CONVENTIONS
- * §10.93.3). D258 (owner's VIP 1 perks): built one by one, §10.94.
+ * active — only the server says whether it works (CONVENTIONS §10.93.3). D258: built one by one, §10.94. v1.129-social
+ * (D374, §10.166): derived from the perk catalogue's `built` flags (`vip-catalogue.ts`), the one source of truth.
  */
-export const VIP_BUILT_PERKS: ReadonlySet<string> = new Set<string>([
-  'BADGE',
-  'AVATAR_FRAME',
-  'CHAT_NAME_COLOR',
-  'CHAT_BUBBLE',
-  'PROFILE_CARD',
-  // Phase 2 (the app draws them from the art; §10.94.7).
-  'ENTRY_BANNER',
-  'ENTRY_EFFECT',
-  'MIC_WAVE',
-  // Phase 4: «من زار ملفي» (§10.94.9).
-  'PROFILE_VISITORS',
-  // Free public messages a day and the level speed-up (§10.94.4); the daily coins (§10.94.5).
-  'DAILY_BULLET',
-  'DAILY_COINS',
-  'LEVEL_SPEEDUP',
-]);
+export const VIP_BUILT_PERKS: ReadonlySet<string> = new Set<string>(VIP_CATALOGUE_BUILT);
 
 /**
  * D258: the perks that take a number per tier (`VipTierPerk.amount`) and its bounds: free public messages a day,
  * coins a day, the level speed-up in percent. Absent (null) = the perk gives nothing until the owner sets it.
+ * D374: the catalogue's `legacyAmount` perks (their `value` is the same number).
  */
-export const VIP_PERK_AMOUNTS: Readonly<Record<string, { readonly min: number; readonly max: number }>> = {
-  DAILY_BULLET: { min: 1, max: 100 },
-  DAILY_COINS: { min: 1, max: 1_000_000_000 },
-  LEVEL_SPEEDUP: { min: 1, max: 100 },
-};
+export const VIP_PERK_AMOUNTS: Readonly<Record<string, { readonly min: number; readonly max: number }>> =
+  VIP_CATALOGUE_AMOUNTS;
 
-/** The perk codes the panel suggests (CP-024 §3; the same vocabulary as SVIP). Any other code is allowed too. */
-export const VIP_SUGGESTED_PERKS = [
-  'BADGE',
-  'AVATAR_FRAME',
-  'CHAT_NAME_COLOR',
-  'ENTRY_BANNER',
-  'ENTRY_EFFECT',
-  'MIC_WAVE',
-  'CHAT_BUBBLE',
-  'DAILY_BULLET',
-  'PROFILE_VISITORS',
-  'DAILY_COINS',
-  'LEVEL_SPEEDUP',
-  'PROFILE_CARD',
-  'VIEWER_LIST_PRIORITY',
-  'MONTHLY_GIFT',
-] as const;
+/** The perk codes the panel offers: since D374 every catalogue code, in the catalogue's order (no other code). */
+export const VIP_SUGGESTED_PERKS: readonly string[] = VIP_PERK_CATALOGUE.map((e) => e.code);
 
 /** A perk as the inheritance sees it. */
 export interface VipPerkRow {

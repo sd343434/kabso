@@ -212,7 +212,8 @@ export function uploadEventMedia(kind: string, file: Blob, onProgress: (fraction
 
 /** v1.83-social (D258): what `POST /admin/vip/uploads` answers for a stored VIP art file. */
 export interface VipUpload {
-  kind: 'animation' | 'still';
+  /** v1.129-social (D374): + `video` (an MP4). */
+  kind: 'animation' | 'still' | 'video';
   url: string;
   bytes: number;
   contentType: string;
@@ -220,7 +221,7 @@ export interface VipUpload {
   height: number | null;
 }
 
-/** v1.83-social (D258, §10.94.6): uploads one VIP badge / perk art file (SVGA or PNG / WebP still). */
+/** v1.83-social (D258, §10.94.6): uploads one VIP badge / perk art file (SVGA or PNG / WebP still; D374: or MP4). */
 export function uploadVipArt(
   kind: VipUpload['kind'],
   tier: string,

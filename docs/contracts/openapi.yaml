@@ -636,6 +636,14 @@ info:
     `VipPerk.entryDisplay` (the VIP catalogue's ENTRY_EFFECT perk). Every existing car is FULL_SCREEN (today's look,
     D331). Migration `20270502090000_entry_car_display`. Additive (an older app ignores the field and plays every car
     full screen as before).
+    **D374 (DRAFT v1.129-social)** the VIP perk catalogue (CONVENTIONS §10.166; owner 2026-11-11: each VIP tier gets
+    the perks the admin picks in the panel, with art where needed): `AdminVipTierList.catalogue` (`VipPerkCatalogueEntry`,
+    `VipPerkValueSchema`), `maxPerks` (64; was 20), `artLimits` (`VipArtLimit`); `AdminVipPerk` / `VipPerk` gain `value`
+    (`VipPerkValue`), `video`, `category`; `AdminVipPerk.catalogued` / `retired`; `AdminVipPerkInput.value` / `video`
+    (titles optional; a code outside the catalogue → 400 `unknown_perk`); `VipTier.effectivePerks` (`VipPerk.fromTier`);
+    `uploadAdminVipArt` `kind=video` (MP4). The owner removed DAILY_COINS: `claimVipDailyCoins` deprecated (always 409
+    `VIP_UNAVAILABLE` `retired`), `MyVip.dailyCoins` never sent. Migration `20270503090000_vip_perk_catalogue`.
+    Additive for the app; stricter for the panel (catalogue codes only).
     **D367 (DRAFT v1.124-social)** a Kabso Team profile shows no account category (CONVENTIONS §10.160; owner
     2026-11-11 «في صفحة الموظفين يظهر تصنيف مثل شاعر، يجب إلغاؤه من صفحة المشرفين»): `Me.category` and
     `PublicProfile.category` are null for an account holding any panel role (`kabsoTeam`, a limited `staff`, the
@@ -11866,15 +11874,17 @@ paths:
     post:
       tags: [vip]
       operationId: claimVipDailyCoins
-      summary: "Claims today's VIP coins (v1.83-social, D258)"
+      summary: "Claims today's VIP coins (v1.83-social, D258) — retired in v1.129-social (D374)"
+      deprecated: true
       description: |
-        CONVENTIONS §10.94.5. The member's DAILY_COINS (with inheritance) credited once a day (the day in
-        LIVE_RANKINGS_TIME_ZONE; wallet ledger `VIP_DAILY_COINS`, reference the claim). A second call the same day
-        credits nothing (`coins` 0, 200). 409 `VIP_UNAVAILABLE` (`{field: perk, issue: no_perk}`) without an active
-        membership holding DAILY_COINS with an amount. Per-user default rate limit.
+        CONVENTIONS §10.94.5. **v1.129-social (D374, §10.166.6): retired** — the owner removed the DAILY_COINS perk
+        (2026-11-11, «ازلها»). Always 409 `VIP_UNAVAILABLE` (`{field: perk, issue: retired}`); nothing is credited.
+        The `VIP_DAILY_COINS` ledger reason and the past rows stay (history). Kept so that an older app gets a clean
+        refusal (it only called this while `MyVip.dailyCoins` was present, which is never sent now). Before D374: the
+        member's DAILY_COINS (with inheritance) credited once a day (wallet ledger `VIP_DAILY_COINS`).
       responses:
         '200':
-          description: Credited, or already claimed today.
+          description: "Not answered since v1.129-social (kept for older clients' generated code)."
           content:
             application/json:
               schema: { $ref: '#/components/schemas/VipDailyCoinsClaim' }
@@ -17164,7 +17174,9 @@ paths:
         (at most 2 MB, 16 … 4 096 px a side, any shape — an entry banner is wide, a profile card tall), its size
         answered. Stored at a content-addressed, immutable key under `media/vip/<tier>/`; the answer's `url` goes into
         the tier's badge / perk fields (`updateAdminVipTier`, the audited step). 409 `ADMIN_ACTION_REFUSED` with the
-        reason for a refused file (nothing stored); 503 without object storage settings.
+        reason for a refused file (nothing stored); 503 without object storage settings. **v1.129-social (D374,
+        §10.166.4):** `video` — an MP4 (H.264, at most 8 MB and 15 s, the gifts' checks; its size answered) for a perk
+        whose catalogue art takes MP4 (`VipPerkCatalogueEntry.art.kinds`); the URL goes into the perk's `video`.
       security:
       - adminSession: []
       parameters:
@@ -17174,7 +17186,7 @@ paths:
         required: true
         schema:
           type: string
-          enum: [animation, still]
+          enum: [animation, still, video]
       - name: tier
         in: query
         required: true
@@ -25516,15 +25528,15 @@ components:
       required: [kind, url, bytes, contentType, width, height]
       description: "v1.83-social (D258, §10.94.6): a stored VIP art file."
       properties:
-        kind: { type: string, enum: [animation, still] }
+        kind: { type: string, enum: [animation, still, video], description: "v1.129-social (D374): + `video` (MP4)." }
         url: { type: string, format: uri, description: "The file's public URL (https), for the tier's badge / perk fields." }
         bytes: { type: integer, minimum: 1 }
-        contentType: { type: string, enum: [application/octet-stream, image/png, image/webp] }
-        width: { type: [integer, 'null'], minimum: 1, description: "A still's width in px; null for an animation." }
+        contentType: { type: string, enum: [application/octet-stream, image/png, image/webp, video/mp4] }
+        width: { type: [integer, 'null'], minimum: 1, description: "A still's or (v1.129-social) a video's width in px; null for an animation." }
         height: { type: [integer, 'null'], minimum: 1 }
     AdminVipPerk:
       type: object
-      required: [code, titleAr, titleEn, descriptionAr, descriptionEn, enabled, available, animation, still, artWidth, artHeight, amount, entryDisplay]
+      required: [code, titleAr, titleEn, descriptionAr, descriptionEn, enabled, available, animation, still, artWidth, artHeight, amount, value, video, category, catalogued, retired, entryDisplay]
       properties:
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
         titleAr: { type: string, maxLength: 40 }
@@ -25537,28 +25549,36 @@ components:
         still: { $ref: '#/components/schemas/VipArtRef' }
         artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
-        amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — the perk's number for this tier: DAILY_BULLET free public messages a day (1–100), DAILY_COINS coins a day (1–10^9), LEVEL_SPEEDUP the level speed-up in percent (1–100); null for any other perk or not set yet." }
+        amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — the perk's number for this tier: DAILY_BULLET free public messages a day (1–100), LEVEL_SPEEDUP the level speed-up in percent (1–100); null for any other perk or not set yet. v1.129-social (D374): equals `value` for these two (DAILY_COINS was removed)." }
         entryDisplay:
           description: "(v1.128-social, D373, §10.165) The ENTRY_EFFECT perk's display «طريقة العرض» (FULL_SCREEN by default); null for every other perk."
           oneOf:
             - $ref: '#/components/schemas/EntryDisplay'
             - type: 'null'
+        value: { $ref: '#/components/schemas/VipPerkValue' }
+        video: { type: [string, 'null'], pattern: '^https://\S{1,2040}$', description: "v1.129-social (D374): the perk's MP4 art, or null." }
+        category: { type: [string, 'null'], enum: [IDENTITY, ENTRANCE, CHAT, ROOM, PRIVACY, GIFTS, REWARDS, SERVICE, null], description: "v1.129-social (D374): the catalogue category; null for a code outside the catalogue." }
+        catalogued: { type: boolean, description: "v1.129-social (D374): the code is in the perk catalogue. False: saved before D374 (or retired); the panel shows it as such and drops it on the next save (a save naming it → 400 `unknown_perk`)." }
+        retired: { type: boolean, description: "v1.129-social (D374): a perk the owner removed (DAILY_COINS); ignored by the app and the server." }
     AdminVipPerkInput:
       type: object
       additionalProperties: false
-      required: [code, titleAr, titleEn]
+      required: [code]
+      description: "v1.129-social (D374, §10.166): `code` must be a code of the perk catalogue (`AdminVipTierList.catalogue`; any other, a retired one included → 400 `perks.N.code` `unknown_perk`); `value` / `video` are checked against its entry (400 `perks.N.value[.…]` `not_allowed` | `invalid_type` | `out_of_range` | `invalid_value` | `invalid_format` | `too_few` | `too_many` | `duplicate_value` | `unknown_field` | `required` | `not_found` (a gift or tier code that does not exist); `perks.N.video` `not_allowed`). Titles are optional (absent = the catalogue's default)."
       properties:
-        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$', description: "Unique within the tier." }
-        titleAr: { type: string, minLength: 1, maxLength: 40 }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$', description: "Unique within the tier; a catalogue code (v1.129-social)." }
+        titleAr: { type: string, minLength: 1, maxLength: 40, description: "v1.129-social (D374): optional (absent = the catalogue's title)." }
         titleEn: { type: string, minLength: 1, maxLength: 40 }
         descriptionAr: { type: [string, 'null'], maxLength: 200 }
         descriptionEn: { type: [string, 'null'], maxLength: 200 }
         enabled: { type: boolean, default: true }
         animation: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         still: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
+        video: { type: [string, 'null'], pattern: '^https://\S{1,2040}$', description: "v1.129-social (D374): an MP4 (`uploadAdminVipArt` `kind=video`), only for a perk whose catalogue art takes MP4." }
+        value: { $ref: '#/components/schemas/VipPerkValue' }
         artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
-        amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — only for DAILY_BULLET (1–100), DAILY_COINS (1–10^9) and LEVEL_SPEEDUP (1–100 %); another code with an amount, or one out of its range → 400 `perks.N.amount` `not_allowed` / `out_of_range`." }
+        amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — only for DAILY_BULLET (1–100) and LEVEL_SPEEDUP (1–100 %); another code with an amount, or one out of its range → 400 `perks.N.amount` `not_allowed` / `out_of_range`. v1.129-social (D374): the same number as `value` (either may be sent; both → they must agree, else `perks.N.value` `invalid_value`)." }
         entryDisplay:
           $ref: '#/components/schemas/EntryDisplay'
           description: "(v1.128-social, D373, §10.165) The ENTRY_EFFECT perk only: how its car plays. Absent: the perk keeps the display it had (FULL_SCREEN for a new perk). Another code with it → 400 `perks.N.entryDisplay` `not_allowed`."
@@ -25587,7 +25607,7 @@ components:
         updatedAt: { type: string, format: date-time }
     AdminVipTierList:
       type: object
-      required: [data, builtPerks, suggestedPerks]
+      required: [data, builtPerks, suggestedPerks, catalogue, maxPerks, artLimits]
       properties:
         data:
           type: array
@@ -25597,7 +25617,86 @@ components:
           items: { type: string }
         suggestedPerks:
           type: array
+          description: "v1.129-social (D374): every catalogue code, in the catalogue's order."
           items: { type: string }
+        catalogue:
+          type: array
+          description: "v1.129-social (D374, §10.166.1): the VIP perk catalogue, in order (by category) — the panel's checkbox grid."
+          items: { $ref: '#/components/schemas/VipPerkCatalogueEntry' }
+        maxPerks: { type: integer, minimum: 1, description: "v1.129-social (D374): the most perks a tier holds (64; was 20)." }
+        artLimits:
+          type: object
+          required: [SVGA, PNG, WEBP, MP4]
+          description: "v1.129-social (D374): the upload limits of each art kind."
+          properties:
+            SVGA: { $ref: '#/components/schemas/VipArtLimit' }
+            PNG: { $ref: '#/components/schemas/VipArtLimit' }
+            WEBP: { $ref: '#/components/schemas/VipArtLimit' }
+            MP4: { $ref: '#/components/schemas/VipArtLimit' }
+    VipArtLimit:
+      type: object
+      required: [maxBytes, maxSeconds]
+      properties:
+        maxBytes: { type: integer, minimum: 1 }
+        maxSeconds: { type: [integer, 'null'], minimum: 1, description: "A video's longest length; null otherwise." }
+    VipPerkValue:
+      type: [number, string, array, object, 'null']
+      items: { type: string, maxLength: 2048 }
+      additionalProperties: { type: [number, string] }
+      description: "v1.129-social (D374, §10.166.2): a perk's value for a tier, as its catalogue `value` schema says — `int`: a whole number; `enum` / `color`: a string; `list` (gift codes) / `art_list` (https URLs): distinct strings; `composite`: an object of its fields; null = not set (`none` perks always null)."
+    VipPerkValueSchema:
+      type: object
+      required: [kind]
+      description: "v1.129-social (D374, §10.166.1): the shape of a perk's value. `none`; `int` (`min`, `max`, `unit`); `enum` (`source`, `options` — for `VIP_TIER` the tiers' codes now); `color` (`#RRGGBB`); `list` (`item` GIFT_CODE, `maxItems`); `art_list` (`kinds`, `maxItems`); `composite` (`fields`, each an int / enum / color)."
+      properties:
+        kind: { type: string, enum: [none, int, enum, color, list, art_list, composite] }
+        min: { type: integer }
+        max: { type: integer }
+        unit: { type: string, enum: [per_day, per_month, seconds, minutes, percent, coins, count] }
+        source: { type: string, enum: [PREMIUM_USERNAME_TIER, ROCKET_STAGE, VIP_TIER] }
+        options:
+          type: array
+          items: { type: string }
+        item: { type: string, enum: [GIFT_CODE] }
+        maxItems: { type: integer, minimum: 1 }
+        kinds:
+          type: array
+          items: { type: string, enum: [SVGA, PNG, WEBP, MP4] }
+        fields:
+          type: array
+          items:
+            type: object
+            required: [key, labelAr, labelEn, schema]
+            properties:
+              key: { type: string }
+              labelAr: { type: string }
+              labelEn: { type: string }
+              schema: { $ref: '#/components/schemas/VipPerkValueSchema' }
+    VipPerkCatalogueEntry:
+      type: object
+      required: [code, category, titleAr, titleEn, descriptionAr, descriptionEn, built, value, art, legacyAmount]
+      description: "v1.129-social (D374, §10.166.1): one perk of the catalogue (`vip-catalogue.ts`, the one source of truth)."
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
+        category: { type: string, enum: [IDENTITY, ENTRANCE, CHAT, ROOM, PRIVACY, GIFTS, REWARDS, SERVICE] }
+        titleAr: { type: string, maxLength: 40 }
+        titleEn: { type: string, maxLength: 40 }
+        descriptionAr: { type: string, maxLength: 200 }
+        descriptionEn: { type: string, maxLength: 200 }
+        built: { type: boolean, description: "The app really does it today (`VipPerk.available`); false = «قريباً»." }
+        value: { $ref: '#/components/schemas/VipPerkValueSchema' }
+        art:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [kinds, width, height]
+              properties:
+                kinds:
+                  type: array
+                  items: { type: string, enum: [SVGA, PNG, WEBP, MP4] }
+                width: { type: [integer, 'null'], minimum: 1, description: "The intended canvas (a hint)." }
+                height: { type: [integer, 'null'], minimum: 1 }
+        legacyAmount: { type: boolean, description: "The value is also `amount` (D258)." }
     CreateAdminVipTierRequest:
       type: object
       additionalProperties: false
@@ -39398,7 +39497,7 @@ components:
       description: "D252b: a hosted https URL (an SVGA animation or a still), uploaded from the admin panel. Null = a token placeholder. Nothing is bundled in the app."
     VipPerk:
       type: object
-      required: [code, title, description, available, animation, still, artWidth, artHeight, amount, entryDisplay]
+      required: [code, title, description, available, animation, still, artWidth, artHeight, amount, value, video, category, entryDisplay]
       properties:
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
         title: { type: string, maxLength: 40 }
@@ -39408,15 +39507,19 @@ components:
         still: { $ref: '#/components/schemas/VipArtRef' }
         artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
-        amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — the perk's number for this tier: DAILY_BULLET free public messages a day (1–100), DAILY_COINS coins a day (1–10^9), LEVEL_SPEEDUP the level speed-up in percent (1–100); null for any other perk or not set yet." }
+        amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — the perk's number for this tier: DAILY_BULLET free public messages a day (1–100), LEVEL_SPEEDUP the level speed-up in percent (1–100); null for any other perk or not set yet. v1.129-social (D374): equals `value` for these two (DAILY_COINS was removed)." }
         entryDisplay:
           description: "(v1.128-social, D373, §10.165) The ENTRY_EFFECT perk's car: how it plays when the member joins a live (set in the panel); null for every other perk. An app that does not know it plays the car full screen."
           oneOf:
             - $ref: '#/components/schemas/EntryDisplay'
             - type: 'null'
+        value: { $ref: '#/components/schemas/VipPerkValue' }
+        video: { type: [string, 'null'], pattern: '^https://\S{1,2040}$', description: "v1.129-social (D374): the perk's MP4 art, or null." }
+        category: { type: [string, 'null'], enum: [IDENTITY, ENTRANCE, CHAT, ROOM, PRIVACY, GIFTS, REWARDS, SERVICE, null], description: "v1.129-social (D374): the catalogue category; null for a code outside the catalogue." }
+        fromTier: { type: string, description: "v1.129-social (D374): in `VipTier.effectivePerks` only — the code of the lower tier this perk is inherited from; absent for the tier's own perk." }
     VipTier:
       type: object
-      required: [id, code, name, level, color, nameColor, renewalDiscountPercent, renewPriceCoins, badgeAnimation, badgeStill, priceCoins, pricePoints, renewPricePoints, durationDays, perks]
+      required: [id, code, name, level, color, nameColor, renewalDiscountPercent, renewPriceCoins, badgeAnimation, badgeStill, priceCoins, pricePoints, renewPricePoints, durationDays, perks, effectivePerks]
       properties:
         id: { type: string, format: uuid }
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
@@ -39434,6 +39537,10 @@ components:
         durationDays: { type: integer, minimum: 1, maximum: 365 }
         perks:
           type: array
+          items: { $ref: '#/components/schemas/VipPerk' }
+        effectivePerks:
+          type: array
+          description: "v1.129-social (D374, §10.166.5): what a holder of this tier has — every enabled perk of the tiers ranked up to it (on sale or not; D258's inheritance), one per code (the highest tier's row), in the catalogue's order; an inherited one carries `fromTier`. A retired perk is never listed."
           items: { $ref: '#/components/schemas/VipPerk' }
     VipTierList:
       type: object
@@ -39472,7 +39579,7 @@ components:
             - type: 'null'
         dailyCoins:
           $ref: '#/components/schemas/VipDailyCoins'
-          description: "v1.83-social (D258, §10.94.5) — present while the active membership holds DAILY_COINS with an amount."
+          description: "v1.83-social (D258, §10.94.5) — present while the active membership held DAILY_COINS with an amount. v1.129-social (D374): never sent (the owner removed the perk); kept for older clients."
         renewal:
           type: object
           required: [tierId, priceCoins, pricePoints, discountPercent, until]

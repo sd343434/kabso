@@ -23,6 +23,7 @@ import {
   VipTiersTable,
   type AdminVipPerk,
   type AdminVipTier,
+  type CatalogueEntry,
 } from "../src/pages/Vip";
 import type { Capability } from "../src/types";
 import { CAPABILITY_ROLES } from "./capabilities";
@@ -81,6 +82,23 @@ const perk = (code: string, extra: Partial<AdminVipPerk> = {}): AdminVipPerk => 
   entryDisplay: code === "ENTRY_EFFECT" ? "FULL_SCREEN" : null,
   ...extra,
 });
+/** D374: the perks are the catalogue's (only its codes are sent); the two this test uses. */
+const catalogueEntry = (code: string, category: string, width: number, height: number): CatalogueEntry => ({
+  code,
+  category,
+  titleAr: code,
+  titleEn: code,
+  descriptionAr: "",
+  descriptionEn: "",
+  built: true,
+  value: { kind: "none" },
+  art: { kinds: ["SVGA", "PNG", "WEBP"], width, height },
+  legacyAmount: false,
+});
+const CATALOGUE: CatalogueEntry[] = [
+  catalogueEntry("BADGE", "IDENTITY", 1943, 634),
+  catalogueEntry("ENTRY_EFFECT", "ENTRANCE", 750, 1334),
+];
 const tier = (perks: AdminVipPerk[]): AdminVipTier => ({
   id: "01a25200-0000-7000-8000-000000000001",
   code: "VIP_1",
@@ -170,15 +188,15 @@ describe("D373 an entry car's display in the panel", () => {
     const t = tier([perk("BADGE"), perk("ENTRY_EFFECT", { entryDisplay: "HALF_SCREEN" })]);
     const editor = render(
       "ar",
-      <PerksEditor perks={tierDraftOf(t).perks} built={[]} suggested={[]} onChange={noop} />,
+      <PerksEditor perks={tierDraftOf(t, CATALOGUE).perks} catalogue={CATALOGUE} onChange={noop} tierCode="VIP_1" />,
     );
-    expect(editor).toContain('data-entry-display="vp-entry-display-1"');
-    expect(editor).not.toContain('data-entry-display="vp-entry-display-0"');
+    expect(editor).toContain('data-entry-display="vp-entry-display-ENTRY_EFFECT"');
+    expect(editor).not.toContain('data-entry-display="vp-entry-display-BADGE"');
     expect(editor).toContain('<option value="HALF_SCREEN" selected="">الجزء السفلي (٧٠٪)</option>');
     const table = render(
       "en",
       <VipTiersTable
-        list={{ data: [t], builtPerks: [], suggestedPerks: [] }}
+        list={{ data: [t], builtPerks: [], suggestedPerks: [], catalogue: CATALOGUE, maxPerks: 64 }}
         onEdit={noop}
         onToggle={noop}
         onMove={noop}
@@ -187,13 +205,13 @@ describe("D373 an entry car's display in the panel", () => {
     expect(table).toMatch(/data-vip-entry-display="VIP_1"> · Bottom \(70%\)</);
 
     // Unchanged: nothing sent. Changed: the perks with the display on the entry car only.
-    expect(tierBody(tierDraftOf(t), t)).toEqual({});
-    const draft = tierDraftOf(t);
+    expect(tierBody(tierDraftOf(t, CATALOGUE), t, CATALOGUE)).toEqual({});
+    const draft = tierDraftOf(t, CATALOGUE);
     const changed = {
       ...draft,
       perks: draft.perks.map((p) => (p.code === "ENTRY_EFFECT" ? { ...p, entryDisplay: "FULL_SCREEN" as const } : p)),
     };
-    const body = tierBody(changed, t) as { perks: Record<string, unknown>[] };
+    const body = tierBody(changed, t, CATALOGUE) as { perks: Record<string, unknown>[] };
     expect(body.perks.find((p) => p.code === "ENTRY_EFFECT")!.entryDisplay).toBe("FULL_SCREEN");
     expect(body.perks.find((p) => p.code === "BADGE")).not.toHaveProperty("entryDisplay");
   });

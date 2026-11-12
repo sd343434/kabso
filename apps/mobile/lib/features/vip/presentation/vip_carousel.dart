@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
@@ -775,7 +774,8 @@ class VipHexPerkGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final perks = tier.perks;
+    // D374 (§10.166.5): what a holder has — its own and the inherited perks.
+    final perks = tier.effectivePerks;
     return Column(
       key: gridKey,
       children: [
@@ -812,13 +812,15 @@ class _HexPerk extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.textStyles;
     final l10n = context.l10n;
-    final amount = perk.amount;
-    final value = switch ((perk.code, amount)) {
-      ('DAILY_BULLET', final n?) => l10n.vipPerkPerDay('$n'),
-      ('DAILY_COINS', final n?) => l10n.vipPerkPerDay(KFormat.grouped(n)),
-      ('LEVEL_SPEEDUP', final n?) => '+$n%',
-      _ => null,
-    };
+    final amount = perk.number;
+    final value = !perk.available
+        // D374: a perk not built yet says «قريباً» (never shown as active).
+        ? l10n.vipPerkSoonTag
+        : switch ((perk.code, amount)) {
+            ('DAILY_BULLET', final n?) => l10n.vipPerkPerDay('$n'),
+            ('LEVEL_SPEEDUP', final n?) => '+$n%',
+            _ => null,
+          };
     final hasArt = perk.still != null || perk.animation != null;
     return Opacity(
       opacity: dimmed ? 0.45 : 1,

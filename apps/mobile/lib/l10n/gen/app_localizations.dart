@@ -23749,30 +23749,6 @@ abstract class AppLocalizations {
   /// **'كوينز VIP اليومية'**
   String get walletReasonVipDailyCoins;
 
-  /// D258: a member's daily coins (DAILY_COINS).
-  ///
-  /// In ar, this message translates to:
-  /// **'الكوينز اليومية: {amount}'**
-  String vipDailyCoins(String amount);
-
-  /// D258: claim today's daily coins.
-  ///
-  /// In ar, this message translates to:
-  /// **'استلام'**
-  String get vipDailyCoinsClaim;
-
-  /// D258: today's daily coins already claimed.
-  ///
-  /// In ar, this message translates to:
-  /// **'تم الاستلام اليوم'**
-  String get vipDailyCoinsClaimed;
-
-  /// D258: the daily coins claim credited.
-  ///
-  /// In ar, this message translates to:
-  /// **'تمت إضافة {amount} كوينز'**
-  String vipDailyCoinsAdded(String amount);
-
   /// D258: a VIP's free public message (DAILY_BULLET).
   ///
   /// In ar, this message translates to:
@@ -23857,23 +23833,17 @@ abstract class AppLocalizations {
   /// **'{value} يومياً'**
   String vipPerkPerDay(String value);
 
-  /// D258: the VIP page (owner reference 38).
+  /// v1.129-social (D374): under a VIP perk the app does not do yet (the catalogue's not-built perks).
   ///
   /// In ar, this message translates to:
-  /// **'إجمالي الكوينز اليومية {total} كوينز'**
-  String vipDailyCoinsTotal(String total);
+  /// **'قريباً'**
+  String get vipPerkSoonTag;
 
   /// D258: the VIP page's purchase panel (owner reference 40).
   ///
   /// In ar, this message translates to:
   /// **'كوينز / {days} يوماً'**
   String vipPricePer(String days);
-
-  /// D258: the VIP page's purchase panel (owner reference 40).
-  ///
-  /// In ar, this message translates to:
-  /// **'إجمالي استرجاع {total} كوينز ({daily} يومياً)'**
-  String vipCashback(String total, String daily);
 
   /// D258: the VIP page's purchase panel (owner reference 40).
   ///

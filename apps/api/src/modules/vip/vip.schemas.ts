@@ -10,6 +10,7 @@ import {
   VIP_PERK_AMOUNTS,
   VIP_RENEWAL_DISCOUNT_MAX,
 } from './vip-rules.js';
+import { VIP_LIST_MAX_ITEMS, vipCatalogueEntry, vipPerkValueIssues } from './vip-catalogue.js';
 
 /** v1.82-social (D252, CONVENTIONS §10.93): request bodies of «شراء VIP» and its panel page. */
 
@@ -37,22 +38,35 @@ const artRef = z
   .regex(/^https:\/\/\S{1,2040}$/);
 const artSize = z.number().int().min(1).max(8192);
 
+/** v1.129-social (D374): a perk's JSON value (checked against the catalogue below). */
+const perkValue = z.union([
+  z.number(),
+  z.string().max(2048),
+  z.array(z.string().max(2048)).max(VIP_LIST_MAX_ITEMS),
+  z.record(z.string().max(40), z.union([z.number(), z.string().max(40)])),
+]);
+
 export const vipPerkInput = z
   .strictObject({
+    /** D374: a code of the perk catalogue (`vip-catalogue.ts`); any other → `unknown_perk`. */
     code: z.string().regex(VIP_CODE_PATTERN),
-    titleAr: perkTitle,
-    titleEn: perkTitle,
+    /** D374: optional — absent = the catalogue's default title. */
+    titleAr: perkTitle.optional(),
+    titleEn: perkTitle.optional(),
     descriptionAr: perkText.nullable().optional(),
     descriptionEn: perkText.nullable().optional(),
     enabled: z.boolean().optional(),
     /** The perk's own art (SVGA + still) and its intrinsic size. */
     animation: artRef.nullable().optional(),
     still: artRef.nullable().optional(),
+    /** D374: an MP4 (only for a perk whose catalogue art takes MP4). */
+    video: artRef.nullable().optional(),
     artWidth: artSize.nullable().optional(),
     artHeight: artSize.nullable().optional(),
     /**
-     * D258: the perk's number for this tier — DAILY_BULLET (1–100 a day), DAILY_COINS (1–10^9 a day), LEVEL_SPEEDUP
-     * (1–100 %); refused for other codes.
+     * D258: the perk's number for this tier — DAILY_BULLET (1–100 a day), LEVEL_SPEEDUP
+     * (1–100 %); refused for other codes. D374: the same as `value` for these three (either may be sent; both must
+     * agree).
      */
     amount: z.number().int().min(1).max(1_000_000_000).nullable().optional(),
     /**
@@ -60,6 +74,8 @@ export const vipPerkInput = z
      * HALF_SCREEN «الجزء السفلي (٧٠٪)» (the screen's bottom 70 %); absent: kept as it was (FULL_SCREEN for a new perk). Refused for other codes.
      */
     entryDisplay: z.enum(ENTRY_DISPLAYS).optional(),
+    /** D374: the perk's value, as its catalogue `value` schema says (null = not set). */
+    value: perkValue.nullable().optional(),
   })
   .superRefine((p, ctx) => {
     if (p.entryDisplay !== undefined && p.code !== ENTRY_CAR_KIND) {
@@ -70,21 +86,55 @@ export const vipPerkInput = z
         params: { issue: 'not_allowed' },
       });
     }
-    if (p.amount === null || p.amount === undefined) return;
-    const bounds = VIP_PERK_AMOUNTS[p.code];
-    if (!bounds) {
+    const entry = vipCatalogueEntry(p.code);
+    if (!entry) {
       ctx.addIssue({
         code: 'custom',
-        path: ['amount'],
-        message: 'no amount for this perk',
-        params: { issue: 'not_allowed' },
+        path: ['code'],
+        message: 'not a catalogue perk',
+        params: { issue: 'unknown_perk' },
       });
-    } else if (p.amount < bounds.min || p.amount > bounds.max) {
+      return;
+    }
+    if (p.amount !== null && p.amount !== undefined) {
+      const bounds = VIP_PERK_AMOUNTS[p.code];
+      if (!bounds) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['amount'],
+          message: 'no amount for this perk',
+          params: { issue: 'not_allowed' },
+        });
+      } else if (p.amount < bounds.min || p.amount > bounds.max) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['amount'],
+          message: 'out of range',
+          params: { issue: 'out_of_range' },
+        });
+      } else if (p.value !== null && p.value !== undefined && p.value !== p.amount) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['value'],
+          message: 'value and amount differ',
+          params: { issue: 'invalid_value' },
+        });
+      }
+    }
+    for (const issue of vipPerkValueIssues(p.code, p.value)) {
       ctx.addIssue({
         code: 'custom',
-        path: ['amount'],
-        message: 'out of range',
-        params: { issue: 'out_of_range' },
+        path: ['value', ...issue.path],
+        message: issue.issue,
+        params: { issue: issue.issue },
+      });
+    }
+    if (p.video !== null && p.video !== undefined && !entry.art?.kinds.includes('MP4')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['video'],
+        message: 'no MP4 art for this perk',
+        params: { issue: 'not_allowed' },
       });
     }
   });

@@ -575,9 +575,12 @@
 - **Admin art is set by URL for now.** The VIP panel page takes a hosted https URL (and size) per badge / perk; an
   **in-panel binary upload** of the SVGA + still (reusing the gift-upload object storage, D207/D222) is the remaining
   follow-up and needs the media storage (R2 / S3) configured.
-- **No perk works yet:** every perk is listed «قريباً» (`VIP_BUILT_PERKS` is empty) — the art shows as a preview; the
-  frame / card / entrance / bubble / entry-effect are not yet rendered in the profile, live room or DMs (separate
-  features). A VIP membership today is a paid status + art preview on the VIP page only.
+- **Perks built so far (D258 / D374):** eleven perks work (`VIP_BUILT_PERKS`, derived from the perk catalogue since
+  D374: `BADGE`, `AVATAR_FRAME`, `CHAT_NAME_COLOR`, `PROFILE_CARD`, `ENTRY_BANNER`, `ENTRY_EFFECT`, `CHAT_BUBBLE`,
+  `MIC_WAVE`, `DAILY_BULLET`, `PROFILE_VISITORS`, `LEVEL_SPEEDUP`). The other thirty-one catalogue perks (the owner's
+  D374 list) can be picked and valued per tier in the panel but are listed «قريباً» and do nothing until a later branch
+  builds each. `DAILY_COINS` was removed by the owner (D374). (This line said `VIP_BUILT_PERKS` was empty — true at D252
+  only.)
 - **Upgrade** charges the full price of the higher tier and does not carry over the days left of the lower one (no
   pro-rata); a lower tier cannot be bought while a higher one is active.
 - **No reminder** before a membership ends (renewal is manual).
