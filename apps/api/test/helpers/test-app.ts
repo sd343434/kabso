@@ -274,6 +274,7 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_DM_REQUEST_USER: GENEROUS,
     RATE_LIMIT_DM_WRITE_USER: GENEROUS,
     RATE_LIMIT_DM_GROUP_CREATE_USER: GENEROUS,
+    RATE_LIMIT_SUPPORT_SEND_USER: GENEROUS,
     // D166: specs call EventsService.sweep() with a fake clock.
     EVENTS_SWEEP_INTERVAL_SECONDS: '0',
     // D179: specs call AgencyService.evaluateRanks() with a fake clock.

@@ -30,9 +30,12 @@ WaConversation waConversation({
   String? preview = 'الإيصال',
   WaAccountCard? account,
   WaDepartment department = WaDepartment.general,
+  // D385: «دعم كابسو» inside the app — no phone, no window.
+  WaChannel channel = WaChannel.whatsapp,
 }) => WaConversation(
   id: id,
-  phone: '+966500001001',
+  phone: channel == WaChannel.inApp ? null : '+966500001001',
+  channel: channel,
   name: name,
   open: open,
   assignedTo: assignedTo,
@@ -40,8 +43,10 @@ WaConversation waConversation({
   unreadCount: unread,
   lastMessageAt: d355Now.subtract(const Duration(minutes: 4)),
   lastPreview: preview,
-  windowOpen: windowOpen,
-  windowClosesAt: windowOpen
+  windowOpen: channel == WaChannel.inApp || windowOpen,
+  windowClosesAt: channel == WaChannel.inApp
+      ? null
+      : windowOpen
       ? d355Now.add(const Duration(hours: 20))
       : d355Now.subtract(const Duration(hours: 3)),
   linkedAccount: account,
@@ -125,6 +130,7 @@ List<WaMessage> waMessages({required bool ar, bool reaction = true}) => [
 class FakeWaRepository implements WaRepository {
   new({
     this.enabled = true,
+    this.inApp = false,
     List<WaConversation>? list,
     WaConversation? conversation,
     List<WaMessage>? messages,
@@ -134,6 +140,9 @@ class FakeWaRepository implements WaRepository {
        msgs = messages ?? waMessages(ar: true);
 
   bool enabled;
+
+  /// D385: the in-app «دعم كابسو» threads are served (WhatsApp may be off).
+  bool inApp;
   List<WaConversation> list;
   WaConversation current;
   List<WaMessage> msgs;
@@ -185,8 +194,14 @@ class FakeWaRepository implements WaRepository {
   );
 
   @override
-  Future<WaSummary> summary() async => enabled
-      ? const WaSummary(enabled: true, badge: 3, mine: 1, unassigned: 2)
+  Future<WaSummary> summary() async => enabled || inApp
+      ? WaSummary(
+          enabled: enabled,
+          inApp: inApp,
+          badge: 3,
+          mine: 1,
+          unassigned: 2,
+        )
       : WaSummary.off;
 
   @override

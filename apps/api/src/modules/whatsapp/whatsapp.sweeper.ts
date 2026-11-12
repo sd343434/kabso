@@ -66,13 +66,26 @@ export class WhatsAppSweeper implements OnModuleInit, OnModuleDestroy {
         select: { mediaKey: true },
       });
       const keys = media.map((m) => m.mediaKey!).filter((k) => k.startsWith('private/whatsapp/'));
+      // v1.137-social (D385, §10.174.7): an in-app thread's pictures and voice clips (the person's uploads).
+      const assets = (
+        await this.prisma.waMessage.findMany({
+          where: { conversationId: { in: ids }, mediaAssetId: { not: null } },
+          select: { mediaAsset: { select: { id: true, largeKey: true, thumbKey: true } } },
+        })
+      )
+        .map((m) => m.mediaAsset)
+        .filter((a): a is { id: string; largeKey: string; thumbKey: string } => a !== null);
+      const assetKeys = [...new Set(assets.flatMap((a) => [a.largeKey, a.thumbKey]))];
       // Files first: a row without its file is harmless, a file without its row would never be found again.
       if (keys.length > 0) await this.storage.delete(keys);
+      if (assetKeys.length > 0) await this.storage.delete(assetKeys);
       const messages = await this.prisma.waMessage.count({ where: { conversationId: { in: ids } } });
       await this.prisma.waConversation.deleteMany({ where: { id: { in: ids } } });
+      if (assets.length > 0)
+        await this.prisma.mediaAsset.deleteMany({ where: { id: { in: assets.map((a) => a.id) } } });
       total.conversations += ids.length;
       total.messages += messages;
-      total.media += keys.length;
+      total.media += keys.length + assets.length;
       if (due.length < BATCH) break;
     }
     if (total.conversations > 0) {

@@ -761,6 +761,89 @@ describe('D283 staff regions and the team picture (admin_staff_regions, user_pro
   });
 });
 
+describe('D385 pins and the in-app support channel (dm_pins, wa_conversations.channel) under the KL-013 roles', () => {
+  const user = '0192f1c2-0000-7000-8000-00000000d385';
+  const peer = '0192f1c2-0000-7000-8000-00000000d386';
+  const conversation = '0192f1c2-0000-7000-8000-00000000d387';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM wa_conversations WHERE linked_user_id = '${user}'`);
+      await m.$executeRawUnsafe(`DELETE FROM dm_conversations WHERE id = '${conversation}'`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id IN ('${user}', '${peer}')`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    expect(
+      await scalar<string>(
+        runtime,
+        `SELECT pg_get_userbyid(c.relowner)::text AS v FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relname = 'dm_pins'`,
+      ),
+    ).toBe(migrationUser);
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conname IN ('dm_pins_target', 'wa_conversations_channel_shape')
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual(['dm_pins_target', 'wa_conversations_channel_shape']);
+  });
+
+  it('the runtime role has DML; the CHECKs and the one-thread key hold; DDL and TRUNCATE are refused', async () => {
+    for (const [id, tag] of [
+      [user, 'a'],
+      [peer, 'b'],
+    ] as const) {
+      await runtimeExec(
+        `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${id}', 'd385${tag}-${suffix}@example.com', 'x', now())`,
+      );
+    }
+    await runtimeExec(
+      `INSERT INTO dm_conversations (id, user_low_id, user_high_id, last_message_at) VALUES ('${conversation}', '${user}', '${peer}', now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO dm_pins (id, user_id, conversation_id) VALUES ('${randomUUID()}', '${user}', '${conversation}')`,
+    );
+    await expect(
+      runtimeExec(`INSERT INTO dm_pins (id, user_id) VALUES ('${randomUUID()}', '${user}')`),
+    ).rejects.toThrow(/dm_pins_target/);
+    await expect(
+      runtimeExec(
+        `INSERT INTO dm_pins (id, user_id, conversation_id) VALUES ('${randomUUID()}', '${user}', '${conversation}')`,
+      ),
+    ).rejects.toThrow(/dm_pins_user_conversation_key/);
+    // An in-app thread has no phone and an owner; a WhatsApp one has a phone.
+    await runtimeExec(
+      `INSERT INTO wa_conversations (id, channel, linked_user_id) VALUES ('${randomUUID()}', 'IN_APP', '${user}')`,
+    );
+    await expect(
+      runtimeExec(
+        `INSERT INTO wa_conversations (id, channel, linked_user_id) VALUES ('${randomUUID()}', 'IN_APP', '${user}')`,
+      ),
+    ).rejects.toThrow(/wa_conversations_in_app_user_key/);
+    await expect(
+      runtimeExec(`INSERT INTO wa_conversations (id, channel) VALUES ('${randomUUID()}', 'IN_APP')`),
+    ).rejects.toThrow(/wa_conversations_channel_shape/);
+    await expect(
+      runtimeExec(
+        `INSERT INTO wa_conversations (id, channel, phone_e164, wa_id, linked_user_id) VALUES ('${randomUUID()}', 'IN_APP', '+966500000000', '966500000000', '${peer}')`,
+      ),
+    ).rejects.toThrow(/wa_conversations_channel_shape/);
+    await expect(
+      runtimeExec(`INSERT INTO wa_conversations (id, linked_user_id) VALUES ('${randomUUID()}', '${peer}')`),
+    ).rejects.toThrow(/wa_conversations_channel_shape/);
+    for (const sql of [
+      'TRUNCATE TABLE dm_pins',
+      'ALTER TABLE dm_pins DROP CONSTRAINT dm_pins_target',
+      'ALTER TABLE wa_conversations DROP CONSTRAINT wa_conversations_channel_shape',
+      'DROP INDEX wa_conversations_in_app_user_key',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    expect(await runtimeExec(`DELETE FROM dm_pins WHERE user_id = '${user}'`)).toBe(1);
+  });
+});
+
 describe('D283c staff IDs (staff_ids) under the KL-013 roles', () => {
   const user = '0192f1c2-0000-7000-8000-0000000d283c';
 

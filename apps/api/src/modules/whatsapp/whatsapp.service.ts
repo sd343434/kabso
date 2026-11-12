@@ -10,6 +10,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AdminContext } from '../admin-panel/admin-auth.service.js';
+import { MediaService } from '../media/media.service.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { PushService } from '../push/push.service.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
@@ -26,6 +27,7 @@ import {
   windowOf,
 } from './whatsapp-core.js';
 import { isAtWhatsAppLevel, staffAtLevel } from './whatsapp-access.js';
+import { SupportPush } from './support-push.js';
 import {
   DEFAULT_DEPARTMENT,
   effectiveDepartments,
@@ -37,6 +39,9 @@ import {
 type Tx = Prisma.TransactionClient;
 
 export type WaFilter = 'unassigned' | 'mine' | 'all' | 'closed';
+
+/** v1.137-social (D385, §10.174.6): where a support conversation is. */
+export type WaChannel = 'WHATSAPP' | 'IN_APP';
 
 export const WA_TRANSFER_PUSH_TITLE = { ar: 'واتساب Kabso', en: 'Kabso WhatsApp' } as const;
 
@@ -50,7 +55,9 @@ export const WA_DEPARTMENT_NAMES: Record<WaDepartment, { ar: string; en: string 
 };
 
 /** «+9665••••4567»: a push never shows the full number on a lock screen. */
-function maskedPhoneOf(e164: string): string {
+function maskedPhoneOf(e164: string | null): string {
+  // v1.137-social (D385): an IN_APP thread has no phone (its name is the account's display name).
+  if (e164 === null) return 'Kabso';
   if (e164.length <= 8) return e164;
   return `${e164.slice(0, 5)}${'•'.repeat(Math.max(e164.length - 9, 2))}${e164.slice(-4)}`;
 }
@@ -80,7 +87,8 @@ export interface WaAccountCardDto {
 
 export interface WaConversationDto {
   id: string;
-  phone: string;
+  /** v1.137-social (D385): null for an IN_APP thread. */
+  phone: string | null;
   name: string | null;
   status: 'OPEN' | 'CLOSED';
   assignedTo: StaffRefDto | null;
@@ -100,6 +108,8 @@ export interface WaConversationDto {
    * inbox lists it first.
    */
   priority: boolean;
+  /** v1.137-social (D385, §10.174.6): WHATSAPP, or IN_APP «دعم كابسو» «داخل التطبيق». */
+  channel: WaChannel;
 }
 
 export interface WaMessageDto {
@@ -158,6 +168,8 @@ export class WhatsAppService {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly push: PushService,
     private readonly background: BackgroundTasks,
+    private readonly supportPush: SupportPush,
+    private readonly mediaPipeline: MediaService,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
   }
@@ -171,6 +183,21 @@ export class WhatsAppService {
     return this.graph;
   }
 
+  /**
+   * v1.137-social (D385, §10.174.6): a conversation the inbox serves now — an IN_APP thread always, a WhatsApp one only
+   * while WhatsApp is configured (else 503 `WHATSAPP_UNAVAILABLE`, as before).
+   */
+  private async servedRow(id: string): Promise<ConvRow> {
+    const row = await this.rowOf(id);
+    if (row.channel === 'WHATSAPP') this.requireGraph();
+    return row;
+  }
+
+  /** The channels the inbox lists now: both, or (WhatsApp off) the in-app threads only. */
+  private servedChannel(): WaChannel | undefined {
+    return this.enabled ? undefined : 'IN_APP';
+  }
+
   private audited(ctx: AdminContext) {
     return { actorUserId: ctx.userId, ip: ctx.ip, requestId: ctx.requestId };
   }
@@ -179,21 +206,35 @@ export class WhatsAppService {
 
   /** The badge: the conversations waiting for the caller (theirs and the unassigned ones) with unread messages. */
   async summary(ctx: AdminContext) {
-    if (!this.enabled) return { enabled: false, badge: 0, mine: 0, unassigned: 0, unreadMessages: 0 };
+    // v1.137-social (D385, §10.174.6): the in-app threads are always served; with WhatsApp off, only they count.
+    const channel = this.servedChannel();
     const [mine, unassigned] = await Promise.all([
       this.prisma.waConversation.aggregate({
-        where: { status: 'OPEN', assignedToId: ctx.userId, unreadCount: { gt: 0 }, purgeAfter: null },
+        where: {
+          status: 'OPEN',
+          assignedToId: ctx.userId,
+          unreadCount: { gt: 0 },
+          purgeAfter: null,
+          ...(channel ? { channel } : {}),
+        },
         _count: { _all: true },
         _sum: { unreadCount: true },
       }),
       this.prisma.waConversation.aggregate({
-        where: { status: 'OPEN', assignedToId: null, unreadCount: { gt: 0 }, purgeAfter: null },
+        where: {
+          status: 'OPEN',
+          assignedToId: null,
+          unreadCount: { gt: 0 },
+          purgeAfter: null,
+          ...(channel ? { channel } : {}),
+        },
         _count: { _all: true },
         _sum: { unreadCount: true },
       }),
     ]);
     return {
-      enabled: true,
+      enabled: this.enabled,
+      inApp: true,
       badge: mine._count._all + unassigned._count._all,
       mine: mine._count._all,
       unassigned: unassigned._count._all,
@@ -206,16 +247,20 @@ export class WhatsAppService {
     q: {
       filter: WaFilter;
       department?: WaDepartment | undefined;
+      channel?: WaChannel | undefined;
       q?: string;
       cursor?: string;
       limit: number;
     },
   ) {
-    this.requireGraph();
+    // v1.137-social (D385, §10.174.6): WhatsApp off → the in-app threads only (asking for WhatsApp ones: 503).
+    if (q.channel === 'WHATSAPP') this.requireGraph();
+    const channel = q.channel ?? this.servedChannel();
     const term = q.q?.trim() ?? '';
-    const scope = `wa:${q.filter}:${ctx.userId}:${q.department ?? '*'}:${term}`;
+    const scope = `wa:${q.filter}:${ctx.userId}:${q.department ?? '*'}:${channel ?? '*'}:${term}`;
     const where: Prisma.WaConversationWhereInput = { purgeAfter: null };
     if (q.department) where.department = q.department;
+    if (channel) where.channel = channel;
     if (q.filter === 'closed') where.status = 'CLOSED';
     else where.status = 'OPEN';
     if (q.filter === 'unassigned') where.assignedToId = null;
@@ -274,13 +319,11 @@ export class WhatsAppService {
   }
 
   async get(ctx: AdminContext, id: string): Promise<WaConversationDto> {
-    this.requireGraph();
-    return (await this.conversationsOf([await this.rowOf(id)], ctx))[0]!;
+    return (await this.conversationsOf([await this.servedRow(id)], ctx))[0]!;
   }
 
   async messages(ctx: AdminContext, id: string, q: { cursor?: string; limit: number }) {
-    this.requireGraph();
-    await this.rowOf(id);
+    await this.servedRow(id);
     const scope = `wa-msg:${id}`;
     const where: Prisma.WaMessageWhereInput = { conversationId: id, type: { not: 'REACTION' } };
     if (q.cursor) {
@@ -310,15 +353,24 @@ export class WhatsAppService {
 
   /** A message's media bytes from the private storage (`Cache-Control: private, no-store`). */
   async media(id: string): Promise<{ bytes: Buffer; mime: string; filename: string | null }> {
-    this.requireGraph();
     const row = await this.prisma.waMessage.findUnique({
       where: { id },
-      select: { mediaKey: true, mediaState: true, mediaMime: true, mediaFilename: true, conversation: true },
+      select: {
+        mediaKey: true,
+        mediaState: true,
+        mediaMime: true,
+        mediaFilename: true,
+        conversation: true,
+        mediaAsset: { select: { largeKey: true } },
+      },
     });
-    if (!row || row.conversation.purgeAfter !== null || row.mediaState !== 'STORED' || !row.mediaKey) {
+    if (row?.conversation.channel === 'WHATSAPP') this.requireGraph();
+    // v1.137-social (D385, §10.174.3): an in-app picture or voice clip is the person's upload's file.
+    const key = row?.mediaKey ?? row?.mediaAsset?.largeKey ?? null;
+    if (!row || row.conversation.purgeAfter !== null || row.mediaState !== 'STORED' || !key) {
       throw new AppException(ErrorCode.NOT_FOUND);
     }
-    const bytes = await this.storage.get(row.mediaKey, this.config.whatsapp.mediaMaxBytes);
+    const bytes = await this.storage.get(key, this.config.whatsapp.mediaMaxBytes);
     if (!bytes) throw new AppException(ErrorCode.NOT_FOUND);
     return {
       bytes,
@@ -390,7 +442,8 @@ export class WhatsAppService {
       this.accountCards(rows.map((r) => r.linkedUserId)),
     ]);
     return rows.map((r) => {
-      const w = windowOf(r.lastInboundAt, now);
+      // v1.137-social (D385, §10.174.6): no 24-hour window in the app.
+      const w = r.channel === 'IN_APP' ? { open: true, closesAt: null } : windowOf(r.lastInboundAt, now);
       return {
         id: r.id,
         phone: r.phoneE164,
@@ -408,6 +461,7 @@ export class WhatsAppService {
         createdAt: r.createdAt.toISOString(),
         department: r.department,
         priority: r.priority,
+        channel: r.channel,
       };
     });
   }
@@ -451,12 +505,13 @@ export class WhatsAppService {
    * text and media only inside the 24-hour window, a template always.
    */
   private async sendable(ctx: AdminContext, id: string, freeForm: boolean): Promise<ConvRow> {
-    const row = await this.rowOf(id);
+    const row = await this.servedRow(id);
     if (row.status === 'CLOSED') throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_CLOSED);
     if (row.assignedToId !== null && row.assignedToId !== ctx.userId) {
       throw new AppException(ErrorCode.WHATSAPP_CONVERSATION_ASSIGNED);
     }
-    if (freeForm && !windowOf(row.lastInboundAt, this.clock.now()).open) {
+    // v1.137-social (D385, §10.174.6): no 24-hour window in the app.
+    if (row.channel === 'WHATSAPP' && freeForm && !windowOf(row.lastInboundAt, this.clock.now()).open) {
       throw new AppException(ErrorCode.WHATSAPP_WINDOW_CLOSED);
     }
     return row;
@@ -520,7 +575,13 @@ export class WhatsAppService {
         action: AuditAction.WHATSAPP_SEND,
         targetType: 'wa_conversation',
         targetId: conv.id,
-        metadata: { messageId: msg.id, type: data.type, claimed: claim, via: ctx.via ?? 'panel' },
+        metadata: {
+          messageId: msg.id,
+          type: data.type,
+          claimed: claim,
+          channel: conv.channel,
+          via: ctx.via ?? 'panel',
+        },
       });
       return msg;
     });
@@ -528,12 +589,21 @@ export class WhatsAppService {
   }
 
   async sendText(ctx: AdminContext, id: string, text: string): Promise<WaMessageDto> {
-    const graph = this.requireGraph();
     const conv = await this.sendable(ctx, id, true);
     const body = text.trim();
     if (body.length === 0 || body.length > MAX_TEXT_CHARS) {
       throw AppException.validation([{ field: 'text', issue: 'invalid_value' }]);
     }
+    if (conv.channel === 'IN_APP') {
+      // v1.137-social (D385, §10.174.6): stored for the person's «دعم كابسو», who is pushed (every reply).
+      const sent = await this.recordSent(ctx, conv, { type: 'TEXT', body }, previewOf('TEXT', body));
+      const userId = conv.linkedUserId!;
+      this.background.run('support.reply.push', async () => {
+        await this.supportPush.reply({ userId, conversationId: conv.id, staffId: ctx.userId, text: body });
+      });
+      return sent;
+    }
+    const graph = this.requireGraph();
     let waMessageId: string;
     try {
       ({ waMessageId } = await graph.sendMessage({
@@ -552,8 +622,10 @@ export class WhatsAppService {
     id: string,
     t: { name: string; language: string; parameters: readonly string[] },
   ): Promise<WaMessageDto> {
-    const graph = this.requireGraph();
     const conv = await this.sendable(ctx, id, false);
+    // v1.137-social (D385, §10.174.6): no templates in the app.
+    if (conv.channel === 'IN_APP') throw AppException.validation([{ field: 'template', issue: 'in_app' }]);
+    const graph = this.requireGraph();
     const template = (await this.templates()).find((x) => x.name === t.name && x.language === t.language);
     if (!template) {
       throw AppException.validation([{ field: 'template', issue: 'not_approved' }]);
@@ -597,6 +669,8 @@ export class WhatsAppService {
     bytes: unknown,
     q: { mime: string; filename?: string; caption?: string },
   ): Promise<WaMessageDto> {
+    const target = await this.servedRow(id);
+    if (target.channel === 'IN_APP') return this.sendInAppPicture(ctx, id, bytes, q);
     const graph = this.requireGraph();
     const mime = baseMime(q.mime);
     const kind = MEDIA_MIME_ALLOWLIST[mime];
@@ -653,6 +727,61 @@ export class WhatsAppService {
     }
   }
 
+  /**
+   * v1.137-social (D385, §10.174.6; owner 2026-11-12): a picture in an in-app thread — the direct-message image rules
+   * and pipeline ({@link MediaService.storeRawImage}: an asset of the sender), the send rules of a text (open, the
+   * caller's or unassigned), audited and pushed like a text. Nothing goes to Meta.
+   */
+  private async sendInAppPicture(
+    ctx: AdminContext,
+    id: string,
+    bytes: unknown,
+    q: { mime: string; caption?: string },
+  ): Promise<WaMessageDto> {
+    const mime = baseMime(q.mime);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) {
+      throw AppException.validation([{ field: 'mime', issue: 'not_allowed' }]);
+    }
+    if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
+      throw AppException.validation([{ field: 'body', issue: 'required' }]);
+    }
+    if (bytes.length > this.config.whatsapp.mediaMaxBytes) {
+      throw AppException.validation([{ field: 'body', issue: 'too_large' }]);
+    }
+    const conv = await this.sendable(ctx, id, true);
+    const asset = await this.mediaPipeline.storeRawImage(ctx.userId, bytes, mime);
+    const caption = q.caption?.trim() || null;
+    let sent: WaMessageDto;
+    try {
+      sent = await this.recordSent(
+        ctx,
+        conv,
+        {
+          type: 'IMAGE',
+          body: caption,
+          mediaState: 'STORED',
+          mediaAssetId: asset.id,
+          mediaMime: 'image/webp',
+          mediaSize: asset.byteSize,
+        },
+        previewOf('IMAGE', caption),
+      );
+    } catch (err) {
+      await this.mediaPipeline.purgeAssets([asset]).catch(() => 0);
+      throw err;
+    }
+    const userId = conv.linkedUserId!;
+    this.background.run('support.reply.push', async () => {
+      await this.supportPush.reply({
+        userId,
+        conversationId: conv.id,
+        staffId: ctx.userId,
+        text: caption ?? '📷',
+      });
+    });
+    return sent;
+  }
+
   /** The approved templates (cached `WHATSAPP_TEMPLATE_CACHE_SECONDS`; `refresh` reads Meta now). */
   async templates(refresh = false): Promise<WaTemplateDto[]> {
     const graph = this.requireGraph();
@@ -684,8 +813,16 @@ export class WhatsAppService {
 
   /** The team read the conversation: the unread count goes to 0 and the customer sees blue ticks (best effort). */
   async markRead(ctx: AdminContext, id: string): Promise<WaConversationDto> {
+    const row = await this.servedRow(id);
+    if (row.channel === 'IN_APP') {
+      // v1.137-social (D385, §10.174.2): the person's «تم الاستلام» becomes read; nothing goes to Meta.
+      await this.prisma.waConversation.update({
+        where: { id },
+        data: { unreadCount: 0, staffReadAt: this.clock.now() },
+      });
+      return this.get(ctx, id);
+    }
     const graph = this.requireGraph();
-    const row = await this.rowOf(id);
     if (row.unreadCount > 0) {
       await this.prisma.waConversation.update({ where: { id }, data: { unreadCount: 0 } });
       const lastIn = await this.prisma.waMessage.findFirst({
@@ -731,7 +868,7 @@ export class WhatsAppService {
     /** The staff member the conversation would go to (checked with {@link canAnswerIn} before the row lock). */
     to?: string,
   ): Promise<WaConversationDto> {
-    this.requireGraph();
+    const served = await this.servedRow(id);
     const now = this.clock.now();
     await this.prisma.$transaction(async (tx) => {
       const answerer = to ? await this.canAnswerIn(tx, to) : false;
@@ -756,7 +893,13 @@ export class WhatsAppService {
         action: AuditAction.WHATSAPP_ASSIGN,
         targetType: 'wa_conversation',
         targetId: id,
-        metadata: { action, from: row.assignedToId, to: change.to, via: ctx.via ?? 'panel' },
+        metadata: {
+          action,
+          from: row.assignedToId,
+          to: change.to,
+          channel: served.channel,
+          via: ctx.via ?? 'panel',
+        },
       });
     });
     return this.get(ctx, id);
@@ -797,7 +940,7 @@ export class WhatsAppService {
    * or panel before D366): D355's call — `toUserId` required, the department GENERAL, no membership check.
    */
   async transfer(ctx: AdminContext, id: string, input: WaTransferInput | string): Promise<WaConversationDto> {
-    this.requireGraph();
+    const served = await this.servedRow(id);
     const body: WaTransferInput = typeof input === 'string' ? { toUserId: input } : input;
     const legacy = body.department === undefined;
     const department: WaDepartment = body.department ?? DEFAULT_DEPARTMENT;
@@ -884,6 +1027,7 @@ export class WhatsAppService {
           noteId: note?.id ?? null,
           legacy,
           assignmentId: history.id,
+          channel: served.channel,
           via: ctx.via ?? 'panel',
         },
       });
@@ -1001,7 +1145,7 @@ export class WhatsAppService {
     o: {
       to: string | null;
       department: WaDepartment;
-      conv: { id: string; profileName: string | null; phoneE164: string };
+      conv: { id: string; profileName: string | null; phoneE164: string | null };
     },
   ) {
     if (!this.push.enabled) return;
@@ -1056,8 +1200,7 @@ export class WhatsAppService {
   }
 
   async assignments(id: string) {
-    this.requireGraph();
-    await this.rowOf(id);
+    await this.servedRow(id);
     const rows = await this.prisma.waAssignment.findMany({
       where: { conversationId: id },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -1104,7 +1247,7 @@ export class WhatsAppService {
    * `department` keeps the members of one (the transfer sheet's list), on shift first, then the fewest open.
    */
   async agents(department?: WaDepartment) {
-    this.requireGraph();
+    // v1.137-social (D385): also for the in-app threads (served without WhatsApp).
     const all = (await staffAtLevel(this.prisma, 'REPLY')).map((a) => a.userId);
     const set = await setDepartmentsOf(this.prisma, all);
     const ids = department ? all.filter((u) => effectiveDepartments(set.get(u)).includes(department)) : all;
@@ -1162,8 +1305,7 @@ export class WhatsAppService {
   // ---- notes ----------------------------------------------------------------------------------------------------
 
   async notes(id: string) {
-    this.requireGraph();
-    await this.rowOf(id);
+    await this.servedRow(id);
     const rows = await this.prisma.waNote.findMany({
       where: { conversationId: id },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -1181,8 +1323,7 @@ export class WhatsAppService {
   }
 
   async addNote(ctx: AdminContext, id: string, body: string) {
-    this.requireGraph();
-    await this.rowOf(id);
+    const served = await this.servedRow(id);
     const note = await this.prisma.$transaction(async (tx) => {
       const n = await tx.waNote.create({ data: { conversationId: id, authorId: ctx.userId, body } });
       await this.audit.recordIn(tx, {
@@ -1190,7 +1331,7 @@ export class WhatsAppService {
         action: AuditAction.WHATSAPP_NOTE,
         targetType: 'wa_conversation',
         targetId: id,
-        metadata: { noteId: n.id, via: ctx.via ?? 'panel' },
+        metadata: { noteId: n.id, channel: served.channel, via: ctx.via ?? 'panel' },
       });
       return n;
     });
@@ -1211,8 +1352,9 @@ export class WhatsAppService {
    * always the staff member's decision after asking the customer, and audited.
    */
   async link(ctx: AdminContext, id: string, username: string): Promise<WaConversationDto> {
-    this.requireGraph();
-    const row = await this.rowOf(id);
+    const row = await this.servedRow(id);
+    // v1.137-social (D385, §10.174.6): an in-app thread's account is its owner, never changed.
+    if (row.channel === 'IN_APP') throw AppException.validation([{ field: 'channel', issue: 'in_app' }]);
     const profile = await this.prisma.userProfile.findUnique({
       where: { username: username.replace(/^@/, '').toLowerCase() },
       select: { userId: true, user: { select: { status: true } } },
@@ -1245,8 +1387,8 @@ export class WhatsAppService {
   }
 
   async unlink(ctx: AdminContext, id: string): Promise<WaConversationDto> {
-    this.requireGraph();
-    const row = await this.rowOf(id);
+    const row = await this.servedRow(id);
+    if (row.channel === 'IN_APP') throw AppException.validation([{ field: 'channel', issue: 'in_app' }]);
     if (row.linkedUserId !== null) {
       await this.prisma.$transaction(async (tx) => {
         await tx.waConversation.update({

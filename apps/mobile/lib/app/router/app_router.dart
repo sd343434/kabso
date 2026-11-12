@@ -113,6 +113,7 @@ import 'package:kabso_live/features/store/presentation/store_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_viewer_screen.dart';
+import 'package:kabso_live/features/support/presentation/support_chat_screen.dart';
 import 'package:kabso_live/features/vip/animated_avatar/animated_avatar_screen.dart';
 import 'package:kabso_live/features/vip/presentation/vip_gift_perks.dart';
 import 'package:kabso_live/features/vip/presentation/vip_identity_screen.dart';
@@ -239,6 +240,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.editProfile,
         builder: (_, _) => const EditProfileScreen(),
+      ),
+      // D385 (§10.174): «دعم كابسو».
+      GoRoute(
+        path: AppRoutes.supportChat,
+        builder: (_, _) => const SupportChatScreen(),
       ),
       // D339 (§10.133): group messages.
       GoRoute(

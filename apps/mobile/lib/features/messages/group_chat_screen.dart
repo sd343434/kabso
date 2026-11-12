@@ -21,10 +21,12 @@ import 'package:kabso_live/features/messages/domain/dm_models.dart';
 import 'package:kabso_live/features/messages/widgets/chat_composer.dart';
 import 'package:kabso_live/features/messages/widgets/dm_group_row.dart';
 import 'package:kabso_live/features/messages/widgets/dm_message_view.dart';
+import 'package:kabso_live/features/messages/widgets/dm_pinned_row.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/push/open_conversation.dart';
 import 'package:kabso_live/features/push/push_payload.dart';
+import 'package:kabso_live/features/support/application/support_providers.dart';
 import 'package:kabso_live/features/vip/application/vip_gift_perks_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_gift_perks_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -408,6 +410,10 @@ class _GroupChatState extends ConsumerState<GroupChatScreen> {
     final chat = ref.watch(dmGroupChatProvider(groupId));
     final s = chat.value;
     final group = s?.group;
+    // D385: «تثبيت في الأعلى» from the chat's menu too.
+    final pinned = ref.watch(
+      dmPinsProvider.select((pins) => pins.contains(groupId)),
+    );
     final name = group?.name ?? widget.name ?? '';
     return Scaffold(
       backgroundColor: p.background,
@@ -491,6 +497,9 @@ class _GroupChatState extends ConsumerState<GroupChatScreen> {
                 ),
                 'report' => unawaited(_report()),
                 'leave' => unawaited(_leave()),
+                'pin' => unawaited(
+                  togglePin(context, ref, DmChat.group(group), pinned: pinned),
+                ),
                 _ => null,
               },
               itemBuilder: (_) => [
@@ -498,6 +507,11 @@ class _GroupChatState extends ConsumerState<GroupChatScreen> {
                   key: GroupChatScreen.infoKey,
                   value: 'info',
                   child: Text(l10n.dmGroupInfo),
+                ),
+                PopupMenuItem(
+                  key: pinned ? DmPinActions.unpinKey : DmPinActions.pinKey,
+                  value: 'pin',
+                  child: Text(pinned ? l10n.dmUnpin : l10n.dmPin),
                 ),
                 PopupMenuItem(
                   key: GroupChatScreen.muteKey,

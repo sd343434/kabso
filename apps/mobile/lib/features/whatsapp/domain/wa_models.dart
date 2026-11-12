@@ -94,10 +94,12 @@ class WaSummary {
     required this.badge,
     required this.mine,
     required this.unassigned,
+    this.inApp = false,
   });
 
   factory fromJson(Map<String, dynamic> j) => WaSummary(
     enabled: j['enabled'] as bool? ?? false,
+    inApp: j['inApp'] as bool? ?? false,
     badge: (j['badge'] as num?)?.toInt() ?? 0,
     mine: (j['mine'] as num?)?.toInt() ?? 0,
     unassigned: (j['unassigned'] as num?)?.toInt() ?? 0,
@@ -111,9 +113,29 @@ class WaSummary {
   );
 
   final bool enabled;
+
+  /// v1.137-social (D385, §10.174.6): the in-app «دعم كابسو» threads are
+  /// served (also while WhatsApp itself is off).
+  final bool inApp;
   final int badge;
   final int mine;
   final int unassigned;
+
+  /// The inbox has something to show: WhatsApp, the in-app threads or both.
+  bool get served => enabled || inApp;
+}
+
+/// v1.137-social (D385, §10.174.6): where a support conversation is.
+enum WaChannel {
+  whatsapp('WHATSAPP'),
+  inApp('IN_APP');
+
+  new(this.wire);
+
+  final String wire;
+
+  /// An unknown or missing value (a server before D385) reads as WhatsApp.
+  static WaChannel fromWire(Object? v) => v == 'IN_APP' ? inApp : whatsapp;
 }
 
 class WaConversation {
@@ -131,6 +153,7 @@ class WaConversation {
     this.windowClosesAt,
     this.linkedAccount,
     this.department = WaDepartment.general,
+    this.channel = WaChannel.whatsapp,
   });
 
   factory fromJson(Map<String, dynamic> j) {
@@ -138,7 +161,8 @@ class WaConversation {
     final account = j['linkedAccount'];
     return WaConversation(
       id: j['id'] as String,
-      phone: j['phone'] as String,
+      phone: j['phone'] as String?,
+      channel: WaChannel.fromWire(j['channel']),
       name: j['name'] as String?,
       open: j['status'] != 'CLOSED',
       assignedTo: WaStaffRef.maybe(j['assignedTo']),
@@ -157,8 +181,14 @@ class WaConversation {
 
   final String id;
 
-  /// E.164 (shown left to right).
-  final String phone;
+  /// E.164 (shown left to right); (D385) null for an in-app thread.
+  final String? phone;
+
+  /// D385: WhatsApp, or «دعم كابسو» inside the app «داخل التطبيق» (no
+  /// 24-hour window, no templates, text replies, never linked).
+  final WaChannel channel;
+
+  bool get inApp => channel == WaChannel.inApp;
   final String? name;
   final bool open;
   final WaStaffRef? assignedTo;
@@ -175,7 +205,7 @@ class WaConversation {
   /// D366: the department «القسم» (changed only by a transfer).
   final WaDepartment department;
 
-  String get title => name ?? phone;
+  String get title => name ?? phone ?? '';
 
   /// Someone else has it: no composer, no claim.
   bool get takenByOther => assignedTo != null && !assignedToMe;

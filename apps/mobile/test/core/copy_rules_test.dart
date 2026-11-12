@@ -45,8 +45,10 @@ void main() {
       // D260 (owner, 2026-11-04): the staff badge is «فريق كابسو» in
       // Arabic, by the owner's own wording. D273: the team's name in the
       // staff strings too — only that phrase, never the brand alone.
+      // D385 (owner, 2026-11-12, approved «نعم»): the support chat is
+      // «دعم كابسو», by the owner's own wording — only that phrase too.
       expect(
-        value.replaceAll('فريق كابسو', ''),
+        value.replaceAll('فريق كابسو', '').replaceAll('دعم كابسو', ''),
         isNot(contains('كابسو')),
         reason: key,
       );

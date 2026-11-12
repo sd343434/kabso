@@ -18836,4 +18836,79 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get vipAnimatedAvatarTrimCancel => 'إلغاء';
+
+  @override
+  String get supportChatName => 'دعم كابسو';
+
+  @override
+  String get supportChatSubtitle => 'فريق كابسو يرد عليك هنا';
+
+  @override
+  String supportUnread(int count) {
+    return 'دعم كابسو، ردود غير مقروءة: $count';
+  }
+
+  @override
+  String get supportIntro =>
+      'اكتب لنا ما تحتاجه: الشحن، الوكالات، مشكلة تقنية أو بلاغ. اختر الموضوع ثم أرسل رسالتك، وسيرد عليك فريق كابسو هنا.';
+
+  @override
+  String get supportPickTopic => 'اختر موضوع رسالتك';
+
+  @override
+  String get supportNewTicket => 'أُغلق طلبك السابق — اختر موضوع طلبك الجديد';
+
+  @override
+  String get supportPickTopicFirst => 'اختر الموضوع أولاً';
+
+  @override
+  String supportTopicOf(String topic) {
+    return 'الموضوع: $topic';
+  }
+
+  @override
+  String get supportComposerHint => 'اكتب رسالتك لفريق كابسو';
+
+  @override
+  String get supportReceiptReceived => 'تم الاستلام';
+
+  @override
+  String get supportReceiptRead => 'تمت القراءة';
+
+  @override
+  String get dmPin => 'تثبيت في الأعلى';
+
+  @override
+  String get dmUnpin => 'إلغاء التثبيت';
+
+  @override
+  String get dmPinnedDone => 'ثُبّتت المحادثة في الأعلى';
+
+  @override
+  String get dmUnpinned => 'أُلغي التثبيت';
+
+  @override
+  String dmPinLimit(int max) {
+    return 'يمكنك تثبيت $max محادثات فقط. ألغِ تثبيت واحدة أولاً.';
+  }
+
+  @override
+  String get dmPinOnline => 'متصل الآن';
+
+  @override
+  String get dmPinnedLabel => 'مثبّتة';
+
+  @override
+  String get dmPinActions => 'خيارات التثبيت';
+
+  @override
+  String get errorDmPinLimit =>
+      'يمكنك تثبيت ٥ محادثات فقط. ألغِ تثبيت واحدة أولاً.';
+
+  @override
+  String get waInApp => 'داخل التطبيق';
+
+  @override
+  String get waInAppHint =>
+      'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.';
 }

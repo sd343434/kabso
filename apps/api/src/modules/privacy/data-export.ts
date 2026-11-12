@@ -709,6 +709,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
       orderBy: { createdAt: 'asc' },
       select: {
         phoneE164: true,
+        channel: true,
         createdAt: true,
         messages: {
           where: { type: { not: 'REACTION' } },
@@ -727,6 +728,8 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     })
   ).map((c) => ({
     phone: c.phoneE164,
+    // v1.137-social (D385, §10.174.7): WHATSAPP, or IN_APP «دعم كابسو» (no phone).
+    channel: c.channel,
     since: iso(c.createdAt),
     messages: c.messages.map((m) => ({
       from: m.direction === 'INBOUND' ? 'you' : 'kabso',

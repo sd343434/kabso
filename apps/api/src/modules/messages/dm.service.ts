@@ -36,6 +36,7 @@ import {
   type DmMessagesQuery,
 } from './dm.schemas.js';
 import { assertNotRestricted } from '../users/account-control.js';
+import { isOnline } from '../users/presence.js';
 
 // ---- Response shapes (openapi v1.40-social, D155) -----------------------------------------------
 
@@ -84,6 +85,11 @@ export interface DmConversationDto {
   peerReadAt: string | null;
   canSend: boolean;
   requestMessagesLeft: number | null;
+  /**
+   * v1.137-social (D385, §10.174.5; owner 2026-11-12): the peer's presence when their `showActivityStatus` is on and
+   * there is no block either way; null otherwise (no dot).
+   */
+  online: boolean | null;
 }
 
 export interface DmMessagePageDto extends PageDto<DmMessageDto> {
@@ -96,6 +102,26 @@ export interface DmUnreadDto {
   requests: number;
   /** v1.104-social (D339): unread messages in the caller's groups that are not muted or archived (≤ 99). */
   groups: number;
+  /** v1.137-social (D385, §10.174.1; owner 2026-11-12): the team's unread «دعم كابسو» replies (≤ 99). */
+  support: number;
+}
+
+/** v1.137-social (D385, CONVENTIONS §10.174.4): the most chats a person may pin («دعم كابسو» is not one). */
+export const DM_PIN_MAX = 5;
+
+/** v1.137-social (D385): one pinned chat at the top of «الرسائل». */
+export interface DmPinDto {
+  type: 'DIRECT' | 'GROUP';
+  id: string;
+  pinnedAt: string;
+  chat: DmChatDto;
+  /** The peer's presence only as §10.25 allows (§10.174.5); null: no dot (always for a group). */
+  online: boolean | null;
+}
+
+export interface DmPinListDto {
+  data: DmPinDto[];
+  max: number;
 }
 
 /** v1.104-social (D339): one row of «الدردشات» / «المؤرشفة» — a direct conversation or a group. */
@@ -299,11 +325,16 @@ export class DmService {
     const now = this.clock.now();
     const ids = mine.map((p) => p.conversationId);
     const peerIds = [...new Set(mine.map((p) => p.peerId))];
-    const [theirs, people, stats, privacy, follows] = await Promise.all([
+    const [theirs, people, stats, privacy, follows, blocks] = await Promise.all([
       this.prisma.dmParticipant.findMany({ where: { conversationId: { in: ids }, userId: { in: peerIds } } }),
       this.prisma.user.findMany({
         where: { id: { in: peerIds }, status: 'ACTIVE' },
-        select: USER_SUMMARY_SELECT,
+        // v1.137-social (D385, §10.174.5): the presence of every partner, in the same query.
+        select: {
+          ...USER_SUMMARY_SELECT,
+          lastActiveAt: true,
+          privacySettings: { select: { showActivityStatus: true } },
+        },
       }),
       this.prisma.$queryRaw<{ cid: string; last_id: string | null; unread: number }[]>`
         SELECT p.conversation_id::text AS cid,
@@ -330,7 +361,25 @@ export class DmService {
         where: { followerId: { in: peerIds }, followeeId: callerId },
         select: { followerId: true },
       }),
+      this.prisma.userBlock.findMany({
+        where: {
+          OR: [
+            { blockerId: callerId, blockedId: { in: peerIds } },
+            { blockedId: callerId, blockerId: { in: peerIds } },
+          ],
+        },
+        select: { blockerId: true, blockedId: true },
+      }),
     ]);
+    const blocked = new Set(blocks.map((b) => (b.blockerId === callerId ? b.blockedId : b.blockerId)));
+    const presenceOf = new Map(
+      people.map((u) => [
+        u.id,
+        (u.privacySettings?.showActivityStatus ?? true) && !blocked.has(u.id)
+          ? isOnline(u.lastActiveAt, now)
+          : null,
+      ]),
+    );
     const lastIds = stats.map((s) => s.last_id).filter((id): id is string => id !== null);
     const lastRows =
       lastIds.length === 0
@@ -377,6 +426,7 @@ export class DmService {
         canSend: decision.allowed,
         requestMessagesLeft:
           status === 'REQUEST_SENT' ? Math.max(0, this.config.dm.requestMaxMessages - p.requestSent) : null,
+        online: presenceOf.get(p.peerId) ?? null,
       });
     }
     return out;
@@ -510,7 +560,23 @@ export class DmService {
       conversations: Math.min(UNREAD_CAP, row?.conversations ?? 0),
       requests: Math.min(UNREAD_CAP, row?.requests ?? 0),
       groups: Math.min(UNREAD_CAP, groups?.n ?? 0),
+      support: await this.supportUnread(callerId),
     };
+  }
+
+  /**
+   * v1.137-social (D385, §10.174.1; owner 2026-11-12): the team's «دعم كابسو» replies after the caller last read the
+   * thread (`readSupportThread`), for the Messages tab badge.
+   */
+  private async supportUnread(callerId: string): Promise<number> {
+    const [row] = await this.prisma.$queryRaw<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM (
+        SELECT 1 FROM wa_conversations c
+          JOIN wa_messages m ON m.conversation_id = c.id AND m.direction = 'OUTBOUND'::wa_direction
+         WHERE c.linked_user_id = ${callerId}::uuid AND c.channel = 'IN_APP'::wa_channel AND c.purge_after IS NULL
+           AND (c.user_read_at IS NULL OR m.created_at > c.user_read_at)
+         LIMIT ${UNREAD_CAP}) x`;
+    return Math.min(UNREAD_CAP, row?.n ?? 0);
   }
 
   /**
@@ -593,6 +659,131 @@ export class DmService {
         nextCursor: hasMore && last ? this.cursors.encode(scope, { at: last.at, id: last.id }) : null,
       },
     };
+  }
+
+  // ---- Pins (v1.137-social, D385, CONVENTIONS §10.174.4) ------------------------------------------------------------
+
+  /**
+   * Drops the caller's pins they can no longer open: a conversation not accepted on their side, deleted for them (no
+   * message since), with a block either way or a peer no longer ACTIVE; a group left, removed from or removed.
+   */
+  private async prunePinsIn(db: Prisma.TransactionClient | PrismaService, callerId: string): Promise<void> {
+    await db.$executeRaw`
+      DELETE FROM dm_pins p
+       WHERE p.user_id = ${callerId}::uuid
+         AND ((p.conversation_id IS NOT NULL AND NOT EXISTS (
+                SELECT 1 FROM dm_participants x
+                  JOIN users u ON u.id = x.peer_id AND u.status = 'ACTIVE'::user_status
+                 WHERE x.conversation_id = p.conversation_id AND x.user_id = p.user_id
+                   AND x.status = 'ACCEPTED'::dm_participant_status
+                   AND (x.cleared_at IS NULL OR x.last_message_at > x.cleared_at)
+                   AND NOT EXISTS (SELECT 1 FROM user_blocks b
+                                    WHERE (b.blocker_id = x.user_id AND b.blocked_id = x.peer_id)
+                                       OR (b.blocker_id = x.peer_id AND b.blocked_id = x.user_id))))
+           OR (p.group_id IS NOT NULL AND NOT EXISTS (
+                SELECT 1 FROM dm_group_members m
+                  JOIN dm_groups g ON g.id = m.group_id AND g.status = 'ACTIVE'::dm_group_status
+                 WHERE m.group_id = p.group_id AND m.user_id = p.user_id)))`;
+  }
+
+  /** `listDmPins`: the caller's pins, first pinned first, each with its chat row and (a direct one) the presence. */
+  async pins(callerId: string): Promise<DmPinListDto> {
+    await this.prunePinsIn(this.prisma, callerId);
+    const rows = await this.prisma.dmPin.findMany({
+      where: { userId: callerId },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: DM_PIN_MAX,
+    });
+    const directIds = rows.map((r) => r.conversationId).filter((c): c is string => c !== null);
+    const groupIds = rows.map((r) => r.groupId).filter((g): g is string => g !== null);
+    const parts =
+      directIds.length === 0
+        ? []
+        : await this.prisma.dmParticipant.findMany({
+            where: { userId: callerId, conversationId: { in: directIds } },
+          });
+    const [conversations, groups] = await Promise.all([
+      this.conversationDtos(callerId, parts),
+      this.groups.groupDtos(callerId, groupIds),
+    ]);
+    const conversationOf = new Map(conversations.map((c) => [c.id, c]));
+    const groupOf = new Map(groups.map((g) => [g.id, g]));
+    const data: DmPinDto[] = [];
+    for (const r of rows) {
+      const conversation = r.conversationId ? (conversationOf.get(r.conversationId) ?? null) : null;
+      const group = r.groupId ? (groupOf.get(r.groupId) ?? null) : null;
+      if (!conversation && !group) continue;
+      const type = conversation ? 'DIRECT' : 'GROUP';
+      data.push({
+        type,
+        id: (r.conversationId ?? r.groupId)!,
+        pinnedAt: r.createdAt.toISOString(),
+        chat: {
+          type,
+          id: (r.conversationId ?? r.groupId)!,
+          lastActivityAt: (conversation?.lastActivityAt ?? group?.lastActivityAt)!,
+          conversation,
+          group,
+        },
+        online: conversation?.online ?? null,
+      });
+    }
+    return { data, max: DM_PIN_MAX };
+  }
+
+  /** `pinDmConversation` / `pinDmGroup`: under the caller's lock — idempotent, 409 `DM_PIN_LIMIT` past 5. */
+  private async pin(
+    callerId: string,
+    target: { conversationId: string } | { groupId: string },
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:dm-pin'), hashtext(${callerId}))`;
+      await this.prunePinsIn(tx, callerId);
+      const where =
+        'conversationId' in target
+          ? { userId: callerId, conversationId: target.conversationId }
+          : { userId: callerId, groupId: target.groupId };
+      if ((await tx.dmPin.count({ where })) > 0) return;
+      if ((await tx.dmPin.count({ where: { userId: callerId } })) >= DM_PIN_MAX) {
+        throw new AppException(ErrorCode.DM_PIN_LIMIT, undefined, [{ field: 'pins', issue: 'too_many' }]);
+      }
+      await tx.dmPin.create({ data: { ...where, createdAt: this.clock.now() } });
+    });
+  }
+
+  /** A conversation the caller may pin: theirs, accepted on their side, peer ACTIVE, no block either way (else 404). */
+  async pinConversation(callerId: string, conversationId: string): Promise<DmPinListDto> {
+    const row = await this.access(callerId, conversationId);
+    if (row.status !== 'ACCEPTED') throw notFound();
+    await this.pin(callerId, { conversationId: row.conversationId });
+    return this.pins(callerId);
+  }
+
+  async unpinConversation(callerId: string, conversationId: string): Promise<DmPinListDto> {
+    if (!isUuid(conversationId)) throw notFound();
+    await this.prisma.dmPin.deleteMany({
+      where: { userId: callerId, conversationId: conversationId.toLowerCase() },
+    });
+    return this.pins(callerId);
+  }
+
+  /** A group the caller is in (ACTIVE; else 404). */
+  async pinGroup(callerId: string, groupId: string): Promise<DmPinListDto> {
+    if (!isUuid(groupId)) throw notFound();
+    const id = groupId.toLowerCase();
+    const member = await this.prisma.dmGroupMember.findFirst({
+      where: { groupId: id, userId: callerId, group: { status: 'ACTIVE' } },
+      select: { groupId: true },
+    });
+    if (!member) throw notFound();
+    await this.pin(callerId, { groupId: id });
+    return this.pins(callerId);
+  }
+
+  async unpinGroup(callerId: string, groupId: string): Promise<DmPinListDto> {
+    if (!isUuid(groupId)) throw notFound();
+    await this.prisma.dmPin.deleteMany({ where: { userId: callerId, groupId: groupId.toLowerCase() } });
+    return this.pins(callerId);
   }
 
   /** The ACTIVE account `username` the caller may see (404), never the caller (400 `field`). */

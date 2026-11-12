@@ -221,6 +221,9 @@ abstract final class AppRoutes {
   static String chat(String username) =>
       '/messages/${Uri.encodeComponent(username)}';
 
+  /// D385 (§10.174): «دعم كابسو» — the person's in-app support chat.
+  static const supportChat = '/support-chat';
+
   /// D339 (§10.133): «مجموعة جديدة» — the photo, the name and the people.
   static const newGroup = '/message-groups/new';
 

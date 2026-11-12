@@ -31749,6 +31749,138 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إلغاء'**
   String get vipAnimatedAvatarTrimCancel;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'دعم كابسو'**
+  String get supportChatName;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'فريق كابسو يرد عليك هنا'**
+  String get supportChatSubtitle;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'دعم كابسو، ردود غير مقروءة: {count}'**
+  String supportUnread(int count);
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب لنا ما تحتاجه: الشحن، الوكالات، مشكلة تقنية أو بلاغ. اختر الموضوع ثم أرسل رسالتك، وسيرد عليك فريق كابسو هنا.'**
+  String get supportIntro;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر موضوع رسالتك'**
+  String get supportPickTopic;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُغلق طلبك السابق — اختر موضوع طلبك الجديد'**
+  String get supportNewTicket;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر الموضوع أولاً'**
+  String get supportPickTopicFirst;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'الموضوع: {topic}'**
+  String supportTopicOf(String topic);
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب رسالتك لفريق كابسو'**
+  String get supportComposerHint;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الاستلام'**
+  String get supportReceiptReceived;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت القراءة'**
+  String get supportReceiptRead;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'تثبيت في الأعلى'**
+  String get dmPin;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء التثبيت'**
+  String get dmUnpin;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'ثُبّتت المحادثة في الأعلى'**
+  String get dmPinnedDone;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغي التثبيت'**
+  String get dmUnpinned;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك تثبيت {max} محادثات فقط. ألغِ تثبيت واحدة أولاً.'**
+  String dmPinLimit(int max);
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'متصل الآن'**
+  String get dmPinOnline;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'مثبّتة'**
+  String get dmPinnedLabel;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'خيارات التثبيت'**
+  String get dmPinActions;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك تثبيت ٥ محادثات فقط. ألغِ تثبيت واحدة أولاً.'**
+  String get errorDmPinLimit;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'داخل التطبيق'**
+  String get waInApp;
+
+  /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
+  ///
+  /// In ar, this message translates to:
+  /// **'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.'**
+  String get waInAppHint;
 }
 
 class _AppLocalizationsDelegate

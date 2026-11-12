@@ -26,6 +26,7 @@ import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
+import 'package:kabso_live/features/support/data/support_repository.dart';
 import 'package:kabso_live/l10n/gen/app_localizations.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -34,6 +35,7 @@ import '../../fixtures/live/live_api_fixtures.dart';
 import '../../fixtures/live/live_fixtures.dart';
 import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
+import '../../helpers/fake_support_repository.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 
@@ -471,6 +473,8 @@ void main() {
             FakeDmRepository()
               ..people['host0'] = dmPerson('host0', name: 'Sara'),
           ),
+          supportRepositoryProvider.overrideWithValue(FakeSupportRepository()),
+          dmPinsRepositoryProvider.overrideWithValue(FakeDmPinsRepository()),
           sharedPreferencesProvider.overrideWithValue(await testPrefs()),
         ],
         child: MaterialApp.router(

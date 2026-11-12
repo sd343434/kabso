@@ -1234,7 +1234,8 @@ class _StaffWhatsAppRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final summary = ref.watch(waSummaryProvider).value;
-    if (summary != null && !summary.enabled) return const SizedBox.shrink();
+    // D385: on while the in-app «دعم كابسو» threads are served too.
+    if (summary != null && !summary.served) return const SizedBox.shrink();
     final count = summary?.badge ?? 0;
     return _HubRow(
       rowKey: MeHubScreen.staffWhatsAppKey,

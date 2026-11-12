@@ -355,7 +355,7 @@ describe('D155 direct messages', { timeout: 240_000 }, () => {
       expect(requests.map((c) => [c.peer.username, c.status, c.unreadCount])).toEqual([
         [a.username, 'REQUEST_RECEIVED', 1],
       ]);
-      expect(await unread(b)).toEqual({ messages: 0, conversations: 0, requests: 1, groups: 0 });
+      expect(await unread(b)).toEqual({ messages: 0, conversations: 0, requests: 1, groups: 0, support: 0 });
 
       const peer = await ctx.http.get(`/api/v1/dm/peers/${a.username}`).set(auth(b));
       expect(peer.status).toBe(200);
@@ -538,7 +538,7 @@ describe('D155 direct messages', { timeout: 240_000 }, () => {
       await text(a, b, '1');
       const second = await text(a, b, '2');
       await text(c, b, 'from c');
-      expect(await unread(b)).toEqual({ messages: 3, conversations: 2, requests: 0, groups: 0 });
+      expect(await unread(b)).toEqual({ messages: 3, conversations: 2, requests: 0, groups: 0, support: 0 });
       const conv = second.message.conversationId;
       expect((await list(b)).find((x) => x.id === conv)?.unreadCount).toBe(2);
 
@@ -553,7 +553,7 @@ describe('D155 direct messages', { timeout: 240_000 }, () => {
         .send({ lastMessageId: second.message.id });
       expect(read.status).toBe(204);
       expectContract(read, 'markDmRead');
-      expect(await unread(b)).toEqual({ messages: 1, conversations: 1, requests: 0, groups: 0 });
+      expect(await unread(b)).toEqual({ messages: 1, conversations: 1, requests: 0, groups: 0, support: 0 });
       const seen = await messages(a, conv);
       expect(seen.data.map((m) => m.read)).toEqual([true, true]);
       expect(seen.conversation.peerReadAt).not.toBeNull();
@@ -562,7 +562,7 @@ describe('D155 direct messages', { timeout: 240_000 }, () => {
       const mute = await ctx.http.put(`/api/v1/dm/conversations/${cConv}/mute`).set(auth(b));
       expect(mute.status).toBe(204);
       expectContract(mute, 'muteDmConversation');
-      expect(await unread(b)).toEqual({ messages: 0, conversations: 0, requests: 0, groups: 0 });
+      expect(await unread(b)).toEqual({ messages: 0, conversations: 0, requests: 0, groups: 0, support: 0 });
       expect((await list(b)).find((x) => x.id === cConv)).toMatchObject({ muted: true, unreadCount: 1 });
       expect((await ctx.http.delete(`/api/v1/dm/conversations/${cConv}/mute`).set(auth(b))).status).toBe(204);
       expect((await unread(b)).messages).toBe(1);
@@ -652,7 +652,7 @@ describe('D155 direct messages', { timeout: 240_000 }, () => {
       clock.advance(20);
       // Hidden at once, before any sweep.
       expect((await messages(b, conv)).data).toEqual([]);
-      expect(await unread(b)).toEqual({ messages: 0, conversations: 0, requests: 0, groups: 0 });
+      expect(await unread(b)).toEqual({ messages: 0, conversations: 0, requests: 0, groups: 0, support: 0 });
       const listed = await list(b);
       expect(listed.find((c) => c.id === conv)).toMatchObject({ lastMessage: null, unreadCount: 0 });
 

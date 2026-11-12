@@ -24,6 +24,10 @@ class PushPayload {
   /// (`conversationId`; channel `staff`).
   static const kindWhatsApp = 'whatsapp';
 
+  /// v1.137-social (D385, §10.174.6): a staff reply in «دعم كابسو»
+  /// (`conversationId`; channel `messages`).
+  static const kindSupport = 'support';
+
   String? get kind => data['kind'];
 
   /// The chat a `messages` push belongs to (the same id the open chat
@@ -37,6 +41,10 @@ class PushPayload {
       final id = data['groupId'];
       return id == null || id.isEmpty ? null : dmGroupConversation(id);
     }
+    if (kind == kindSupport) {
+      final id = data['conversationId'];
+      return id == null || id.isEmpty ? null : supportConversation(id);
+    }
     final family = data['familyId'];
     return kind == kindFamilyChat && family != null && family.isNotEmpty
         ? familyConversation(family)
@@ -44,11 +52,16 @@ class PushPayload {
   }
 
   bool get isMessage =>
-      kind == kindFamilyChat || kind == kindDm || kind == kindDmGroup;
+      kind == kindFamilyChat ||
+      kind == kindDm ||
+      kind == kindDmGroup ||
+      kind == kindSupport;
 
   /// A direct or (D339) group message: the Messages badge and lists read
   /// the server again.
-  bool get isDirectMessage => kind == kindDm || kind == kindDmGroup;
+  /// D385: a «دعم كابسو» reply counts too (the circle reads again).
+  bool get isDirectMessage =>
+      kind == kindDm || kind == kindDmGroup || kind == kindSupport;
 
   /// v1.116-social (D355): a customer's WhatsApp message for the staff.
   bool get isWhatsApp => kind == kindWhatsApp;
@@ -77,6 +90,8 @@ class PushPayload {
         return group == null || group.isEmpty
             ? AppRoutes.messages
             : AppRoutes.groupChat(group);
+      case kindSupport:
+        return AppRoutes.supportChat;
       case kindNotification:
         return _notificationRoute() ?? AppRoutes.notifications;
       case kindWhatsApp:
@@ -148,6 +163,10 @@ String familyConversation(String familyId) => 'family:$familyId';
 /// D155: the conversation id of a direct conversation (the server's
 /// Android tag).
 String dmConversation(String conversationId) => 'dm:$conversationId';
+
+/// v1.137-social (D385): the «دعم كابسو» thread's id (the server's Android
+/// tag `support:<id>`).
+String supportConversation(String conversationId) => 'support:$conversationId';
 
 /// v1.104-social (D339): the conversation id of a group (the server's
 /// Android tag `dmg:<id>`).

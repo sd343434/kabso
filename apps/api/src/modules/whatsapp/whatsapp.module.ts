@@ -16,6 +16,9 @@ import {
   StaffWhatsAppController,
   WhatsAppWebhookController,
 } from './whatsapp.controller.js';
+import { SupportChatController } from './support-chat.controller.js';
+import { SupportChatService } from './support-chat.service.js';
+import { SupportPush } from './support-push.js';
 import { WhatsAppSweeper } from './whatsapp.sweeper.js';
 import { WhatsAppWebhookService } from './whatsapp-webhook.service.js';
 import { WhatsAppService } from './whatsapp.service.js';
@@ -27,7 +30,13 @@ import { WhatsAppService } from './whatsapp.service.js';
  */
 @Module({
   imports: [AdminPanelModule, LiveModule, MediaModule, PushModule],
-  controllers: [StaffWhatsAppController, AdminWhatsAppController, WhatsAppWebhookController],
+  controllers: [
+    StaffWhatsAppController,
+    AdminWhatsAppController,
+    WhatsAppWebhookController,
+    // v1.137-social (D385, §10.174): «دعم كابسو», the person's side of an in-app thread.
+    SupportChatController,
+  ],
   providers: [
     {
       provide: WHATSAPP_SECRETS,
@@ -50,6 +59,8 @@ import { WhatsAppService } from './whatsapp.service.js';
     WhatsAppService,
     WhatsAppWebhookService,
     WhatsAppSweeper,
+    SupportPush,
+    SupportChatService,
   ],
   exports: [WhatsAppService, WhatsAppSweeper],
 })

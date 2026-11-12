@@ -23,6 +23,7 @@ import {
   type DmGiftResultDto,
   type DmMessagePageDto,
   type DmPeerDto,
+  type DmPinListDto,
   type DmSendResultDto,
   type DmUnreadDto,
 } from './dm.service.js';
@@ -188,6 +189,42 @@ export class DmController {
     @Param('conversationId') conversationId: string,
   ): Promise<void> {
     return this.dm.setMarkedUnread(auth.userId, conversationId, false);
+  }
+
+  /** v1.137-social (D385, §10.174.4): the chats pinned at the top of «الرسائل» (after «دعم كابسو»). */
+  @Get('pins')
+  pins(@CurrentAuth() auth: AuthContext): Promise<DmPinListDto> {
+    return this.dm.pins(auth.userId);
+  }
+
+  @Put('conversations/:conversationId/pin')
+  @RateLimit(DM_WRITE)
+  pinConversation(
+    @CurrentAuth() auth: AuthContext,
+    @Param('conversationId') conversationId: string,
+  ): Promise<DmPinListDto> {
+    return this.dm.pinConversation(auth.userId, conversationId);
+  }
+
+  @Delete('conversations/:conversationId/pin')
+  @RateLimit(DM_WRITE)
+  unpinConversation(
+    @CurrentAuth() auth: AuthContext,
+    @Param('conversationId') conversationId: string,
+  ): Promise<DmPinListDto> {
+    return this.dm.unpinConversation(auth.userId, conversationId);
+  }
+
+  @Put('groups/:groupId/pin')
+  @RateLimit(DM_WRITE)
+  pinGroup(@CurrentAuth() auth: AuthContext, @Param('groupId') groupId: string): Promise<DmPinListDto> {
+    return this.dm.pinGroup(auth.userId, groupId);
+  }
+
+  @Delete('groups/:groupId/pin')
+  @RateLimit(DM_WRITE)
+  unpinGroup(@CurrentAuth() auth: AuthContext, @Param('groupId') groupId: string): Promise<DmPinListDto> {
+    return this.dm.unpinGroup(auth.userId, groupId);
   }
 
   @Delete('messages/:messageId')

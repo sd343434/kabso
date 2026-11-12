@@ -23,6 +23,7 @@ import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/messages/domain/dm_models.dart';
 import 'package:kabso_live/features/messages/widgets/chat_composer.dart';
 import 'package:kabso_live/features/messages/widgets/dm_message_view.dart';
+import 'package:kabso_live/features/messages/widgets/dm_pinned_row.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
@@ -30,6 +31,7 @@ import 'package:kabso_live/features/push/open_conversation.dart';
 import 'package:kabso_live/features/push/push_payload.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
+import 'package:kabso_live/features/support/application/support_providers.dart';
 import 'package:kabso_live/features/vip/application/vip_gift_perks_providers.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_gift_perks_repository.dart';
@@ -581,6 +583,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final name = user?.displayName ?? widget.displayName ?? username;
     final tier = user?.premiumTier ?? widget.premiumTier;
     final conversation = s?.conversation;
+    // D385: «تثبيت في الأعلى» from the chat's menu (an accepted conversation).
+    final pinnable =
+        conversation != null &&
+        conversation.status != DmConversationStatus.requestReceived;
+    final pinned = ref.watch(
+      dmPinsProvider.select(
+        (pins) => conversation != null && pins.contains(conversation.id),
+      ),
+    );
     return Scaffold(
       backgroundColor: p.background,
       appBar: KAppBar(
@@ -675,9 +686,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                 ),
                 'block' => unawaited(_block(name)),
+                'pin' when conversation != null => unawaited(
+                  togglePin(
+                    context,
+                    ref,
+                    DmChat.direct(conversation),
+                    pinned: pinned,
+                  ),
+                ),
                 _ => null,
               },
               itemBuilder: (_) => [
+                if (pinnable)
+                  PopupMenuItem(
+                    key: pinned ? DmPinActions.unpinKey : DmPinActions.pinKey,
+                    value: 'pin',
+                    child: Text(pinned ? l10n.dmUnpin : l10n.dmPin),
+                  ),
                 if (conversation != null)
                   PopupMenuItem(
                     key: ChatScreen.muteKey,

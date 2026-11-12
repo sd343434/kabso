@@ -251,6 +251,7 @@ All non-2xx responses use one envelope:
 | 409 | `DM_DELETE_WINDOW_PASSED` | *(v1.40-social, DRAFT, D155)* Deleting one's own message for everyone more than `DM_DELETE_FOR_EVERYONE_SECONDS` (1 hour) after sending it (§11.13); deleting it for oneself still works. |
 | 409 | `DM_NOT_ARCHIVABLE` | *(v1.104-social, DRAFT, D339)* `archiveDmConversation` on a message request waiting for the caller: a request is accepted or deleted, not archived (§10.132). |
 | 409 | `DM_GROUP_FULL` | *(v1.104-social, DRAFT, D339)* `createDmGroup` / `addDmGroupMembers`: the group would pass `DM_GROUP_MAX_MEMBERS` (100, the creator included). Nothing was changed (§10.133). |
+| 409 | `DM_PIN_LIMIT` | *(v1.137-social, DRAFT, D385)* `pinDmConversation` / `pinDmGroup`: the caller already has 5 pinned chats (`{field: "pins", issue: "too_many"}`); «دعم كابسو» never counts. Nothing was changed; the app says to unpin one first (§10.174.4). |
 | 403 | `DM_GROUP_MEMBER_NOT_ALLOWED` | *(v1.104-social, DRAFT, D339)* `createDmGroup` / `addDmGroupMembers`: some of `members` cannot be added by the caller — `details` names each, `[{field: "members.<i>", issue: "not_allowed"}]`, the same whatever the reason (not a mutual follow, «من يستطيع مراسلتك» NOBODY, a block either way, no such ACTIVE account), so a block is never told. Nothing was changed (§10.133). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
@@ -531,6 +532,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /cp/me/check-in`, `POST /cp/me/tasks/{code}/claim`, `DELETE /cp/me/confessions/{confessionId}` *(v1.24-live, CP-021)* | 60 / min per user (bucket `cp:space`, `RATE_LIMIT_CP_SPACE_WRITE_USER`). **Replaces** the per-user default; the CP space reads (`GET /cp/me/tasks`, `/cp/me/privileges`, `/cp/me/confessions`, `/cp/rankings`, `/cp/couples/…`) use the default |
 | `POST /cp/me/confessions` *(v1.24-live, CP-021)* | 10 / hour per user (bucket `cp:confession`, `RATE_LIMIT_CP_CONFESSION_USER`). **Replaces** the per-user default |
 | `POST /families/{familyId}/chat` *(v1.25-live, CP-022)* | 30 / min per user (bucket `families:chat`, `RATE_LIMIT_FAMILY_CHAT_USER`). **Replaces** the per-user default. Deleting a chat message and muting / unmuting a member use the family writes bucket (`families:write`); the family boards, standing, contributions and chat reads use the per-user default |
+| `POST /support/thread/messages` *(v1.137-social, D385)* | 10 / min per user (bucket `support:send`, `RATE_LIMIT_SUPPORT_SEND_USER`). **Replaces** the per-user default. `POST /support/thread/read` and the pin writes (`PUT`/`DELETE /dm/conversations/{id}/pin`, `PUT`/`DELETE /dm/groups/{id}/pin`) use the `dm:write` bucket (300 / hour per user); `GET /support/thread`, `GET /support/thread/messages` and `GET /dm/pins` the per-user default |
 | `POST /dm/messages` *(v1.40-social, D155)* | 30 / min per user (bucket `dm:send`, `RATE_LIMIT_DM_SEND_USER`). **Replaces** the per-user default. A message that is a **message request** (§11.13) also counts 20 / hour per user (bucket `dm:request`, `RATE_LIMIT_DM_REQUEST_USER`), checked in the send after the request rules |
 | `POST /dm/gifts` *(v1.40-social, D155)* | the live gift buckets (`live:gift:any` first, then `live:gift` or, for a lucky gift, `live:gift:lucky`; §10.23), and a request gift also counts in `dm:request`. **Replaces** the per-user default |
 | `POST /dm/conversations/{id}/read`, `…/accept`, `DELETE /dm/conversations/{id}`, `PUT`/`DELETE …/mute`, `PUT`/`DELETE …/unread` *(v1.43.1-social, D165)*, `DELETE /dm/messages/{id}` *(v1.40-social, D155)* | 300 / hour per user (bucket `dm:write`, `RATE_LIMIT_DM_WRITE_USER`). **Replaces** the per-user default; `GET /dm/conversations`, `GET /dm/unread`, `GET /dm/peers/{username}` and `GET …/messages` use the per-user default |
@@ -790,6 +792,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.137-social (draft) | 2026-11-12 | **D385 (owner 2026-11-12: «دعم كابسو» in «الرسائل» and «اجعل شات الإدارة مثبت في الاعلى … يمكن للشخص تثبيت ٥ محادثات في الاعلى»):** tag `support` — `getSupportThread` (`GET /support/thread`, `SupportThread`), `listSupportMessages` / `sendSupportMessage` (`GET` / `POST /support/thread/messages`, `SupportMessage`, `SupportMessagePage`, `SupportStaff`, `SupportSendRequest`, `SupportSendResult`), `readSupportThread` (`POST /support/thread/read`); the staff inbox serves the in-app threads beside WhatsApp — `WaChannel`, `WaConversation.channel`, `WaConversation.phone` nullable, `WaSummary.inApp`, the `channel` filter of `getStaffWhatsAppConversations` / `getAdminWhatsAppConversations`; the inbox routes answer for IN_APP threads without the WhatsApp credentials. Pins: `listDmPins` (`GET /dm/pins`), `pinDmConversation` / `unpinDmConversation`, `pinDmGroup` / `unpinDmGroup` (`DmPin`, `DmPinList`); code `DM_PIN_LIMIT` (409). `DmConversation.online` (every partner who shows their activity, owner) and `DmUnread.support` (owner: in the badge); in-app staff replies may carry a picture. Setting `RATE_LIMIT_SUPPORT_SEND_USER` (10 / min). Migration `20270515090000_support_chat_pins`. §7, §10.174. | **Additive** for the user app. **Behaviour change** for the staff inbox: with WhatsApp off the inbox no longer answers 503 — it lists the IN_APP threads (a WhatsApp-only action still 503s); `phone` is null on an IN_APP thread (a staff app or panel older than this release must not read it as a string — none is deployed with D355 yet). |
 | v1.136-social (draft) | 2026-11-12 | **D384 (owner 2026-11-12: «انتبه جيداً لطريقة الصورة شخصية» — a reference recording, look only, kept out of git, D40; then: an animated cut-out clip, and a VIP perk):** the VIP «صورة متحركة» — catalogue code `ANIMATED_AVATAR` (IDENTITY, value none, no art, **built**); `MediaKind` `ANIMATED_AVATAR` (`image/png` ≤ 8 MiB: a strip of 2–36 square frames, 64–512 px, alpha, 12 a second; re-encoded to a looping animated WebP ≤ 1.5 MiB + a still); `setMyAnimatedAvatar` / `removeMyAnimatedAvatar` (`PUT` / `DELETE /me/animated-avatar`, `SetAnimatedAvatarRequest`, `AnimatedAvatar`; 409 `VIP_UNAVAILABLE` `no_perk`); `PublicProfile.animatedAvatar` (optional: only while the perk is held, never across a block); the panel's `removeAdminUserAnimatedAvatar` (`users.avatar`), `AdminUserDetail.user.animatedAvatarUrl`; `NotificationType.ANIMATED_AVATAR_REMOVED`; audit `user.animated_avatar.update`, `admin.animated_avatar.remove`. Migrations `20270514090000_vip_animated_avatar_enums`, `20270514090100_vip_animated_avatar`. §4, §7, §8, §10.94.1, §10.166.1, §10.173. | **Additive** (new operations, an optional response field, enum values; clients ignore unknown notification types; an older app shows the round photo). |
 | v1.135-social (draft) | 2026-11-12 | **D383 (owner 2026-11-12: «اريد الغاء فكرة صندوق او إطار بطاقة الملف التعريفية وعمل فكرة اخرى»; then «لا ستكون موجودة بحيث ستكون مثلاً تغير لون خلفية او تكون خلفية فيها عناصر متحركة»):** no box or frame around the person card in live and party rooms (owner, then: «ارى ان شكل البطاقة السابقة اجمل» — the earlier layout is kept, only the background changes); the VIP perk `PROFILE_CARD` **kept and redefined** as the card's background — catalogue `value` `none` → `color` (`#RRGGBB`, null = none), art SVGA / MP4 / PNG / WebP (hint 1080 × 1440; MP4 is new for this perk), titles «خلفية البطاقة التعريفية» / "Card background". The bag `PROFILE_CARD` header ornaments are hidden in the app pending the owner's decision (one UI flag; items, the free `bunny_royal` and the API kept); store `PROFILE_CARD` items stay on sale as backgrounds. No new operation, field, enum value or error code; no migration. §10.94.1, §10.166.1, §10.172. | **Additive.** A tier saved before is valid (no value) and its art becomes the background; an older app draws the art as before and ignores the colour; the panel's generic perk form already edits a `color` value and MP4 art. |
 | v1.134-social (draft) | 2026-11-12 | **D381 (owner 2026-11-11: VIP perks phase 2 — gifts, CP, support, rockets, voice):** EXCLUSIVE_GIFTS, FREE_CP_REQUEST, PRIORITY_SUPPORT, MONTHLY_ROCKETS, SCHEDULED_GIFT, HIGHER_GIFT_QUANTITY and LONGER_VOICE built (`built: true`). `GiftCatalogue.vipGiftCodes` / `vipQuantities`; an exclusive gift is left out of `getGiftCatalogue` / `getGiftBag` for a member whose VIP may not send it and any send of it is 409 `GIFT_UNAVAILABLE`; `LiveGiftSendRequest.quantity` maximum 99 999 (a holder's `vipQuantities`; never a lucky gift or a quip); `CpConfig.vipFreeRequests` (`VipFreeCpRequests`; a free request has `cost` 0 and refunds nothing); `Report.priority` (admin views) and `listAdminReports`' order (priority, then oldest); `WaConversation.priority` and the inbox's order; `MyVip.perksNow` (`VipPerksNow`, `VipMonthlyRockets`); `listVipScheduledGifts` / `scheduleVipGift` / `cancelVipScheduledGift` (`/me/vip/scheduled-gifts`; `VipScheduledGift*`, `ScheduleVipGiftRequest`; 409 `VIP_UNAVAILABLE` `no_perk` · `too_many` · `not_pending`); wallet ledger reasons `VIP_SCHEDULED_GIFT` / `VIP_SCHEDULED_GIFT_RELEASE`; `createMediaUpload` voice clips up to the holder's LONGER_VOICE seconds (1 MiB per 30 s). Migration `20270513090000_vip_gift_perks`. §10.171. | **Additive** for the app (new fields ignored; a non-member sees no change except that an exclusive gift leaves the catalogue). The panel unchanged (the D374 grid edits the values). The staff inbox and the reports queue reorder (a priority first). |
@@ -12948,6 +12951,7 @@ A holder's voice clips (`DM_VOICE`, `LIVE_CHAT_VOICE`) may last the perk's secon
 (180 s → 6 MiB); checked when the upload is requested (`byteSize`, 400 `too_big`) and again when completed (the length,
 `MEDIA_INVALID`). Everyone else keeps 30 s and 1 MiB. The CHECK `media_assets_duration_shape` allows voice clips up to
 600 s. The app's recorder stops at the caller's limit (`perksNow.voiceSeconds`, else 30 s).
+
 ### 10.172 No box or frame around the person card; PROFILE_CARD is the card's background *(v1.135-social, DRAFT — D383)*
 
 Owner (2026-11-12): «اريد الغاء فكرة صندوق او إطار بطاقة الملف التعريفية وعمل فكرة اخرى مثل هذه تقريباً» (a
@@ -13094,3 +13098,92 @@ These are user-uploaded faces, handled like the profile photo and cover (§10.47
   the files are deleted from storage after; no clip → 409 `ADMIN_ACTION_REFUSED`. The panel button «حذف الصورة
   المتحركة» sits beside «حذف الصورة الشخصية».
 - **Blocks:** §10.173.4. **Account deletion:** the columns go with the profile row; the asset like the photo's.
+
+### 10.174 «دعم كابسو» — the in-app support chat — and pinned chats *(v1.137-social, DRAFT — D385)*
+
+Owner (2026-11-12, board D385): a support conversation inside «الرسائل», answered by the Kabso Team in the staff
+inbox of D355 / D360 / D366 / D381, and «اجعل شات الإدارة مثبت في الاعلى … بالإضافة يمكن للشخص تثبيت ٥ محادثات في
+الاعلى» — a row of round pictures at the top of «الرسائل»: «دعم كابسو» always first, then up to five chats the person
+pinned. Owner: `whatsapp` module (the thread is a `wa_conversations` row of channel IN_APP, so the departments,
+assignment, transfer, close / reopen, internal notes, the D360 levels, the D381 priority, the audit and the retention are
+the inbox's own — no parallel system) and `messages` (pins).
+
+#### 10.174.1 The thread (`getSupportThread`)
+
+Every account has one «دعم كابسو» thread (`wa_conversations` with `channel = 'IN_APP'`, `linked_user_id` = the account,
+unique per account; no phone, no WhatsApp id). It is created by the account's first message. `SupportThread.status`:
+NONE (no message yet, `id` null), OPEN (a ticket is open) or CLOSED (the team closed it). The person cannot delete,
+mute, archive, block or unpin it. `unreadCount`: the team's replies after `user_read_at` (`readSupportThread`), at
+most 99. A thread whose account is being purged (`purge_after` set, §10.56) reads as NONE. Owner (2026-11-12): the same
+count is `DmUnread.support` and the app adds it to the Messages tab badge; `readSupportThread` clears it.
+
+#### 10.174.2 Messages (`listSupportMessages`)
+
+Newest first, 30 a page (≤ 50), a signed cursor bound to the caller. The caller's messages (`mine`, INBOUND rows) carry
+`receipt`: RECEIVED «تم الاستلام» once stored (the team has it), READ once a staff member opened the thread after it
+(`markRead` sets `staff_read_at`). The team's replies (OUTBOUND rows) carry `staff.firstName` — the first word of the
+staff member's display name, at most 40 characters — and the app shows it under the «فريق كابسو» badge (D282); the
+staff member's account, username, picture and staff ID are never sent. Internal notes and the assignment history are
+staff-only. Media of the caller's messages is the `MediaAsset` of the upload (the direct-message pipeline); a team
+reply may carry a picture (owner 2026-11-12), also a `MediaAsset` made by the same image pipeline (§10.174.6).
+
+#### 10.174.3 Writing (`sendSupportMessage`)
+
+Order after auth and the rate limit (`support:send`, 10 / min per user, §7): 400 body (`kind` TEXT · IMAGE · VOICE;
+TEXT 1–1 000 code points, ≤ 20 line breaks, the §6 hygiene — the direct-message rules; IMAGE / VOICE a `mediaId`, the
+other fields refused) → a retry with the same `clientId` (200, the stored message; one per thread and `clientId`) →
+no open ticket (NONE or CLOSED) and no `topic` → 400 `topic` / `required` → 400 `mediaId` / `invalid_value` (not the
+caller's unattached `DM_IMAGE` / `DM_VOICE` upload of the last 24 hours) → stored. A new ticket (the first message, or
+the first after a close) takes `topic` as its department and goes to that department's queue unassigned (a CLOSED
+thread reopens: history row REOPEN with the department, `actor` the account; audited `support.ticket.open`). With an
+open ticket `topic` is ignored. Each message sets the unread count, the preview and the priority (PRIORITY_SUPPORT held
+now, §10.171.3), and refreshes the display name shown to the team. The account's restrictions (CHAT_MUTE, §10.67) do
+not apply: support is always reachable. After the response the team is pushed like a WhatsApp message (§10.151.5: the
+assignee, else the staff on shift, else every REPLY+ agent; muted ones never; one per staff member and thread per
+`WHATSAPP_PUSH_GAP_SECONDS`) with the title «دعم كابسو — داخل التطبيق» / "Kabso Support — in app". Media keeps the
+upload's file (public, unguessable key, like a direct message's) until the thread is deleted (§10.174.7).
+
+#### 10.174.4 Pins (`listDmPins`, `pinDmConversation`, `unpinDmConversation`, `pinDmGroup`, `unpinDmGroup`)
+
+`dm_pins` keeps a person's pinned chats on the server (every device shows the same row): an accepted direct
+conversation of theirs or a group they are in, at most **5** (`DM_PIN_MAX`); «دعم كابسو» is not a pin and never counts.
+Pinning a 6th → 409 `DM_PIN_LIMIT` (`{field: "pins", issue: "too_many"}`), checked under a per-person lock so two
+devices cannot pass the limit together. Pinning an already pinned chat changes nothing (it keeps its place); unpinning
+an unpinned one changes nothing. Order: first pinned first (no reordering in v1.137). A pin whose chat the person can no
+longer open — a group left, removed from or removed by moderation, a conversation deleted for them, a block either way,
+a peer no longer ACTIVE — is deleted when the pins are read or written (so it never counts). Every call returns the
+pins now. A pinned chat stays in «الدردشات» / «المؤرشفة» as before (the row is a shortcut, not a box).
+
+#### 10.174.5 Presence of a conversation partner
+
+Owner (2026-11-12): the green dot for **every** direct-message partner, not only family members. `DmConversation.online`
+(and `DmPin.online`, which repeats it) is the peer's presence (§10.25: an authenticated request in the last 5 minutes)
+whenever the peer's `showActivityStatus` is on and there is no block either way; otherwise null and the app draws no
+dot — a person who hid their activity is never shown. Limited staff accounts follow the same rule (their own switch).
+It is read with the conversations in one batched query (the peers' last activity, switches and blocks), never per row.
+A group has none. This widens §10.25's family-only presence to conversation partners; nothing else changes.
+
+#### 10.174.6 The staff inbox
+
+The IN_APP threads are listed with the WhatsApp ones (`WaConversation.channel`; `channel` filter on both list
+operations; the same order: priority first, then newest activity). The app and the panel mark them «داخل التطبيق».
+`phone` is null and `name` is the account's display name; `linkedAccount` is the account (never linked or unlinked:
+`link` / `unlink` → 400 `channel` / `in_app`). No 24-hour window (`window.open` true, `closesAt` null) and no
+templates (`type: TEMPLATE` → 400 `template` / `in_app`). Owner (2026-11-12): the team may reply in-app with a picture
+(`sendStaffWhatsAppMedia` / `sendAdminWhatsAppMedia`): `image/jpeg`, `image/png` or `image/webp`, ≤ 15 MiB (and the
+inbox's `WHATSAPP_MEDIA_MAX_BYTES`) — the direct-message image rules — validated and re-encoded by the media pipeline
+into a `MediaAsset` of the sender (`DM_IMAGE`, attached at once), audited `whatsapp.message.send` like a text, the
+person pushed «📷»; any other type → 400 `mime` / `not_allowed`, nothing sent to Meta. `markRead` sets the thread read for
+the team (`staff_read_at`) and sends nothing to Meta. Claim, release, transfer, close, reopen, notes, the levels
+(VIEW reads, REPLY acts, MANAGE manages), the departments and «أول متاح في القسم» are unchanged and audited the same
+(`metadata.channel`). A staff reply pushes the person (channel `messages`, title «دعم كابسو» / "Kabso Support",
+«<first name> · فريق كابسو: <text>»; ACTIVE accounts with the `messages` switch on, every reply). With WhatsApp off
+(no credentials) the inbox answers for the IN_APP threads only: the summary says `enabled: false, inApp: true` with
+their counts, the lists hold IN_APP threads only, and a WhatsApp thread or a WhatsApp-only action is 503
+`WHATSAPP_UNAVAILABLE` as before.
+
+#### 10.174.7 Retention, purge and export
+
+The inbox's retention applies (§10.151.8): a thread with no message for `WHATSAPP_RETENTION_DAYS` (180) is deleted
+with its messages, notes, history and the files of the person's pictures and voice clips; an account purge (§10.56)
+deletes its thread the same way. The data export lists the thread with the WhatsApp conversations (`channel`).

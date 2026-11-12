@@ -25,6 +25,7 @@ import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/premium/presentation/change_username_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
+import 'package:kabso_live/features/support/data/support_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -32,6 +33,7 @@ import '../../helpers/component_harness.dart';
 import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/fake_posts_repository.dart';
 import '../../helpers/fake_premium_repository.dart';
+import '../../helpers/fake_support_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/pump_app.dart' show l10nFor, testPrefs;
 import 'premium_harness.dart';
@@ -265,6 +267,8 @@ void main() {
         // D155: the conversation reads the DM API (a fake here).
         overrides: [
           dmRepositoryProvider.overrideWithValue(FakeDmRepository()),
+          supportRepositoryProvider.overrideWithValue(FakeSupportRepository()),
+          dmPinsRepositoryProvider.overrideWithValue(FakeDmPinsRepository()),
           sharedPreferencesProvider.overrideWithValue(await testPrefs()),
         ],
       );
@@ -279,6 +283,8 @@ void main() {
         language: lang,
         overrides: [
           dmRepositoryProvider.overrideWithValue(FakeDmRepository()),
+          supportRepositoryProvider.overrideWithValue(FakeSupportRepository()),
+          dmPinsRepositoryProvider.overrideWithValue(FakeDmPinsRepository()),
           sharedPreferencesProvider.overrideWithValue(await testPrefs()),
         ],
       );

@@ -31,6 +31,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/messages/data/dm_repository.dart';
+import 'package:kabso_live/features/support/data/support_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -39,6 +40,7 @@ import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_pk.dart';
 import '../../helpers/fake_live_repository.dart';
+import '../../helpers/fake_support_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -194,6 +196,8 @@ _pumpApp(WidgetTester tester, GoRouter router) async {
         ),
         // D155: the Messages badge reads the DM API (never the network here).
         dmRepositoryProvider.overrideWithValue(FakeDmRepository()),
+        supportRepositoryProvider.overrideWithValue(FakeSupportRepository()),
+        dmPinsRepositoryProvider.overrideWithValue(FakeDmPinsRepository()),
       ],
       child: MaterialApp.router(
         routerConfig: router,
