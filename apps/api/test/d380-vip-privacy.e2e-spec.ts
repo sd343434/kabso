@@ -12,7 +12,12 @@ import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provid
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
-import { createTestApp, registerVerified, withMigrationClient, type TestContext } from './helpers/test-app.js';
+import {
+  createTestApp,
+  registerVerified,
+  withMigrationClient,
+  type TestContext,
+} from './helpers/test-app.js';
 
 const VIP1 = '01a25200-0000-7000-8000-000000000001';
 /** A higher tier with no perks of its own: it holds VIP 1's (D258 inheritance). */
@@ -59,12 +64,20 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
     const now = Date.now();
     await ctx.prisma.vipMembership.upsert({
       where: { userId: u.id },
-      create: { userId: u.id, tierId: tier, startedAt: new Date(now - DAY), expiresAt: new Date(now + 30 * DAY) },
+      create: {
+        userId: u.id,
+        tierId: tier,
+        startedAt: new Date(now - DAY),
+        expiresAt: new Date(now + 30 * DAY),
+      },
       update: { tierId: tier, expiresAt: new Date(now + 30 * DAY) },
     });
   };
   const expire = (u: U) =>
-    ctx.prisma.vipMembership.update({ where: { userId: u.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    ctx.prisma.vipMembership.update({
+      where: { userId: u.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
   const privacy = async (u: U) => {
     const res = await ctx.http.get('/api/v1/me/privacy').set(auth(u));
     expect(res.status).toBe(200);
@@ -84,7 +97,11 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
     return res.body.id as string;
   };
   const join = async (roomId: string, u: U) => {
-    const raw = JSON.stringify({ event: 'participant_joined', room: { name: roomId }, participant: { identity: u.id } });
+    const raw = JSON.stringify({
+      event: 'participant_joined',
+      room: { name: roomId },
+      participant: { identity: u.id },
+    });
     const res = await ctx.http
       .post('/internal/livekit/webhook')
       .set('Content-Type', 'application/webhook+json')
@@ -158,7 +175,11 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
 
     const holder = await signup();
     await member(holder, VIP2);
-    expect(await privacy(holder)).toMatchObject({ hiddenVisit: true, rankingAnonymous: false, kickMuteShield: true });
+    expect(await privacy(holder)).toMatchObject({
+      hiddenVisit: true,
+      rankingAnonymous: false,
+      kickMuteShield: true,
+    });
     const ok = await setPrivacy(holder, { rankingAnonymous: true, kickMuteShield: false });
     expect(ok.status, JSON.stringify(ok.body)).toBe(200);
     expectContract(ok, 'updatePrivacy');
@@ -222,7 +243,12 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
     };
     const seen = await contributors(reader);
     expect(seen).toHaveLength(2);
-    expect(seen[0]!.user).toMatchObject({ username: 'kabso.anonymous', displayName: 'مجهول', avatarUrl: null, anonymous: true });
+    expect(seen[0]!.user).toMatchObject({
+      username: 'kabso.anonymous',
+      displayName: 'مجهول',
+      avatarUrl: null,
+      anonymous: true,
+    });
     expect(seen[0]!.user.id).not.toBe(hider.id);
     expect(seen[0]!.user.vip).toBeUndefined();
     expect(seen[1]!.user).toMatchObject({ id: fan.id });
@@ -230,7 +256,8 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
     expect((await contributors(hider))[0]!.user).toMatchObject({ id: hider.id });
     expect((await contributors(host))[0]!.user).toMatchObject({ id: hider.id });
     // One person's standing: not told to others; the host still sees it.
-    const standing = (u: U) => ctx.http.get(`/api/v1/live/rooms/${roomId}/contributors/${hider.username}`).set(auth(u));
+    const standing = (u: U) =>
+      ctx.http.get(`/api/v1/live/rooms/${roomId}/contributors/${hider.username}`).set(auth(u));
     const other = await standing(reader);
     expect(other.status).toBe(200);
     expectContract(other, 'getLiveContributor');
@@ -239,7 +266,10 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
 
     // The rich board (coins sent): «مجهول» to the reader, real to the member.
     const rich = async (u: U) => {
-      const res = await ctx.http.get('/api/v1/live/rankings').query({ board: 'RICH', period: 'DAY' }).set(auth(u));
+      const res = await ctx.http
+        .get('/api/v1/live/rankings')
+        .query({ board: 'RICH', period: 'DAY' })
+        .set(auth(u));
       expect(res.status, JSON.stringify(res.body)).toBe(200);
       expectContract(res, 'listLiveRankings');
       return res.body.data as { host: Record<string, unknown>; liveRoom: unknown }[];
@@ -265,7 +295,9 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
     await member(shielded);
     await member(inherited, VIP2);
     for (const u of [mod, shielded, inherited, plain]) await join(roomId, u);
-    expect((await ctx.http.put(`/api/v1/live/rooms/${roomId}/moderators/${mod.username}`).set(auth(host))).status).toBe(200);
+    expect(
+      (await ctx.http.put(`/api/v1/live/rooms/${roomId}/moderators/${mod.username}`).set(auth(host))).status,
+    ).toBe(200);
     await ctx.prisma.liveRoomSeat.create({ data: { roomId, seatIndex: 1, userId: shielded.id } });
 
     const chatMute = (by: U, target: U) =>
@@ -283,11 +315,16 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
       await ctx.http.post(`/api/v1/live/rooms/${roomId}/seats/1/mute`).set(auth(mod)).send({ muted: true }),
       'muteLiveSeat',
     );
-    await refused(await ctx.http.post(`/api/v1/live/rooms/${roomId}/seats/1/remove`).set(auth(mod)), 'removeFromLiveSeat');
+    await refused(
+      await ctx.http.post(`/api/v1/live/rooms/${roomId}/seats/1/remove`).set(auth(mod)),
+      'removeFromLiveSeat',
+    );
     await refused(await kick(mod, shielded), 'kickFromLive');
     expect(await ctx.prisma.liveRoomSeat.count({ where: { roomId, userId: shielded.id } })).toBe(1);
     const audits = await withMigrationClient((db) =>
-      db.auditLog.findMany({ where: { action: 'vip.shield.refused', targetId: { in: [shielded.id, inherited.id] } } }),
+      db.auditLog.findMany({
+        where: { action: 'vip.shield.refused', targetId: { in: [shielded.id, inherited.id] } },
+      }),
     );
     expect(audits.map((a) => (a.metadata as { action: string }).action).sort()).toEqual(
       ['CHAT_MUTE', 'CHAT_MUTE', 'KICK', 'SEAT_MUTE', 'SEAT_REMOVE'].sort(),
@@ -306,7 +343,10 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
     await expire(inherited);
     expect((await chatMute(mod, inherited)).status).toBe(204);
     // The host is never refused.
-    expect((await ctx.http.post(`/api/v1/live/rooms/${roomId}/seats/1/mute`).set(auth(host)).send({ muted: true })).status).toBe(200);
+    expect(
+      (await ctx.http.post(`/api/v1/live/rooms/${roomId}/seats/1/mute`).set(auth(host)).send({ muted: true }))
+        .status,
+    ).toBe(200);
     expect((await chatMute(host, shielded)).status).toBe(204);
     expect((await kick(host, shielded)).status).toBe(201);
   });
@@ -348,7 +388,7 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
     const row = await ctx.prisma.liveGift.findUniqueOrThrow({ where: { id: giftId } });
     expect(row).toMatchObject({ senderId: sender.id, anonymous: true });
     // The recipient's earnings: «مجهول».
-    const earnings = await ctx.http.get('/api/v1/wallet/me/earnings').set(auth(host));
+    const earnings = await ctx.http.get('/api/v1/wallet/me/earnings/history').set(auth(host));
     expect(earnings.status).toBe(200);
     expectContract(earnings, 'listMyEarnings');
     const entry = (earnings.body.data as { sender: Record<string, unknown> | null }[])[0]!;
@@ -381,7 +421,9 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
     expect(again.body.error.details).toEqual([{ field: 'anonymous', issue: 'refused' }]);
     expect((await send(roomId, sender, [host])).status).toBe(201);
     const audited = await withMigrationClient((db) =>
-      db.auditLog.count({ where: { action: 'live.gift.anonymous_block', actorUserId: host.id, targetId: sender.id } }),
+      db.auditLog.count({
+        where: { action: 'live.gift.anonymous_block', actorUserId: host.id, targetId: sender.id },
+      }),
     );
     expect(audited).toBe(1);
     const unblock = await ctx.http.delete(`/api/v1/live/gifts/${giftId}/anonymous-block`).set(auth(host));
@@ -391,12 +433,19 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
     // A named send cannot be refused this way (404).
     const named = await send(roomId, plain, [host]);
     expect(
-      (await ctx.http.put(`/api/v1/live/gifts/${named.body.gift.id as string}/anonymous-block`).set(auth(host))).status,
+      (
+        await ctx.http
+          .put(`/api/v1/live/gifts/${named.body.gift.id as string}/anonymous-block`)
+          .set(auth(host))
+      ).status,
     ).toBe(404);
 
-    // A block by the recipient refuses an anonymous send like any send.
-    expect((await ctx.http.put(`/api/v1/users/${sender.username}/block`).set(auth(host))).status).toBeLessThan(300);
-    err(await send(roomId, sender, [host], { anonymous: true }), 409, 'LIVE_GIFT_RECIPIENT_UNAVAILABLE');
+    // A block by a recipient (a seated guest) refuses an anonymous send like any send.
+    await ctx.prisma.liveRoomSeat.create({ data: { roomId, seatIndex: 3, userId: other.id } });
+    expect(
+      (await ctx.http.put(`/api/v1/users/${sender.username}/block`).set(auth(other))).status,
+    ).toBeLessThan(300);
+    err(await send(roomId, sender, [other], { anonymous: true }), 409, 'LIVE_GIFT_RECIPIENT_UNAVAILABLE');
 
     // The membership ends: no more anonymous sends.
     await expire(sender);
