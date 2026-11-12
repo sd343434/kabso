@@ -195,6 +195,15 @@ abstract class PublicProfile with _$PublicProfile {
     /// everyone else and from older servers.
     @JsonKey(includeIfNull: false) String? staffId,
 
+    /// v1.131-social (D378, §10.168.4): the golden ID «آيدي ذهبي» held now —
+    /// the gold «ID 8888» chip on the profile. Null otherwise.
+    @JsonKey(
+      includeIfNull: false,
+      fromJson: userGoldenIdFromJson,
+      toJson: userGoldenIdToJson,
+    )
+    UserGoldenId? goldenId,
+
     /// v1.95-social (D301, §10.112): the app owner (an ACTIVE account
     /// holding the OWNER panel role) — the owner's profile layout. False for
     /// everyone else and from older servers.

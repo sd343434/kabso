@@ -95,3 +95,14 @@
   border-block-start: 1px solid var(--border);
   padding-block-start: 8px;
 }
+
+/* D378 (§10.168.4): a golden ID «آيدي ذهبي» as the app shows it — a gold chip. */
+.vip-golden-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6b4400, #7f5d00);
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid #ffe08a;
+}

@@ -25,7 +25,7 @@ export const VIP_GOLDEN_ID_PATTERN = /^[1-9][0-9]{1,7}$/;
 
 /** Line breaks, other control characters and invisible format characters (bidi controls, zero-width). */
 // eslint-disable-next-line no-control-regex
-const NOT_SHOWN = /[\u0000-\u001F\u007F-\u009F​-‏‪-‮⁠-⁩﻿]/u;
+const NOT_SHOWN = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/u;
 
 /**
  * The signature as stored (NFC, trimmed, inner spaces collapsed), or the issue that keeps it out: `too_short` (empty

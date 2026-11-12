@@ -19,6 +19,16 @@ abstract final class VipPerks {
   static const dailyBullet = 'DAILY_BULLET';
   static const profileVisitors = 'PROFILE_VISITORS';
   static const levelSpeedup = 'LEVEL_SPEEDUP';
+
+  // v1.131-social (D378, §10.168): the identity perks.
+  static const animatedCover = 'ANIMATED_COVER';
+  static const premiumUsername = 'PREMIUM_USERNAME';
+  static const goldenId = 'GOLDEN_ID';
+  static const signature = 'ANIMATED_SIGNATURE';
+  static const postBadge = 'POST_BADGE';
+  static const storyRing = 'STORY_RING';
+  static const glowingName = 'GLOWING_NAME';
+  static const dmBubble = 'DM_BUBBLE';
 }
 
 /// D258: the VIP catalogue kept for the whole session (every chat line, seat
@@ -91,6 +101,23 @@ class VipLook {
   /// The name colour (CHAT_NAME_COLOR): a bright tint of the tier's colour,
   /// so it reads on the dark chat box and on the tier's own bubble; or null.
   Color? get nameColor => has(VipPerks.nameColor) ? vipNameTint(color) : null;
+
+  /// D378 (§10.168.5): the ANIMATED_SIGNATURE text to show under the
+  /// member's posts and public bullet messages — only a member whose tier
+  /// holds the perk (inherited counts) and who set one; else null.
+  String? get signature =>
+      vip.member && has(VipPerks.signature) ? vip.signature : null;
+
+  /// D378 (§10.168.7): the STORY_RING colour — the perk's value (`#RRGGBB`,
+  /// set in the panel), else the tier's colour; null without the perk.
+  Color? get storyRingColor {
+    if (!vip.member || !has(VipPerks.storyRing)) return null;
+    final v = perks[VipPerks.storyRing]?.value;
+    if (v is String && RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(v)) {
+      return Color(0xFF000000 | int.parse(v.substring(1), radix: 16));
+    }
+    return color.withValues(alpha: 1);
+  }
 
   /// The bubble's two stops (CHAT_BUBBLE without art): deep shades of the
   /// tier's colour, opaque, so a white text and [nameColor] stay ≥ 4.5:1.
