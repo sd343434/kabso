@@ -781,6 +781,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
 | v1.126-social (draft) | 2026-11-11 | **D370 (owner 2026-11-11: «نقاط الشحن» — every recharged coin is one point, the points accumulate and never expire «النقاط لا تصفر كل شهر بل تبقى مجموع», and buy VIP «استبدل بالنقاط» beside «ادفع بالعملات الذهبية»; owner-approved points prices VIP1 2 000 000 … VIP12 400 000 000):** `getMyRechargePoints` (`GET /me/recharge-points`; `RechargePoints`, `RechargePointsEntry`, `RechargePointsReason`); `BuyVipRequest.payWith` (`VipPayWith` COINS default \| POINTS) and `pricePoints` (`priceCoins` required only with COINS); `VipTier.pricePoints` / `renewPricePoints`; `MyVip.rechargePoints`, `MyVip.renewal.pricePoints`; `VipPurchaseResult.payWith` / `pricePoints` / `listPricePoints` / `rechargePoints` (`priceCoins` 0 with POINTS); code `INSUFFICIENT_RECHARGE_POINTS` (409), `VIP_UNAVAILABLE` issue `no_points_price`; the panel's `AdminVipTier.pointsPrice` (+ create / update), `listAdminUserLedger?kind=recharge_points`, `AdminUserDetail.balances.rechargePoints` / `ledger.rechargePoints`, `adjustAdminUserRechargePoints` (`AdminRechargePointsAdjustRequest` / `Result`; audit `recharge_points.adjust`). Migration `20270430090000_recharge_points`. §4, §8, §10.163. | **Additive.** An older app sends no `payWith` and buys with coins exactly as before (the coin purchase's idempotency hash is unchanged); new response fields are ignored by older clients. No back-fill: points start with the recharges after the deploy. |
 | v1.129-social (draft) | 2026-11-11 | **D374 (owner 2026-11-11: each VIP tier gets the perks the admin PICKS in the panel, with art uploads where needed — the owner's list: the eleven built perks kept, thirty new ones registered «قريباً»; and «ازلها»: DAILY_COINS removed):** the VIP perk catalogue — `AdminVipTierList.catalogue` (`VipPerkCatalogueEntry`: code, category, ar / en title and description, `built`, `value` (`VipPerkValueSchema`: none \| int \| enum \| color \| list \| art_list \| composite), `art` (kinds SVGA / PNG / WEBP / MP4 and a size hint), `legacyAmount`), `maxPerks` (64; was 20), `artLimits` (`VipArtLimit`); `suggestedPerks` = every catalogue code; `AdminVipPerk` / `VipPerk` gain `value` (`VipPerkValue`), `video`, `category`; `AdminVipPerk.catalogued` / `retired`; `AdminVipPerkInput` gains `value` and `video`, its titles become optional (the catalogue's by default) and its `code` must be a catalogue code (400 `unknown_perk`; value issues at `perks.N.value[.…]`); `VipTier.effectivePerks` (with `VipPerk.fromTier`); `uploadAdminVipArt` `kind=video` (MP4, `contentType: video/mp4`); `claimVipDailyCoins` **deprecated** — always 409 `VIP_UNAVAILABLE` `perk` `retired`; `MyVip.dailyCoins` never sent. Migration `20270503090000_vip_perk_catalogue`. §10.93.1, §10.94.5, §10.166. | **Additive for the app** (new fields ignored by older clients; an older app hides the daily-coins row because `dailyCoins` is absent). **Stricter for the panel** (a save naming a code outside the catalogue — any free-text code, or DAILY_COINS — is refused; the new panel ships with the API). |
+| v1.131-social (draft) | 2026-11-12 | **D378 (owner 2026-11-11: the VIP identity perks):** ANIMATED_COVER, PREMIUM_USERNAME, GOLDEN_ID, ANIMATED_SIGNATURE, POST_BADGE, STORY_RING, GLOWING_NAME and DM_BUBBLE built (`VipPerk.available` true); `UserVip.signature`; `UserSummary.goldenId` / `PublicProfile.goldenId` (`UserGoldenId`, `VipGoldenIdClass`); `setMyVipSignature` (`PUT /me/vip/signature`), `getMyVipGoldenIds`, `claimMyVipGoldenId`, `releaseMyVipGoldenId`; `claimVipPremiumUsername` (`POST /me/premium-username/vip-claim`), `PremiumUsernameStore.vipTier`, `MyPremiumUsername.source` `VIP`; the panel's golden ID stock `listAdminVipGoldenIds`, `addAdminVipGoldenIds`, `removeAdminVipGoldenId`; `VipPerkValueSchema.source` `GOLDEN_ID_CLASS`. Migration `20270510090000_vip_identity_perks`. §10.168. | **Additive** (new fields and operations; an older app ignores them and shows a `VIP` premium username as a rental). |
 | v1.117-live (draft) | 2026-11-11 | **D371 (owner: «اريد جعل سعر الرسائل العامة ب ١٠ الاف كوينز»):** a bullet message «رسالة عامة» (`sendLiveBullet`) costs **10 000 coins** instead of 15 (`LIVE_BULLET_COST_COINS`); a balance under 10 000 → 409 `INSUFFICIENT_COINS`. VIP free public messages (D258) unchanged (still free); a paid bullet still counts its coins as family points (now 10 000). §4 (409 row), §10.19. | **Behaviour change, shapes unchanged.** An older app's hint and «not enough coins» text still say 15 coins; the server charges 10 000. |
 | v1.116-live (draft) | 2026-11-11 | **D369 (owner: «الغي البث المتعدد لا اريده»): the multi-guest live is retired.** `startLiveRoom` `mode` MULTI → 400 `VALIDATION_FAILED` `mode` / `invalid_value` (as PK); `StartLiveRoomRequest.mode` enum SOLO, AUDIO, PODCAST, STREAMER. No list returns a MULTI room (`listLiveRooms` every `kind` and no kind, `listActiveLiveBoosts`); `kind=multi` stays valid and answers an empty page; `kind=party` = AUDIO; `party_all` loses MULTI. A MULTI room started before the deploy runs on until it ends (no migration, no job); `LiveRoomMode.MULTI`, the rows, `LiveConfig.seatCounts.MULTI`, the capacity weights and the panel's mode filter are kept. §10.4, §10.141, §10.162. | **Behaviour change** (a request enum value removed; lists no longer return MULTI rooms). Older apps: their multi-guest go-live is refused with 400 (the app shows its validation error); their hub and party lists simply contain no MULTI room. |
 | v1.115-live (draft) | 2026-11-11 | **D368 (owner: «بودكاست الحي يظهر في صفحة البث وليس الحفلة لكن الصوتي يظهر في صفحة الحفلة»; «ازل من بودكاست زر الكاميرة التي خلف التصنيف»):** a live VIDEO podcast (PODCAST with `LivePodcast.video`, §10.157) is listed by `listLiveRooms` `kind=solo` and `kind=video` under every hub filter, not by `kind=party_all` (audio podcasts only); `kind=podcast` keeps every podcast; «رائج» (§10.89) counts a video podcast in the video lives' top. App: the hub's camera card with the «Podcast» tag and no camera icon after the tag; a «مميز» slot pinned only where its kind lists the room. No migration, no shape change. §10.4, §10.89, §10.141, §10.161. | **Behaviour change** in list membership only (shapes unchanged). An older app sees a video podcast on its hub (`solo`) and no longer on its party page. |
@@ -12301,3 +12302,93 @@ the tier's next perk save. `claimVipDailyCoins` (`POST /me/vip/daily-coins`) sta
 app hides its claim row. The wallet ledger reason `VIP_DAILY_COINS`, the past ledger rows and `vip_daily_coin_claims`
 stay (history); the wallet keeps naming the reason «كوينز VIP اليومية». The app drops the «الخاص بي VIP» daily-coins row
 and its strings, and the purchase panel's daily-coins total line.
+
+### 10.168 The VIP identity perks *(v1.131-social, DRAFT — D378)*
+
+Owner decision 2026-11-11 (via the coordinator). Eight IDENTITY perks of the D374 catalogue become **built**. Each is
+held by a member whose effective perks include it — their tier or any lower one (D258's inheritance; the server's
+`vipPerkHoldIn` / `vipHoldsPerkIn`, the app's `vipLookOf`) — and only while the membership is active. Nobody else sees
+any change. Blocks, reports, moderation and staff powers are untouched (a perk never shows content a block hides).
+
+#### 10.168.1 ANIMATED_COVER
+
+The tier's cover art (SVGA / MP4 / PNG / WebP, 1 080 × 720, uploaded in the panel) plays across the member's profile
+cover. **Choice (documented, owner may revisit):** the tier art plays **over** the member's own cover while the perk is
+held; the own cover stays saved (and can still be changed) and shows again when the VIP ends. A staff account's team
+cover is never replaced. Reduce motion: the still. No server state.
+
+#### 10.168.2 POST_BADGE
+
+The VIP badge (the BADGE perk's art when held, else the «VIPn» pill in the tier's colour) right after the author's name on
+posts, reels and comments. App only (`UserSummary.vip` is already on every author).
+
+#### 10.168.3 PREMIUM_USERNAME (D146)
+
+The perk's value is a medal (`PREMIUM_USERNAME_TIER`: LEGEND · RUBY · GOLD · SILVER). A holder claims **free** a premium
+username of that medal **or a lower one** (LEGEND > RUBY > GOLD > SILVER) — AVAILABLE, NOT_FOR_SALE (no price needed) or
+their own in its grace — with `POST /me/premium-username/vip-claim` `{username}`. Order: 400 body → 409 `USERNAME_LOCKED`
+(a special username) → 409 `VIP_UNAVAILABLE` `perk` `not_held` → 409 `PREMIUM_USERNAME_UNAVAILABLE` → 409
+`VIP_UNAVAILABLE` `username` `class` → 409 `PREMIUM_USERNAME_ACTIVE`. The lease (`source` `VIP`) ends with the
+membership: it follows a renewal or upgrade at once (`syncVipIdentityIn` in the purchase), and the premium-usernames
+sweeper first moves every ACTIVE `VIP` lease to its holder's membership end — or to now when the perk (or a class allowing
+the medal) is gone — then D146's usual expiry runs: back to the regular username, D146's grace period (the name kept for
+the holder), then the pool. No coins move. Audited `premium_username.vip_claim`. `GET /premium-usernames` gains
+`vipTier` (the claimable medal, null without the perk) and also suggests NOT_FOR_SALE names the caller can claim.
+
+#### 10.168.4 GOLDEN_ID «آيدي ذهبي»
+
+A short special public number shown as the gold special-ID pill «ID 8888» (the staff IDs' D299h pill). There was no
+public short ID before (only the staff IDs «Kabso01», D283c, which win: a staff account shows its staff ID, never a golden
+ID). Table `vip_golden_ids` (the owner's stock): `number` (2–8 digits, no leading 0, unique — the primary key), `class`
+(`REPEATED` one digit repeated, else `THREE_DIGIT` / `FOUR_DIGIT` / `FIVE_DIGIT` by length; derived from the digits by
+the server), `state` FREE · HELD · GRACE, `holder_id` (unique: one number a holder), `held_until`, `grace_until`.
+
+- **Panel** (`catalog.view` / `catalog.manage`, a reason each, audited): `GET /admin/vip/golden-ids[?class&state]`,
+  `POST /admin/vip/golden-ids` `{numbers[≤100], reason}` (400 `numbers.N` `invalid_format` / `duplicate_value` /
+  `taken`), `POST /admin/vip/golden-ids/{number}/remove` (FREE only; 409 `ADMIN_ACTION_REFUSED` `rule` `golden_id_held`).
+- **The perk's value** picks the class (`GOLDEN_ID_CLASS`). `GET /me/vip/golden-ids` → the class, the caller's number
+  and ≤ 60 FREE numbers of the class; `POST /me/vip/golden-id` `{number}` takes a FREE one of the class (or their own in
+  its grace; a held one is given back first); `DELETE /me/vip/golden-id` gives it back. 409 `VIP_UNAVAILABLE`
+  (`perk` `not_held`, `number` `not_found` / `class` / `taken`). Serialised per holder (advisory lock) and per number
+  (`FOR UPDATE`).
+- **End of VIP:** shown only while HELD with `held_until` in the future and an active membership (hidden at once when the
+  membership ends). The sweeper (the premium-usernames interval) moves a HELD number whose holder lost the perk or the
+  class into **GRACE for 7 days** (from the earlier of the end and now), restores it to HELD when the class is held again
+  (a renewal does it at once), and returns it FREE once the grace is over or the holder's account is deleted. Every
+  change is audited (`vip.golden_id.claim|release|grace|free|stock_add|stock_remove`).
+- Shown as `UserSummary.goldenId` / `PublicProfile.goldenId` `{number, class}` (never on a Kabso Team account): the
+  profile's badge row and the person card (instead of the plain «ID: username»).
+
+#### 10.168.5 ANIMATED_SIGNATURE
+
+`vip_memberships.signature` (1–24 characters after NFC, trimming and collapsing spaces; no line breaks, controls or
+invisible format characters; the server's blocked words (§11.11) refused). `PUT /me/vip/signature` `{signature|null}`:
+400 body → 409 `VIP_UNAVAILABLE` `perk` `not_held` (clearing is always allowed) → 400 `signature` `too_short` /
+`too_long` / `invalid_format` / `blocked_word`. Audited `vip.signature.set`. Kept across renewals; sent as
+`UserVip.signature`; the app draws it (on the perk's art, else a pill in the tier's shades, a light sweeping across;
+reduce motion: still) under the member's posts and public bullet messages **only while their tier holds the perk**.
+
+#### 10.168.6 Purchases
+
+A purchase (new, renewal, upgrade) moves a VIP premium username lease and a golden ID to the new end at once (and brings a
+golden ID in its grace back when the class matches); what the new tier no longer allows is left to the sweepers. These
+never fail the purchase.
+
+#### 10.168.7 STORY_RING
+
+The perk's value is a colour (`#RRGGBB`; none: the tier's colour) and optional art (300 × 300). The stories tray and the
+story viewer draw the member's ring (a sweep of the colour, a light tint and gold; the art over it; a seen story dimmed)
+instead of the default ring. The reusable hook is `vipStoryRingColors(look)` + `VipStoryRingPainter` (for the people
+carousel's `StoryRingStyle` on its branch). App only.
+
+#### 10.168.8 GLOWING_NAME
+
+An animated glow in the tier's colour around the member's name in the live chat (breathing, 1.8 s); reduce motion: a
+steady glow. App only.
+
+#### 10.168.9 DM_BUBBLE
+
+The member's direct messages (text and voice) use their tier's chat bubble — the CHAT_BUBBLE perk's art (the owner: «هي
+نفس فقاعة التكست»), else deep shades of the tier's colour with a light edge — white text on it. App only (the peer's
+`UserSummary.vip` and the caller's own membership).
+
