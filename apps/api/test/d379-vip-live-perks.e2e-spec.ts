@@ -515,7 +515,10 @@ describe('D379 VIP perks in live rooms', { timeout: 240_000 }, () => {
       'requestLiveSeat',
     );
     // Listed with the lock.
-    const listed = await ctx.http.get('/api/v1/live/rooms').query({ tab: 'new', kind: 'party' }).set(auth(plain));
+    const listed = await ctx.http
+      .get('/api/v1/live/rooms')
+      .query({ tab: 'new', kind: 'party' })
+      .set(auth(plain));
     expect(listed.status, JSON.stringify(listed.body)).toBe(200);
     const card = (listed.body.data as { id: string; vipMinTier: unknown }[]).find((r) => r.id === roomId);
     expect(card?.vipMinTier).toMatchObject({ code: 'VIP_2' });
