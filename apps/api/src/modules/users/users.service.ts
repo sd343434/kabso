@@ -20,6 +20,7 @@ import {
 import { resolveUserIdByUsername } from './special-usernames.js';
 import type { VerificationBadgeValue } from '../verification/verification-rules.js';
 import { usernameHash } from './account-deletion.js';
+import { visibleStatusEmoji } from '../status-emoji/status-emoji-catalogue.js';
 import { isReservedUsername, isValidUsername } from './username.js';
 
 /** `Me` response (openapi `#/components/schemas/Me`). */
@@ -60,6 +61,11 @@ export interface MeDto {
   coverUrl: string | null;
   /** v1.90-social (D293, §10.105): the automatic verification badge «شارة التوثيق» (only its type), or null. */
   verification: VerificationBadgeValue | null;
+  /**
+   * v1.130-social (D376, §10.167): «الحالة» — the status emoji the caller wears (`<pack>.<emoji>`), or null (none, or
+   * a store pack's emoji whose pack has ended).
+   */
+  statusEmojiId: string | null;
 }
 
 /** Public identity fields of an ACTIVE user (contract v1.3 `PublicProfile` / `UserSummary`). */
@@ -101,6 +107,8 @@ export const ME_INCLUDE = {
   liveHost: { select: { userId: true, coverUrl: true } },
   // v1.90-social (D293): the automatic verification badge (one row or none).
   verificationBadge: { select: { badge: true } },
+  // v1.130-social (D376): the status packs held (`Me.statusEmojiId` hides an ended pack's emoji).
+  statusPacks: { select: { packId: true, expiresAt: true } },
   // v1.54-social (D185): the caller's own ACTIVE special username (self only, never public).
   specialUsernames: {
     where: { status: 'ACTIVE' },
@@ -159,6 +167,9 @@ export interface UserWithProfile {
   liveHost?: { userId: string; coverUrl?: string | null } | null;
   /** v1.90-social (D293, §10.105): `ME_INCLUDE` reads the automatic verification badge (none: null). */
   verificationBadge?: { badge: VerificationBadgeValue } | null;
+  /** v1.130-social (D376, §10.167): the status emoji and (`ME_INCLUDE`) the status packs held. */
+  statusEmojiId?: string | null;
+  statusPacks?: { packId: string; expiresAt: Date }[];
   /** v1.54-social (D185): `ME_INCLUDE` reads the ACTIVE one. */
   specialUsernames?: {
     username: string;
@@ -197,6 +208,7 @@ export function toMeDto(user: UserWithProfile): MeDto {
     ...specialOf(user),
     coverUrl: user.profile.coverUrl ?? null,
     verification: user.verificationBadge?.badge ?? null,
+    statusEmojiId: visibleStatusEmoji(user.statusEmojiId, user.statusPacks, new Date()),
   };
 }
 

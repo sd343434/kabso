@@ -4355,3 +4355,23 @@ same object storage as the VIP SVGA / stills, under `media/vip/<tier>/`).
 - **Order:** deploy the API image (the migration runs first) together with the admin panel (the old panel's free-text
   codes would be refused by the new API), then ship the APK. An older app keeps working: it reads `perks` (not
   `effectivePerks`) and no longer sees a daily-coins row.
+
+### 5.120 «الحالة» status emoji and «متجر الحالة» (D376; migration `20270505090000_status_emoji`) — [IMPLEMENTED, draft contract v1.130-social; not deployed, not device-tested]
+
+CONVENTIONS §10.167 (owner 2026-11-12). One migration, no new setting, no new secret, no new host (the Noto Lottie files
+ship inside the app; nothing is fetched at run time).
+
+- **Migration** `20270505090000_status_emoji` (the usual `migrate` job, as the migration role): `users.status_emoji_id`
+  (nullable, shape CHECK), tables `status_pack_offers` (seeded: `premium`, 30 days, 100 000 coins), `user_status_packs`,
+  `status_pack_purchases` (granted by the default privileges; the migration then REVOKEs UPDATE / DELETE on the purchases
+  from `kabso_runtime_<database>` — it needs that group, as every recent migration); wallet ledger reason
+  `STATUS_PACK_PURCHASE`, added to the sign rule `wallet_ledger_reason_sign` as a debit (the constraint is read and
+  re-added in place, as `20270417090100_store_iap` did). Adding a column with no default and new small tables: no long
+  lock; the sign constraint's re-add scans `wallet_ledger` once.
+- **Price:** changed by the team with SQL until a panel page exists, e.g.
+  `UPDATE status_pack_offers SET coins = … WHERE pack_id = 'premium' AND days = 30;` (`enabled = false` stops sales; a
+  person's pack keeps working until its end). An app showing the old price gets 409 `STORE_PRICE_CHANGED` and reloads.
+- **Licence:** the 51 Noto files are CC BY 4.0 (Google). Before release, re-read Google's statement (the
+  noto-emoji-animation gallery / the 2022 Google for Developers post) from a machine that can open it, and keep the
+  attribution in Settings › «التراخيص» (PRE_PRODUCTION_CHECKLIST). App size: + 3.7 MiB (3 864 243 bytes of JSON).
+- **Order:** deploy the API image (the migration runs first) → ship the APK. An older app ignores `statusEmojiId`.

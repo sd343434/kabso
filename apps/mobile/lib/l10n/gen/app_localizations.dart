@@ -30429,6 +30429,516 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يمكن إرسال هدية على هذا المنشور.'**
   String get errorContentGiftRecipientUnavailable;
+
+  /// D376 «الحالة»: the Edit profile row and the picker title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحالة'**
+  String get statusTitle;
+
+  /// D376: clears the status (picker button and the Edit profile value).
+  ///
+  /// In ar, this message translates to:
+  /// **'بدون حالة'**
+  String get statusNone;
+
+  /// D376: the picker subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر رمزاً يظهر فوق صورتك مثل الفقاعات'**
+  String get statusPickerHint;
+
+  /// D376: the picker save button.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get statusSave;
+
+  /// D376: after saving.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حفظ الحالة'**
+  String get statusSaved;
+
+  /// D376: after «بدون حالة» was saved.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُزيلت الحالة'**
+  String get statusCleared;
+
+  /// D376: the Google Noto pack tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'عام'**
+  String get statusPackGeneral;
+
+  /// D376: the store pack tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'المميزة'**
+  String get statusPackPremium;
+
+  /// D376: under the preview when a locked emoji is selected.
+  ///
+  /// In ar, this message translates to:
+  /// **'معاينة فقط: افتح المتجر لاستخدام رموز المميزة'**
+  String get statusLockedHint;
+
+  /// D376: screen reader suffix of a locked emoji.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقفلة'**
+  String get statusLockedLabel;
+
+  /// D376: opens «متجر الحالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'افتح المتجر'**
+  String get statusOpenStore;
+
+  /// D376: 409 pack_not_owned.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الحالة من حزمة المميزة. افتح المتجر لشرائها'**
+  String get statusNotOwned;
+
+  /// D376: «متجر الحالة» title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحالة المميزة'**
+  String get statusStoreTitle;
+
+  /// D376: under the store preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} رمزاً متحركاً تظهر فوق صورتك مثل الفقاعات'**
+  String statusStoreCount(String count);
+
+  /// D376: the store banner while held.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحزمة مفعّلة حتى {date}'**
+  String statusStoreActive(String date);
+
+  /// D376: a price option duration.
+  ///
+  /// In ar, this message translates to:
+  /// **'{days} يوماً'**
+  String statusStoreDays(String days);
+
+  /// D376: a price.
+  ///
+  /// In ar, this message translates to:
+  /// **'{price} عملة'**
+  String statusStorePrice(String price);
+
+  /// D376: the buy button.
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء · {price}'**
+  String statusStoreBuy(String price);
+
+  /// D376: the renew button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجديد · {price}'**
+  String statusStoreRenew(String price);
+
+  /// D376: buy confirmation.
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء الحزمة المميزة: {days} مقابل {price}؟'**
+  String statusStoreConfirmBuy(String days, String price);
+
+  /// D376: renew confirmation.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجديد الحزمة المميزة: {days} مقابل {price}؟ تُضاف المدة إلى المدة المتبقية.'**
+  String statusStoreConfirmRenew(String days, String price);
+
+  /// D376: the confirm button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد'**
+  String get statusStoreConfirm;
+
+  /// D376: after buying.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تفعيل الحزمة المميزة'**
+  String get statusStoreBought;
+
+  /// D376: after renewing.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تجديد الحزمة'**
+  String get statusStoreRenewed;
+
+  /// D376: insufficient coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك غير كافٍ لهذه الحزمة.'**
+  String get statusStoreShort;
+
+  /// D376: opens the wallet.
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن العملات'**
+  String get statusStoreRecharge;
+
+  /// D376: the coin balance in the store.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك: {coins}'**
+  String statusStoreBalance(String coins);
+
+  /// D376: the store failed to load.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المتجر'**
+  String get statusStoreLoadError;
+
+  /// D376: no price.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحزمة غير متاحة للشراء الآن'**
+  String get statusStoreNotSold;
+
+  /// D376: after buying, sets the previewed emoji as the status.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم الحالة'**
+  String get statusStoreUse;
+
+  /// D376: what a screen reader says for a status over a picture.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحالة: {name}'**
+  String statusSemantics(String name);
+
+  /// D376: wallet history reason STATUS_PACK_PURCHASE.
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء حزمة الحالة'**
+  String get walletReasonStatusPack;
+
+  /// D376: the settings row opening the licenses page.
+  ///
+  /// In ar, this message translates to:
+  /// **'التراخيص'**
+  String get settingsLicenses;
+
+  /// D376: the CC BY 4.0 attribution of the Noto animated emoji (required by the licence).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرموز المتحركة من Google ‏(Noto Emoji)، بترخيص CC BY 4.0'**
+  String get settingsNotoAttribution;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.happy`.
+  ///
+  /// In ar, this message translates to:
+  /// **'سعيد'**
+  String get statusEmojiNotoHappy;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.laugh`.
+  ///
+  /// In ar, this message translates to:
+  /// **'ضحك'**
+  String get statusEmojiNotoLaugh;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.love`.
+  ///
+  /// In ar, this message translates to:
+  /// **'حب'**
+  String get statusEmojiNotoLove;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.heart_eyes`.
+  ///
+  /// In ar, this message translates to:
+  /// **'معجب'**
+  String get statusEmojiNotoHeartEyes;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.cool`.
+  ///
+  /// In ar, this message translates to:
+  /// **'رايق'**
+  String get statusEmojiNotoCool;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.star_struck`.
+  ///
+  /// In ar, this message translates to:
+  /// **'منبهر'**
+  String get statusEmojiNotoStarStruck;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.party`.
+  ///
+  /// In ar, this message translates to:
+  /// **'احتفال'**
+  String get statusEmojiNotoParty;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.innocent`.
+  ///
+  /// In ar, this message translates to:
+  /// **'بريء'**
+  String get statusEmojiNotoInnocent;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.wink_tongue`.
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاكس'**
+  String get statusEmojiNotoWinkTongue;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.hug`.
+  ///
+  /// In ar, this message translates to:
+  /// **'حضن'**
+  String get statusEmojiNotoHug;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.kiss`.
+  ///
+  /// In ar, this message translates to:
+  /// **'بوسة'**
+  String get statusEmojiNotoKiss;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.thinking`.
+  ///
+  /// In ar, this message translates to:
+  /// **'أفكر'**
+  String get statusEmojiNotoThinking;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.sleepy`.
+  ///
+  /// In ar, this message translates to:
+  /// **'نعسان'**
+  String get statusEmojiNotoSleepy;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.eye_roll`.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملل'**
+  String get statusEmojiNotoEyeRoll;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.sad`.
+  ///
+  /// In ar, this message translates to:
+  /// **'حزين'**
+  String get statusEmojiNotoSad;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.crying`.
+  ///
+  /// In ar, this message translates to:
+  /// **'بكاء'**
+  String get statusEmojiNotoCrying;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.angry`.
+  ///
+  /// In ar, this message translates to:
+  /// **'غاضب'**
+  String get statusEmojiNotoAngry;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.shocked`.
+  ///
+  /// In ar, this message translates to:
+  /// **'مصدوم'**
+  String get statusEmojiNotoShocked;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.heart`.
+  ///
+  /// In ar, this message translates to:
+  /// **'قلب'**
+  String get statusEmojiNotoHeart;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.fire`.
+  ///
+  /// In ar, this message translates to:
+  /// **'نار'**
+  String get statusEmojiNotoFire;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.hundred`.
+  ///
+  /// In ar, this message translates to:
+  /// **'١٠٠'**
+  String get statusEmojiNotoHundred;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.thumbs_up`.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمام'**
+  String get statusEmojiNotoThumbsUp;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.congrats`.
+  ///
+  /// In ar, this message translates to:
+  /// **'مبروك'**
+  String get statusEmojiNotoCongrats;
+
+  /// D376 «الحالة»: the name of the status emoji `noto.thanks`.
+  ///
+  /// In ar, this message translates to:
+  /// **'شكراً'**
+  String get statusEmojiNotoThanks;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.bird`.
+  ///
+  /// In ar, this message translates to:
+  /// **'عصفور'**
+  String get statusEmojiPremiumBird;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.dove`.
+  ///
+  /// In ar, this message translates to:
+  /// **'حمامة'**
+  String get statusEmojiPremiumDove;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.eagle`.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسر'**
+  String get statusEmojiPremiumEagle;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.owl`.
+  ///
+  /// In ar, this message translates to:
+  /// **'بومة'**
+  String get statusEmojiPremiumOwl;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.flamingo`.
+  ///
+  /// In ar, this message translates to:
+  /// **'فلامنجو'**
+  String get statusEmojiPremiumFlamingo;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.peacock`.
+  ///
+  /// In ar, this message translates to:
+  /// **'طاووس'**
+  String get statusEmojiPremiumPeacock;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.penguin`.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطريق'**
+  String get statusEmojiPremiumPenguin;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.chick`.
+  ///
+  /// In ar, this message translates to:
+  /// **'صوص'**
+  String get statusEmojiPremiumChick;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.hatching`.
+  ///
+  /// In ar, this message translates to:
+  /// **'فقس'**
+  String get statusEmojiPremiumHatching;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.crown`.
+  ///
+  /// In ar, this message translates to:
+  /// **'تاج'**
+  String get statusEmojiPremiumCrown;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.diamond`.
+  ///
+  /// In ar, this message translates to:
+  /// **'ألماس'**
+  String get statusEmojiPremiumDiamond;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.rocket`.
+  ///
+  /// In ar, this message translates to:
+  /// **'صاروخ'**
+  String get statusEmojiPremiumRocket;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.lion`.
+  ///
+  /// In ar, this message translates to:
+  /// **'أسد'**
+  String get statusEmojiPremiumLion;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.rich`.
+  ///
+  /// In ar, this message translates to:
+  /// **'غني'**
+  String get statusEmojiPremiumRich;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.trophy`.
+  ///
+  /// In ar, this message translates to:
+  /// **'كأس'**
+  String get statusEmojiPremiumTrophy;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.glow_star`.
+  ///
+  /// In ar, this message translates to:
+  /// **'نجمة'**
+  String get statusEmojiPremiumGlowStar;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.sparkles`.
+  ///
+  /// In ar, this message translates to:
+  /// **'بريق'**
+  String get statusEmojiPremiumSparkles;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.unicorn`.
+  ///
+  /// In ar, this message translates to:
+  /// **'يونيكورن'**
+  String get statusEmojiPremiumUnicorn;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.dragon`.
+  ///
+  /// In ar, this message translates to:
+  /// **'تنين'**
+  String get statusEmojiPremiumDragon;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.rose`.
+  ///
+  /// In ar, this message translates to:
+  /// **'وردة'**
+  String get statusEmojiPremiumRose;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.gift`.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية'**
+  String get statusEmojiPremiumGift;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.fireworks`.
+  ///
+  /// In ar, this message translates to:
+  /// **'ألعاب نارية'**
+  String get statusEmojiPremiumFireworks;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.rainbow`.
+  ///
+  /// In ar, this message translates to:
+  /// **'قوس قزح'**
+  String get statusEmojiPremiumRainbow;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.sparkling_heart`.
+  ///
+  /// In ar, this message translates to:
+  /// **'قلب لامع'**
+  String get statusEmojiPremiumSparklingHeart;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.champagne`.
+  ///
+  /// In ar, this message translates to:
+  /// **'شمبانيا'**
+  String get statusEmojiPremiumChampagne;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.cheers`.
+  ///
+  /// In ar, this message translates to:
+  /// **'نخب'**
+  String get statusEmojiPremiumCheers;
+
+  /// D376 «الحالة»: the name of the status emoji `premium.devil`.
+  ///
+  /// In ar, this message translates to:
+  /// **'شقي'**
+  String get statusEmojiPremiumDevil;
 }
 
 class _AppLocalizationsDelegate

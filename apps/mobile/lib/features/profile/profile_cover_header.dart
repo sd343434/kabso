@@ -64,6 +64,8 @@ import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/staff/presentation/staff_covers.dart';
 import 'package:kabso_live/features/staff/presentation/staff_official_bio.dart';
+import 'package:kabso_live/features/status/status_catalogue.dart';
+import 'package:kabso_live/features/status/status_emoji_layer.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -124,6 +126,10 @@ abstract final class KPublicProfile {
   /// two thirds on the cover, [avatarOverhang] on the page.
   static const double avatarLift = 38;
   static const double avatarOverhang = avatarOuter / 2 - avatarLift;
+
+  /// D376 «الحالة»: how high the status bubbles rise over the photo (the
+  /// cover above it is their room; owner's pack: radius-relative, 1 = full).
+  static const double statusRise = 0.85;
 
   /// D335 (owner: «الشارة على الصورة = علامة التوثيق»): the verification
   /// seal on the photo's corner (E ≈ 26) with a page-coloured rim (E ≈ 3),
@@ -961,6 +967,19 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
               clipBehavior: Clip.none,
               children: [
                 Positioned.fill(child: picture),
+                // D376 «الحالة»: the status rising over the photo (never on
+                // a Kabso Team account's fixed look).
+                if (StatusCatalogue.byId(profile.statusEmojiId)
+                    case final emoji?
+                    when profile.staff == null &&
+                        !isTeamAvatarUrl(profile.avatarUrl))
+                  Positioned.fill(
+                    child: StatusEmojiLayer(
+                      emoji,
+                      radius: radius,
+                      riseFactor: KPublicProfile.statusRise,
+                    ),
+                  ),
                 // D357: the founder's red seal at the photo's bottom centre,
                 // over its rim (never beside his name), on a white / surface
                 // ring that parts it from the photo and any frame.

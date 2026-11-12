@@ -357,6 +357,10 @@ export async function resetDatabase(): Promise<void> {
     await client.$executeRawUnsafe(
       `INSERT INTO verification_badge_settings (id) VALUES (1) ON CONFLICT DO NOTHING`,
     );
+    // v1.130-social (D376): the owner's «المميزة» status pack price, inserted by its migration.
+    await client.$executeRawUnsafe(
+      `INSERT INTO status_pack_offers (pack_id, days, coins) VALUES ('premium', 30, 100000) ON CONFLICT DO NOTHING`,
+    );
   });
 }
 

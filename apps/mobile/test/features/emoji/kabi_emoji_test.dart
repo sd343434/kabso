@@ -50,6 +50,9 @@ void main() {
           .whereType<File>()
           .map((f) => f.path.substring('assets/emojis/'.length))
           .where((n) => n.endsWith('.json'))
+          // D376: `noto/` holds the «الحالة» status packs' Google Noto
+          // files (checked by test/features/status), not chat emoji.
+          .where((n) => !n.startsWith('noto/'))
           .toSet();
       expect(files, {
         for (final e in KabsoEmoji.values) '${e.pack.name}/${e.key}.json',

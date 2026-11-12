@@ -59,7 +59,9 @@ export type WalletLedgerReason =
   | 'STORE_IAP'
   | 'STORE_IAP_REVERSAL'
   /** v1.127-social (D372, §10.164): a gift sent on a post or reel «هدية الدعم» (reference: the send). */
-  | 'CONTENT_GIFT';
+  | 'CONTENT_GIFT'
+  /** v1.130-social (D376, §10.167): a status pack bought or renewed (reference: the `status_pack_purchases` row). */
+  | 'STATUS_PACK_PURCHASE';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

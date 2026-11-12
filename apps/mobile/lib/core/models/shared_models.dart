@@ -324,6 +324,11 @@ abstract class UserSummary with _$UserSummary {
       toJson: verificationBadgeToJson,
     )
     VerificationBadge? verification,
+
+    /// v1.130-social (D376, §10.167): «الحالة» — the status emoji worn over
+    /// the picture (`<pack>.<emoji>`); the app shows nothing for an id it
+    /// does not know. Null when none and from older servers.
+    @JsonKey(includeIfNull: false) String? statusEmojiId,
   }) = _UserSummary;
 
   factory fromJson(Map<String, dynamic> json) => _$UserSummaryFromJson(json);

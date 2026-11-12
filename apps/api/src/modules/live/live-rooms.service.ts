@@ -55,6 +55,8 @@ import { refuseLimitedStaff, watchStaffSql } from './live-staff.js';
 import { founderSql } from '../owner-profile/founder-levels.js';
 import { LiveCapacityGuard } from './live-capacity.js';
 import type { VerificationBadgeValue } from '../verification/verification-rules.js';
+import { statusPackOf, visibleStatusEmoji } from '../status-emoji/status-emoji-catalogue.js';
+import { isTeamAvatarUrl } from './staff-avatar.js';
 
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
 
@@ -84,6 +86,20 @@ function hostVipOf(row: RoomRow): { vip?: NonNullable<ReturnType<typeof activeVi
     row.host_worn ?? [],
   );
   return vip ? { vip } : {};
+}
+
+/** v1.130-social (D376, §10.167): the host's status emoji (`UserSummary.statusEmojiId`), as every other summary. */
+function hostStatusEmojiOf(row: RoomRow): { statusEmojiId?: string } {
+  const id = row.host_status_emoji_id ?? null;
+  if (id === null || row.host_status !== 'ACTIVE' || isTeamAvatarUrl(row.avatar_url)) return {};
+  const pack = statusPackOf(id);
+  const until = row.host_status_pack_until ?? null;
+  const shown = visibleStatusEmoji(
+    id,
+    pack !== null && until !== null ? [{ packId: pack, expiresAt: new Date(until) }] : [],
+    new Date(),
+  );
+  return shown ? { statusEmojiId: shown } : {};
 }
 
 /** D270 (§10.98): the store items the host wears (`UserSummary.wear`), as every other summary. */
@@ -147,6 +163,11 @@ export interface UserSummaryDto {
    * present only while the user holds one (an active account; the stored `user_verification_badges` row).
    */
   verification?: VerificationBadgeValue;
+  /**
+   * v1.130-social (D376, §10.167): «الحالة» — the status emoji worn over the picture (`<pack>.<emoji>`), present only
+   * while the user wears one the server shows (a store pack's only while the pack is held; an active account).
+   */
+  statusEmojiId?: string;
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER';
@@ -385,6 +406,9 @@ export interface RoomRow {
   host_agent_code: string | null;
   /** v1.90-social (D293): the host's verification badge, else null. */
   host_verification: VerificationBadgeValue | null;
+  /** v1.130-social (D376): the host's status emoji, and the end of the store pack it belongs to (null: none held). */
+  host_status_emoji_id?: string | null;
+  host_status_pack_until?: Date | null;
   /** v1.55-social (D186): the avatar frame the host wears now, else null. */
   host_frame_code: string | null;
   host_frame_asset: string | null;
@@ -495,6 +519,10 @@ const ROOM_COLUMNS = Prisma.sql`
              AND ag.status = 'OPEN'::agency_status) AS host_agent_code,
          (SELECT vb.badge::text FROM user_verification_badges vb
            WHERE vb.user_id = r.host_user_id) AS host_verification,
+         u.status_emoji_id AS host_status_emoji_id,
+         (SELECT sp.expires_at FROM user_status_packs sp
+           WHERE sp.user_id = r.host_user_id
+             AND sp.pack_id = split_part(u.status_emoji_id, '.', 1)) AS host_status_pack_until,
          (SELECT b.item_code FROM user_bag_items b
            WHERE b.user_id = r.host_user_id AND b.category = 'AVATAR_FRAME' AND b.equipped
              AND (b.expires_at IS NULL OR b.expires_at > now())
@@ -1162,6 +1190,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         ...(row.host_verification && row.host_status === 'ACTIVE'
           ? { verification: row.host_verification }
           : {}),
+        // v1.130-social (D376, §10.167): the host's status emoji, as every other summary.
+        ...hostStatusEmojiOf(row),
         ...(row.host_frame_code && row.host_frame_asset
           ? { avatarFrame: { code: row.host_frame_code, assetKey: row.host_frame_asset } }
           : {}),

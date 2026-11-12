@@ -40,6 +40,8 @@ enum WalletLedgerReason {
   storeIapReversal('STORE_IAP_REVERSAL'),
   // D372: a gift sent on a post or reel «هدية الدعم».
   contentGift('CONTENT_GIFT'),
+  // D376: a status pack «حزمة الحالة» bought or renewed.
+  statusPackPurchase('STATUS_PACK_PURCHASE'),
   other('');
 
   new(this.wire);

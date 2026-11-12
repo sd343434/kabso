@@ -146,6 +146,12 @@ export enum AuditAction {
   STORE_ITEM_RESTORE = 'store.item.restore',
   /** D270 (§10.98): a person bought a store item for themselves or as a gift (coins or cherries). */
   STORE_PURCHASE = 'store.purchase',
+  /**
+   * v1.130-social (D376, §10.167): «الحالة» — a person set or cleared their status emoji (`from`, `to`: the ids), and a
+   * person bought or renewed a status pack.
+   */
+  USER_STATUS_UPDATE = 'user.status.update',
+  STATUS_PACK_PURCHASE = 'status_pack.purchase',
   // v1.43-live (D195, §10.58): PK 1 v 1 — a match starts, its battle ends (with the reason), a
   // moderator ends one (`pk-admin end`, with the reason), a host switches invitations.
   LIVE_PK_START = 'live.pk.start',

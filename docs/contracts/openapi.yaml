@@ -663,6 +663,19 @@ info:
     owner 2026-11-11 «اريد جعل سعر الرسائل العامة ب ١٠ الاف كوينز»): `sendLiveBullet` charges 10 000, a balance under
     10 000 → 409 `INSUFFICIENT_COINS`; VIP free public messages (D258) unchanged. Shapes unchanged; behaviour change
     (an older app's hint still says 15).
+    **D376 (DRAFT v1.130-social)** «الحالة» status emoji (CONVENTIONS §10.167; the owner sent the pack 2026-11-12):
+    an animated emoji the person wears over their picture, rising like bubbles. `UserSummary.statusEmojiId` (present
+    only while worn), `Me.statusEmojiId` and `PublicProfile.statusEmojiId` (null when none) — `<pack>.<emoji>` ids
+    of the server's allow-list (free: the Kabso packs and «عام»; sold: «المميزة»); a sold pack's emoji is returned only
+    while the person holds the pack (an ended pack's emoji reads as none at once). `setMyStatusEmoji`
+    (`PUT /me/status`, `SetStatusEmojiRequest`, the updated `Me`; 400 `statusEmojiId` / `invalid_value` for an unknown
+    id, 409 `STORE_UNAVAILABLE` `statusEmojiId` / `pack_not_owned`; audited `user.status.update`), «متجر الحالة»
+    `listStatusPacks` (`GET /status-packs`, `StatusPackList`, `StatusPack`, `StatusPackOption`) and `buyStatusPack`
+    (`POST /status-packs/{packId}/purchases`, `Idempotency-Key`, `BuyStatusPackRequest`, `StatusPackPurchaseResult`;
+    the whole pack for a time at the server's price — owner: 100 000 coins for 30 days —, a renewal adds the days to
+    what is left; 409 `STORE_PRICE_CHANGED`, `STORE_UNAVAILABLE`, `INSUFFICIENT_COINS`; audited
+    `status_pack.purchase`); ledger reason `STATUS_PACK_PURCHASE`. Migration `20270505090000_status_emoji`. Additive
+    (an older app ignores the new fields).
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -1269,6 +1282,8 @@ tags:
     description: "(v1.82-social DRAFT, D252) «شراء VIP»: VIP tiers managed in the admin panel, each with its own perks, bought with coins (CONVENTIONS §10.93)."
   - name: store
     description: "(v1.84-social DRAFT, D270) «المتجر»: timed bag items (frames, profile cards, chat bubbles, entry banners and cars) the OWNER manages in the admin panel, bought for oneself or as a gift with coins or cherries (CONVENTIONS §10.98)."
+  - name: status
+    description: "(v1.130-social DRAFT, D376) «الحالة»: the animated status emoji worn over the picture and «متجر الحالة», status packs bought whole with coins for a time (CONVENTIONS §10.167)."
   - name: wallet
     description: "The caller's coins (v1.19-live DRAFT, CP-017); their history and gift earnings (v1.43-social DRAFT, D164); cherries and withdrawals (v1.52-social DRAFT, D179)."
   - name: topup
@@ -1865,6 +1880,104 @@ paths:
               schema: { $ref: '#/components/schemas/Me' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/status:
+    put:
+      tags: [status]
+      operationId: setMyStatusEmoji
+      summary: "Set or clear the caller's status emoji «الحالة» (v1.130-social, D376)"
+      description: |
+        CONVENTIONS §10.167. `statusEmojiId` is an id of the server's allow-list (`<pack>.<emoji>`, e.g. `kabi.crown`,
+        `flags.jo`, `noto.fire`, `premium.eagle`), or null for «بدون حالة». Order after auth and the rate limit (30 / hour
+        / user, bucket `me:status`, replacing the default): 400 `VALIDATION_FAILED` (`statusEmojiId` / `invalid_value`:
+        not an id we know) → 403 `STAFF_ACCOUNT_LIMITED` (`frame`: a limited Kabso Team account keeps the team's look) →
+        409 `STORE_UNAVAILABLE` (`statusEmojiId` / `pack_not_owned`: an emoji of a sold pack the caller does not hold
+        now; the app offers «متجر الحالة»). The same value as now → 200, nothing changed. Audited `user.status.update`
+        (the ids before and after).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetStatusEmojiRequest' }
+            example: { statusEmojiId: kabi.crown }
+      responses:
+        '200':
+          description: The caller with the new status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/status-packs:
+    get:
+      tags: [status]
+      operationId: listStatusPacks
+      summary: "«متجر الحالة»: the status packs on sale, their prices, the caller's ends and coins (v1.130-social, D376)"
+      description: |
+        CONVENTIONS §10.167. A pack is listed while it has an enabled price, or while the caller holds it. `expiresAt`
+        is the end of the caller's pack while held (null otherwise). Reading also clears the caller's stored status when
+        its pack has ended (readers never show it anyway). Per-user default rate limit.
+      responses:
+        '200':
+          description: The packs.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusPackList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/status-packs/{packId}/purchases:
+    post:
+      tags: [status]
+      operationId: buyStatusPack
+      summary: "Buy or renew a whole status pack with coins (v1.130-social, D376)"
+      description: |
+        CONVENTIONS §10.167. One transaction: the price is the server's (`price` is the one the app showed, only
+        compared); the coins are taken (wallet ledger `STATUS_PACK_PURCHASE`); the pack's end becomes
+        max(now, end) + `days` (a renewal adds the days to what is left). 201 for a purchase, 200 for a retry with the
+        same `Idempotency-Key` and body (the first answer, with the coins as they are now). Order after auth and the rate
+        limit (30 / hour / user, bucket `status:buy`): 400 `VALIDATION_FAILED` (body; `Idempotency-Key` missing or not a
+        UUID) → 404 `NOT_FOUND` (not a sold pack) → 409 `IDEMPOTENCY_CONFLICT` (the key with another body) → 403
+        `STAFF_ACCOUNT_LIMITED` (`store`) → 403 `TOPUP_ACCOUNT_FROZEN` (coins in debt) → 409 `STORE_UNAVAILABLE`
+        (`days` / `not_priced`: no enabled price for that duration; `days` / `too_far`: the end would pass 3 650 days)
+        → 409 `STORE_PRICE_CHANGED` → 409 `INSUFFICIENT_COINS`. A refusal charges and changes nothing. Audited
+        `status_pack.purchase`.
+      parameters:
+        - name: packId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-z][a-z0-9]{0,23}$' }
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BuyStatusPackRequest' }
+            example: { days: 30, price: 100000 }
+      responses:
+        '200':
+          description: A retry of a purchase already made with this key.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusPackPurchaseResult' }
+        '201':
+          description: Bought or renewed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusPackPurchaseResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
@@ -2584,6 +2697,7 @@ paths:
                     joinedMonth: '2026-10'
                     blockedByMe: false
                     verification: VERIFIED_HOST
+                    statusEmojiId: kabi.crown
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -32501,7 +32615,7 @@ components:
         tokens: { $ref: '#/components/schemas/TokenPair' }
     Me:
       type: object
-      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links, tags, coverUrl, verification]
+      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links, tags, coverUrl, verification, statusEmojiId]
       properties:
         kabsoOwner:
           type: boolean
@@ -32521,6 +32635,11 @@ components:
           description: "(v1.90-social, D293, §10.105) The caller's automatic verification badge beside the name, or null. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
           oneOf:
             - $ref: '#/components/schemas/VerificationBadge'
+            - type: 'null'
+        statusEmojiId:
+          description: "(v1.130-social, D376, §10.167) «الحالة» — the status emoji the caller wears, or null (none, or an emoji of a sold pack that has ended). Older servers leave it out; clients treat that as null."
+          oneOf:
+            - $ref: '#/components/schemas/StatusEmojiId'
             - type: 'null'
         kabsoTeam:
           type: boolean
@@ -32695,6 +32814,71 @@ components:
         verification:
           $ref: '#/components/schemas/VerificationBadge'
           description: "(v1.90-social, D293, §10.105.5; owner «نعم»: beside the name everywhere) — present only while the user holds an automatic verification badge with an active account; only its type, never an amount. Read with the summary's own query (no per-row query). The apps draw the seal right after the name wherever a summary's name is shown: live chat lines and join lines, the viewers list, seats, the person card, follow lists, search results, post / reel and comment authors, DM lists and headers, live cards. Absent otherwise."
+        statusEmojiId:
+          $ref: '#/components/schemas/StatusEmojiId'
+          description: "(v1.130-social, D376, §10.167) «الحالة» — present only while the user wears a status emoji (an active account; an emoji of a sold pack only while the pack is held, so an ended pack's emoji never shows). Read with the summary's own query (no per-row query). The apps draw it over the picture: the profile header, the live seats (animated for the speakers when many seats are taken), comments (a small still badge). Absent otherwise."
+    StatusEmojiId:
+      type: string
+      maxLength: 64
+      pattern: '^[a-z][a-z0-9]{0,23}\.[a-z0-9_]{1,39}$'
+      description: "(v1.130-social, D376, §10.167) A status emoji «الحالة»: `<pack>.<emoji>` of the server's allow-list (free packs: kabi, kiki, boo, pipo, dubi, gogo, lulu, neno, flags — the Kabso emoji packs — and noto «عام»; sold: premium «المميزة»). Ids never change once released; an app shows nothing for an id it does not know."
+      example: kabi.crown
+    SetStatusEmojiRequest:
+      type: object
+      additionalProperties: false
+      required: [statusEmojiId]
+      properties:
+        statusEmojiId:
+          description: The status to wear, or null for «بدون حالة».
+          oneOf:
+            - $ref: '#/components/schemas/StatusEmojiId'
+            - type: 'null'
+    StatusPackOption:
+      type: object
+      required: [days, coins]
+      properties:
+        days: { type: integer, minimum: 1, maximum: 365 }
+        coins: { type: integer, format: int64, minimum: 1, description: "The server's price for these days (owner: 100 000 for 30)." }
+    StatusPack:
+      type: object
+      required: [id, emojiIds, options, expiresAt]
+      properties:
+        id: { type: string, pattern: '^[a-z][a-z0-9]{0,23}$', description: "The pack (`premium` «المميزة»)." }
+        emojiIds:
+          type: array
+          items: { $ref: '#/components/schemas/StatusEmojiId' }
+          description: The pack's emojis, in the app's order (an app shows the ones it knows).
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/StatusPackOption' }
+          description: The durations on sale (empty while the pack is not sold but the caller still holds it).
+        expiresAt: { type: [string, 'null'], format: date-time, description: "The end of the caller's pack while held; null when not held." }
+    StatusPackList:
+      type: object
+      required: [data, coins]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/StatusPack' }
+        coins: { type: integer, format: int64, description: "The caller's coins now." }
+    BuyStatusPackRequest:
+      type: object
+      additionalProperties: false
+      required: [days, price]
+      properties:
+        days: { type: integer, minimum: 1, maximum: 365 }
+        price: { type: integer, format: int64, minimum: 1, maximum: 1000000000000, description: "The price the app showed; another price → 409 `STORE_PRICE_CHANGED`." }
+    StatusPackPurchaseResult:
+      type: object
+      required: [id, packId, days, price, expiresAt, extended, coins]
+      properties:
+        id: { type: string, format: uuid }
+        packId: { type: string }
+        days: { type: integer, minimum: 1 }
+        price: { type: integer, format: int64, minimum: 1, description: The coins taken. }
+        expiresAt: { type: string, format: date-time, description: "The pack's new end." }
+        extended: { type: boolean, description: "A renewal of a pack still held (the days were added to what was left)." }
+        coins: { type: integer, format: int64, description: "The caller's coins now." }
     UserVip:
       type: object
       required: [tier, rank, color]
@@ -33157,7 +33341,7 @@ components:
         nextCursor: { type: [string, 'null'] }
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe, verification]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe, verification, statusEmojiId]
       properties:
         kabsoOwner:
           type: boolean
@@ -33175,8 +33359,10 @@ components:
           description: "(v1.118-social, D357, §10.153) How many «اقترح ميزة / أبلغ» submissions (createOwnerFeedback, FEATURE and STAFF_REPORT, those still kept) the founder has received — one number for every viewer, cached up to 60 s. Present only on an owner's profile (0 included); never who sent them or what they say."
         verification:
           description: "(v1.90-social, D293, §10.105) The user's automatic verification badge beside the name, or null — only its type: never an amount, a threshold or which condition was met beyond the badge itself. Also on a private account's profile. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
+        statusEmojiId:
+          description: "(v1.130-social, D376, §10.167) «الحالة» — the status emoji the user wears over the picture, or null (as `UserSummary.statusEmojiId`; never on a limited Kabso Team account). Also on a private account's profile. Older servers leave it out; clients treat that as null."
           oneOf:
-            - $ref: '#/components/schemas/VerificationBadge'
+            - $ref: '#/components/schemas/StatusEmojiId'
             - type: 'null'
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -39010,6 +39196,8 @@ components:
         - STORE_IAP_REVERSAL
         # v1.127-social (D372, CONVENTIONS §10.164): a gift sent on a post or reel «هدية الدعم» (reference: the send).
         - CONTENT_GIFT
+        # v1.130-social (D376, CONVENTIONS §10.167): a status pack bought or renewed (reference: the purchase).
+        - STATUS_PACK_PURCHASE
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]

@@ -154,6 +154,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       staffId: user.staffId,
       // D293: the automatic verification badge beside the name.
       verification: user.verification,
+      // D376: «الحالة» changes at once after the picker saves.
+      statusEmojiId: user.statusEmojiId,
       rechargeAgentCode: agent?.status == RechargeAgentStatus.active
           ? agent?.code
           : null,
