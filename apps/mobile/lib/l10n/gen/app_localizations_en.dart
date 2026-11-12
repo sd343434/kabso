@@ -18045,7 +18045,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vipAnimatedAvatarIntro =>
-      'Record 3 seconds of your face: we remove the background on your phone, and your picture moves above your name on your card in rooms.';
+      'Record 3 seconds of your face or pick a video from the gallery: we remove the background on your phone, and your picture moves above your name on your card in rooms.';
 
   @override
   String get vipAnimatedAvatarEmpty => 'No animated picture yet';

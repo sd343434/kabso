@@ -5588,7 +5588,7 @@
   "rechargePointsReasonOther": "Points change",
   "vipPointsPer": "points / {days} days",
   "vipAnimatedAvatarEntry": "Animated picture",
-  "vipAnimatedAvatarIntro": "Record 3 seconds of your face: we remove the background on your phone, and your picture moves above your name on your card in rooms.",
+  "vipAnimatedAvatarIntro": "Record 3 seconds of your face or pick a video from the gallery: we remove the background on your phone, and your picture moves above your name on your card in rooms.",
   "vipAnimatedAvatarEmpty": "No animated picture yet",
   "vipAnimatedAvatarRecord": "Record",
   "vipAnimatedAvatarRerecord": "Record again",

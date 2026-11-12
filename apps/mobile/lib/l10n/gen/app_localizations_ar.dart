@@ -18061,7 +18061,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get vipAnimatedAvatarIntro =>
-      'سجّل 3 ثوانٍ لوجهك: نزيل الخلفية على هاتفك، وتظهر صورتك متحركة فوق اسمك في بطاقتك داخل الغرف.';
+      'سجّل 3 ثوانٍ لوجهك أو اختر مقطعاً من المعرض: نزيل الخلفية على هاتفك، وتظهر صورتك متحركة فوق اسمك في بطاقتك داخل الغرف.';
 
   @override
   String get vipAnimatedAvatarEmpty => 'لا توجد صورة متحركة بعد';

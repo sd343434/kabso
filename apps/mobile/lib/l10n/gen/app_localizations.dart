@@ -30403,7 +30403,7 @@ abstract class AppLocalizations {
   /// D384 «صورة متحركة» (the VIP animated picture): the screen's explanation.
   ///
   /// In ar, this message translates to:
-  /// **'سجّل 3 ثوانٍ لوجهك: نزيل الخلفية على هاتفك، وتظهر صورتك متحركة فوق اسمك في بطاقتك داخل الغرف.'**
+  /// **'سجّل 3 ثوانٍ لوجهك أو اختر مقطعاً من المعرض: نزيل الخلفية على هاتفك، وتظهر صورتك متحركة فوق اسمك في بطاقتك داخل الغرف.'**
   String get vipAnimatedAvatarIntro;
 
   /// D384 «صورة متحركة» (the VIP animated picture): the stage with no clip.

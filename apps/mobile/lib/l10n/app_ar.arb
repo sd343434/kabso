@@ -15320,7 +15320,7 @@
   "@vipPointsPer": {"description": "D370 «نقاط الشحن»: the VIP purchase panel's unit and length (points).", "placeholders": {"days": {"type": "String"}}},
   "vipAnimatedAvatarEntry": "صورة متحركة",
   "@vipAnimatedAvatarEntry": {"description": "D384 «صورة متحركة» (the VIP animated picture): the entry in «الخاص بي VIP» and the screen title."},
-  "vipAnimatedAvatarIntro": "سجّل 3 ثوانٍ لوجهك: نزيل الخلفية على هاتفك، وتظهر صورتك متحركة فوق اسمك في بطاقتك داخل الغرف.",
+  "vipAnimatedAvatarIntro": "سجّل 3 ثوانٍ لوجهك أو اختر مقطعاً من المعرض: نزيل الخلفية على هاتفك، وتظهر صورتك متحركة فوق اسمك في بطاقتك داخل الغرف.",
   "@vipAnimatedAvatarIntro": {"description": "D384 «صورة متحركة» (the VIP animated picture): the screen's explanation."},
   "vipAnimatedAvatarEmpty": "لا توجد صورة متحركة بعد",
   "@vipAnimatedAvatarEmpty": {"description": "D384 «صورة متحركة» (the VIP animated picture): the stage with no clip."},
