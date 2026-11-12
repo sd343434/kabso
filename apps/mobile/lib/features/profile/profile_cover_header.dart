@@ -64,6 +64,7 @@ import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/staff/presentation/staff_covers.dart';
 import 'package:kabso_live/features/staff/presentation/staff_official_bio.dart';
+import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -812,6 +813,10 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
               semanticLabel: l10n.profileCoverOf(profile.displayName),
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
+          // D378 (ANIMATED_COVER): the tier's cover art plays over the own
+          // cover while the member holds the perk (the own cover is kept).
+          if (staff == null && (profile.vip?.member ?? false))
+            VipAnimatedCover(vip: profile.vip),
           // D299e: a shade under the status bar and the bar, so the white
           // @username reads over a bright cover.
           const Align(
@@ -1452,6 +1457,13 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
     return [
       if (profile.vip?.member ?? false)
         VipNameBadge(vip: profile.vip, height: 20),
+      // D378 (GOLDEN_ID): the golden ID as the gold special-ID pill.
+      if (profile.goldenId case final golden?)
+        VipGoldenIdChip(
+          goldenId: golden,
+          height: 20,
+          effects: KSpecialIdEffects.full,
+        ),
       // D282 / D299i: a Kabso Team account wears the team badge (D307:
       // never on the founder's page); D335 follow-up: a staff account's is
       // on the name line instead.

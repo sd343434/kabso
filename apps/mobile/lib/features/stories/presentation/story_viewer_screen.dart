@@ -21,6 +21,7 @@ import 'package:kabso_live/features/stories/application/stories_controller.dart'
 import 'package:kabso_live/features/stories/data/stories_repository.dart';
 import 'package:kabso_live/features/stories/domain/story_models.dart';
 import 'package:kabso_live/features/stories/presentation/story_viewers_sheet.dart';
+import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -583,11 +584,22 @@ class _StoryPage extends StatelessWidget {
               Row(
                 children: [
                   ExcludeSemantics(
-                    child: KAvatar(
-                      name: name,
-                      imageUrl: story.author.avatarUrl,
-                      size: KStoryViewer.avatar - 2 * (KMetrics.stroke + 1),
-                      ring: KAvatarRing.storyUnseen,
+                    // D378 (STORY_RING): a member's own ring in the viewer.
+                    child: VipStoryRing(
+                      vip: story.author.vip,
+                      outerSize: KStoryViewer.avatar,
+                      stroke: KMetrics.stroke,
+                      fallback: KAvatar(
+                        name: name,
+                        imageUrl: story.author.avatarUrl,
+                        size: KStoryViewer.avatar - 2 * (KMetrics.stroke + 1),
+                        ring: KAvatarRing.storyUnseen,
+                      ),
+                      child: KAvatar(
+                        name: name,
+                        imageUrl: story.author.avatarUrl,
+                        size: KStoryViewer.avatar - 2 * (KMetrics.stroke + 1),
+                      ),
                     ),
                   ),
                   const SizedBox(width: KSpacing.sm),

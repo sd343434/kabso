@@ -6,6 +6,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -250,6 +251,15 @@ class _LivePublicMessageState extends State<LivePublicMessage>
                   key: LivePublicMessage.textKey,
                   textScaler: scaler,
                 ),
+                // D378 (ANIMATED_SIGNATURE): the sender's signature.
+                if (widget.bullet.sender.vip?.signature != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: VipSignatureLine(
+                      vip: widget.bullet.sender.vip,
+                      maxWidth: widget.maxWidth,
+                    ),
+                  ),
                 Padding(
                   padding: const EdgeInsets.only(top: 1),
                   child: Text(

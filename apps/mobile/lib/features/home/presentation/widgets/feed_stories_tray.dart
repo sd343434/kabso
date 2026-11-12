@@ -1,4 +1,6 @@
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -15,6 +17,7 @@ class FeedStoryData {
     this.isSelf = false,
     this.hasStory = true,
     this.liveRoomId,
+    this.vip,
   });
 
   final String authorName;
@@ -35,6 +38,10 @@ class FeedStoryData {
   /// red «مباشر / LIVE» badge under the photo (`KAvatarRing.live`); a tap
   /// opens the room, not the story.
   final String? liveRoomId;
+
+  /// D378 (§10.168.7, STORY_RING): the account's VIP — their tier's ring
+  /// (colour and art) around a story, while they hold the perk.
+  final UserVip? vip;
 }
 
 /// Geometry of the stories tray (D52, layout from the owner's reference;
@@ -111,6 +118,33 @@ class _TrayItem extends StatelessWidget {
   final FeedStoryData story;
   final VoidCallback? onTap;
 
+  Widget _avatar({required bool live, required bool adding}) {
+    final plain = KAvatar.story(
+      name: story.authorName,
+      image: story.authorAvatar,
+      ring: live
+          ? KAvatarRing.live
+          : adding
+          ? KAvatarRing.storySeen
+          : story.seen
+          ? KAvatarRing.storySeen
+          : KAvatarRing.storyUnseen,
+    );
+    // D378 (STORY_RING): a member's own ring around a story (not live, not
+    // the empty «قصتك»); a seen one dimmed.
+    if (live || adding || story.vip == null) return plain;
+    return VipStoryRing(
+      vip: story.vip,
+      seen: story.seen,
+      fallback: plain,
+      child: KAvatar(
+        name: story.authorName,
+        image: story.authorAvatar,
+        size: KMetrics.storyImage,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.textStyles;
@@ -126,17 +160,7 @@ class _TrayItem extends StatelessWidget {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              KAvatar.story(
-                name: story.authorName,
-                image: story.authorAvatar,
-                ring: live
-                    ? KAvatarRing.live
-                    : adding
-                    ? KAvatarRing.storySeen
-                    : story.seen
-                    ? KAvatarRing.storySeen
-                    : KAvatarRing.storyUnseen,
-              ),
+              _avatar(live: live, adding: adding),
               if (story.isSelf && onTap != null)
                 PositionedDirectional(
                   end: 0,

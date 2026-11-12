@@ -129,6 +129,7 @@ final FutureProvider<FeedLoad<FeedStoryData>> homeStoriesProvider =
         },
         seen: !i.hasUnseen,
         username: i.user.username,
+        vip: i.user.vip,
         isSelf: i.user.id == me?.id,
         liveRoomId: i.user.id == me?.id ? null : live[i.user.id]?.roomId,
       );
@@ -211,6 +212,7 @@ FeedReelData feedReelOf(Post post) {
     authorId: post.author.id,
     authorPremium: post.author.premiumTier != null,
     authorVerification: post.author.verification,
+    authorVip: post.author.vip,
     liked: post.viewerHasLiked,
     saved: post.viewerHasSaved,
     hashtags: {for (final t in post.hashtags) t.toLowerCase()},

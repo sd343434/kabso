@@ -12,6 +12,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/media/inline_video.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -26,6 +27,9 @@ import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
+import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
+import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -43,6 +47,7 @@ class FeedPostData {
     this.authorUsername,
     this.authorId,
     this.authorVerification,
+    this.authorVip,
     this.isFollowingAuthor,
     this.location,
     this.text,
@@ -78,6 +83,10 @@ class FeedPostData {
   /// D293 (owner «نعم»): the author's verification badge — the seal right
   /// after the name in the author row. Null when none.
   final VerificationBadge? authorVerification;
+
+  /// D378 (§10.168): the author's VIP — the badge after the name
+  /// (POST_BADGE) and the signature under the post (ANIMATED_SIGNATURE).
+  final UserVip? authorVip;
   final ImageProvider? authorAvatar;
 
   /// The author's username, the key of the follow API.
@@ -173,6 +182,9 @@ class FeedPostData {
 /// full width, no card. D294 (owner: «لماذا الخط أسفل البوست؟ أزله»): the
 /// posts feed separates posts by [feedGap] of air, no line.
 abstract final class KPostCard {
+  /// D378 (POST_BADGE): the VIP badge's height after the author's name.
+  static const double vipBadge = 16;
+
   /// Side padding of the author row, actions, caption and time.
   static const double inset = KSpacing.md;
 
@@ -345,6 +357,15 @@ class _FeedPostTileState extends State<FeedPostTile> {
               hashtags: post.hashtags,
               mentions: post.mentions,
               premiumMentions: post.premiumMentions,
+            ),
+          ),
+        // D378 (ANIMATED_SIGNATURE): the author's signature under the post.
+        if (post.authorVip?.signature != null)
+          Padding(
+            padding: inset.add(const EdgeInsets.only(top: KSpacing.xs)),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: VipSignatureLine(vip: post.authorVip),
             ),
           ),
         Padding(
@@ -792,18 +813,34 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // D293: the verification seal after the name.
-                          NameWithSeal(
-                            badge: post.authorVerification,
-                            fontSize: t.bodyStrong.fontSize,
-                            name: Text(
-                              post.authorName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.bodyStrong.copyWith(
-                                color: p.textPrimary,
-                                fontWeight: FontWeight.w700,
+                          // D378 (POST_BADGE): then the VIP badge.
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: NameWithSeal(
+                                  badge: post.authorVerification,
+                                  fontSize: t.bodyStrong.fontSize,
+                                  name: Text(
+                                    post.authorName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: t.bodyStrong.copyWith(
+                                      color: p.textPrimary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                              if (post.authorVip.isMember) ...[
+                                const SizedBox(width: KSpacing.xxs),
+                                VipNameBadge(
+                                  vip: post.authorVip,
+                                  height: KPostCard.vipBadge,
+                                  perk: VipPerks.postBadge,
+                                ),
+                              ],
+                            ],
                           ),
                           if (subline.isNotEmpty)
                             Text(
