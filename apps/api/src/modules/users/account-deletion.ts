@@ -515,7 +515,7 @@ export async function purgeAccountIn(
        SET email = ${`deleted+${userId}@deleted.invalid`}, email_verified_at = NULL,
            password_hash = ${TOMBSTONE_PASSWORD_HASH}, status = 'DELETED', role = 'USER',
            deleted_at = ${at}::timestamptz, last_active_at = NULL, password_change_required_at = NULL,
-           updated_at = ${at}::timestamptz
+           status_emoji_id = NULL, updated_at = ${at}::timestamptz
      WHERE id = ${u}`;
   // The audit log stays (7 years) without the IP addresses (dropped, not truncated: a /24 still narrows a home
   // connection down) and without usernames, emails or names in its metadata. audit_logs is append-only for the runtime

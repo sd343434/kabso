@@ -13,6 +13,8 @@ import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
+import 'package:kabso_live/features/status/status_catalogue.dart';
+import 'package:kabso_live/features/status/status_emoji_layer.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -284,7 +286,27 @@ class AudioSeatRing extends StatelessWidget {
     this.overlay,
     this.hostFrame,
     this.hostVip,
+    this.hostStatusEmojiId,
   });
+
+  /// D376 «الحالة»: the host's status over their picture (the room's
+  /// `host.statusEmojiId`); guests' come with their seat's user.
+  final String? hostStatusEmojiId;
+
+  /// D376 (owner: many seats are heavy — animate the speakers only): with
+  /// at most this many people on the stage (the host included) every
+  /// status rises as bubbles; with more, only the speakers' do and the
+  /// others show the still emoji above the head.
+  static const int statusBubblesUpTo = 5;
+
+  StatusEmojiMotion _statusMotion(int index) {
+    final taken = seats
+        .where((s) => s.state == LiveSeatState.taken && s.user != null)
+        .length;
+    return taken + 1 <= statusBubblesUpTo || speaking.contains(index)
+        ? StatusEmojiMotion.bubbles
+        : StatusEmojiMotion.still;
+  }
 
   /// v1.55-social (D186): the avatar frame the host wears (the room's
   /// `host.avatarFrame`), drawn around the host's picture; guests' frames
@@ -375,6 +397,10 @@ class AudioSeatRing extends StatelessWidget {
   /// A tile's picture box (ref 83, points at 430 pt).
   static const chair = 58.0;
 
+  /// D376: the status bubbles rise less over a seat (the row above is
+  /// close).
+  static const double statusRise = 0.6;
+
   /// The diameter of a picture (the host's too) and of an empty seat.
   static const double picture = _Seat.avatar;
 
@@ -414,6 +440,8 @@ class AudioSeatRing extends StatelessWidget {
       overlay: ghost ? null : overlay?.call(0),
       frame: ghost ? null : hostFrame,
       vip: ghost ? null : hostVip,
+      statusEmojiId: ghost ? null : hostStatusEmojiId,
+      statusMotion: _statusMotion(0),
     );
     return ghost ? _ghost(seat) : seat;
   }
@@ -860,6 +888,8 @@ class AudioSeatRing extends StatelessWidget {
         onTap: onTap,
         cpMic: cpMicTiles.contains(i),
         overlay: overlay?.call(i),
+        statusEmojiId: user.statusEmojiId,
+        statusMotion: _statusMotion(i),
         child: KAvatar(
           name: user.displayName,
           imageUrl: user.avatarUrl,
@@ -952,7 +982,13 @@ class _Seat extends StatelessWidget {
     this.frame,
     this.vip,
     this.rechargeBadge,
+    this.statusEmojiId,
+    this.statusMotion = StatusEmojiMotion.still,
   });
+
+  /// D376 «الحالة»: the seated person's status over their picture.
+  final String? statusEmojiId;
+  final StatusEmojiMotion statusMotion;
 
   /// v1.54-social (D185): the seated person's recharge-agent code.
   final String? agentCode;
@@ -1022,6 +1058,16 @@ class _Seat extends StatelessWidget {
                       cpMic: cpMic,
                       picture: child,
                     ),
+                  if (StatusCatalogue.byId(statusEmojiId) case final e?)
+                    Positioned.fill(
+                      child: StatusEmojiLayer(
+                        e,
+                        radius: avatar / 2,
+                        motion: statusMotion,
+                        riseFactor: AudioSeatRing.statusRise,
+                        semantics: false,
+                      ),
+                    ),
                   if (muted)
                     const PositionedDirectional(
                       bottom: -1,
@@ -1064,7 +1110,13 @@ class _HostSeat extends StatelessWidget {
     this.overlay,
     this.frame,
     this.vip,
+    this.statusEmojiId,
+    this.statusMotion = StatusEmojiMotion.still,
   });
+
+  /// D376 «الحالة»: the host's status over their picture.
+  final String? statusEmojiId;
+  final StatusEmojiMotion statusMotion;
 
   /// D115: the host's couple has the Couple Mic Effect.
   final bool cpMic;
@@ -1140,6 +1192,16 @@ class _HostSeat extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (StatusCatalogue.byId(statusEmojiId) case final e?)
+                      Positioned.fill(
+                        child: StatusEmojiLayer(
+                          e,
+                          radius: AudioSeatRing.picture / 2,
+                          motion: statusMotion,
+                          riseFactor: AudioSeatRing.statusRise,
+                          semantics: false,
+                        ),
+                      ),
                     if (muted)
                       const PositionedDirectional(
                         bottom: -6,

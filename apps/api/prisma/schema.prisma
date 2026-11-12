@@ -59,6 +59,10 @@ model User {
   /// v1.25-live (CP-022, D116): the last authenticated request (written at most once a minute);
   /// online = within the last 5 minutes. Shown only as CONVENTIONS §10.25 allows.
   lastActiveAt    DateTime?  @map("last_active_at") @db.Timestamptz(3)
+  /// v1.130-social (D376, CONVENTIONS §10.167): «الحالة» — the status emoji worn over the picture (`<pack>.<emoji>`,
+  /// the server's allow-list `status-emoji-catalogue.ts`); null = none. A store pack's id shows only while the pack
+  /// is held (`user_status_packs`); an expired pack's id is never returned and is cleared by the next write.
+  statusEmojiId   String?    @map("status_emoji_id") @db.VarChar(64)
 
   /// v1.72-social (D208, CONVENTIONS §10.67): set by the team (a temporary password or «فرض تغيير كلمة المرور»);
   /// the next sign-in must choose a new password (`login` with `newPassword`), which clears it.
@@ -359,6 +363,9 @@ model User {
   /// D270 (§10.98).
   storePurchases          StorePurchase[]          @relation("StorePurchaseBuyer")
   storeGiftsReceived      StorePurchase[]          @relation("StorePurchaseRecipient")
+  /// v1.130-social (D376, §10.167): the status packs held (until when) and bought.
+  statusPacks             UserStatusPack[]
+  statusPackPurchases     StatusPackPurchase[]
   vipDailyCoinClaims      VipDailyCoinClaim[]
   /// v1.83-social (D258, §10.94.9): who visited this user's profile, and whose profiles this user visited.
   profileVisitsReceived   ProfileVisit[]           @relation("ProfileVisitOwner")
@@ -1269,6 +1276,9 @@ enum WalletLedgerReason {
   /// the store refunded them (reference: the purchase; the balance may go below 0).
   STORE_IAP
   STORE_IAP_REVERSAL
+  /// v1.130-social (D376, §10.167): a status pack «حزمة الحالة» bought or renewed (reference: the
+  /// `status_pack_purchases` row).
+  STATUS_PACK_PURCHASE
 
   @@map("wallet_ledger_reason")
 }
@@ -8613,4 +8623,54 @@ model WaStaffDepartment {
 
   @@id([userId, department], map: "wa_staff_departments_pkey")
   @@map("wa_staff_departments")
+}
+
+// ---- v1.130-social (D376, CONVENTIONS §10.167): «الحالة» status packs -------------------------------------------
+
+/// The price of a status pack per duration (coins). Seeded by migration 20270505090000_status_emoji (the owner's
+/// «المميزة»: 100 000 coins for 30 days); changed by the team with SQL until a panel page exists (DEPLOYMENT §5.120).
+model StatusPackOffer {
+  packId    String   @map("pack_id") @db.VarChar(24)
+  days      Int
+  coins     BigInt
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@id([packId, days], map: "status_pack_offers_pkey")
+  @@map("status_pack_offers")
+}
+
+/// A status pack a person holds, until `expiresAt` (past = no longer held; the row stays for the next renewal).
+model UserStatusPack {
+  userId    String   @map("user_id") @db.Uuid
+  packId    String   @map("pack_id") @db.VarChar(24)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, packId], map: "user_status_packs_pkey")
+  @@map("user_status_packs")
+}
+
+/// A status pack purchase or renewal (append-only for the runtime role; the coin ledger row `STATUS_PACK_PURCHASE`
+/// references it). `idempotencyKey`: the app's `Idempotency-Key`, unique per buyer.
+model StatusPackPurchase {
+  id             String   @id @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  packId         String   @map("pack_id") @db.VarChar(24)
+  days           Int
+  price          BigInt
+  balanceAfter   BigInt   @map("balance_after")
+  expiresAt      DateTime @map("expires_at") @db.Timestamptz(3)
+  extended       Boolean
+  idempotencyKey String   @map("idempotency_key") @db.Uuid
+  requestHash    String   @map("request_hash") @db.Char(64)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey], map: "status_pack_purchases_idempotency")
+  @@index([userId, createdAt(sort: Desc)], map: "status_pack_purchases_user_idx")
+  @@map("status_pack_purchases")
 }

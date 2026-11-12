@@ -18062,4 +18062,283 @@ class AppLocalizationsEn extends AppLocalizations {
   String vipPointsPer(String days) {
     return 'points / $days days';
   }
+
+  @override
+  String get statusTitle => 'Status';
+
+  @override
+  String get statusNone => 'No status';
+
+  @override
+  String get statusPickerHint =>
+      'Pick an emoji that rises over your photo like bubbles';
+
+  @override
+  String get statusSave => 'Save';
+
+  @override
+  String get statusSaved => 'Status saved';
+
+  @override
+  String get statusCleared => 'Status removed';
+
+  @override
+  String get statusPackGeneral => 'General';
+
+  @override
+  String get statusPackPremium => 'Premium';
+
+  @override
+  String get statusLockedHint =>
+      'Preview only: open the store to use the Premium emoji';
+
+  @override
+  String get statusLockedLabel => 'Locked';
+
+  @override
+  String get statusOpenStore => 'Open the store';
+
+  @override
+  String get statusNotOwned =>
+      'This status is from the Premium pack. Open the store to buy it.';
+
+  @override
+  String get statusStoreTitle => 'Premium status';
+
+  @override
+  String statusStoreCount(String count) {
+    return '$count animated emoji that rise over your photo like bubbles';
+  }
+
+  @override
+  String statusStoreActive(String date) {
+    return 'Pack active until $date';
+  }
+
+  @override
+  String statusStoreDays(String days) {
+    return '$days days';
+  }
+
+  @override
+  String statusStorePrice(String price) {
+    return '$price coins';
+  }
+
+  @override
+  String statusStoreBuy(String price) {
+    return 'Buy · $price';
+  }
+
+  @override
+  String statusStoreRenew(String price) {
+    return 'Renew · $price';
+  }
+
+  @override
+  String statusStoreConfirmBuy(String days, String price) {
+    return 'Buy the Premium pack: $days for $price?';
+  }
+
+  @override
+  String statusStoreConfirmRenew(String days, String price) {
+    return 'Renew the Premium pack: $days for $price? The days are added to the time left.';
+  }
+
+  @override
+  String get statusStoreConfirm => 'Confirm';
+
+  @override
+  String get statusStoreBought => 'Premium pack activated';
+
+  @override
+  String get statusStoreRenewed => 'Pack renewed';
+
+  @override
+  String get statusStoreShort => 'You don\'t have enough coins for this pack.';
+
+  @override
+  String get statusStoreRecharge => 'Recharge coins';
+
+  @override
+  String statusStoreBalance(String coins) {
+    return 'Balance: $coins';
+  }
+
+  @override
+  String get statusStoreLoadError => 'Couldn\'t load the store';
+
+  @override
+  String get statusStoreNotSold => 'This pack can\'t be bought right now';
+
+  @override
+  String get statusStoreUse => 'Use as status';
+
+  @override
+  String statusSemantics(String name) {
+    return 'Status: $name';
+  }
+
+  @override
+  String get walletReasonStatusPack => 'Status pack';
+
+  @override
+  String get settingsLicenses => 'Licenses';
+
+  @override
+  String get settingsNotoAttribution =>
+      'Animated emoji by Google (Noto Emoji), CC BY 4.0';
+
+  @override
+  String get statusEmojiNotoHappy => 'Happy';
+
+  @override
+  String get statusEmojiNotoLaugh => 'Tears of joy';
+
+  @override
+  String get statusEmojiNotoLove => 'Love';
+
+  @override
+  String get statusEmojiNotoHeartEyes => 'Heart eyes';
+
+  @override
+  String get statusEmojiNotoCool => 'Cool';
+
+  @override
+  String get statusEmojiNotoStarStruck => 'Star-struck';
+
+  @override
+  String get statusEmojiNotoParty => 'Party';
+
+  @override
+  String get statusEmojiNotoInnocent => 'Innocent';
+
+  @override
+  String get statusEmojiNotoWinkTongue => 'Cheeky';
+
+  @override
+  String get statusEmojiNotoHug => 'Hug';
+
+  @override
+  String get statusEmojiNotoKiss => 'Kiss';
+
+  @override
+  String get statusEmojiNotoThinking => 'Thinking';
+
+  @override
+  String get statusEmojiNotoSleepy => 'Sleepy';
+
+  @override
+  String get statusEmojiNotoEyeRoll => 'Eye roll';
+
+  @override
+  String get statusEmojiNotoSad => 'Sad';
+
+  @override
+  String get statusEmojiNotoCrying => 'Crying';
+
+  @override
+  String get statusEmojiNotoAngry => 'Angry';
+
+  @override
+  String get statusEmojiNotoShocked => 'Shocked';
+
+  @override
+  String get statusEmojiNotoHeart => 'Heart';
+
+  @override
+  String get statusEmojiNotoFire => 'Fire';
+
+  @override
+  String get statusEmojiNotoHundred => '100';
+
+  @override
+  String get statusEmojiNotoThumbsUp => 'Thumbs up';
+
+  @override
+  String get statusEmojiNotoCongrats => 'Congrats';
+
+  @override
+  String get statusEmojiNotoThanks => 'Thanks';
+
+  @override
+  String get statusEmojiPremiumBird => 'Bird';
+
+  @override
+  String get statusEmojiPremiumDove => 'Dove';
+
+  @override
+  String get statusEmojiPremiumEagle => 'Eagle';
+
+  @override
+  String get statusEmojiPremiumOwl => 'Owl';
+
+  @override
+  String get statusEmojiPremiumFlamingo => 'Flamingo';
+
+  @override
+  String get statusEmojiPremiumPeacock => 'Peacock';
+
+  @override
+  String get statusEmojiPremiumPenguin => 'Penguin';
+
+  @override
+  String get statusEmojiPremiumChick => 'Chick';
+
+  @override
+  String get statusEmojiPremiumHatching => 'Hatching';
+
+  @override
+  String get statusEmojiPremiumCrown => 'Crown';
+
+  @override
+  String get statusEmojiPremiumDiamond => 'Diamond';
+
+  @override
+  String get statusEmojiPremiumRocket => 'Rocket';
+
+  @override
+  String get statusEmojiPremiumLion => 'Lion';
+
+  @override
+  String get statusEmojiPremiumRich => 'Money face';
+
+  @override
+  String get statusEmojiPremiumTrophy => 'Trophy';
+
+  @override
+  String get statusEmojiPremiumGlowStar => 'Glowing star';
+
+  @override
+  String get statusEmojiPremiumSparkles => 'Sparkles';
+
+  @override
+  String get statusEmojiPremiumUnicorn => 'Unicorn';
+
+  @override
+  String get statusEmojiPremiumDragon => 'Dragon';
+
+  @override
+  String get statusEmojiPremiumRose => 'Rose';
+
+  @override
+  String get statusEmojiPremiumGift => 'Gift';
+
+  @override
+  String get statusEmojiPremiumFireworks => 'Fireworks';
+
+  @override
+  String get statusEmojiPremiumRainbow => 'Rainbow';
+
+  @override
+  String get statusEmojiPremiumSparklingHeart => 'Sparkling heart';
+
+  @override
+  String get statusEmojiPremiumChampagne => 'Champagne';
+
+  @override
+  String get statusEmojiPremiumCheers => 'Cheers';
+
+  @override
+  String get statusEmojiPremiumDevil => 'Devil';
 }

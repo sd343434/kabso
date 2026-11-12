@@ -17,6 +17,7 @@ import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
+import 'package:kabso_live/features/status/status_emoji_layer.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -311,6 +312,7 @@ class CommentRow extends StatelessWidget {
     required this.liked,
     required this.onLike,
     this.avatarUrl,
+    this.statusEmojiId,
     this.seal,
     this.creator = false,
     this.pinned = false,
@@ -334,6 +336,10 @@ class CommentRow extends StatelessWidget {
   final bool liked;
   final VoidCallback onLike;
   final String? avatarUrl;
+
+  /// D376 «الحالة»: the author's status, a small still emoji on the
+  /// avatar's corner (no motion in a long list).
+  final String? statusEmojiId;
 
   /// The verification seal after the name, if any.
   final Widget? seal;
@@ -371,10 +377,16 @@ class CommentRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ExcludeSemantics(
-            child: KAvatar(
-              name: name,
-              imageUrl: avatarUrl,
-              size: KCommentsSheet.avatar,
+            child: StatusAvatar(
+              radius: KCommentsSheet.avatar / 2,
+              statusEmojiId: statusEmojiId,
+              motion: StatusEmojiMotion.badge,
+              semantics: false,
+              child: KAvatar(
+                name: name,
+                imageUrl: avatarUrl,
+                size: KCommentsSheet.avatar,
+              ),
             ),
           ),
           const SizedBox(width: KCommentsSheet.avatarGap),
@@ -1329,6 +1341,7 @@ class _CommentTile extends StatelessWidget {
     return CommentRow(
       name: name,
       avatarUrl: c.author.avatarUrl,
+      statusEmojiId: c.author.statusEmojiId,
       text: isolateHandles(c.text, mentions: c.mentions),
       when: when,
       likeCount: c.likeCount,

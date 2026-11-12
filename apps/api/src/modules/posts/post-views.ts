@@ -11,6 +11,7 @@ import { STORE_ART_SELECT, storeWearOf, type StoreArtRow } from '../store/store-
 import { isTeamAvatarUrl } from '../live/staff-avatar.js';
 import { summaryStaffIdOf } from '../users/staff-ids.js';
 import type { VerificationBadgeValue } from '../verification/verification-rules.js';
+import { visibleStatusEmoji } from '../status-emoji/status-emoji-catalogue.js';
 
 /** `Post` (openapi v1.5-social). */
 export interface PostDto {
@@ -100,6 +101,9 @@ export function userSummary(
     adminPermissions?: readonly { permission: string }[];
     /** v1.90-social (D293); absent in older selects. */
     verificationBadge?: { badge: string } | null;
+    /** v1.130-social (D376); absent in older selects. */
+    statusEmojiId?: string | null;
+    statusPacks?: readonly { packId: string; expiresAt: Date }[];
   },
   now: Date = new Date(),
 ): UserSummaryDto {
@@ -118,6 +122,12 @@ export function userSummary(
   const wear =
     !team && (user.status === undefined || user.status === 'ACTIVE') ? storeWearOf(user.bagItems, now) : null;
   const staffId = summaryStaffIdOf(user);
+  // v1.130-social (D376, §10.167): «الحالة» — a free status always, a store pack's only while the pack is held; an
+  // active account only, never the Kabso Team's fixed look.
+  const statusEmojiId =
+    !team && (user.status === undefined || user.status === 'ACTIVE')
+      ? visibleStatusEmoji(user.statusEmojiId, user.statusPacks, now)
+      : null;
   return {
     id: user.id,
     username: user.profile?.username ?? '',
@@ -143,6 +153,8 @@ export function userSummary(
     ...(user.verificationBadge && (user.status === undefined || user.status === 'ACTIVE')
       ? { verification: user.verificationBadge.badge as VerificationBadgeValue }
       : {}),
+    // v1.130-social (D376, §10.167): only while the user wears a status emoji the server still shows.
+    ...(statusEmojiId ? { statusEmojiId } : {}),
   };
 }
 
@@ -280,6 +292,10 @@ export const USER_SUMMARY_SELECT = {
   // v1.90-social (D293, §10.105): the automatic verification badge (`UserSummary.verification`; one row or none,
   // read with the summary's own query — no per-row query).
   verificationBadge: { select: { badge: true } },
+  // v1.130-social (D376, §10.167): the status emoji and the status packs held (`UserSummary.statusEmojiId`; a few
+  // rows at most, read with the summary's own query — no per-row query).
+  statusEmojiId: true,
+  statusPacks: { select: { packId: true, expiresAt: true } },
 } as const;
 
 /**

@@ -84,6 +84,10 @@ abstract class User with _$User {
     /// v1.90-social (D293, §10.105): the automatic verification badge
     /// «شارة التوثيق» beside the name, or null.
     VerificationBadge? verification,
+
+    /// v1.130-social (D376, §10.167): «الحالة» — the status emoji worn over
+    /// the picture (`<pack>.<emoji>`), or null.
+    String? statusEmojiId,
   }) = _User;
 }
 

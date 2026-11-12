@@ -31,6 +31,7 @@ import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/push/notification_sounds.dart';
 import 'package:kabso_live/features/push/push_messaging.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
+import 'package:kabso_live/features/status/status_emoji_layer.dart';
 import 'package:kabso_live/features/store_iap/data/store_billing.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
@@ -87,5 +88,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // Visibility (post views) is reported at once instead of on a timer, so
   // no timer is left pending at the end of a test (the package's advice).
   VisibilityDetectorController.instance.updateInterval = Duration.zero;
+  // D376: the «الحالة» bubbles hold one moment (frames settle; their own
+  // test runs the ticker).
+  StatusEmojiLayer.debugTime = const Duration(milliseconds: 1400);
   await testMain();
 }

@@ -1563,6 +1563,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         hostFrame: room?.host.avatarFrame,
         // D265: the host's VIP frame.
         hostVip: room?.host.vip,
+        // D376: the host's status over their picture.
+        hostStatusEmojiId: room?.host.statusEmojiId,
         hostName: hostName,
         hostMicOn: state.micEnabled,
         // Owner (2026-10-26): a tap on the host's own picture opens their

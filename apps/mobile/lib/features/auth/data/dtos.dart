@@ -42,6 +42,7 @@ class MeDto {
     this.staff,
     this.staffId,
     this.verification,
+    this.statusEmojiId,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -137,6 +138,11 @@ class MeDto {
   )
   final VerificationBadge? verification;
 
+  /// v1.130-social (D376, §10.167): «الحالة» — the status emoji the user
+  /// wears over the picture (`<pack>.<emoji>`), or null.
+  @JsonKey(includeIfNull: false)
+  final String? statusEmojiId;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -167,6 +173,7 @@ class MeDto {
     staff: staff,
     staffId: staffId,
     verification: verification,
+    statusEmojiId: statusEmojiId,
   );
 }
 

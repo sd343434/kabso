@@ -12,6 +12,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/debug/demo_entry.dart';
 import 'package:kabso_live/features/referrals/presentation/referral_code_sheet.dart';
 import 'package:kabso_live/features/settings/sessions/sessions_screen.dart';
+import 'package:kabso_live/features/status/status_catalogue.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -148,6 +149,9 @@ class SettingsScreen extends ConsumerWidget {
   static const baseUsernameKey = Key('settings.username.base');
   static const soundEffectsKey = Key('settings.soundEffects');
   static const deleteAccountKey = Key('settings.deleteAccount');
+
+  /// D376: the licences row (Noto animated emoji attribution).
+  static const licensesKey = Key('settings.licenses');
 
   /// D217: a friend's invite code entered after sign-up.
   static const referralKey = Key('settings.referral');
@@ -293,6 +297,20 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.card_giftcard_rounded),
             title: Text(l10n.referralApplyRow),
             onTap: () => showReferralCodeSheet(context),
+          ),
+          // D376: the licences page, with the CC BY 4.0 attribution of the
+          // Google Noto animated emoji («الحالة» packs «عام» and
+          // «المميزة») the licence requires.
+          ListTile(
+            key: licensesKey,
+            leading: const Icon(Icons.description_outlined),
+            title: Text(l10n.settingsLicenses),
+            subtitle: Text(l10n.settingsNotoAttribution),
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: 'Kabso Live',
+              applicationLegalese: kNotoEmojiAttribution,
+            ),
           ),
           // D226: «اليوزرات المميزة» and «مستوياتي» are in the «أنا» hub
           // (MeHubItem.premium / MeHubItem.levels), not repeated here.

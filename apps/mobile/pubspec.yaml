@@ -185,6 +185,9 @@ flutter:
     - assets/emojis/lulu/
     - assets/emojis/neno/
     - assets/emojis/flags/
+    # D376 «الحالة»: Google Noto animated emoji, CC BY 4.0 (the «عام» and
+    # «المميزة» status packs; assets/emojis/PROVENANCE.md, Settings › Licenses).
+    - assets/emojis/noto/
     # D71 PK battle animations (owner-supplied SVGA: start, win, lose,
     # draw).
     - assets/battle/

@@ -38,6 +38,7 @@ MeDto _$MeDtoFromJson(Map<String, dynamic> json) => MeDto(
   staff: staffIdentityFromJson(json['staff']),
   staffId: json['staffId'] as String?,
   verification: verificationBadgeFromJson(json['verification']),
+  statusEmojiId: json['statusEmojiId'] as String?,
 );
 
 Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
@@ -68,6 +69,7 @@ Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
   'staff': ?staffIdentityToJson(instance.staff),
   'staffId': ?instance.staffId,
   'verification': ?verificationBadgeToJson(instance.verification),
+  'statusEmojiId': ?instance.statusEmojiId,
 };
 
 AuthResponseDto _$AuthResponseDtoFromJson(Map<String, dynamic> json) =>

@@ -28,6 +28,7 @@ import {
   type OwnerCoverVideoDto,
 } from '../../owner-profile/owner-core.js';
 import type { VerificationBadgeValue } from '../../verification/verification-rules.js';
+import { visibleStatusEmoji } from '../../status-emoji/status-emoji-catalogue.js';
 import type { StaffRegion } from '../../live/staff-regions.js';
 
 /**
@@ -97,6 +98,8 @@ export interface PublicProfileDto {
    * (never an amount or a threshold), or null.
    */
   verification: VerificationBadgeValue | null;
+  /** v1.130-social (D376, §10.167): «الحالة» — the status emoji worn over the picture, or null. */
+  statusEmojiId: string | null;
   /** v1.55-social (D186, §10.49): the avatar frame the user wears now (`AvatarFrame`), or null. */
   avatarFrame: { code: string; assetKey: string } | null;
   /** v1.56-social (D187, §10.50): present only while the daily recharge badge is showing. */
@@ -216,6 +219,7 @@ export class PublicProfileService {
       verification,
       membership,
       worn,
+      status,
     ] = await Promise.all([
       this.follows.counts(user.id),
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
@@ -260,6 +264,11 @@ export class PublicProfileService {
       }),
       // D270 (§10.98): every stored item worn now (its kind covers the VIP one) and the store items' art.
       this.bag.wornNow(user.id),
+      // v1.130-social (D376, §10.167): the status emoji and the status packs held.
+      this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: { statusEmojiId: true, statusPacks: { select: { packId: true, expiresAt: true } } },
+      }),
     ]);
     // v1.83-social (D258, §10.94.9): someone else's opening is a visit («من زار ملفي»); never fails the read.
     if (!isSelf) {
@@ -307,6 +316,8 @@ export class PublicProfileService {
       rechargeAgent: agent?.code ? { code: agent.code } : null,
       hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
       verification: verification?.badge ?? null,
+      // v1.130-social (D376, §10.167): «الحالة» (a store pack's only while held; never on a limited staff account).
+      statusEmojiId: staff ? null : visibleStatusEmoji(status?.statusEmojiId, status?.statusPacks, new Date()),
       // v1.72-live (D283, §10.96.10): a limited staff account wears only the team frame (the app's) and its region's
       // team cover — no bag, VIP or store frame, no VIP / store wear, no cover of its own.
       avatarFrame: staff ? null : avatarFrame,

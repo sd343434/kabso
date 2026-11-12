@@ -38,6 +38,8 @@ enum WalletLedgerReason {
   // the store refunded them.
   storeIap('STORE_IAP'),
   storeIapReversal('STORE_IAP_REVERSAL'),
+  // D376: a status pack «حزمة الحالة» bought or renewed.
+  statusPackPurchase('STATUS_PACK_PURCHASE'),
   other('');
 
   new(this.wire);

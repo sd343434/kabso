@@ -119,6 +119,10 @@ abstract class PublicProfile with _$PublicProfile {
     )
     VerificationBadge? verification,
 
+    /// v1.130-social (D376, §10.167): «الحالة» — the status emoji worn over
+    /// the photo (`<pack>.<emoji>`), or null (also from older servers).
+    @JsonKey(includeIfNull: false) String? statusEmojiId,
+
     /// v1.55-social (D186, §10.49): the avatar frame the user wears (e.g.
     /// the active-host frame), drawn around the profile photo. Null when
     /// none (also on older servers).

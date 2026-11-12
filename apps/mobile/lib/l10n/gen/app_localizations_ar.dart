@@ -18078,4 +18078,282 @@ class AppLocalizationsAr extends AppLocalizations {
   String vipPointsPer(String days) {
     return 'نقطة / $days يوماً';
   }
+
+  @override
+  String get statusTitle => 'الحالة';
+
+  @override
+  String get statusNone => 'بدون حالة';
+
+  @override
+  String get statusPickerHint => 'اختر رمزاً يظهر فوق صورتك مثل الفقاعات';
+
+  @override
+  String get statusSave => 'حفظ';
+
+  @override
+  String get statusSaved => 'تم حفظ الحالة';
+
+  @override
+  String get statusCleared => 'أُزيلت الحالة';
+
+  @override
+  String get statusPackGeneral => 'عام';
+
+  @override
+  String get statusPackPremium => 'المميزة';
+
+  @override
+  String get statusLockedHint =>
+      'معاينة فقط: افتح المتجر لاستخدام رموز المميزة';
+
+  @override
+  String get statusLockedLabel => 'مقفلة';
+
+  @override
+  String get statusOpenStore => 'افتح المتجر';
+
+  @override
+  String get statusNotOwned =>
+      'هذه الحالة من حزمة المميزة. افتح المتجر لشرائها';
+
+  @override
+  String get statusStoreTitle => 'الحالة المميزة';
+
+  @override
+  String statusStoreCount(String count) {
+    return '$count رمزاً متحركاً تظهر فوق صورتك مثل الفقاعات';
+  }
+
+  @override
+  String statusStoreActive(String date) {
+    return 'الحزمة مفعّلة حتى $date';
+  }
+
+  @override
+  String statusStoreDays(String days) {
+    return '$days يوماً';
+  }
+
+  @override
+  String statusStorePrice(String price) {
+    return '$price عملة';
+  }
+
+  @override
+  String statusStoreBuy(String price) {
+    return 'شراء · $price';
+  }
+
+  @override
+  String statusStoreRenew(String price) {
+    return 'تجديد · $price';
+  }
+
+  @override
+  String statusStoreConfirmBuy(String days, String price) {
+    return 'شراء الحزمة المميزة: $days مقابل $price؟';
+  }
+
+  @override
+  String statusStoreConfirmRenew(String days, String price) {
+    return 'تجديد الحزمة المميزة: $days مقابل $price؟ تُضاف المدة إلى المدة المتبقية.';
+  }
+
+  @override
+  String get statusStoreConfirm => 'تأكيد';
+
+  @override
+  String get statusStoreBought => 'تم تفعيل الحزمة المميزة';
+
+  @override
+  String get statusStoreRenewed => 'تم تجديد الحزمة';
+
+  @override
+  String get statusStoreShort => 'رصيدك غير كافٍ لهذه الحزمة.';
+
+  @override
+  String get statusStoreRecharge => 'شحن العملات';
+
+  @override
+  String statusStoreBalance(String coins) {
+    return 'رصيدك: $coins';
+  }
+
+  @override
+  String get statusStoreLoadError => 'تعذّر تحميل المتجر';
+
+  @override
+  String get statusStoreNotSold => 'الحزمة غير متاحة للشراء الآن';
+
+  @override
+  String get statusStoreUse => 'استخدم الحالة';
+
+  @override
+  String statusSemantics(String name) {
+    return 'الحالة: $name';
+  }
+
+  @override
+  String get walletReasonStatusPack => 'شراء حزمة الحالة';
+
+  @override
+  String get settingsLicenses => 'التراخيص';
+
+  @override
+  String get settingsNotoAttribution =>
+      'الرموز المتحركة من Google ‏(Noto Emoji)، بترخيص CC BY 4.0';
+
+  @override
+  String get statusEmojiNotoHappy => 'سعيد';
+
+  @override
+  String get statusEmojiNotoLaugh => 'ضحك';
+
+  @override
+  String get statusEmojiNotoLove => 'حب';
+
+  @override
+  String get statusEmojiNotoHeartEyes => 'معجب';
+
+  @override
+  String get statusEmojiNotoCool => 'رايق';
+
+  @override
+  String get statusEmojiNotoStarStruck => 'منبهر';
+
+  @override
+  String get statusEmojiNotoParty => 'احتفال';
+
+  @override
+  String get statusEmojiNotoInnocent => 'بريء';
+
+  @override
+  String get statusEmojiNotoWinkTongue => 'مشاكس';
+
+  @override
+  String get statusEmojiNotoHug => 'حضن';
+
+  @override
+  String get statusEmojiNotoKiss => 'بوسة';
+
+  @override
+  String get statusEmojiNotoThinking => 'أفكر';
+
+  @override
+  String get statusEmojiNotoSleepy => 'نعسان';
+
+  @override
+  String get statusEmojiNotoEyeRoll => 'ملل';
+
+  @override
+  String get statusEmojiNotoSad => 'حزين';
+
+  @override
+  String get statusEmojiNotoCrying => 'بكاء';
+
+  @override
+  String get statusEmojiNotoAngry => 'غاضب';
+
+  @override
+  String get statusEmojiNotoShocked => 'مصدوم';
+
+  @override
+  String get statusEmojiNotoHeart => 'قلب';
+
+  @override
+  String get statusEmojiNotoFire => 'نار';
+
+  @override
+  String get statusEmojiNotoHundred => '١٠٠';
+
+  @override
+  String get statusEmojiNotoThumbsUp => 'تمام';
+
+  @override
+  String get statusEmojiNotoCongrats => 'مبروك';
+
+  @override
+  String get statusEmojiNotoThanks => 'شكراً';
+
+  @override
+  String get statusEmojiPremiumBird => 'عصفور';
+
+  @override
+  String get statusEmojiPremiumDove => 'حمامة';
+
+  @override
+  String get statusEmojiPremiumEagle => 'نسر';
+
+  @override
+  String get statusEmojiPremiumOwl => 'بومة';
+
+  @override
+  String get statusEmojiPremiumFlamingo => 'فلامنجو';
+
+  @override
+  String get statusEmojiPremiumPeacock => 'طاووس';
+
+  @override
+  String get statusEmojiPremiumPenguin => 'بطريق';
+
+  @override
+  String get statusEmojiPremiumChick => 'صوص';
+
+  @override
+  String get statusEmojiPremiumHatching => 'فقس';
+
+  @override
+  String get statusEmojiPremiumCrown => 'تاج';
+
+  @override
+  String get statusEmojiPremiumDiamond => 'ألماس';
+
+  @override
+  String get statusEmojiPremiumRocket => 'صاروخ';
+
+  @override
+  String get statusEmojiPremiumLion => 'أسد';
+
+  @override
+  String get statusEmojiPremiumRich => 'غني';
+
+  @override
+  String get statusEmojiPremiumTrophy => 'كأس';
+
+  @override
+  String get statusEmojiPremiumGlowStar => 'نجمة';
+
+  @override
+  String get statusEmojiPremiumSparkles => 'بريق';
+
+  @override
+  String get statusEmojiPremiumUnicorn => 'يونيكورن';
+
+  @override
+  String get statusEmojiPremiumDragon => 'تنين';
+
+  @override
+  String get statusEmojiPremiumRose => 'وردة';
+
+  @override
+  String get statusEmojiPremiumGift => 'هدية';
+
+  @override
+  String get statusEmojiPremiumFireworks => 'ألعاب نارية';
+
+  @override
+  String get statusEmojiPremiumRainbow => 'قوس قزح';
+
+  @override
+  String get statusEmojiPremiumSparklingHeart => 'قلب لامع';
+
+  @override
+  String get statusEmojiPremiumChampagne => 'شمبانيا';
+
+  @override
+  String get statusEmojiPremiumCheers => 'نخب';
+
+  @override
+  String get statusEmojiPremiumDevil => 'شقي';
 }

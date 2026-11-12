@@ -20,6 +20,8 @@ import 'package:kabso_live/features/profile/avatar_crop_screen.dart';
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
 import 'package:kabso_live/features/profile/profile_fields_edit.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
+import 'package:kabso_live/features/status/status_catalogue.dart';
+import 'package:kabso_live/features/status/status_picker_sheet.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -102,6 +104,9 @@ class EditProfileScreen extends ConsumerWidget {
   static const coverLibraryKey = Key('profile.edit.cover.library');
   static const coverCameraKey = Key('profile.edit.cover.camera');
   static const coverRemoveKey = Key('profile.edit.cover.remove');
+
+  /// D376: the «الحالة» row (status emoji over the photo).
+  static const statusKey = Key('profile.edit.status');
 
   /// D283: the note that a Kabso Team account's picture and cover are fixed.
   static const staffLockedKey = Key('profile.edit.staffLocked');
@@ -268,6 +273,18 @@ class EditProfileScreen extends ConsumerWidget {
                             ref,
                             hasCover: user.coverUrl != null,
                           ),
+                  ),
+                // D376 «الحالة»: the status emoji over the photo (a Kabso
+                // Team account keeps the team's fixed look).
+                if (!locked)
+                  _Row(
+                    key: statusKey,
+                    label: l10n.statusTitle,
+                    value:
+                        StatusCatalogue.byId(user.statusEmojiId)?.label(l10n) ??
+                        '',
+                    placeholder: l10n.statusNone,
+                    onTap: () => editStatusEmoji(context, ref, user),
                   ),
                 // D283b: a Kabso Team account's bio is the official text,
                 // locked (the API refuses it: 403 `bio`).
