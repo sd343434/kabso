@@ -143,6 +143,16 @@ Future<void> settleUntil(WidgetTester tester, Finder finder) async {
   await tester.pump();
 }
 
+/// Scrolls the screen's list until [key] is built and on screen.
+Future<void> reveal(WidgetTester tester, Key key) async {
+  await tester.dragUntilVisible(
+    find.byKey(key),
+    find.byType(ListView),
+    const Offset(0, -120),
+  );
+  await tester.pumpAndSettle();
+}
+
 Future<FakeAnimatedAvatarRepository> pumpAnimatedAvatarScreen(
   WidgetTester tester, {
   FakeCutoutRecorder? recorder,
@@ -329,6 +339,7 @@ void main() {
       slider.onChanged!(4200);
       await tester.pumpAndSettle();
       expect(range(), '\u20660:04.2 – 0:07.2\u2069');
+      await reveal(tester, AnimatedAvatarScreen.trimUseKey);
       await tester.tap(find.byKey(AnimatedAvatarScreen.trimUseKey));
       await settleUntil(tester, find.byKey(AnimatedAvatarScreen.previewKey));
       expect(gallery.starts, [4200]);
@@ -367,6 +378,7 @@ void main() {
       await pumpAnimatedAvatarScreen(tester, gallery: gallery);
       await tester.tap(find.byKey(AnimatedAvatarScreen.pickKey));
       await tester.pumpAndSettle();
+      await reveal(tester, AnimatedAvatarScreen.trimCancelKey);
       await tester.tap(find.byKey(AnimatedAvatarScreen.trimCancelKey));
       await tester.pumpAndSettle();
       expect(find.byKey(AnimatedAvatarScreen.trimKey), findsNothing);
@@ -383,6 +395,7 @@ void main() {
       );
       await tester.tap(find.byKey(AnimatedAvatarScreen.pickKey));
       await tester.pumpAndSettle();
+      await reveal(tester, AnimatedAvatarScreen.trimUseKey);
       await tester.tap(find.byKey(AnimatedAvatarScreen.trimUseKey));
       await settleUntil(tester, find.byKey(AnimatedAvatarScreen.errorKey));
       expect(
@@ -417,13 +430,11 @@ void main() {
             viewport: viewport,
           );
           expect(tester.takeException(), isNull);
+          await reveal(tester, AnimatedAvatarScreen.pickKey);
           await tester.tap(find.byKey(AnimatedAvatarScreen.pickKey));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
-          await tester.scrollUntilVisible(
-            find.byKey(AnimatedAvatarScreen.trimCancelKey),
-            200,
-          );
+          await reveal(tester, AnimatedAvatarScreen.trimCancelKey);
           expect(tester.takeException(), isNull);
           final width = viewport.logicalSize.width;
           for (final k in [
