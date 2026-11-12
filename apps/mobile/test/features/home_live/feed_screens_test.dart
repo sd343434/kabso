@@ -5,7 +5,6 @@
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
-import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -57,8 +56,8 @@ String _unavailableTitle(AppLocalizations l10n, String screen, FeedTab tab) =>
 Finder _tab(String label) =>
     find.descendant(of: find.byType(KPrimaryTabs), matching: find.text(label));
 
-/// D131: a Live hub filter pill.
-Finder _pill(LiveHubFilter f) => find.byKey(LiveHubFilterBar.pillKey(f));
+/// D377: a tab of the shared top bar.
+Finder _pill(LiveHubFilter f) => find.byKey(LiveHubTopBar.tabKey(f));
 
 bool _pillSelected(WidgetTester tester, LiveHubFilter f) =>
     tester
@@ -99,16 +98,16 @@ Future<void> _pump(
 }
 
 void main() {
-  // D294 (owner: «إن كان التطبيق بالعربية، كلمة كابسو لايف تكون على اليمين
-  // بالعربية، وإن كان إنجليزي تكون على اليسار بالإنجليزي، واجعلها بخط غامق
-  // وأكبر قليلاً»).
-  group('the hub brand (D294)', () {
+  // D377 (owner 2026-11-12): the hub wears the party page's bar — no
+  // title (D294's «كابسو لايف» is gone), the four tabs at the reading start,
+  // «+» and search at the end, no bell (the Moments tab has it).
+  group('the hub top bar (D377)', () {
     for (final language in AppLanguage.values) {
       for (final viewport in GoldenViewport.values) {
         testWidgets(
-          '${language.name} ${viewport.name}: the brand at the reading '
-          'start, bold, 21 sp, the reading direction, no overflow at text '
-          'scale 1.3',
+          '${language.name} ${viewport.name}: no title, the tabs at the '
+          'reading start 16.6 lp in, «+» and search at the end, no bell, no '
+          'overflow at text scale 1.3',
           (tester) async {
             await loadAppFonts();
             setViewport(tester, viewport);
@@ -119,51 +118,23 @@ void main() {
             await _pump(tester, const LiveScreen(), language: language);
             final l10n = l10nFor(language);
             final ar = language == AppLanguage.ar;
-            expect(l10n.liveHubBrand, ar ? 'كابسو لايف' : 'Kabso Live');
-            final title = find.byKey(LiveHubTopBar.titleKey);
-            final text = tester.widget<Text>(title);
-            expect(text.data, l10n.liveHubBrand);
-            expect(text.style?.fontWeight, FontWeight.w800);
-            expect(text.style?.fontSize, KLiveHubTopBar.titleSize);
-            expect(KLiveHubTopBar.titleSize, 21);
-            expect(text.overflow, TextOverflow.ellipsis);
-            expect(
-              text.style?.fontFamily,
-              ar ? KFonts.arabic : isNot(KFonts.arabic),
-            );
-            // Never forced LTR: the title follows the app's direction.
-            expect(
-              Directionality.of(tester.element(title)),
-              ar ? TextDirection.rtl : TextDirection.ltr,
-            );
+            expect(find.text(l10n.liveHubBrand), findsNothing);
+            expect(find.byKey(NotificationsBell.bellKey), findsNothing);
             final width =
                 tester.view.physicalSize.width / tester.view.devicePixelRatio;
-            final rect = tester.getRect(title);
             final search = tester.getRect(find.byKey(LiveHubTopBar.searchKey));
-            // The words start at the reading start, 16 dp from the edge.
-            final paragraph = tester.renderObject<RenderParagraph>(
-              find.descendant(of: title, matching: find.byType(RichText)),
-            );
-            expect(paragraph.didExceedMaxLines, isFalse);
-            final words = paragraph.getBoxesForSelection(
-              TextSelection(
-                baseOffset: 0,
-                extentOffset: l10n.liveHubBrand.length,
-              ),
-            );
-            final left =
-                rect.left +
-                words.map((b) => b.left).reduce((a, b) => a < b ? a : b);
-            final right =
-                rect.left +
-                words.map((b) => b.right).reduce((a, b) => a > b ? a : b);
+            final tabs = tester.getRect(find.byKey(LiveHubTopBar.tabsKey));
             if (ar) {
-              expect(right, moreOrLessEquals(width - 16, epsilon: 1));
-              expect(rect.left, greaterThanOrEqualTo(search.right));
+              expect(search.left, lessThan(tabs.left + 1));
+              expect(tabs.right, moreOrLessEquals(width, epsilon: 0.5));
             } else {
-              expect(left, moreOrLessEquals(16, epsilon: 1));
-              expect(rect.right, lessThanOrEqualTo(search.left));
+              expect(search.right, greaterThan(tabs.right - 1));
+              expect(tabs.left, moreOrLessEquals(0, epsilon: 0.5));
             }
+            // The selected tab (Popular) is whole inside the strip.
+            final popular = tester.getRect(_pill(LiveHubFilter.popular));
+            expect(popular.left, greaterThanOrEqualTo(tabs.left - 0.5));
+            expect(popular.right, lessThanOrEqualTo(tabs.right + 0.5));
             expect(tester.takeException(), isNull);
           },
         );
@@ -173,9 +144,8 @@ void main() {
 
   for (final (:name, :screen) in _screens) {
     group(name, () {
-      testWidgets('defaults to Popular; D124: a top bar with the Kabso '
-          'title, search and the bell, no app bar; D131: the filter row '
-          'under it', (tester) async {
+      testWidgets('defaults to Popular; D377: one top row — the tabs, «+» '
+          'and search — no title, no bell, no app bar', (tester) async {
         final l10n = l10nFor(AppLanguage.en);
         await _pump(tester, screen);
         expect(_pillSelected(tester, LiveHubFilter.popular), isTrue);
@@ -186,20 +156,24 @@ void main() {
         );
         expect(find.byType(AppBar), findsNothing);
         expect(find.byType(KLogo), findsNothing);
-        // No tab header any more (D131), the filter row is 48 dp.
+        // No tab header any more (D131); D377: one 48 dp row — the tabs,
+        // «+» and search; no title and no bell.
         expect(find.byType(KPrimaryTabs), findsNothing);
         expect(
-          tester.getSize(find.byType(LiveHubFilterBar)).height,
+          tester.getSize(find.byKey(LiveHubTopBar.tabsKey)).height,
           KSizes.minTouchTarget,
         );
         expect(find.byKey(FeedTabsScaffold.searchKey), findsNothing);
-        expect(find.byKey(LiveHubTopBar.titleKey), findsOneWidget);
-        expect(find.text(l10n.liveHubBrand), findsOneWidget);
+        expect(find.text(l10n.liveHubBrand), findsNothing);
         expect(find.byKey(LiveHubTopBar.searchKey), findsOneWidget);
-        expect(find.byKey(NotificationsBell.bellKey), findsOneWidget);
+        expect(find.byKey(LiveHubGoLiveButton.buttonKey), findsOneWidget);
+        expect(find.byKey(NotificationsBell.bellKey), findsNothing);
         expect(
-          tester.getRect(find.byKey(LiveHubTopBar.titleKey)).bottom,
-          lessThanOrEqualTo(tester.getRect(find.byType(LiveHubFilterBar)).top),
+          tester.getCenter(find.byKey(LiveHubTopBar.searchKey)).dy,
+          moreOrLessEquals(
+            tester.getCenter(find.byKey(LiveHubTopBar.tabsKey)).dy,
+            epsilon: 0.5,
+          ),
         );
       });
 
@@ -211,34 +185,29 @@ void main() {
           find.text(_unavailableTitle(l10n, name, FeedTab.following)),
           findsOneWidget,
         );
-        await tester.tap(_pill(LiveHubFilter.featured));
+        await tester.tap(_pill(LiveHubFilter.explore));
         await tester.pumpAndSettle();
-        expect(_pillSelected(tester, LiveHubFilter.featured), isTrue);
+        expect(_pillSelected(tester, LiveHubFilter.explore), isTrue);
         expect(
-          find.text(_unavailableTitle(l10n, name, FeedTab.popular)),
+          find.text(_unavailableTitle(l10n, name, FeedTab.latest)),
           findsOneWidget,
         );
       });
 
       for (final language in AppLanguage.values) {
-        testWidgets('the filter row mirrors in ${language.name}: Following '
-            '(D237) at the reading start, 14.5 pt in', (tester) async {
+        testWidgets('the tabs mirror in ${language.name}: Following at the '
+            'reading start, 16.6 lp in (D377)', (tester) async {
           await _pump(tester, screen, language: language);
-          final nearby = tester.getRect(
-            find.descendant(
-              of: _pill(LiveHubFilter.following),
-              matching: find.byType(AnimatedContainer),
-            ),
-          );
+          final nearby = tester.getRect(_pill(LiveHubFilter.following));
           final popular = tester.getRect(_pill(LiveHubFilter.popular));
           final width =
               tester.view.physicalSize.width / tester.view.devicePixelRatio;
           if (language == AppLanguage.ar) {
             expect(nearby.center.dx, greaterThan(popular.center.dx));
-            expect(width - nearby.right, closeTo(14.5, 0.5));
+            expect(width - nearby.right, closeTo(16.6, 0.5));
           } else {
             expect(nearby.center.dx, lessThan(popular.center.dx));
-            expect(nearby.left, closeTo(14.5, 0.5));
+            expect(nearby.left, closeTo(16.6, 0.5));
           }
         });
       }
@@ -254,7 +223,7 @@ void main() {
         final block = tester.getRect(
           find.descendant(of: state, matching: find.byType(Column)).first,
         );
-        final header = tester.getRect(find.byType(LiveHubFilterBar));
+        final header = tester.getRect(find.byType(LiveHubTopBar));
         expect(block.top, greaterThan(header.bottom));
         final region = 852 - header.bottom;
         final centre = (block.center.dy - header.bottom) / region;

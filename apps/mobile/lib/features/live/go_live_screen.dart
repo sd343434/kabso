@@ -143,7 +143,21 @@ import 'package:material_ui/material_ui.dart';
 /// when both pass. Then capture problems, starting, on air (elapsed time,
 /// seats, guests switch, end with confirmation) and ended.
 class GoLiveScreen extends ConsumerStatefulWidget {
-  const new({super.key});
+  const new({super.key, this.initialMode});
+
+  /// D377: the mode preselected when go-live opens (the party page's «+»
+  /// opens it on Audio); `null`: the default mode. Applied once, before the
+  /// preview starts, and only while preparing (never to a live on air, e.g.
+  /// back from the floating window).
+  final LiveRoomMode? initialMode;
+
+  /// D377: the modes a `?mode=` link may preselect.
+  static LiveRoomMode? modeFromQuery(String? value) => switch (value) {
+    'solo' => LiveRoomMode.solo,
+    'audio' => LiveRoomMode.audio,
+    'podcast' => LiveRoomMode.podcast,
+    _ => null,
+  };
 
   static const closeKey = Key('goLive.close');
   static const Key titleKey = GoLiveKeys.title;
@@ -349,6 +363,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       // Back from the floating window: the live goes on, full screen.
       ref.read(liveMinimizedProvider.notifier).restore();
       if (ref.read(liveHostControllerProvider).phase == GoLivePhase.preparing) {
+        // D377: the preselected mode first, so an audio room never opens
+        // the camera (setMode sets the mode at once while preparing).
+        final initial = widget.initialMode;
+        if (initial != null) unawaited(_host.setMode(initial));
         unawaited(_host.startPreview(explain: _explainPermission));
       }
     });

@@ -185,87 +185,63 @@ void main() {
     });
   });
 
-  group("categories (HL-H3; D131: in Popular's menu)", () {
+  // D377 (owner 2026-11-12: the live page uses exactly the party page's
+  // tabs): no category menu and no «المميزة» tab on the hub; Popular is
+  // every category (the server keeps `category` and `featured`).
+  group('no category menu, no Featured tab (D377)', () {
     for (final language in AppLanguage.values) {
-      testWidgets('Following, All + the server categories; the filter is '
-          'sent (${language.name})', (tester) async {
+      testWidgets('the four tabs only; Popular asks for every category and '
+          'a second tap re-fetches it instead of a menu (${language.name})', (
+        tester,
+      ) async {
         final ar = language == AppLanguage.ar;
         final live = FakeLiveRepository(
           categories: apiCategories(ar: ar),
           rooms: (_) => apiPage(apiRooms(4, ar: ar)),
         );
         await _pump(tester, live, language: language);
-        final popular = find.byKey(
-          LiveHubFilterBar.pillKey(LiveHubFilter.popular),
-        );
-        await tester.tap(popular);
-        await tester.pumpAndSettle();
-        // D237: Following is its own tab now, not in this menu.
-        expect(
-          find.byKey(const Key('liveHub.popularMenu.following')),
-          findsNothing,
-        );
-        expect(find.byKey(LiveHubFilterBar.menuAllKey), findsOneWidget);
-        for (final c in apiCategories(ar: ar)) {
+        for (final f in LiveHubFilter.values) {
           expect(
-            find.byKey(LiveHubFilterBar.menuCategoryKey(c.slug)),
-            findsOneWidget,
+            find.byKey(LiveHubTopBar.tabKey(f)),
+            f == LiveHubFilter.featured ? findsNothing : findsOneWidget,
           );
         }
-        expect(find.text(ar ? 'موسيقى' : 'Music'), findsOneWidget);
-        await tester.tap(find.byKey(LiveHubFilterBar.menuCategoryKey('music')));
-        await tester.pumpAndSettle();
-        expect(live.requests.last.category, 'music');
-        expect(live.requests.last.cursor, isNull);
+        expect(find.byKey(const Key('liveHub.filter.featured')), findsNothing);
+        expect(live.requests.last.category, isNull);
+        expect(live.requests.last.featured, isFalse);
+        final popular = find.byKey(LiveHubTopBar.tabKey(LiveHubFilter.popular));
+        final lists = live.requests.length;
         await tester.tap(popular);
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(LiveHubFilterBar.menuAllKey));
-        await tester.pumpAndSettle();
+        expect(find.byType(PopupMenuItem<Object>), findsNothing);
+        expect(find.byKey(const Key('liveHub.popularMenu.all')), findsNothing);
+        expect(find.text(ar ? 'موسيقى' : 'Music'), findsNothing);
+        expect(live.requests, hasLength(lists + 1));
+        expect(live.requests.last.category, isNull);
+        // No chevron: Popular is a plain tab.
         expect(
           find.descendant(
             of: popular,
-            matching: find.text(l10nFor(language).liveHubFilterPopular),
+            matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
           ),
-          findsOneWidget,
+          findsNothing,
         );
       });
     }
-
-    testWidgets('no categories: the menu has All only (D237)', (tester) async {
-      await _pump(tester, FakeLiveRepository());
-      await tester.tap(
-        find.byKey(LiveHubFilterBar.pillKey(LiveHubFilter.popular)),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(PopupMenuItem<Object>), findsNothing);
-      expect(find.byKey(LiveHubFilterBar.menuAllKey), findsOneWidget);
-      expect(
-        find.byKey(LiveHubFilterBar.menuCategoryKey('music')),
-        findsNothing,
-      );
-    });
   });
 
   group('freshness (HL-H5)', () {
-    testWidgets('re-tapping the selected filter re-fetches it (Popular '
-        'opens its menu instead)', (tester) async {
+    testWidgets('re-tapping the selected tab re-fetches it', (tester) async {
       final live = FakeLiveRepository(rooms: (_) => apiPage(apiRooms(2)));
       await _pump(tester, live);
-      final featured = find.byKey(
-        LiveHubFilterBar.pillKey(LiveHubFilter.featured),
-      );
-      // D237: five pills — the row scrolls to it.
-      await tester.dragUntilVisible(
-        featured,
-        find.byType(LiveHubFilterBar),
-        const Offset(-200, 0),
-      );
+      final explore = find.byKey(LiveHubTopBar.tabKey(LiveHubFilter.explore));
+      await tester.ensureVisible(explore);
       await tester.pumpAndSettle();
-      await tester.tap(featured);
+      await tester.tap(explore);
       await tester.pumpAndSettle();
       final configs = live.configCalls;
       final lists = live.requests.length;
-      await tester.tap(featured);
+      await tester.tap(explore);
       await tester.pumpAndSettle();
       expect(live.configCalls, configs + 1);
       expect(live.requests, hasLength(lists + 1));

@@ -1,7 +1,9 @@
 // D322: the Live hub's top bar after the owner's bar — no party button;
-// title · «+» · search · bell (the bell at the reading end); «+» is drawn
-// like search and opens go-live directly (owner follow-ups); Moments' «+»
-// keeps the create menu (post, reel, story, live).
+// «+» is drawn like search and opens go-live directly (owner follow-ups);
+// Moments' «+» keeps the create menu (post, reel, story, live). D377 (owner
+// 2026-11-12): one shared bar on the hub and the party page — the party
+// page's tabs · «+» · search, no title and no bell (the Moments tab keeps
+// the bell); the party page's «+» opens go-live on Audio.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +25,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
+import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -110,25 +113,31 @@ void main() {
   group('Live hub top bar (D322)', () {
     for (final language in AppLanguage.values) {
       final l10n = l10nFor(language);
-      testWidgets('${language.name}: no party button; title · «+» · search '
-          '· bell toward the reading end; 48 pt targets', (tester) async {
+      testWidgets('${language.name}: no party button; tabs · «+» · search '
+          'toward the reading end, no title and no bell (D377); 48 pt '
+          'targets', (tester) async {
         await _pumpApp(tester, language: language);
         expect(find.byKey(const Key('liveHub.party')), findsNothing);
-        final title = tester.getCenter(find.byKey(LiveHubTopBar.titleKey));
+        expect(find.text(l10n.liveHubBrand), findsNothing);
+        expect(find.byKey(_bell), findsNothing);
+        final tabs = tester.getRect(find.byKey(LiveHubTopBar.tabsKey));
         final plus = tester.getRect(find.byKey(LiveHubGoLiveButton.buttonKey));
         final search = tester.getRect(find.byKey(LiveHubTopBar.searchKey));
-        final bell = tester.getRect(find.byKey(_bell));
-        final xs = [title.dx, plus.center.dx, search.center.dx, bell.center.dx];
+        final xs = [tabs.center.dx, plus.center.dx, search.center.dx];
         final sorted = [...xs]..sort();
-        // Arabic: the title at the right, the bell at the left.
+        // Arabic: the tabs at the right, search at the left.
         expect(
           xs,
           language == AppLanguage.ar ? sorted.reversed.toList() : sorted,
         );
-        // Search took the party button's place, beside the bell.
-        expect((search.center.dx - bell.center.dx).abs(), 48);
         expect((plus.center.dx - search.center.dx).abs(), 48);
-        for (final r in [plus, search, bell]) {
+        // Search at the reading end, 4 lp in.
+        if (language == AppLanguage.ar) {
+          expect(search.left, 4);
+        } else {
+          expect(search.right, 393 - 4);
+        }
+        for (final r in [plus, search]) {
           expect(r.size, const Size.square(KSizes.minTouchTarget));
         }
         // Owner follow-up: «+» is a plain outline plus like search — no
@@ -197,6 +206,87 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(LiveScreen), findsOneWidget);
       expect(find.byType(KabsoNavBar), findsOneWidget);
+    });
+  });
+
+  group('the party page wears the same bar (D377)', () {
+    Future<void> openParty(WidgetTester tester) async {
+      await tester.tap(find.byKey(ShellNavKeys.party));
+      await tester.pumpAndSettle();
+      expect(find.byType(VoiceRoomsScreen), findsOneWidget);
+    }
+
+    for (final language in AppLanguage.values) {
+      testWidgets('${language.name}: the same tabs, «+» and search at the '
+          "same places as the hub's; no title, no bell", (tester) async {
+        await _pumpApp(tester, language: language);
+        Map<Key, Rect> places() => {
+          for (final key in [
+            LiveHubTopBar.searchKey,
+            LiveHubGoLiveButton.buttonKey,
+            for (final f in LiveHubTopBar.filters) LiveHubTopBar.tabKey(f),
+          ])
+            key: tester.getRect(find.byKey(key)),
+        };
+        final hub = places();
+        await openParty(tester);
+        final party = places();
+        expect(party, hub);
+        expect(find.byKey(_bell), findsNothing);
+        expect(find.text(l10nFor(language).liveHubBrand), findsNothing);
+        expect(find.byType(LiveHubTopBar), findsOneWidget);
+      });
+    }
+
+    testWidgets('«+» opens go-live on Audio (/live/new?mode=audio); the hub '
+        "keeps go-live's default", (tester) async {
+      final engine = FakeLiveMediaEngine();
+      await _pumpApp(tester, engine: engine);
+      await openParty(tester);
+      await tester.tap(find.byKey(LiveHubGoLiveButton.buttonKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(GoLiveScreen), findsOneWidget);
+      expect(
+        GoRouterState.of(tester.element(find.byType(GoLiveScreen))).uri
+            .toString(),
+        AppRoutes.goLiveIn('audio'),
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(GoLiveScreen)),
+      );
+      expect(
+        container.read(liveHostControllerProvider).mode,
+        LiveRoomMode.audio,
+      );
+      // An audio room never starts the camera.
+      expect(engine.previewModes, isNotEmpty);
+      expect(engine.previewModes, everyElement(isFalse));
+      // The other modes stay one tap away.
+      expect(find.byKey(GoLiveKeys.mode(LiveRoomMode.solo)), findsOneWidget);
+      await tester.tap(find.byKey(GoLiveScreen.closeKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(VoiceRoomsScreen), findsOneWidget);
+    });
+
+    testWidgets("search opens Discover (the hub's route)", (tester) async {
+      await _pumpApp(tester);
+      await openParty(tester);
+      await tester.tap(find.byKey(LiveHubTopBar.searchKey));
+      await tester.pumpAndSettle();
+      expect(
+        GoRouter.of(tester.element(find.byType(Navigator).first)).state.uri
+            .toString(),
+        AppRoutes.discover,
+      );
+    });
+
+    testWidgets('the Moments tab keeps the bell (owner: «يكفي في اللحظات»)', (
+      tester,
+    ) async {
+      await _pumpApp(tester);
+      await tester.tap(find.byKey(ShellNavKeys.moments));
+      await tester.pumpAndSettle();
+      expect(find.byKey(_bell), findsOneWidget);
     });
   });
 

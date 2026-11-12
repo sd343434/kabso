@@ -422,9 +422,7 @@ void main() {
     testWidgets('per-tab state: the hub keeps its filter across a tab '
         'switch; re-tapping a tab keeps its page', (tester) async {
       await _pumpShell(tester);
-      final explore = find.byKey(
-        LiveHubFilterBar.pillKey(LiveHubFilter.explore),
-      );
+      final explore = find.byKey(LiveHubTopBar.tabKey(LiveHubFilter.explore));
       await tester.tap(explore);
       await tester.pumpAndSettle();
       bool exploreSelected() =>

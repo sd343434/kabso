@@ -124,10 +124,12 @@ void main() {
           expect(first.left, moreOrLessEquals(13));
           expect(second.left - first.right, moreOrLessEquals(7.2));
         }
-        // Title at the reading start of the top bar.
-        final title = tester.getRect(find.byKey(LiveHubTopBar.titleKey));
+        // D377: the tabs (no title) at the reading start of the top bar.
+        final tabs = tester.getRect(
+          find.byKey(LiveHubTopBar.tabKey(LiveHubFilter.following)),
+        );
         expect(
-          language == AppLanguage.ar ? title.right > 300 : title.left < 100,
+          language == AppLanguage.ar ? tabs.right > 300 : tabs.left < 100,
           isTrue,
         );
         expect(tester.takeException(), isNull);
@@ -466,11 +468,9 @@ void main() {
 
       // D237: the Following tab, then the talents banner (third) →
       // Popular.
-      final popular = find.byKey(
-        LiveHubFilterBar.pillKey(LiveHubFilter.popular),
-      );
+      final popular = find.byKey(LiveHubTopBar.tabKey(LiveHubFilter.popular));
       final following = find.byKey(
-        LiveHubFilterBar.pillKey(LiveHubFilter.following),
+        LiveHubTopBar.tabKey(LiveHubFilter.following),
       );
       await tester.tap(following);
       await tester.pumpAndSettle();
@@ -495,7 +495,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(
-        find.descendant(of: popular, matching: find.text(l10n.feedTabPopular)),
+        find.descendant(
+          of: popular,
+          matching: find.text(l10n.liveHubFilterPopular),
+        ),
         findsOneWidget,
       );
       expect(
@@ -519,18 +522,13 @@ void main() {
       expect(find.text('families'), findsOneWidget);
     });
 
-    testWidgets('top bar: search opens Discover, the bell the notifications', (
-      tester,
-    ) async {
-      final router = await pumpRouted(tester, meId: 'user-me');
+    testWidgets('top bar: search opens Discover; no bell (D377: the '
+        'Moments tab has it)', (tester) async {
+      await pumpRouted(tester, meId: 'user-me');
+      expect(find.byKey(NotificationsBell.bellKey), findsNothing);
       await tester.tap(find.byKey(LiveHubTopBar.searchKey));
       await tester.pumpAndSettle();
       expect(find.text('discover'), findsOneWidget);
-      router.pop();
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(NotificationsBell.bellKey));
-      await tester.pumpAndSettle();
-      expect(find.text('notifications'), findsOneWidget);
     });
 
     testWidgets('a card opens its room; inside, swipe up / down moves '
