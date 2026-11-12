@@ -118,7 +118,8 @@ Map<String, List<Story>> d375Stories({required bool ar}) => {
           ),
           media: MediaAsset(
             id: 'd375-${p.username}-$i-m',
-            url: 'https://media.example.test/media/d375-${p.username}-$i/1920.webp',
+            url:
+                'https://media.example.test/media/d375-${p.username}-$i/1920.webp',
             thumbUrl:
                 'https://media.example.test/media/d375-${p.username}-$i/320.webp',
             width: 1080,
