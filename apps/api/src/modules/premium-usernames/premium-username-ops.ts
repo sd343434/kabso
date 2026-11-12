@@ -42,7 +42,7 @@ export interface LeaseRow {
   userId: string;
   username: string;
   tier: PremiumTier;
-  source: 'RENT' | 'GRANT';
+  source: 'RENT' | 'GRANT' | 'VIP';
   status: 'ACTIVE' | 'GRACE' | 'ENDED';
   regularUsername: string;
   startedAt: Date;

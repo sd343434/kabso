@@ -352,6 +352,8 @@ model User {
 
   // v1.82-social (D252): «شراء VIP» — the person's membership and purchases.
   vipMembership           VipMembership?
+  /// v1.131-social (D378, §10.168.4): the golden ID «آيدي ذهبي» the user holds (HELD) or keeps in its grace (GRACE).
+  vipGoldenId             VipGoldenId?
   vipPurchases            VipPurchase[]
   /// v1.126-social (D370, §10.163): recharge points «نقاط الشحن» — the balance and the append-only ledger.
   rechargePoints          RechargePointsBalance?
@@ -3895,6 +3897,8 @@ enum PremiumUsernameLeaseStatus {
 enum PremiumUsernameSource {
   RENT
   GRANT
+  /// v1.131-social (D378, §10.168.3): claimed free with the VIP perk PREMIUM_USERNAME; ends with the membership.
+  VIP
 
   @@map("premium_username_source")
 }
@@ -7283,6 +7287,9 @@ model VipMembership {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   /// v1.65-live (D264, §10.97): the VIP bag items the member took off (perk codes); a new membership starts empty.
   offPerks  String[] @default([]) @map("off_perks")
+  /// v1.131-social (D378, §10.168.5): the member's ANIMATED_SIGNATURE text (1–24 characters, blocked words refused);
+  /// kept across renewals, shown only while the perk is held. CHECK `vip_memberships_signature_length`.
+  signature String?  @db.VarChar(96)
 
   user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   tier VipTier @relation(fields: [tierId], references: [id], onDelete: Restrict)
@@ -8621,4 +8628,45 @@ model WaStaffDepartment {
 
   @@id([userId, department], map: "wa_staff_departments_pkey")
   @@map("wa_staff_departments")
+}
+
+/// v1.131-social (D378, §10.168.4): the class of a golden ID — the GOLDEN_ID perk's value picks one.
+enum VipGoldenIdClass {
+  REPEATED
+  THREE_DIGIT
+  FOUR_DIGIT
+  FIVE_DIGIT
+
+  @@map("vip_golden_id_class")
+}
+
+/// D378: FREE (in the stock), HELD (shown on its holder), GRACE (kept for its holder after the VIP ended).
+enum VipGoldenIdState {
+  FREE
+  HELD
+  GRACE
+
+  @@map("vip_golden_id_state")
+}
+
+/// v1.131-social (D378, §10.168.4): the owner's stock of golden IDs «آيدي ذهبي» — short special account numbers a
+/// GOLDEN_ID holder picks from their class. One number one holder, one holder one number. CHECKs
+/// `vip_golden_ids_number_format`, `vip_golden_ids_state_fields`.
+model VipGoldenId {
+  number     String           @id @db.VarChar(8)
+  class      VipGoldenIdClass
+  state      VipGoldenIdState @default(FREE)
+  holderId   String?          @unique(map: "vip_golden_ids_holder_key") @map("holder_id") @db.Uuid
+  /// HELD: the end of the holder's membership (kept in step on a renewal and by the sweeper).
+  heldUntil  DateTime?        @map("held_until") @db.Timestamptz(3)
+  /// GRACE: when the number returns to the stock.
+  graceUntil DateTime?        @map("grace_until") @db.Timestamptz(3)
+  claimedAt  DateTime?        @map("claimed_at") @db.Timestamptz(3)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  holder User? @relation(fields: [holderId], references: [id], onDelete: SetNull)
+
+  @@index([class, state, number], map: "vip_golden_ids_class_idx")
+  @@map("vip_golden_ids")
 }

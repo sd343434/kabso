@@ -14,6 +14,9 @@ import { Notifier } from '../notifications/notifier.js';
 import { activeSpecialOf } from '../users/special-usernames.js';
 import { isReservedUsername, normalizeUsername } from '../users/username.js';
 import { UsersService, violatedUniqueIndex, type MeDto } from '../users/users.service.js';
+import { vipPremiumLeaseEndIn } from '../vip/vip-identity-ops.js';
+import { vipPremiumClaimAllows, vipPremiumClassValue } from '../vip/vip-identity.js';
+import { vipPerkHoldIn } from '../vip/vip-perks.js';
 import { debitIn } from '../wallet/wallet-ledger.js';
 import {
   activeLeaseOf,
@@ -62,14 +65,21 @@ export interface PremiumUsernameStoreDto {
   graceDays: number;
   tiers: { tier: PremiumTier; priceCoins: number | null }[];
   suggestions: PremiumUsernameStatusDto[];
+  /**
+   * v1.131-social (D378, §10.168.3): the highest medal the caller's VIP (PREMIUM_USERNAME) lets them claim free — that
+   * medal and every lower one; null without the perk or a class on it.
+   */
+  vipTier: PremiumTier | null;
 }
+
+export const vipClaimSchema = z.strictObject({ username: z.string().min(1).max(64) });
 
 /** `MyPremiumUsername`. */
 export interface MyPremiumUsernameDto {
   username: string;
   tier: PremiumTier;
   status: 'ACTIVE' | 'GRACE';
-  source: 'RENT' | 'GRANT';
+  source: 'RENT' | 'GRANT' | 'VIP';
   startedAt: string;
   expiresAt: string | null;
   graceUntil: string | null;
@@ -164,12 +174,16 @@ export class PremiumUsernamesService implements OnModuleInit, OnModuleDestroy {
       priceCoins: byTier.has(t) ? Number(byTier.get(t)) : null,
     }));
     const named = await this.prisma.premiumUsernameNamePrice.findMany({ select: { username: true } });
+    const now = this.clock.now();
+    // v1.131-social (D378): a VIP's claimable medals are suggested even when not on sale.
+    const vipTier = vipPremiumClassValue((await vipPerkHoldIn(this.prisma, callerId, 'PREMIUM_USERNAME', now))?.value);
+    const claimable = (t: PremiumTier | null): boolean =>
+      t !== null && vipTier !== null && vipPremiumClaimAllows(vipTier, t);
     const candidates = [
       ...named.map((n) => n.username),
-      ...suggestionCandidates().filter((n) => byTier.has(premiumTierOf(n)!)),
+      ...suggestionCandidates().filter((n) => byTier.has(premiumTierOf(n)!) || claimable(premiumTierOf(n))),
     ].filter((n, i, all) => all.indexOf(n) === i && (tier === undefined || premiumTierOf(n) === tier));
     // One query each for the names in use, held or reserved, then the price per name.
-    const now = this.clock.now();
     const [profiles, leases, reserved, pending] = await Promise.all([
       this.prisma.userProfile.findMany({
         where: { username: { in: candidates } },
@@ -204,9 +218,11 @@ export class PremiumUsernamesService implements OnModuleInit, OnModuleDestroy {
       if (suggestions.length >= MAX_SUGGESTIONS) break;
       if (busy.has(name)) continue;
       const info = await nameInfo(this.prisma, name, callerId, now);
-      if (info.state === 'AVAILABLE') suggestions.push(this.toStatus(info));
+      if (info.state === 'AVAILABLE' || (info.state === 'NOT_FOR_SALE' && claimable(info.tier))) {
+        suggestions.push(this.toStatus(info));
+      }
     }
-    return { periodDays: this.rules.periodDays, graceDays: this.rules.graceDays, tiers, suggestions };
+    return { periodDays: this.rules.periodDays, graceDays: this.rules.graceDays, tiers, suggestions, vipTier };
   }
 
   private async toMine(db: Tx, lease: LeaseRow, now: Date): Promise<MyPremiumUsernameDto> {
@@ -472,6 +488,131 @@ export class PremiumUsernamesService implements OnModuleInit, OnModuleDestroy {
     return { premium: await this.toMine(tx, lease, now), coins: Number(change.coins) };
   }
 
+  // ---- v1.131-social (D378, §10.168.3): claimed free with VIP --------------------------------------
+
+  /**
+   * `POST /me/premium-username/vip-claim`: a premium username claimed free with the VIP perk PREMIUM_USERNAME, for as
+   * long as the membership (and the perk's class) lasts — a name of the perk's medal or a lower one that is AVAILABLE,
+   * NOT_FOR_SALE (the VIP needs no price) or the caller's own in its grace. Order: 400 body → 409 `USERNAME_LOCKED`
+   * (a special username) → 409 `VIP_UNAVAILABLE` `perk` `not_held` → 409 `PREMIUM_USERNAME_UNAVAILABLE` (not a premium
+   * name, reserved, taken, held) → 409 `VIP_UNAVAILABLE` `username` `class` (a higher medal) → 409
+   * `PREMIUM_USERNAME_ACTIVE` (another premium username is the caller's). No coins. Audited
+   * `premium_username.vip_claim`. At the end of the membership the lease expires as a rented one does (back to the
+   * regular username, D146's grace period, then the name returns to the pool).
+   */
+  async vipClaim(callerId: string, body: unknown): Promise<{ premium: MyPremiumUsernameDto }> {
+    const parsed = vipClaimSchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const name = normalizeUsername(parsed.data.username).replace(/^@/, '');
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        if (!(await this.users.lockActiveById(tx, callerId)))
+          throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+        await lockUser(tx, callerId);
+        await lockName(tx, name);
+        const now = this.clock.now();
+        if (await activeSpecialOf(tx, callerId)) throw new AppException(ErrorCode.USERNAME_LOCKED);
+        const hold = await vipPerkHoldIn(tx, callerId, 'PREMIUM_USERNAME', now);
+        const perkClass = vipPremiumClassValue(hold?.value);
+        if (hold === null || perkClass === null) {
+          throw new AppException(ErrorCode.VIP_UNAVAILABLE, 'This VIP perk is not yours now.', [
+            { field: 'perk', issue: 'not_held' },
+          ]);
+        }
+        const info = await nameInfo(tx, name, callerId, now);
+        const claimable = ['AVAILABLE', 'NOT_FOR_SALE', 'YOURS_GRACE'].includes(info.state);
+        const ownVip = info.state === 'YOURS' && info.lease?.source === 'VIP';
+        if (info.tier === null || (!claimable && !ownVip)) {
+          if (info.state === 'YOURS') throw new AppException(ErrorCode.PREMIUM_USERNAME_ACTIVE);
+          throw unavailable();
+        }
+        if (!vipPremiumClaimAllows(perkClass, info.tier)) {
+          throw new AppException(ErrorCode.VIP_UNAVAILABLE, 'Your VIP does not cover this username.', [
+            { field: 'username', issue: 'class' },
+          ]);
+        }
+        let lease: LeaseRow;
+        if (ownVip) {
+          lease = await tx.premiumUsernameLease.update({
+            where: { id: info.lease!.id },
+            data: { expiresAt: hold.expiresAt, remindedDays: null, updatedAt: now },
+          });
+          return { premium: await this.toMine(tx, lease, now) };
+        }
+        if (await activeLeaseOf(tx, callerId)) throw new AppException(ErrorCode.PREMIUM_USERNAME_ACTIVE);
+        const profile = await tx.userProfile.findUniqueOrThrow({
+          where: { userId: callerId },
+          select: { username: true },
+        });
+        const data = {
+          source: 'VIP' as const,
+          status: 'ACTIVE' as const,
+          regularUsername: profile.username,
+          expiresAt: hold.expiresAt,
+          graceUntil: null,
+          remindedDays: null,
+          updatedAt: now,
+        };
+        lease =
+          info.state === 'YOURS_GRACE'
+            ? await tx.premiumUsernameLease.update({ where: { id: info.lease!.id }, data })
+            : await tx.premiumUsernameLease.create({
+                data: { ...data, userId: callerId, username: name, tier: info.tier, startedAt: now },
+              });
+        if (!(await applyPremiumIn(tx, callerId, name, info.tier))) throw unavailable();
+        await tx.auditLog.create({
+          data: {
+            action: AuditAction.PREMIUM_USERNAME_VIP_CLAIM,
+            actorUserId: callerId,
+            targetType: 'user',
+            targetId: callerId,
+            metadata: {
+              leaseId: lease.id,
+              username: name,
+              tier: info.tier,
+              perkClass,
+              expiresAt: hold.expiresAt.toISOString(),
+              regularUsername: profile.username,
+              via: 'api',
+            },
+          },
+        });
+        return { premium: await this.toMine(tx, lease, now) };
+      });
+    } catch (err) {
+      if (violatedUniqueIndex(err) !== null) throw unavailable();
+      throw err;
+    }
+  }
+
+  /**
+   * D378 (§10.168.3): the sweeper's first pass — each ACTIVE VIP lease follows its holder's membership: the end moves
+   * with a renewal; the perk (or a class allowing the medal) gone → the end is now, so the expiry below takes it (D146's
+   * grace period, then the pool).
+   */
+  private async syncVipLeases(now: Date): Promise<number> {
+    let changed = 0;
+    const leases = await this.prisma.premiumUsernameLease.findMany({
+      where: { status: 'ACTIVE', source: 'VIP' },
+      select: { id: true },
+      take: 5000,
+    });
+    for (const { id } of leases) {
+      const done = await this.prisma.$transaction(async (tx) => {
+        if ((await this.lockLeaseIn(tx, id, 'ACTIVE')).length === 0) return false;
+        const lease = (await tx.premiumUsernameLease.findUniqueOrThrow({ where: { id } })) as LeaseRow;
+        if (lease.source !== 'VIP') return false;
+        const end = await vipPremiumLeaseEndIn(tx, lease.userId, lease.tier, now);
+        const next = end ?? (lease.expiresAt && lease.expiresAt < now ? lease.expiresAt : now);
+        if (next.getTime() === lease.expiresAt?.getTime()) return false;
+        await tx.premiumUsernameLease.update({ where: { id }, data: { expiresAt: next, updatedAt: now } });
+        return true;
+      });
+      if (done) changed += 1;
+    }
+    return changed;
+  }
+
   // ---- Release and the regular username ----------------------------------------------------------
 
   /** `DELETE /me/premium-username`: ends the caller's ACTIVE one now (no refund). Idempotent. */
@@ -555,6 +696,8 @@ export class PremiumUsernamesService implements OnModuleInit, OnModuleDestroy {
     const reminderDays = [...this.rules.reminderDays].sort((a, b) => b - a);
     const widest = reminderDays[0] ?? 0;
 
+    // v1.131-social (D378): the VIP leases follow their memberships first.
+    await this.syncVipLeases(now);
     // Expiry first, so a lease past its end is never reminded.
     for (;;) {
       const due = await this.prisma.premiumUsernameLease.findMany({

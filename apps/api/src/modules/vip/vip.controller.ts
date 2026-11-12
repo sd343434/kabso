@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Post, Put, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -7,6 +7,14 @@ import type { AppRequest, AuthContext } from '../../common/http/request-context.
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import { UsersService } from '../users/users.service.js';
+import {
+  VipIdentityService,
+  vipGoldenIdClaimBody,
+  vipSignatureBody,
+  type VipGoldenIdChoiceDto,
+  type VipGoldenIdHoldingDto,
+  type VipSignatureDto,
+} from './vip-identity.service.js';
 import { buyVipBody, type BuyVipBody } from './vip.schemas.js';
 import {
   VipService,
@@ -29,6 +37,7 @@ export class VipController {
   constructor(
     private readonly vip: VipService,
     private readonly users: UsersService,
+    private readonly identity: VipIdentityService,
   ) {}
 
   private async language(req: AppRequest, auth: AuthContext): Promise<ContentLanguage> {
@@ -58,6 +67,38 @@ export class VipController {
   @Get('me/profile-visitors')
   profileVisitors(@CurrentAuth() auth: AuthContext): Promise<ProfileVisitorListDto> {
     return this.vip.profileVisitors(auth.userId);
+  }
+
+  /** v1.131-social (D378, §10.168.5): the caller's ANIMATED_SIGNATURE text (null clears it). */
+  @Put('me/vip/signature')
+  setSignature(
+    @CurrentAuth() auth: AuthContext,
+    @Body(new ZodValidationPipe(vipSignatureBody)) body: z.output<typeof vipSignatureBody>,
+  ): Promise<VipSignatureDto> {
+    return this.identity.setSignature(auth.userId, body);
+  }
+
+  /** v1.131-social (D378, §10.168.4): the golden IDs the caller may pick and their own. */
+  @Get('me/vip/golden-ids')
+  goldenIds(@CurrentAuth() auth: AuthContext): Promise<VipGoldenIdChoiceDto> {
+    return this.identity.choice(auth.userId);
+  }
+
+  /** D378: take a golden ID of the caller's class (one at a time; a held one is given back first). */
+  @Post('me/vip/golden-id')
+  @HttpCode(200)
+  claimGoldenId(
+    @CurrentAuth() auth: AuthContext,
+    @Body(new ZodValidationPipe(vipGoldenIdClaimBody)) body: z.output<typeof vipGoldenIdClaimBody>,
+  ): Promise<VipGoldenIdHoldingDto> {
+    return this.identity.claim(auth.userId, body);
+  }
+
+  /** D378: give the caller's golden ID back to the stock now. Idempotent. */
+  @Delete('me/vip/golden-id')
+  @HttpCode(204)
+  async releaseGoldenId(@CurrentAuth() auth: AuthContext): Promise<void> {
+    await this.identity.release(auth.userId);
   }
 
   /** Buy, renew or upgrade. 201 new, 200 a retry with the same `Idempotency-Key`. */

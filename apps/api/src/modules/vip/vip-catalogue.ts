@@ -64,7 +64,7 @@ export const VIP_ART_LIMITS: Readonly<
 };
 
 /** The lists an `enum` value picks from: the premium username medals, the rocket stages, the VIP tiers (their codes). */
-export type VipEnumSource = 'PREMIUM_USERNAME_TIER' | 'ROCKET_STAGE' | 'VIP_TIER';
+export type VipEnumSource = 'PREMIUM_USERNAME_TIER' | 'ROCKET_STAGE' | 'VIP_TIER' | 'GOLDEN_ID_CLASS';
 
 export interface VipIntSchema {
   readonly kind: 'int';
@@ -149,6 +149,8 @@ const int = (min: number, max: number, unit: VipPerkUnit): VipIntSchema => ({ ki
 export const VIP_ROCKET_STAGES = ['STAGE_1', 'STAGE_2', 'STAGE_3', 'STAGE_4'] as const;
 /** D146: the premium username medals (`premium_username_tier`). */
 export const VIP_PREMIUM_USERNAME_TIERS = ['LEGEND', 'RUBY', 'GOLD', 'SILVER'] as const;
+/** v1.131-social (D378, §10.168.4): the golden ID classes (`vip_golden_id_class`). */
+export const VIP_GOLDEN_ID_CLASSES = ['REPEATED', 'THREE_DIGIT', 'FOUR_DIGIT', 'FIVE_DIGIT'] as const;
 
 /** At most this many gift codes in EXCLUSIVE_GIFTS, and files in an art pack. */
 export const VIP_LIST_MAX_ITEMS = 50;
@@ -208,7 +210,7 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     titleEn: 'Glowing name',
     descriptionAr: 'توهج حول الاسم بلون المستوى.',
     descriptionEn: "A glow around the name in the tier's colour.",
-    built: false,
+    built: true,
     value: NONE,
     art: null,
   },
@@ -219,7 +221,7 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     titleEn: 'Animated cover',
     descriptionAr: 'غلاف متحرك لصفحة الملف الشخصي.',
     descriptionEn: 'An animated cover on the profile page.',
-    built: false,
+    built: true,
     value: NONE,
     art: art(['SVGA', 'MP4', 'PNG', 'WEBP'], 1080, 720),
   },
@@ -230,7 +232,7 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     titleEn: 'Premium username',
     descriptionAr: 'يوزر مميز من الفئة المحددة طوال العضوية.',
     descriptionEn: 'A premium username of the set class for the membership.',
-    built: false,
+    built: true,
     value: { kind: 'enum', source: 'PREMIUM_USERNAME_TIER', options: VIP_PREMIUM_USERNAME_TIERS },
     art: null,
   },
@@ -239,12 +241,11 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     category: 'IDENTITY',
     titleAr: 'آيدي ذهبي',
     titleEn: 'Golden ID',
-    descriptionAr: 'رقم حساب مميز.',
-    descriptionEn: 'A special account number.',
-    built: false,
-    // No short / special account number exists yet (only staff IDs «Kabso01», D283c): the branch that builds it adds
-    // its classes as an `enum` value.
-    value: NONE,
+    descriptionAr: 'رقم ID ذهبي قصير من الفئة المحددة طوال العضوية.',
+    descriptionEn: 'A short golden ID number of the set class for the membership.',
+    built: true,
+    // D378 (§10.168.4): the class the holder picks a number from (the owner's stock, `vip_golden_ids`).
+    value: { kind: 'enum', source: 'GOLDEN_ID_CLASS', options: VIP_GOLDEN_ID_CLASSES },
     art: null,
   },
   {
@@ -252,9 +253,9 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     category: 'IDENTITY',
     titleAr: 'توقيع متحرك',
     titleEn: 'Animated signature',
-    descriptionAr: 'توقيع متحرك في الملف الشخصي.',
-    descriptionEn: 'An animated signature on the profile.',
-    built: false,
+    descriptionAr: 'توقيع قصير بفن المستوى تحت منشوراتك ورسائلك العامة.',
+    descriptionEn: "A short signature in the tier's art under your posts and public messages.",
+    built: true,
     value: NONE,
     art: art(STILL_OR_SVGA, 750, 200),
   },
@@ -265,7 +266,7 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     titleEn: 'Post badge',
     descriptionAr: 'شارة VIP على المنشورات والتعليقات.',
     descriptionEn: 'The VIP badge on posts and comments.',
-    built: false,
+    built: true,
     value: NONE,
     art: null,
   },
@@ -276,7 +277,7 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     titleEn: 'Story ring',
     descriptionAr: 'حلقة مميزة حول صورة القصص.',
     descriptionEn: 'A special ring around the story picture.',
-    built: false,
+    built: true,
     value: { kind: 'color' },
     art: art(STILL_OR_SVGA, 300, 300),
   },
@@ -333,7 +334,7 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     titleEn: 'DM bubble',
     descriptionAr: 'فقاعة المستوى في الرسائل الخاصة (نفس فن فقاعة الدردشة).',
     descriptionEn: "The tier's bubble in direct messages (the chat bubble's art).",
-    built: false,
+    built: true,
     // Owner: «هي نفس فقاعة التكست» — it draws CHAT_BUBBLE's art.
     value: NONE,
     art: null,

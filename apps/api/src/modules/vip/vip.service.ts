@@ -13,6 +13,7 @@ import { debitIn } from '../wallet/wallet-ledger.js';
 import { pointsBalanceIn, spendPointsIn } from '../recharge-points/recharge-points-ledger.js';
 import type { BuyVipBody } from './vip.schemas.js';
 import { wearVipItemsIn } from './vip-bag.js';
+import { syncVipIdentityIn } from './vip-identity-ops.js';
 import { vipHoldsPerkIn } from './vip-perks.js';
 import { PROFILE_VISITORS_DAYS, PROFILE_VISITORS_MAX } from './profile-visits.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
@@ -534,6 +535,8 @@ export class VipService {
         // D264 (owner: one worn item per kind): the tier's frame and card replace the bag's worn ones — on a new
         // membership all of them, on an upgrade or a renewal those the member did not take off.
         await wearVipItemsIn(tx, userId, tier.sortOrder, membership.offPerks);
+        // v1.131-social (D378, §10.168.6): a VIP premium username and a golden ID follow the new end at once.
+        await syncVipIdentityIn(tx, userId, this.clock.now());
         await tx.auditLog.create({
           data: {
             action: AuditAction.VIP_PURCHASE,

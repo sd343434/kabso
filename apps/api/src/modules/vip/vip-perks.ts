@@ -48,3 +48,30 @@ export async function vipHoldsPerkIn(db: Db, userId: string, code: string, now: 
   });
   return perk !== null;
 }
+
+/**
+ * v1.131-social (D378, §10.168): the member's hold of the built perk [code] now — the value of the highest-ranked tier
+ * at or below theirs that lists it enabled (D258's inheritance) and the end of the membership; null when not held.
+ */
+export async function vipPerkHoldIn(
+  db: Db,
+  userId: string,
+  code: string,
+  now: Date,
+): Promise<{ value: unknown; expiresAt: Date } | null> {
+  if (!VIP_BUILT_PERKS.has(code)) return null;
+  const membership = await db.vipMembership.findUnique({
+    where: { userId },
+    select: { expiresAt: true, tier: { select: { sortOrder: true } } },
+  });
+  if (!membership || membership.expiresAt.getTime() <= now.getTime()) return null;
+  const rows = await db.vipTierPerk.findMany({
+    where: { code, enabled: true, tier: { sortOrder: { lte: membership.tier.sortOrder } } },
+    select: { value: true, tier: { select: { sortOrder: true } } },
+  });
+  let best: { value: unknown; rank: number } | null = null;
+  for (const r of rows) {
+    if (best === null || r.tier.sortOrder > best.rank) best = { value: r.value, rank: r.tier.sortOrder };
+  }
+  return best === null ? null : { value: best.value, expiresAt: membership.expiresAt };
+}

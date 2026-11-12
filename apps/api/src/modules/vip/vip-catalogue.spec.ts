@@ -64,15 +64,27 @@ const NEW = [
   'LONGER_VOICE',
 ];
 
+/** v1.131-social (D378, §10.168): the identity perks built since. */
+const D378_BUILT = [
+  'ANIMATED_COVER',
+  'PREMIUM_USERNAME',
+  'GOLDEN_ID',
+  'ANIMATED_SIGNATURE',
+  'POST_BADGE',
+  'STORY_RING',
+  'GLOWING_NAME',
+  'DM_BUBBLE',
+];
+
 const issues = (code: string, value: unknown) => vipPerkValueIssues(code, value).map((i) => i.issue);
 
 describe('D374 VIP perk catalogue', () => {
   it("holds the owner's list: eleven built, thirty new ones not built, MONTHLY_GIFT; codes unique; DAILY_COINS removed", () => {
     const codes = VIP_PERK_CATALOGUE.map((e) => e.code);
     expect(new Set(codes).size).toBe(codes.length);
-    expect([...VIP_CATALOGUE_BUILT].sort()).toEqual([...BUILT].sort());
-    expect([...VIP_BUILT_PERKS].sort()).toEqual([...BUILT].sort());
-    for (const c of NEW) expect(vipCatalogueEntry(c)?.built, c).toBe(false);
+    expect([...VIP_CATALOGUE_BUILT].sort()).toEqual([...BUILT, ...D378_BUILT].sort());
+    expect([...VIP_BUILT_PERKS].sort()).toEqual([...BUILT, ...D378_BUILT].sort());
+    for (const c of NEW) expect(vipCatalogueEntry(c)?.built, c).toBe(D378_BUILT.includes(c));
     expect(vipCatalogueEntry('MONTHLY_GIFT')?.built).toBe(false);
     expect(codes).toHaveLength(BUILT.length + NEW.length + 1);
     expect(codes.length).toBeLessThanOrEqual(VIP_MAX_PERKS);
@@ -132,6 +144,10 @@ describe('D374 VIP perk catalogue', () => {
     expect(issues('PREMIUM_USERNAME', 'GOLD')).toEqual([]);
     expect(issues('PREMIUM_USERNAME', 'PLATINUM')).toEqual(['invalid_value']);
     expect(issues('PREMIUM_USERNAME', 1)).toEqual(['invalid_type']);
+    // D378: the golden ID classes.
+    expect(issues('GOLDEN_ID', 'FOUR_DIGIT')).toEqual([]);
+    expect(issues('GOLDEN_ID', 'REPEATED')).toEqual([]);
+    expect(issues('GOLDEN_ID', 'SIX_DIGIT')).toEqual(['invalid_value']);
     expect(issues('VIP_ROOM', 'VIP_3')).toEqual([]);
     expect(issues('VIP_ROOM', 'vip 3')).toEqual(['invalid_format']);
   });

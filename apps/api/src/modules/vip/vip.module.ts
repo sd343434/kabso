@@ -3,6 +3,7 @@ import { MediaModule } from '../media/media.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { VipAdminService } from './vip-admin.service.js';
 import { VipController } from './vip.controller.js';
+import { VipIdentityService } from './vip-identity.service.js';
 import { VipService } from './vip.service.js';
 
 /**
@@ -13,7 +14,8 @@ import { VipService } from './vip.service.js';
 @Module({
   imports: [UsersModule, MediaModule],
   controllers: [VipController],
-  providers: [VipService, VipAdminService],
-  exports: [VipAdminService],
+  // v1.131-social (D378): the identity perks the server keeps (signature, golden IDs; the panel's stock too).
+  providers: [VipService, VipAdminService, VipIdentityService],
+  exports: [VipAdminService, VipIdentityService],
 })
 export class VipModule {}

@@ -134,7 +134,8 @@ export interface UserSummaryDto {
    * (`VipTier.sortOrder`, 1 = lowest) and colour; the app takes the perks and their art from `GET /vip/tiers`.
    */
   /** v1.65-live (D264): `off` — the VIP items the member took off in the bag (absent when none). */
-  vip?: { tier: string; rank: number; color: string; off?: string[] };
+  /** v1.131-social (D378, §10.168.5): `signature` — the member's ANIMATED_SIGNATURE text (absent when none). */
+  vip?: { tier: string; rank: number; color: string; off?: string[]; signature?: string };
   /** D270 (§10.98): the store items the user wears now, by kind (absent when none). */
   wear?: StoreWearDto;
   /**
@@ -142,6 +143,11 @@ export interface UserSummaryDto {
    * active account — the apps show it where they show the @username; absent otherwise.
    */
   staffId?: string;
+  /**
+   * v1.131-social (D378, §10.168.4): the golden ID «آيدي ذهبي» the user holds now (HELD, its end in the future) with an
+   * active account — the apps show it as a gold ID chip; absent otherwise.
+   */
+  goldenId?: { number: string; class: string };
   /**
    * v1.90-social (D293, §10.105): the automatic verification badge «شارة التوثيق» beside the name — only its type,
    * present only while the user holds one (an active account; the stored `user_verification_badges` row).
