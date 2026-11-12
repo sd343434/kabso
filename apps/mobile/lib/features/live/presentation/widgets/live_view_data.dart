@@ -1,6 +1,7 @@
 import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/design_system/theme/app_theme.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_vip.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Presentation-only inputs for the live widgets (KL-022). Production
@@ -37,6 +38,7 @@ class LiveRoomCardData {
     this.popular = false,
     this.hostCountry,
     this.hostIsCreator = false,
+    this.vipMinTier,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
@@ -79,6 +81,7 @@ class LiveRoomCardData {
       popular: room.popular,
       hostCountry: room.hostCountry,
       hostIsCreator: room.hostIsCreator,
+      vipMinTier: room.vipMinTier,
     );
   }
 
@@ -139,6 +142,9 @@ class LiveRoomCardData {
   /// v1.82-live (D295): the host is a content creator — the purple «صانع
   /// محتوى» badge on the card.
   final bool hostIsCreator;
+
+  /// v1.132-social (D379, §10.169.9): a VIP room — the card shows the lock.
+  final LiveVipMinTier? vipMinTier;
 
   /// D154b: in a paid «مميز» slot now (a traffic card); the card says so.
   final bool featured;

@@ -45,9 +45,11 @@ import 'package:kabso_live/features/live/data/live_host_targets_repository.dart'
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
+import 'package:kabso_live/features/live/data/live_vip_repository.dart';
 import 'package:kabso_live/features/live/data/streamer/live_streamer_platform.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_vip.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart'
     show pkFollowOpponent, showHostSheet, showPkOpponentCard;
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
@@ -1261,6 +1263,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         onAllowGuests: previewing
             ? (allow) => unawaited(_host.setAllowGuests(allow: allow))
             : null,
+        // v1.132-social (D379): «غرفة VIP» for a holder of VIP_ROOM.
+        vipMinTier: state.vipMinTier,
+        onVipMinTier: previewing ? _host.setVipMinTier : null,
         micEnabled: state.micEnabled,
         onMic: previewing ? () => unawaited(_host.toggleMic()) : null,
         noiseReduction: state.noiseReduction,
@@ -3523,11 +3528,31 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       orElse: () =>
           LiveSeat(index: index, state: LiveSeatState.empty, user: null),
     );
+    // v1.132-social (D379, §10.169.10): an audio room's host holding
+    // SEAT_RESERVE keeps an empty seat for a friend (the server checks).
+    final reserves =
+        seats.mode == LiveRoomMode.audio &&
+        (ref.read(myVipLivePerksProvider).value ?? const {}).containsKey(
+          VipLivePerks.seatReserve,
+        );
+    final vipRepo = ref.read(liveVipRepositoryProvider);
     return showSeatActions(
       context,
       seat: seat,
       isHost: true,
       moderators: seats.moderators,
+      onReserve: !reserves
+          ? null
+          : () async {
+              final username = await showLiveVipReserveSheet(context);
+              if (username == null) return;
+              await vipRepo.reserveSeat(roomId, index, username);
+              await _afterSeatChange(roomId);
+            },
+      onRelease: () async {
+        await vipRepo.releaseSeat(roomId, index);
+        await _afterSeatChange(roomId);
+      },
       onMute: ({required muted}) async {
         await repo.muteSeat(roomId, index, muted: muted);
         await _afterSeatChange(roomId);

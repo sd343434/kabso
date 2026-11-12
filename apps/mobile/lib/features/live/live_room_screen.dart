@@ -493,6 +493,20 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     closeLiveRoom(context);
   }
 
+  /// v1.132-social (D379): «هذه الغرفة لأعضاء VIP n فما فوق».
+  Future<void> _vipLocked(LiveRoom room) async {
+    final router = GoRouter.of(context);
+    var getVip = false;
+    await showLiveVipLockSheet(
+      context,
+      tierName: room.vipMinTier?.name ?? 'VIP',
+      onGetVip: () => getVip = true,
+    );
+    if (!mounted) return;
+    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+    if (getVip) unawaited(router.push(AppRoutes.vip));
+  }
+
   LiveRoomSession get _session =>
       ref.read(liveRoomSessionProvider(widget.room.id).notifier);
 
@@ -1247,6 +1261,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     }
     ref.listen(liveRoomSessionProvider(room.id), (previous, next) {
       _watchDemote(next);
+      // v1.132-social (D379, §10.169.9): a VIP room this person's tier does
+      // not reach — the lock sheet, then out of the room.
+      final refused = next.joinFailure;
+      if (refused != null &&
+          refused.code == ErrorCode.liveVipOnly &&
+          previous?.joinFailure != refused) {
+        unawaited(_vipLocked(room));
+      }
       // The media session dropped (the host ended the live): re-read the
       // room so the ended state shows.
       if (next.disconnected && !(previous?.disconnected ?? false)) {

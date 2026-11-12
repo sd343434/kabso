@@ -7,6 +7,7 @@ import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge
 import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_vip_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -230,6 +231,7 @@ class VoiceRoomRow extends StatelessWidget {
       if (room.featured) l10n.liveBoostFeatured,
       if (room.popular) l10n.liveCardPopular,
       if (room.hostIsCreator) l10n.liveCreatorBadge,
+      if (room.vipMinTier case final vip?) l10n.liveVipLockBody(vip.name),
       withCategory,
       if (room.roomLevel case final level?) l10n.liveRoomLevelBadge(level),
     ].join(', ');
@@ -413,6 +415,10 @@ class VoiceRoomRow extends StatelessWidget {
                                         children: [
                                           // v1.82-live (D295): a content
                                           // creator's room, first.
+                                          // v1.132-social (D379): a VIP
+                                          // room's lock, first of all.
+                                          if (room.vipMinTier case final vip?)
+                                            LiveVipRoomBadge(tier: vip),
                                           if (room.hostIsCreator)
                                             const CreatorLiveBadge(),
                                           if (room.popular)

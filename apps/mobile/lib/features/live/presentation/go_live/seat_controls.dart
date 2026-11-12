@@ -30,6 +30,10 @@ abstract final class SeatControlKeys {
   static const invite = Key('seat.action.invite');
   static const cancel = Key('seat.action.cancel');
   static const moderator = Key('seat.action.moderator');
+
+  /// v1.132-social (D379): the host keeps / frees a seat for a friend.
+  static const reserve = Key('seat.action.reserve');
+  static const release = Key('seat.action.release');
   static Key accept(String id) => Key('seat.request.$id.accept');
   static Key decline(String id) => Key('seat.request.$id.decline');
   static Key inviteUser(String username) => Key('seat.invite.$username');
@@ -92,6 +96,8 @@ Future<void> showSeatActions(
   required Future<void> Function(String username, {required bool moderator})
   onModerator,
   Future<void> Function()? onInvite,
+  Future<void> Function()? onReserve,
+  Future<void> Function()? onRelease,
 }) {
   final l10n = context.l10n;
   final user = seat.user;
@@ -132,6 +138,21 @@ Future<void> showSeatActions(
         Icons.person_add_alt_1_rounded,
         l10n.liveSeatInvite,
         onInvite,
+      ),
+    // v1.132-social (D379, §10.169.10): SEAT_RESERVE «قفل المقعد لصديق».
+    if (isHost && seat.reservation != null && onRelease != null)
+      _Action(
+        SeatControlKeys.release,
+        Icons.lock_open_rounded,
+        l10n.liveVipReleaseAction,
+        onRelease,
+      )
+    else if (isHost && seat.state == LiveSeatState.empty && onReserve != null)
+      _Action(
+        SeatControlKeys.reserve,
+        Icons.lock_clock,
+        l10n.liveVipReserveAction,
+        onReserve,
       ),
     if (isHost && seat.state != LiveSeatState.taken)
       _Action(
