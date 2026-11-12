@@ -21,10 +21,8 @@ import 'package:kabso_live/features/messages/domain/dm_models.dart';
 import 'package:kabso_live/features/messages/group_chat_screen.dart';
 import 'package:kabso_live/features/messages/widgets/dm_group_row.dart';
 import 'package:kabso_live/features/messages/widgets/dm_new_message_sheet.dart';
-import 'package:kabso_live/features/messages/widgets/dm_story_cards.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
-import 'package:kabso_live/features/stories/application/stories_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -43,9 +41,9 @@ abstract final class KDmList {
   /// A long time (a date) is cut rather than squeezing the name.
   static const double timeMaxWidth = 80;
 
-  /// «الرسائل» (the section title) and «القصص» (the page title).
+  /// The box's title («الدردشات», …) and (D375) «الرسائل», the page title.
   static const double titleSize = 23;
-  static const double storiesTitleSize = 30;
+  static const double pageTitleSize = 30;
 
   /// The header rows: 48 dp targets, the title at [startInset].
   static const double headerHeight = 48;
@@ -56,9 +54,8 @@ abstract final class KDmList {
   static const double planeIcon = 30;
   static const double searchIcon = 26;
 
-  /// Header row → cards, cards → «الرسائل».
-  static const double cardsTop = 10;
-  static const double cardsBottom = 25;
+  /// D375: the page title's row → the box's row.
+  static const double titleBottom = 10;
   static const double unreadBadge = 24;
   static const double timeToBadge = 10;
 
@@ -101,11 +98,13 @@ abstract final class KDmList {
 /// then the conversation), and a long press on a row offers mark read /
 /// unread, mute, delete and block.
 ///
-/// D336 (owner's reference, layout only): the page opens on «القصص» — a
-/// dark «+» (a new story) and the paper plane (a new message) — over the
-/// story cards ([DmStoryCards]), then «الرسائل» with search, the two boxes
-/// and the rows (64 dp picture, name, preview, time, the red unread count
-/// under it). Everything scrolls together.
+/// D336 (owner's reference, layout only): the page opens on its title — a
+/// dark «+» (D339: a new group) and the paper plane (a new message) — then
+/// the box («الدردشات») with search, the boxes and the rows (64 dp picture,
+/// name, preview, time, the red unread count under it). Everything scrolls
+/// together. D375 (owner: «واجعل القصص في صفحة اللحظات في الاعلى وليس في
+/// صفحة الرسائل»): the stories moved to the top of «اللحظات»; the page's
+/// title is «الرسائل».
 ///
 /// D339 (§10.132–§10.133): «الدردشات» mixes the groups in by recency
 /// (`listDmChats`); the boxes panel adds «المؤرشفة»; a «+» before the boxes
@@ -155,9 +154,8 @@ class DmInboxScreen extends ConsumerStatefulWidget {
   static const boxesBadgeKey = Key('dm.boxes.badge');
   static const boxesPanelKey = Key('dm.boxes.panel');
 
-  /// D336: «القصص» (a new story is added from the «قصتك» card,
-  /// [DmStoryCards.addKey]; the header's «+» makes a group, D339).
-  static const storiesTitleKey = Key('dm.stories.title');
+  /// D375: the page title «الرسائل» (the header's «+» makes a group, D339).
+  static const titleKey = Key('dm.title');
   static const actionReadKey = Key('dm.action.read');
   static const actionUnreadKey = Key('dm.action.unread');
   static const actionMuteKey = Key('dm.action.mute');
@@ -246,10 +244,10 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
         if (before != next) _refresh();
       });
     final requests = ref.watch(dmUnreadProvider.select((u) => u.requests));
-    // D336: «القصص» — the title, a dark «+» and the paper plane (a new
+    // D375: «الرسائل» — the title, a dark «+» and the paper plane (a new
     // message). D339 (owner: «ال+ في الاعلى … يجب ان يكون هذا الزر + زر عمل
-    // مجموعة»): the «+» makes a group; a story is added from «قصتك» below.
-    final storiesHeader = SizedBox(
+    // مجموعة»): the «+» makes a group.
+    final titleHeader = SizedBox(
       height: KDmList.headerHeight,
       child: Row(
         children: [
@@ -258,12 +256,12 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
             child: Semantics(
               header: true,
               child: Text(
-                l10n.dmStoriesTitle,
-                key: DmInboxScreen.storiesTitleKey,
+                l10n.navMessages,
+                key: DmInboxScreen.titleKey,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: t.display.copyWith(
-                  fontSize: KDmList.storiesTitleSize,
+                  fontSize: KDmList.pageTitleSize,
                   height: 1.2,
                   color: p.textPrimary,
                 ),
@@ -334,7 +332,7 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
                     header: true,
                     child: Text(
                       switch (_box) {
-                        DmBox.chats => l10n.conversationsTitle,
+                        DmBox.chats => l10n.dmTabChats,
                         DmBox.requests => l10n.dmTabRequests,
                         DmBox.archived => l10n.dmTabArchived,
                       },
@@ -390,12 +388,10 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
     final header = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // The stories step aside while searching.
+        // The title steps aside while searching.
         if (!_searching) ...[
-          storiesHeader,
-          const SizedBox(height: KDmList.cardsTop),
-          const DmStoryCards(),
-          const SizedBox(height: KDmList.cardsBottom),
+          titleHeader,
+          const SizedBox(height: KDmList.titleBottom),
         ],
         messagesHeader,
         _BoxesPanel(
@@ -412,35 +408,20 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
     return Scaffold(
       backgroundColor: p.background,
       body: KTopSafeArea(
-        child: _Box(
-          box: _box,
-          query: _query,
-          header: header,
-          onRefresh: () async {
-            ref.invalidate(storyTrayProvider);
-          },
-        ),
+        child: _Box(box: _box, query: _query, header: header),
       ),
     );
   }
 }
 
 class _Box extends ConsumerWidget {
-  const new({
-    required this.box,
-    required this.header,
-    required this.onRefresh,
-    this.query,
-  });
+  const new({required this.box, required this.header, this.query});
 
   final DmBox box;
 
-  /// D336: the page's top (stories, «الرسائل», the boxes): it scrolls with
+  /// D336: the page's top («الرسائل», the box, the boxes): it scrolls with
   /// the list in every state.
   final Widget header;
-
-  /// Pull to refresh also reads the stories again.
-  final Future<void> Function() onRefresh;
 
   /// D165: the search (null: the whole box).
   final String? query;
@@ -476,10 +457,7 @@ class _Box extends ConsumerWidget {
           )
         : null;
     Widget scroll(List<Widget> slivers, {Key? key}) => RefreshIndicator(
-      onRefresh: () async {
-        await onRefresh();
-        await ref.read(provider.notifier).refresh();
-      },
+      onRefresh: () => ref.read(provider.notifier).refresh(),
       child: CustomScrollView(
         key: key,
         physics: const AlwaysScrollableScrollPhysics(),

@@ -16867,12 +16867,6 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get dmStoriesTitle => 'القصص';
-
-  @override
-  String get dmStoriesAdd => 'أضف قصة';
-
-  @override
   String relativeShortMinutes(int n) {
     return '$nد';
   }

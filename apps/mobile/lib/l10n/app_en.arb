@@ -5264,8 +5264,6 @@
   "@uploadView": {"description": "D333: open the new post."},
   "createSuggestionPosts": "{count} posts",
   "@createSuggestionPosts": {"description": "D333: a suggested hashtag's post count (already compact).", "placeholders": {"count": {"type": "String"}}},
-  "dmStoriesTitle": "Stories",
-  "dmStoriesAdd": "Add story",
   "relativeShortMinutes": "{n}m",
   "relativeShortHours": "{n}h",
   "relativeShortDays": "{n}d",

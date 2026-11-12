@@ -85,6 +85,35 @@ List<FeedStoryData> d375Tray({required bool ar}) => [
     ),
 ];
 
+/// D375 tray: «قصتك» (no story yet), then cards with thumbnails — one seen,
+/// one live — in the tray's order.
+List<FeedStoryData> d375TrayCards({required bool ar}) => [
+  FeedStoryData(
+    authorName: ar ? 'ليلى' : 'Layla',
+    authorAvatar: fixtureImage(
+      top: const Color(0xFFB08968),
+      bottom: const Color(0xFFDDB892),
+    ),
+    username: 'layla.k',
+    isSelf: true,
+    hasStory: false,
+  ),
+  for (final (i, p) in d375People.indexed)
+    FeedStoryData(
+      authorName: ar ? p.ar : p.en,
+      authorAvatar: fixtureImage(top: p.bottom, bottom: p.top),
+      username: p.username,
+      seen: p.seen,
+      liveRoomId: i == 3 ? 'room-${p.username}' : null,
+      thumbnail: fixtureImage(
+        top: p.top,
+        bottom: p.bottom,
+        width: 160,
+        height: 202,
+      ),
+    ),
+];
+
 /// The photo served for [url] (each person's own gradient).
 MemoryImage d375Photo(String url) {
   for (final p in d375People) {

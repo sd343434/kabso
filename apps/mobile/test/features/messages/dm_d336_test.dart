@@ -1,8 +1,8 @@
-// D336 (owner's reference, layout only): the Messages tab opens on «القصص»
-// — a «+» (a new story) and the paper plane (a new message) — over story
-// cards from the real stories tray («أضف قصة» first), then «الرسائل» with
-// search, the two boxes and the rows: the compact time with the red unread
-// count under it. English LTR and Arabic RTL; 360×800 at text scale 1.3.
+// D336 (owner's reference, layout only): the Messages tab opens on its title
+// — a «+» (D339: a new group) and the paper plane (a new message) — then the
+// box («الدردشات») with search, the boxes and the rows: the compact time
+// with the red unread count under it. D375: the story cards moved to the top
+// of «اللحظات». English LTR and Arabic RTL; 360×800 at text scale 1.3.
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,7 +20,6 @@ import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/messages/domain/dm_models.dart';
 import 'package:kabso_live/features/messages/messages_tab.dart';
 import 'package:kabso_live/features/messages/widgets/dm_new_message_sheet.dart';
-import 'package:kabso_live/features/messages/widgets/dm_story_cards.dart';
 import 'package:kabso_live/features/stories/data/stories_repository.dart';
 import 'package:kabso_live/features/stories/domain/story_models.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -135,52 +134,37 @@ void main() {
   final en = l10nFor(AppLanguage.en);
   final ar = l10nFor(AppLanguage.ar);
 
-  group('stories', () {
-    testWidgets('«Stories» with «+» (a new story) and the paper plane (a new '
-        "message), then «Add story» first and the followed accounts' cards "
-        'with their compact time; a card opens their stories', (tester) async {
+  group('header', () {
+    testWidgets('D375: no stories on «Messages» (they moved to the top of '
+        '«Moments»): the page title «Messages» with «+» and the paper '
+        'plane, then «Chats» with its rows', (tester) async {
       await withClock(Clock.fixed(_now), () async {
         final stories = FakeStoriesRepository()
-          ..trayItems = [_tray('nour', hours: 4)];
+          ..trayItems = [_tray('layla.k'), _tray('nour', hours: 4)];
         await _pump(tester, stories: stories);
-        expect(find.text(en.dmStoriesTitle), findsOneWidget);
-        expect(find.text(en.dmStoriesAdd), findsOneWidget);
-        expect(find.byKey(DmStoryCards.cardKey('nour')), findsOneWidget);
-        expect(find.text('Nour'), findsOneWidget);
-        expect(find.text(en.relativeShortHours(4)), findsOneWidget);
-        // «Add story» is first (at the reading start).
+        expect(find.byKey(const Key('dm.stories')), findsNothing);
+        expect(find.text(en.storyYourStory), findsNothing);
+        expect(find.text('Nour'), findsNothing);
+        expect(stories.calls, isNot(contains('tray:')));
+        expect(find.byKey(DmInboxScreen.titleKey), findsOneWidget);
         expect(
-          tester.getTopLeft(find.byKey(DmStoryCards.addKey)).dx,
-          lessThan(
-            tester.getTopLeft(find.byKey(DmStoryCards.cardKey('nour'))).dx,
-          ),
+          tester.widget<Text>(find.byKey(DmInboxScreen.titleKey)).data,
+          en.navMessages,
         );
-        // The cards sit between «Stories» and «Messages».
-        final cards = tester.getRect(find.byKey(DmStoryCards.rowKey));
+        // The box's title sits under the page's.
         expect(
-          cards.top,
+          tester.getTopLeft(find.text(en.dmTabChats)).dy,
           greaterThan(
-            tester.getBottomLeft(find.byKey(DmInboxScreen.storiesTitleKey)).dy,
+            tester.getBottomLeft(find.byKey(DmInboxScreen.titleKey)).dy,
           ),
         );
-        expect(
-          cards.bottom,
-          lessThan(tester.getTopLeft(find.text(en.conversationsTitle)).dy),
-        );
-
-        await tester.tap(find.byKey(DmStoryCards.cardKey('nour')));
-        await tester.pumpAndSettle();
-        expect(_visited, [AppRoutes.stories('nour')]);
+        expect(find.byKey(DmInboxScreen.rowKey('c-sara_2026')), findsOneWidget);
       });
     });
 
-    testWidgets('«Add story» opens a new story; the header «+» opens «New '
-        'group» (D339, owner)', (tester) async {
-      await _pump(tester);
-      await tester.tap(find.byKey(DmStoryCards.addKey));
-      await tester.pumpAndSettle();
-      expect(_visited, [AppRoutes.newStory]);
-
+    testWidgets('the header «+» opens «New group» (D339, owner)', (
+      tester,
+    ) async {
       // D339 (owner: «ال+ في الاعلى … يجب ان يكون هذا الزر + زر عمل مجموعة»).
       await _pump(tester);
       final plus = find.byKey(DmInboxScreen.newGroupKey);
@@ -195,36 +179,6 @@ void main() {
       expect(_visited, [AppRoutes.newGroup]);
     });
 
-    testWidgets("with a story of their own the caller's card is «Your story» "
-        'and opens it; its «+» still adds one', (tester) async {
-      final stories = FakeStoriesRepository()
-        ..trayItems = [_tray('layla.k'), _tray('nour')];
-      await _pump(tester, stories: stories);
-      expect(find.text(en.storyYourStory), findsOneWidget);
-      expect(find.text(en.dmStoriesAdd), findsNothing);
-      // Not twice: the caller's entry is not also a card of its own.
-      expect(find.byKey(DmStoryCards.cardKey('layla.k')), findsNothing);
-      await tester.tap(find.byKey(DmStoryCards.addKey));
-      await tester.pumpAndSettle();
-      expect(_visited, [AppRoutes.stories('layla.k')]);
-
-      await _pump(tester, stories: stories);
-      await tester.tap(find.byKey(DmStoryCards.addBadgeKey));
-      await tester.pumpAndSettle();
-      expect(_visited, [AppRoutes.newStory]);
-    });
-
-    testWidgets("a failed tray shows only the caller's card (nothing "
-        'guessed); the conversations are still there', (tester) async {
-      final stories = FakeStoriesRepository()
-        ..trayItems = [_tray('nour')]
-        ..failWith = const NetworkFailure.offline();
-      await _pump(tester, stories: stories);
-      expect(find.byKey(DmStoryCards.addKey), findsOneWidget);
-      expect(find.byKey(DmStoryCards.cardKey('nour')), findsNothing);
-      expect(find.byKey(DmInboxScreen.rowKey('c-sara_2026')), findsOneWidget);
-    });
-
     testWidgets('the paper plane opens «New message»', (tester) async {
       await _pump(tester);
       await tester.tap(find.byKey(DmInboxScreen.newMessageKey));
@@ -232,16 +186,16 @@ void main() {
       expect(find.byType(DmNewMessageSheet), findsOneWidget);
     });
 
-    testWidgets('while searching the stories step aside and come back on '
+    testWidgets('while searching the title steps aside and comes back on '
         'close', (tester) async {
       await _pump(tester);
       await tester.tap(find.byKey(DmInboxScreen.searchKey));
       await tester.pumpAndSettle();
-      expect(find.byKey(DmStoryCards.rowKey), findsNothing);
+      expect(find.byKey(DmInboxScreen.titleKey), findsNothing);
       expect(find.byKey(DmInboxScreen.searchFieldKey), findsOneWidget);
       await tester.tap(find.byKey(DmInboxScreen.searchCloseKey));
       await tester.pumpAndSettle();
-      expect(find.byKey(DmStoryCards.rowKey), findsOneWidget);
+      expect(find.byKey(DmInboxScreen.titleKey), findsOneWidget);
     });
   });
 
@@ -299,7 +253,13 @@ void main() {
         await tester.tap(find.byKey(DmInboxScreen.boxesToggleKey));
         await tester.pumpAndSettle();
         expect(find.byKey(DmInboxScreen.boxesPanelKey), findsOneWidget);
-        expect(find.text(l10n.dmTabChats), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byKey(DmInboxScreen.boxesPanelKey),
+            matching: find.text(l10n.dmTabChats),
+          ),
+          findsOneWidget,
+        );
         expect(
           find.bySemanticsLabel(
             l10n.dmTabRequestsCount(KFormat.compact(3, l10n)),
@@ -382,7 +342,9 @@ void main() {
       });
 
       testWidgets('360×800 at text ×1.3 with long names, an old date and '
-          'stories: no overflow (${language.name})', (tester) async {
+          'a stories tray loaded: no overflow (${language.name})', (
+        tester,
+      ) async {
         final dm = _dm()
           ..addConversation(
             dmPerson('long', name: 'A very long display name ' * 3),

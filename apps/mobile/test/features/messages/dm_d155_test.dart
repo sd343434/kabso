@@ -645,7 +645,13 @@ void main() {
         // D336: the boxes open from the button beside search.
         await _openBoxes(tester);
         expect(tester.takeException(), isNull);
-        expect(find.text(l10n.dmTabChats), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byKey(DmInboxScreen.boxesPanelKey),
+            matching: find.text(l10n.dmTabChats),
+          ),
+          findsOneWidget,
+        );
         await tester.pumpWidget(const SizedBox.shrink());
         await _pump(
           tester,

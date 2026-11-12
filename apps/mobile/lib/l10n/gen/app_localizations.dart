@@ -28474,18 +28474,6 @@ abstract class AppLocalizations {
   /// **'{count} منشور'**
   String createSuggestionPosts(String count);
 
-  /// D336: the Messages tab's page title above the story cards.
-  ///
-  /// In ar, this message translates to:
-  /// **'القصص'**
-  String get dmStoriesTitle;
-
-  /// D336: the caller's story card on the Messages tab (no active story).
-  ///
-  /// In ar, this message translates to:
-  /// **'أضف قصة'**
-  String get dmStoriesAdd;
-
   /// D336: compact time since, in minutes (the Messages tab's rows and story cards).
   ///
   /// In ar, this message translates to:
