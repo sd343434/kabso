@@ -130,7 +130,6 @@ class LivePersonTools extends ConsumerStatefulWidget {
     required this.self,
     required this.middle,
     this.ink,
-    this.fill,
     this.kabsoTeam = false,
     this.kabsoOwner = false,
     super.key,
@@ -151,10 +150,6 @@ class LivePersonTools extends ConsumerStatefulWidget {
 
   /// D258: the tools' colour on the VIP card (white); null: the default.
   final Color? ink;
-
-  /// D383: the soft fill of the tools' circles and of «إبلاغ» (the card's
-  /// light pills); null: outlined circles as before.
-  final Color? fill;
 
   @override
   ConsumerState<LivePersonTools> createState() => _LivePersonToolsState();
@@ -422,12 +417,10 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
               height: 30,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: active ? color.withValues(alpha: 0.14) : widget.fill,
-                border: widget.fill != null && !active
-                    ? null
-                    : Border.all(
-                        color: color.withValues(alpha: active ? 0.55 : 0.28),
-                      ),
+                color: active ? color.withValues(alpha: 0.12) : null,
+                border: Border.all(
+                  color: color.withValues(alpha: active ? 0.55 : 0.28),
+                ),
               ),
               alignment: Alignment.center,
               child: Icon(icon, size: 17, color: color),
@@ -451,19 +444,8 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
           : () => unawaited(reportUser(context, ref, userId: widget.person.id)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 36),
-        child: Container(
-          margin: widget.fill == null
-              ? null
-              : const EdgeInsetsDirectional.only(end: 4),
-          padding: widget.fill == null
-              ? const EdgeInsetsDirectional.fromSTEB(2, 0, 8, 0)
-              : const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: widget.fill == null
-              ? null
-              : BoxDecoration(
-                  color: widget.fill,
-                  borderRadius: BorderRadius.circular(KRadius.pill),
-                ),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(2, 0, 8, 0),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

@@ -24,6 +24,7 @@ import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
+import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/bag/bag_api_fixtures.dart';
@@ -129,6 +130,10 @@ Text _text(WidgetTester tester, Key key) =>
     tester.widget<Text>(find.byKey(key));
 
 void main() {
+  // D383: the header ornaments are hidden pending the owner's decision; these
+  // tests cover the dormant feature, shown again.
+  setUp(() => kabsoProfileHeadersHidden = false);
+  tearDown(() => kabsoProfileHeadersHidden = true);
   final en = l10nFor(AppLanguage.en);
   final ar = l10nFor(AppLanguage.ar);
 
@@ -472,6 +477,27 @@ void main() {
     await tab(tester, BagScreen.itemsTabKey);
     expect(find.byKey(BagScreen.emptyKey), findsOneWidget);
     expect(f.bag.calls, unorderedEquals(['myBag', 'hostFrame']));
+  });
+
+  testWidgets('D383: the header ornaments are hidden pending the owner '
+      'decision — not listed, no card slot; the rest of the bag stays', (
+    tester,
+  ) async {
+    kabsoProfileHeadersHidden = true;
+    await withClock(Clock.fixed(_now), () async {
+      final f = await _pump(tester);
+      expect(find.byKey(BagScreen.slotKey('PROFILE_CARD')), findsNothing);
+      expect(find.byKey(BagScreen.emptySlotKey('PROFILE_CARD')), findsNothing);
+      expect(find.text('Royal Bunny'), findsNothing);
+      await tab(tester, BagScreen.itemsTabKey);
+      expect(find.byKey(BagScreen.sectionKey('PROFILE_CARD')), findsNothing);
+      for (final h in KabsoProfileHeader.values) {
+        expect(find.byKey(BagScreen.itemKey(h.code)), findsNothing);
+      }
+      // Nothing is asked of the server for it: the items stay owned.
+      expect(f.bag.calls, unorderedEquals(['myBag', 'hostFrame']));
+      expect(tester.takeException(), isNull);
+    });
   });
 
   for (final scale in [1.3, 2.0]) {

@@ -5,6 +5,19 @@ import 'package:flutter_svga/flutter_svga.dart';
 import 'package:kabso_live/core/svga/svga_engine.dart';
 import 'package:material_ui/material_ui.dart';
 
+/// D383 (owner 2026-11-12: «اخفيها الآن حتى نأخذ قرار حاسم»): the header
+/// ornaments are hidden in the app pending the owner's decision — not drawn
+/// on the person card, not listed in the bag. A pure UI hide: the items, the
+/// free `bunny_royal`, the assets and the API stay. Set false to bring them
+/// back (tests of the dormant feature set it too).
+bool kabsoProfileHeadersHidden = true;
+
+/// Whether the bag item [code] is one of the hidden header ornaments (a
+/// catalogue code of [KabsoProfileHeader]; the VIP and store PROFILE_CARD
+/// items — the card's background, D383 — are not).
+bool isHiddenProfileHeader(String code) =>
+    kabsoProfileHeadersHidden && KabsoProfileHeader.byCode(code) != null;
+
 /// The owner's profile-card header decorations (2026-10-26,
 /// `assets/profile_card/`): an ornament that sits on the card's top edge
 /// and loops (SVGA, canvas 750 × 280). [code] is the bag item's code

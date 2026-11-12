@@ -13,6 +13,7 @@ import 'package:kabso_live/features/bag/data/bag_repository.dart';
 import 'package:kabso_live/features/bag/domain/bag_models.dart';
 import 'package:kabso_live/features/bag/presentation/bag_screen.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
@@ -229,6 +230,10 @@ String _text(WidgetTester tester, Key key) =>
     tester.widget<Text>(find.byKey(key)).data!;
 
 void main() {
+  // D383: the header ornaments are hidden pending the owner's decision; these
+  // tests cover the dormant feature, shown again.
+  setUp(() => kabsoProfileHeadersHidden = false);
+  tearDown(() => kabsoProfileHeadersHidden = true);
   setUp(() => vipImageFor = _fakeImage);
   tearDown(() => vipImageFor = NetworkImage.new);
 
