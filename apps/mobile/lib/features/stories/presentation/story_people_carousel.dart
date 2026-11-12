@@ -25,7 +25,7 @@ abstract final class KStoryCarousel {
   /// Ring strokes: the coloured ring and the thinner seen ring, with a
   /// dark gap between the ring and the photo.
   static const double ringStroke = KMetrics.strokeLarge;
-  static const double seenStroke = KMetrics.thinStroke;
+  static const double seenStroke = KMetrics.stroke;
   static const double ringGap = KMetrics.ringGap;
 
   /// The recommended behaviour: the carousel shows when the viewer opens
@@ -39,8 +39,8 @@ abstract final class KStoryCarousel {
   static const Color scrimBottom = Color(0x99000000);
   static const Color scrimClear = Color(0x00000000);
 
-  /// The seen ring (KPalette.dark.borderStrong: the viewer is always dark).
-  static const Color seenRing = Color(0xFF70707C);
+  /// The seen ring (`color.dark.textTertiary`: the viewer is always dark).
+  static const Color seenRing = Color(0xFF92929E);
 }
 
 /// How a story ring is drawn: a gradient along the ring (one colour is a

@@ -116,8 +116,9 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
     duration: KStoryViewer.duration,
   )..addStatusListener(_onStatus);
 
-  /// The accounts to show, in order: the tray from the opened account on,
-  /// fixed once the tray is known (a profile's account alone otherwise).
+  /// The accounts to show, in order: D375, the whole tray (starting at the
+  /// opened account), fixed once the tray is known (a profile's account
+  /// alone otherwise).
   List<String>? _fixedQueue;
 
   List<String> get _queue => _fixedQueue ?? [widget.username ?? ''];
