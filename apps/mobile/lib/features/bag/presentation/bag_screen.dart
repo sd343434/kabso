@@ -342,11 +342,16 @@ class _BagScreenState extends ConsumerState<BagScreen> {
     final now = clock.now();
     final items = [
       for (final i in all)
-        if (i.expiresAt == null || i.expiresAt!.isAfter(now)) i,
+        if ((i.expiresAt == null || i.expiresAt!.isAfter(now)) &&
+            // D383: the header ornaments are hidden pending the owner's
+            // decision (the items stay; kabsoProfileHeadersHidden).
+            !isHiddenProfileHeader(i.code))
+          i,
     ];
     final gone = {
       for (final i in all)
-        if (!items.contains(i)) '${i.code}@${i.expiresAt}',
+        if (!items.contains(i) && !isHiddenProfileHeader(i.code))
+          '${i.code}@${i.expiresAt}',
     };
     if (!_ranOut.containsAll(gone)) {
       _ranOut.addAll(gone);
@@ -364,7 +369,11 @@ class _BagScreenState extends ConsumerState<BagScreen> {
     // D264: the VIP-only categories have a slot only while owned.
     final slots = <String>{
       for (final c in BagCategory.values)
-        if (c.always) c.wire,
+        // D383: the card's slot only while a VIP or store card is owned
+        // (its ornaments are hidden pending the owner's decision).
+        if (c.always &&
+            !(kabsoProfileHeadersHidden && c == BagCategory.profileCard))
+          c.wire,
       ..._ownedCategories(items),
     }.toList();
     return ListView(

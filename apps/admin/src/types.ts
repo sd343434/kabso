@@ -187,6 +187,8 @@ export interface UserDetail {
     countryCode: string | null;
     bio: string | null;
     baseUsername: string;
+    /** v1.136-social (D384): the VIP animated picture (a looping WebP), present only when the person has one. */
+    animatedAvatarUrl?: string;
   };
   specialUsername: { username: string; source: string; expiresAt: string | null } | null;
   adminRoles: PanelRole[];

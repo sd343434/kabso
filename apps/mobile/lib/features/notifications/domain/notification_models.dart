@@ -71,6 +71,10 @@ enum NotificationType {
   /// v1.76-social (D218, system): a moderator removed your profile cover.
   coverRemoved('COVER_REMOVED'),
 
+  /// v1.136-social (D384, system): a moderator removed your VIP animated
+  /// picture «صورة متحركة» (no target; opens it to record another).
+  animatedAvatarRemoved('ANIMATED_AVATAR_REMOVED'),
+
   /// v1.66-social (D198, system): the data export «تنزيل بياناتي» is ready
   /// (no target; opens the export screen).
   dataExportReady('DATA_EXPORT_READY'),
@@ -162,6 +166,7 @@ enum NotificationType {
       this == premiumUsernameExpired ||
       this == avatarRemoved ||
       this == coverRemoved ||
+      this == animatedAvatarRemoved ||
       this == dataExportReady ||
       this == rechargeOrderUpdate ||
       isAgency ||

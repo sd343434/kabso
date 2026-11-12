@@ -390,6 +390,9 @@ abstract final class AppRoutes {
   /// cancelling after the VIP ended).
   static const vipScheduledGifts = '/vip/scheduled-gifts';
 
+  /// D384: «صورة متحركة» (members holding ANIMATED_AVATAR).
+  static const vipAnimatedAvatar = '/vip/animated-avatar';
+
   /// The page of event [eventId].
   static String event(String eventId) =>
       '/events/${Uri.encodeComponent(eventId)}';

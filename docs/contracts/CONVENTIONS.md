@@ -229,7 +229,7 @@ All non-2xx responses use one envelope:
 | 409 | `WHATSAPP_CONVERSATION_ASSIGNED` | *(v1.116-social, DRAFT, D355)* The conversation belongs to another staff member: reply, claim, release or close needs it to be the caller's or unassigned (a transfer, release or close by `support.whatsapp.manage` is allowed). §10.151.4. |
 | 409 | `WHATSAPP_CONVERSATION_CLOSED` | *(v1.116-social, DRAFT, D355)* The conversation is closed: reopen it first (a new customer message reopens it by itself). §10.151.4. |
 | 502 | `WHATSAPP_SEND_FAILED` | *(v1.116-social, DRAFT, D355)* Meta refused or did not answer: `details: [{field: whatsapp \| templates, issue: meta_<code> \| http_<status>}]`. Nothing was stored; the staff member may retry. Meta's throughput codes (130429, 131056, 80007, 4) answer 429 `RATE_LIMITED` with `Retry-After: 60` instead. §10.151.4. |
-| 409 | `VIP_UNAVAILABLE` | *(v1.134-social, D381, §10.171.5)* `scheduleVipGift`: `{field: "perk", issue: "no_perk"}` (no SCHEDULED_GIFT now) or `{field: "pending", issue: "too_many"}` (10 waiting); `cancelVipScheduledGift`: `{field: "status", issue: "not_pending"}`. *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). *(v1.129-social, D374)* `claimVipDailyCoins`: always `{field: "perk", issue: "retired"}` (the owner removed the daily coins). *(v1.132-social, D379)* the live-room perks (§10.169): `{field: "perk", issue: "no_perk"}` — the caller holds the perk (or its value) not now (`sendLiveSeatEmoji` with a VIP token, `pinLiveChatMessage`, `startLiveRoom` with `vipMinTier`, `reserveLiveSeat`); `{field: "perk", issue: "used_up"}` — `pinLiveChatMessage`: the day's pins are used. |
+| 409 | `VIP_UNAVAILABLE` | *(v1.134-social, D381, §10.171.5)* `scheduleVipGift`: `{field: "perk", issue: "no_perk"}` (no SCHEDULED_GIFT now) or `{field: "pending", issue: "too_many"}` (10 waiting); `cancelVipScheduledGift`: `{field: "status", issue: "not_pending"}`. *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). *(v1.129-social, D374)* `claimVipDailyCoins`: always `{field: "perk", issue: "retired"}` (the owner removed the daily coins). *(v1.132-social, D379)* the live-room perks (§10.169): `{field: "perk", issue: "no_perk"}` — the caller holds the perk (or its value) not now (`sendLiveSeatEmoji` with a VIP token, `pinLiveChatMessage`, `startLiveRoom` with `vipMinTier`, `reserveLiveSeat`); `{field: "perk", issue: "used_up"}` — `pinLiveChatMessage`: the day's pins are used. *(v1.136-social, D384)* `setMyAnimatedAvatar`: `{field: "perk", issue: "no_perk"}` — the caller holds no active VIP with the ANIMATED_AVATAR perk now (§10.173.3). |
 | 409 | `VIP_PRICE_CHANGED` | *(v1.82-social, DRAFT, D252)* `buyVip`: `priceCoins` differs from the tier's price now (the owner changed it in the panel). Nothing was charged; the app reloads the tiers and shows the new price. §10.93. |
 | 409 | `INSUFFICIENT_RECHARGE_POINTS` | *(v1.126-social, DRAFT, D370)* `buyVip` with `payWith: POINTS`: the caller's recharge points «نقاط الشحن» do not cover the tier's points price (also while the balance is below 0 after a reversal). Nothing was charged; the app shows the balance and how points are earned. `VIP_PRICE_CHANGED` and `VIP_UNAVAILABLE` (new issue `no_points_price`: the tier has no points price) apply to a points purchase as to a coin one. §10.163. |
 | 409 | `CONTENT_GIFT_RECIPIENT_UNAVAILABLE` | *(v1.127-social, DRAFT, D372)* `sendContentGift`: a gift on this post or reel «هدية الدعم» cannot be sent — `details: [{field: "post", issue: "own_content" \| "not_creator"}]` (the caller's own post; its author is neither a host nor a content creator). Checked again under the post's lock. Nothing was charged. A post the caller cannot see (deleted, removed, a block either way, an author who is not ACTIVE) is 404 `NOT_FOUND` as on every post route. §10.164. |
@@ -482,6 +482,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PATCH /me` *(v1.2)* | 30 / hour per user |
 | `PUT` and `DELETE /me/avatar` *(v1.45-social, D168)* | 30 / hour per user (one bucket `me:avatar`, `RATE_LIMIT_AVATAR_USER`). **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
 | `PUT` and `DELETE /me/cover` *(v1.76-social, D218)* | 30 / hour per user — the avatar's rule (`RATE_LIMIT_AVATAR_USER`) in its own bucket `me:cover`. **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
+| `PUT` and `DELETE /me/animated-avatar` *(v1.136-social, D384)* | 30 / hour per user — the avatar's rule (`RATE_LIMIT_AVATAR_USER`) in its own bucket `me:animated-avatar`. **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
 | `POST /me/follow-requests/{username}/accept` and `…/decline` *(v1.47-social, D175)* | 300 / hour per user (one bucket `follow-requests:answer`, `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`). **Replaces** the per-user default. A follow request itself is a `PUT /users/{username}/follow` and counts in the follow buckets |
 | `PUT /me/username` *(v1.28-live, D146)* | 5 / day per user (bucket `username:change`, `RATE_LIMIT_USERNAME_CHANGE_USER`). **Replaces** the per-user default |
 | `POST /me/account-deletion` *(v1.62-social, D193)* | 5 / 15 min per user (bucket `account_deletion:user`, `RATE_LIMIT_ACCOUNT_DELETION_USER`; the password is re-checked). **Replaces** the per-user default |
@@ -665,6 +666,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.127-social)* Columns `live_gifts.post_id` (FK posts SET NULL, CHECK `live_gifts_post_place`, index `live_gifts_post_idx`), `comments.kind` (enum `comment_kind` TEXT \| GIFT), `comments.gift_id` (unique, FK live_gifts CASCADE, CHECK `comments_gift_shape`), `posts.gift_cherries` (CHECK `posts_gift_cherries_range`); wallet ledger reason `CONTENT_GIFT` (debit, `wallet_ledger_reason_sign` extended); notification type `CONTENT_GIFT_RECEIVED` | Backend — `content-gifts` module (`ContentGiftsService`: the send through the live module's `LiveGiftsService.sendDirect` place CONTENT, which writes `live_gifts` / the wallet / cherries / levels / family; the gift line, `comment_count` and `gift_cherries` in the same transaction); `economy/cherry-ledger.ts` takes a reversed send's credit off `gift_cherries` | CTO; Security (a coin path) |
 | *(v1.128-social)* Enum `entry_display`; columns `store_items.entry_display`, `vip_tier_perks.entry_display` (NOT NULL DEFAULT 'FULL_SCREEN') | Backend — `store` module (`store-rules.ts`: `ENTRY_DISPLAYS`, the worn car's `entryDisplay`; `StoreAdminService` writes it, audited `store.item.*`), `vip` module (`VipAdminService` writes the ENTRY_EFFECT perk's, audited `vip.tier.update`; `vipPerkDto` reads it), `live` (the room host's raw wear select) | CTO |
 | *(v1.130-social)* Column `users.status_emoji_id` (CHECK `users_status_emoji_id_shape`); tables `status_pack_offers` (CHECK `status_pack_offers_shape`; seeded `premium` 30 days 100 000 coins), `user_status_packs`, `status_pack_purchases` (append-only for the runtime group; unique `status_pack_purchases_idempotency`); ledger reason `STATUS_PACK_PURCHASE` (a debit in `wallet_ledger_reason_sign`) | Backend — `status-emoji` module (`StatusEmojiService` the only writer; the allow-list `status-emoji-catalogue.ts`, mirrored by the app's `status_catalogue.dart` and checked by a unit test; read by `users`, `posts` `userSummary`, `live` rooms and `PublicProfileService`); app — `features/status` | CTO; Security (a coin path) |
+| *(v1.136-social)* Columns `user_profiles.animated_avatar_media_id` (unique, FK `media_assets`, NO ACTION), `animated_avatar_url`, `animated_avatar_still_url` (CHECK `user_profiles_animated_avatar_shape`: all three null or all set); `MediaKind` `ANIMATED_AVATAR` (CHECK `media_assets_kind_known`); `notification_type` `ANIMATED_AVATAR_REMOVED` | Backend — `users` module (`ProfileEditService.setAnimatedAvatar` / `removeAnimatedAvatar`, the perk checked with `vipHoldsPerkIn`; `removeAnimatedAvatarByAdminIn` for the panel, audited `admin.animated_avatar.remove`); `media` module (`media-animated.ts`, the strip check and WebP encode) | CTO; Security (user-uploaded faces: moderation path) |
 | *(v1.80-kyc)* Tables `kyc_settings` (the Didit API key and webhook secret sealed, the workflows, the daily limit, the switch, the last test), `kyc_checks` (one Didit session of a person: status, decision, reasons, name, birth date, document country, document HMAC), `kyc_webhook_events` (the deliveries applied); capabilities `kyc.settings`, `kyc.view`; audit `kyc.*` (§10.77) | Backend — `kyc` module (`KycSettingsService` the only writer of the settings, `KycService` of the checks; `KycSettingsStore` the only reader of the secrets; `kyc-core.ts` the gates shared with `host-applications`, `economy` (agency open) and `recharge`); web — `apps/admin` «التحقق من الهوية (Didit)» and the KYC block of the three application pages; app — `features/kyc` | CTO; Security (Didit secrets, the minimum personal data, the webhook signature); Privacy (Didit as a processor, export and purge) |
 | *(v1.64-social)* Table `payment_settings` (the Stripe keys sealed, the top-up options); capability `payments.settings`; audit `payment.settings.*` (§10.53.1) | Backend — `payment-settings` module (`PaymentSettingsService` the only writer; `PaymentSettingsStore` the only reader, used by `topup`, `wallet`, `site-settings`); web — `apps/admin` «الدفع (Stripe)» | CTO; Security (Stripe keys, encryption at rest) |
 | *(v1.66-social)* Tables `legal_documents`, `user_consents`, `data_exports`; column `pending_registrations.legal_consent`; notification type `DATA_EXPORT_READY`; the 428 gate (`ConsentGuard`); server config `DATA_EXPORT_*`, `RATE_LIMIT_DATA_EXPORT_*`; CLIs `legal-admin`, `privacy-admin`; private prefix `private/data-exports/`; `scripts/check-site-no-tracking.sh` (§10.61) | Backend — `privacy` module (`legal.ts` and `data-export.ts` shared with the CLIs; `auth`, `topup` and `gifts` record consents through `legal.ts`; D193's purge deletes exports and clears consents' IP/UA) | CTO; Security (the export's content, the download token); Legal (the documents' text and versions) |
@@ -788,6 +790,8 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.136-social (draft) | 2026-11-12 | **D384 (owner 2026-11-12: «انتبه جيداً لطريقة الصورة شخصية» — a reference recording, look only, kept out of git, D40; then: an animated cut-out clip, and a VIP perk):** the VIP «صورة متحركة» — catalogue code `ANIMATED_AVATAR` (IDENTITY, value none, no art, **built**); `MediaKind` `ANIMATED_AVATAR` (`image/png` ≤ 8 MiB: a strip of 2–36 square frames, 64–512 px, alpha, 12 a second; re-encoded to a looping animated WebP ≤ 1.5 MiB + a still); `setMyAnimatedAvatar` / `removeMyAnimatedAvatar` (`PUT` / `DELETE /me/animated-avatar`, `SetAnimatedAvatarRequest`, `AnimatedAvatar`; 409 `VIP_UNAVAILABLE` `no_perk`); `PublicProfile.animatedAvatar` (optional: only while the perk is held, never across a block); the panel's `removeAdminUserAnimatedAvatar` (`users.avatar`), `AdminUserDetail.user.animatedAvatarUrl`; `NotificationType.ANIMATED_AVATAR_REMOVED`; audit `user.animated_avatar.update`, `admin.animated_avatar.remove`. Migrations `20270514090000_vip_animated_avatar_enums`, `20270514090100_vip_animated_avatar`. §4, §7, §8, §10.94.1, §10.166.1, §10.173. | **Additive** (new operations, an optional response field, enum values; clients ignore unknown notification types; an older app shows the round photo). |
+| v1.135-social (draft) | 2026-11-12 | **D383 (owner 2026-11-12: «اريد الغاء فكرة صندوق او إطار بطاقة الملف التعريفية وعمل فكرة اخرى»; then «لا ستكون موجودة بحيث ستكون مثلاً تغير لون خلفية او تكون خلفية فيها عناصر متحركة»):** no box or frame around the person card in live and party rooms (owner, then: «ارى ان شكل البطاقة السابقة اجمل» — the earlier layout is kept, only the background changes); the VIP perk `PROFILE_CARD` **kept and redefined** as the card's background — catalogue `value` `none` → `color` (`#RRGGBB`, null = none), art SVGA / MP4 / PNG / WebP (hint 1080 × 1440; MP4 is new for this perk), titles «خلفية البطاقة التعريفية» / "Card background". The bag `PROFILE_CARD` header ornaments are hidden in the app pending the owner's decision (one UI flag; items, the free `bunny_royal` and the API kept); store `PROFILE_CARD` items stay on sale as backgrounds. No new operation, field, enum value or error code; no migration. §10.94.1, §10.166.1, §10.172. | **Additive.** A tier saved before is valid (no value) and its art becomes the background; an older app draws the art as before and ignores the colour; the panel's generic perk form already edits a `color` value and MP4 art. |
 | v1.134-social (draft) | 2026-11-12 | **D381 (owner 2026-11-11: VIP perks phase 2 — gifts, CP, support, rockets, voice):** EXCLUSIVE_GIFTS, FREE_CP_REQUEST, PRIORITY_SUPPORT, MONTHLY_ROCKETS, SCHEDULED_GIFT, HIGHER_GIFT_QUANTITY and LONGER_VOICE built (`built: true`). `GiftCatalogue.vipGiftCodes` / `vipQuantities`; an exclusive gift is left out of `getGiftCatalogue` / `getGiftBag` for a member whose VIP may not send it and any send of it is 409 `GIFT_UNAVAILABLE`; `LiveGiftSendRequest.quantity` maximum 99 999 (a holder's `vipQuantities`; never a lucky gift or a quip); `CpConfig.vipFreeRequests` (`VipFreeCpRequests`; a free request has `cost` 0 and refunds nothing); `Report.priority` (admin views) and `listAdminReports`' order (priority, then oldest); `WaConversation.priority` and the inbox's order; `MyVip.perksNow` (`VipPerksNow`, `VipMonthlyRockets`); `listVipScheduledGifts` / `scheduleVipGift` / `cancelVipScheduledGift` (`/me/vip/scheduled-gifts`; `VipScheduledGift*`, `ScheduleVipGiftRequest`; 409 `VIP_UNAVAILABLE` `no_perk` · `too_many` · `not_pending`); wallet ledger reasons `VIP_SCHEDULED_GIFT` / `VIP_SCHEDULED_GIFT_RELEASE`; `createMediaUpload` voice clips up to the holder's LONGER_VOICE seconds (1 MiB per 30 s). Migration `20270513090000_vip_gift_perks`. §10.171. | **Additive** for the app (new fields ignored; a non-member sees no change except that an exclusive gift leaves the catalogue). The panel unchanged (the D374 grid edits the values). The staff inbox and the reports queue reorder (a priority first). |
 | v1.133-social (draft) | 2026-11-12 | **D380 (owner 2026-11-11: the VIP privacy perks, each with a switch for its holder):** HIDDEN_VISIT «زيارة خفية» (no row, no count in «من زار ملفي»), RANKING_ANONYMOUS «اسم مخفي في التصنيفات» (`UserSummary.anonymous` «مجهول» on the public boards to everyone but the member; the live's host keeps the names on their own room's lists), KICK_MUTE_SHIELD (403 `VIP_PROTECTED` (new) to a room moderator's kick / chat mute / seat mute / seat removal, audited `vip.shield.refused`), ANONYMOUS_GIFT «إهداء مجهول» (`LiveGiftSendRequest.anonymous`, `LiveGift.anonymous`; 409 `VIP_UNAVAILABLE` `no_perk`, 409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE` `refused`, 60 an hour; `reportLiveGift`, `blockAnonymousGiftSender` / `unblockAnonymousGiftSender`, `LiveGiftReportRequest`, `LiveGiftReportResult`, `AnonymousGiftBlockResult`, `Report.liveGift`, audit `live.gift.anonymous_block`); `PrivacySettings` / `UpdatePrivacyRequest` `hiddenVisit`, `rankingAnonymous`, `kickMuteShield` (only while held; else 409 `VIP_UNAVAILABLE` `no_perk`). HIDE_COINS_SENT removed from the catalogue (owner 2026-11-12: D220's free switch stays free for everyone). Migration `20270512090000_vip_privacy_perks`. §10.170. | **Additive for the apps** (an older app sends no `anonymous`, ignores the new fields and shows «مجهول» as a plain name). **Behaviour change** for room moderators (403 on a protected holder) and for readers of the public boards (anonymous rows). |
 | v1.132-social (draft) | 2026-11-12 | **D379 (owner 2026-11-11: the VIP perks inside live rooms):** ten D374 perks built (`built: true`) — SEAT_EMOJI (`sendLiveSeatEmoji` token `:vip_<n>:`, `LiveSeatEmoji.vipArt`), PINNED_MESSAGE (`pinLiveChatMessage` / `unpinLiveChatMessage` `POST` / `DELETE /live/rooms/{roomId}/chat-pin`, `LiveChatPinRequest`, `LiveChatPin`, `LiveChatMessageList.pin`, data `chat-pin` / `chat-unpin`), HOST_GREETING (`join` data `hostGreeting`), SEAT_CROWN (app only), BIG_GIFT_RAIN (data `vip-rain` on topic `gift`), TICKER_HOLD (`gift-ticker` data `holdSeconds`), VIEWER_LIST_PRIORITY (`listLiveRoomViewers` order), SEAT_REQUEST_PRIORITY (`listLiveSeatRequests` order), VIP_ROOM (`StartLiveRoomRequest.vipMinTier`, `LiveRoomSummary.vipMinTier` `LiveVipMinTier`), SEAT_RESERVE (`reserveLiveSeat` / `releaseLiveSeat` `PUT` / `DELETE /live/rooms/{roomId}/seats/{seatIndex}/reservation`, `LiveSeatReserveRequest`, `LiveSeat.reservation` `LiveSeatReservation`, data `seat-reserved`); codes `LIVE_VIP_ONLY` (403), `LIVE_PIN_BUSY` (409); `VIP_UNAVAILABLE` `perk` `used_up`. Migration `20270511090000_vip_live_perks`. §4, §10.169. | **Additive** (new operations, optional fields and data message types; older apps ignore them; a VIP room's refusal is a new code an older app shows as its generic error; a reserved seat reads LOCKED to an older app). |
@@ -6781,7 +6785,8 @@ code; §10.93 stays the tier / purchase rules. The perks land in phases (each ph
 | `AVATAR_FRAME` | The animated avatar frame (the perk's SVGA, its still until it plays) around the picture on seats, the person card and the profile; an agent's or a worn bag frame keeps its own art. | — |
 | `CHAT_NAME_COLOR` | The name in chat lines in a bright tint of the tier's colour. | — |
 | `CHAT_BUBBLE` | The chat line drawn in the perk's still (stretched), else a bubble in the tier's colour; a worn CP bubble wins. | — |
-| `PROFILE_CARD` | The person card's sheet drawn over the perk's art. | — |
+| `PROFILE_CARD` | The person card's sheet drawn over the perk's art. *(v1.135-social, D383: the card's background — a colour and / or the art behind the content, §10.172; no longer a frame.)* | — |
+| `ANIMATED_AVATAR` | *(v1.136-social, D384, §10.173)* «صورة متحركة»: the member's own short clip with the background removed, looping on the person card in the round photo's place — the same circle, size and position, inside the same ring, VIP frame or bag frame — the head popping a little over the circle's top edge (owner: «اجعلها كأنها بإطار دائري بنفس حجم الإطار السابق»). | — |
 | `ENTRY_BANNER`, `ENTRY_EFFECT` | On joining a live: the banner with the name, and the entry effect (the owner's car) once. | — |
 | `MIC_WAVE` | The perk's SVGA around the member's seat while they speak. | — |
 | `DAILY_BULLET` | Free public messages a day. | 1–100 |
@@ -12425,7 +12430,7 @@ served to the panel as `AdminVipTierList.catalogue` (a `VIP_TIER` enum's `option
 
 | Category | Built (11) | Not built «قريباً» (31) |
 |---|---|---|
-| IDENTITY | `BADGE` (art), `AVATAR_FRAME` (art), `PROFILE_CARD` (art), `CHAT_NAME_COLOR` | `GLOWING_NAME`, `ANIMATED_COVER` (art SVGA / MP4 / still), `PREMIUM_USERNAME` (enum: LEGEND · RUBY · GOLD · SILVER), `GOLDEN_ID` (none — no golden-ID classes exist yet; the branch that builds it adds an enum), `ANIMATED_SIGNATURE` (art), `POST_BADGE`, `STORY_RING` (colour + art) |
+| IDENTITY | `BADGE` (art), `AVATAR_FRAME` (art), `PROFILE_CARD` (colour + art SVGA / MP4 / still: the person card's background, D383 §10.172), `CHAT_NAME_COLOR`, `ANIMATED_AVATAR` (none; the member's own clip, D384 §10.173) | `GLOWING_NAME`, `ANIMATED_COVER` (art SVGA / MP4 / still), `PREMIUM_USERNAME` (enum: LEGEND · RUBY · GOLD · SILVER), `GOLDEN_ID` (none — no golden-ID classes exist yet; the branch that builds it adds an enum), `ANIMATED_SIGNATURE` (art), `POST_BADGE`, `STORY_RING` (colour + art) |
 | ENTRANCE | `ENTRY_BANNER` (art), `ENTRY_EFFECT` (art) | `HOST_GREETING` |
 | CHAT | `CHAT_BUBBLE` (art), `DAILY_BULLET` (int 1–100 a day, legacy amount) | `DM_BUBBLE` (draws CHAT_BUBBLE's art), `PINNED_MESSAGE` (composite: `count` 1–20 a day, `seconds` 10–600), `TICKER_HOLD` (int 1–60 s), `LONGER_VOICE` (int 31–600 s) |
 | ROOM | `MIC_WAVE` (art) | `SEAT_EMOJI` (art pack: ≤ 24 https files), `SEAT_CROWN` (art), `SEAT_REQUEST_PRIORITY`, `SEAT_RESERVE` (int 1–60 min), `VIEWER_LIST_PRIORITY`, `KICK_MUTE_SHIELD`, `VIP_ROOM` (enum: a tier code, the lowest tier let in) |
@@ -12943,3 +12948,149 @@ A holder's voice clips (`DM_VOICE`, `LIVE_CHAT_VOICE`) may last the perk's secon
 (180 s → 6 MiB); checked when the upload is requested (`byteSize`, 400 `too_big`) and again when completed (the length,
 `MEDIA_INVALID`). Everyone else keeps 30 s and 1 MiB. The CHECK `media_assets_duration_shape` allows voice clips up to
 600 s. The app's recorder stops at the caller's limit (`perksNow.voiceSeconds`, else 30 s).
+### 10.172 No box or frame around the person card; PROFILE_CARD is the card's background *(v1.135-social, DRAFT — D383)*
+
+Owner (2026-11-12): «اريد الغاء فكرة صندوق او إطار بطاقة الملف التعريفية وعمل فكرة اخرى مثل هذه تقريباً» (a
+third-party reference, look only, kept out of git — D40), then, on the VIP perk: «لا ستكون موجودة بحيث ستكون مثلاً تغير
+لون خلفية او تكون خلفية فيها عناصر متحركة», and on the layout: «ارى ان شكل البطاقة السابقة اجمل لكن ميزة الصورة الجديدة
+وخلفية متحركة للبطاقة يمكن تطبيقهم». The box / frame idea for the person card is cancelled for everyone; **the card keeps
+its earlier layout** (D220: the picture over the top edge, the name, «ID: username», the badges, the four numbers with
+their dividers, the family / couple and gift wall pills, Follow, the gift and Chat, the moderation row) — **only its
+background changes**.
+
+#### 10.172.1 The person card (app only)
+
+The sheet that opens on a tap on a person in a live or party room (`LivePersonSheet`; not the full profile page):
+
+- **No frame.** The VIP card art is no longer drawn as a frame around the card (no 9-slice, no inner panel).
+- **The bag's header ornaments — hidden pending the owner's decision** (owner 2026-11-12: «اخفيها الآن حتى نأخذ قرار
+  حاسم»). The catalogue ornaments of the bag's `PROFILE_CARD` category (`bunny_royal`, `kabi_royal`, `golden_stags`,
+  `emerald_wings`; `PublicProfile.profileCard`, CP-019) are not drawn on the card's top edge and not listed in the bag
+  (no «بطاقة تعريفية» slot or section for them), so nobody can see or wear them for now. A pure UI hide behind one app
+  flag (`kabsoProfileHeadersHidden` in `kabso_profile_header.dart`): the owned items, the free `bunny_royal` at sign-up,
+  the assets and the API are unchanged. The VIP and store `PROFILE_CARD` items (the background, below) stay listed.
+- **The picture sits mostly inside the card** (owner 2026-11-12: «الصورة الشخصية يجب أن تكون داخل البطاقة التعريفية
+  أكثر، لا يتجاوز منها البطاقة سوى قليلاً»): about 18 % of its circle (with the ring) above the sheet's top edge (it was
+  half); the content below moves down by as much. Same size, ring and frames.
+- **Everyone without the perk** gets the earlier card otherwise.
+
+#### 10.172.2 `PROFILE_CARD`, the card's background
+
+The perk stays in the catalogue (built, not retired) with a new meaning:
+
+- `value`: `color` — `#RRGGBB` (upper case, as every colour value), or null (no colour). It was `none`; a tier saved
+  before has no value, which stays valid.
+- `art`: SVGA → `animation`, MP4 → `video`, PNG / WebP → `still`; canvas hint **1080 × 1440** (was SVGA / PNG / WebP,
+  720 × 1280). A tier's art saved before carries on as the background.
+- Titles: «خلفية البطاقة التعريفية» / "Card background"; descriptions «خلفية بطاقة الشخص في الغرف: لون أو خلفية
+  متحركة.» / "The person card's background in rooms: a colour or a moving background." (defaults; a title saved in the
+  panel wins as before).
+
+The app draws, for a member holding the perk (inherited as every perk, D258): the colour across the card's sheet, and
+the art over it **covering the whole sheet behind the content** (the sheet's own rounded top, no frame) — the SVGA first,
+else the MP4 (`VipPerk.video`), else the still — under a black 55 % scrim so the white text stays ≥ 4.5:1 on any art.
+With a colour alone, the text is white on a dark colour and near-black on a light one (≥ 4.5:1). Under reduced motion or
+«إخفاء مؤثرات الهدايا» the art is still (its still, else the first frame). A worn store `PROFILE_CARD` item
+(`wear.profileCard`, §10.98.4) replaces the VIP one as before and is drawn the same way, as the background. The store
+keeps selling `PROFILE_CARD` items as **card backgrounds** (owner: «سوف يكون مكانها بطاقات متحركة جديدة»): the existing
+frame-style store art is to be replaced by the owner with new animated backgrounds; the store API and panel are
+unchanged.
+
+The panel needs no change: its perk form is generic (a colour field for a `color` value, an MP4 upload where the
+catalogue's art takes MP4). No new operation, field, enum value or error code; no migration.
+
+### 10.173 The VIP animated picture «صورة متحركة» (`ANIMATED_AVATAR`) *(v1.136-social, DRAFT — D384)*
+
+Owner (2026-11-12), about a screen recording of another app's person card (look only, kept out of git — D40): «انتبه
+جيداً لطريقة الصورة شخصية». There the person's picture is a cut-out — head and shoulders, the background removed — that
+loops a short clip (smiling, laughing) large above the name, popping up with the sheet, the head over the sheet's top
+edge. Owner answers: (1) an animated cut-out clip the member records; the app removes the background and loops it on
+the person card; (2) a VIP perk, ticked per tier in the panel like the others; members without it keep the round photo.
+Then (owner, 2026-11-12): «ارى ان شكل البطاقة السابقة اجمل لكن ميزة الصورة الجديدة وخلفية متحركة للبطاقة يمكن
+تطبيقهم. والصورة الشخصية الجديدة اجعلها كأنها بإطار دائري بنفس حجم الإطار السابق» — the card keeps its earlier layout
+and the cut-out sits in the round photo's circle.
+
+#### 10.173.1 The perk
+
+Catalogue code `ANIMATED_AVATAR` — category IDENTITY, value `none`, no art (the member supplies the clip), **built**;
+titles «صورة متحركة» / "Animated picture", descriptions «صورتك مقطع قصير متحرك بلا خلفية فوق اسمك في بطاقة الشخص.» /
+"Your picture as a short moving clip without its background, above your name on the person card." The panel ticks it
+per tier (a tick only: no value, no art, D374); a tier holds it with every lower tier's perks (D258).
+
+#### 10.173.2 The clip and its upload
+
+The app records up to **3 s** with the front camera — or the member picks a video from the gallery and keeps 3 s of
+it (owner 2026-11-12: «both»; see below) — keeps **15 frames a second** (owner: 15, not 12; at most **45** frames),
+removes the
+background **on the phone** (on-device person segmentation: no image leaves the phone before the member saves, no paid
+service, no server ML), crops the person's head and shoulders into the same square for every frame (at most **512 px**;
+the app uses 320 px) and uploads the frames as **one PNG strip** — the frames one under another, transparent where the
+background was:
+
+- `POST /media/uploads` `kind: ANIMATED_AVATAR`, `contentType: image/png` only (else `contentType` / `invalid_value`),
+  `byteSize` ≤ **8 MiB** (8 388 608; else `byteSize` / `too_big`).
+- `completeMediaUpload` checks the bytes (PNG signature and decoder, as every image), then: width 64–512 px, height an
+  exact multiple of the width, **2–45 frames**, an alpha channel; else 422 `MEDIA_INVALID` (the slot fails). It
+  re-encodes the frames (metadata dropped) into a **looping animated WebP with alpha**, 67 ms a frame (15 a second), and a **still
+  WebP** of the first frame, both at the frame size. A WebP over **1.5 MiB** is encoded again at a lower quality, then
+  refused (`MEDIA_INVALID`); D384's 15 fps (up to 45 frames, 25 % more than at 12) added a third, lower quality step
+  before refusing; the 8 MiB upload and 1.5 MiB WebP caps are unchanged. `MediaAsset`: `type` IMAGE, `url` the animated WebP (`media/<id>/clip.webp`), `thumbUrl`
+  the still (`media/<id>/still.webp`), `width` = `height` = the frame size. Unattached assets are swept after 24 h.
+
+#### 10.173.3 Set and remove
+
+- `PUT /me/animated-avatar {mediaId}` (`setMyAnimatedAvatar`): limited staff → 403 `STAFF_ACCOUNT_LIMITED` `avatar` →
+  uploads off → 503 `MEDIA_UPLOADS_UNAVAILABLE` → body → **the perk**: an active membership whose tier (or one below it)
+  holds `ANIMATED_AVATAR` enabled, else **409 `VIP_UNAVAILABLE` `perk` / `no_perk`** → the asset: a READY, unattached
+  `ANIMATED_AVATAR` asset of the caller from the last 24 h, else 400 `mediaId` / `invalid_value`. Answers
+  `AnimatedAvatar {url, stillUrl, width, height}`. The previous clip's asset is deleted (rows in the transaction, files
+  after). The same clip again changes nothing. Audited `user.animated_avatar.update`.
+- `DELETE /me/animated-avatar` (`removeMyAnimatedAvatar`): idempotent, 204; works **without the perk** and while uploads
+  are off (a former member can delete the kept clip).
+- Rate limit: the avatar's rule (30 / hour per user) in the bucket `me:animated-avatar` (§7).
+
+#### 10.173.4 Who sees it
+
+`PublicProfile.animatedAvatar` (`AnimatedAvatar`) is present only when **all** hold: the person has a clip; holds an
+active VIP with the perk now (inherited, D258 — when the membership ends it disappears; renewed while the clip is kept,
+it comes back without a new upload); is not a limited Kabso Team account (§10.96.10: their picture is the team's); and
+**neither the caller nor the person has blocked the other**. The caller always sees their own while they hold the perk.
+Nothing else carries the clip (no `UserSummary`, chat line or seat field).
+
+The app (person card in live and party rooms, D383): the cut-out loops **free-floating, without a background** (owner
+2026-11-12: «أريد صورة الملف الشخصي كأنها بدون خلفية») — in the round photo's box and place (the circle and its 3 px
+ring, sitting mostly inside the card as D383 places it), but with **no circle, fill or ring** behind it: the card, or
+the D383 VIP background, shows around the person. Then (owner, same day: «الصورة الشخصية يكون لها حواف مستديرة غير
+مرئية») the person is **bounded by the old photo circle** (same diameter and place) at the bottom and the sides — the
+shoulders end on a round arc, feathered about 5 dp so it reads as a gentle silhouette, with nothing painted to mark the
+circle — and **open at the top**: above the circle's centre nothing bounds it, so the head and hair pop up to 16 % of the
+box over its top and over the card's top edge. The name and the rest of the card do not move.
+**Worn avatar frames (the VIP frame or a bag frame) are not drawn around the cut-out** — a frame around a free-floating
+person looks wrong (CTO choice, owner's request); the recharge-agent, host-agent and couple frames are drawn around a
+photo, so those keep the photo. Under reduced motion or «إخفاء مؤثرات الهدايا» the still shows the same way, without a
+background. While it loads or if it fails the round photo in its ring shows in its place; everyone without a clip keeps
+the round photo with its ring and frames, unchanged. The member's own profile header is unchanged (the person card only).
+
+The app's VIP page shows the entry «صورة متحركة» to a holder (record, preview the cut-out over a checkerboard, save,
+re-record, remove). A recording where no person is found in most frames is refused on the phone.
+
+**From the gallery** (owner 2026-11-12: «both»): «اختيار من المعرض» picks a video with the app's video picker
+(`image_picker`); the member keeps **3 s** of it with a start slider (a video of 3 s or less is kept whole); the app reads
+its frames at **15 a second** (≤ 45) through its own platform channel `com.kabso/video_frames` — Android
+`MediaMetadataRetriever.getFrameAtTime` with `OPTION_CLOSEST`, iOS `AVAssetImageGenerator` with zero tolerance and the
+track's preferred transform — upright (portrait, landscape and rotation metadata handled), at most 640 px, then the
+same segmentation, crop, strip and upload as a recording (not mirrored: a gallery video is not a selfie preview). A clip
+with no person in most frames is refused the same way. No new third-party package.
+
+#### 10.173.5 Moderation and safety
+
+These are user-uploaded faces, handled like the profile photo and cover (§10.47, §10.73.3):
+
+- **Reports:** the person card's «إبلاغ» reports the person (`targetType USER`), as for the photo; staff open the user
+  in the panel, which shows the clip (`AdminUserDetail.user.animatedAvatarUrl`, present whenever a clip is stored).
+- **Removal:** `POST /admin/users/{userId}/animated-avatar/remove {reason}` (`removeAdminUserAnimatedAvatar`, capability
+  `users.avatar`): the clip's asset row is deleted and the profile's columns cleared in one transaction, the person is
+  told (`ANIMATED_AVATAR_REMOVED`, system, no target), `admin.animated_avatar.remove` is audited with the reason, and
+  the files are deleted from storage after; no clip → 409 `ADMIN_ACTION_REFUSED`. The panel button «حذف الصورة
+  المتحركة» sits beside «حذف الصورة الشخصية».
+- **Blocks:** §10.173.4. **Account deletion:** the columns go with the profile row; the asset like the photo's.

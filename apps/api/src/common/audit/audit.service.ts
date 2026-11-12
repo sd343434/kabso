@@ -396,6 +396,10 @@ export enum AuditAction {
   COVER_UPDATE = 'user.cover.update',
   /** v1.76-social (D218): an admin removed a user's profile cover (panel or `profile-admin remove-cover`). */
   ADMIN_COVER_REMOVE = 'admin.cover.remove',
+  /** v1.136-social (D384): the caller set or removed their VIP animated picture «صورة متحركة». */
+  ANIMATED_AVATAR_UPDATE = 'user.animated_avatar.update',
+  /** v1.136-social (D384): an admin removed a user's VIP animated picture (panel). */
+  ADMIN_ANIMATED_AVATAR_REMOVE = 'admin.animated_avatar.remove',
   PREMIUM_USERNAME_RENT = 'premium_username.rent',
   PREMIUM_USERNAME_RENEW = 'premium_username.renew',
   PREMIUM_USERNAME_GRANT = 'premium_username.grant',

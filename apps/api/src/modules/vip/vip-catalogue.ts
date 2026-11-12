@@ -98,7 +98,7 @@ export interface VipCompositeField {
  * - `none` — no value (the perk is on or off; its art, if any, is in the art fields);
  * - `int` — a whole number in `min … max` of `unit`;
  * - `enum` — one of `options` (from `source`);
- * - `color` — `#RRGGBB` (null = the tier's colour);
+ * - `color` — `#RRGGBB` (null = the tier's colour; for PROFILE_CARD, D383: no background colour);
  * - `list` — distinct gift codes (that exist), at most `maxItems`;
  * - `art_list` — an art pack: distinct https URLs of uploaded files, at most `maxItems`;
  * - `composite` — an object with every field of `fields`.
@@ -185,13 +185,16 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
   {
     code: 'PROFILE_CARD',
     category: 'IDENTITY',
-    titleAr: 'بطاقة تعريفية',
-    titleEn: 'Profile card',
-    descriptionAr: 'بطاقة الشخص مرسومة فوق فن المستوى.',
-    descriptionEn: "The person card drawn over the tier's art.",
+    // v1.135-social (D383, owner 2026-11-12): no longer a box or frame around the card but the person card's
+    // background — a colour (the value; null: none) and / or a moving art filling the card behind its content (the
+    // art; a tier's earlier art carries on as the background).
+    titleAr: 'خلفية البطاقة التعريفية',
+    titleEn: 'Card background',
+    descriptionAr: 'خلفية بطاقة الشخص في الغرف: لون أو خلفية متحركة.',
+    descriptionEn: "The person card's background in rooms: a colour or a moving background.",
     built: true,
-    value: NONE,
-    art: art(STILL_OR_SVGA, 720, 1280),
+    value: { kind: 'color' },
+    art: art(['SVGA', 'MP4', 'PNG', 'WEBP'], 1080, 1440),
   },
   {
     code: 'CHAT_NAME_COLOR',
@@ -200,6 +203,21 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     titleEn: 'Name colour',
     descriptionAr: 'الاسم والرسائل بلون المستوى الخاص.',
     descriptionEn: "The name and messages in the tier's special colour.",
+    built: true,
+    value: NONE,
+    art: null,
+  },
+  {
+    // v1.136-social (D384, owner 2026-11-12, CONVENTIONS §10.173): the member's own short clip with its background
+    // removed on the phone, looping above the name on the person card instead of the round photo. No value and no art
+    // of the tier (a tick only, D374): the member uploads the clip (`PUT /me/animated-avatar`).
+    code: 'ANIMATED_AVATAR',
+    category: 'IDENTITY',
+    titleAr: 'صورة متحركة',
+    titleEn: 'Animated picture',
+    descriptionAr: 'صورتك مقطع قصير متحرك بلا خلفية فوق اسمك في بطاقة الشخص.',
+    descriptionEn:
+      'Your picture as a short moving clip without its background, above your name on the person card.',
     built: true,
     value: NONE,
     art: null,

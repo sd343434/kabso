@@ -32,6 +32,8 @@ export type ControlAction =
   | 'profile'
   | 'avatar'
   | 'cover'
+  // v1.136-social (D384): the VIP animated picture.
+  | 'animatedAvatar'
   | 'gift'
   | 'revokeSpecial'
   | 'restrict'
@@ -128,11 +130,31 @@ export function ControlGroups({
           </button>
         )}
       </Group>
-      <Group icon="users" title={t('ctGroupProfile')}>
+      <Group
+        icon="users"
+        title={t('ctGroupProfile')}
+        state={
+          // D384: the VIP animated picture, for review (a looping WebP with alpha).
+          u.animatedAvatarUrl ? (
+            <img
+              className="ct-animated-avatar"
+              src={u.animatedAvatarUrl}
+              alt={t('ctAnimatedAvatar')}
+              title={t('ctAnimatedAvatar')}
+              width={72}
+              height={72}
+            />
+          ) : undefined
+        }
+      >
         {btn(t('ctEditProfile'), 'profile', { show: can('users.profile_edit') })}
         {btn(t('removeAvatar'), 'avatar', { danger: true, show: can('users.avatar') && u.avatarUrl !== null })}
         {/* D218 (v1.76-social): the profile cover; the server answers 409 when there is none. */}
         {btn(t('ctRemoveCover'), 'cover', { danger: true, show: can('users.avatar') })}
+        {btn(t('ctRemoveAnimatedAvatar'), 'animatedAvatar', {
+          danger: true,
+          show: can('users.avatar') && u.animatedAvatarUrl !== undefined,
+        })}
         {btn(t('giftSpecial'), 'gift', { show: can('users.special_username') })}
         {btn(t('revokeSpecial'), 'revokeSpecial', { show: can('users.special_username') && detail.specialUsername !== null })}
       </Group>

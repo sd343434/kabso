@@ -35,6 +35,9 @@ abstract final class VipPerks {
   static const rankingAnonymous = 'RANKING_ANONYMOUS';
   static const kickMuteShield = 'KICK_MUTE_SHIELD';
   static const anonymousGift = 'ANONYMOUS_GIFT';
+
+  /// v1.136-social (D384): «صورة متحركة» — the member's own cut-out clip.
+  static const animatedAvatar = 'ANIMATED_AVATAR';
 }
 
 /// D258: the VIP catalogue kept for the whole session (every chat line, seat

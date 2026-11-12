@@ -187,8 +187,9 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
       data: [],
       // D378 (§10.168): + the eight identity perks; D379 (§10.169): + the ten live-room perks; D380 (§10.170): + the
       // four privacy perks; D381 (v1.134-social): EXCLUSIVE_GIFTS, FREE_CP_REQUEST, HIGHER_GIFT_QUANTITY, LONGER_VOICE,
-      // MONTHLY_ROCKETS, PRIORITY_SUPPORT and SCHEDULED_GIFT built.
+      // MONTHLY_ROCKETS, PRIORITY_SUPPORT and SCHEDULED_GIFT built; D384 (v1.136-social): ANIMATED_AVATAR.
       builtPerks: [
+        'ANIMATED_AVATAR',
         'ANIMATED_COVER',
         'ANIMATED_SIGNATURE',
         'ANONYMOUS_GIFT',

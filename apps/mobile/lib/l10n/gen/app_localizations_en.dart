@@ -18751,4 +18751,84 @@ class AppLocalizationsEn extends AppLocalizations {
   String vipScheduledGiftOption(String name, String coins) {
     return '$name · $coins';
   }
+
+  @override
+  String get vipAnimatedAvatarEntry => 'Animated picture';
+
+  @override
+  String get vipAnimatedAvatarIntro =>
+      'Record 3 seconds of your face or pick a video from the gallery: we remove the background on your phone, and your picture moves above your name on your card in rooms.';
+
+  @override
+  String get vipAnimatedAvatarEmpty => 'No animated picture yet';
+
+  @override
+  String get vipAnimatedAvatarRecord => 'Record';
+
+  @override
+  String get vipAnimatedAvatarRerecord => 'Record again';
+
+  @override
+  String get vipAnimatedAvatarSave => 'Save';
+
+  @override
+  String get vipAnimatedAvatarRemove => 'Remove';
+
+  @override
+  String get vipAnimatedAvatarLook => 'Look at the camera and smile';
+
+  @override
+  String get vipAnimatedAvatarRecording => 'Recording…';
+
+  @override
+  String get vipAnimatedAvatarProcessing => 'Removing the background…';
+
+  @override
+  String get vipAnimatedAvatarPreview => 'This is how it shows on your card';
+
+  @override
+  String get vipAnimatedAvatarNoPerson =>
+      'We could not find your face in the clip. Record again in good light, looking at the camera.';
+
+  @override
+  String get vipAnimatedAvatarCameraError =>
+      'The camera could not be opened. Allow the app to use the camera, then try again.';
+
+  @override
+  String get vipAnimatedAvatarTooLarge =>
+      'The clip is too large. Record a shorter one.';
+
+  @override
+  String get vipAnimatedAvatarSaved => 'Your animated picture is saved';
+
+  @override
+  String get vipAnimatedAvatarRemoved => 'Your animated picture is removed';
+
+  @override
+  String get notifAnimatedAvatarRemoved =>
+      'Moderators removed your animated picture for breaking the community guidelines';
+
+  @override
+  String get vipAnimatedAvatarPick => 'Pick from the gallery';
+
+  @override
+  String get vipAnimatedAvatarPickError =>
+      'This video could not be read. Pick another one.';
+
+  @override
+  String get vipAnimatedAvatarTrimTitle => 'Choose 3 seconds of the video';
+
+  @override
+  String get vipAnimatedAvatarTrimHint =>
+      'Move the slider to choose where it starts';
+
+  @override
+  String get vipAnimatedAvatarTrimWhole =>
+      'The video is 3 seconds or less: all of it is used';
+
+  @override
+  String get vipAnimatedAvatarTrimUse => 'Use this part';
+
+  @override
+  String get vipAnimatedAvatarTrimCancel => 'Cancel';
 }

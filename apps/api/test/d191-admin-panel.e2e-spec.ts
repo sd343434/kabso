@@ -62,6 +62,7 @@ describe('D191 contract coverage', () => {
       // v1.78-social (D223): the accounts made on a device are covered by d223-device-limit.
       // v1.87-social (D287): an agent's employees are covered by d287-recharge-employees.
       // v1.78-live (D288): the shared queue's resolve / reopen / counter are covered by d288-shared-reports.
+      // v1.136-social (D384): the animated picture's removal is covered by d384-vip-animated-avatar.
       .filter((o) => {
         const d = typeof o.spec.description === 'string' ? o.spec.description : '';
         return (
@@ -70,7 +71,8 @@ describe('D191 contract coverage', () => {
           !d.startsWith('(v1.76-social, D218)') &&
           !d.startsWith('(v1.78-social, D223') &&
           !d.startsWith('(v1.87-social, D287') &&
-          !d.startsWith('(v1.78-live, D288')
+          !d.startsWith('(v1.78-live, D288') &&
+          !d.startsWith('(v1.136-social, D384)')
         );
       })
       .map((o) => o.operationId)

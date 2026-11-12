@@ -34,6 +34,8 @@ const BUILT = [
   'RANKING_ANONYMOUS',
   'KICK_MUTE_SHIELD',
   'ANONYMOUS_GIFT',
+  // v1.136-social (D384): the VIP animated picture.
+  'ANIMATED_AVATAR',
 ];
 /** D380: the privacy perks built by D380 (counted with BUILT, registered by D374 with the new ones). */
 const D380 = ['HIDDEN_VISIT', 'RANKING_ANONYMOUS', 'KICK_MUTE_SHIELD', 'ANONYMOUS_GIFT'];
@@ -110,7 +112,7 @@ const D381_BUILT = [
 const issues = (code: string, value: unknown) => vipPerkValueIssues(code, value).map((i) => i.issue);
 
 describe('D374 VIP perk catalogue', () => {
-  it("holds the owner's list: eleven built, the new ones, MONTHLY_GIFT; codes unique; DAILY_COINS and HIDE_COINS_SENT removed", () => {
+  it("holds the owner's list: eleven built (and D384's ANIMATED_AVATAR), the new ones, MONTHLY_GIFT; codes unique; DAILY_COINS and HIDE_COINS_SENT removed", () => {
     const codes = VIP_PERK_CATALOGUE.map((e) => e.code);
     expect(new Set(codes).size).toBe(codes.length);
     // BUILT holds D380's four (§10.170); D378, D379 and D381 built theirs from NEW too.
@@ -228,6 +230,22 @@ describe('D374 VIP perk catalogue', () => {
       { path: ['seconds'], issue: 'required' },
     ]);
     expect(issues('PINNED_MESSAGE', [3, 60])).toEqual(['invalid_type']);
+  });
+
+  it('D383: PROFILE_CARD is the card background — an optional colour and an SVGA / MP4 / still art, not retired', () => {
+    const e = vipCatalogueEntry('PROFILE_CARD');
+    expect(e).toMatchObject({ category: 'IDENTITY', built: true, value: { kind: 'color' } });
+    expect(e?.art).toEqual({ kinds: ['SVGA', 'MP4', 'PNG', 'WEBP'], width: 1080, height: 1440 });
+    expect(e?.titleEn).toBe('Card background');
+    expect(vipPerkRetired('PROFILE_CARD')).toBe(false);
+    // A tier saved before D383 (no value) stays valid: its art is the background.
+    expect(issues('PROFILE_CARD', null)).toEqual([]);
+    expect(issues('PROFILE_CARD', '#1E2A44')).toEqual([]);
+    expect(issues('PROFILE_CARD', '#1e2a44')).toEqual(['invalid_format']);
+    expect(issues('PROFILE_CARD', 3)).toEqual(['invalid_type']);
+    expect(
+      vipPerkInput.safeParse({ code: 'PROFILE_CARD', video: 'https://cdn.example.test/bg.mp4' }).success,
+    ).toBe(true);
   });
 
   it('a code outside the catalogue (a retired one included) is unknown', () => {

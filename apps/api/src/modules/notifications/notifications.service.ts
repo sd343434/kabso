@@ -207,6 +207,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'AVATAR_REMOVED' },
       // v1.76-social (D218): a moderator removed the caller's profile cover (system, no target).
       { type: 'COVER_REMOVED' },
+      // v1.136-social (D384): a moderator removed the caller's VIP animated picture (system, no target).
+      { type: 'ANIMATED_AVATAR_REMOVED' },
       // v1.60-social (D191): a moderator warned the caller (system; the post or comment when there is one).
       { type: 'MODERATION_WARNING' },
       // v1.66-social (D198): the caller's data export is ready (system, no target).

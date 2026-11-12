@@ -136,6 +136,8 @@ describe('VIP helpers', () => {
       'RANKING_ANONYMOUS',
       'KICK_MUTE_SHIELD',
       'ANONYMOUS_GIFT',
+      // v1.136-social (D384).
+      'ANIMATED_AVATAR',
     ]) {
       expect(VIP_BUILT_PERKS.has(code)).toBe(true);
       expect(vipPerkAvailable(code)).toBe(true);
@@ -144,8 +146,9 @@ describe('VIP helpers', () => {
     // D374: the owner removed DAILY_COINS («ازلها»): no longer built.
     expect(vipPerkAvailable('DAILY_COINS')).toBe(false);
     // D380 (§10.170): + the four privacy perks; D378 (§10.168): + the eight identity perks; D379 (§10.169): + the
-    // ten live-room perks; D381 (v1.134-social): + seven more (gifts, CP, support, rockets, voice).
-    expect(VIP_BUILT_PERKS.size).toBe(11 + 4 + 8 + 10 + 7);
+    // ten live-room perks; D381 (v1.134-social): + seven more (gifts, CP, support, rockets, voice); D384
+    // (v1.136-social): + ANIMATED_AVATAR.
+    expect(VIP_BUILT_PERKS.size).toBe(11 + 4 + 8 + 10 + 7 + 1);
     for (const c of [
       'EXCLUSIVE_GIFTS',
       'FREE_CP_REQUEST',

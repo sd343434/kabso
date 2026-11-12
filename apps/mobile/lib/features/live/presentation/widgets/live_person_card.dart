@@ -19,6 +19,7 @@ import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
+import 'package:kabso_live/features/live/application/live_viewer_prefs.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
@@ -34,10 +35,10 @@ import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
-import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/domain/animated_avatar.dart';
+import 'package:kabso_live/features/vip/presentation/vip_cutout.dart';
 import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
-import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -108,19 +109,31 @@ class _Look {
           );
   }
 
-  /// D258 (owner: «لون الكتابة على هذا vip اجعله ابيض»): every text and
-  /// icon white on the VIP card art, which lies over a deep shade of the
-  /// tier colour; no button shadows ([flat]).
-  factory vipOn(Color backdrop) => _Look(
-    sheet: backdrop,
-    ink: const Color(0xFFFFFFFF),
-    soft: const Color(0xFFFFFFFF),
-    line: const Color(0x80FFFFFF),
-    divider: const Color(0x66FFFFFF),
-    fill: const Color(0x26FFFFFF),
-    ring: const Color(0xFFFFFFFF),
-    flat: true,
-  );
+  /// D383 (owner 2026-11-12): over the VIP background (PROFILE_CARD) —
+  /// [light]: every text and icon white (over the art's scrim or a dark
+  /// colour; D258's «لون الكتابة على هذا vip اجعله ابيض»); otherwise
+  /// near-black over a light colour. No button shadows ([flat]).
+  factory onBackdrop({required Color sheet, required bool light}) => light
+      ? _Look(
+          sheet: sheet,
+          ink: const Color(0xFFFFFFFF),
+          soft: const Color(0xFFFFFFFF),
+          line: const Color(0x80FFFFFF),
+          divider: const Color(0x66FFFFFF),
+          fill: const Color(0x26FFFFFF),
+          ring: const Color(0xFFFFFFFF),
+          flat: true,
+        )
+      : _Look(
+          sheet: sheet,
+          ink: KPalette.light.textPrimary,
+          soft: const Color(0xD90B0B0D),
+          line: const Color(0x590B0B0D),
+          divider: const Color(0x400B0B0D),
+          fill: const Color(0x1A000000),
+          ring: const Color(0xFFFFFFFF),
+          flat: true,
+        );
 
   final Color sheet;
   final Color ink;
@@ -136,7 +149,7 @@ class _Look {
   /// The clean ring around a picture without a frame.
   final Color ring;
 
-  /// D258: no shadows under the buttons (the VIP card).
+  /// D258 / D383: no shadows under the buttons (over the VIP background).
   final bool flat;
 }
 
@@ -147,6 +160,19 @@ abstract final class LivePersonCardMetrics {
 
   /// The clean ring around a picture that wears no frame.
   static const double ring = 3;
+
+  /// D383 (owner 2026-11-12: «الصورة الشخصية يجب أن تكون داخل البطاقة
+  /// التعريفية أكثر، لا يتجاوز منها البطاقة سوى قليلاً»): the share of the
+  /// picture's circle (with its ring) above the sheet's top edge — the rest
+  /// sits inside the card. It was half (the edge through the centre).
+  static const double poke = 0.18;
+
+  /// Where the sheet's top edge crosses a picture whose circle's centre is
+  /// [centreY] below the picture's top: [poke] of the circle above it.
+  static double edgeIn(double centreY) {
+    const circle = avatar + 2 * ring;
+    return centreY - circle / 2 + poke * circle;
+  }
 
   /// The sheet's top corners.
   static const double radius = 22;
@@ -179,6 +205,14 @@ abstract final class LivePersonCardMetrics {
 /// — the family-and-couple gradient pill and the gift wall pill, then
 /// «+ متابعة», the round gift and «دردشة». Your own card: «تعديل الملف».
 ///
+/// D384 (owner 2026-11-12: «والصورة الشخصية الجديدة اجعلها كأنها بإطار دائري
+/// بنفس حجم الإطار السابق»): a VIP holding ANIMATED_AVATAR who set a clip
+/// shows it in the round photo's place — the same circle, size and position,
+/// inside the same ring, VIP frame or bag frame — the head popping a little
+/// over the circle's top edge; its still under reduced motion or «إخفاء
+/// مؤثرات الهدايا»; the round photo while it loads or if it fails. The agent
+/// and couple frames keep the photo (their art is drawn around a photo).
+///
 /// Everything the earlier card did stays (D86 onward): the moderation row
 /// (kick, chat mute, moderator, the mic, points, ⋯ report / block), the
 /// mention, traffic card and seat invite, copy the ID, open the profile
@@ -198,6 +232,8 @@ class LivePersonSheet extends ConsumerWidget {
 
   /// The person's header decoration on the card's top edge; null: the
   /// profile card they wear (`PublicProfile.profileCard`, CP-019), or none.
+  /// D383: hidden for now (owner «اخفيها الآن حتى نأخذ قرار حاسم»,
+  /// [kabsoProfileHeadersHidden]); when shown, over the VIP background.
   final KabsoProfileHeader? header;
 
   static const sheetKey = Key('room.hostSheet');
@@ -236,8 +272,19 @@ class LivePersonSheet extends ConsumerWidget {
   static const bagFrameKey = Key('room.userCard.bagFrame');
   static const ringKey = Key('room.userCard.ring');
 
-  /// D258: the VIP card art behind the sheet.
+  /// D384: the VIP animated picture «صورة متحركة» (the cut-out in the circle).
+  static const cutoutKey = Key('room.userCard.cutout');
+
+  /// D383: the VIP background (PROFILE_CARD) — its art behind the content,
+  /// its colour and the scrim over the art.
   static const vipCardKey = Key('room.userCard.vipCard');
+  static const vipColorKey = Key('room.userCard.vipColor');
+  static const vipScrimKey = Key('room.userCard.vipScrim');
+
+  /// D383: the art plays, or shows its still (reduced motion, «إخفاء
+  /// مؤثرات الهدايا»).
+  static const vipArtPlayingKey = Key('room.userCard.vipArt.playing');
+  static const vipArtStillKey = Key('room.userCard.vipArt.still');
 
   /// D220: the badge pills row and the four numbers.
   static const badgesKey = Key('room.userCard.badges');
@@ -262,17 +309,39 @@ class LivePersonSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final loaded = ref.watch(publicProfileProvider(username));
     final profile = loaded.value;
-    // D258: on the owner's animated VIP card, every text and icon is white
-    // over a deep shade of the tier colour (owner).
+    // D383 (owner 2026-11-12: no box or frame around the card; «تغير لون
+    // خلفية او تكون خلفية فيها عناصر متحركة»): the PROFILE_CARD perk (or a
+    // worn store card) is the card's background; the text follows it.
     final vipLook = ref.watch(vipLookProvider(profile?.vip));
-    final cardPerk = vipCardPerk(vipLook);
-    final vipCard = cardPerk != null && vipPlays(cardPerk) && vipLook != null
-        ? _Look.vipOn(vipLook.bubbleShades.$2)
-        : null;
-    final look = vipCard ?? _Look.of(context);
-    final header =
-        this.header ?? KabsoProfileHeader.byCode(profile?.profileCard?.code);
-    final picture = _Picture.of(profile, username);
+    final backdrop = vipCardBackground(vipLook);
+    final plain = _Look.of(context);
+    final vipCard = switch (backdrop) {
+      null => null,
+      (color: final c, :final art) => _Look.onBackdrop(
+        sheet: c ?? plain.sheet,
+        // Over an art: white on its scrim. Over a colour alone: white on a
+        // dark one, near-black on a light one (≥ 4.5:1 either way).
+        light: art != null || (c ?? plain.sheet).computeLuminance() < 0.19,
+      ),
+    };
+    final look = vipCard ?? plain;
+    // D383: hidden pending the owner's decision (kabsoProfileHeadersHidden).
+    final header = kabsoProfileHeadersHidden
+        ? null
+        : this.header ?? KabsoProfileHeader.byCode(profile?.profileCard?.code);
+    // D384: the animated cut-out (a VIP holding ANIMATED_AVATAR), still
+    // under reduced motion or «إخفاء مؤثرات الهدايا».
+    final playing =
+        !ref.watch(
+          liveViewerPrefsProvider.select((p) => p.giftEffectsHidden),
+        ) &&
+        !MediaQuery.disableAnimationsOf(context);
+    final picture = _Picture.of(
+      profile,
+      username,
+      cutout: profile?.animatedAvatar,
+      playing: playing,
+    );
     final scope = this.scope;
     // D258: the VIP frame's plaque hangs below the picture: the name moves
     // down by as much (only for the plain ring, where the VIP frame shows).
@@ -297,11 +366,13 @@ class LivePersonSheet extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, box) {
-        // The sheet's top edge goes through the picture's centre, or lower
-        // when the header decoration rises higher than the picture.
+        // D383: the sheet's top edge crosses the picture's circle near its
+        // top (only [LivePersonCardMetrics.poke] of it above the card), or
+        // lower when the header decoration rises higher than that.
+        final inPicture = LivePersonCardMetrics.edgeIn(picture.centreY);
         final edge = header == null
-            ? picture.centreY
-            : math.max(picture.centreY, header.overhang(box.maxWidth));
+            ? inPicture
+            : math.max(inPicture, header.overhang(box.maxWidth));
         final body = profile == null
             ? _State(error: loaded.error, look: look)
             : _Body(
@@ -311,7 +382,7 @@ class LivePersonSheet extends ConsumerWidget {
                 onInvite: onInvite,
                 look: look,
                 // Room under the edge for the picture's lower part.
-                top: picture.height - picture.centreY + 6 + vipDrop,
+                top: picture.height - inPicture + 6 + vipDrop,
               );
         final sheet = Stack(
           key: sheetKey,
@@ -327,25 +398,32 @@ class LivePersonSheet extends ConsumerWidget {
                   top: Radius.circular(LivePersonCardMetrics.radius),
                 ),
               ),
-              child: _VipCard(
-                vip: profile?.vip,
-                sheet: look.sheet,
-                child: SafeArea(
-                  top: false,
-                  // Large text: the card scrolls instead of overflowing.
-                  child: SingleChildScrollView(
-                    // D258: the VIP card hugs its content (owner).
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      0,
-                      16,
-                      vipCard == null ? 12 : 2,
+              child: Stack(
+                children: [
+                  // D383: the VIP background fills the sheet behind its
+                  // content (the sheet's own shape: no frame, no box).
+                  if (backdrop != null)
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(LivePersonCardMetrics.radius),
+                        ),
+                        child: _Backdrop(background: backdrop),
+                      ),
                     ),
-                    child: body,
+                  SafeArea(
+                    top: false,
+                    // Large text: the card scrolls instead of overflowing.
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: body,
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
+            // The bag's header ornament on the top edge, over the VIP
+            // background (D383: hidden for now, see [header]).
             if (header != null)
               Positioned(
                 top: edge - header.overhang(box.maxWidth),
@@ -360,8 +438,7 @@ class LivePersonSheet extends ConsumerWidget {
             // the mutes and ⋯ at the end, either side of the picture.
             if (scope != null && profile != null)
               PositionedDirectional(
-                // D258 (owner): on the VIP card, inside the art's top band.
-                top: edge + (vipCard == null ? 8 : 22),
+                top: edge + 8,
                 start: 10,
                 end: 10,
                 child: LivePersonTools(
@@ -377,12 +454,12 @@ class LivePersonSheet extends ConsumerWidget {
                   // D311: no founder actions on an owner.
                   kabsoOwner: profile.kabsoOwner,
                   middle: picture.width + 8,
-                  // D258: white on the VIP card.
+                  // D383: what reads on the VIP background.
                   ink: vipCard?.ink,
                 ),
               ),
             Positioned(
-              top: edge - picture.centreY,
+              top: edge - inPicture,
               child: Semantics(
                 button: true,
                 label: context.l10n.liveUserViewProfile,
@@ -450,7 +527,12 @@ class _Picture {
     this.vipFrame = false,
   });
 
-  factory of(PublicProfile? profile, String username) {
+  factory of(
+    PublicProfile? profile,
+    String username, {
+    AnimatedAvatar? cutout,
+    bool playing = true,
+  }) {
     const avatar = LivePersonCardMetrics.avatar;
     final name = profile?.displayName ?? username;
     final image = _networkImage(profile?.avatarUrl);
@@ -486,20 +568,51 @@ class _Picture {
         ),
       );
     }
+    // D384 (owner: «أريد صورة الملف الشخصي كأنها بدون خلفية», then «الصورة
+    // الشخصية يكون لها حواف مستديرة غير مرئية»): a clip is the cut-out in the
+    // plain ring's box and place — no fill, ring or worn frame (VIP or bag)
+    // around it, the card showing through; bounded by the old photo circle
+    // at the bottom and sides with an invisible soft edge, open at the top.
+    // The agent frames and the couple's Special Frame keep the photo. The
+    // ringed photo while it loads or if it fails.
+    if (cutout != null && !cpWearsSpecialFrame(profile?.cp)) {
+      const side = avatar + 2 * LivePersonCardMetrics.ring;
+      return _Picture(
+        width: side,
+        height: side,
+        centreY: side / 2,
+        build: (look) => VipCutout(
+          key: LivePersonSheet.cutoutKey,
+          avatar: cutout,
+          size: side,
+          // The old photo circle (inside the ring's width) bounds the
+          // person at the bottom and the sides, with an invisible soft edge.
+          circleInset: LivePersonCardMetrics.ring,
+          playing: playing,
+          fallback: Container(
+            padding: const EdgeInsets.all(LivePersonCardMetrics.ring),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: look.ring),
+            child: ClipOval(
+              child: KAvatar(name: name, image: image, size: avatar),
+            ),
+          ),
+        ),
+      );
+    }
     if (art != null) {
       final side = box.square;
-      final photo = art.pictureForWidth(side);
+      final inner = art.pictureForWidth(side);
       return _Picture(
         width: box.width,
         height: box.height,
         centreY: box.topOf(side) + side * art.cy,
-        build: (_) => box.place(
+        build: (look) => box.place(
           FramedAvatar(
             key: LivePersonSheet.bagFrameKey,
             art: art,
-            picture: photo,
+            picture: inner,
             layout: true,
-            child: KAvatar(name: name, image: image, size: photo),
+            child: KAvatar(name: name, image: image, size: inner),
           ),
         ),
       );
@@ -1675,77 +1788,74 @@ class _RoleBadge extends StatelessWidget {
   }
 }
 
-/// D258 (PROFILE_CARD): a VIP's card art behind the person card's sheet
-/// (the owner's still or SVGA framing an opaque panel that holds the text).
-class _VipCard extends ConsumerWidget {
-  const new({required this.vip, required this.sheet, required this.child});
+/// D383 (owner 2026-11-12: «لا ستكون موجودة بحيث ستكون مثلاً تغير لون خلفية
+/// او تكون خلفية فيها عناصر متحركة»): the VIP PROFILE_CARD perk as the card's
+/// background — no longer a box or frame around it. Its colour across the
+/// sheet; its art over it, covering the whole sheet behind the content (an
+/// SVGA first, else the perk's MP4, else its still; a worn store card the
+/// same way), under a scrim so white text stays ≥ 4.5:1 on any art. Still
+/// under reduced motion and «إخفاء مؤثرات الهدايا»: the still, else the
+/// SVGA's or the video's first frame.
+class _Backdrop extends ConsumerWidget {
+  const new({required this.background});
 
-  final UserVip? vip;
+  final VipCardBackground background;
 
-  /// The card's own surface: the text sits on it, never on the art.
-  final Color sheet;
-  final Widget child;
-
-  /// How much of the art shows around the panel (the card's border).
-  static const frame = 12.0;
-
-  /// The animated card's frame width at a phone's width (its border is about
-  /// 25 of its 720 units).
-  static const animatedFrame = 14.0;
+  /// Black at 55 %: white text over it reads ≥ 4.5:1 even on a white art.
+  static const scrim = Color(0x8C000000);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final perk = vipCardPerk(ref.watch(vipLookProvider(vip)));
-    if (perk == null) return child;
-    // D258: the owner's art frames the card; the names, numbers and buttons
-    // stay on the card's own opaque surface (≥ 4.5:1 as without VIP).
-    // D258: the owner's animated card (its SVGA 9-sliced to the sheet: the
-    // crest rises above the sheet, the frame follows its edges). The text
-    // stays on the card's own opaque panel inside the frame.
-    if (vipPlays(perk)) {
-      return _VipCardArt(perk: perk, child: child);
+    final art = background.art;
+    final color = background.color;
+    final hidden = ref.watch(
+      liveViewerPrefsProvider.select((p) => p.giftEffectsHidden),
+    );
+    final playing = !hidden && !MediaQuery.disableAnimationsOf(context);
+    Widget? artWidget;
+    if (art != null) {
+      // An SVGA first, else the perk's MP4 (or a store card's MP4).
+      final svga = art.video == null ? art.animation : null;
+      final mp4 = art.video != null ? art.animation : art.videoUrl;
+      final video = svga != null
+          ? null
+          : (art.video ?? (mp4 == null ? null : ArtVideo.plain));
+      artWidget = KeyedSubtree(
+        key: playing
+            ? LivePersonSheet.vipArtPlayingKey
+            : LivePersonSheet.vipArtStillKey,
+        // Still: the players show their first frame without motion; with a
+        // still, only the still is drawn.
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(disableAnimations: !playing),
+          child: VipAnimatedArt(
+            animation: svga ?? mp4,
+            still: art.still,
+            video: video,
+            fit: BoxFit.cover,
+            animate: playing || art.still == null,
+          ),
+        ),
+      );
     }
-    // Clipped to the sheet's rounded top (only with the art: no change
-    // to the plain card).
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(
-        top: Radius.circular(LivePersonCardMetrics.radius),
-      ),
+    return IgnorePointer(
       child: Stack(
+        fit: StackFit.expand,
         children: [
-          Positioned.fill(
-            key: LivePersonSheet.vipCardKey,
-            child: VipAnimatedArt(
-              animation: perk.animation,
-              still: perk.still,
-              video: perk.video,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Positioned.fill(
-            left: frame,
-            right: frame,
-            bottom: frame,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: sheet,
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(16),
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(frame, 0, frame, frame),
-            child: child,
-          ),
+          if (color != null)
+            ColoredBox(key: LivePersonSheet.vipColorKey, color: color),
+          if (artWidget != null) ...[
+            KeyedSubtree(key: LivePersonSheet.vipCardKey, child: artWidget),
+            const ColoredBox(key: LivePersonSheet.vipScrimKey, color: scrim),
+          ],
         ],
       ),
     );
   }
 }
 
-/// D258: the colours the person card's text uses on a VIP card art.
+/// D258 / D383: the colours the person card's text uses on the VIP
+/// background.
 class _LookScope extends InheritedWidget {
   const new({required this.look, required super.child});
 
@@ -1756,44 +1866,4 @@ class _LookScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(_LookScope old) => old.look != look;
-}
-
-/// D258 (owner: «عند وضع vip يتم ازالة الصندوق الابيض»): the owner's
-/// animated card IS the card's background — its SVGA 9-sliced to the sheet
-/// (the crest rises above it) over a deep shade of the tier colour; the
-/// content sits directly on it in white ([_Look.vipOn], set by the sheet).
-class _VipCardArt extends StatelessWidget {
-  const new({required this.perk, required this.child});
-
-  final VipPerk perk;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    const frame = _VipCard.animatedFrame;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned.fill(
-          key: LivePersonSheet.vipCardKey,
-          child: IgnorePointer(
-            child: VipSvga(
-              url: perk.animation!,
-              nine: VipSvgaNine.card,
-              // A big art: frames at about half the device's pixels.
-              resolution: 0.5,
-              still: perk.still == null
-                  ? null
-                  : Image(image: vipArtImage(perk.still!), fit: BoxFit.cover),
-            ),
-          ),
-        ),
-        // The art's frame at the sides; the content hugs the bottom.
-        Padding(
-          padding: const EdgeInsets.fromLTRB(frame, 0, frame, 2),
-          child: child,
-        ),
-      ],
-    );
-  }
 }

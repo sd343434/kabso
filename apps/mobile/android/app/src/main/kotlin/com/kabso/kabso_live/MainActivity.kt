@@ -15,8 +15,13 @@ import com.android.installreferrer.api.InstallReferrerStateListener
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
+    /** D384: video frames are read off the main thread, one request at a time. */
+    private val videoFrames = Executors.newSingleThreadExecutor()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         createNotificationChannels()
@@ -63,6 +68,34 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "read" -> readInstallReferrer(result)
+                    else -> result.notImplemented()
+                }
+            }
+        // v1.136-social (D384, CONVENTIONS §10.173.2): a picked video's frames at given times for the VIP
+        // animated picture (MediaMetadataRetriever, OPTION_CLOSEST; [VideoFrames]). Off the main thread.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kabso/video_frames")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "extract" -> {
+                        val source = call.argument<String>("path")
+                        val times = call.argument<List<Number>>("timesMs")?.map { it.toLong() }
+                        val maxSide = call.argument<Int>("maxSide") ?: 0
+                        val outDir = call.argument<String>("outDir")
+                        if (source == null || times == null || outDir == null) {
+                            result.error("bad_args", null, null)
+                        } else {
+                            videoFrames.execute {
+                                val paths = try {
+                                    VideoFrames.extract(this, source, times, maxSide, File(outDir))
+                                } catch (e: Exception) {
+                                    null
+                                }
+                                runOnUiThread {
+                                    if (paths == null) result.error("unreadable", null, null) else result.success(paths)
+                                }
+                            }
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

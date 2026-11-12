@@ -62,6 +62,10 @@ KabsoProfileHeader _shown(WidgetTester tester) =>
     tester.widget<KabsoProfileHeaderArt>(find.byKey(_headerKey)).header;
 
 void main() {
+  // D383: the header ornaments are hidden pending the owner's decision; these
+  // tests cover the dormant feature, shown again.
+  setUp(() => kabsoProfileHeadersHidden = false);
+  tearDown(() => kabsoProfileHeadersHidden = true);
   testWidgets('the worn profile card sits on the card edge', (tester) async {
     for (final h in KabsoProfileHeader.values) {
       await tester.pumpWidget(const SizedBox.shrink());
@@ -137,5 +141,42 @@ void main() {
       expect(tester.takeException(), isNull, reason: language.name);
       expect(_shown(tester), KabsoProfileHeader.emeraldWings);
     }
+  });
+
+  // D383 (owner 2026-11-12: «اخفيها الآن حتى نأخذ قرار حاسم»): hidden for
+  // now — a worn ornament is not drawn on the card; the items stay.
+  group('D383 hidden pending the owner decision', () {
+    setUp(() => kabsoProfileHeadersHidden = true);
+
+    testWidgets('a worn ornament is not drawn; the card is the plain one', (
+      tester,
+    ) async {
+      for (final h in KabsoProfileHeader.values) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await _card(tester, _profile(h.code));
+        expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
+        expect(find.byKey(_headerKey), findsNothing, reason: h.code);
+        expect(find.byType(KabsoProfileHeaderArt), findsNothing);
+      }
+      // An explicit header is hidden too.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _card(
+        tester,
+        _profile('emerald_wings'),
+        header: KabsoProfileHeader.kabiRoyal,
+      );
+      expect(find.byType(KabsoProfileHeaderArt), findsNothing);
+    });
+
+    test('only the catalogue ornaments are hidden, not the VIP or store '
+        'cards (the background)', () {
+      for (final h in KabsoProfileHeader.values) {
+        expect(isHiddenProfileHeader(h.code), isTrue, reason: h.code);
+      }
+      expect(isHiddenProfileHeader('vip:PROFILE_CARD'), isFalse);
+      expect(isHiddenProfileHeader('store_0123456789ab'), isFalse);
+      kabsoProfileHeadersHidden = false;
+      expect(isHiddenProfileHeader('bunny_royal'), isFalse);
+    });
   });
 }

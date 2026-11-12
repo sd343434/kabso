@@ -4457,3 +4457,53 @@ worker runs inside the API on the DM sweeper's cadence (`DM_SWEEP_INTERVAL_SECON
   scheduled gifts pending at a rollback keep their coins held until a D381 API delivers or the sender cancels them.
 - **Order:** deploy the API image (the migration runs first), then ship the APK. The admin panel needs no change (the
   D374 grid edits the values). An older app keeps working (new fields ignored).
+### 5.125 No frame around the person card (its layout unchanged); PROFILE_CARD becomes the card's background (D383; no migration) — [IMPLEMENTED, draft contract v1.135-social; not deployed, not device-tested]
+
+CONVENTIONS §10.172 (owner 2026-11-12). No migration, no new setting, no new secret, no new host. The person card keeps
+its earlier layout (owner «ارى ان شكل البطاقة السابقة اجمل»); only its background changes, for PROFILE_CARD holders.
+
+- **API:** only the catalogue entry of `PROFILE_CARD` changes (value `color`, art SVGA / MP4 / still, new default
+  titles). Every tier row stays as it is: a row saved before (no value, its art) is valid and its art becomes the card's
+  background. Nothing is deleted; nothing to run on the server.
+- **After deploy (owner / panel):** open a VIP tier, tick «خلفية البطاقة التعريفية» and set a colour and / or upload the
+  background art (SVGA preferred, else MP4 ≤ 8 MB / 15 s, or a still; about 1080 × 1440). Art made earlier as a frame
+  (`svip_box`) now shows as a full background under a scrim: replace it with background art.
+- **Bag:** the bag's profile-card header ornaments are hidden pending the owner's decision (not drawn on the card, not
+  listed in the bag; one app flag, `kabsoProfileHeadersHidden`). The items, the free `bunny_royal` and the API stay.
+- **Store:** `PROFILE_CARD` items (kind unchanged, still sold) draw their art as the card's background. **After deploy
+  (owner / panel):** replace the existing frame-style store card art with new animated backgrounds (about 1080 × 1440;
+  SVGA preferred, else MP4 or a still).
+- **Order:** API and panel in any order (shapes unchanged); then the APK. An older app keeps drawing the art its way and
+  ignores the colour.
+
+### 5.126 The VIP animated picture «صورة متحركة» (D384; migrations `20270514090000`, `20270514090100`) — [IMPLEMENTED, draft contract v1.136-social; not deployed, not device-tested]
+
+CONVENTIONS §10.173 (owner 2026-11-12). No new setting, no new secret, no new host, no new server dependency (the
+strip is re-encoded with `sharp`, already used for every image).
+
+- **Migrations:** `20270514090000_vip_animated_avatar_enums` (`notification_type` `ANIMATED_AVATAR_REMOVED`, its own
+  transaction) then `20270514090100_vip_animated_avatar` (`user_profiles.animated_avatar_media_id` / `_url` /
+  `_still_url`, CHECK `user_profiles_animated_avatar_shape`, FK to `media_assets` NO ACTION, `media_assets_kind_known`
+  + `ANIMATED_AVATAR`). Additive; the runtime role's DML comes from the default privileges (no GRANT). Nothing to
+  back-fill.
+- **Storage:** each clip is two objects under `media/<id>/` (`clip.webp` ≤ 1.5 MiB, `still.webp`), immutable cache; the
+  raw strip (≤ 8 MiB) is deleted after `complete`. The CDN path is the one every media file uses.
+- **After deploy (owner / panel):** open a VIP tier, tick «صورة متحركة» (ANIMATED_AVATAR; a tick only, no value, no
+  art). Lower tiers' holders inherit it upward as every perk. Moderators remove a clip from the user page («حذف الصورة
+  المتحركة», `users.avatar`).
+- **Gallery picking (owner 2026-11-12: «both»):** the app's own platform channel `com.kabso/video_frames`
+  (`MainActivity.kt` + `VideoFrames.kt`, `AppDelegate.swift`; platform APIs only, no new package) reads a picked video's
+  frames. No new permission (image_picker's system picker already reads gallery videos). Not compiled here (no Android
+  SDK, no Xcode): the CI `android` and `ios` jobs are the first builds.
+- **15 frames a second (owner):** the server accepts 2–45 frames (was 36) at 67 ms a frame (was 83); a third, lower WebP
+  quality step before a clip is refused; caps unchanged (8 MiB strip, 1.5 MiB WebP).
+- **App build:** two new Flutter plugins — `camera` 0.12.2 (BSD-3-Clause) and `google_mlkit_selfie_segmentation`
+  0.12.1 (MIT; the native Google ML Kit selfie segmentation SDK under Google's ML Kit terms). Android: the bundled
+  segmentation model adds roughly 4–5 MB to the APK (minSdk 24 unchanged; CAMERA already declared). **iOS: the
+  deployment target rises from 15.0 to 15.5** (ML Kit's pod; **approved by the owner 2026-11-12**) and `ios/Podfile` is committed with `platform :ios,
+  '15.5'` (Flutter's own template otherwise). The CI `ios` job is the first place this is built; it was not built
+  here (no macOS).
+- **Order:** API (migrations first) and panel in any order, then the APK. An older app ignores
+  `PublicProfile.animatedAvatar` and keeps the round photo; it has no entry to record a clip.
+- **Rollback:** the API can go back (the columns stay unused; the enum value stays). Clips already stored remain in
+  object storage until removed.

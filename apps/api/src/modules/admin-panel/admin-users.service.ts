@@ -12,6 +12,7 @@ import { isUuid } from '../live/live.schemas.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { dayStart } from '../recharge/recharge-rules.js';
 import { removeAvatarByAdminIn, removeCoverByAdminIn } from '../users/avatar-admin.js';
+import { removeAnimatedAvatarByAdminIn } from '../users/animated-avatar.js';
 import { AccountLifecycleService } from '../users/profiles/account-lifecycle.service.js';
 import { profileStatsTotals } from '../users/profiles/profile-stats.js';
 import {
@@ -199,7 +200,15 @@ export class AdminUsersService {
         role: true,
         lastActiveAt: true,
         profile: {
-          select: { username: true, displayName: true, avatarUrl: true, countryCode: true, bio: true },
+          select: {
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            countryCode: true,
+            bio: true,
+            // v1.136-social (D384, §10.173.5): the VIP animated picture, for review.
+            animatedAvatarUrl: true,
+          },
         },
         adminPermissions: { select: { permission: true } },
         // v1.90-social (D293, §10.105): the automatic verification badge.
@@ -314,6 +323,7 @@ export class AdminUsersService {
         countryCode: user.profile?.countryCode ?? null,
         bio: user.profile?.bio ?? null,
         baseUsername: special?.baseUsername ?? user.profile?.username ?? '',
+        ...(user.profile?.animatedAvatarUrl ? { animatedAvatarUrl: user.profile.animatedAvatarUrl } : {}),
       },
       specialUsername: special
         ? {
@@ -467,6 +477,29 @@ export class AdminUsersService {
     } catch (err) {
       // The cover is already gone from the profile; the orphaned files are only a storage cost.
       this.logger.warn({ error: safeErrorLog(err), userId: id }, 'Cover files could not be deleted');
+    }
+    return { removed: true };
+  }
+
+  /**
+   * v1.136-social (D384, §10.173.5): «حذف الصورة المتحركة» — the VIP animated picture goes (the person card shows the
+   * round photo), the user is told (`ANIMATED_AVATAR_REMOVED`), its files are deleted after.
+   */
+  async removeAnimatedAvatar(id: string, reason: string, ctx: AdminContext): Promise<{ removed: boolean }> {
+    await this.target(id, ctx);
+    const result = await this.prisma.$transaction((tx) =>
+      removeAnimatedAvatarByAdminIn(tx, id, reason, viaOf(ctx)),
+    );
+    if (result.outcome === 'unknown_user') throw new AppException(ErrorCode.NOT_FOUND);
+    if (result.outcome === 'none') throw refused('The user has no animated picture.');
+    try {
+      await this.storage.delete(result.objectKeys);
+    } catch (err) {
+      // The clip is already gone from the profile; the orphaned files are only a storage cost.
+      this.logger.warn(
+        { error: safeErrorLog(err), userId: id },
+        'Animated picture files could not be deleted',
+      );
     }
     return { removed: true };
   }

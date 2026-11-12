@@ -46,6 +46,14 @@
   gap: 6px 8px;
   min-block-size: 24px;
 }
+/* D384: the VIP animated picture (a cut-out with alpha) on a checkerboard, for review. */
+.ct-animated-avatar {
+  inline-size: 72px;
+  block-size: 72px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: repeating-conic-gradient(#d9d9de 0 25%, #f4f4f6 0 50%) 0 0 / 12px 12px;
+}
 .ct-buttons {
   display: flex;
   flex-wrap: wrap;

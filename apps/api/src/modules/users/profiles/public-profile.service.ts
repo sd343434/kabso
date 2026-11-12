@@ -30,6 +30,8 @@ import {
 import type { VerificationBadgeValue } from '../../verification/verification-rules.js';
 import { visibleStatusEmoji } from '../../status-emoji/status-emoji-catalogue.js';
 import type { StaffRegion } from '../../live/staff-regions.js';
+import { shownAnimatedAvatarIn } from '../animated-avatar.js';
+import type { AnimatedAvatarDto } from '../profile-edit.service.js';
 
 /**
  * `PublicProfile` (openapi v1.3). Never an email, role, status, locale or created-at time (D218: only the month
@@ -134,6 +136,11 @@ export interface PublicProfileDto {
   ownerBio?: OwnerBioDto;
   /** v1.118-social (D357, §10.153): the «اقترح ميزة / أبلغ» submissions the founder received (owner only). */
   founderFeedbackCount?: number;
+  /**
+   * v1.136-social (D384, §10.173.4): the VIP animated picture — only while the person holds the ANIMATED_AVATAR perk
+   * and has a clip, never across a block either way, never for a limited Kabso Team account.
+   */
+  animatedAvatar?: AnimatedAvatarDto;
 }
 
 /**
@@ -299,6 +306,10 @@ export class PublicProfileService {
       },
       new Date(),
     );
+    // v1.136-social (D384, §10.173.4): the animated picture while the perk is held; never across a block.
+    const animatedAvatar = staff
+      ? null
+      : await shownAnimatedAvatarIn(this.prisma, user.id, callerId, this.clock.now());
     return {
       id: user.id,
       username: user.username,
@@ -347,6 +358,7 @@ export class PublicProfileService {
       joinedMonth: user.joinedMonth,
       blockedByMe,
       ...stats,
+      ...(animatedAvatar ? { animatedAvatar } : {}),
       // v1.95-social (D301, §10.112): the owner's profile layout and cover videos; v1.118-social (D357) the count of
       // «اقترح ميزة / أبلغ» submissions he has received (cached).
       ...(await ownerProfileFields(

@@ -236,7 +236,8 @@ void main() {
         findsOneWidget,
       );
       expect(picture.top, closeTo(sheet.top, 0.5));
-      // The sheet's white starts at the picture's middle.
+      // D383 (owner: «لا يتجاوز منها البطاقة سوى قليلاً»): the sheet's white
+      // starts near the circle's top — only 18 % of it above the card.
       final white = tester.getRect(
         find
             .descendant(
@@ -245,7 +246,11 @@ void main() {
             )
             .first,
       );
-      expect(white.top, closeTo(picture.center.dy, 0.5));
+      expect(
+        white.top - picture.top,
+        closeTo(picture.height * LivePersonCardMetrics.poke, 0.5),
+      );
+      expect(white.top, lessThan(picture.center.dy));
       expect(name.top, greaterThan(picture.bottom));
       expect(name.center.dx, closeTo(picture.center.dx, 1));
     });
@@ -485,6 +490,9 @@ void main() {
     testWidgets('reduced motion: the profile card header stays still', (
       tester,
     ) async {
+      // D383: hidden pending the owner's decision; the dormant feature.
+      kabsoProfileHeadersHidden = false;
+      addTearDown(() => kabsoProfileHeadersHidden = true);
       final animate = KabsoProfileHeaderArt.animate;
       KabsoProfileHeaderArt.animate = true;
       addTearDown(() => KabsoProfileHeaderArt.animate = animate);

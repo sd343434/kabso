@@ -9,6 +9,15 @@ environment:
 
 dependencies:
   audioplayers: ^6.5.1
+  # D384 the VIP animated picture «صورة متحركة»: the front camera's frames
+  # while recording (image stream, no video file to decode). The official
+  # Flutter plugin (flutter.dev), BSD-3-Clause; pinned exactly, released
+  # 2026-10-27 (at least two weeks before this change), with its platform
+  # packages resolved no newer than two weeks (camera_web pinned: 0.3.6 is
+  # six days old; Android camera_android_camerax 0.7.6+1 2026-10-29, iOS
+  # camera_avfoundation 0.11.1 2026-10-21).
+  camera: 0.12.2
+  camera_web: 0.3.5+7
   clock: ^1.1.3
   # D126 the gift art disk cache (file names are SHA-256 of the URL).
   crypto: ^3.0.7
@@ -35,6 +44,14 @@ dependencies:
   flutter_webrtc: 1.6.2+hotfix.4
   freezed_annotation: ^3.1.0
   go_router: ^18.1.0
+  # D384 the VIP animated picture: on-device person segmentation (Google ML
+  # Kit selfie segmentation) removes the background on the phone — offline,
+  # free, no server ML. The plugin is MIT (flutter-ml.dev); the native ML Kit
+  # SDK it pulls (Android `segmentation-selfie` 16.0.0-beta6, bundled model;
+  # iOS pod `GoogleMLKit/SegmentationSelfie` 9.0, iOS ≥ 15.5) is Google's,
+  # under the ML Kit terms. Pinned exactly to 0.12.1 (2026-08-17): the 1.0.x
+  # line is less than two weeks old.
+  google_mlkit_selfie_segmentation: 0.12.1
   image_picker: ^1.2.4
   # D345 coins from the stores: Google Play Billing and App Store In-App
   # Purchase (StoreKit 2). The official Flutter plugin (flutter.dev),
