@@ -2,6 +2,7 @@
 // on the Posts header (polled), the inbox grouped by day with navigation,
 // and the settings page; wire format, Arabic RTL and English LTR.
 
+import 'package:clock/clock.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +23,7 @@ import 'package:kabso_live/features/notifications/presentation/notifications_scr
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../fixtures/notifications/notifications_d382_fixtures.dart';
 import '../../helpers/fake_http_adapter.dart';
 import '../../helpers/fake_notifications_repository.dart';
 import '../../helpers/fakes.dart';
@@ -587,6 +589,99 @@ void main() {
       // RTL: the avatar sits at the right.
       expect(avatar.center.dx, greaterThan(row.center.dx));
     });
+
+    testWidgets('D382: your photo beside the title (and back when pushed); '
+        'rows with the kind badge, the short time inline, the comment in 3 '
+        'lines at most and a dot on the unread ones', (tester) async {
+      await withClock(Clock.fixed(d382Now), () async {
+        final repo = FakeNotificationsRepository()
+          ..items = d382Notifications(ar: false);
+        final (_, router) = await pump(tester, repo: repo);
+        await tester.tap(find.byKey(NotificationsBell.bellKey));
+        await tester.pumpAndSettle();
+        expect(router.state.uri.path, AppRoutes.notifications);
+        expect(find.byKey(NotificationsScreen.avatarKey), findsOneWidget);
+        expect(find.text(_en.notificationsTitle), findsOneWidget);
+        expect(find.byKey(NotificationsScreen.backKey), findsOneWidget);
+        expect(find.byKey(NotificationsScreen.settingsKey), findsOneWidget);
+        // Photo (start) → sentence; the header photo before the title.
+        final title = tester.getRect(find.text(_en.notificationsTitle));
+        final me = tester.getRect(find.byKey(NotificationsScreen.avatarKey));
+        expect(me.right, lessThanOrEqualTo(title.left));
+        expect(me.width, NotificationsScreen.headerAvatar);
+        // The short time follows the sentence in the same paragraph.
+        expect(
+          find.textContaining(
+            '${_en.notifComment('\u2068Sara Mohammed\u2069')} '
+            '\u2068${_en.relativeShortHours(7)}\u2069',
+            findRichText: true,
+          ),
+          findsOneWidget,
+        );
+        // The comment under it: 3 lines at most.
+        final preview = tester.widget<Text>(
+          find
+              .descendant(
+                of: find.byKey(NotificationsScreen.rowKey('comment')),
+                matching: find.byType(Text),
+              )
+              .last,
+        );
+        expect(preview.maxLines, 3);
+        expect(preview.overflow, TextOverflow.ellipsis);
+        // Only the two unread rows carry the dot.
+        expect(find.byKey(NotificationRow.unreadDotKey), findsNWidgets(2));
+        // An actor's row: a 46 photo, the kind's badge at its bottom end.
+        final row = find.byKey(NotificationsScreen.rowKey('follow'));
+        final photo = tester.getRect(
+          find.descendant(of: row, matching: find.byType(KAvatar)),
+        );
+        expect(photo.width, NotificationRow.avatar);
+        final badge = tester.getRect(
+          find.descendant(
+            of: row,
+            matching: find.byIcon(Icons.person_add_alt_1_rounded),
+          ),
+        );
+        expect(badge.center.dx, greaterThan(photo.center.dx));
+        expect(badge.center.dy, greaterThan(photo.center.dy));
+        // No cards or dividers.
+        expect(find.byType(Card), findsNothing);
+        expect(find.byType(Divider), findsNothing);
+      });
+    });
+
+    for (final language in AppLanguage.values) {
+      for (final viewport in GoldenViewport.values) {
+        testWidgets('D382: text scale 1.3, ${language.name} '
+            '${viewport.name}: no overflow', (tester) async {
+          tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await withClock(Clock.fixed(d382Now), () async {
+            final repo = FakeNotificationsRepository()
+              ..items = d382Notifications(ar: language == AppLanguage.ar);
+            await pump(
+              tester,
+              repo: repo,
+              initial: AppRoutes.notifications,
+              language: language,
+              viewport: viewport,
+            );
+            expect(tester.takeException(), isNull);
+            await tester.drag(
+              find.byKey(NotificationsScreen.listKey),
+              const Offset(0, -2000),
+            );
+            await tester.pumpAndSettle();
+            expect(tester.takeException(), isNull);
+            expect(
+              find.byKey(NotificationsScreen.rowKey('removed')),
+              findsOneWidget,
+            );
+          });
+        });
+      }
+    }
   });
 
   test('sections: today, the last 7 days, earlier (local time)', () {
