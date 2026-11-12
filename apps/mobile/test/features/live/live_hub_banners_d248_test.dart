@@ -13,7 +13,6 @@ import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
 import 'package:kabso_live/features/live/presentation/hub/hub_card_banner.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
-import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -241,17 +240,12 @@ void main() {
         find.byKey(KHubCardBanner.pageKey('card-0')),
       );
       expect(semantics.getSemanticsData().flagsCollection.isButton, isTrue);
-      for (final filter in LiveHubFilter.values) {
-        final pill = find.byKey(LiveHubFilterBar.pillKey(filter));
-        if (pill.evaluate().isEmpty) continue;
+      for (final filter in LiveHubTopBar.filters) {
+        final pill = find.byKey(LiveHubTopBar.tabKey(filter));
+        await tester.ensureVisible(pill);
+        await tester.pumpAndSettle();
         await tester.tap(pill);
         await tester.pumpAndSettle();
-        // Popular opens its menu on a second tap; close it.
-        if (find.byType(LiveHubGrid).evaluate().isEmpty &&
-            find.byKey(LiveHubGrid.gridKey).evaluate().isEmpty) {
-          await tester.tapAt(const Offset(5, 840));
-          await tester.pumpAndSettle();
-        }
         expect(
           find.byKey(LiveHubGrid.cardBannerSlotKey),
           findsOneWidget,

@@ -23,6 +23,7 @@ import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart'
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/voice_rooms_screen.dart';
+import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
@@ -132,9 +133,15 @@ void main() {
           find.descendant(of: page, matching: find.byType(KLiveIcon)),
           findsNothing,
         );
+        // D377: the shared bar's «+» and search, and the list/grid switch;
+        // no bell (the Moments tab has it).
         expect(
           find.descendant(of: page, matching: find.byType(IconButton)),
-          findsOneWidget, // only the list/grid switch
+          findsNWidgets(3),
+        );
+        expect(
+          find.descendant(of: page, matching: find.byType(NotificationsBell)),
+          findsNothing,
         );
         expect(
           find.descendant(
@@ -206,8 +213,9 @@ void main() {
         });
       }
 
-      testWidgets('360×800 at text ×1.3 (real fonts): no overflow, the four '
-          'filters whole on screen, each badge whole on its picture', (
+      testWidgets('360×800 at text ×1.3 (real fonts): no overflow; D377: the '
+          'tabs keep their size and scroll beside «+» and search, each one '
+          'whole in the strip once shown; each badge whole on its picture', (
         tester,
       ) async {
         tester.view
@@ -220,10 +228,34 @@ void main() {
         await _pumpApp(tester, language);
         await _openFromTab(tester);
         expect(tester.takeException(), isNull);
+        final strip = tester.getRect(find.byKey(VoiceRoomsScreen.filtersKey));
         for (final f in VoiceRoomsScreen.filters) {
-          final tab = tester.getRect(find.byKey(VoiceRoomsScreen.filterKey(f)));
-          expect(tab.left, greaterThanOrEqualTo(0));
-          expect(tab.right, lessThanOrEqualTo(360));
+          final key = find.byKey(VoiceRoomsScreen.filterKey(f));
+          // The selected one is whole at once; the others after a scroll.
+          if (f != LiveHubFilter.popular) {
+            await tester.ensureVisible(key);
+            await tester.pumpAndSettle();
+          }
+          final tab = tester.getRect(key);
+          expect(tab.left, greaterThanOrEqualTo(strip.left - 0.5));
+          expect(tab.right, lessThanOrEqualTo(strip.right + 0.5));
+          // Never shrunk: the selected tab's 18 sp, the others' 15 sp.
+          expect(
+            tester
+                .widget<Text>(
+                  find.descendant(of: key, matching: find.byType(Text)),
+                )
+                .style!
+                .fontSize,
+            f == LiveHubFilter.popular ? 18 : 15,
+          );
+        }
+        // The strip ends before «+» and search.
+        final plus = tester.getRect(find.byKey(LiveHubGoLiveButton.buttonKey));
+        if (language == AppLanguage.ar) {
+          expect(strip.left, greaterThanOrEqualTo(plus.right - 0.5));
+        } else {
+          expect(strip.right, lessThanOrEqualTo(plus.left + 0.5));
         }
         for (final i in [0, 1, 2]) {
           final row = tester.getRect(find.byKey(VoiceRoomList.rowKey(i)));

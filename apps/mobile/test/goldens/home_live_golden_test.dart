@@ -247,15 +247,16 @@ void main() {
               tester,
               'live_hub.populated$suffix',
               brightness: brightness,
-              // D131: the hub's top bar and filters over the fixture rooms.
+              // D377: the shared top bar (the party page's tabs, «+» and
+              // search) over the fixture rooms.
               screen: SafeArea(
                 bottom: false,
+                top: false,
                 child: Column(
                   children: [
-                    const LiveHubTopBar(showNotifications: false),
-                    LiveHubFilterBar(
-                      selection: const LiveHubSelection(),
-                      onSelect: (_) {},
+                    LiveHubTopBar(
+                      filter: LiveHubFilter.popular,
+                      onFilter: (_) {},
                     ),
                     Expanded(
                       child: LiveHubBody(

@@ -174,6 +174,11 @@ abstract final class AppRoutes {
   /// CP-010: go live (camera preview, then on air).
   static const goLive = '/live/new';
 
+  /// D377: go live with a mode preselected (`?mode=audio`; the party
+  /// page's «+»). The person can still pick another mode inside go-live.
+  static String goLiveIn(String mode) =>
+      '$goLive?mode=${Uri.encodeQueryComponent(mode)}';
+
   /// D201: join the caller's own live as its second camera (device B).
   static const liveSecondCamera = '/live/second-camera';
 

@@ -51,66 +51,23 @@ import '../../helpers/pump_app.dart';
 
 final AppLocalizations _en = l10nFor(AppLanguage.en);
 
-/// D131: a Live hub filter pill.
-Finder _filter(LiveHubFilter f) => find.byKey(LiveHubFilterBar.pillKey(f));
+/// D377: a tab of the shared top bar.
+Finder _filter(LiveHubFilter f) => find.byKey(LiveHubTopBar.tabKey(f));
 
-/// D131: the hub's Popular pill selected, showing [label] (Popular, or
-/// its menu choice).
-bool _popularShows(WidgetTester tester, String label) =>
-    _selected(tester, _filter(LiveHubFilter.popular)) &&
-    find
-        .descendant(
-          of: _filter(LiveHubFilter.popular),
-          matching: find.text(label),
-        )
-        .evaluate()
-        .isNotEmpty;
-
-/// D131: shows the old tab [tab] with the filters: Following is its own tab
-/// (D237), New is Explore.
+/// D131: shows the old tab [tab] with the tabs (D377: Following, Popular,
+/// Explore, Nearby; New is Explore).
 Future<void> _showTab(WidgetTester tester, FeedTab tab) async {
-  final l10n = AppLocalizations.of(tester.element(find.byType(LiveScreen)));
-  if (tab == FeedTab.latest) {
-    await tester.dragUntilVisible(
-      _filter(LiveHubFilter.explore),
-      find.byType(LiveHubFilterBar),
-      const Offset(-200, 0),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(_filter(LiveHubFilter.explore));
-    await tester.pumpAndSettle();
-    return;
-  }
-  await tester.dragUntilVisible(
-    _filter(LiveHubFilter.popular),
-    find.byType(LiveHubFilterBar),
-    const Offset(200, 0),
-  );
+  final filter = switch (tab) {
+    FeedTab.following => LiveHubFilter.following,
+    FeedTab.popular => LiveHubFilter.popular,
+    FeedTab.latest => LiveHubFilter.explore,
+  };
+  await tester.ensureVisible(_filter(filter));
   await tester.pumpAndSettle();
-  // D237: Following is its own tab (the first).
-  if (tab == FeedTab.following) {
-    await tester.dragUntilVisible(
-      _filter(LiveHubFilter.following),
-      find.byType(LiveHubFilterBar),
-      const Offset(200, 0),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(_filter(LiveHubFilter.following));
-    await tester.pumpAndSettle();
-    return;
-  }
-  if (!_selected(tester, _filter(LiveHubFilter.popular))) {
-    await tester.tap(_filter(LiveHubFilter.popular));
+  if (!_selected(tester, _filter(filter))) {
+    await tester.tap(_filter(filter));
     await tester.pumpAndSettle();
   }
-  final want = tab == FeedTab.following
-      ? l10n.feedTabFollowing
-      : l10n.feedTabPopular;
-  if (_popularShows(tester, want)) return;
-  await tester.tap(_filter(LiveHubFilter.popular));
-  await tester.pumpAndSettle();
-  await tester.tap(find.byKey(LiveHubFilterBar.menuAllKey));
-  await tester.pumpAndSettle();
 }
 
 bool _selected(WidgetTester tester, Finder finder) =>
@@ -278,7 +235,7 @@ void main() {
         expect(find.byType(LiveScreen), findsOneWidget);
         expect(_selected(tester, find.byKey(const Key('nav.home'))), isTrue);
         expect(_selected(tester, find.byKey(const Key('nav.reels'))), isFalse);
-        expect(_popularShows(tester, _en.feedTabPopular), isTrue);
+        expect(_selected(tester, _filter(LiveHubFilter.popular)), isTrue);
       });
     }
 
@@ -294,7 +251,7 @@ void main() {
       await tester.tap(_action(_en.homeWatchLive));
       await tester.pumpAndSettle();
       expect(_location(tester), AppRoutes.home);
-      expect(_popularShows(tester, _en.feedTabPopular), isTrue);
+      expect(_selected(tester, _filter(LiveHubFilter.popular)), isTrue);
     });
 
     testWidgets('loading: skeleton posts after 300 ms; no empty or '
@@ -469,11 +426,7 @@ void main() {
       await _pumpLive(tester, live);
       await tester.tap(_action(_en.liveHubSeeNew));
       await tester.pumpAndSettle();
-      await tester.dragUntilVisible(
-        _filter(LiveHubFilter.explore),
-        find.byType(LiveHubFilterBar),
-        const Offset(-200, 0),
-      );
+      await tester.ensureVisible(_filter(LiveHubFilter.explore));
       await tester.pumpAndSettle();
       expect(_selected(tester, _filter(LiveHubFilter.explore)), isTrue);
       expect(live.requests.last.tab, LiveRoomsTab.latest);
@@ -497,7 +450,7 @@ void main() {
       expect(following(), before + 1);
       await tester.tap(_action(_en.feedSeePopular));
       await tester.pumpAndSettle();
-      expect(_popularShows(tester, _en.feedTabPopular), isTrue);
+      expect(_selected(tester, _filter(LiveHubFilter.popular)), isTrue);
     });
   });
 
@@ -618,22 +571,19 @@ void main() {
       expect(_streams(tester), 2);
     });
 
-    testWidgets('a failed category list: Try again reloads that category', (
+    testWidgets('a failed Explore list: Try again reloads Explore', (
       tester,
     ) async {
       var fail = true;
       final live = FakeLiveRepository(
         categories: apiCategories(),
-        rooms: (r) => r.category == 'music' && fail
+        rooms: (r) => r.tab == LiveRoomsTab.latest && fail
             ? throw const NetworkFailure.offline()
             : apiPage(apiRooms(2)),
       );
       await _pumpLive(tester, live);
-      // D131: a category is chosen from Popular's menu.
-      await tester.tap(_filter(LiveHubFilter.popular));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(LiveHubFilterBar.menuCategoryKey('music')));
-      await tester.pumpAndSettle();
+      // D377: no category menu any more; Explore is a tab.
+      await _showTab(tester, FeedTab.latest);
       // Offline gets its own state (QA-003).
       expect(find.byKey(FeedRegion.offlineKey), findsOneWidget);
       expect(find.text(_en.feedOfflineTitle), findsOneWidget);
@@ -643,8 +593,15 @@ void main() {
       await tester.tap(_action(_en.actionRetry));
       await tester.pumpAndSettle();
       expect(live.requests, hasLength(lists + 1));
-      expect(live.requests.last.category, 'music');
-      expect(_streams(tester), 2);
+      expect(live.requests.last.tab, LiveRoomsTab.latest);
+      expect(live.requests.last.category, isNull);
+      expect(
+        find.descendant(
+          of: find.byKey(const PageStorageKey<String>('live.explore')),
+          matching: find.byType(KLiveGridCard),
+        ),
+        findsNWidgets(2),
+      );
     });
 
     testWidgets('offline vs other failures: own copy only for '
@@ -1044,7 +1001,7 @@ void main() {
         final header = tester.getRect(
           key == const Key('nav.reels')
               ? find.byKey(FeedScreen.tabsKey)
-              : find.byType(LiveHubFilterBar).first,
+              : find.byKey(LiveHubTopBar.tabsKey).first,
         );
         expect(header.top, greaterThanOrEqualTo(59));
         // KL-060: Posts has an API (empty here); the live hub is off.

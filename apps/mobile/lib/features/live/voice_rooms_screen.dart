@@ -2,13 +2,11 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kabso_live/core/countries/countries.dart';
-import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
-import 'package:kabso_live/features/live/presentation/hub/live_nearby_country.dart';
 import 'package:kabso_live/features/live/presentation/hub/podcast_hub.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -16,35 +14,16 @@ import 'package:material_ui/material_ui.dart';
 /// D246: the party page's header and section, measured on the owner's ref
 /// (393 lp; the spec stays in scratch). D240's values came from ref 166.
 abstract final class KVoiceRoomsHeader {
-  /// Top row (the filters): the selected tab (cap 31 px = 13.2 lp → 18 sp,
-  /// heavy, `#2E3132`) and the others (cap 24–27 px → 15 sp, `#8D919C`).
-  static const double tabSelected = 18;
-  static const double tab = 15;
+  /// D377: the top tabs are the shared bar's ([KLiveTopBar]); these names
+  /// stay for the party page's measurements.
+  static const double tabSelected = KLiveTopBar.tabSelected;
+  static const double tab = KLiveTopBar.tab;
+  static const double tabInset = KLiveTopBar.tabInset;
+  static const double topRow = KLiveTopBar.row;
 
-  /// The dash under the selected top tab (17 × 7 px = 7.2 × 3 lp).
-  static const Size dash = Size(7.2, 3);
-
-  /// The dash's gap under the label line: the ref's dash is 7.3 lp under
-  /// the baseline (Latin); Arabic needs more room for its descenders.
-  static const double dashGap = 1;
-  static const double dashGapArabic = 5;
-
-  /// Second row (D342: only Nearby's country; the kinds are gone): cap
-  /// 22 px = 9.4 lp → 13 sp.
-  static const double subTab = 13;
-
-  /// Gap between top tabs (37–40 px = 16.5 lp).
-  static const double tabGap = 16.5;
-
-  /// Start insets: top row 16.6 lp, second row 21.3 lp.
-  static const double tabInset = 16.6;
-  static const double subTabInset = 21.3;
-
-  /// The rows' heights. The ref's rows are ≈ 30 and 25 lp; ours keep the
-  /// 48 lp top bar (as every top bar) and, with «القريبة» only (D342), a
-  /// 30 lp second row under D142's 10 lp status-bar gap.
-  static const double topRow = KMetrics.topBarHeight;
-  static const double subRow = 30;
+  /// «القريبة»'s country row under the tabs.
+  static const double subRow = KLiveTopBar.subRow;
+  static const double subTabInset = KLiveTopBar.subTabInset;
 
   /// "Rooms" (cap 25 px = 10.6 lp → 15 sp heavy), 15.75 lp in.
   static const double section = 15;
@@ -101,28 +80,31 @@ abstract final class KVoiceRoomsHeader {
 /// - "Rooms" with the list/grid switch; no filter icon (nothing behind it).
 /// - The promo banners after the 4th room and swiping between this list's
 ///   rooms inside a room, like the hub.
+///
+/// D377 (owner 2026-11-12: «بجانبي ايقونات الاشعارات والبحث و+ سيكون فلتر
+/// الموجود الان في الحفلة — ثم طبق هذا الشريط العلوي على صفحة البث», and
+/// «اقترح ازالة ايقونة الاشعارات من الحفلة والبث لانه يكفي في اللحظات»): the
+/// top row is the shared [LiveHubTopBar] — these four tabs (same queries,
+/// same order) with «+» (go-live on Audio, `/live/new?mode=audio`) and
+/// search beside them; the Live hub wears the same bar. No bell (the
+/// Moments tab has it). The scheduled podcasts, "Rooms" and everything
+/// below are unchanged.
 class VoiceRoomsScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
-  static const backKey = Key('voiceRooms.back');
-  static const titleKey = Key('voiceRooms.title');
+  /// D377: the top bar is the shared [LiveHubTopBar]; its keys.
+  static const Key backKey = LiveHubTopBar.backKey;
   static const layoutKey = Key('voiceRooms.layout');
 
   /// D246: the filter tabs (the top row).
-  static const filtersKey = Key('voiceRooms.filters');
-  static Key filterKey(LiveHubFilter filter) =>
-      Key('voiceRooms.filter.${filter.name}');
+  static const Key filtersKey = LiveHubTopBar.tabsKey;
+  static Key filterKey(LiveHubFilter filter) => LiveHubTopBar.tabKey(filter);
 
-  /// D246: the party page's filters, in order.
-  static const List<LiveHubFilter> filters = [
-    LiveHubFilter.following,
-    LiveHubFilter.popular,
-    LiveHubFilter.explore,
-    LiveHubFilter.nearby,
-  ];
+  /// D246: the party page's filters, in order (D377: the shared bar's).
+  static const List<LiveHubFilter> filters = LiveHubTopBar.filters;
 
   /// D246: Nearby's country, the second row (D342: its only tab).
-  static const countryKey = Key('voiceRooms.nearbyCountry');
+  static const Key countryKey = LiveHubTopBar.countryKey;
 
   @override
   ConsumerState<VoiceRoomsScreen> createState() => _VoiceRoomsScreenState();
@@ -211,9 +193,13 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
       backgroundColor: light ? KVoiceRoomsHeader.lightPage : p.background,
       body: Column(
         children: [
-          _Header(
+          // D377: the shared top bar (the hub wears the same one); «+»
+          // opens go-live on Audio.
+          LiveHubTopBar(
             filter: _selection.filter,
             onFilter: (f) => _select(LiveHubSelection(filter: f)),
+            goLiveMode: LiveRoomMode.audio,
+            label: context.l10n.liveVoiceRoomsTitle,
           ),
           Expanded(
             child: light
@@ -271,275 +257,6 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
                 : page,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const new({required this.filter, required this.onFilter});
-
-  final LiveHubFilter filter;
-  final ValueChanged<LiveHubFilter> onFilter;
-
-  static String filterLabel(AppLocalizations l10n, LiveHubFilter f) =>
-      switch (f) {
-        LiveHubFilter.following => l10n.livePartyTabFollowing,
-        LiveHubFilter.nearby => l10n.liveHubFilterNearby,
-        LiveHubFilter.popular => l10n.liveHubFilterPopular,
-        LiveHubFilter.featured => l10n.liveHubFilterFeatured,
-        LiveHubFilter.explore => l10n.liveHubFilterExplore,
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final light = Theme.of(context).brightness == Brightness.light;
-    final scaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: KMetrics.topBarMaxTextScale);
-    // D240: the back arrow only when this page was pushed.
-    final pushed = Navigator.maybeOf(context)?.canPop() ?? false;
-    return MediaQuery(
-      data: MediaQuery.of(context).copyWith(textScaler: scaler),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: light ? p.surfaceRaised : p.surface,
-          border: light
-              ? null
-              : Border(bottom: BorderSide(color: p.border, width: 0.5)),
-        ),
-        child: KTopSafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                height: KVoiceRoomsHeader.topRow,
-                child: Row(
-                  children: [
-                    if (pushed)
-                      IconButton(
-                        key: VoiceRoomsScreen.backKey,
-                        tooltip: MaterialLocalizations.of(context)
-                            .backButtonTooltip,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 36,
-                          height: KVoiceRoomsHeader.topRow,
-                        ),
-                        padding: EdgeInsets.zero,
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        // Points to the reading start (mirrored in Arabic).
-                        icon: Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 20,
-                          color: p.textPrimary,
-                        ),
-                      ),
-                    Expanded(
-                      child: Semantics(
-                        key: VoiceRoomsScreen.titleKey,
-                        container: true,
-                        explicitChildNodes: true,
-                        label: l10n.liveVoiceRoomsTitle,
-                        // The four tabs shrink to fit (Arabic at 360 lp,
-                        // large text) instead of scrolling one out of sight.
-                        child: Padding(
-                          padding: EdgeInsetsDirectional.only(
-                            start: pushed ? 0 : KVoiceRoomsHeader.tabInset,
-                            end: KVoiceRoomsHeader.tabInset,
-                          ),
-                          child: FittedBox(
-                            key: VoiceRoomsScreen.filtersKey,
-                            fit: BoxFit.scaleDown,
-                            alignment: AlignmentDirectional.centerStart,
-                            child: SizedBox(
-                              height: KVoiceRoomsHeader.topRow,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  for (final (i, f)
-                                      in VoiceRoomsScreen.filters.indexed) ...[
-                                    if (i > 0)
-                                      const SizedBox(
-                                        width: KVoiceRoomsHeader.tabGap,
-                                      ),
-                                    _TopTab(
-                                      key: VoiceRoomsScreen.filterKey(f),
-                                      label: filterLabel(l10n, f),
-                                      selected: f == filter,
-                                      onTap: () => onFilter(f),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // D342 (owner: «زر في الاعلى لنقل المستخدم على لايف …
-                    // ازله»): no Live switch in the corner any more.
-                  ],
-                ),
-              ),
-              // D342: the kinds row is gone; «القريبة» keeps its country.
-              if (filter == LiveHubFilter.nearby)
-                const SizedBox(
-                  height: KVoiceRoomsHeader.subRow,
-                  child: Padding(
-                    padding: EdgeInsetsDirectional.only(
-                      start: KVoiceRoomsHeader.subTabInset,
-                      end: KVoiceRoomsHeader.subTabInset,
-                    ),
-                    child: Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: _NearbyCountryTab(),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TopTab extends StatelessWidget {
-  const new({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    super.key,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    final light = Theme.of(context).brightness == Brightness.light;
-    final ink = light ? KVoiceRoomsHeader.lightInk : p.textPrimary;
-    final grey = light ? KVoiceRoomsHeader.lightGrey : p.textTertiary;
-    return Semantics(
-      button: true,
-      selected: selected,
-      inMutuallyExclusiveGroup: true,
-      label: label,
-      onTap: onTap,
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              maxLines: 1,
-              style: context.textStyles.title.copyWith(
-                color: selected ? ink : grey,
-                fontSize: selected
-                    ? KVoiceRoomsHeader.tabSelected
-                    : KVoiceRoomsHeader.tab,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-                height: 1.2,
-              ),
-            ),
-            // Arabic letters reach under the line (ر, ئ, ج): the dash
-            // sits below them instead of touching them.
-            SizedBox(
-              height: Localizations.localeOf(context).languageCode == 'ar'
-                  ? KVoiceRoomsHeader.dashGapArabic
-                  : KVoiceRoomsHeader.dashGap,
-            ),
-            Container(
-              width: KVoiceRoomsHeader.dash.width,
-              height: KVoiceRoomsHeader.dash.height,
-              decoration: BoxDecoration(
-                color: selected ? ink : const Color(0x00000000),
-                borderRadius: BorderRadius.circular(KRadius.pill),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// D246: «القريبة»'s country at the start of the second row (the ref's
-/// «Jordan»): the flag, the name in the app language and a small ▾; a tap
-/// opens the D240 picker (kept on this device). No country: «اختر بلداً ▾».
-class _NearbyCountryTab extends ConsumerWidget {
-  const new();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final light = Theme.of(context).brightness == Brightness.light;
-    final ink = light ? KVoiceRoomsHeader.lightInk : p.textPrimary;
-    final arabic = ref.watch(liveScopeProvider).language == AppLanguage.ar;
-    final country = KCountries.byCode(ref.watch(liveCountryProvider));
-    final name = country == null
-        ? l10n.liveNearbyChooseCountry
-        : KCountries.name(country, arabic: arabic);
-    void open() => unawaited(openLiveNearbyCountryPicker(context, ref));
-    final style = context.textStyles.label.copyWith(
-      color: ink,
-      fontSize: KVoiceRoomsHeader.subTab,
-      fontWeight: FontWeight.w600,
-      height: 1.2,
-    );
-    return Semantics(
-      button: true,
-      label: country == null
-          ? l10n.liveNearbyChooseCountry
-          : l10n.liveNearbyCountryRow(name),
-      onTap: open,
-      excludeSemantics: true,
-      child: GestureDetector(
-        key: VoiceRoomsScreen.countryKey,
-        behavior: HitTestBehavior.opaque,
-        onTap: open,
-        child: SizedBox(
-          height: KVoiceRoomsHeader.subRow,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (country != null) ...[
-                // The flag art (`assets/flags/`, as the cards), not the
-                // emoji: the same on every phone.
-                Image.asset(
-                  'assets/flags/${country.code.toLowerCase()}.webp',
-                  width: 18,
-                  height: 13,
-                  fit: BoxFit.contain,
-                  excludeFromSemantics: true,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                ),
-                const SizedBox(width: 4),
-              ],
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 120),
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: style,
-                ),
-              ),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 16,
-                color: p.textSecondary,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

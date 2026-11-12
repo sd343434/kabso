@@ -325,7 +325,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.newReel,
         builder: (_, _) => const NewReelScreen(),
       ),
-      GoRoute(path: AppRoutes.goLive, builder: (_, _) => const GoLiveScreen()),
+      // D377: `?mode=audio|podcast|solo` preselects a mode (the party
+      // page's «+»); anything else opens go-live on its default mode.
+      GoRoute(
+        path: AppRoutes.goLive,
+        builder: (_, state) => GoLiveScreen(
+          initialMode: GoLiveScreen.modeFromQuery(
+            state.uri.queryParameters['mode'],
+          ),
+        ),
+      ),
       GoRoute(
         path: AppRoutes.liveSecondCamera,
         builder: (_, _) => const SecondCameraScreen(),
