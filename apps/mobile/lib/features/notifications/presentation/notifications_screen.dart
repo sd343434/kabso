@@ -845,106 +845,102 @@ typedef NotificationKind = ({Color color, IconData icon});
 /// D382: the colour and icon of [type] (green: accepted or done, red: likes,
 /// blue: comments and mentions, orange: time and coins, error: removed or
 /// refused).
-NotificationKind notificationKind(NotificationType type, KPalette p) =>
-    switch (type) {
-      NotificationType.likePost ||
-      NotificationType.likeComment ||
-      NotificationType.cpRequest ||
-      NotificationType.cpAccepted => (
-        color: p.primary,
-        icon: Icons.favorite_rounded,
-      ),
-      NotificationType.comment || NotificationType.reply => (
-        color: p.info,
-        icon: Icons.chat_bubble_rounded,
-      ),
-      NotificationType.mention => (
-        color: p.info,
-        icon: Icons.alternate_email_rounded,
-      ),
-      NotificationType.follow || NotificationType.followRequest => (
-        color: p.success,
-        icon: Icons.person_add_alt_1_rounded,
-      ),
-      NotificationType.repost => (color: p.success, icon: Icons.repeat_rounded),
-      NotificationType.followRequestAccepted ||
-      NotificationType.postPublished ||
-      NotificationType.familyJoinAccepted ||
-      NotificationType.agencyProbationPassed ||
-      NotificationType.hostApplicationApproved ||
-      NotificationType.kycApproved ||
-      NotificationType.levelRaiseApproved => (
-        color: p.success,
-        icon: Icons.check_rounded,
-      ),
-      NotificationType.liveScheduledSoon ||
-      NotificationType.kycInReview ||
-      NotificationType.agencyProbationReminder ||
-      NotificationType.premiumUsernameExpiring => (
-        color: p.warning,
-        icon: Icons.schedule_rounded,
-      ),
-      NotificationType.contentRemoved ||
-      NotificationType.avatarRemoved ||
-      NotificationType.coverRemoved ||
-      NotificationType.liveModerated => (
-        color: p.error,
-        icon: Icons.gpp_maybe_rounded,
-      ),
-      NotificationType.familyJoinDeclined ||
-      NotificationType.hostApplicationRejected ||
-      NotificationType.kycDeclined ||
-      NotificationType.levelRaiseRejected ||
-      NotificationType.agencyClosed => (
-        color: p.error,
-        icon: Icons.close_rounded,
-      ),
-      NotificationType.referralRewardReversed => (
-        color: p.error,
-        icon: Icons.undo_rounded,
-      ),
-      NotificationType.liveStaffReport || NotificationType.staffReportNew => (
-        color: p.error,
-        icon: Icons.flag_rounded,
-      ),
-      NotificationType.medalAwarded ||
-      NotificationType.eventPrizeWon ||
-      NotificationType.levelRaised ||
-      NotificationType.premiumUsernameExpired => (
-        color: p.warning,
-        icon: Icons.workspace_premium_rounded,
-      ),
-      NotificationType.bagItemReceived => (
-        color: p.primary,
-        icon: Icons.card_giftcard_rounded,
-      ),
-      NotificationType.rechargeCoinsReceived ||
-      NotificationType.rechargeCherryRequest ||
-      NotificationType.rechargeOrderUpdate => (
-        color: p.warning,
-        icon: Icons.monetization_on_rounded,
-      ),
-      NotificationType.dataExportReady => (
-        color: p.info,
-        icon: Icons.download_rounded,
-      ),
-      NotificationType.agencyOpened || NotificationType.agencyHostReleased => (
-        color: p.info,
-        icon: Icons.business_center_rounded,
-      ),
-      NotificationType.ownerFeedbackNew => (
-        color: p.info,
-        icon: Icons.inbox_rounded,
-      ),
-      NotificationType.ownerAnnouncement => (
-        color: p.primary,
-        icon: Icons.campaign_rounded,
-      ),
-      NotificationType.unknown => (
-        color: p.textTertiary,
-        icon: Icons.notifications_rounded,
-      ),
-    };
+NotificationKind notificationKind(
+  NotificationType type,
+  KPalette p,
+) => switch (type) {
+  NotificationType.likePost ||
+  NotificationType.likeComment ||
+  NotificationType.cpRequest ||
+  NotificationType.cpAccepted => (
+    color: p.primary,
+    icon: Icons.favorite_rounded,
+  ),
+  NotificationType.comment ||
+  NotificationType.reply => (color: p.info, icon: Icons.chat_bubble_rounded),
+  NotificationType.mention => (
+    color: p.info,
+    icon: Icons.alternate_email_rounded,
+  ),
+  NotificationType.follow || NotificationType.followRequest => (
+    color: p.success,
+    icon: Icons.person_add_alt_1_rounded,
+  ),
+  NotificationType.repost => (color: p.success, icon: Icons.repeat_rounded),
+  NotificationType.followRequestAccepted ||
+  NotificationType.postPublished ||
+  NotificationType.familyJoinAccepted ||
+  NotificationType.agencyProbationPassed ||
+  NotificationType.hostApplicationApproved ||
+  NotificationType.kycApproved ||
+  NotificationType.levelRaiseApproved => (
+    color: p.success,
+    icon: Icons.check_rounded,
+  ),
+  NotificationType.liveScheduledSoon ||
+  NotificationType.kycInReview ||
+  NotificationType.agencyProbationReminder ||
+  NotificationType.premiumUsernameExpiring => (
+    color: p.warning,
+    icon: Icons.schedule_rounded,
+  ),
+  NotificationType.contentRemoved ||
+  NotificationType.avatarRemoved ||
+  NotificationType.coverRemoved ||
+  NotificationType.liveModerated => (
+    color: p.error,
+    icon: Icons.gpp_maybe_rounded,
+  ),
+  NotificationType.familyJoinDeclined ||
+  NotificationType.hostApplicationRejected ||
+  NotificationType.kycDeclined ||
+  NotificationType.levelRaiseRejected ||
+  NotificationType.agencyClosed => (color: p.error, icon: Icons.close_rounded),
+  NotificationType.referralRewardReversed => (
+    color: p.error,
+    icon: Icons.undo_rounded,
+  ),
+  NotificationType.liveStaffReport ||
+  NotificationType.staffReportNew => (color: p.error, icon: Icons.flag_rounded),
+  NotificationType.medalAwarded ||
+  NotificationType.eventPrizeWon ||
+  NotificationType.levelRaised ||
+  NotificationType.premiumUsernameExpired => (
+    color: p.warning,
+    icon: Icons.workspace_premium_rounded,
+  ),
+  // D372: a gift on your post or reel «هدية الدعم» — the gift badge.
+  NotificationType.bagItemReceived || NotificationType.contentGiftReceived => (
+    color: p.primary,
+    icon: Icons.card_giftcard_rounded,
+  ),
+  NotificationType.rechargeCoinsReceived ||
+  NotificationType.rechargeCherryRequest ||
+  NotificationType.rechargeOrderUpdate => (
+    color: p.warning,
+    icon: Icons.monetization_on_rounded,
+  ),
+  NotificationType.dataExportReady => (
+    color: p.info,
+    icon: Icons.download_rounded,
+  ),
+  NotificationType.agencyOpened || NotificationType.agencyHostReleased => (
+    color: p.info,
+    icon: Icons.business_center_rounded,
+  ),
+  NotificationType.ownerFeedbackNew => (
+    color: p.info,
+    icon: Icons.inbox_rounded,
+  ),
+  NotificationType.ownerAnnouncement => (
+    color: p.primary,
+    icon: Icons.campaign_rounded,
+  ),
+  NotificationType.unknown => (
+    color: p.textTertiary,
+    icon: Icons.notifications_rounded,
+  ),
+};
 
 /// D382: the kind's small circle at the photo's bottom corner (a white
 /// icon, ringed in the page colour).
