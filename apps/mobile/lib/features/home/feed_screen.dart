@@ -336,26 +336,14 @@ class _ModeTopBar extends StatelessWidget {
               ),
             ),
           ),
-          if (showSearch)
-            PositionedDirectional(
-              start: KSpacing.xs,
-              top: 0,
-              bottom: 0,
-              child: IconButton(
-                key: FeedScreen.searchKey,
-                tooltip: l10n.feedSearch,
-                constraints: const BoxConstraints.tightFor(
-                  width: KSizes.minTouchTarget,
-                  height: KSizes.minTouchTarget,
-                ),
-                onPressed: () => context.push(AppRoutes.discover),
-                icon: AppIcon(
-                  AppIcons.search,
-                  size: KMetrics.iconMd,
-                  color: p.textPrimary,
-                ),
-              ),
-            ),
+          // Owner 2026-11-12 («انقل ال + محل البحث»): «+» at the reading
+          // start, where search was; search moves beside the bell.
+          const PositionedDirectional(
+            start: KSpacing.xs,
+            top: 0,
+            bottom: 0,
+            child: _CreateButton(),
+          ),
           PositionedDirectional(
             end: KSpacing.xs,
             top: 0,
@@ -363,7 +351,21 @@ class _ModeTopBar extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const _CreateButton(),
+                if (showSearch)
+                  IconButton(
+                    key: FeedScreen.searchKey,
+                    tooltip: l10n.feedSearch,
+                    constraints: const BoxConstraints.tightFor(
+                      width: KSizes.minTouchTarget,
+                      height: KSizes.minTouchTarget,
+                    ),
+                    onPressed: () => context.push(AppRoutes.discover),
+                    icon: AppIcon(
+                      AppIcons.search,
+                      size: KMetrics.iconMd,
+                      color: p.textPrimary,
+                    ),
+                  ),
                 if (showNotifications) const NotificationsBell(),
               ],
             ),
