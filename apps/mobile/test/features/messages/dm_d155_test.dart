@@ -33,6 +33,7 @@ import 'package:kabso_live/features/push/push_payload.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/features/stories/data/stories_repository.dart';
+import 'package:kabso_live/features/support/data/support_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -43,6 +44,7 @@ import '../../helpers/fake_live_voice_recorder.dart';
 import '../../helpers/fake_media_repository.dart';
 import '../../helpers/fake_safety_repository.dart';
 import '../../helpers/fake_stories_repository.dart';
+import '../../helpers/fake_support_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/pump_app.dart';
 
@@ -86,6 +88,8 @@ Future<void> _pump(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         dmRepositoryProvider.overrideWithValue(dm),
+        supportRepositoryProvider.overrideWithValue(FakeSupportRepository()),
+        dmPinsRepositoryProvider.overrideWithValue(FakeDmPinsRepository()),
         // D336: the Messages tab's story cards never reach the network.
         storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
         currentUserProvider.overrideWithValue(testUser()),
@@ -581,6 +585,8 @@ void main() {
           overrides: [
             sharedPreferencesProvider.overrideWithValue(prefs),
             dmRepositoryProvider.overrideWithValue(dm),
+            supportRepositoryProvider.overrideWithValue(FakeSupportRepository()),
+            dmPinsRepositoryProvider.overrideWithValue(FakeDmPinsRepository()),
             currentUserProvider.overrideWithValue(testUser()),
           ],
         );
@@ -595,6 +601,8 @@ void main() {
           overrides: [
             sharedPreferencesProvider.overrideWithValue(prefs),
             dmRepositoryProvider.overrideWithValue(dm),
+            supportRepositoryProvider.overrideWithValue(FakeSupportRepository()),
+            dmPinsRepositoryProvider.overrideWithValue(FakeDmPinsRepository()),
             currentUserProvider.overrideWithValue(null),
           ],
         );

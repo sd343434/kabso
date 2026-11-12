@@ -194,6 +194,9 @@ enum ErrorCode {
   /// v1.104-social (D339): the group would pass its member cap.
   dmGroupFull('DM_GROUP_FULL'),
 
+  /// v1.137-social (D385, §10.174.4): a 6th pinned chat.
+  dmPinLimit('DM_PIN_LIMIT'),
+
   /// v1.104-social (D339): someone the caller may not add to a group.
   dmGroupMemberNotAllowed('DM_GROUP_MEMBER_NOT_ALLOWED'),
 

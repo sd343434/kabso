@@ -21,11 +21,13 @@ import 'package:kabso_live/features/messages/messages_tab.dart';
 import 'package:kabso_live/features/messages/widgets/dm_new_message_sheet.dart';
 import 'package:kabso_live/features/stories/data/stories_repository.dart';
 import 'package:kabso_live/features/stories/domain/story_models.dart';
+import 'package:kabso_live/features/support/data/support_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/fake_stories_repository.dart';
+import '../../helpers/fake_support_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/pump_app.dart';
 
@@ -106,6 +108,8 @@ Future<void> _pump(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         dmRepositoryProvider.overrideWithValue(dm ?? _dm()),
+        supportRepositoryProvider.overrideWithValue(FakeSupportRepository()),
+        dmPinsRepositoryProvider.overrideWithValue(FakeDmPinsRepository()),
         storiesRepositoryProvider.overrideWithValue(
           stories ?? FakeStoriesRepository(),
         ),

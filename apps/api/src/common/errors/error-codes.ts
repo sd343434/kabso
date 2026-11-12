@@ -91,6 +91,8 @@ export enum ErrorCode {
   // v1.104-social (DRAFT, D339): archived chats and group messages (CONVENTIONS §10.132, §10.133).
   DM_NOT_ARCHIVABLE = 'DM_NOT_ARCHIVABLE',
   DM_GROUP_FULL = 'DM_GROUP_FULL',
+  /** v1.137-social (D385, §10.174.4): a 6th pinned chat. */
+  DM_PIN_LIMIT = 'DM_PIN_LIMIT',
   DM_GROUP_MEMBER_NOT_ALLOWED = 'DM_GROUP_MEMBER_NOT_ALLOWED',
   /** v1.21-live (DRAFT, CP-018): the caller or the other person already has a CP partner. */
   CP_ALREADY_PAIRED = 'CP_ALREADY_PAIRED',
@@ -462,6 +464,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.DM_DELETE_WINDOW_PASSED]: 409,
   [ErrorCode.DM_NOT_ARCHIVABLE]: 409,
   [ErrorCode.DM_GROUP_FULL]: 409,
+  [ErrorCode.DM_PIN_LIMIT]: 409,
   [ErrorCode.DM_GROUP_MEMBER_NOT_ALLOWED]: 403,
   [ErrorCode.CP_ALREADY_PAIRED]: 409,
   [ErrorCode.CP_REQUEST_PENDING]: 409,
@@ -641,6 +644,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.DM_DELETE_WINDOW_PASSED]: 'This message can no longer be deleted for everyone.',
   [ErrorCode.DM_NOT_ARCHIVABLE]: 'A message request cannot be archived; accept or delete it.',
   [ErrorCode.DM_GROUP_FULL]: 'This group has reached its member limit.',
+  [ErrorCode.DM_PIN_LIMIT]: 'You can pin up to 5 chats. Unpin one first.',
   [ErrorCode.DM_GROUP_MEMBER_NOT_ALLOWED]: 'Some of these people cannot be added to a group by you.',
   [ErrorCode.CP_ALREADY_PAIRED]: 'Already in a CP couple.',
   [ErrorCode.CP_REQUEST_PENDING]: 'You already have a pending CP request.',

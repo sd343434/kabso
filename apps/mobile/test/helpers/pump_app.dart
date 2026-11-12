@@ -36,6 +36,7 @@ import 'package:kabso_live/features/privacy/privacy_repository.dart';
 import 'package:kabso_live/features/programs/data/event_announcements_repository.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 import 'package:kabso_live/features/stories/data/stories_repository.dart';
+import 'package:kabso_live/features/support/data/support_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -66,6 +67,7 @@ import 'fake_privacy_repository.dart';
 import 'fake_recharge_repository.dart';
 import 'fake_splash_video.dart';
 import 'fake_stories_repository.dart';
+import 'fake_support_repository.dart';
 import 'fake_youtube_player.dart';
 
 /// Shared preferences with an explicit language.
@@ -100,6 +102,8 @@ Future<void> pumpKabsoApp(
   LiveGiftRepository? liveGiftRepository,
   DmRepository? dmRepository,
   DmGroupsRepository? dmGroupsRepository,
+  SupportRepository? supportRepository,
+  DmPinsRepository? dmPinsRepository,
   LiveBoostRepository? liveBoostRepository,
   LiveNewcomersRepository? liveNewcomersRepository,
   LiveDataCenterRepository? liveDataCenterRepository,
@@ -178,6 +182,13 @@ Future<void> pumpKabsoApp(
         // D339: never the network (no groups).
         dmGroupsRepositoryProvider.overrideWithValue(
           dmGroupsRepository ?? FakeDmGroupsRepository(),
+        ),
+        // D385: never the network («دعم كابسو» before a message, no pins).
+        supportRepositoryProvider.overrideWithValue(
+          supportRepository ?? FakeSupportRepository(),
+        ),
+        dmPinsRepositoryProvider.overrideWithValue(
+          dmPinsRepository ?? FakeDmPinsRepository(),
         ),
         // CP-020: never the network (an empty catalogue, as production).
         liveGiftRepositoryProvider.overrideWithValue(
@@ -266,6 +277,8 @@ Future<void> pumpScreen(
   HomeBannersRepository? homeBannersRepository,
   DmRepository? dmRepository,
   DmGroupsRepository? dmGroupsRepository,
+  SupportRepository? supportRepository,
+  DmPinsRepository? dmPinsRepository,
   FakeInlineVideos? inlineVideos,
   RechargeRepository? rechargeRepository,
   FakeLivePkRepository? livePkRepository,
@@ -326,6 +339,13 @@ Future<void> pumpScreen(
         // D339: never the network (no groups).
         dmGroupsRepositoryProvider.overrideWithValue(
           dmGroupsRepository ?? FakeDmGroupsRepository(),
+        ),
+        // D385: never the network («دعم كابسو» before a message, no pins).
+        supportRepositoryProvider.overrideWithValue(
+          supportRepository ?? FakeSupportRepository(),
+        ),
+        dmPinsRepositoryProvider.overrideWithValue(
+          dmPinsRepository ?? FakeDmPinsRepository(),
         ),
         // CP-020: never the network (an empty catalogue, as production).
         liveGiftRepositoryProvider.overrideWithValue(

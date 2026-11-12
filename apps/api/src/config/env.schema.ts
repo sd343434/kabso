@@ -636,6 +636,8 @@ export const envSchema = z
     // v1.104-social (D339, CONVENTIONS §7, §10.133): new groups «رسائل جماعية», per user (their messages count in
     // RATE_LIMIT_DM_SEND_USER, the other group writes in RATE_LIMIT_DM_WRITE_USER).
     RATE_LIMIT_DM_GROUP_CREATE_USER: rateLimit('2/86400'),
+    // v1.137-social (D385, CONVENTIONS §7, §10.174.3): messages to «دعم كابسو», per user.
+    RATE_LIMIT_SUPPORT_SEND_USER: rateLimit('10/60'),
     // v1.48-social (D171, CONVENTIONS §7, §10.45): bag item sends, per user.
     RATE_LIMIT_BAG_SEND_USER: rateLimit('30/3600'),
     /** v1.54-social (D185, §10.48): coin sales by a recharge agent or employee, and the other recharge writes. */

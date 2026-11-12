@@ -77,16 +77,30 @@ describe('D355 WhatsApp switched off', { timeout: 120_000 }, () => {
     await ctx?.close();
   });
 
-  it('without credentials: the badge says enabled false, the inbox and the webhook answer 503', async () => {
+  it('without credentials: the badge says enabled false, WhatsApp requests and the webhook answer 503', async () => {
     expect(ctx.config.whatsapp.credentials).toBeNull();
     const support = await p.makeAdmin(['SUPPORT']);
     const s = await ctx.http.get('/api/v1/staff/whatsapp/summary').set(auth(support));
     expect(s.status, JSON.stringify(s.body)).toBe(200);
     expectContract(s, 'getStaffWhatsAppSummary');
-    expect(s.body).toEqual({ enabled: false, badge: 0, mine: 0, unassigned: 0, unreadMessages: 0 });
+    // v1.137-social (D385, §10.174.6): the in-app «دعم كابسو» threads are still served (none here).
+    expect(s.body).toEqual({
+      enabled: false,
+      inApp: true,
+      badge: 0,
+      mine: 0,
+      unassigned: 0,
+      unreadMessages: 0,
+    });
     const l = await ctx.http.get('/api/v1/staff/whatsapp/conversations').set(auth(support));
-    expect(l.status).toBe(503);
-    expect(l.body.error.code).toBe('WHATSAPP_UNAVAILABLE');
+    expect(l.status).toBe(200);
+    expect(l.body.data).toEqual([]);
+    const wa = await ctx.http.get('/api/v1/staff/whatsapp/conversations?channel=WHATSAPP').set(auth(support));
+    expect(wa.status).toBe(503);
+    expect(wa.body.error.code).toBe('WHATSAPP_UNAVAILABLE');
+    const templates = await ctx.http.get('/api/v1/staff/whatsapp/templates').set(auth(support));
+    expect(templates.status).toBe(503);
+    expect(templates.body.error.code).toBe('WHATSAPP_UNAVAILABLE');
     const w = await ctx.http
       .post('/api/v1/webhooks/whatsapp')
       .set('Content-Type', 'application/json')
@@ -252,7 +266,14 @@ describe('D355 WhatsApp inbox', { timeout: 600_000 }, () => {
     const s = await staff(support, 'get', '/summary');
     expect(s.status).toBe(200);
     expectContract(s, 'getStaffWhatsAppSummary');
-    expect(s.body).toEqual({ enabled: true, badge: 1, mine: 0, unassigned: 1, unreadMessages: 1 });
+    expect(s.body).toEqual({
+      enabled: true,
+      inApp: true,
+      badge: 1,
+      mine: 0,
+      unassigned: 1,
+      unreadMessages: 1,
+    });
     const l = await staff(support, 'get', '/conversations?filter=unassigned');
     expect(l.status).toBe(200);
     expectContract(l, 'getStaffWhatsAppConversations');

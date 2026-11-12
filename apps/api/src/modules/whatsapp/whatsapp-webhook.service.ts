@@ -34,7 +34,9 @@ import { WhatsAppService } from './whatsapp.service.js';
 export const WA_PUSH_TITLE = { ar: 'واتساب Kabso', en: 'Kabso WhatsApp' } as const;
 
 /** «+9665••••4567»: the push never shows the full number on a lock screen. */
-export function maskedPhone(e164: string): string {
+export function maskedPhone(e164: string | null): string {
+  // v1.137-social (D385): an IN_APP thread has no phone (never reaches the webhook; typed for the shared row).
+  if (e164 === null) return 'Kabso';
   if (e164.length <= 8) return e164;
   return `${e164.slice(0, 5)}${'•'.repeat(Math.max(e164.length - 9, 2))}${e164.slice(-4)}`;
 }
@@ -277,7 +279,7 @@ export class WhatsAppWebhookService {
     id: string;
     assignedToId: string | null;
     profileName: string | null;
-    phoneE164: string;
+    phoneE164: string | null;
   }) {
     if (!this.push.enabled) return;
     const recipients = await this.inbox.pushRecipients(conv);

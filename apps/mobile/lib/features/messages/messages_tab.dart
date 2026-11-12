@@ -21,8 +21,10 @@ import 'package:kabso_live/features/messages/domain/dm_models.dart';
 import 'package:kabso_live/features/messages/group_chat_screen.dart';
 import 'package:kabso_live/features/messages/widgets/dm_group_row.dart';
 import 'package:kabso_live/features/messages/widgets/dm_new_message_sheet.dart';
+import 'package:kabso_live/features/messages/widgets/dm_pinned_row.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
+import 'package:kabso_live/features/support/application/support_providers.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -202,6 +204,8 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
   void _refresh() {
     if (!mounted) return;
     unawaited(ref.read(dmInboxProvider(_box).notifier).refresh());
+    // D385: the pinned row (its circles' unread counts and dots).
+    unawaited(ref.read(dmPinsProvider.notifier).refresh());
     final q = _query;
     if (q != null) {
       unawaited(
@@ -392,6 +396,11 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
         if (!_searching) ...[
           titleHeader,
           const SizedBox(height: KDmList.titleBottom),
+          // D385 (owner: «اجعل شات الإدارة مثبت في الاعلى بنفس هذه الطريقة
+          // … يمكن للشخص تثبيت ٥ محادثات في الاعلى»): «دعم كابسو» first,
+          // then the pinned chats — between the title and «الدردشات», as
+          // the reference.
+          const DmPinnedRow(),
         ],
         messagesHeader,
         _BoxesPanel(
@@ -1020,6 +1029,14 @@ class DmConversationRow extends StatelessWidget {
   }
 }
 
+/// D385: «تثبيت في الأعلى» / «إلغاء التثبيت» in a row's long-press menu.
+Widget _pinTile(BuildContext sheet, {required bool pinned}) => ListTile(
+  key: pinned ? DmPinActions.unpinKey : DmPinActions.pinKey,
+  leading: Icon(pinned ? Icons.push_pin_outlined : Icons.push_pin_rounded),
+  title: Text(pinned ? sheet.l10n.dmUnpin : sheet.l10n.dmPin),
+  onTap: () => Navigator.of(sheet).pop('pin'),
+);
+
 /// D165: the long-press menu of a conversation row.
 Future<void> _conversationActions(
   BuildContext context,
@@ -1038,6 +1055,9 @@ Future<void> _conversationActions(
       last != null &&
       item.status != DmConversationStatus.requestReceived;
   final canRead = item.markedUnread || readMessages;
+  // D385: an accepted conversation can be pinned (a request cannot).
+  final pinnable = item.status != DmConversationStatus.requestReceived;
+  final pinned = ref.read(dmPinsProvider).contains(item.id);
   final action = await showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
@@ -1045,6 +1065,7 @@ Future<void> _conversationActions(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (pinnable) _pinTile(sheet, pinned: pinned),
           if (canRead)
             ListTile(
               key: DmInboxScreen.actionReadKey,
@@ -1099,6 +1120,10 @@ Future<void> _conversationActions(
     ),
   );
   if (action == null || !context.mounted) return;
+  if (action == 'pin') {
+    await togglePin(context, ref, DmChat.direct(item), pinned: pinned);
+    return;
+  }
   if (action == 'archive') {
     await _setArchived(
       context,
@@ -1245,6 +1270,7 @@ Future<void> _groupActions(
   final l10n = context.l10n;
   final last = group.lastMessage;
   final canRead = group.unreadCount > 0 && last != null && !last.mine;
+  final pinned = ref.read(dmPinsProvider).contains(group.id);
   final action = await showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
@@ -1252,6 +1278,7 @@ Future<void> _groupActions(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          _pinTile(sheet, pinned: pinned),
           if (canRead)
             ListTile(
               key: DmInboxScreen.actionReadKey,
@@ -1293,6 +1320,10 @@ Future<void> _groupActions(
     ),
   );
   if (action == null || !context.mounted) return;
+  if (action == 'pin') {
+    await togglePin(context, ref, DmChat.group(group), pinned: pinned);
+    return;
+  }
   if (action == 'archive') {
     await _setArchived(
       context,

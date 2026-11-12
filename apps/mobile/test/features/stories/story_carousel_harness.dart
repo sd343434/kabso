@@ -22,6 +22,7 @@ import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/features/stories/data/stories_repository.dart';
 import 'package:kabso_live/features/stories/presentation/story_viewer_screen.dart';
+import 'package:kabso_live/features/support/data/support_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -29,6 +30,7 @@ import '../../fixtures/stories/story_carousel_d375_fixtures.dart';
 import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/fake_safety_repository.dart';
 import '../../helpers/fake_stories_repository.dart';
+import '../../helpers/fake_support_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -146,6 +148,8 @@ Future<FakeStoriesRepository> pumpCarousel(
           storiesRepositoryProvider.overrideWithValue(repo),
           safetyRepositoryProvider.overrideWithValue(FakeSafetyRepository()),
           dmRepositoryProvider.overrideWithValue(FakeDmRepository()),
+          supportRepositoryProvider.overrideWithValue(FakeSupportRepository()),
+          dmPinsRepositoryProvider.overrideWithValue(FakeDmPinsRepository()),
           secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
           currentUserProvider.overrideWithValue(testUser()),
           homeStoriesProvider.overrideWith(

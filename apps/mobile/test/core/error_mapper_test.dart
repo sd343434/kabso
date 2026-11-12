@@ -286,6 +286,7 @@ void main() {
           // v1.104-social (D339)
           'DM_NOT_ARCHIVABLE',
           'DM_GROUP_FULL',
+          'DM_PIN_LIMIT',
           'DM_GROUP_MEMBER_NOT_ALLOWED',
           'QUIP_FREE_USED',
           'QUIP_QUEUE_FULL',

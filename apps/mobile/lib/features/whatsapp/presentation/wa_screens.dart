@@ -31,6 +31,9 @@ class WaInboxScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
   static const tabsKey = Key('wa.tabs');
+
+  /// D385: an in-app «دعم كابسو» thread's «داخل التطبيق» pill.
+  static Key inAppKey(String id) => Key('wa.inApp.$id');
   static const searchKey = Key('wa.search');
   static Key row(String id) => Key('wa.row.$id');
 
@@ -79,7 +82,8 @@ class _WaInboxScreenState extends ConsumerState<WaInboxScreen> {
     final l10n = context.l10n;
     final p = context.palette;
     final summary = ref.watch(waSummaryProvider).value;
-    if (summary != null && !summary.enabled) {
+    // D385: the in-app «دعم كابسو» threads keep the inbox on without WhatsApp.
+    if (summary != null && !summary.served) {
       return Scaffold(
         appBar: AppBar(title: Text(l10n.waTitle)),
         body: KEmptyState(
@@ -438,7 +442,7 @@ class WaConversationTile extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      named ? c.name! : waPhone(c.phone),
+                      named ? c.name! : waPhone(c.phone ?? ''),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: t.bodyStrong.copyWith(
@@ -461,6 +465,9 @@ class WaConversationTile extends StatelessWidget {
                       spacing: KSpacing.xs,
                       runSpacing: KSpacing.xxs,
                       children: [
+                        // D385: «داخل التطبيق» — a «دعم كابسو» thread.
+                        if (c.inApp)
+                          WaInAppPill(key: WaInboxScreen.inAppKey(c.id)),
                         WaPill(label: tag, color: tagColor),
                         WaDepartmentPill(department: c.department),
                       ],
@@ -498,6 +505,19 @@ class WaConversationTile extends StatelessWidget {
 
 /// D365: a small tinted label (who has the conversation, the reply window,
 /// «مشاهدة فقط»): the colour at 14 % behind its own text.
+/// D385 (§10.174.6): «داخل التطبيق» — a «دعم كابسو» thread, beside the
+/// WhatsApp ones in the same inbox.
+class WaInAppPill extends StatelessWidget {
+  const new({super.key});
+
+  @override
+  Widget build(BuildContext context) => WaPill(
+    label: context.l10n.waInApp,
+    color: context.palette.info,
+    icon: Icons.smartphone_rounded,
+  );
+}
+
 class WaPill extends StatelessWidget {
   const new({required this.label, required this.color, super.key, this.icon});
 
@@ -723,14 +743,21 @@ class _WaChatScreenState extends ConsumerState<WaChatScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          c.name ?? waPhone(c.phone),
+                          c.name ?? waPhone(c.phone ?? ''),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: t.bodyStrong.copyWith(color: p.textPrimary),
                         ),
-                        if (c.name != null)
+                        if (c.inApp)
                           Text(
-                            waPhone(c.phone),
+                            l10n.waInApp,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.caption.copyWith(color: p.info),
+                          )
+                        else if (c.name != null)
+                          Text(
+                            waPhone(c.phone ?? ''),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: t.caption.copyWith(color: p.textSecondary),
@@ -1017,6 +1044,9 @@ class WaWindowBanner extends StatelessWidget {
         color: p.textTertiary,
         icon: Icons.archive_outlined,
       );
+    } else if (c.inApp) {
+      // D385: no 24-hour window in the app.
+      window = const WaInAppPill();
     } else if (c.windowOpen && closes != null) {
       final left = closes.difference(clock.now());
       final minutes = left.isNegative ? 0 : (left.inSeconds / 60).ceil();
@@ -1985,24 +2015,27 @@ class _WaComposerState extends ConsumerState<WaComposer> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            SizedBox.square(
-              dimension: KChatComposer.button,
-              child: IconButton(
-                key: WaComposer.attachKey,
-                tooltip: l10n.waAttach,
-                padding: EdgeInsets.zero,
-                onPressed: _busy ? null : () => unawaited(_attach()),
-                style: IconButton.styleFrom(
-                  shape: CircleBorder(side: BorderSide(color: p.border)),
-                ),
-                icon: Icon(
-                  Icons.add_rounded,
-                  size: KChatComposer.icon + 4,
-                  color: p.textPrimary,
+            // D385: in-app replies are text (no photos, no templates).
+            if (!widget.c.inApp) ...[
+              SizedBox.square(
+                dimension: KChatComposer.button,
+                child: IconButton(
+                  key: WaComposer.attachKey,
+                  tooltip: l10n.waAttach,
+                  padding: EdgeInsets.zero,
+                  onPressed: _busy ? null : () => unawaited(_attach()),
+                  style: IconButton.styleFrom(
+                    shape: CircleBorder(side: BorderSide(color: p.border)),
+                  ),
+                  icon: Icon(
+                    Icons.add_rounded,
+                    size: KChatComposer.icon + 4,
+                    color: p.textPrimary,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: KSpacing.xs),
+              const SizedBox(width: KSpacing.xs),
+            ],
             Expanded(
               child: TextField(
                 key: WaChatScreen.composerKey,
@@ -2614,7 +2647,10 @@ class _WaCustomerSheetState extends ConsumerState<WaCustomerSheet> {
           padding: const EdgeInsets.all(KSpacing.lg),
           children: [
             Text(l10n.waCustomer, style: t.title),
-            Text(waPhone(c.phone), style: t.body),
+            if (c.inApp)
+              Text(l10n.waInAppHint, style: t.body)
+            else
+              Text(waPhone(c.phone ?? ''), style: t.body),
             const SizedBox(height: KSpacing.md),
             Text(l10n.waAccount, style: t.bodyStrong),
             if (a != null)
@@ -2626,7 +2662,8 @@ class _WaCustomerSheetState extends ConsumerState<WaCustomerSheet> {
                   '${KFormat.bidiIsolate('@${a.username}')} · '
                   '${KFormat.date(a.createdAt.toLocal(), locale)}',
                 ),
-                trailing: viewOnly
+                // D385: an in-app thread's account is its owner (no unlink).
+                trailing: viewOnly || c.inApp
                     ? null
                     : TextButton(
                         onPressed: () => unawaited(_do((r) => r.unlink(c.id))),

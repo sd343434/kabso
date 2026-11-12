@@ -381,6 +381,8 @@ export enum AuditAction {
   WHATSAPP_LEVEL = 'admin.team.whatsapp',
   /** v1.123-social (D366, §10.159.1): a staff member's WhatsApp departments set or reset {before, after, reason}. */
   WHATSAPP_DEPARTMENTS = 'admin.team.whatsapp_departments',
+  /** v1.137-social (D385, §10.174.3): a person opened a «دعم كابسو» ticket {department, reopened}. */
+  SUPPORT_TICKET_OPEN = 'support.ticket.open',
   TOPUP_EVENT_UNMATCHED = 'topup.event.unmatched',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',

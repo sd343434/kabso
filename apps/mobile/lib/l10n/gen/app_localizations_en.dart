@@ -18751,4 +18751,79 @@ class AppLocalizationsEn extends AppLocalizations {
   String vipScheduledGiftOption(String name, String coins) {
     return '$name · $coins';
   }
+
+  @override
+  String get supportChatName => 'Kabso Support';
+
+  @override
+  String get supportChatSubtitle => 'The Kabso Team answers here';
+
+  @override
+  String supportUnread(int count) {
+    return 'Kabso Support, unread replies: $count';
+  }
+
+  @override
+  String get supportIntro =>
+      'Tell us what you need: top-ups, agencies, a technical problem or a report. Choose the topic, send your message, and the Kabso Team will answer here.';
+
+  @override
+  String get supportPickTopic => 'Choose the topic of your message';
+
+  @override
+  String get supportNewTicket =>
+      'Your last request was closed — choose the topic of a new one';
+
+  @override
+  String get supportPickTopicFirst => 'Choose a topic first';
+
+  @override
+  String supportTopicOf(String topic) {
+    return 'Topic: $topic';
+  }
+
+  @override
+  String get supportComposerHint => 'Write to the Kabso Team';
+
+  @override
+  String get supportReceiptReceived => 'Received';
+
+  @override
+  String get supportReceiptRead => 'Read by the team';
+
+  @override
+  String get dmPin => 'Pin to top';
+
+  @override
+  String get dmUnpin => 'Unpin';
+
+  @override
+  String get dmPinnedDone => 'Pinned to the top';
+
+  @override
+  String get dmUnpinned => 'Unpinned';
+
+  @override
+  String dmPinLimit(int max) {
+    return 'You can pin up to $max chats. Unpin one first.';
+  }
+
+  @override
+  String get dmPinOnline => 'Online now';
+
+  @override
+  String get dmPinnedLabel => 'Pinned';
+
+  @override
+  String get dmPinActions => 'Pin options';
+
+  @override
+  String get errorDmPinLimit => 'You can pin up to 5 chats. Unpin one first.';
+
+  @override
+  String get waInApp => 'In app';
+
+  @override
+  String get waInAppHint =>
+      'A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text.';
 }

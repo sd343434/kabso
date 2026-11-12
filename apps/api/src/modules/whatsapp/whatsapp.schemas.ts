@@ -6,6 +6,8 @@ export const listQuery = z.strictObject({
   filter: z.enum(['unassigned', 'mine', 'all', 'closed']).default('all'),
   /** D366 (§10.159.4): only the conversations of one department. */
   department: z.enum(WA_DEPARTMENTS).optional(),
+  /** v1.137-social (D385, §10.174.6): only WhatsApp or only in-app «دعم كابسو» threads. */
+  channel: z.enum(['WHATSAPP', 'IN_APP']).optional(),
   q: z.string().trim().max(80).optional(),
   cursor: z.string().max(512).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),

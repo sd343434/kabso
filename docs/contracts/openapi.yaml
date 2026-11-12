@@ -721,6 +721,16 @@ info:
     holder's seconds, the size scaled with them); `MyVip.perksNow` (`VipPerksNow`). Migration
     `20270513090000_vip_gift_perks`. Additive for the app (new fields ignored; a non-member sees no change except that
     an exclusive gift leaves the catalogue).
+    **D385 (DRAFT v1.137-social)** «دعم كابسو» — the in-app support chat — and pinned chats (CONVENTIONS §10.174; owner
+    2026-11-12): tag `support` — `getSupportThread`, `listSupportMessages`, `sendSupportMessage` (text, a DM_IMAGE
+    picture or a DM_VOICE clip; the first message of a new ticket names its `topic`, one of the five departments),
+    `readSupportThread`; the thread is a `WaConversation` of `channel: IN_APP` in the staff inbox beside WhatsApp
+    (`WaChannel`, `WaConversation.channel`, `WaConversation.phone` null for IN_APP, `WaSummary.inApp`, a `channel` filter
+    on both list operations; no 24-hour window and no templates in-app); the inbox works without the WhatsApp
+    credentials for IN_APP threads. Pins: `listDmPins` (`GET /dm/pins`), `pinDmConversation` / `unpinDmConversation`,
+    `pinDmGroup` / `unpinDmGroup` (`PUT` / `DELETE …/pin`; `DmPin`, `DmPinList`; at most 5, more → 409 `DM_PIN_LIMIT`).
+    Server config `RATE_LIMIT_SUPPORT_SEND_USER`. Migration `20270515090000_support_chat_pins`. Additive for the app; the
+    staff inbox's `phone` may now be null (an IN_APP thread).
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -1385,6 +1395,8 @@ tags:
     description: "Level configuration, user progression, reconciliation and audit for admins (role ADMIN; v1.4-levels DRAFT, CP-005)."
   - name: store-iap
     description: "(v1.110-social DRAFT, D345) Coins from the stores «الشراء من المتجر»: Google Play Billing and App Store In-App Purchase consumables, verified by the server; refunds claw back and ban (CONVENTIONS §10.144)."
+  - name: support
+    description: "(v1.137-social DRAFT, D385) «دعم كابسو» — the caller's in-app support chat with the Kabso Team (CONVENTIONS §10.174). The staff answer it in the WhatsApp inbox (`channel: IN_APP`)."
   - name: whatsapp
     description: "(v1.116-social DRAFT, D355) Meta's WhatsApp Business Platform webhook for the official Kabso number «واتساب» (public, signed). The staff's inbox is under the tags staff and admin-panel (CONVENTIONS §10.151)."
 paths:
@@ -12277,6 +12289,182 @@ paths:
               schema: { $ref: '#/components/schemas/MyVip' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/pins:
+    get:
+      tags: [messages]
+      operationId: listDmPins
+      summary: "The caller's pinned chats, in pin order (v1.137-social, D385)"
+      description: |
+        The circles at the top of «الرسائل» after «دعم كابسو» (which is always first and is not a pin — read it with
+        `getSupportThread`). At most `max` (5) direct conversations and groups, first pinned first; a pin is kept on the
+        server, so every device of the account shows the same row. A pin whose chat the caller can no longer open (a
+        group left or removed, a conversation deleted, a block either way, a peer gone) is dropped here. `online`: the
+        peer's presence only as CONVENTIONS §10.25 allows (the same family, `showActivityStatus` on, no block either way),
+        else null — never for a group (CONVENTIONS §10.174.5).
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmPinList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/conversations/{conversationId}/pin:
+    put:
+      tags: [messages]
+      operationId: pinDmConversation
+      summary: "Pin a conversation to the top of «الرسائل» (v1.137-social, D385)"
+      description: |
+        An accepted conversation of the caller (a message request waiting for the caller → 404). Already pinned:
+        unchanged (idempotent, keeps its place). A 6th pin → 409 `DM_PIN_LIMIT` (`{field: "pins", issue: "too_many"}`);
+        «دعم كابسو» never counts. Returns the pins after the change (CONVENTIONS §10.174.4).
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '200':
+          description: The pins now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmPinList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [messages]
+      operationId: unpinDmConversation
+      summary: "Unpin a conversation (v1.137-social, D385)"
+      description: Idempotent (not pinned → the pins unchanged). Returns the pins after the change.
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '200':
+          description: The pins now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmPinList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups/{groupId}/pin:
+    put:
+      tags: [messages]
+      operationId: pinDmGroup
+      summary: "Pin a group to the top of «الرسائل» (v1.137-social, D385)"
+      description: The rules of `pinDmConversation` for a group the caller is in (CONVENTIONS §10.174.4).
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      responses:
+        '200':
+          description: The pins now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmPinList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [messages]
+      operationId: unpinDmGroup
+      summary: "Unpin a group (v1.137-social, D385)"
+      description: Idempotent. Returns the pins after the change.
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      responses:
+        '200':
+          description: The pins now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmPinList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/support/thread:
+    get:
+      tags: [support]
+      operationId: getSupportThread
+      summary: "The caller's «دعم كابسو» thread (v1.137-social, D385)"
+      description: |
+        Always answers, for every account: `status: NONE` before the first message (`id` null). OPEN: a ticket is open
+        (its `department` is the topic or a staff transfer's); CLOSED: the team closed it — the next message opens a
+        new ticket and must name a `topic`. `unreadCount`: the team's replies after the caller last read the thread
+        (≤ 99). CONVENTIONS §10.174.1.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SupportThread' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/support/thread/messages:
+    get:
+      tags: [support]
+      operationId: listSupportMessages
+      summary: "The thread's messages, newest first (v1.137-social, D385)"
+      description: |
+        The caller's messages (`mine`) and the team's replies — a reply names only the staff member's first name
+        (`staff.firstName`) under the «فريق كابسو» badge, never their account. Internal notes and the assignment history
+        are never here. Before the first message: an empty page. CONVENTIONS §10.174.2.
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string, maxLength: 512 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 30 }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SupportMessagePage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [support]
+      operationId: sendSupportMessage
+      summary: "Write to «دعم كابسو»: text, a picture or a voice clip (v1.137-social, D385)"
+      description: |
+        201 new, 200 a retry with the same `clientId`. The picture is a `DM_IMAGE` upload and the voice clip a
+        `DM_VOICE` upload of the caller (the direct-message media pipeline, `createMediaUpload`); anything else → 400
+        `mediaId` / `invalid_value`. No open ticket (`status` NONE or CLOSED) → `topic` is required (400 `topic` /
+        `required`); it is the new ticket's department (the staff inbox's queue). With an open ticket `topic` is ignored.
+        Rate limit `support:send` (`RATE_LIMIT_SUPPORT_SEND_USER`, 10 a minute). The team is pushed (CONVENTIONS
+        §10.174.3). A restriction of the caller (CHAT_MUTE) does not stop it: support is always reachable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SupportSendRequest' }
+      responses:
+        '200':
+          description: A retry with the same `clientId`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SupportSendResult' }
+        '201':
+          description: Sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SupportSendResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/support/thread/read:
+    post:
+      tags: [support]
+      operationId: readSupportThread
+      summary: "The caller read the team's replies (v1.137-social, D385)"
+      description: "`unreadCount` becomes 0. No thread: nothing to do. Idempotent."
+      responses:
+        '204': { description: Read. }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/vip/scheduled-gifts:
     get:
       tags: [vip]
@@ -22609,6 +22797,11 @@ paths:
           required: false
           description: "(v1.123-social, D366, §10.159.4) Only the conversations of this department."
           schema: { $ref: '#/components/schemas/WaDepartment' }
+        - name: channel
+          in: query
+          required: false
+          description: "(v1.137-social, D385, §10.174.6) Only WhatsApp or only in-app «دعم كابسو» threads (both when absent)."
+          schema: { $ref: '#/components/schemas/WaChannel' }
         - name: q
           in: query
           required: false
@@ -23251,6 +23444,11 @@ paths:
           required: false
           description: "(v1.123-social, D366, §10.159.4) Only the conversations of this department."
           schema: { $ref: '#/components/schemas/WaDepartment' }
+        - name: channel
+          in: query
+          required: false
+          description: "(v1.137-social, D385, §10.174.6) Only WhatsApp or only in-app «دعم كابسو» threads (both when absent)."
+          schema: { $ref: '#/components/schemas/WaChannel' }
         - name: q
           in: query
           required: false
@@ -24390,7 +24588,8 @@ components:
       type: object
       required: [enabled, badge, mine, unassigned, unreadMessages]
       properties:
-        enabled: { type: boolean, description: "false: WhatsApp is not configured on this server (the app hides the entry)." }
+        enabled: { type: boolean, description: "false: WhatsApp is not configured on this server. (v1.137-social, D385) The inbox still serves the in-app threads (`inApp`); the counts are then theirs only." }
+        inApp: { type: boolean, description: "(v1.137-social, D385, §10.174.6) The in-app «دعم كابسو» threads are served (always true from v1.137; absent before). The app shows the inbox when `enabled` or `inApp`." }
         badge: { type: integer, minimum: 0, description: "mine + unassigned." }
         mine: { type: integer, minimum: 0, description: "Open conversations assigned to the caller with unread messages." }
         unassigned: { type: integer, minimum: 0, description: "Open unassigned conversations with unread messages." }
@@ -24403,11 +24602,11 @@ components:
         closesAt: { type: [string, 'null'], format: date-time }
     WaConversation:
       type: object
-      required: [id, phone, name, status, assignedTo, assignedToMe, unreadCount, lastMessageAt, lastPreview, lastDirection, window, linkedAccount, closedAt, createdAt, department, priority]
+      required: [id, phone, name, status, assignedTo, assignedToMe, unreadCount, lastMessageAt, lastPreview, lastDirection, window, linkedAccount, closedAt, createdAt, department, priority, channel]
       properties:
         id: { type: string, format: uuid }
-        phone: { type: string, pattern: '^\+[1-9][0-9]{6,14}$', description: "E.164." }
-        name: { type: [string, 'null'], description: "The customer's WhatsApp profile name." }
+        phone: { type: [string, 'null'], pattern: '^\+[1-9][0-9]{6,14}$', description: "E.164. (v1.137-social, D385) null for an IN_APP thread (the account is `linkedAccount`)." }
+        name: { type: [string, 'null'], description: "The customer's WhatsApp profile name; (D385) an IN_APP thread: the account's display name." }
         status: { type: string, enum: [OPEN, CLOSED] }
         assignedTo:
           oneOf:
@@ -24427,6 +24626,7 @@ components:
         createdAt: { type: string, format: date-time }
         department: { $ref: '#/components/schemas/WaDepartment' }
         priority: { type: boolean, description: "v1.134-social (D381, §10.171.3): the linked account held PRIORITY_SUPPORT when it was linked or last wrote — the inbox lists these first (each newest first)." }
+        channel: { $ref: '#/components/schemas/WaChannel' }
     WaConversationPage:
       type: object
       required: [data, page]
@@ -24512,6 +24712,87 @@ components:
                 name: { type: string, pattern: '^[a-z0-9_]{1,512}$' }
                 language: { type: string, examples: [ar, en_US] }
                 parameters: { type: array, maxItems: 20, items: { type: string, minLength: 1, maxLength: 1024 }, description: "The body's {{1}}, {{2}} … in order (the count must match)." }
+    WaChannel:
+      type: string
+      enum: [WHATSAPP, IN_APP]
+      description: "(v1.137-social, D385, §10.174.6) Where a support conversation is: the official WhatsApp number, or «دعم كابسو» inside the app «داخل التطبيق» (no 24-hour window, no templates, never linked or unlinked: the account is the thread's owner)."
+    DmPin:
+      type: object
+      description: "(v1.137-social, D385) One pinned chat at the top of «الرسائل»."
+      required: [type, id, pinnedAt, chat, online]
+      properties:
+        type: { type: string, enum: [DIRECT, GROUP] }
+        id: { type: string, format: uuid, description: The conversation's or the group's id. }
+        pinnedAt: { type: string, format: date-time }
+        chat: { $ref: '#/components/schemas/DmChat' }
+        online: { type: [boolean, 'null'], description: "The peer's presence only as CONVENTIONS §10.25 allows (same family, `showActivityStatus`, no block either way); otherwise null (no dot). Always null for a group." }
+    DmPinList:
+      type: object
+      required: [data, max]
+      properties:
+        data: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/DmPin' }, description: "First pinned first." }
+        max: { type: integer, const: 5 }
+    SupportThread:
+      type: object
+      description: "(v1.137-social, D385, §10.174.1) The caller's «دعم كابسو» thread."
+      required: [id, status, department, unreadCount, lastMessageAt, lastPreview]
+      properties:
+        id: { type: [string, 'null'], format: uuid }
+        status: { type: string, enum: [NONE, OPEN, CLOSED], description: "NONE / CLOSED: the next message opens a ticket and names its `topic`." }
+        department:
+          oneOf:
+            - $ref: '#/components/schemas/WaDepartment'
+            - type: 'null'
+        unreadCount: { type: integer, minimum: 0, maximum: 99 }
+        lastMessageAt: { type: [string, 'null'], format: date-time }
+        lastPreview: { type: [string, 'null'], maxLength: 120 }
+    SupportStaff:
+      type: object
+      description: "(D385) Who of the team replied: the first name only, shown with the «فريق كابسو» badge — never the account."
+      required: [firstName]
+      properties:
+        firstName: { type: [string, 'null'], maxLength: 40, description: "null: the badge alone." }
+    SupportMessage:
+      type: object
+      required: [id, mine, kind, text, media, staff, receipt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        mine: { type: boolean }
+        kind: { type: string, enum: [TEXT, IMAGE, VOICE] }
+        text: { type: [string, 'null'] }
+        media:
+          oneOf:
+            - $ref: '#/components/schemas/MediaAsset'
+            - type: 'null'
+        staff:
+          oneOf:
+            - $ref: '#/components/schemas/SupportStaff'
+            - type: 'null'
+        receipt: { type: [string, 'null'], enum: [RECEIVED, READ, null], description: "The caller's own messages: RECEIVED «تم الاستلام» (with the team), READ (the team opened it after). null on the team's." }
+        createdAt: { type: string, format: date-time }
+    SupportMessagePage:
+      type: object
+      required: [data, page, thread]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/SupportMessage' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+        thread: { $ref: '#/components/schemas/SupportThread' }
+    SupportSendRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, clientId]
+      properties:
+        kind: { type: string, enum: [TEXT, IMAGE, VOICE] }
+        text: { type: string, description: "TEXT: 1–1 000 code points, at most 20 line breaks (the direct-message rules)." }
+        mediaId: { type: string, format: uuid, description: "IMAGE: a `DM_IMAGE` upload; VOICE: a `DM_VOICE` upload — the caller's, unattached." }
+        clientId: { type: string, format: uuid }
+        topic: { $ref: '#/components/schemas/WaDepartment' }
+    SupportSendResult:
+      type: object
+      required: [message, thread]
+      properties:
+        message: { $ref: '#/components/schemas/SupportMessage' }
+        thread: { $ref: '#/components/schemas/SupportThread' }
     WaDepartment:
       type: string
       enum: [PAYMENTS, AGENCIES, TECHNICAL, REPORTS, GENERAL]

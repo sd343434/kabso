@@ -246,6 +246,8 @@ model User {
   // v1.104-social (D339): group messages «رسائل جماعية».
   dmGroupsCreated        DmGroup[]                  @relation("DmGroupCreator")
   dmGroupMemberships     DmGroupMember[]            @relation("DmGroupMemberUser")
+  /// v1.137-social (D385, CONVENTIONS §10.174.4): the chats pinned at the top of «الرسائل».
+  dmPins                 DmPin[]                    @relation("DmPinUser")
   dmGroupMessagesSent    DmGroupMessage[]           @relation("DmGroupMessageSender")
   // v1.44-social (D166): the Me hub's programs.
   taskClaims             TaskClaim[]
@@ -368,8 +370,8 @@ model User {
   rechargePoints          RechargePointsBalance?
   rechargePointsLedger    RechargePointsEntry[]
   /// v1.133-social (D380, §10.170.5): anonymous senders this person refused, and the refusals of this sender.
-  anonymousGiftBlocksMade AnonymousGiftBlock[] @relation("AnonymousGiftBlockRecipient")
-  anonymousGiftBlocksGot  AnonymousGiftBlock[] @relation("AnonymousGiftBlockSender")
+  anonymousGiftBlocksMade AnonymousGiftBlock[]     @relation("AnonymousGiftBlockRecipient")
+  anonymousGiftBlocksGot  AnonymousGiftBlock[]     @relation("AnonymousGiftBlockSender")
   /// D270 (§10.98).
   storePurchases          StorePurchase[]          @relation("StorePurchaseBuyer")
   storeGiftsReceived      StorePurchase[]          @relation("StorePurchaseRecipient")
@@ -1251,10 +1253,10 @@ model LiveChatMessage {
   /// CP-021 (D112): the author's couple had the Exclusive Chat Bubble (CP level 2+) when it was sent.
   cpBubble    Boolean             @default(false) @map("cp_bubble")
 
-  room      LiveRoom    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user      User        @relation("LiveChatAuthor", fields: [userId], references: [id], onDelete: Cascade)
-  deletedBy User?       @relation("LiveChatDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
-  media     MediaAsset? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  room      LiveRoom      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User          @relation("LiveChatAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  deletedBy User?         @relation("LiveChatDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+  media     MediaAsset?   @relation(fields: [mediaId], references: [id], onDelete: SetNull)
   reports   Report[]
   /// v1.132-social (D379): the VIP pins of this message.
   pins      LiveChatPin[]
@@ -1998,6 +2000,8 @@ model MediaAsset {
   levelRaise      LevelRaiseRequest?
   /// v1.95-social (D301): the owner's cover video (one language).
   ownerCoverVideo OwnerCoverVideo?
+  /// v1.137-social (D385): an in-app «دعم كابسو» message's picture or voice clip.
+  waMessage       WaMessage?         @relation("WaMessageMedia")
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")
@@ -2211,20 +2215,20 @@ model PostMention {
 
 /// A comment or a reply (`parent_id`, one level; §11.5).
 model Comment {
-  id         String    @id @default(uuid(7)) @db.Uuid
-  postId     String    @map("post_id") @db.Uuid
-  authorId   String    @map("author_id") @db.Uuid
-  parentId   String?   @map("parent_id") @db.Uuid
+  id         String      @id @default(uuid(7)) @db.Uuid
+  postId     String      @map("post_id") @db.Uuid
+  authorId   String      @map("author_id") @db.Uuid
+  parentId   String?     @map("parent_id") @db.Uuid
   /// v1.127-social (D372, §10.164): GIFT — the gift line of a content gift send (empty `text`, top level, never edited).
   kind       CommentKind @default(TEXT)
   /// v1.127-social (D372): the send of a GIFT comment (CHECK `comments_gift_shape`).
-  giftId     String?   @unique(map: "comments_gift_id_key") @map("gift_id") @db.Uuid
-  text       String    @db.VarChar(500)
-  likeCount  Int       @default(0) @map("like_count")
-  replyCount Int       @default(0) @map("reply_count")
-  pinnedAt   DateTime? @map("pinned_at") @db.Timestamptz(3)
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz(3)
+  giftId     String?     @unique(map: "comments_gift_id_key") @map("gift_id") @db.Uuid
+  text       String      @db.VarChar(500)
+  likeCount  Int         @default(0) @map("like_count")
+  replyCount Int         @default(0) @map("reply_count")
+  pinnedAt   DateTime?   @map("pinned_at") @db.Timestamptz(3)
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt  DateTime?   @map("deleted_at") @db.Timestamptz(3)
 
   post          Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
   author        User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
@@ -3655,22 +3659,22 @@ model LiveGift {
   anonymous        Boolean        @default(false)
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  sender         User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  room           LiveRoom?           @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  gift           Gift                @relation(fields: [giftCode], references: [code], onDelete: Restrict)
-  recipients     LiveGiftRecipient[]
+  sender              User                 @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  room                LiveRoom?            @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  gift                Gift                 @relation(fields: [giftCode], references: [code], onDelete: Restrict)
+  recipients          LiveGiftRecipient[]
   /// v1.27-live (D132): the draws of a LUCKY send (none for other gifts).
-  luckyDraw      LuckyGiftDraw?
+  luckyDraw           LuckyGiftDraw?
   /// v1.40-social (D155).
-  dmConversation DmConversation?     @relation(fields: [dmConversationId], references: [id], onDelete: SetNull)
-  dmMessage      DmMessage?
+  dmConversation      DmConversation?      @relation(fields: [dmConversationId], references: [id], onDelete: SetNull)
+  dmMessage           DmMessage?
   /// v1.32-live (D154): the free-quip row of a free QUIPS send.
-  freeQuip       LiveFreeQuip?
+  freeQuip            LiveFreeQuip?
   /// v1.43-live (D195): the PK points of a send made in a room during a PK battle.
-  pkPoints       PkGiftPoint?
+  pkPoints            PkGiftPoint?
   /// v1.127-social (D372).
-  post           Post?               @relation(fields: [postId], references: [id], onDelete: SetNull)
-  comment        Comment?
+  post                Post?                @relation(fields: [postId], references: [id], onDelete: SetNull)
+  comment             Comment?
   /// v1.133-social (D380): reports filed from this send, and anonymous senders refused from it.
   contextReports      Report[]             @relation("ReportContextGift")
   anonymousGiftBlocks AnonymousGiftBlock[]
@@ -4221,6 +4225,7 @@ model DmConversation {
   participants DmParticipant[]
   messages     DmMessage[]
   gifts        LiveGift[]
+  pins         DmPin[]
 
   @@unique([userLowId, userHighId], map: "dm_conversations_pair_key")
   @@index([userHighId], map: "dm_conversations_user_high_idx")
@@ -4341,6 +4346,7 @@ model DmGroup {
   createdBy User?            @relation("DmGroupCreator", fields: [createdById], references: [id], onDelete: SetNull)
   members   DmGroupMember[]
   messages  DmGroupMessage[]
+  pins      DmPin[]
 
   @@unique([createdById, clientId], map: "dm_groups_client_once")
   @@map("dm_groups")
@@ -4387,6 +4393,28 @@ model DmGroupMessage {
   @@index([groupId, createdAt, id], map: "dm_group_messages_group_idx")
   @@index([expiresAt], map: "dm_group_messages_expires_idx")
   @@map("dm_group_messages")
+}
+
+/// v1.137-social (D385, CONVENTIONS §10.174.4): a chat pinned at the top of «الرسائل» — a direct conversation or a group
+/// (CHECK `dm_pins_target`: exactly one), at most DM_PIN_MAX (5) per person (checked by the API under a per-person
+/// lock). «دعم كابسو» is not a pin. Order: first pinned first.
+model DmPin {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  conversationId String?  @map("conversation_id") @db.Uuid
+  groupId        String?  @map("group_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user         User            @relation("DmPinUser", fields: [userId], references: [id], onDelete: Cascade)
+  conversation DmConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  group        DmGroup?        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conversationId], map: "dm_pins_user_conversation_key")
+  @@unique([userId, groupId], map: "dm_pins_user_group_key")
+  @@index([userId, createdAt, id], map: "dm_pins_user_idx")
+  @@index([conversationId], map: "dm_pins_conversation_idx")
+  @@index([groupId], map: "dm_pins_group_idx")
+  @@map("dm_pins")
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -7424,7 +7452,7 @@ model VipTierPerk {
   /// set (DAILY_BULLET, LEVEL_SPEEDUP) it equals it (CHECK `vip_tier_perks_amount_value`).
   value         Json?
   /// v1.129-social (D374): the perk's MP4 art (https, uploaded from the panel), beside the SVGA `animation`.
-  video         String? @db.VarChar(2048)
+  video         String?      @db.VarChar(2048)
 
   tier VipTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
 
@@ -8602,6 +8630,15 @@ enum WaMediaState {
   @@map("wa_media_state")
 }
 
+/// v1.137-social (D385, CONVENTIONS §10.174.6): where a support conversation is — the official WhatsApp number, or
+/// «دعم كابسو» inside the app (one per account; no phone, no 24-hour window, no templates).
+enum WaChannel {
+  WHATSAPP
+  IN_APP
+
+  @@map("wa_channel")
+}
+
 enum WaAssignmentAction {
   CLAIM
   RELEASE
@@ -8615,41 +8652,51 @@ enum WaAssignmentAction {
 /// D355: one conversation per customer phone (E.164). `unread_count` counts the customer's messages since the team last
 /// read it; `last_inbound_at` opens Meta's 24-hour customer-service window.
 model WaConversation {
-  id                 String               @id @default(uuid(7)) @db.Uuid
-  phoneE164          String               @unique(map: "wa_conversations_phone_key") @map("phone_e164") @db.VarChar(16)
-  waId               String               @map("wa_id") @db.VarChar(32)
-  profileName        String?              @map("profile_name") @db.VarChar(200)
-  status             WaConversationStatus @default(OPEN)
-  assignedToId       String?              @map("assigned_to_id") @db.Uuid
-  assignedAt         DateTime?            @map("assigned_at") @db.Timestamptz(3)
-  unreadCount        Int                  @default(0) @map("unread_count")
-  lastInboundAt      DateTime?            @map("last_inbound_at") @db.Timestamptz(3)
-  lastMessageAt      DateTime             @default(now()) @map("last_message_at") @db.Timestamptz(3)
-  lastPreview        String?              @map("last_preview") @db.VarChar(120)
-  lastDirection      WaDirection?         @map("last_direction")
-  linkedUserId       String?              @map("linked_user_id") @db.Uuid
-  linkedById         String?              @map("linked_by_id") @db.Uuid
-  linkedAt           DateTime?            @map("linked_at") @db.Timestamptz(3)
-  closedAt           DateTime?            @map("closed_at") @db.Timestamptz(3)
-  closedById         String?              @map("closed_by_id") @db.Uuid
+  id            String               @id @default(uuid(7)) @db.Uuid
+  /// v1.137-social (D385): null for an IN_APP thread (CHECK `wa_conversations_channel_shape`).
+  phoneE164     String?              @unique(map: "wa_conversations_phone_key") @map("phone_e164") @db.VarChar(16)
+  waId          String?              @map("wa_id") @db.VarChar(32)
+  profileName   String?              @map("profile_name") @db.VarChar(200)
+  status        WaConversationStatus @default(OPEN)
+  assignedToId  String?              @map("assigned_to_id") @db.Uuid
+  assignedAt    DateTime?            @map("assigned_at") @db.Timestamptz(3)
+  unreadCount   Int                  @default(0) @map("unread_count")
+  lastInboundAt DateTime?            @map("last_inbound_at") @db.Timestamptz(3)
+  lastMessageAt DateTime             @default(now()) @map("last_message_at") @db.Timestamptz(3)
+  lastPreview   String?              @map("last_preview") @db.VarChar(120)
+  lastDirection WaDirection?         @map("last_direction")
+  linkedUserId  String?              @map("linked_user_id") @db.Uuid
+  linkedById    String?              @map("linked_by_id") @db.Uuid
+  linkedAt      DateTime?            @map("linked_at") @db.Timestamptz(3)
+  closedAt      DateTime?            @map("closed_at") @db.Timestamptz(3)
+  closedById    String?              @map("closed_by_id") @db.Uuid
   /// Set when the linked account was purged (§10.56): the sweeper deletes the conversation and its media.
-  purgeAfter         DateTime?            @map("purge_after") @db.Timestamptz(3)
+  purgeAfter    DateTime?            @map("purge_after") @db.Timestamptz(3)
   /// D366 (v1.123-social, §10.159): the department «القسم» (GENERAL until a transfer moves it; only a transfer does).
-  department         WaDepartment         @default(GENERAL)
+  department    WaDepartment         @default(GENERAL)
   /// v1.134-social (D381, §10.171.3): the linked account held PRIORITY_SUPPORT when it was linked or last wrote —
   /// listed first in the staff inbox.
-  priority           Boolean              @default(false)
-  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
+  priority      Boolean              @default(false)
+  /// v1.137-social (D385, §10.174): WHATSAPP, or IN_APP «دعم كابسو» (`linked_user_id` is then the account, one thread
+  /// per account: `wa_conversations_in_app_user_key`).
+  channel       WaChannel            @default(WHATSAPP)
+  /// D385: an IN_APP thread — the account read the team's replies up to then (`readSupportThread`).
+  userReadAt    DateTime?            @map("user_read_at") @db.Timestamptz(3)
+  /// D385: the team last opened the thread (`markRead`) — the person's «تم الاستلام» becomes read.
+  staffReadAt   DateTime?            @map("staff_read_at") @db.Timestamptz(3)
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
 
   messages    WaMessage[]
   notes       WaNote[]
   assignments WaAssignment[]
 
+  @@unique([linkedUserId], map: "wa_conversations_in_app_user_key", where: raw("channel = 'IN_APP'::wa_channel"))
   @@index([status, lastMessageAt(sort: Desc), id(sort: Desc)], map: "wa_conversations_status_last_idx")
   @@index([assignedToId, lastMessageAt(sort: Desc)], map: "wa_conversations_assigned_idx")
   @@index([linkedUserId], map: "wa_conversations_linked_idx", where: raw("linked_user_id IS NOT NULL"))
   @@index([department, status, lastMessageAt(sort: Desc), id(sort: Desc)], map: "wa_conversations_department_idx")
+  @@index([channel, status, lastMessageAt(sort: Desc), id(sort: Desc)], map: "wa_conversations_channel_idx")
   @@map("wa_conversations")
 }
 
@@ -8680,10 +8727,17 @@ model WaMessage {
   sentById       String?         @map("sent_by_id") @db.Uuid
   waTimestamp    DateTime?       @map("wa_timestamp") @db.Timestamptz(3)
   statusAt       DateTime?       @map("status_at") @db.Timestamptz(3)
+  /// v1.137-social (D385, §10.174.3): an IN_APP message's picture or voice clip (the person's DM_IMAGE / DM_VOICE
+  /// upload); deleted with the thread.
+  mediaAssetId   String?         @unique(map: "wa_messages_media_asset_key") @map("media_asset_id") @db.Uuid
+  /// D385: the person's idempotency key of an IN_APP message (one per thread).
+  clientId       String?         @map("client_id") @db.Uuid
   createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
 
   conversation WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset?    @relation("WaMessageMedia", fields: [mediaAssetId], references: [id], onDelete: SetNull)
 
+  @@unique([conversationId, clientId], map: "wa_messages_client_once")
   @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)], map: "wa_messages_conversation_idx")
   @@map("wa_messages")
 }
