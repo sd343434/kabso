@@ -143,7 +143,7 @@ void main() {
         ),
         findsNothing,
       );
-      expect(find.byKey(VipCutout.fadeKey), findsOneWidget);
+      expect(find.byKey(VipCutout.edgeKey), findsOneWidget);
       expect(requested.toSet(), {syntheticCutoutUrl});
       // A tap still opens the profile (the picture keeps its role).
       expect(
@@ -211,8 +211,9 @@ void main() {
       expect(requested, contains(syntheticCutoutStillUrl));
     });
 
-    testWidgets("the photo's box and place; the head pops over its top, "
-        'wider than the circle, the bottom 20 % fading out', (tester) async {
+    testWidgets("the photo's box and place; bounded by the old photo circle "
+        'at the bottom and sides with an invisible soft edge, open at the '
+        'top', (tester) async {
       await serveStandIn(tester);
       await _card(tester, _profile(cutout: false));
       final ring = tester.getRect(find.byKey(LivePersonSheet.ringKey));
@@ -223,18 +224,35 @@ void main() {
       expect(cut, ring);
       expect(tester.getRect(find.byKey(LivePersonSheet.nameKey)), name);
       // The picture: up to the pop over the box's top, a little wider than
-      // it (nothing clips the sides), down to the box's bottom.
-      final drawn = tester.getRect(find.byKey(VipCutout.fadeKey));
+      // it, down to the box's bottom.
+      final drawn = tester.getRect(find.byKey(VipCutout.edgeKey));
       final d = cut.width;
       expect(cut.top - drawn.top, closeTo(d * VipCutoutMetrics.pop, 0.5));
       expect(drawn.width, closeTo(d * (1 + VipCutoutMetrics.spread), 0.5));
       expect(drawn.center.dx, closeTo(cut.center.dx, 0.5));
       expect(drawn.bottom, closeTo(cut.bottom, 0.5));
-      // A gradient mask: opaque above the lower 20 %, transparent at the
-      // bottom (no hard edge).
-      final mask = tester.widget<ShaderMask>(find.byKey(VipCutout.fadeKey));
-      expect(mask.blendMode, BlendMode.dstIn);
-      expect(VipCutoutMetrics.fade, 0.2);
+      // The round edge: the old photo circle (inside the ring), feathered.
+      final edge = tester.widget<RoundEdge>(find.byKey(VipCutout.edgeKey));
+      final circle = edge.circle.shift(drawn.topLeft);
+      const photo = LivePersonCardMetrics.avatar;
+      expect(circle.width, photo);
+      expect(circle.height, photo);
+      expect(circle.center.dx, closeTo(ring.center.dx, 0.5));
+      expect(circle.center.dy, closeTo(ring.center.dy, 0.5));
+      expect(edge.feather, inInclusiveRange(4, 6));
+      // The mask: inside the circle and anywhere above its centre (the head
+      // and hair pop over it); outside the circle below its centre, nothing.
+      final mask = tester
+          .renderObject<RenderRoundEdge>(find.byKey(VipCutout.edgeKey))
+          .maskPath();
+      final c = edge.circle;
+      expect(mask.contains(c.center), isTrue);
+      expect(mask.contains(Offset(c.center.dx, c.bottom - 2)), isTrue);
+      expect(mask.contains(Offset(c.left - 3, c.center.dy - 4)), isTrue);
+      expect(mask.contains(Offset(c.center.dx, -10)), isTrue);
+      expect(mask.contains(Offset(c.left + 2, c.bottom - 2)), isFalse);
+      expect(mask.contains(Offset(c.right - 2, c.bottom - 2)), isFalse);
+      expect(mask.contains(Offset(c.left - 3, c.center.dy + 6)), isFalse);
     });
 
     testWidgets('a worn VIP or bag frame is not drawn around the cut-out; '

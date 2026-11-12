@@ -567,11 +567,13 @@ class _Picture {
         ),
       );
     }
-    // D384 (owner: «أريد صورة الملف الشخصي كأنها بدون خلفية»): a clip is the
-    // free-floating cut-out in the plain ring's box and place — no circle,
-    // fill, ring or worn frame (VIP or bag) around it; the card shows
-    // through. The agent frames and the couple's Special Frame keep the
-    // photo. The ringed photo while it loads or if it fails.
+    // D384 (owner: «أريد صورة الملف الشخصي كأنها بدون خلفية», then «الصورة
+    // الشخصية يكون لها حواف مستديرة غير مرئية»): a clip is the cut-out in the
+    // plain ring's box and place — no fill, ring or worn frame (VIP or bag)
+    // around it, the card showing through; bounded by the old photo circle
+    // at the bottom and sides with an invisible soft edge, open at the top.
+    // The agent frames and the couple's Special Frame keep the photo. The
+    // ringed photo while it loads or if it fails.
     if (cutout != null && !cpWearsSpecialFrame(profile?.cp)) {
       const side = avatar + 2 * LivePersonCardMetrics.ring;
       return _Picture(
@@ -582,6 +584,9 @@ class _Picture {
           key: LivePersonSheet.cutoutKey,
           avatar: cutout,
           size: side,
+          // The old photo circle (inside the ring's width) bounds the
+          // person at the bottom and the sides, with an invisible soft edge.
+          circleInset: LivePersonCardMetrics.ring,
           playing: playing,
           fallback: Container(
             padding: const EdgeInsets.all(LivePersonCardMetrics.ring),

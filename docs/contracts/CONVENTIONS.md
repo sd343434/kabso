@@ -12419,9 +12419,11 @@ Nothing else carries the clip (no `UserSummary`, chat line or seat field).
 The app (person card in live and party rooms, D383): the cut-out loops **free-floating, without a background** (owner
 2026-11-12: «أريد صورة الملف الشخصي كأنها بدون خلفية») — in the round photo's box and place (the circle and its 3 px
 ring, sitting mostly inside the card as D383 places it), but with **no circle, fill or ring** behind it: the card, or
-the D383 VIP background, shows around the person. Nothing clips it: the head pops up to 16 % of the box over its top
-(and over the card's top edge) and may be up to 12 % wider than the box; the **lower 20 % fades softly to transparent**
-(a gradient mask, no hard edge), so the shoulders melt into the card. The name and the rest of the card do not move.
+the D383 VIP background, shows around the person. Then (owner, same day: «الصورة الشخصية يكون لها حواف مستديرة غير
+مرئية») the person is **bounded by the old photo circle** (same diameter and place) at the bottom and the sides — the
+shoulders end on a round arc, feathered about 5 dp so it reads as a gentle silhouette, with nothing painted to mark the
+circle — and **open at the top**: above the circle's centre nothing bounds it, so the head and hair pop up to 16 % of the
+box over its top and over the card's top edge. The name and the rest of the card do not move.
 **Worn avatar frames (the VIP frame or a bag frame) are not drawn around the cut-out** — a frame around a free-floating
 person looks wrong (CTO choice, owner's request); the recharge-agent, host-agent and couple frames are drawn around a
 photo, so those keep the photo. Under reduced motion or «إخفاء مؤثرات الهدايا» the still shows the same way, without a
