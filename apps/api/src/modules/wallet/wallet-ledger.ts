@@ -57,7 +57,9 @@ export type WalletLedgerReason =
    * store refunded the purchase (reference: the purchase; the balance may go below 0).
    */
   | 'STORE_IAP'
-  | 'STORE_IAP_REVERSAL';
+  | 'STORE_IAP_REVERSAL'
+  /** v1.127-social (D372, §10.164): a gift sent on a post or reel «هدية الدعم» (reference: the send). */
+  | 'CONTENT_GIFT';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

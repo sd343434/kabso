@@ -523,6 +523,44 @@ class FakePostsRepository implements PostsRepository {
   Future<void> reportComment(String commentId, ReportReason reason) =>
       _step('reportComment:$commentId:${reason.wire}');
 
+  /// D372: what `sendContentGift` answers — the gift line (by [commenter])
+  /// and the post's gift cherries after it ([giftCherriesAfter]).
+  int giftCherriesAfter = 0;
+  int giftCoinsAfter = 0;
+  int giftBagAfter = 0;
+  String giftName = 'Rose';
+
+  @override
+  Future<ContentGiftResult> sendContentGift(
+    String postId, {
+    required String giftCode,
+    required int quantity,
+    required String source,
+    required String clientId,
+  }) async {
+    await _step('sendContentGift:$postId:$giftCode:$quantity:$source');
+    final c = testComment(
+      'c-gift-${++_nextComment}',
+      postId: postId,
+      author: commenter,
+      text: '',
+      canDelete: true,
+      gift: CommentGift(
+        giftCode: giftCode,
+        name: giftName,
+        quantity: quantity,
+        assetKey: 'gift_$giftCode',
+      ),
+    );
+    (postComments[postId] ??= []).insert(0, c);
+    return (
+      comment: c,
+      giftCherries: giftCherriesAfter,
+      coins: giftCoinsAfter,
+      bagQuantity: giftBagAfter,
+    );
+  }
+
   /// Hashtags `searchHashtags` finds and `hashtag` knows (by tag prefix),
   /// and their posts.
   List<Hashtag> tags = const [];
@@ -673,6 +711,8 @@ Post testPost(
   bool reel = false,
   bool video = false,
   bool? viewerFollowsAuthor,
+  int giftCherries = 0,
+  bool giftable = false,
 }) => Post(
   id: id,
   author: UserSummary(
@@ -726,6 +766,8 @@ Post testPost(
   hideLikeCount: hideLikeCount,
   pendingModeration: pending,
   viewerFollowsAuthor: viewerFollowsAuthor,
+  giftCherries: giftCherries,
+  giftable: giftable,
 );
 
 /// A contract-shaped `Post` body (tests only).
@@ -786,6 +828,7 @@ Comment testComment(
   bool pinned = false,
   bool canDelete = false,
   DateTime? createdAt,
+  CommentGift? gift,
 }) => Comment(
   id: id,
   postId: postId,
@@ -800,6 +843,7 @@ Comment testComment(
   mentions: const [],
   pinned: pinned,
   canDelete: canDelete,
+  gift: gift,
 );
 
 /// A changed copy of a fixture post, as the server would answer (tests

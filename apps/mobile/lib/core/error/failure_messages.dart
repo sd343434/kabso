@@ -105,6 +105,8 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.vipPriceChanged => l10n.errorVipPriceChanged,
     ErrorCode.insufficientRechargePoints =>
       l10n.errorInsufficientRechargePoints,
+    ErrorCode.contentGiftRecipientUnavailable =>
+      l10n.errorContentGiftRecipientUnavailable,
     ErrorCode.storeUnavailable => l10n.errorStoreUnavailable,
     ErrorCode.storePriceChanged => l10n.errorStorePriceChanged,
     ErrorCode.storeIapUnavailable => l10n.errorStoreIapUnavailable,

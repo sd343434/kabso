@@ -31,7 +31,8 @@ export interface MyEarningsDto {
 export interface EarningDto {
   id: string;
   createdAt: string;
-  context: 'LIVE' | 'DM';
+  /** v1.127-social (D372): CONTENT — a gift on a post or reel. */
+  context: 'LIVE' | 'DM' | 'CONTENT';
   giftCode: string;
   giftName: string;
   quantity: number;
@@ -138,6 +139,7 @@ export class WalletHistoryService {
         id: string;
         created_at: Date;
         dm: boolean;
+        content: boolean;
         gift_code: string;
         name_ar: string;
         name_en: string;
@@ -148,7 +150,8 @@ export class WalletHistoryService {
         coins: bigint;
       }[]
     >`
-      SELECT g.id::text AS id, g.created_at, (g.dm_conversation_id IS NOT NULL) AS dm, g.gift_code,
+      SELECT g.id::text AS id, g.created_at, (g.dm_conversation_id IS NOT NULL) AS dm,
+             (g.post_id IS NOT NULL) AS content, g.gift_code,
              gf.name_ar, gf.name_en, g.quantity, g.sender_id::text AS sender_id, gr.coins AS gift_coins,
              g.host_share_bps AS share_bps, floor(gr.coins * g.host_share_bps / 10000.0)::bigint AS coins
         FROM live_gift_recipients gr
@@ -169,7 +172,7 @@ export class WalletHistoryService {
       data: page.map((r) => ({
         id: r.id,
         createdAt: r.created_at.toISOString(),
-        context: r.dm ? 'DM' : 'LIVE',
+        context: r.dm ? 'DM' : r.content ? 'CONTENT' : 'LIVE',
         giftCode: r.gift_code,
         giftName: lang === 'ar' ? r.name_ar : r.name_en,
         quantity: r.quantity,

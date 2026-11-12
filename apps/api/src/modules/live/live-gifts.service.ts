@@ -986,6 +986,13 @@ export class LiveGiftsService {
    * lock: it locks the pair, checks again and returns the conversation id) and `hooks.after` last
    * (it writes the gift message). A refusal in either rolls everything back. Retries are answered
    * by the caller (the message's `clientId`), and a concurrent retry fails on `live_gifts_client_once`.
+   *
+   * v1.127-social (D372, CONVENTIONS §10.164): `place` CONTENT — a gift on a post or reel «هدية الدعم» to its author
+   * (`hooks.before` returns the post id, stored in `live_gifts.post_id`): no lucky gift and no quip (409
+   * `GIFT_UNAVAILABLE`), the team's «منع إرسال الهدايا» applies, the wallet ledger reason is `CONTENT_GIFT`, and the
+   * recipient earns as from a live gift — the live share of the gift's category (a creator's 70 %, a direct host's or
+   * creator's 70 % / 75 %, a custom gift's custom share; {@link liveShareBpsOf}) for the cherries, and the full value for
+   * the charm, as the sender's support. `hooks.after` hears the recipient's cherries of the send.
    */
   async sendDirect<T>(
     callerId: string,
@@ -996,10 +1003,12 @@ export class LiveGiftsService {
       before(tx: Prisma.TransactionClient): Promise<string>;
       after(
         tx: Prisma.TransactionClient,
-        sent: { giftId: string; at: Date; luckyResult: LuckyGiftResultDto | null },
+        sent: { giftId: string; at: Date; luckyResult: LuckyGiftResultDto | null; cherries: bigint },
       ): Promise<T>;
     },
+    place: 'DM' | 'CONTENT' = 'DM',
   ): Promise<{ extra: T; coins: number; bagQuantity: number; luckyResult: LuckyGiftResultDto | null }> {
+    const content = place === 'CONTENT';
     const clientId = input.clientId.toLowerCase();
     const gift = await this.prisma.gift.findUnique({
       where: { code: input.giftCode },
@@ -1022,6 +1031,9 @@ export class LiveGiftsService {
     // v1.32-live (D154, §10.33) in a conversation: a paid quip, COINS and one at a time (as in a
     // live); the free quip belongs to a live (one per viewer per live) and is refused here.
     const isQuip = gift.category === 'QUIPS';
+    // v1.127-social (D372, owner: «بدون هدايا الحظ»): no lucky gift on a post or reel; CTO: no quip either (a quip is a
+    // sound heard in a live's queue).
+    if (content && (isLucky || isQuip)) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
     if (isQuip) {
       if (gift.priceCoins === 0) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
       if (input.source !== 'COINS')
@@ -1047,12 +1059,26 @@ export class LiveGiftsService {
     );
     const winners = isLucky ? this.lucky.draw(input.quantity) : null;
     const table = this.lucky.table;
+    // v1.127-social (D372): a content gift's share as a live send to this person (a creator member: the creator share; a
+    // direct host or creator: the direct share; a custom gift: the custom share).
+    const contentShareBps = !content
+      ? null
+      : isCustom
+        ? this.config.gifts.customShareBps
+        : liveShareBpsOf(
+            this.config,
+            gift.category,
+            (await this.prisma.creatorMember.count({ where: { userId: recipientId } })) > 0,
+            await allRecipientsDirect(this.prisma, [recipientId]),
+          );
     const done = await this.oneAtATime(callerId, () =>
       this.prisma.$transaction(async (tx) => {
         await setLiveStatementTimeout(tx);
         // The same first lock as a live send: one send of this sender at a time (the lucky streak).
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`live-gift:${callerId}`}, 0))`;
-        const conversationId = await hooks.before(tx);
+        const placeId = await hooks.before(tx);
+        const conversationId = content ? null : placeId;
+        const postId = content ? placeId : null;
         const now = this.clock.now();
         const at = now.toISOString();
         const giftId = uuidv7();
@@ -1090,18 +1116,23 @@ export class LiveGiftsService {
         // The recipient's share (charm, and the stored host_share_bps): the DM share for every
         // non-lucky category (quips included), the lucky host share for a lucky gift.
         // v1.100-social (D312): a custom gift keeps the custom share (owner's default: 60 % wherever it is sent).
-        const shareBps = isLucky
-          ? table.hostShareBps
-          : isCustom
-            ? this.config.gifts.customShareBps
-            : this.config.dm.giftRecipientSharePercent * 100;
+        const shareBps =
+          contentShareBps ??
+          (isLucky
+            ? table.hostShareBps
+            : isCustom
+              ? this.config.gifts.customShareBps
+              : this.config.dm.giftRecipientSharePercent * 100);
         const royalty = isCustom
           ? giftOwnerRoyalty(amounts.totalCoins, this.config.gifts.customOwnerBps, state.owner_id, callerId)
           : 0n;
         if (royalty > 0n) await lockWalletsIn(tx, [callerId, state.owner_id!]);
-        const charmCoins = shareOf(amounts.perRecipientCoins, shareBps);
+        // v1.127-social (D372): on a post or reel the charm counts the full value, as a live gift does.
+        const charmCoins = content ? amounts.perRecipientCoins : shareOf(amounts.perRecipientCoins, shareBps);
         // v1.59-social (D190): no gift while the balance is a debt (a reversed website purchase).
         if (await inCoinDebtIn(tx, callerId)) throw new AppException(ErrorCode.TOPUP_ACCOUNT_FROZEN);
+        // v1.72-social (D208, §10.67): the team's «منع إرسال الهدايا» (v1.127-social: on a post or reel too).
+        if (content) await assertNotRestricted(tx, callerId, 'NO_GIFTS');
         let bagQuantity: number | null = null;
         if (!isCoins) {
           bagQuantity = await consumeStockIn(tx, callerId, gift.code, amounts.bagUnits);
@@ -1113,10 +1144,10 @@ export class LiveGiftsService {
           { coins: bigint | null; family_points: bigint | null; family_level: number | null }[]
         >`
           WITH sent AS (
-            INSERT INTO live_gifts (id, sender_id, client_id, room_id, dm_conversation_id, gift_code, quantity,
+            INSERT INTO live_gifts (id, sender_id, client_id, room_id, dm_conversation_id, post_id, gift_code, quantity,
                                     source, unit_price, total_coins, coins_charged, recipients_key, combo_id,
                                     combo_count, combo_quantity, host_share_bps, created_at)
-            VALUES (${giftId}::uuid, ${callerId}::uuid, ${clientId}::uuid, NULL, ${conversationId}::uuid,
+            VALUES (${giftId}::uuid, ${callerId}::uuid, ${clientId}::uuid, NULL, ${conversationId}::uuid, ${postId}::uuid,
                     ${gift.code}, ${input.quantity}, ${input.source}::live_gift_source, ${unitPrice},
                     ${amounts.totalCoins}, ${isCoins ? amounts.totalCoins : 0}, ${recipientsKey([recipientId])},
                     ${giftId}::uuid, 1, ${input.quantity}, ${isEventPrizePieces(gift, input.source) ? 0 : shareBps}, ${at}::timestamptz)
@@ -1132,7 +1163,7 @@ export class LiveGiftsService {
           ledger AS (
             INSERT INTO wallet_ledger (id, user_id, delta, balance_after, reason, reference_id, created_at)
             SELECT ${uuidv7()}::uuid, ${callerId}::uuid, ${-amounts.totalCoins}, debit.coins,
-                   ${isLucky ? 'LUCKY_GIFT' : 'DM_GIFT'}::wallet_ledger_reason, ${giftId},
+                   ${isLucky ? 'LUCKY_GIFT' : content ? 'CONTENT_GIFT' : 'DM_GIFT'}::wallet_ledger_reason, ${giftId},
                    ${new Date().toISOString()}::timestamptz
               FROM debit
             RETURNING id),
@@ -1192,7 +1223,8 @@ export class LiveGiftsService {
           ...(isLucky ? {} : { supportPerRecipientCoins: amounts.perRecipientCoins }),
         });
         // v1.52-social (D179, §10.46): the recipient's cherries and their agency's commissions.
-        await this.creditCherries(tx, giftId, now);
+        const credit = await this.creditCherries(tx, giftId, now);
+        const cherries = credit.recipients.reduce((sum, r) => sum + r.cherries, 0n);
         // v1.100-social (D312): the custom gift owner's coin share (reference: the send).
         if (royalty > 0n) await creditIn(tx, state.owner_id!, royalty, 'GIFT_OWNER_ROYALTY', giftId);
         let luckyResult: LuckyGiftResultDto | null = null;
@@ -1212,7 +1244,7 @@ export class LiveGiftsService {
           if (lucky.coins !== null) coins = lucky.coins;
           luckyResult = lucky.result;
         }
-        const extra = await hooks.after(tx, { giftId, at: now, luckyResult });
+        const extra = await hooks.after(tx, { giftId, at: now, luckyResult, cherries });
         return { extra, coins, bagQuantity, luckyResult };
       }, LIVE_TX_OPTIONS),
     );

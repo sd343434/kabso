@@ -33,6 +33,7 @@ import { StoriesModule } from './modules/stories/stories.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { PushModule } from './modules/push/push.module.js';
 import { DmModule } from './modules/messages/dm.module.js';
+import { ContentGiftsModule } from './modules/content-gifts/content-gifts.module.js';
 import { LiveModule } from './modules/live/live.module.js';
 import { SocialModule } from './modules/social/social.module.js';
 import { PublicProfileModule } from './modules/users/profiles/public-profile.module.js';
@@ -110,6 +111,8 @@ export class AppModule {
         PushModule,
         // v1.40-social (DRAFT, D155): direct messages.
         DmModule,
+        // v1.127-social (DRAFT, D372): «هدية الدعم» — gifts on posts and reels.
+        ContentGiftsModule,
         PublicProfileModule,
         // v1.19-live (DRAFT, CP-017).
         WalletModule,

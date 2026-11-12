@@ -30423,6 +30423,48 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'نقطة / {days} يوماً'**
   String vipPointsPer(String days);
+
+  /// D372 «هدية الدعم»: the comment composer's gift box button (tooltip).
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية الدعم'**
+  String get contentGiftButton;
+
+  /// D372: a gift line in the comments (gold), e.g. «سارة أرسل وردة ×10»; {count} is «×10», isolated left to right.
+  ///
+  /// In ar, this message translates to:
+  /// **'{sender} أرسل {gift} {count}'**
+  String commentsGiftSent(String sender, String gift, String count);
+
+  /// D372: screen-reader label of the gift counter on a post or reel (the cherries the author earned from gifts on it).
+  ///
+  /// In ar, this message translates to:
+  /// **'كرز الهدايا: {amount}'**
+  String contentGiftCherriesLabel(String amount);
+
+  /// D372: CONTENT_GIFT_RECEIVED — someone sent a gift on your post or reel.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل لك {who} هدية'**
+  String notifContentGiftReceived(String who);
+
+  /// D372: ledger reason CONTENT_GIFT.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية على منشور'**
+  String get walletReasonContentGift;
+
+  /// D372: an earning gift sent on a post or reel.
+  ///
+  /// In ar, this message translates to:
+  /// **'على منشور'**
+  String get earnContextContent;
+
+  /// D372: CONTENT_GIFT_RECIPIENT_UNAVAILABLE.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إرسال هدية على هذا المنشور.'**
+  String get errorContentGiftRecipientUnavailable;
 }
 
 class _AppLocalizationsDelegate

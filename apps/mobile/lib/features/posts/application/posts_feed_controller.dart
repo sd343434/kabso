@@ -74,6 +74,9 @@ FeedPostData feedPostOf(Post post, {UserSummary? repostedBy, String? text}) {
     commentsOpen:
         post.isSelf ||
         (post.commentsEnabled && post.whoCanComment != WhoCanComment.nobody),
+    // D372 «هدية الدعم».
+    giftCherries: post.giftCherries,
+    giftTo: post.giftable ? post.author : null,
   );
 }
 

@@ -164,6 +164,8 @@ const ACTOR_TYPES: NotificationType[] = [
   // v1.54-social (D185): actor the seller (target the sale) / the host or agent who asked (no target).
   'RECHARGE_COINS_RECEIVED',
   'RECHARGE_CHERRY_REQUEST',
+  // v1.127-social (D372): actor the sender(s); target the post or reel the gift was sent on.
+  'CONTENT_GIFT_RECEIVED',
 ];
 /** v1.21-live (CP-018): the actor types whose target is the actor (USER), like FOLLOW. */
 const USER_TARGET_TYPES: ReadonlySet<NotificationType> = new Set([

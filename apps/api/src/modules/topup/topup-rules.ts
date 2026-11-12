@@ -86,7 +86,7 @@ export interface FundedSpend {
 const NOT_SPENDING = new Set(['CARD_TOPUP_REVERSAL', 'CARD_TOPUP_RESTORE', 'STORE_IAP_REVERSAL']);
 
 /** The gift reasons whose reference is a `live_gifts` send (host cherries were credited from it). */
-export const GIFT_SPEND_REASONS = new Set(['LIVE_GIFT', 'LUCKY_GIFT', 'DM_GIFT']);
+export const GIFT_SPEND_REASONS = new Set(['LIVE_GIFT', 'LUCKY_GIFT', 'DM_GIFT', 'CONTENT_GIFT']);
 
 /**
  * FIFO attribution (owner rule): the coins the buyer held before the purchase (`opening`) are spent first, then the

@@ -60,6 +60,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
             authorId: feed.authorId,
             isSelf: feed.isSelf,
             commentsOpen: feed.commentsOpen,
+            giftTo: feed.giftTo,
           ),
         ),
       );

@@ -299,6 +299,19 @@ export async function reverseGiftCherriesIn(tx: Tx, giftId: string, now: Date): 
          WHERE room_id = ${live.room_id}::uuid`;
     }
   }
+  // v1.127-social (D372, §10.164): a gift on a post or reel — its author's reversed credit leaves the post's gift
+  // cherries too (never below 0). The post row first, as the send locks it before the wallets.
+  const [onPost] = await tx.$queryRaw<{ post_id: string }[]>`
+    SELECT post_id::text AS post_id FROM live_gifts WHERE id = ${giftId}::uuid AND post_id IS NOT NULL`;
+  if (onPost) {
+    const postCredit = credits
+      .filter((c) => c.reason === 'GIFT_RECEIVED')
+      .reduce((sum, c) => sum + c.delta, 0n);
+    if (postCredit > 0n) {
+      await tx.$executeRaw`
+        UPDATE posts SET gift_cherries = GREATEST(gift_cherries - ${postCredit}, 0) WHERE id = ${onPost.post_id}::uuid`;
+    }
+  }
   // v1.100-social (D312, §10.118): a custom gift's owner share (coins) is taken back with the send — once (the reversal
   // row's reference is the send), even when already spent (the balance may go below 0: a debt). Before the agency and
   // cherry rows, as a send writes them (the coin wallets, then the agency months, then the cherry wallets).

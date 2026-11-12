@@ -5591,5 +5591,12 @@
   "rechargePointsReasonReversal": "Recharge reversed",
   "rechargePointsReasonAdmin": "Adjusted by Kabso",
   "rechargePointsReasonOther": "Points change",
-  "vipPointsPer": "points / {days} days"
+  "vipPointsPer": "points / {days} days",
+  "contentGiftButton": "Send a gift",
+  "commentsGiftSent": "{sender} sent {gift} {count}",
+  "contentGiftCherriesLabel": "Gift cherries: {amount}",
+  "notifContentGiftReceived": "{who} sent you a gift",
+  "walletReasonContentGift": "Gift on a post",
+  "earnContextContent": "On a post",
+  "errorContentGiftRecipientUnavailable": "Gifts can't be sent on this post."
 }

@@ -78,7 +78,8 @@ export interface CherryLedgerEntryDto {
     quantity: number;
     giftCoins: number;
     shareBps: number;
-    context: 'LIVE' | 'DM';
+    /** v1.127-social (D372): CONTENT — a gift on a post or reel. */
+    context: 'LIVE' | 'DM' | 'CONTENT';
     sender: UserSummaryDto | null;
     /** v1.62-social (D193): true (else absent) when the sender's account was deleted. */
     senderDeleted?: true;
@@ -213,6 +214,7 @@ export class CherriesService {
             {
               id: string;
               dm: boolean;
+              content: boolean;
               gift_code: string;
               name_ar: string;
               name_en: string;
@@ -222,7 +224,7 @@ export class CherriesService {
               share_bps: number;
             }[]
           >`
-            SELECT g.id::text AS id, (g.dm_conversation_id IS NOT NULL) AS dm, g.gift_code, gf.name_ar, gf.name_en,
+            SELECT g.id::text AS id, (g.dm_conversation_id IS NOT NULL) AS dm, (g.post_id IS NOT NULL) AS content, g.gift_code, gf.name_ar, gf.name_en,
                    g.quantity, g.sender_id::text AS sender_id, gr.coins, g.host_share_bps AS share_bps
               FROM live_gifts g
               JOIN gifts gf ON gf.code = g.gift_code
@@ -260,7 +262,7 @@ export class CherriesService {
                 quantity: g.quantity,
                 giftCoins: Number(g.coins),
                 shareBps: g.share_bps,
-                context: g.dm ? 'DM' : 'LIVE',
+                context: g.dm ? 'DM' : g.content ? 'CONTENT' : 'LIVE',
                 sender: senders.get(g.sender_id) ?? null,
                 ...(deleted.has(g.sender_id) ? { senderDeleted: true as const } : {}),
               }

@@ -18,6 +18,7 @@ describe('KL-060 contract coverage', () => {
         .filter((o) => !o.path.includes('stories'))
         // v1.95-social (D301): «رسمي» on a post; d301-owner-profile covers it with its own list.
         // v1.122-social (D364): the comment dislike; kl060-comments covers it.
+        // v1.127-social (D372): gifts on a post or reel; d372-content-gifts covers it.
         .filter(
           (o) =>
             ![
@@ -26,6 +27,7 @@ describe('KL-060 contract coverage', () => {
               'getSearchFeatured',
               'dislikeComment',
               'undislikeComment',
+              'sendContentGift',
             ].includes(o.operationId),
         )
         .map((o) => o.operationId)

@@ -340,6 +340,12 @@ export enum ErrorCode {
    */
   INSUFFICIENT_RECHARGE_POINTS = 'INSUFFICIENT_RECHARGE_POINTS',
   /**
+   * v1.127-social (DRAFT, D372, §10.164): a gift on this post or reel «هدية الدعم» cannot be sent — `details: [{field:
+   * 'post', issue: 'own_content' | 'not_creator' | 'not_visible'}]` (the caller's own post; its author is not a host or
+   * a content creator; the post is held from others). Nothing was charged.
+   */
+  CONTENT_GIFT_RECIPIENT_UNAVAILABLE = 'CONTENT_GIFT_RECIPIENT_UNAVAILABLE',
+  /**
    * D270 (DRAFT, §10.98): this store item cannot be bought now — `details: [{field: 'item' | 'days' | 'currency',
    * issue: 'item_off' | 'not_priced' | 'owned_permanent' | 'too_far'}]`. Nothing was charged.
    */
@@ -547,6 +553,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.VIP_UNAVAILABLE]: 409,
   [ErrorCode.VIP_PRICE_CHANGED]: 409,
   [ErrorCode.INSUFFICIENT_RECHARGE_POINTS]: 409,
+  [ErrorCode.CONTENT_GIFT_RECIPIENT_UNAVAILABLE]: 409,
   [ErrorCode.STORE_UNAVAILABLE]: 409,
   [ErrorCode.STORE_PRICE_CHANGED]: 409,
   [ErrorCode.STAFF_PROTECTED]: 403,
@@ -724,6 +731,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.VIP_UNAVAILABLE]: 'This VIP tier cannot be bought now.',
   [ErrorCode.VIP_PRICE_CHANGED]: 'The price of this VIP tier changed.',
   [ErrorCode.INSUFFICIENT_RECHARGE_POINTS]: 'Not enough recharge points.',
+  [ErrorCode.CONTENT_GIFT_RECIPIENT_UNAVAILABLE]: 'Gifts cannot be sent on this post.',
   [ErrorCode.STORE_UNAVAILABLE]: 'This store item cannot be bought now.',
   [ErrorCode.STORE_PRICE_CHANGED]: 'The price of this store item changed.',
   [ErrorCode.STAFF_PROTECTED]: 'This cannot be done to the Kabso Team.',

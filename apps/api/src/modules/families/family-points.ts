@@ -16,6 +16,8 @@ export const FAMILY_SPEND_REASONS: ReadonlySet<WalletLedgerReason> = new Set([
   'CP_GIFT',
   // v1.23-live (CP-020, D108): gifts in a live paid with coins (not those sent from the bag).
   'LIVE_GIFT',
+  // v1.127-social (D372, §10.164): gifts on a post or reel paid with coins (written in the send, like LIVE_GIFT).
+  'CONTENT_GIFT',
 ]);
 
 /**

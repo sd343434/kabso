@@ -111,16 +111,18 @@ abstract final class KFormat {
   /// 999, 1.2K, 59.4K, 1.5M, 1B (tenths cut, never rounded up; a trailing
   /// ".0" dropped) — wrapped in a left-to-right isolate so they keep their
   /// order inside Arabic text. Other screens keep [compact].
-  static String compactLatin(int value) {
+  /// D372 (owner: «10.1k / 12.6m / 1.2b»): [lowercase] gives k / m / b, for
+  /// a post's or reel's gift cherries counter in every language.
+  static String compactLatin(int value, {bool lowercase = false}) {
     final v = value < 0 ? 0 : value;
     final String text;
     if (v < 1000) {
       text = '$v';
     } else {
       final (divisor, suffix) = switch (v) {
-        >= 1000000000 => (1000000000, 'B'),
-        >= 1000000 => (1000000, 'M'),
-        _ => (1000, 'K'),
+        >= 1000000000 => (1000000000, lowercase ? 'b' : 'B'),
+        >= 1000000 => (1000000, lowercase ? 'm' : 'M'),
+        _ => (1000, lowercase ? 'k' : 'K'),
       };
       final tenths = v * 10 ~/ divisor;
       final whole = tenths ~/ 10;

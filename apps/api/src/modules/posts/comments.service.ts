@@ -22,6 +22,8 @@ import { createCommentSchema, type CommentListQuery, type PageQuery } from './po
 import { PostsService } from './posts.service.js';
 import { parseMentions } from './text-entities.js';
 import { assertNotRestricted } from '../users/account-control.js';
+import { giftArtUrl } from '../gifts/gift-art.js';
+import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -41,6 +43,20 @@ export interface CommentDto {
   mentions: UserSummaryDto[];
   pinned: boolean;
   canDelete: boolean;
+  /** v1.127-social (D372, §10.164): GIFT — the gift line of a gift sent on the post «هدية الدعم» (`text` empty). */
+  kind: 'TEXT' | 'GIFT';
+  /** v1.127-social (D372): the gift of a GIFT line; null for TEXT. */
+  gift: CommentGiftDto | null;
+}
+
+/** `CommentGift` (v1.127-social, D372): what a gift line shows — «فلان أرسل <name> ×N» with the gift's picture. */
+export interface CommentGiftDto {
+  giftCode: string;
+  /** The gift's name in the reader's account language. */
+  name: string;
+  quantity: number;
+  assetKey: string;
+  imageUrl: string | null;
 }
 
 /** `CommentDislikeState` (v1.122-social, D364): the caller's reaction after the change; no dislike count. */
@@ -73,6 +89,14 @@ function include(viewerId: string) {
     mentions: { where: { user: { status: 'ACTIVE' } }, include: { user: { select: MENTION_USER_SELECT } } },
     likes: { where: { userId: viewerId }, select: { userId: true }, take: 1 },
     dislikes: { where: { userId: viewerId }, select: { userId: true }, take: 1 },
+    // v1.127-social (D372): a gift line's send and its gift.
+    gift: {
+      select: {
+        giftCode: true,
+        quantity: true,
+        gift: { select: { assetKey: true, imageObjectKey: true, nameAr: true, nameEn: true } },
+      },
+    },
   } satisfies Prisma.CommentInclude;
 }
 
@@ -90,6 +114,7 @@ export class CommentsService {
     private readonly posts: PostsService,
     private readonly users: UsersService,
     private readonly notifier: Notifier,
+    private readonly storageSettings: StorageSettingsStore,
   ) {}
 
   // ---------------------------------------------------------------------------------------------
@@ -427,6 +452,11 @@ export class CommentsService {
   // ---------------------------------------------------------------------------------------------
   // Views
 
+  /** v1.127-social (D372): one comment as `viewerId` reads it (the content-gift send answers with its gift line). */
+  view(viewerId: string, id: string): Promise<CommentDto> {
+    return this.one(viewerId, id);
+  }
+
   private async one(viewerId: string, id: string): Promise<CommentDto> {
     const [dto] = await this.load(viewerId, [id]);
     if (!dto) throw new AppException(ErrorCode.NOT_FOUND);
@@ -440,13 +470,18 @@ export class CommentsService {
       include: include(viewerId),
     });
     const byId = new Map(rows.map((r) => [r.id, r]));
+    // v1.127-social (D372): gift names in the reader's account language (as the feeds read a bilingual post).
+    const english =
+      rows.some((r) => r.gift !== null) &&
+      (await this.prisma.userProfile.findUnique({ where: { userId: viewerId }, select: { locale: true } }))
+        ?.locale === 'en';
     return ids.flatMap((id) => {
       const row = byId.get(id);
-      return row ? [this.toDto(viewerId, row)] : [];
+      return row ? [this.toDto(viewerId, row, english)] : [];
     });
   }
 
-  private toDto(viewerId: string, row: CommentRow): CommentDto {
+  private toDto(viewerId: string, row: CommentRow, english = false): CommentDto {
     const mentioned = mentionedByName(row.mentions);
     return {
       id: row.id,
@@ -465,6 +500,16 @@ export class CommentsService {
       }),
       pinned: row.pinnedAt !== null,
       canDelete: row.authorId === viewerId || row.post.authorId === viewerId,
+      kind: row.kind,
+      gift: row.gift
+        ? {
+            giftCode: row.gift.giftCode,
+            name: english ? row.gift.gift.nameEn : row.gift.gift.nameAr,
+            quantity: row.gift.quantity,
+            assetKey: row.gift.gift.assetKey,
+            imageUrl: giftArtUrl(this.storageSettings.current().publicBaseUrl, row.gift.gift.imageObjectKey),
+          }
+        : null,
     };
   }
 }

@@ -15327,5 +15327,19 @@
   "rechargePointsReasonOther": "تغيير في النقاط",
   "@rechargePointsReasonOther": {"description": "D370 «نقاط الشحن»: a points history reason (unknown)."},
   "vipPointsPer": "نقطة / {days} يوماً",
-  "@vipPointsPer": {"description": "D370 «نقاط الشحن»: the VIP purchase panel's unit and length (points).", "placeholders": {"days": {"type": "String"}}}
+  "@vipPointsPer": {"description": "D370 «نقاط الشحن»: the VIP purchase panel's unit and length (points).", "placeholders": {"days": {"type": "String"}}},
+  "contentGiftButton": "هدية الدعم",
+  "@contentGiftButton": {"description": "D372 «هدية الدعم»: the comment composer's gift box button (tooltip)."},
+  "commentsGiftSent": "{sender} أرسل {gift} {count}",
+  "@commentsGiftSent": {"description": "D372: a gift line in the comments (gold), e.g. «سارة أرسل وردة ×10»; {count} is «×10», isolated left to right.", "placeholders": {"sender": {"type": "String"}, "gift": {"type": "String"}, "count": {"type": "String"}}},
+  "contentGiftCherriesLabel": "كرز الهدايا: {amount}",
+  "@contentGiftCherriesLabel": {"description": "D372: screen-reader label of the gift counter on a post or reel (the cherries the author earned from gifts on it).", "placeholders": {"amount": {"type": "String"}}},
+  "notifContentGiftReceived": "أرسل لك {who} هدية",
+  "@notifContentGiftReceived": {"description": "D372: CONTENT_GIFT_RECEIVED — someone sent a gift on your post or reel.", "placeholders": {"who": {"type": "String"}}},
+  "walletReasonContentGift": "هدية على منشور",
+  "@walletReasonContentGift": {"description": "D372: ledger reason CONTENT_GIFT."},
+  "earnContextContent": "على منشور",
+  "@earnContextContent": {"description": "D372: an earning gift sent on a post or reel."},
+  "errorContentGiftRecipientUnavailable": "لا يمكن إرسال هدية على هذا المنشور.",
+  "@errorContentGiftRecipientUnavailable": {"description": "D372: CONTENT_GIFT_RECIPIENT_UNAVAILABLE."}
 }

@@ -83,7 +83,13 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
 ];
 
 /** Types that join one unread row per target (owner, D92). */
-const GROUPED: ReadonlySet<NotificationType> = new Set(['LIKE_POST', 'LIKE_COMMENT', 'REPOST']);
+const GROUPED: ReadonlySet<NotificationType> = new Set([
+  'LIKE_POST',
+  'LIKE_COMMENT',
+  'REPOST',
+  // v1.127-social (D372, §10.164): «أرسل لك فلان هدية» — one unread row per post; new senders join it. Always on.
+  'CONTENT_GIFT_RECEIVED',
+]);
 
 /** The settings switch of each actor type (`notification_settings`). */
 const SETTING: Readonly<

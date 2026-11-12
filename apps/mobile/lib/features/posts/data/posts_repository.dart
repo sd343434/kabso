@@ -173,6 +173,17 @@ abstract interface class PostsRepository {
 
   /// `POST /reports` for a comment.
   Future<void> reportComment(String commentId, ReportReason reason);
+
+  /// `POST /posts/{postId}/gifts` (v1.127-social, D372): a catalogue gift
+  /// to the post's author «هدية الدعم», with coins or from the bag; a
+  /// retry with the same [clientId] is never charged again.
+  Future<ContentGiftResult> sendContentGift(
+    String postId, {
+    required String giftCode,
+    required int quantity,
+    required String source,
+    required String clientId,
+  });
 }
 
 PageOf<Comment> _commentPage(Map<String, dynamic> json) => PageOf([
@@ -560,6 +571,32 @@ class PostsRepositoryImpl implements PostsRepository {
             : await _dio.delete<Map<String, dynamic>>(path);
         return Comment.fromJson(res.data!);
       });
+
+  @override
+  Future<ContentGiftResult> sendContentGift(
+    String postId, {
+    required String giftCode,
+    required int quantity,
+    required String source,
+    required String clientId,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/posts/${pathSegment(postId)}/gifts',
+      data: {
+        'giftCode': giftCode,
+        'quantity': quantity,
+        'source': source,
+        'clientId': clientId,
+      },
+    );
+    final json = res.data!;
+    return (
+      comment: Comment.fromJson(json['comment']! as Map<String, dynamic>),
+      giftCherries: json['giftCherries']! as int,
+      coins: json['coins']! as int,
+      bagQuantity: json['bagQuantity']! as int,
+    );
+  });
 }
 
 final postsRepositoryProvider = Provider<PostsRepository>(
