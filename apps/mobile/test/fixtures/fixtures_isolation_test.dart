@@ -86,6 +86,9 @@ void main() {
       'd300DaresThresholds',
       'd300SchoolValues(',
       'd300DaresValue(',
+      // D382 (test/fixtures/notifications/notifications_d382_fixtures.dart).
+      'd382Now',
+      'd382Notifications(',
       // CP-021 (the CP space fixtures).
       'cpTasksJson(',
       'cpPrivilegesJson(',

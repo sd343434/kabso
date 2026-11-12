@@ -11,6 +11,7 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/medals/application/medals_providers.dart';
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
 import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
@@ -112,6 +113,11 @@ class NotificationsScreen extends ConsumerWidget {
   static const emptyKey = Key('notifications.empty');
   static const listKey = Key('notifications.list');
   static const settingsKey = Key('notifications.settings');
+  static const backKey = Key('notifications.back');
+  static const avatarKey = Key('notifications.avatar');
+
+  /// D382: the header photo beside the title.
+  static const double headerAvatar = 32;
   static Key rowKey(String id) => Key('notifications.row.$id');
   static Key sectionKey(NotificationSection s) =>
       Key('notifications.section.${s.name}');
@@ -123,16 +129,65 @@ class NotificationsScreen extends ConsumerWidget {
 
   Widget _build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final p = context.palette;
+    final me = ref.watch(currentUserProvider);
+    // D382: your photo and a large «الإشعارات» (no bar chrome); back only
+    // when the page was pushed.
+    final canPop =
+        GoRouter.maybeOf(context)?.canPop() ?? Navigator.canPop(context);
     return Scaffold(
       appBar: KAppBar(
-        title: Text(l10n.notificationsTitle),
+        backgroundColor: p.background,
+        scrolledUnderElevation: 0,
+        automaticallyImplyLeading: false,
+        titleSpacing: canPop ? 0 : KSpacing.lg,
+        toolbarHeight: 52,
+        title: Row(
+          children: [
+            if (canPop)
+              IconButton(
+                key: backKey,
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: () => Navigator.maybePop(context),
+                icon: const BackButtonIcon(),
+              ),
+            if (me != null) ...[
+              KAvatar(
+                key: avatarKey,
+                name: me.displayName.isEmpty ? me.username : me.displayName,
+                imageUrl: me.avatarUrl,
+                size: headerAvatar,
+              ),
+              const SizedBox(width: 10),
+            ],
+            Flexible(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  l10n.notificationsTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.headline.copyWith(
+                    fontSize: 22,
+                    color: p.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             key: settingsKey,
             tooltip: l10n.notificationsSettings,
             onPressed: () => context.push(AppRoutes.notificationSettings),
-            icon: const Icon(Icons.settings_outlined),
+            icon: AppIcon(
+              AppIcons.settings,
+              size: KMetrics.iconMd,
+              color: p.textPrimary,
+            ),
           ),
+          const SizedBox(width: KSpacing.xs),
         ],
       ),
       body: switch (ref.watch(notificationsInboxProvider)) {
@@ -241,9 +296,10 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
+    // D382: a plain heading with room above it.
     padding: const EdgeInsetsDirectional.fromSTEB(
       KSpacing.lg,
-      KSpacing.lg,
+      KSpacing.md,
       KSpacing.lg,
       KSpacing.xs,
     ),
@@ -252,6 +308,8 @@ class _SectionHeader extends StatelessWidget {
       child: Text(
         label,
         style: context.textStyles.bodyStrong.copyWith(
+          fontSize: 16,
+          height: 1.3,
           color: context.palette.textPrimary,
         ),
       ),
@@ -266,8 +324,10 @@ class NotificationRow extends StatelessWidget {
 
   final AppNotification item;
 
-  static const double avatar = 44;
+  static const double avatar = 46;
   static const double thumb = 44;
+
+  static const unreadDotKey = Key('notifications.unreadDot');
 
   /// Where a tap goes, or `null` (removed content, an unknown target).
   String? routeTo() {
@@ -576,76 +636,73 @@ class NotificationRow extends StatelessWidget {
             KFormat.bidiIsolate(item.target?.reason ?? item.target!.text!),
           )
         : item.target?.text;
-    final body = t.body.copyWith(color: p.textPrimary);
-    final spans = <InlineSpan>[];
-    final at = who == null || name.isEmpty || !who.startsWith(name)
-        ? -1
-        : sentence.indexOf(who);
-    if (at < 0) {
-      spans.add(TextSpan(text: sentence));
+    // D382: one paragraph (names bold) with the short time in grey after it.
+    final body = t.body.copyWith(color: p.textPrimary, height: 1.35);
+    const strong = TextStyle(fontWeight: FontWeight.w600);
+    final bold = [
+      if (who != null && name.isNotEmpty && who.startsWith(name)) name,
+      ..._boldTargets(sentence),
+    ];
+    final spans = _emphasise(sentence, bold, strong);
+    final shortWhen =
+        KFormat.relativeShort(
+          item.createdAt,
+          clock.now(),
+          l10n,
+          Localizations.localeOf(context).toLanguageTag(),
+        ) ??
+        l10n.feedPostJustNow;
+    spans.add(
+      TextSpan(
+        text: ' \u2068$shortWhen\u2069',
+        style: TextStyle(color: p.textTertiary),
+      ),
+    );
+    final preview =
+        excerpt != null &&
+            item.type != NotificationType.follow &&
+            !_textInSentence
+        ? isolateHandles(excerpt)
+        : null;
+    final target = routeTo();
+    final first = item.actors.firstOrNull;
+    final kind = notificationKind(item.type, p);
+    final Widget leading;
+    if (item.type == NotificationType.medalAwarded) {
+      leading = MedalIcon(iconKey: medal?.iconKey ?? '', size: avatar);
+    } else if (first == null) {
+      // No actor: the kind itself, in its colour.
+      leading = Container(
+        width: avatar,
+        height: avatar,
+        decoration: BoxDecoration(
+          color: kind.color.withAlpha(36),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(kind.icon, size: 24, color: kind.color),
+      );
     } else {
-      spans
-        ..add(TextSpan(text: sentence.substring(0, at)))
-        ..add(
-          TextSpan(
-            text: name,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-        )
-        ..add(TextSpan(text: sentence.substring(at + name.length)));
-    }
-    if (excerpt != null &&
-        item.type != NotificationType.follow &&
-        !_textInSentence) {
-      spans.add(
-        TextSpan(
-          text: '\n${isolateHandles(excerpt)}',
-          style: TextStyle(color: p.textSecondary),
+      leading = SizedBox.square(
+        dimension: avatar,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            KAvatar(
+              name: first.displayName.isEmpty
+                  ? first.username
+                  : first.displayName,
+              imageUrl: first.avatarUrl,
+              size: avatar,
+            ),
+            PositionedDirectional(
+              end: -3,
+              bottom: -3,
+              child: _KindBadge(kind: kind),
+            ),
+          ],
         ),
       );
     }
-    final target = routeTo();
-    final first = item.actors.firstOrNull;
-    final leading = item.type == NotificationType.medalAwarded
-        ? MedalIcon(iconKey: medal?.iconKey ?? '', size: avatar)
-        : first == null
-        ? Container(
-            width: avatar,
-            height: avatar,
-            decoration: BoxDecoration(
-              color: p.surfaceRaised,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              item.type == NotificationType.contentRemoved ||
-                      item.type == NotificationType.avatarRemoved ||
-                      item.type == NotificationType.coverRemoved ||
-                      item.type == NotificationType.liveModerated
-                  ? Icons.gpp_maybe_outlined
-                  : item.type.isAgency
-                  ? Icons.business_center_rounded
-                  : item.type.isHostApplication || item.type.isKyc
-                  ? Icons.verified_user_rounded
-                  : item.type.isSystem &&
-                        item.type != NotificationType.postPublished
-                  ? Icons.workspace_premium_rounded
-                  : Icons.schedule_rounded,
-              color:
-                  item.type == NotificationType.contentRemoved ||
-                      item.type == NotificationType.avatarRemoved ||
-                      item.type == NotificationType.coverRemoved ||
-                      item.type == NotificationType.liveModerated
-                  ? p.error
-                  : p.primary,
-            ),
-          )
-        : KAvatar(
-            name: first.displayName.isEmpty
-                ? first.username
-                : first.displayName,
-            imageUrl: first.avatarUrl,
-            size: avatar,
-          );
     final thumbUrl = item.target?.thumbUrl;
     return Semantics(
       button: target != null,
@@ -656,76 +713,253 @@ class NotificationRow extends StatelessWidget {
         when,
       ].join('. ').replaceAll(_isolates, ''),
       excludeSemantics: true,
-      child: Material(
-        color: item.read ? const Color(0x00000000) : p.primary.withAlpha(20),
-        child: InkWell(
-          onTap: target == null ? null : () => context.push(target),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: KSpacing.lg,
-              vertical: KSpacing.sm,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                leading,
-                const SizedBox(width: KSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text.rich(
-                        TextSpan(style: body, children: spans),
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
+      child: InkWell(
+        onTap: target == null ? null : () => context.push(target),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: KSpacing.lg,
+            vertical: KSpacing.md,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              leading,
+              const SizedBox(width: KSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text.rich(
+                      TextSpan(style: body, children: spans),
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (preview != null) ...[
+                      const SizedBox(height: KSpacing.xs),
                       Text(
-                        when,
-                        style: t.caption.copyWith(color: p.textTertiary),
+                        preview,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: body.copyWith(color: p.textSecondary),
                       ),
                     ],
+                  ],
+                ),
+              ),
+              if (thumbUrl != null) ...[
+                const SizedBox(width: KSpacing.md),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(KRadius.sm),
+                  child: ColoredBox(
+                    color: p.surfaceRaised,
+                    child: Image.network(
+                      thumbUrl,
+                      width: thumb,
+                      height: thumb,
+                      fit: BoxFit.cover,
+                      excludeFromSemantics: true,
+                      errorBuilder: (_, _, _) =>
+                          const SizedBox.square(dimension: thumb),
+                    ),
                   ),
                 ),
-                if (thumbUrl != null) ...[
-                  const SizedBox(width: KSpacing.md),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(KRadius.sm),
-                    child: ColoredBox(
-                      color: p.surfaceRaised,
-                      child: Image.network(
-                        thumbUrl,
-                        width: thumb,
-                        height: thumb,
-                        fit: BoxFit.cover,
-                        excludeFromSemantics: true,
-                        errorBuilder: (_, _, _) =>
-                            const SizedBox.square(dimension: thumb),
-                      ),
-                    ),
-                  ),
-                ],
-                if (!item.read) ...[
-                  const SizedBox(width: KSpacing.sm),
-                  Padding(
-                    padding: const EdgeInsets.only(top: avatar / 2 - 4),
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: p.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
               ],
-            ),
+              // D382: unread is a small dot at the end of the first line.
+              if (!item.read) ...[
+                const SizedBox(width: KSpacing.sm),
+                Padding(
+                  padding: const EdgeInsets.only(top: 7),
+                  child: Container(
+                    key: unreadDotKey,
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: p.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
     );
   }
+
+  /// D382: the target's name in the sentence (a family, a host), bold.
+  List<String> _boldTargets(String sentence) {
+    final text = switch (item.type) {
+      NotificationType.familyJoinAccepted ||
+      NotificationType.familyJoinDeclined ||
+      NotificationType.liveStaffReport => item.target?.text,
+      _ => null,
+    };
+    if (text == null || text.isEmpty) return const [];
+    final isolated = KFormat.bidiIsolate(text);
+    return sentence.contains(isolated) ? [isolated] : const [];
+  }
+}
+
+/// [sentence] as spans, each of [terms] (its first occurrence) in [style].
+List<InlineSpan> _emphasise(
+  String sentence,
+  List<String> terms,
+  TextStyle style,
+) {
+  final marks = <(int, int)>[];
+  for (final term in terms) {
+    if (term.isEmpty) continue;
+    final at = sentence.indexOf(term);
+    if (at < 0) continue;
+    final end = at + term.length;
+    if (marks.any((m) => at < m.$2 && end > m.$1)) continue;
+    marks.add((at, end));
+  }
+  marks.sort((a, b) => a.$1.compareTo(b.$1));
+  final spans = <InlineSpan>[];
+  var from = 0;
+  for (final (start, end) in marks) {
+    if (start > from) {
+      spans.add(TextSpan(text: sentence.substring(from, start)));
+    }
+    spans.add(TextSpan(text: sentence.substring(start, end), style: style));
+    from = end;
+  }
+  if (from < sentence.length) {
+    spans.add(TextSpan(text: sentence.substring(from)));
+  }
+  return spans;
+}
+
+/// D382: a notification kind's badge colour and icon (palette tokens).
+typedef NotificationKind = ({Color color, IconData icon});
+
+/// D382: the colour and icon of [type] (green: accepted or done, red: likes,
+/// blue: comments and mentions, orange: time and coins, error: removed or
+/// refused).
+NotificationKind notificationKind(NotificationType type, KPalette p) =>
+    switch (type) {
+      NotificationType.likePost ||
+      NotificationType.likeComment ||
+      NotificationType.cpRequest ||
+      NotificationType.cpAccepted => (
+        color: p.primary,
+        icon: Icons.favorite_rounded,
+      ),
+      NotificationType.comment || NotificationType.reply => (
+        color: p.info,
+        icon: Icons.chat_bubble_rounded,
+      ),
+      NotificationType.mention => (
+        color: p.info,
+        icon: Icons.alternate_email_rounded,
+      ),
+      NotificationType.follow || NotificationType.followRequest => (
+        color: p.success,
+        icon: Icons.person_add_alt_1_rounded,
+      ),
+      NotificationType.repost => (color: p.success, icon: Icons.repeat_rounded),
+      NotificationType.followRequestAccepted ||
+      NotificationType.postPublished ||
+      NotificationType.familyJoinAccepted ||
+      NotificationType.agencyProbationPassed ||
+      NotificationType.hostApplicationApproved ||
+      NotificationType.kycApproved ||
+      NotificationType.levelRaiseApproved => (
+        color: p.success,
+        icon: Icons.check_rounded,
+      ),
+      NotificationType.liveScheduledSoon ||
+      NotificationType.kycInReview ||
+      NotificationType.agencyProbationReminder ||
+      NotificationType.premiumUsernameExpiring => (
+        color: p.warning,
+        icon: Icons.schedule_rounded,
+      ),
+      NotificationType.contentRemoved ||
+      NotificationType.avatarRemoved ||
+      NotificationType.coverRemoved ||
+      NotificationType.liveModerated => (
+        color: p.error,
+        icon: Icons.gpp_maybe_rounded,
+      ),
+      NotificationType.familyJoinDeclined ||
+      NotificationType.hostApplicationRejected ||
+      NotificationType.kycDeclined ||
+      NotificationType.levelRaiseRejected ||
+      NotificationType.agencyClosed => (
+        color: p.error,
+        icon: Icons.close_rounded,
+      ),
+      NotificationType.referralRewardReversed => (
+        color: p.error,
+        icon: Icons.undo_rounded,
+      ),
+      NotificationType.liveStaffReport || NotificationType.staffReportNew => (
+        color: p.error,
+        icon: Icons.flag_rounded,
+      ),
+      NotificationType.medalAwarded ||
+      NotificationType.eventPrizeWon ||
+      NotificationType.levelRaised ||
+      NotificationType.premiumUsernameExpired => (
+        color: p.warning,
+        icon: Icons.workspace_premium_rounded,
+      ),
+      NotificationType.bagItemReceived => (
+        color: p.primary,
+        icon: Icons.card_giftcard_rounded,
+      ),
+      NotificationType.rechargeCoinsReceived ||
+      NotificationType.rechargeCherryRequest ||
+      NotificationType.rechargeOrderUpdate => (
+        color: p.warning,
+        icon: Icons.monetization_on_rounded,
+      ),
+      NotificationType.dataExportReady => (
+        color: p.info,
+        icon: Icons.download_rounded,
+      ),
+      NotificationType.agencyOpened || NotificationType.agencyHostReleased => (
+        color: p.info,
+        icon: Icons.business_center_rounded,
+      ),
+      NotificationType.ownerFeedbackNew => (
+        color: p.info,
+        icon: Icons.inbox_rounded,
+      ),
+      NotificationType.ownerAnnouncement => (
+        color: p.primary,
+        icon: Icons.campaign_rounded,
+      ),
+      NotificationType.unknown => (
+        color: p.textTertiary,
+        icon: Icons.notifications_rounded,
+      ),
+    };
+
+/// D382: the kind's small circle at the photo's bottom corner (a white
+/// icon, ringed in the page colour).
+class _KindBadge extends StatelessWidget {
+  const new({required this.kind});
+
+  final NotificationKind kind;
+
+  static const double size = 20;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: kind.color,
+      shape: BoxShape.circle,
+      border: Border.all(color: context.palette.background, width: 2),
+    ),
+    alignment: Alignment.center,
+    child: Icon(kind.icon, size: 11, color: const Color(0xFFFFFFFF)),
+  );
 }
 
 final RegExp _isolates = RegExp('[\u2066-\u2069]');
