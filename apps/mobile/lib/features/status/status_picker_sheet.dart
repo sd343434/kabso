@@ -356,6 +356,10 @@ class _Still extends StatelessWidget {
       width: size,
       height: size,
       animate: animate && !MediaQuery.disableAnimationsOf(context),
+      // A cell at rest shows the emoji's still frame (not always frame 0).
+      controller: animate && !MediaQuery.disableAnimationsOf(context)
+          ? null
+          : AlwaysStoppedAnimation(emoji.stillAt),
       fit: BoxFit.contain,
       errorBuilder: (_, _, _) => SizedBox.square(dimension: size),
     ),

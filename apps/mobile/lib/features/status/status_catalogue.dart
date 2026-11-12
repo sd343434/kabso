@@ -51,6 +51,7 @@ final class StatusEmoji {
     required this.packId,
     required this.asset,
     this.faceSway = false,
+    this.stillAt = 0,
     this.kabso,
   });
 
@@ -63,6 +64,12 @@ final class StatusEmoji {
 
   /// Birds look left / right as they sway (they seem to fly).
   final bool faceSway;
+
+  /// The frame (0…1 of the animation) drawn where the emoji stands still:
+  /// the picker's cells, the badge, the still above a head. 0 for most;
+  /// later where Noto's first frame is empty or not the emoji yet (the
+  /// dragon flies in, the rainbow draws itself).
+  final double stillAt;
 
   /// The chat emoji behind a Kabso pack's status (its name and asset).
   final KabsoEmoji? kabso;
@@ -103,11 +110,12 @@ final class StatusPack {
 /// (`assets/emojis/noto/<code>.json`).
 @immutable
 final class StatusEmojiSpec {
-  const new(this.id, this.code, {this.faceSway = false});
+  const new(this.id, this.code, {this.faceSway = false, this.stillAt = 0});
 
   final String id;
   final String code;
   final bool faceSway;
+  final double stillAt;
 }
 
 /// «عام» — 24 Google Noto animated emoji (CC BY 4.0).
@@ -120,7 +128,7 @@ const List<StatusEmojiSpec> _noto = [
   StatusEmojiSpec('noto.star_struck', '1f929'),
   StatusEmojiSpec('noto.party', '1f973'),
   StatusEmojiSpec('noto.innocent', '1f607'),
-  StatusEmojiSpec('noto.wink_tongue', '1f61c'),
+  StatusEmojiSpec('noto.wink_tongue', '1f61c', stillAt: 0.5),
   StatusEmojiSpec('noto.hug', '1f917'),
   StatusEmojiSpec('noto.kiss', '1f618'),
   StatusEmojiSpec('noto.thinking', '1f914'),
@@ -134,7 +142,7 @@ const List<StatusEmojiSpec> _noto = [
   StatusEmojiSpec('noto.fire', '1f525'),
   StatusEmojiSpec('noto.hundred', '1f4af'),
   StatusEmojiSpec('noto.thumbs_up', '1f44d'),
-  StatusEmojiSpec('noto.congrats', '1f389'),
+  StatusEmojiSpec('noto.congrats', '1f389', stillAt: 0.5),
   StatusEmojiSpec('noto.thanks', '1f64f'),
 ];
 
@@ -157,20 +165,20 @@ const List<StatusEmojiSpec> _premium = [
   StatusEmojiSpec('premium.diamond', '1f48e'),
   StatusEmojiSpec('premium.rocket', '1f680'),
   StatusEmojiSpec('premium.lion', '1f981'),
-  StatusEmojiSpec('premium.rich', '1f911'),
+  StatusEmojiSpec('premium.rich', '1f911', stillAt: 0.75),
   StatusEmojiSpec('premium.trophy', '1f3c6'),
-  StatusEmojiSpec('premium.glow_star', '1f31f'),
+  StatusEmojiSpec('premium.glow_star', '1f31f', stillAt: 0.5),
   StatusEmojiSpec('premium.sparkles', '2728'),
   StatusEmojiSpec('premium.unicorn', '1f984'),
-  StatusEmojiSpec('premium.dragon', '1f409'),
+  StatusEmojiSpec('premium.dragon', '1f409', stillAt: 0.75),
   StatusEmojiSpec('premium.rose', '1f339'),
   StatusEmojiSpec('premium.gift', '1f381'),
-  StatusEmojiSpec('premium.fireworks', '1f386'),
-  StatusEmojiSpec('premium.rainbow', '1f308'),
+  StatusEmojiSpec('premium.fireworks', '1f386', stillAt: 0.75),
+  StatusEmojiSpec('premium.rainbow', '1f308', stillAt: 0.5),
   StatusEmojiSpec('premium.sparkling_heart', '1f496'),
   StatusEmojiSpec('premium.champagne', '1f37e'),
   StatusEmojiSpec('premium.cheers', '1f942'),
-  StatusEmojiSpec('premium.devil', '1f608'),
+  StatusEmojiSpec('premium.devil', '1f608', stillAt: 0.5),
   // D374 hook: the VIP perk catalogue (another branch) or the owner's own
   // designs add emojis here — Lottie in `assets/emojis/premium/` (declare the
   // folder in pubspec.yaml), the same id in the server's allow-list: e.g. the
@@ -186,6 +194,7 @@ List<StatusEmoji> _fromSpecs(String pack, List<StatusEmojiSpec> specs) => [
           ? 'assets/emojis/${s.code}.json'
           : 'assets/emojis/noto/${s.code}.json',
       faceSway: s.faceSway,
+      stillAt: s.stillAt,
     ),
 ];
 

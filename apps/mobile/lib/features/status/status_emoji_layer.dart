@@ -222,6 +222,7 @@ class _StatusEmojiLayerState extends State<StatusEmojiLayer>
                     radius: widget.radius,
                     badge: motion == StatusEmojiMotion.badge,
                     rtl: Directionality.of(context) == TextDirection.rtl,
+                    stillAt: widget.emoji.stillAt,
                   ),
           );
     if (moving) {
@@ -459,17 +460,19 @@ class _StillPainter extends CustomPainter {
     required this.radius,
     required this.badge,
     required this.rtl,
+    this.stillAt = 0,
   });
 
   final LottieDrawable drawable;
   final double radius;
   final bool badge;
   final bool rtl;
+  final double stillAt;
 
   @override
   void paint(Canvas canvas, Size size) {
     final centre = size.center(Offset.zero);
-    drawable.setProgress(0);
+    drawable.setProgress(stillAt);
     if (badge) {
       // On the top end corner, over the picture's edge.
       final s = 2 * radius * KStatusEmoji.badge;
@@ -488,6 +491,7 @@ class _StillPainter extends CustomPainter {
       old.drawable != drawable ||
       old.radius != radius ||
       old.badge != badge ||
+      old.stillAt != stillAt ||
       old.rtl != rtl;
 }
 
