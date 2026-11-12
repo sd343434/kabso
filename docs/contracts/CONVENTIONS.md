@@ -12328,7 +12328,10 @@ The sheet that opens on a tap on a person in a live or party room (`LivePersonSh
   (no «بطاقة تعريفية» slot or section for them), so nobody can see or wear them for now. A pure UI hide behind one app
   flag (`kabsoProfileHeadersHidden` in `kabso_profile_header.dart`): the owned items, the free `bunny_royal` at sign-up,
   the assets and the API are unchanged. The VIP and store `PROFILE_CARD` items (the background, below) stay listed.
-- **Everyone without the perk** gets the earlier card exactly.
+- **The picture sits mostly inside the card** (owner 2026-11-12: «الصورة الشخصية يجب أن تكون داخل البطاقة التعريفية
+  أكثر، لا يتجاوز منها البطاقة سوى قليلاً»): about 18 % of its circle (with the ring) above the sheet's top edge (it was
+  half); the content below moves down by as much. Same size, ring and frames.
+- **Everyone without the perk** gets the earlier card otherwise.
 
 #### 10.172.2 `PROFILE_CARD`, the card's background
 

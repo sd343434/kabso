@@ -160,6 +160,19 @@ abstract final class LivePersonCardMetrics {
   /// The clean ring around a picture that wears no frame.
   static const double ring = 3;
 
+  /// D383 (owner 2026-11-12: «الصورة الشخصية يجب أن تكون داخل البطاقة
+  /// التعريفية أكثر، لا يتجاوز منها البطاقة سوى قليلاً»): the share of the
+  /// picture's circle (with its ring) above the sheet's top edge — the rest
+  /// sits inside the card. It was half (the edge through the centre).
+  static const double poke = 0.18;
+
+  /// Where the sheet's top edge crosses a picture whose circle's centre is
+  /// [centreY] below the picture's top: [poke] of the circle above it.
+  static double edgeIn(double centreY) {
+    const circle = avatar + 2 * ring;
+    return centreY - circle / 2 + poke * circle;
+  }
+
   /// The sheet's top corners.
   static const double radius = 22;
 
@@ -352,11 +365,13 @@ class LivePersonSheet extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, box) {
-        // The sheet's top edge goes through the picture's centre, or lower
-        // when the header decoration rises higher than the picture.
+        // D383: the sheet's top edge crosses the picture's circle near its
+        // top (only [LivePersonCardMetrics.poke] of it above the card), or
+        // lower when the header decoration rises higher than that.
+        final inPicture = LivePersonCardMetrics.edgeIn(picture.centreY);
         final edge = header == null
-            ? picture.centreY
-            : math.max(picture.centreY, header.overhang(box.maxWidth));
+            ? inPicture
+            : math.max(inPicture, header.overhang(box.maxWidth));
         final body = profile == null
             ? _State(error: loaded.error, look: look)
             : _Body(
@@ -366,7 +381,7 @@ class LivePersonSheet extends ConsumerWidget {
                 onInvite: onInvite,
                 look: look,
                 // Room under the edge for the picture's lower part.
-                top: picture.height - picture.centreY + 6 + vipDrop,
+                top: picture.height - inPicture + 6 + vipDrop,
               );
         final sheet = Stack(
           key: sheetKey,
@@ -443,7 +458,7 @@ class LivePersonSheet extends ConsumerWidget {
                 ),
               ),
             Positioned(
-              top: edge - picture.centreY,
+              top: edge - inPicture,
               child: Semantics(
                 button: true,
                 label: context.l10n.liveUserViewProfile,
