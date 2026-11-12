@@ -1,7 +1,8 @@
 // v1.136-social (D384, CONVENTIONS §10.173): «صورة متحركة» — the member
-// records 3 s with the front camera, the phone removes the background, the
-// cut-out plays as a preview over a checkerboard, then save (upload),
-// record again, or remove the saved clip.
+// records 3 s with the front camera, or picks a video from the gallery and
+// keeps 3 s of it (owner 2026-11-12: «both»); the phone removes the
+// background, the cut-out plays as a preview over a checkerboard, then save
+// (upload), record or pick again, or remove the saved clip.
 
 import 'dart:async';
 
@@ -14,13 +15,16 @@ import 'package:kabso_live/features/live/application/live_viewer_prefs.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/vip/animated_avatar/animated_avatar_repository.dart';
 import 'package:kabso_live/features/vip/animated_avatar/cutout_compose.dart';
+import 'package:kabso_live/features/vip/animated_avatar/cutout_frames.dart';
+import 'package:kabso_live/features/vip/animated_avatar/cutout_gallery.dart';
 import 'package:kabso_live/features/vip/animated_avatar/cutout_recorder.dart';
 import 'package:kabso_live/features/vip/animated_avatar/cutout_strip_player.dart';
+import 'package:kabso_live/features/vip/animated_avatar/cutout_trim.dart';
 import 'package:kabso_live/features/vip/presentation/vip_cutout.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-enum _Stage { idle, opening, recording, processing, preview }
+enum _Stage { idle, opening, recording, trim, processing, preview }
 
 /// «صورة متحركة» (members holding ANIMATED_AVATAR; the server refuses the
 /// save otherwise).
@@ -38,6 +42,15 @@ class AnimatedAvatarScreen extends ConsumerStatefulWidget {
   static const progressKey = Key('vip.animatedAvatar.progress');
   static const errorKey = Key('vip.animatedAvatar.error');
 
+  /// D384 (owner: «record and pick from the gallery»): the gallery button,
+  /// the trim stage, its start slider, its range label and its buttons.
+  static const pickKey = Key('vip.animatedAvatar.pick');
+  static const trimKey = Key('vip.animatedAvatar.trim');
+  static const trimSliderKey = Key('vip.animatedAvatar.trim.slider');
+  static const trimRangeKey = Key('vip.animatedAvatar.trim.range');
+  static const trimUseKey = Key('vip.animatedAvatar.trim.use');
+  static const trimCancelKey = Key('vip.animatedAvatar.trim.cancel');
+
   @override
   ConsumerState<AnimatedAvatarScreen> createState() =>
       _AnimatedAvatarScreenState();
@@ -49,6 +62,13 @@ class _AnimatedAvatarScreenState extends ConsumerState<AnimatedAvatarScreen> {
   CutoutStrip? _strip;
   String? _error;
   bool _busy = false;
+
+  /// D384: the picked video while it is trimmed, its start (ms) and the
+  /// frame shown there.
+  PickedClip? _clip;
+  int _trimStart = 0;
+  ImageProvider? _poster;
+  int _posterAsk = 0;
 
   @override
   void dispose() {
@@ -79,18 +99,7 @@ class _AnimatedAvatarScreenState extends ConsumerState<AnimatedAvatarScreen> {
           });
         },
       );
-      if (!mounted) return;
-      setState(() => _stage = _Stage.processing);
-      final strip = await composeCutoutStrip(frames);
-      if (!mounted) {
-        strip.image.dispose();
-        return;
-      }
-      setState(() {
-        _strip?.image.dispose();
-        _strip = strip;
-        _stage = _Stage.preview;
-      });
+      await _compose(frames);
     } on CutoutNoPersonException {
       _fail(l10n.vipAnimatedAvatarNoPerson);
     } on CutoutTooLargeException {
@@ -100,9 +109,94 @@ class _AnimatedAvatarScreenState extends ConsumerState<AnimatedAvatarScreen> {
     }
   }
 
+  /// The frames (either path) into the strip and its preview.
+  Future<void> _compose(List<CutoutFrame> frames) async {
+    if (!mounted) return;
+    setState(() => _stage = _Stage.processing);
+    final strip = await composeCutoutStrip(frames);
+    if (!mounted) {
+      strip.image.dispose();
+      return;
+    }
+    setState(() {
+      _strip?.image.dispose();
+      _strip = strip;
+      _clip = null;
+      _stage = _Stage.preview;
+    });
+  }
+
+  /// D384: picks a video, then the trim stage (3 s of it).
+  Future<void> _pick() async {
+    final l10n = context.l10n;
+    setState(() => _error = null);
+    try {
+      final clip = await ref.read(cutoutGalleryProvider).pick();
+      if (clip == null || !mounted) return;
+      setState(() {
+        _clip = clip;
+        _trimStart = 0;
+        _poster = null;
+        _stage = _Stage.trim;
+      });
+      unawaited(_loadPoster());
+    } on CutoutClipException {
+      _fail(l10n.vipAnimatedAvatarPickError);
+    }
+  }
+
+  /// The frame at the trim's start (the latest request wins).
+  Future<void> _loadPoster() async {
+    final clip = _clip;
+    if (clip == null) return;
+    final ask = ++_posterAsk;
+    final at = trimWindow(clip.durationMs, _trimStart).startMs;
+    final poster = await ref.read(cutoutGalleryProvider).frameAt(clip, at);
+    if (!mounted || ask != _posterAsk) return;
+    setState(() => _poster = poster);
+  }
+
+  /// D384: the kept 3 s → frames (15 a second) → the same cut-out as a
+  /// recording.
+  Future<void> _useTrim() async {
+    final clip = _clip;
+    if (clip == null) return;
+    final l10n = context.l10n;
+    setState(() {
+      _stage = _Stage.processing;
+      _error = null;
+      _progress = 0;
+    });
+    try {
+      final frames = await ref
+          .read(cutoutGalleryProvider)
+          .frames(
+            clip,
+            _trimStart,
+            onProgress: (p) {
+              if (mounted) setState(() => _progress = p);
+            },
+          );
+      await _compose(frames);
+    } on CutoutNoPersonException {
+      _fail(l10n.vipAnimatedAvatarNoPerson);
+    } on CutoutTooLargeException {
+      _fail(l10n.vipAnimatedAvatarTooLarge);
+    } on CutoutClipException {
+      _fail(l10n.vipAnimatedAvatarPickError);
+    }
+  }
+
+  void _cancelTrim() => setState(() {
+    _clip = null;
+    _poster = null;
+    _stage = _strip == null ? _Stage.idle : _Stage.preview;
+  });
+
   void _fail(String message) {
     if (!mounted) return;
     setState(() {
+      _clip = null;
       _stage = _strip == null ? _Stage.idle : _Stage.preview;
       _error = message;
     });
@@ -197,6 +291,23 @@ class _AnimatedAvatarScreenState extends ConsumerState<AnimatedAvatarScreen> {
           ),
         ],
       ),
+      _Stage.trim => KeyedSubtree(
+        key: AnimatedAvatarScreen.trimKey,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const ColoredBox(color: Color(0xFF15171C)),
+            if (_poster case final poster?)
+              Image(
+                image: poster,
+                fit: BoxFit.contain,
+                gaplessPlayback: true,
+                excludeFromSemantics: true,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
+          ],
+        ),
+      ),
       _Stage.processing => Center(
         key: AnimatedAvatarScreen.progressKey,
         child: Column(
@@ -273,7 +384,9 @@ class _AnimatedAvatarScreenState extends ConsumerState<AnimatedAvatarScreen> {
                 constraints: const BoxConstraints(maxWidth: 280),
                 child: AspectRatio(
                   aspectRatio:
-                      _stage == _Stage.recording || _stage == _Stage.opening
+                      _stage == _Stage.recording ||
+                          _stage == _Stage.opening ||
+                          _stage == _Stage.trim
                       ? 3 / 4
                       : 1,
                   child: DecoratedBox(
@@ -303,6 +416,15 @@ class _AnimatedAvatarScreenState extends ConsumerState<AnimatedAvatarScreen> {
                 ),
               ),
             ),
+            if (_stage == _Stage.trim && _clip != null)
+              _TrimPanel(
+                clip: _clip!,
+                startMs: _trimStart,
+                onChanged: (ms) => setState(() => _trimStart = ms),
+                onChangeEnd: (_) => unawaited(_loadPoster()),
+                onUse: () => unawaited(_useTrim()),
+                onCancel: _cancelTrim,
+              ),
             if (_stage == _Stage.recording) ...[
               const SizedBox(height: KSpacing.md),
               LinearProgressIndicator(value: (_progress * 2).clamp(0, 1)),
@@ -323,35 +445,46 @@ class _AnimatedAvatarScreenState extends ConsumerState<AnimatedAvatarScreen> {
               ),
             ],
             const SizedBox(height: KSpacing.xl),
-            if (_stage == _Stage.preview)
-              KButton(
-                key: AnimatedAvatarScreen.saveKey,
-                label: l10n.vipAnimatedAvatarSave,
-                loading: _busy,
-                onPressed: _busy ? null : () => unawaited(_save()),
-              ),
-            const SizedBox(height: KSpacing.sm),
-            KButton(
-              key: AnimatedAvatarScreen.recordKey,
-              label: _stage == _Stage.preview || current != null
-                  ? l10n.vipAnimatedAvatarRerecord
-                  : l10n.vipAnimatedAvatarRecord,
-              icon: Icons.videocam_outlined,
-              variant: _stage == _Stage.preview
-                  ? KButtonVariant.secondary
-                  : KButtonVariant.primary,
-              loading: working,
-              onPressed: working || _busy ? null : () => unawaited(_record()),
-            ),
-            if (current != null && _stage == _Stage.idle) ...[
+            if (_stage != _Stage.trim) ...[
+              if (_stage == _Stage.preview)
+                KButton(
+                  key: AnimatedAvatarScreen.saveKey,
+                  label: l10n.vipAnimatedAvatarSave,
+                  loading: _busy,
+                  onPressed: _busy ? null : () => unawaited(_save()),
+                ),
               const SizedBox(height: KSpacing.sm),
               KButton(
-                key: AnimatedAvatarScreen.removeKey,
-                label: l10n.vipAnimatedAvatarRemove,
-                variant: KButtonVariant.destructive,
-                loading: _busy,
-                onPressed: _busy ? null : () => unawaited(_remove()),
+                key: AnimatedAvatarScreen.recordKey,
+                label: _stage == _Stage.preview || current != null
+                    ? l10n.vipAnimatedAvatarRerecord
+                    : l10n.vipAnimatedAvatarRecord,
+                icon: Icons.videocam_outlined,
+                variant: _stage == _Stage.preview
+                    ? KButtonVariant.secondary
+                    : KButtonVariant.primary,
+                loading: working,
+                onPressed: working || _busy ? null : () => unawaited(_record()),
               ),
+              // D384 (owner: «both»): a video from the gallery, 3 s of it.
+              const SizedBox(height: KSpacing.sm),
+              KButton(
+                key: AnimatedAvatarScreen.pickKey,
+                label: l10n.vipAnimatedAvatarPick,
+                icon: Icons.video_library_outlined,
+                variant: KButtonVariant.secondary,
+                onPressed: working || _busy ? null : () => unawaited(_pick()),
+              ),
+              if (current != null && _stage == _Stage.idle) ...[
+                const SizedBox(height: KSpacing.sm),
+                KButton(
+                  key: AnimatedAvatarScreen.removeKey,
+                  label: l10n.vipAnimatedAvatarRemove,
+                  variant: KButtonVariant.destructive,
+                  loading: _busy,
+                  onPressed: _busy ? null : () => unawaited(_remove()),
+                ),
+              ],
             ],
           ],
         ),
@@ -408,4 +541,82 @@ class _Checkerboard extends CustomPainter {
   @override
   bool shouldRepaint(_Checkerboard old) =>
       old.light != light || old.dark != dark;
+}
+
+/// D384: keep 3 s of a picked video — a start slider over its length, the
+/// kept range (`m:ss.d – m:ss.d`), then «استخدام هذا الجزء» or «إلغاء». A
+/// video of 3 s or less is kept whole (no slider to move).
+class _TrimPanel extends StatelessWidget {
+  const new({
+    required this.clip,
+    required this.startMs,
+    required this.onChanged,
+    required this.onChangeEnd,
+    required this.onUse,
+    required this.onCancel,
+  });
+
+  final PickedClip clip;
+  final int startMs;
+  final ValueChanged<int> onChanged;
+  final ValueChanged<int> onChangeEnd;
+  final VoidCallback onUse;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = context.textStyles;
+    final palette = context.palette;
+    final window = trimWindow(clip.durationMs, startMs);
+    final maxStart = maxTrimStartMs(clip.durationMs);
+    final end = window.startMs + window.lengthMs;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: KSpacing.md),
+        Text(
+          l10n.vipAnimatedAvatarTrimTitle,
+          textAlign: TextAlign.center,
+          style: text.label.copyWith(color: palette.textPrimary),
+        ),
+        Slider(
+          key: AnimatedAvatarScreen.trimSliderKey,
+          max: maxStart <= 0 ? 1 : maxStart.toDouble(),
+          value: maxStart <= 0 ? 0 : window.startMs.toDouble(),
+          onChanged: maxStart <= 0 ? null : (v) => onChanged(v.round()),
+          onChangeEnd: maxStart <= 0 ? null : (v) => onChangeEnd(v.round()),
+        ),
+        // Times read left to right in both languages.
+        Text(
+          '\u2066${trimTimeLabel(window.startMs)} – '
+          '${trimTimeLabel(end)}\u2069',
+          key: AnimatedAvatarScreen.trimRangeKey,
+          textAlign: TextAlign.center,
+          style: text.body.copyWith(color: palette.textPrimary),
+        ),
+        const SizedBox(height: KSpacing.xs),
+        Text(
+          maxStart <= 0
+              ? l10n.vipAnimatedAvatarTrimWhole
+              : l10n.vipAnimatedAvatarTrimHint,
+          textAlign: TextAlign.center,
+          style: text.caption.copyWith(color: palette.textSecondary),
+        ),
+        const SizedBox(height: KSpacing.lg),
+        KButton(
+          key: AnimatedAvatarScreen.trimUseKey,
+          label: l10n.vipAnimatedAvatarTrimUse,
+          onPressed: onUse,
+        ),
+        const SizedBox(height: KSpacing.sm),
+        KButton(
+          key: AnimatedAvatarScreen.trimCancelKey,
+          label: l10n.vipAnimatedAvatarTrimCancel,
+          variant: KButtonVariant.ghost,
+          onPressed: onCancel,
+        ),
+      ],
+    );
+  }
 }

@@ -13,17 +13,19 @@ export const MAX_ANIMATED_AVATAR_BYTES = 8 * 1024 * 1024;
 /** The frame side bounds (square frames). */
 export const ANIMATED_AVATAR_MIN_SIDE = 64;
 export const ANIMATED_AVATAR_MAX_SIDE = 512;
-/** 2–36 frames: 3 s at 12 frames a second at most. */
+/** 2–45 frames: 3 s at 15 frames a second at most (owner 2026-11-12: 15, not 12). */
 export const ANIMATED_AVATAR_MIN_FRAMES = 2;
-export const ANIMATED_AVATAR_MAX_FRAMES = 36;
-/** 12 frames a second. */
-export const ANIMATED_AVATAR_FRAME_MS = 83;
+export const ANIMATED_AVATAR_MAX_FRAMES = 45;
+/** 15 frames a second (1000 / 15, rounded). */
+export const ANIMATED_AVATAR_FRAME_MS = 67;
 /** The largest animated WebP kept (1.5 MiB): above it the frames are encoded again at a lower quality, then refused. */
 export const MAX_ANIMATED_AVATAR_WEBP_BYTES = 1.5 * 1024 * 1024;
 /** The qualities tried in order (colour, alpha). */
 const QUALITIES: readonly (readonly [number, number])[] = [
   [78, 85],
   [55, 70],
+  // D384 (15 fps, up to 45 frames): one more, lower step before a clip is refused.
+  [40, 60],
 ];
 
 export interface ProcessedAnimatedAvatar {
@@ -38,7 +40,7 @@ export interface ProcessedAnimatedAvatar {
 
 /**
  * Verifies a strip and re-encodes it (metadata dropped: raw pixels in, WebP out). Throws {@link InvalidImageError} when it
- * is not a PNG, not decodable, without alpha, not 64–512 px wide, its height not 2–36 times its width exactly, or the
+ * is not a PNG, not decodable, without alpha, not 64–512 px wide, its height not 2–45 times its width exactly, or the
  * WebP stays over 1.5 MiB.
  */
 export async function processAnimatedAvatar(bytes: Buffer): Promise<ProcessedAnimatedAvatar> {

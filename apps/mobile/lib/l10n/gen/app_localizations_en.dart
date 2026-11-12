@@ -18095,4 +18095,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notifAnimatedAvatarRemoved =>
       'Moderators removed your animated picture for breaking the community guidelines';
+
+  @override
+  String get vipAnimatedAvatarPick => 'Pick from the gallery';
+
+  @override
+  String get vipAnimatedAvatarPickError =>
+      'This video could not be read. Pick another one.';
+
+  @override
+  String get vipAnimatedAvatarTrimTitle => 'Choose 3 seconds of the video';
+
+  @override
+  String get vipAnimatedAvatarTrimHint =>
+      'Move the slider to choose where it starts';
+
+  @override
+  String get vipAnimatedAvatarTrimWhole =>
+      'The video is 3 seconds or less: all of it is used';
+
+  @override
+  String get vipAnimatedAvatarTrimUse => 'Use this part';
+
+  @override
+  String get vipAnimatedAvatarTrimCancel => 'Cancel';
 }

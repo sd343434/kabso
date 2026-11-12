@@ -619,7 +619,7 @@ info:
     §10.173; owner 2026-11-12: «انتبه جيداً لطريقة الصورة شخصية», then: an animated cut-out clip, a VIP perk): the
     catalogue gains `ANIMATED_AVATAR` (IDENTITY, value none, no art, built). The member records a short clip on the
     phone; the app removes the background on the device (person segmentation) and uploads the frames as one PNG strip,
-    `MediaKind` `ANIMATED_AVATAR` (`image/png`, ≤ 8 MiB; square frames 64–512 px, 2–36 frames, 12 a second, alpha
+    `MediaKind` `ANIMATED_AVATAR` (`image/png`, ≤ 8 MiB; square frames 64–512 px, 2–45 frames, 15 a second, alpha
     required), which the server checks and re-encodes into a looping animated WebP with alpha (≤ 1.5 MiB) and a still
     of the first frame. `setMyAnimatedAvatar` (`PUT /me/animated-avatar`, `SetAnimatedAvatarRequest`, `AnimatedAvatar`;
     409 `VIP_UNAVAILABLE` `perk` / `no_perk` without the perk) and `removeMyAnimatedAvatar` (`DELETE`, idempotent).
@@ -35933,7 +35933,7 @@ components:
       type: string
       enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE, PROFILE_COVER, LEVEL_RAISE_VIDEO, PROFILE_COVER_VIDEO, OWNER_FEEDBACK_IMAGE, DM_GROUP_PHOTO, ANIMATED_AVATAR]
       description: |
-        (v1.136-social, D384, §10.173.2) `ANIMATED_AVATAR`: the VIP animated cut-out picture — `image/png` only, ≤ 8 MiB: a vertical strip of 2–36 square frames (64–512 px wide, height = frames × width) with alpha, 12 frames a second; re-encoded into a looping animated WebP (≤ 1.5 MiB) and a still of the first frame; attached only by `setMyAnimatedAvatar`. Anything else → `completeMediaUpload` 400 `MEDIA_INVALID`.
+        (v1.136-social, D384, §10.173.2) `ANIMATED_AVATAR`: the VIP animated cut-out picture — `image/png` only, ≤ 8 MiB: a vertical strip of 2–45 square frames (64–512 px wide, height = frames × width) with alpha, 15 frames a second; re-encoded into a looping animated WebP (≤ 1.5 MiB) and a still of the first frame; attached only by `setMyAnimatedAvatar`. Anything else → `completeMediaUpload` 400 `MEDIA_INVALID`.
         (v1.104-social, D339, §10.133) `DM_GROUP_PHOTO`: a group conversation's photo (a centre-cropped square like `FAMILY_EMBLEM`; attached by `createDmGroup` / `updateDmGroup`).
         (v1.95-social, D301, §10.112) `PROFILE_COVER_VIDEO`: the owner's cover video (like a reel's: ≤ 100 MiB, ≤ 60 s, a poster; owner only, else 403 `OWNER_ONLY`); `OWNER_FEEDBACK_IMAGE`: a private picture of «اقترح ميزة / أبلغ عن موظف» (never completed, consumed by `createOwnerFeedback`).
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
@@ -36155,7 +36155,7 @@ components:
       required: [url, stillUrl, width, height]
       description: "(v1.136-social, D384, §10.173) The VIP animated cut-out picture «صورة متحركة»: a looping animated WebP with alpha (the person, background removed on the phone) and its first frame as a still WebP (reduced motion, «إخفاء المؤثرات»). Square frames."
       properties:
-        url: { type: string, format: uri, description: "The looping animated WebP (12 frames a second, at most 36 frames, ≤ 1.5 MiB)." }
+        url: { type: string, format: uri, description: "The looping animated WebP (15 frames a second, at most 45 frames, ≤ 1.5 MiB)." }
         stillUrl: { type: string, format: uri, description: "The first frame, a still WebP of the same size." }
         width: { type: integer, minimum: 64, maximum: 512 }
         height: { type: integer, minimum: 64, maximum: 512 }

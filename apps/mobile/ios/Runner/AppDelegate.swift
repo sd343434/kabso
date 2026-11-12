@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import Security
 import UIKit
@@ -23,6 +24,39 @@ import UIKit
           result(nil)
         } else {
           result(FlutterMethodNotImplemented)
+        }
+      }
+    }
+    // v1.136-social (D384, CONVENTIONS §10.173.2): a picked video's frames at
+    // given times for the VIP animated picture (AVAssetImageGenerator, zero
+    // tolerance, the track's rotation applied). Off the main thread.
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KabsoVideoFrames") {
+      let channel = FlutterMethodChannel(
+        name: "com.kabso/video_frames", binaryMessenger: registrar.messenger())
+      channel.setMethodCallHandler { call, result in
+        guard call.method == "extract" else {
+          result(FlutterMethodNotImplemented)
+          return
+        }
+        guard let args = call.arguments as? [String: Any],
+          let path = args["path"] as? String,
+          let times = args["timesMs"] as? [NSNumber],
+          let outDir = args["outDir"] as? String
+        else {
+          result(FlutterError(code: "bad_args", message: nil, details: nil))
+          return
+        }
+        let maxSide = (args["maxSide"] as? NSNumber)?.intValue ?? 0
+        DispatchQueue.global(qos: .userInitiated).async {
+          let paths = VideoFrames.extract(
+            path: path, timesMs: times.map { $0.int64Value }, maxSide: maxSide, outDir: outDir)
+          DispatchQueue.main.async {
+            if let paths = paths {
+              result(paths)
+            } else {
+              result(FlutterError(code: "unreadable", message: nil, details: nil))
+            }
+          }
         }
       }
     }
@@ -82,5 +116,44 @@ enum DeviceId {
       kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
     ]
     return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
+  }
+}
+
+/// D384: the frames of a picked video at given times (milliseconds) — the
+/// exact frame (zero tolerance), upright (the track's preferred transform),
+/// at most `maxSide` on its longer side — written as JPEG files into
+/// `outDir`; a time with no frame gives NSNull. Nil when the video cannot be
+/// read.
+enum VideoFrames {
+  static func extract(path: String, timesMs: [Int64], maxSide: Int, outDir: String) -> [Any]? {
+    let url = path.hasPrefix("file://") ? URL(string: path)! : URL(fileURLWithPath: path)
+    let asset = AVURLAsset(url: url)
+    guard !asset.tracks(withMediaType: .video).isEmpty else { return nil }
+    let generator = AVAssetImageGenerator(asset: asset)
+    generator.appliesPreferredTrackTransform = true
+    generator.requestedTimeToleranceBefore = .zero
+    generator.requestedTimeToleranceAfter = .zero
+    if maxSide > 0 {
+      generator.maximumSize = CGSize(width: maxSide, height: maxSide)
+    }
+    let dir = URL(fileURLWithPath: outDir, isDirectory: true)
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    var out: [Any] = []
+    for (i, ms) in timesMs.enumerated() {
+      let time = CMTime(value: ms, timescale: 1000)
+      guard let image = try? generator.copyCGImage(at: time, actualTime: nil),
+        let data = UIImage(cgImage: image).jpegData(compressionQuality: 0.9)
+      else {
+        out.append(NSNull())
+        continue
+      }
+      let file = dir.appendingPathComponent("d384_frame_\(UUID().uuidString)_\(i).jpg")
+      if (try? data.write(to: file)) != nil {
+        out.append(file.path)
+      } else {
+        out.append(NSNull())
+      }
+    }
+    return out
   }
 }

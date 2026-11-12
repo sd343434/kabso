@@ -4349,10 +4349,16 @@ strip is re-encoded with `sharp`, already used for every image).
 - **After deploy (owner / panel):** open a VIP tier, tick «صورة متحركة» (ANIMATED_AVATAR; a tick only, no value, no
   art). Lower tiers' holders inherit it upward as every perk. Moderators remove a clip from the user page («حذف الصورة
   المتحركة», `users.avatar`).
+- **Gallery picking (owner 2026-11-12: «both»):** the app's own platform channel `com.kabso/video_frames`
+  (`MainActivity.kt` + `VideoFrames.kt`, `AppDelegate.swift`; platform APIs only, no new package) reads a picked video's
+  frames. No new permission (image_picker's system picker already reads gallery videos). Not compiled here (no Android
+  SDK, no Xcode): the CI `android` and `ios` jobs are the first builds.
+- **15 frames a second (owner):** the server accepts 2–45 frames (was 36) at 67 ms a frame (was 83); a third, lower WebP
+  quality step before a clip is refused; caps unchanged (8 MiB strip, 1.5 MiB WebP).
 - **App build:** two new Flutter plugins — `camera` 0.12.2 (BSD-3-Clause) and `google_mlkit_selfie_segmentation`
   0.12.1 (MIT; the native Google ML Kit selfie segmentation SDK under Google's ML Kit terms). Android: the bundled
   segmentation model adds roughly 4–5 MB to the APK (minSdk 24 unchanged; CAMERA already declared). **iOS: the
-  deployment target rises from 15.0 to 15.5** (ML Kit's pod) and `ios/Podfile` is committed with `platform :ios,
+  deployment target rises from 15.0 to 15.5** (ML Kit's pod; **approved by the owner 2026-11-12**) and `ios/Podfile` is committed with `platform :ios,
   '15.5'` (Flutter's own template otherwise). The CI `ios` job is the first place this is built; it was not built
   here (no macOS).
 - **Order:** API (migrations first) and panel in any order, then the APK. An older app ignores

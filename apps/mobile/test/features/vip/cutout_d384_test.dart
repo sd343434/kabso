@@ -136,14 +136,17 @@ void main() {
       expect(headAndShoulders(const []), isNull);
     });
 
-    test('at most 36 frames, evenly spread', () {
-      final many = List<int>.generate(50, (i) => i);
+    test('at most 45 frames (15 a second for 3 s), evenly spread', () {
+      final many = List<int>.generate(60, (i) => i);
       final kept = evenlyCapped(many);
-      expect(kept, hasLength(36));
+      expect(kept, hasLength(45));
       expect(kept.first, 0);
-      expect(kept.last, lessThan(50));
+      expect(kept.last, lessThan(60));
       expect(evenlyCapped([1, 2, 3]), [1, 2, 3]);
-      expect(CutoutLimits.fps * CutoutLimits.length.inSeconds, 36);
+      expect(CutoutLimits.fps, 15);
+      expect(CutoutLimits.fps * CutoutLimits.length.inSeconds, 45);
+      expect(CutoutLimits.maxFrames, 45);
+      expect(CutoutLimits.frameMs, 67);
       expect(CutoutLimits.side, lessThanOrEqualTo(512));
     });
   });

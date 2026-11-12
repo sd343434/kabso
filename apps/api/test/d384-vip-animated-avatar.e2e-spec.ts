@@ -237,7 +237,7 @@ describe('D384 VIP animated picture', { timeout: 180_000 }, () => {
         hasAlpha: true,
         loop: 0,
       });
-      expect(meta.delay).toEqual([83, 83, 83, 83, 83]);
+      expect(meta.delay).toEqual([67, 67, 67, 67, 67]);
       const still = await sharp(storage.objects.get(keyOf(asset.thumbUrl))!.body).metadata();
       expect(still).toMatchObject({ format: 'webp', width: 96, height: 96, hasAlpha: true });
       expect(still.pages ?? 1).toBe(1);
@@ -249,7 +249,7 @@ describe('D384 VIP animated picture', { timeout: 180_000 }, () => {
         await strip(96, 3, false),
         await strip(96, 3, true, 96 * 3 + 10),
         await strip(96, 1),
-        await strip(64, 37),
+        await strip(64, 46),
         await strip(48, 3),
         await strip(520, 2),
         await sharp({ create: { width: 96, height: 192, channels: 4, background: '#0000' } })
@@ -260,8 +260,8 @@ describe('D384 VIP animated picture', { timeout: 180_000 }, () => {
         expect(done.status).toBe(422);
         expect(done.body.error.code).toBe('MEDIA_INVALID');
       }
-      // The bounds themselves pass: 64 px × 36 frames, 512 px × 2 frames.
-      expect((await send(u, await strip(64, 36))).status).toBe(200);
+      // The bounds themselves pass: 64 px × 45 frames (15 a second for 3 s), 512 px × 2 frames.
+      expect((await send(u, await strip(64, 45))).status).toBe(200);
       expect((await send(u, await strip(512, 2))).status).toBe(200);
     });
   });

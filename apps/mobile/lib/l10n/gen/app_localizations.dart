@@ -30495,6 +30495,48 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أزال فريق الإشراف صورتك المتحركة لمخالفتها الإرشادات'**
   String get notifAnimatedAvatarRemoved;
+
+  /// D384 «صورة متحركة» (the VIP animated picture), gallery picking: pick a video from the gallery.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار من المعرض'**
+  String get vipAnimatedAvatarPick;
+
+  /// D384 «صورة متحركة» (the VIP animated picture), gallery picking: the picked video cannot be read.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر قراءة هذا المقطع. اختر مقطعاً آخر.'**
+  String get vipAnimatedAvatarPickError;
+
+  /// D384 «صورة متحركة» (the VIP animated picture), gallery picking: above the trim slider.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر 3 ثوانٍ من المقطع'**
+  String get vipAnimatedAvatarTrimTitle;
+
+  /// D384 «صورة متحركة» (the VIP animated picture), gallery picking: under the trim range.
+  ///
+  /// In ar, this message translates to:
+  /// **'حرّك الشريط لاختيار بداية الجزء'**
+  String get vipAnimatedAvatarTrimHint;
+
+  /// D384 «صورة متحركة» (the VIP animated picture), gallery picking: a short video is kept whole.
+  ///
+  /// In ar, this message translates to:
+  /// **'المقطع 3 ثوانٍ أو أقل: سيُستخدم كاملاً'**
+  String get vipAnimatedAvatarTrimWhole;
+
+  /// D384 «صورة متحركة» (the VIP animated picture), gallery picking: use the chosen 3 seconds.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدام هذا الجزء'**
+  String get vipAnimatedAvatarTrimUse;
+
+  /// D384 «صورة متحركة» (the VIP animated picture), gallery picking: leave the trim without using it.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get vipAnimatedAvatarTrimCancel;
 }
 
 class _AppLocalizationsDelegate

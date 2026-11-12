@@ -18110,4 +18110,27 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get notifAnimatedAvatarRemoved =>
       'أزال فريق الإشراف صورتك المتحركة لمخالفتها الإرشادات';
+
+  @override
+  String get vipAnimatedAvatarPick => 'اختيار من المعرض';
+
+  @override
+  String get vipAnimatedAvatarPickError =>
+      'تعذّر قراءة هذا المقطع. اختر مقطعاً آخر.';
+
+  @override
+  String get vipAnimatedAvatarTrimTitle => 'اختر 3 ثوانٍ من المقطع';
+
+  @override
+  String get vipAnimatedAvatarTrimHint => 'حرّك الشريط لاختيار بداية الجزء';
+
+  @override
+  String get vipAnimatedAvatarTrimWhole =>
+      'المقطع 3 ثوانٍ أو أقل: سيُستخدم كاملاً';
+
+  @override
+  String get vipAnimatedAvatarTrimUse => 'استخدام هذا الجزء';
+
+  @override
+  String get vipAnimatedAvatarTrimCancel => 'إلغاء';
 }

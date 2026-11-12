@@ -15,6 +15,7 @@ import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/vip/animated_avatar/animated_avatar_repository.dart';
 import 'package:kabso_live/features/vip/animated_avatar/animated_avatar_screen.dart';
 import 'package:kabso_live/features/vip/animated_avatar/cutout_frames.dart';
+import 'package:kabso_live/features/vip/animated_avatar/cutout_gallery.dart';
 import 'package:kabso_live/features/vip/animated_avatar/cutout_recorder.dart';
 import 'package:kabso_live/features/vip/animated_avatar/cutout_strip_player.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
@@ -65,6 +66,52 @@ class FakeCutoutRecorder implements CutoutRecorder {
   Future<void> close() async {}
 }
 
+/// D384: a gallery that hands back a [durationMs] video, a synthetic frame
+/// for the trim preview and synthetic cut-out frames (or fails as told).
+class FakeCutoutGallery implements CutoutGallery {
+  new({
+    this.durationMs = 10000,
+    this.person = true,
+    this.unreadable = false,
+    this.poster,
+  });
+
+  final int durationMs;
+  final bool person;
+  final bool unreadable;
+  final ImageProvider? poster;
+  int picked = 0;
+  final List<int> starts = [];
+
+  @override
+  Future<PickedClip?> pick() async {
+    picked++;
+    if (unreadable) throw const CutoutClipException();
+    return PickedClip(
+      path: '/tmp/d384_clip.mp4',
+      durationMs: durationMs,
+      width: 720,
+      height: 1280,
+    );
+  }
+
+  @override
+  Future<ImageProvider?> frameAt(PickedClip clip, int ms) async => poster;
+
+  @override
+  Future<List<CutoutFrame>> frames(
+    PickedClip clip,
+    int startMs, {
+    required void Function(double progress) onProgress,
+  }) async {
+    starts.add(startMs);
+    onProgress(1);
+    return person
+        ? syntheticBustFrames(count: CutoutLimits.maxFrames)
+        : syntheticCutoutFrames(count: 15, person: false);
+  }
+}
+
 /// The API: saves record the strip; removes counted.
 class FakeAnimatedAvatarRepository implements AnimatedAvatarRepository {
   final List<Uint8List> saved = [];
@@ -103,9 +150,11 @@ Future<FakeAnimatedAvatarRepository> pumpAnimatedAvatarScreen(
   AppLanguage language = AppLanguage.en,
   Brightness brightness = Brightness.light,
   FakeAnimatedAvatarRepository? repo,
+  FakeCutoutGallery? gallery,
+  GoldenViewport viewport = GoldenViewport.phone,
 }) async {
   final api = repo ?? FakeAnimatedAvatarRepository();
-  setViewport(tester, GoldenViewport.phone);
+  setViewport(tester, viewport);
   await pumpBonds(
     tester,
     const AnimatedAvatarScreen(),
@@ -116,6 +165,7 @@ Future<FakeAnimatedAvatarRepository> pumpAnimatedAvatarScreen(
         recorder ?? FakeCutoutRecorder(),
       ),
       animatedAvatarRepositoryProvider.overrideWithValue(api),
+      cutoutGalleryProvider.overrideWithValue(gallery ?? FakeCutoutGallery()),
       profileRepositoryProvider.overrideWithValue(
         FakeProfileRepository(
           apiProfile(isSelf: true).copyWith(animatedAvatar: current),
@@ -252,6 +302,142 @@ void main() {
       );
       expect(player.playing, isFalse);
     });
+  });
+
+  group('D384 picking from the gallery and trimming (owner: «both»)', () {
+    testWidgets('pick → keep 3 s with the start slider → the cut-out of '
+        '45 frames (15 a second) from that start', (tester) async {
+      final gallery = FakeCutoutGallery();
+      await pumpAnimatedAvatarScreen(tester, gallery: gallery);
+      final en = l10nFor(AppLanguage.en);
+      await tester.tap(find.byKey(AnimatedAvatarScreen.pickKey));
+      await tester.pumpAndSettle();
+      expect(gallery.picked, 1);
+      expect(find.byKey(AnimatedAvatarScreen.trimKey), findsOneWidget);
+      expect(find.text(en.vipAnimatedAvatarTrimTitle), findsOneWidget);
+      expect(find.text(en.vipAnimatedAvatarTrimHint), findsOneWidget);
+      String range() => tester
+          .widget<Text>(find.byKey(AnimatedAvatarScreen.trimRangeKey))
+          .data!;
+      expect(range(), '\u20660:00.0 – 0:03.0\u2069');
+      // The record / pick buttons give way to the trim's own.
+      expect(find.byKey(AnimatedAvatarScreen.recordKey), findsNothing);
+      final slider = tester.widget<Slider>(
+        find.byKey(AnimatedAvatarScreen.trimSliderKey),
+      );
+      expect(slider.max, 7000);
+      slider.onChanged!(4200);
+      await tester.pumpAndSettle();
+      expect(range(), '\u20660:04.2 – 0:07.2\u2069');
+      await tester.tap(find.byKey(AnimatedAvatarScreen.trimUseKey));
+      await settleUntil(tester, find.byKey(AnimatedAvatarScreen.previewKey));
+      expect(gallery.starts, [4200]);
+      final player = tester.widget<CutoutStripPlayer>(
+        find.byKey(AnimatedAvatarScreen.previewKey),
+      );
+      expect(player.frames, 45);
+      expect(find.byKey(AnimatedAvatarScreen.saveKey), findsOneWidget);
+    });
+
+    testWidgets('a clip of 3 s or less is kept whole: no slider to move', (
+      tester,
+    ) async {
+      await pumpAnimatedAvatarScreen(
+        tester,
+        gallery: FakeCutoutGallery(durationMs: 2400),
+      );
+      await tester.tap(find.byKey(AnimatedAvatarScreen.pickKey));
+      await tester.pumpAndSettle();
+      final slider = tester.widget<Slider>(
+        find.byKey(AnimatedAvatarScreen.trimSliderKey),
+      );
+      expect(slider.onChanged, isNull);
+      expect(
+        find.text(l10nFor(AppLanguage.en).vipAnimatedAvatarTrimWhole),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<Text>(find.byKey(AnimatedAvatarScreen.trimRangeKey)).data,
+        '\u20660:00.0 – 0:02.4\u2069',
+      );
+    });
+
+    testWidgets('«إلغاء» leaves the trim; nothing is made', (tester) async {
+      final gallery = FakeCutoutGallery();
+      await pumpAnimatedAvatarScreen(tester, gallery: gallery);
+      await tester.tap(find.byKey(AnimatedAvatarScreen.pickKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(AnimatedAvatarScreen.trimCancelKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(AnimatedAvatarScreen.trimKey), findsNothing);
+      expect(find.byKey(AnimatedAvatarScreen.emptyKey), findsOneWidget);
+      expect(gallery.starts, isEmpty);
+    });
+
+    testWidgets('nobody in most frames: refused, as when recording', (
+      tester,
+    ) async {
+      await pumpAnimatedAvatarScreen(
+        tester,
+        gallery: FakeCutoutGallery(person: false),
+      );
+      await tester.tap(find.byKey(AnimatedAvatarScreen.pickKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(AnimatedAvatarScreen.trimUseKey));
+      await settleUntil(tester, find.byKey(AnimatedAvatarScreen.errorKey));
+      expect(
+        find.text(l10nFor(AppLanguage.en).vipAnimatedAvatarNoPerson),
+        findsOneWidget,
+      );
+      expect(find.byKey(AnimatedAvatarScreen.previewKey), findsNothing);
+    });
+
+    testWidgets('an unreadable video: an honest message', (tester) async {
+      await pumpAnimatedAvatarScreen(
+        tester,
+        gallery: FakeCutoutGallery(unreadable: true),
+      );
+      await tester.tap(find.byKey(AnimatedAvatarScreen.pickKey));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(l10nFor(AppLanguage.en).vipAnimatedAvatarPickError),
+        findsOneWidget,
+      );
+    });
+
+    for (final language in AppLanguage.values) {
+      for (final viewport in GoldenViewport.values) {
+        testWidgets('${language.name} ${viewport.name} ×1.3: the trim stage '
+            'fits, nothing overflows', (tester) async {
+          tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await pumpAnimatedAvatarScreen(
+            tester,
+            language: language,
+            viewport: viewport,
+          );
+          expect(tester.takeException(), isNull);
+          await tester.tap(find.byKey(AnimatedAvatarScreen.pickKey));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          await tester.scrollUntilVisible(
+            find.byKey(AnimatedAvatarScreen.trimCancelKey),
+            200,
+          );
+          expect(tester.takeException(), isNull);
+          final width = viewport.logicalSize.width;
+          for (final k in [
+            AnimatedAvatarScreen.trimSliderKey,
+            AnimatedAvatarScreen.trimUseKey,
+            AnimatedAvatarScreen.trimCancelKey,
+          ]) {
+            final r = tester.getRect(find.byKey(k));
+            expect(r.left, greaterThanOrEqualTo(0));
+            expect(r.right, lessThanOrEqualTo(width));
+          }
+        });
+      }
+    }
   });
 
   group('D384 the entry in «الخاص بي VIP»', () {

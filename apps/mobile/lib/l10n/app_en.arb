@@ -5603,5 +5603,12 @@
   "vipAnimatedAvatarTooLarge": "The clip is too large. Record a shorter one.",
   "vipAnimatedAvatarSaved": "Your animated picture is saved",
   "vipAnimatedAvatarRemoved": "Your animated picture is removed",
-  "notifAnimatedAvatarRemoved": "Moderators removed your animated picture for breaking the community guidelines"
+  "notifAnimatedAvatarRemoved": "Moderators removed your animated picture for breaking the community guidelines",
+  "vipAnimatedAvatarPick": "Pick from the gallery",
+  "vipAnimatedAvatarPickError": "This video could not be read. Pick another one.",
+  "vipAnimatedAvatarTrimTitle": "Choose 3 seconds of the video",
+  "vipAnimatedAvatarTrimHint": "Move the slider to choose where it starts",
+  "vipAnimatedAvatarTrimWhole": "The video is 3 seconds or less: all of it is used",
+  "vipAnimatedAvatarTrimUse": "Use this part",
+  "vipAnimatedAvatarTrimCancel": "Cancel"
 }

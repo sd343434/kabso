@@ -15351,5 +15351,19 @@
   "vipAnimatedAvatarRemoved": "أُزيلت صورتك المتحركة",
   "@vipAnimatedAvatarRemoved": {"description": "D384 «صورة متحركة» (the VIP animated picture): after removing."},
   "notifAnimatedAvatarRemoved": "أزال فريق الإشراف صورتك المتحركة لمخالفتها الإرشادات",
-  "@notifAnimatedAvatarRemoved": {"description": "D384 «صورة متحركة» (the VIP animated picture): the ANIMATED_AVATAR_REMOVED notification."}
+  "@notifAnimatedAvatarRemoved": {"description": "D384 «صورة متحركة» (the VIP animated picture): the ANIMATED_AVATAR_REMOVED notification."},
+  "vipAnimatedAvatarPick": "اختيار من المعرض",
+  "@vipAnimatedAvatarPick": {"description": "D384 «صورة متحركة» (the VIP animated picture), gallery picking: pick a video from the gallery."},
+  "vipAnimatedAvatarPickError": "تعذّر قراءة هذا المقطع. اختر مقطعاً آخر.",
+  "@vipAnimatedAvatarPickError": {"description": "D384 «صورة متحركة» (the VIP animated picture), gallery picking: the picked video cannot be read."},
+  "vipAnimatedAvatarTrimTitle": "اختر 3 ثوانٍ من المقطع",
+  "@vipAnimatedAvatarTrimTitle": {"description": "D384 «صورة متحركة» (the VIP animated picture), gallery picking: above the trim slider."},
+  "vipAnimatedAvatarTrimHint": "حرّك الشريط لاختيار بداية الجزء",
+  "@vipAnimatedAvatarTrimHint": {"description": "D384 «صورة متحركة» (the VIP animated picture), gallery picking: under the trim range."},
+  "vipAnimatedAvatarTrimWhole": "المقطع 3 ثوانٍ أو أقل: سيُستخدم كاملاً",
+  "@vipAnimatedAvatarTrimWhole": {"description": "D384 «صورة متحركة» (the VIP animated picture), gallery picking: a short video is kept whole."},
+  "vipAnimatedAvatarTrimUse": "استخدام هذا الجزء",
+  "@vipAnimatedAvatarTrimUse": {"description": "D384 «صورة متحركة» (the VIP animated picture), gallery picking: use the chosen 3 seconds."},
+  "vipAnimatedAvatarTrimCancel": "إلغاء",
+  "@vipAnimatedAvatarTrimCancel": {"description": "D384 «صورة متحركة» (the VIP animated picture), gallery picking: leave the trim without using it."}
 }

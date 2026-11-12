@@ -12378,7 +12378,9 @@ per tier (a tick only: no value, no art, D374); a tier holds it with every lower
 
 #### 10.173.2 The clip and its upload
 
-The app records up to **3 s** with the front camera, keeps **12 frames a second** (at most **36** frames), removes the
+The app records up to **3 s** with the front camera — or the member picks a video from the gallery and keeps 3 s of
+it (owner 2026-11-12: «both»; see below) — keeps **15 frames a second** (owner: 15, not 12; at most **45** frames),
+removes the
 background **on the phone** (on-device person segmentation: no image leaves the phone before the member saves, no paid
 service, no server ML), crops the person's head and shoulders into the same square for every frame (at most **512 px**;
 the app uses 320 px) and uploads the frames as **one PNG strip** — the frames one under another, transparent where the
@@ -12387,10 +12389,11 @@ background was:
 - `POST /media/uploads` `kind: ANIMATED_AVATAR`, `contentType: image/png` only (else `contentType` / `invalid_value`),
   `byteSize` ≤ **8 MiB** (8 388 608; else `byteSize` / `too_big`).
 - `completeMediaUpload` checks the bytes (PNG signature and decoder, as every image), then: width 64–512 px, height an
-  exact multiple of the width, **2–36 frames**, an alpha channel; else 400 `MEDIA_INVALID` (the slot fails). It
-  re-encodes the frames (metadata dropped) into a **looping animated WebP with alpha**, 83 ms a frame, and a **still
+  exact multiple of the width, **2–45 frames**, an alpha channel; else 422 `MEDIA_INVALID` (the slot fails). It
+  re-encodes the frames (metadata dropped) into a **looping animated WebP with alpha**, 67 ms a frame (15 a second), and a **still
   WebP** of the first frame, both at the frame size. A WebP over **1.5 MiB** is encoded again at a lower quality, then
-  refused (`MEDIA_INVALID`). `MediaAsset`: `type` IMAGE, `url` the animated WebP (`media/<id>/clip.webp`), `thumbUrl`
+  refused (`MEDIA_INVALID`); D384's 15 fps (up to 45 frames, 25 % more than at 12) added a third, lower quality step
+  before refusing; the 8 MiB upload and 1.5 MiB WebP caps are unchanged. `MediaAsset`: `type` IMAGE, `url` the animated WebP (`media/<id>/clip.webp`), `thumbUrl`
   the still (`media/<id>/still.webp`), `width` = `height` = the frame size. Unattached assets are swept after 24 h.
 
 #### 10.173.3 Set and remove
@@ -12422,8 +12425,15 @@ fails, and for everyone without one, the round photo with its frame shows as bef
 background like the round photo. The member's own profile header is unchanged (the person card only).
 
 The app's VIP page shows the entry «صورة متحركة» to a holder (record, preview the cut-out over a checkerboard, save,
-re-record, remove). A recording where no person is found in most frames is refused on the phone. Picking an existing video from the gallery is not offered yet (it needs a native frame extractor; an owner
-decision).
+re-record, remove). A recording where no person is found in most frames is refused on the phone.
+
+**From the gallery** (owner 2026-11-12: «both»): «اختيار من المعرض» picks a video with the app's video picker
+(`image_picker`); the member keeps **3 s** of it with a start slider (a video of 3 s or less is kept whole); the app reads
+its frames at **15 a second** (≤ 45) through its own platform channel `com.kabso/video_frames` — Android
+`MediaMetadataRetriever.getFrameAtTime` with `OPTION_CLOSEST`, iOS `AVAssetImageGenerator` with zero tolerance and the
+track's preferred transform — upright (portrait, landscape and rotation metadata handled), at most 640 px, then the
+same segmentation, crop, strip and upload as a recording (not mirrored: a gallery video is not a selfie preview). A clip
+with no person in most frames is refused the same way. No new third-party package.
 
 #### 10.173.5 Moderation and safety
 

@@ -8,14 +8,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
-/// The clip's limits (§10.173.2): 3 s at 12 frames a second.
+/// The clip's limits (§10.173.2): 3 s at 15 frames a second (owner
+/// 2026-11-12: 15, not 12), for a recording and a clip from the gallery.
 abstract final class CutoutLimits {
   static const Duration length = Duration(seconds: 3);
-  static const int fps = 12;
-  static const int maxFrames = 36;
+  static const int fps = 15;
+  static const int maxFrames = 45;
 
-  /// Milliseconds between two kept frames.
-  static const int frameMs = 83;
+  /// Milliseconds between two kept frames (1000 / 15, rounded).
+  static const int frameMs = 67;
 
   /// The frame side uploaded (the server takes 64–512).
   static const int side = 320;

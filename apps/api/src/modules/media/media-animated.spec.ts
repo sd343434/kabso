@@ -38,12 +38,12 @@ async function strip(
 }
 
 describe('D384 animated picture strip', () => {
-  it('the limits: 8 MiB PNG strips, 2–36 square frames of 64–512 px, 12 a second, a WebP ≤ 1.5 MiB', () => {
+  it('the limits: 8 MiB PNG strips, 2–45 square frames of 64–512 px, 15 a second, a WebP ≤ 1.5 MiB', () => {
     expect(MAX_ANIMATED_AVATAR_BYTES).toBe(8 * 1024 * 1024);
     expect(maxUploadBytes('ANIMATED_AVATAR')).toBe(8 * 1024 * 1024);
-    expect(ANIMATED_AVATAR_MAX_FRAMES).toBe(36);
+    expect(ANIMATED_AVATAR_MAX_FRAMES).toBe(45);
     expect(ANIMATED_AVATAR_MAX_SIDE).toBe(512);
-    expect(ANIMATED_AVATAR_FRAME_MS).toBe(83);
+    expect(ANIMATED_AVATAR_FRAME_MS).toBe(67);
     expect(MAX_ANIMATED_AVATAR_WEBP_BYTES).toBe(1.5 * 1024 * 1024);
     const ok = (contentType: string, byteSize: number) =>
       createMediaUploadSchema.safeParse({ kind: 'ANIMATED_AVATAR', contentType, byteSize }).success;
@@ -66,7 +66,7 @@ describe('D384 animated picture strip', () => {
       hasAlpha: true,
       loop: 0,
     });
-    expect(clip.delay).toEqual(Array.from({ length: 6 }, () => 83));
+    expect(clip.delay).toEqual(Array.from({ length: 6 }, () => 67));
     const still = await sharp(out.still).metadata();
     expect(still).toMatchObject({ format: 'webp', width: 80, height: 80, hasAlpha: true });
   });
@@ -84,7 +84,7 @@ describe('D384 animated picture strip', () => {
     await refused(await strip(96, 3, 3));
     await refused(await strip(96, 3, 4, 96 * 3 + 1));
     await refused(await strip(96, 1));
-    await refused(await strip(64, 37));
+    await refused(await strip(64, 46));
     await refused(await strip(63, 3));
     await refused(await strip(513, 2));
     // A truncated PNG.
