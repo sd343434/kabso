@@ -178,5 +178,23 @@ void main() {
     test('isolated left to right (keeps its order in Arabic text)', () {
       expect(KFormat.compactLatin(1510000), '\u20661.5M\u2069');
     });
+
+    test('D372: lowercase k / m / b for the gift cherries counter', () {
+      String lower(int v) => KFormat.compactLatin(
+        v,
+        lowercase: true,
+      ).replaceAll(RegExp('[\u2066\u2069]'), '');
+      for (final (v, out) in [
+        (999, '999'),
+        (10100, '10.1k'),
+        (12600000, '12.6m'),
+        (1200000000, '1.2b'),
+        (1000, '1k'),
+      ]) {
+        expect(lower(v), out, reason: '$v');
+      }
+      // The default stays upper case for the person card (D220).
+      expect(bare(10100), '10.1K');
+    });
   });
 }

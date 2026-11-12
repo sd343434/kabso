@@ -665,8 +665,10 @@ class _HomeReelPageState extends ConsumerState<HomeReelPage>
         gap,
         _RailCherries(
           key: HomeReelPage.giftCherriesKey,
-          label: n(_giftCherries),
-          semanticLabel: l10n.contentGiftCherriesLabel(n(_giftCherries)),
+          label: KFormat.compactLatin(_giftCherries, lowercase: true),
+          semanticLabel: l10n.contentGiftCherriesLabel(
+            KFormat.compactLatin(_giftCherries, lowercase: true),
+          ),
         ),
       ],
       gap,

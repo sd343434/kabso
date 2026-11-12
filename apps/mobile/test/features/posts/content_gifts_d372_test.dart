@@ -156,11 +156,12 @@ void main() {
           giftable: true,
         ),
       );
-      // The counter: the cherries the author earned, compact.
+      // The counter: the cherries the author earned, compact Latin k / m / b
+      // in every language (owner: «10.1k / 12.6m / 1.2b»).
       final counter = find.byKey(FeedPostTile.giftCherriesKey);
       expect(counter, findsOneWidget);
       expect(
-        find.descendant(of: counter, matching: find.text('9,500')),
+        find.descendant(of: counter, matching: find.text('\u20669.5k\u2069')),
         findsOneWidget,
       );
       await tester.tap(find.byKey(FeedPostTile.commentKey));
@@ -206,7 +207,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(FeedPostTile.giftCherriesKey),
-          matching: find.text(KFormat.compact(12600, _en)),
+          matching: find.text('\u206612.6k\u2069'),
         ),
         findsOneWidget,
       );
@@ -258,8 +259,21 @@ void main() {
       final ar = l10nFor(AppLanguage.ar);
       final (posts, _) = await pump(
         tester,
-        post: testPost('p1', giftable: true, commentCount: 3),
+        post: testPost(
+          'p1',
+          giftable: true,
+          commentCount: 3,
+          giftCherries: 12600,
+        ),
         language: AppLanguage.ar,
+      );
+      // The cherries counter is Latin «12.6k» in Arabic too (not «ألف»).
+      expect(
+        find.descendant(
+          of: find.byKey(FeedPostTile.giftCherriesKey),
+          matching: find.text('\u206612.6k\u2069'),
+        ),
+        findsOneWidget,
       );
       posts.postComments['p1'] = d372Comments(ar: true);
       await tester.tap(find.byKey(FeedPostTile.commentKey));
@@ -298,10 +312,7 @@ void main() {
       final counter = find.byKey(HomeReelPage.giftCherriesKey);
       expect(counter, findsOneWidget);
       expect(
-        find.descendant(
-          of: counter,
-          matching: find.text(KFormat.compact(1260000, _en)),
-        ),
+        find.descendant(of: counter, matching: find.text('\u20661.2m\u2069')),
         findsOneWidget,
       );
       await tester.pumpWidget(const SizedBox.shrink());

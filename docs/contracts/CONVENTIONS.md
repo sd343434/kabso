@@ -12292,8 +12292,9 @@ Body `{giftCode, quantity, source: COINS | BAG, clientId}` (the live send's fiel
 - **The comment count (CTO choice):** a gift line **counts** in `Post.commentCount` (it is listed with the comments, so
   the sheet's title and the list agree).
 - **`Post.giftCherries`** (int64): the author's `GIFT_RECEIVED` cherries of every send on the post, added in the send's
-  transaction; a reversed send takes its credit back (never below 0). The app shows it compact (`KFormat.compact`:
-  10.1k, 12.6m, 1.2b) beside the cherry icon, in the reel's action column and the post's footer, when above 0.
+  transaction; a reversed send takes its credit back (never below 0). The app shows it compact in Latin lowercase in every
+  language (`KFormat.compactLatin(…, lowercase: true)`: 10.1k, 12.6m, 1.2b — not «ألف» / «مليون» in Arabic; the
+  likes and comments keep `KFormat.compact`) beside the cherry icon, in the reel's action column and the post's footer, when above 0.
 - **The notification** `CONTENT_GIFT_RECEIVED` to the author (actor the sender, target POST), one unread row per post
   that new senders join (like likes, D92), always on (no settings switch), pushed «أرسل لك فلان هدية» / "… sent you a
   gift" (§11.12). Never to a blocked, muting or inactive author (the notifier's rules).
@@ -12310,6 +12311,7 @@ CONTENT). The panel's user ledger shows the reason `CONTENT_GIFT`.
   `Post.giftable`. It opens the live gift panel in a content mode: the catalogue's tabs, Recent and the bag, the
   quantity and Send — no recipients row, no lucky tab or gifts, no quips, no PK tab, no MAX X combo. A send closes the
   panel; the gift line appears at the top of the list (below the pinned comment) and the post's counter grows.
-- **Counter:** the cherry art and `KFormat.compact(giftCherries)` in the reel's action column (under comments) and in
+- **Counter:** the cherry art and `KFormat.compactLatin(giftCherries, lowercase: true)` («12.6k» in both
+  languages) in the reel's action column (under comments) and in
   the post's footer, hidden at 0.
 - **Errors:** `CONTENT_GIFT_RECIPIENT_UNAVAILABLE` has its own message (ar / en).

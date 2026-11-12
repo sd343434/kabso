@@ -1536,6 +1536,8 @@ class _ActionsState extends ConsumerState<_Actions> {
     final locale = Localizations.maybeLocaleOf(context);
     final inherited = DefaultTextStyle.of(context).style;
     Widget count(int value) => Text(KFormat.compact(value, l10n), style: style);
+    // D372 (owner): the gift cherries in Latin k / m / b in every language.
+    String cherries(int value) => KFormat.compactLatin(value, lowercase: true);
     // D332 (owner: «زر الإعجاب بعيد عن باقي الأزرار»): like · comment ·
     // share · repost · views are one group at the start, each icon and its
     // count a tight unit; the units are [KPostCard.unitPad] … pad apart
@@ -1547,10 +1549,10 @@ class _ActionsState extends ConsumerState<_Actions> {
       builder: (context, constraints) {
         // The width a count takes as laid out below (the same style, text
         // scale, direction and locale).
-        double width(int value) {
+        double width(int value, {bool cherry = false}) {
           final painter = TextPainter(
             text: TextSpan(
-              text: KFormat.compact(value, l10n),
+              text: cherry ? cherries(value) : KFormat.compact(value, l10n),
               style: inherited.merge(style),
             ),
             textDirection: direction,
@@ -1566,7 +1568,7 @@ class _ActionsState extends ConsumerState<_Actions> {
         // The padded units after the like: comment, share, repost, views.
         final units = [
           width(_comments),
-          if (_giftCherries > 0) width(_giftCherries),
+          if (_giftCherries > 0) width(_giftCherries, cherry: true),
           width(shares),
           if (repost) width(_reposts),
           if (views != null) width(views),
@@ -1710,13 +1712,13 @@ class _ActionsState extends ConsumerState<_Actions> {
                       key: FeedPostTile.giftCherriesKey,
                       container: true,
                       label: l10n.contentGiftCherriesLabel(
-                        KFormat.compact(_giftCherries, l10n),
+                        cherries(_giftCherries),
                       ),
                       excludeSemantics: true,
                       child: unitBox(
                         child: iconCount(
                           const KCherryIcon(size: KPostCard.actionIcon),
-                          count(_giftCherries),
+                          Text(cherries(_giftCherries), style: style),
                         ),
                       ),
                     ),
