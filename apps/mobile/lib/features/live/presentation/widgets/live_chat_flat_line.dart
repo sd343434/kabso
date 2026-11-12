@@ -11,6 +11,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dar
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
 import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:material_ui/material_ui.dart';
@@ -280,19 +281,23 @@ class LiveChatFlatLine extends ConsumerWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onProfile,
         child: Builder(
-          builder: (context) => VipNameShimmer(
+          // D378 (GLOWING_NAME): the tier-colour glow.
+          builder: (context) => VipGlowingName(
             vip: vip,
-            child: Text(
-              KFormat.bidiIsolate(name),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textScaler: scaler,
-              style: KFlatChat.style(context).copyWith(
-                fontSize: KChat.nameSize,
-                // Owner: the special colour at the chat's weight.
-                fontWeight: FontWeight.w600,
-                shadows: const [],
-                color: look?.nameColor ?? LiveChatInlineRow.nameColor,
+            child: VipNameShimmer(
+              vip: vip,
+              child: Text(
+                KFormat.bidiIsolate(name),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textScaler: scaler,
+                style: KFlatChat.style(context).copyWith(
+                  fontSize: KChat.nameSize,
+                  // Owner: the special colour at the chat's weight.
+                  fontWeight: FontWeight.w600,
+                  shadows: const [],
+                  color: look?.nameColor ?? LiveChatInlineRow.nameColor,
+                ),
               ),
             ),
           ),
@@ -362,17 +367,21 @@ class LiveChatFlatLine extends ConsumerWidget {
               constraints: const BoxConstraints(
                 maxWidth: KFlatChat.nameMaxWidth,
               ),
-              child: Text(
-                // A mixed-direction name keeps its order.
-                KFormat.bidiIsolate(name),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textScaler: scaler,
-                // D258: the VIP name colour. D269: the name 0.5 pt under
-                // the message (12 / 12.5 in the host's chat).
-                style: base.copyWith(
-                  fontSize: textSize - 0.5,
-                  color: look?.nameColor ?? KFlatChat.name,
+              // D378 (GLOWING_NAME): the tier-colour glow.
+              child: VipGlowingName(
+                vip: vip,
+                child: Text(
+                  // A mixed-direction name keeps its order.
+                  KFormat.bidiIsolate(name),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textScaler: scaler,
+                  // D258: the VIP name colour. D269: the name 0.5 pt under
+                  // the message (12 / 12.5 in the host's chat).
+                  style: base.copyWith(
+                    fontSize: textSize - 0.5,
+                    color: look?.nameColor ?? KFlatChat.name,
+                  ),
                 ),
               ),
             ),

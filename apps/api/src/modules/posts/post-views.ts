@@ -112,6 +112,8 @@ export function userSummary(
     /** v1.130-social (D376); absent in older selects. */
     statusEmojiId?: string | null;
     statusPacks?: readonly { packId: string; expiresAt: Date }[];
+    /** v1.131-social (D378); absent in older selects. */
+    vipGoldenId?: { number: string; class: string; state: string; heldUntil: Date | null } | null;
   },
   now: Date = new Date(),
 ): UserSummaryDto {
@@ -136,6 +138,7 @@ export function userSummary(
     !team && (user.status === undefined || user.status === 'ACTIVE')
       ? visibleStatusEmoji(user.statusEmojiId, user.statusPacks, now)
       : null;
+  const golden = team ? null : heldGoldenIdOf(user, now);
   return {
     id: user.id,
     username: user.profile?.username ?? '',
@@ -157,6 +160,8 @@ export function userSummary(
     ...(wear ? { wear } : {}),
     // v1.73-live (D283c, §10.96.12): only while a panel role is held (the apps show it instead of the @username).
     ...(staffId ? { staffId } : {}),
+    // v1.131-social (D378, §10.168.4): only while a golden ID is held (an active account, not a team account).
+    ...(golden ? { goldenId: golden } : {}),
     // v1.90-social (D293, §10.105): only while the user holds a verification badge (its type; an active account).
     ...(user.verificationBadge && (user.status === undefined || user.status === 'ACTIVE')
       ? { verification: user.verificationBadge.badge as VerificationBadgeValue }
@@ -164,6 +169,26 @@ export function userSummary(
     // v1.130-social (D376, §10.167): only while the user wears a status emoji the server still shows.
     ...(statusEmojiId ? { statusEmojiId } : {}),
   };
+}
+
+/**
+ * v1.131-social (D378, §10.168.4): the golden ID to show — HELD with its end in the future (the sweeper and a VIP
+ * purchase keep the end in step with the membership), the membership active and an active account; or null.
+ */
+export function heldGoldenIdOf(
+  user: {
+    status?: string;
+    vipGoldenId?: { number: string; class: string; state: string; heldUntil: Date | null } | null;
+    vipMembership?: { expiresAt: Date } | null;
+  },
+  now: Date,
+): { number: string; class: string } | null {
+  const g = user.vipGoldenId;
+  if (!g || g.state !== 'HELD' || g.heldUntil === null || g.heldUntil.getTime() <= now.getTime()) return null;
+  // The membership ended before the sweeper ran (or was cut short): hidden at once.
+  if (!user.vipMembership || user.vipMembership.expiresAt.getTime() <= now.getTime()) return null;
+  if (user.status !== undefined && user.status !== 'ACTIVE') return null;
+  return { number: g.number, class: g.class };
 }
 
 /**
@@ -178,12 +203,14 @@ export function activeVipOf(
     vipMembership?: {
       expiresAt: Date;
       offPerks?: string[];
+      /** v1.131-social (D378); absent in older selects. */
+      signature?: string | null;
       tier: { code: string; sortOrder: number; color: string };
     } | null;
   },
   now: Date,
   bagWorn?: readonly string[],
-): { tier: string; rank: number; color: string; off?: string[] } | null {
+): { tier: string; rank: number; color: string; off?: string[]; signature?: string } | null {
   const m = user.vipMembership;
   if (!m || m.expiresAt.getTime() <= now.getTime()) return null;
   if (user.status !== undefined && user.status !== 'ACTIVE') return null;
@@ -198,6 +225,8 @@ export function activeVipOf(
     rank: m.tier.sortOrder,
     color: m.tier.color,
     ...(off.length > 0 ? { off } : {}),
+    // v1.131-social (D378, §10.168.5): the app shows it while the tier holds ANIMATED_SIGNATURE (its own check).
+    ...(m.signature ? { signature: m.signature } : {}),
   };
 }
 
@@ -286,9 +315,13 @@ export const USER_SUMMARY_SELECT = {
     select: {
       expiresAt: true,
       offPerks: true,
+      // v1.131-social (D378, §10.168.5): the ANIMATED_SIGNATURE text.
+      signature: true,
       tier: { select: { code: true, sortOrder: true, color: true } },
     },
   },
+  // v1.131-social (D378, §10.168.4): the golden ID held (`UserSummary.goldenId`).
+  vipGoldenId: { select: { number: true, class: true, state: true, heldUntil: true } },
   // v1.73-live (D283c, §10.96.12): the staff ID (`UserSummary.staffId` while a panel role is held).
   role: true,
   staffNumber: { select: { number: true } },

@@ -27,10 +27,16 @@ class VipNameBadge extends ConsumerWidget {
     required this.vip,
     required this.height,
     this.pillHeight,
+    this.perk = VipPerks.badge,
     super.key,
   });
 
   final UserVip? vip;
+
+  /// The perk that shows it: BADGE (chat, seats, cards) or, D378
+  /// (§10.168.8), POST_BADGE (after the name on posts, reels and comments
+  /// — the same art: the BADGE perk's when held, else the «VIPn» pill).
+  final String perk;
 
   /// The art's height.
   final double height;
@@ -47,7 +53,7 @@ class VipNameBadge extends ConsumerWidget {
     // D270: a store-only look (no membership) has no badge.
     if (look == null ||
         !look.vip.member ||
-        (look.tier != null && !look.has(VipPerks.badge))) {
+        (look.tier != null && !look.has(perk))) {
       return const SizedBox.shrink();
     }
     if (look.nameBadgeArt case final art?) {

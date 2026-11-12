@@ -15,7 +15,7 @@ import { LiveRoomsService, type ProfileLiveDto } from '../../live/live-rooms.ser
 import { FollowsService } from '../../social/follows.service.js';
 import { type AccountCategory, type ProfileLinkDto } from '../profile-fields.js';
 import { activeRechargeBadge, type RechargeBadgeDto } from '../../recharge/recharge-badges.js';
-import { activeVipOf } from '../../posts/post-views.js';
+import { activeVipOf, heldGoldenIdOf } from '../../posts/post-views.js';
 import type { StoreWearDto } from '../../store/store-rules.js';
 import { UsersService } from '../users.service.js';
 import { profileStatsTotals } from './profile-stats.js';
@@ -61,6 +61,8 @@ export interface PublicProfileDto {
   staff?: { role: LimitedStaffRole; regions: StaffRegion[]; staffId?: string };
   /** v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while a panel role is held (the OWNER too). */
   staffId?: string;
+  /** v1.131-social (D378, §10.168.4): the golden ID held now (`UserSummary.goldenId`). */
+  goldenId?: { number: string; class: string };
   liveRoomId: string | null;
   /**
    * v1.70-live (D279, §10.5.1): the «في بث الآن» card's facts while `liveRoomId` is set (null otherwise, and across a
@@ -106,7 +108,7 @@ export interface PublicProfileDto {
   rechargeBadge?: RechargeBadgeDto;
   /** v1.83-social (D258, §10.94): present only while the user holds an active VIP (`UserVip`). */
   /** v1.65-live (D264): `off` — the VIP items the member took off in the bag (absent when none). */
-  vip?: { tier: string; rank: number; color: string; off?: string[] };
+  vip?: { tier: string; rank: number; color: string; off?: string[]; signature?: string };
   /** D270 (§10.98): the store items the user wears now, by kind (absent when none). */
   wear?: StoreWearDto;
   /** v1.76-social (D218, §10.73.3): the profile cover (1 080 px), or null (the app's Kabso gradient). */
@@ -259,6 +261,8 @@ export class PublicProfileService {
         select: {
           expiresAt: true,
           offPerks: true,
+          // v1.131-social (D378): the ANIMATED_SIGNATURE text.
+          signature: true,
           tier: { select: { code: true, sortOrder: true, color: true } },
         },
       }),
@@ -285,6 +289,16 @@ export class PublicProfileService {
     const staffId = await staffIdOf(this.prisma, user.id);
     // v1.124-social (D367, §10.160): a Kabso Team account (any panel role, the founder too) shows no account category.
     const kabsoTeam = await isPanelStaff(this.prisma, user.id);
+    const golden = heldGoldenIdOf(
+      {
+        vipGoldenId: await this.prisma.vipGoldenId.findUnique({
+          where: { holderId: user.id },
+          select: { number: true, class: true, state: true, heldUntil: true },
+        }),
+        vipMembership: membership,
+      },
+      new Date(),
+    );
     return {
       id: user.id,
       username: user.username,
@@ -301,6 +315,8 @@ export class PublicProfileService {
       isSelf,
       ...(kabsoTeam ? { kabsoTeam: true as const } : {}),
       ...(staffId ? { staffId } : {}),
+      // v1.131-social (D378, §10.168.4): the golden ID held now (not on a Kabso Team account).
+      ...(golden && !kabsoTeam ? { goldenId: golden } : {}),
       ...(staff ? { staff: { ...staff, ...(staffId ? { staffId } : {}) } } : {}),
       liveRoomId,
       live,

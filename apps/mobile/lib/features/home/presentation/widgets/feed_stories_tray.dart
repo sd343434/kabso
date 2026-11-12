@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/stories/application/stories_controller.dart';
 import 'package:kabso_live/features/stories/domain/story_models.dart';
 import 'package:kabso_live/features/stories/presentation/story_people_carousel.dart';
+import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -20,6 +22,7 @@ class FeedStoryData {
     this.hasStory = true,
     this.liveRoomId,
     this.thumbnail,
+    this.vip,
   });
 
   final String authorName;
@@ -45,6 +48,10 @@ class FeedStoryData {
   /// (`GET /users/{username}/stories`, the same request the viewer makes)
   /// and shows the first unseen one's thumbnail.
   final ImageProvider? thumbnail;
+
+  /// D378 (§10.168.7, STORY_RING): the account's VIP — their tier's ring
+  /// (colour and art) around a story, while they hold the perk.
+  final UserVip? vip;
 }
 
 /// D375 (owner «واجعل الستوري تظهر بالخارج بنفس طريقة هذه ١٠٠٪», measured
@@ -347,6 +354,23 @@ class _StoryCard extends ConsumerWidget {
               size: inner,
             ),
           );
+    // D378 (STORY_RING): a member's own ring (their tier's colour and art)
+    // around the card's small picture while they hold the perk; not on a
+    // live card; a seen one dimmed. Without the perk: D375's border.
+    final badge = live || story.vip == null || ring != null
+        ? small
+        : VipStoryRing(
+            vip: story.vip,
+            seen: seen,
+            outerSize: KStoriesTray.badge,
+            stroke: KStoriesTray.badgeBorder,
+            fallback: small,
+            child: KAvatar(
+              name: story.authorName,
+              image: story.authorAvatar,
+              size: inner,
+            ),
+          );
     final card = ClipRRect(
       key: FeedStoriesTray.cardKey(story.username ?? ''),
       borderRadius: BorderRadius.circular(KStoriesTray.radius),
@@ -369,7 +393,7 @@ class _StoryCard extends ConsumerWidget {
             PositionedDirectional(
               start: KStoriesTray.badgeStart,
               top: KStoriesTray.badgeTop,
-              child: small,
+              child: badge,
             ),
             if (live)
               const PositionedDirectional(

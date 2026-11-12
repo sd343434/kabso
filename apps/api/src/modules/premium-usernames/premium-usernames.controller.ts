@@ -92,6 +92,17 @@ export class PremiumUsernamesController {
     return result;
   }
 
+  /** v1.131-social (D378, §10.168.3): claim a premium username free with the VIP perk PREMIUM_USERNAME. */
+  @Post('me/premium-username/vip-claim')
+  @HttpCode(201)
+  @RateLimit(RENT)
+  vipClaim(
+    @CurrentAuth() auth: AuthContext,
+    @Body() body: unknown,
+  ): Promise<{ premium: MyPremiumUsernameDto }> {
+    return this.premium.vipClaim(auth.userId, body);
+  }
+
   /** Give the premium username back now (no refund); idempotent. */
   @Delete('me/premium-username')
   @HttpCode(204)

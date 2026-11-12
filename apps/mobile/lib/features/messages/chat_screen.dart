@@ -11,6 +11,7 @@ import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
@@ -29,6 +30,8 @@ import 'package:kabso_live/features/push/open_conversation.dart';
 import 'package:kabso_live/features/push/push_payload.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
+import 'package:kabso_live/features/vip/application/vip_providers.dart';
+import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -726,6 +729,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final conversation = s.conversation;
     final status = conversation?.status;
     final display = KFormat.bidiIsolate(name);
+    // D378 (DM_BUBBLE): my own VIP (its tier and colour; the look from the
+    // catalogue).
+    final myVip = switch (ref.watch(myVipProvider).value) {
+      final VipMembership m => UserVip(
+        tier: m.tierCode,
+        rank: 0,
+        color: m.tierColor,
+      ),
+      null => null,
+    };
     final cannot = s.peer.canMessage
         ? null
         : s.peer.reason == DmBlockedReason.requestLimit
@@ -847,6 +860,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       return DmMessageView(
                         message: m,
                         peerName: name,
+                        // D378 (DM_BUBBLE): the sender's tier bubble.
+                        vip: m.mine ? myVip : s.peer.user.vip,
                         onLongPress: () => unawaited(_messageActions(m)),
                       );
                     },

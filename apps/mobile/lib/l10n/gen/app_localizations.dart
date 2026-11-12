@@ -30939,6 +30939,222 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'شقي'**
   String get statusEmojiPremiumDevil;
+
+  /// D378 VIP identity perks: vipIdentityEntry
+  ///
+  /// In ar, this message translates to:
+  /// **'هويتي المميزة'**
+  String get vipIdentityEntry;
+
+  /// D378 VIP identity perks: vipIdentityTitle
+  ///
+  /// In ar, this message translates to:
+  /// **'هويتي المميزة'**
+  String get vipIdentityTitle;
+
+  /// D378 VIP identity perks: vipIdentityNoneTitle
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ميزات هوية في مستواك'**
+  String get vipIdentityNoneTitle;
+
+  /// D378 VIP identity perks: vipIdentityNoneMessage
+  ///
+  /// In ar, this message translates to:
+  /// **'التوقيع والآيدي الذهبي واليوزر المميز تأتي مع مستويات VIP التي تشملها.'**
+  String get vipIdentityNoneMessage;
+
+  /// D378 VIP identity perks: vipIdentityNotHeld
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الميزة ليست ضمن عضويتك الآن.'**
+  String get vipIdentityNotHeld;
+
+  /// D378 VIP identity perks: vipIdentityNotYourClass
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا خارج فئة مستواك.'**
+  String get vipIdentityNotYourClass;
+
+  /// D378 VIP identity perks: vipIdentitySave
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get vipIdentitySave;
+
+  /// D378 VIP identity perks: vipIdentitySaved
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الحفظ'**
+  String get vipIdentitySaved;
+
+  /// D378 VIP identity perks: vipSignatureTitle
+  ///
+  /// In ar, this message translates to:
+  /// **'التوقيع المتحرك'**
+  String get vipSignatureTitle;
+
+  /// D378 VIP identity perks: vipSignatureSubtitle
+  ///
+  /// In ar, this message translates to:
+  /// **'يظهر تحت منشوراتك ورسائلك العامة، حتى {max} حرفاً.'**
+  String vipSignatureSubtitle(int max);
+
+  /// D378 VIP identity perks: vipSignatureHint
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب توقيعك'**
+  String get vipSignatureHint;
+
+  /// D378 VIP identity perks: vipSignatureClear
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة'**
+  String get vipSignatureClear;
+
+  /// D378 VIP identity perks: vipSignatureCleared
+  ///
+  /// In ar, this message translates to:
+  /// **'أزيل التوقيع'**
+  String get vipSignatureCleared;
+
+  /// D378 VIP identity perks: vipSignatureBlocked
+  ///
+  /// In ar, this message translates to:
+  /// **'التوقيع يحتوي كلمة غير مسموحة.'**
+  String get vipSignatureBlocked;
+
+  /// D378 VIP identity perks: vipSignatureTooLong
+  ///
+  /// In ar, this message translates to:
+  /// **'التوقيع أطول من {max} حرفاً.'**
+  String vipSignatureTooLong(int max);
+
+  /// D378 VIP identity perks: vipSignatureTooShort
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب التوقيع أولاً.'**
+  String get vipSignatureTooShort;
+
+  /// D378 VIP identity perks: vipSignatureInvalid
+  ///
+  /// In ar, this message translates to:
+  /// **'التوقيع سطر واحد بلا رموز مخفية.'**
+  String get vipSignatureInvalid;
+
+  /// D378 VIP identity perks: vipSignatureSemantics
+  ///
+  /// In ar, this message translates to:
+  /// **'توقيع: {text}'**
+  String vipSignatureSemantics(String text);
+
+  /// D378 VIP identity perks: vipGoldenIdTitle
+  ///
+  /// In ar, this message translates to:
+  /// **'الآيدي الذهبي'**
+  String get vipGoldenIdTitle;
+
+  /// D378 VIP identity perks: vipGoldenIdSubtitle
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر رقماً متاحاً من فئة: {cls}'**
+  String vipGoldenIdSubtitle(String cls);
+
+  /// D378 VIP identity perks: vipGoldenIdNoClass
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُحدَّد فئة لهذه الميزة بعد.'**
+  String get vipGoldenIdNoClass;
+
+  /// D378 VIP identity perks: vipGoldenIdNoneFree
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد أرقام متاحة الآن من فئتك.'**
+  String get vipGoldenIdNoneFree;
+
+  /// D378 VIP identity perks: vipGoldenIdPick
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار {number}'**
+  String vipGoldenIdPick(String number);
+
+  /// D378 VIP identity perks: vipGoldenIdTaken
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الرقم مأخوذ.'**
+  String get vipGoldenIdTaken;
+
+  /// D378 VIP identity perks: vipGoldenIdTaken2
+  ///
+  /// In ar, this message translates to:
+  /// **'أصبح {number} آيديك الذهبي'**
+  String vipGoldenIdTaken2(String number);
+
+  /// D378 VIP identity perks: vipGoldenIdRelease
+  ///
+  /// In ar, this message translates to:
+  /// **'إرجاع'**
+  String get vipGoldenIdRelease;
+
+  /// D378 VIP identity perks: vipGoldenIdReleased
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرجع الرقم'**
+  String get vipGoldenIdReleased;
+
+  /// D378 VIP identity perks: vipGoldenIdGrace
+  ///
+  /// In ar, this message translates to:
+  /// **'محفوظ لك بعد انتهاء العضوية؛ جدّد VIP لاستعادته قبل أن يعود للمخزون.'**
+  String get vipGoldenIdGrace;
+
+  /// D378 VIP identity perks: vipGoldenIdHint
+  ///
+  /// In ar, this message translates to:
+  /// **'آيدي ذهبي'**
+  String get vipGoldenIdHint;
+
+  /// D378 VIP identity perks: vipGoldenClassRepeated
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم مكرر'**
+  String get vipGoldenClassRepeated;
+
+  /// D378 VIP identity perks: vipGoldenClassDigits
+  ///
+  /// In ar, this message translates to:
+  /// **'{n} أرقام'**
+  String vipGoldenClassDigits(int n);
+
+  /// D378 VIP identity perks: vipPremiumTitle
+  ///
+  /// In ar, this message translates to:
+  /// **'يوزر مميز مجاني'**
+  String get vipPremiumTitle;
+
+  /// D378 VIP identity perks: vipPremiumSubtitle
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر يوزراً مميزاً من فئة مستواك أو أقل؛ يبقى لك طوال العضوية.'**
+  String get vipPremiumSubtitle;
+
+  /// D378 VIP identity perks: vipPremiumNone
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد أسماء متاحة الآن.'**
+  String get vipPremiumNone;
+
+  /// D378 VIP identity perks: vipPremiumClaim
+  ///
+  /// In ar, this message translates to:
+  /// **'أخذ {username} مجاناً'**
+  String vipPremiumClaim(String username);
+
+  /// D378 VIP identity perks: vipPremiumClaimed
+  ///
+  /// In ar, this message translates to:
+  /// **'أصبح {username} يوزرك'**
+  String vipPremiumClaimed(String username);
 }
 
 class _AppLocalizationsDelegate

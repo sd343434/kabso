@@ -22,6 +22,8 @@ import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/status/status_emoji_layer.dart';
+import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -1515,6 +1517,25 @@ class _CommentTile extends StatelessWidget {
   final VoidCallback? onReply;
   final VoidCallback onMore;
 
+  static Widget? _seal(Comment c) {
+    final seal = shownVerification(c.author.verification) == null
+        ? null
+        : VerificationSeal(
+            c.author.verification,
+            fontSize: KCommentsSheet.nameSize,
+            gap: 0,
+          );
+    if (!c.author.vip.isMember) return seal;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ?seal,
+        const SizedBox(width: 4),
+        VipNameBadge(vip: c.author.vip, height: 14, perk: VipPerks.postBadge),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -1542,13 +1563,8 @@ class _CommentTile extends StatelessWidget {
       likeCount: c.likeCount,
       liked: c.viewerHasLiked,
       // D293: the author's verification seal after the name.
-      seal: shownVerification(c.author.verification) == null
-          ? null
-          : VerificationSeal(
-              c.author.verification,
-              fontSize: KCommentsSheet.nameSize,
-              gap: 0,
-            ),
+      // D378 (POST_BADGE): then the author's VIP badge.
+      seal: _seal(c),
       creator: creator,
       pinned: c.pinned,
       onLike: onLike,

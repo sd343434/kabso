@@ -18360,4 +18360,133 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get statusEmojiPremiumDevil => 'شقي';
+
+  @override
+  String get vipIdentityEntry => 'هويتي المميزة';
+
+  @override
+  String get vipIdentityTitle => 'هويتي المميزة';
+
+  @override
+  String get vipIdentityNoneTitle => 'لا توجد ميزات هوية في مستواك';
+
+  @override
+  String get vipIdentityNoneMessage =>
+      'التوقيع والآيدي الذهبي واليوزر المميز تأتي مع مستويات VIP التي تشملها.';
+
+  @override
+  String get vipIdentityNotHeld => 'هذه الميزة ليست ضمن عضويتك الآن.';
+
+  @override
+  String get vipIdentityNotYourClass => 'هذا خارج فئة مستواك.';
+
+  @override
+  String get vipIdentitySave => 'حفظ';
+
+  @override
+  String get vipIdentitySaved => 'تم الحفظ';
+
+  @override
+  String get vipSignatureTitle => 'التوقيع المتحرك';
+
+  @override
+  String vipSignatureSubtitle(int max) {
+    return 'يظهر تحت منشوراتك ورسائلك العامة، حتى $max حرفاً.';
+  }
+
+  @override
+  String get vipSignatureHint => 'اكتب توقيعك';
+
+  @override
+  String get vipSignatureClear => 'إزالة';
+
+  @override
+  String get vipSignatureCleared => 'أزيل التوقيع';
+
+  @override
+  String get vipSignatureBlocked => 'التوقيع يحتوي كلمة غير مسموحة.';
+
+  @override
+  String vipSignatureTooLong(int max) {
+    return 'التوقيع أطول من $max حرفاً.';
+  }
+
+  @override
+  String get vipSignatureTooShort => 'اكتب التوقيع أولاً.';
+
+  @override
+  String get vipSignatureInvalid => 'التوقيع سطر واحد بلا رموز مخفية.';
+
+  @override
+  String vipSignatureSemantics(String text) {
+    return 'توقيع: $text';
+  }
+
+  @override
+  String get vipGoldenIdTitle => 'الآيدي الذهبي';
+
+  @override
+  String vipGoldenIdSubtitle(String cls) {
+    return 'اختر رقماً متاحاً من فئة: $cls';
+  }
+
+  @override
+  String get vipGoldenIdNoClass => 'لم تُحدَّد فئة لهذه الميزة بعد.';
+
+  @override
+  String get vipGoldenIdNoneFree => 'لا توجد أرقام متاحة الآن من فئتك.';
+
+  @override
+  String vipGoldenIdPick(String number) {
+    return 'اختيار $number';
+  }
+
+  @override
+  String get vipGoldenIdTaken => 'هذا الرقم مأخوذ.';
+
+  @override
+  String vipGoldenIdTaken2(String number) {
+    return 'أصبح $number آيديك الذهبي';
+  }
+
+  @override
+  String get vipGoldenIdRelease => 'إرجاع';
+
+  @override
+  String get vipGoldenIdReleased => 'أُرجع الرقم';
+
+  @override
+  String get vipGoldenIdGrace =>
+      'محفوظ لك بعد انتهاء العضوية؛ جدّد VIP لاستعادته قبل أن يعود للمخزون.';
+
+  @override
+  String get vipGoldenIdHint => 'آيدي ذهبي';
+
+  @override
+  String get vipGoldenClassRepeated => 'رقم مكرر';
+
+  @override
+  String vipGoldenClassDigits(int n) {
+    return '$n أرقام';
+  }
+
+  @override
+  String get vipPremiumTitle => 'يوزر مميز مجاني';
+
+  @override
+  String get vipPremiumSubtitle =>
+      'اختر يوزراً مميزاً من فئة مستواك أو أقل؛ يبقى لك طوال العضوية.';
+
+  @override
+  String get vipPremiumNone => 'لا توجد أسماء متاحة الآن.';
+
+  @override
+  String vipPremiumClaim(String username) {
+    return 'أخذ $username مجاناً';
+  }
+
+  @override
+  String vipPremiumClaimed(String username) {
+    return 'أصبح $username يوزرك';
+  }
 }

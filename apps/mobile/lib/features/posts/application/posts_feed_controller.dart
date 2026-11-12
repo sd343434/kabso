@@ -31,6 +31,7 @@ FeedPostData feedPostOf(Post post, {UserSummary? repostedBy, String? text}) {
     authorUsername: post.author.username,
     authorId: post.author.id,
     authorVerification: post.author.verification,
+    authorVip: post.author.vip,
     authorAvatar: switch (post.author.avatarUrl) {
       final url? => NetworkImage(url),
       null => null,

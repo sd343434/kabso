@@ -28,6 +28,7 @@ _UserSummary _$UserSummaryFromJson(Map<String, dynamic> json) => _UserSummary(
   rechargeBadge: rechargeBadgeFromJson(json['rechargeBadge']),
   vip: userVipFromJson(userVipWithWear(json, 'vip')),
   staffId: json['staffId'] as String?,
+  goldenId: userGoldenIdFromJson(json['goldenId']),
   verification: verificationBadgeFromJson(json['verification']),
   statusEmojiId: json['statusEmojiId'] as String?,
 );
@@ -45,6 +46,7 @@ Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
       'rechargeBadge': ?rechargeBadgeToJson(instance.rechargeBadge),
       'vip': ?userVipToJson(instance.vip),
       'staffId': ?instance.staffId,
+      'goldenId': ?userGoldenIdToJson(instance.goldenId),
       'verification': ?verificationBadgeToJson(instance.verification),
       'statusEmojiId': ?instance.statusEmojiId,
     };

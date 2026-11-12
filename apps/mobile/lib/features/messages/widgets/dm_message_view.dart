@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
@@ -10,6 +11,8 @@ import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/features/messages/domain/dm_models.dart';
+import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -39,11 +42,16 @@ class DmMessageView extends StatelessWidget {
     required this.peerName,
     super.key,
     this.onLongPress,
+    this.vip,
   });
 
   final DmMessage message;
   final String peerName;
   final VoidCallback? onLongPress;
+
+  /// D378 (§10.168.10, DM_BUBBLE): the sender's VIP — a member holding the
+  /// perk writes in their tier's chat bubble. Null: the usual bubbles.
+  final UserVip? vip;
 
   static Key keyFor(String id) => Key('dm.message.$id');
 
@@ -58,11 +66,13 @@ class DmMessageView extends StatelessWidget {
       DmMessageKind.image => _Picture(message: message),
       DmMessageKind.voice => _Bubble(
         message: message,
+        vip: vip,
         child: DmVoiceNote(message: message),
       ),
       DmMessageKind.gift => _GiftCard(message: message, peerName: peerName),
       DmMessageKind.text => _Bubble(
         message: message,
+        vip: vip,
         child: KabiEmojiText(
           message.text ?? '',
           style: context.textStyles.body.copyWith(
@@ -151,16 +161,68 @@ BorderRadiusDirectional _corners({required bool mine}) {
   );
 }
 
-class _Bubble extends StatelessWidget {
-  const new({required this.message, required this.child});
+class _Bubble extends ConsumerWidget {
+  const new({required this.message, required this.child, this.vip});
 
   final DmMessage message;
   final Widget child;
+  final UserVip? vip;
+
+  static const vipKey = Key('dm.bubble.vip');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final p = context.palette;
     final mine = message.mine;
+    // D378 (DM_BUBBLE): the member's tier bubble, white text on it.
+    final look = vip == null ? null : ref.watch(vipLookProvider(vip));
+    final special = vipDmBubbleDecoration(look, radius: _corners(mine: mine));
+    if (special != null) {
+      final art = vipDmBubbleArt(look);
+      final bubble = Container(
+        key: vipKey,
+        constraints: const BoxConstraints(maxWidth: KDmBubble.maxWidth),
+        padding: const EdgeInsets.symmetric(
+          horizontal: KDmBubble.paddingH,
+          vertical: KDmBubble.paddingV,
+        ),
+        decoration: special,
+        child: DefaultTextStyle.merge(
+          style: const TextStyle(color: vipDmBubbleInk),
+          child: IconTheme.merge(
+            data: const IconThemeData(color: vipDmBubbleInk),
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: KSpacing.sm,
+              children: [
+                ColorFiltered(
+                  colorFilter: const ColorFilter.mode(
+                    vipDmBubbleInk,
+                    BlendMode.srcIn,
+                  ),
+                  child: child,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: KSpacing.xxs),
+                  child: DmMeta(
+                    message: message,
+                    color: vipDmBubbleInk.withValues(alpha: 0.75),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (art == null) return bubble;
+      return Stack(
+        children: [
+          Positioned.fill(child: IgnorePointer(child: art)),
+          bubble,
+        ],
+      );
+    }
     return Container(
       constraints: const BoxConstraints(maxWidth: KDmBubble.maxWidth),
       padding: const EdgeInsets.symmetric(

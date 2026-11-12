@@ -123,6 +123,7 @@ class UserVip {
     required this.color,
     this.off = const {},
     this.store = const {},
+    this.signature,
   });
 
   /// D270 (§10.98.4): a person who wears store items and holds no VIP — the
@@ -131,7 +132,8 @@ class UserVip {
     : tier = '',
       rank = 0,
       color = 0xFF000000,
-      off = const {};
+      off = const {},
+      signature = null;
 
   final String tier;
   final int rank;
@@ -148,6 +150,11 @@ class UserVip {
   /// that one in [off]: one worn item per kind).
   final Map<String, StoreArt> store;
 
+  /// v1.131-social (D378, §10.168.5): the member's ANIMATED_SIGNATURE text
+  /// (1–24 characters), shown under their posts and public bullet messages
+  /// while their tier holds the perk; null when none.
+  final String? signature;
+
   /// Whether this is a VIP membership (false: only store items worn).
   bool get member => tier.isNotEmpty;
 
@@ -159,6 +166,7 @@ class UserVip {
       other.color == color &&
       other.off.length == off.length &&
       other.off.containsAll(off) &&
+      other.signature == signature &&
       mapEquals(other.store, store);
 
   @override
@@ -170,6 +178,7 @@ class UserVip {
     Object.hashAllUnordered(
       store.entries.map((e) => Object.hash(e.key, e.value)),
     ),
+    signature,
   );
 
   @override
@@ -209,6 +218,10 @@ UserVip? userVipFromJson(Object? json) {
         color: 0xFF000000 | int.parse(color.substring(1), radix: 16),
         off: _vipOff(json),
         store: store,
+        signature: switch (json['signature']) {
+          final String s when s.trim().isNotEmpty => s,
+          _ => null,
+        },
       ),
     _ => store.isEmpty ? null : UserVip.storeOnly(store),
   };
@@ -236,9 +249,48 @@ Map<String, dynamic>? userVipToJson(UserVip? vip) => vip == null
           'rank': vip.rank,
           'color': '#${_hex6(vip.color)}',
           if (vip.off.isNotEmpty) 'off': [...vip.off],
+          'signature': ?vip.signature,
         },
         if (vip.store.isNotEmpty) 'wear': storeWearToJson(vip.store),
       };
+
+/// v1.131-social (D378, §10.168.4): a golden ID «آيدي ذهبي» — a short
+/// special number (`88`, `8888`, `2026`) a VIP member holds from the owner's
+/// stock; the apps show it as a gold «ID 8888» chip.
+@immutable
+final class UserGoldenId {
+  const new({required this.number, required this.goldenClass});
+
+  /// 2–8 digits, never a leading 0.
+  final String number;
+
+  /// REPEATED, THREE_DIGIT, FOUR_DIGIT or FIVE_DIGIT (`VipGoldenIdClass`).
+  final String goldenClass;
+
+  @override
+  bool operator ==(Object other) =>
+      other is UserGoldenId &&
+      other.number == number &&
+      other.goldenClass == goldenClass;
+
+  @override
+  int get hashCode => Object.hash(number, goldenClass);
+
+  @override
+  String toString() => 'UserGoldenId($number)';
+}
+
+/// Reads `UserGoldenId` (`{number, class}`); anything else is none.
+UserGoldenId? userGoldenIdFromJson(Object? json) => switch (json) {
+  {'number': final String n, 'class': final String c}
+      when RegExp(r'^[1-9][0-9]{1,7}$').hasMatch(n) =>
+    UserGoldenId(number: n, goldenClass: c),
+  _ => null,
+};
+
+/// The wire shape of [userGoldenIdFromJson].
+Map<String, dynamic>? userGoldenIdToJson(UserGoldenId? g) =>
+    g == null ? null : {'number': g.number, 'class': g.goldenClass};
 
 /// `UserSummary`: minimal public identity of a user. Never has an email.
 @freezed
@@ -313,6 +365,15 @@ abstract class UserSummary with _$UserSummary {
     /// the user holds a panel role (the OWNER too): shown where the
     /// @username is (live viewers and chat, search, lists). Null otherwise.
     @JsonKey(includeIfNull: false) String? staffId,
+
+    /// v1.131-social (D378, §10.168.4): the golden ID «آيدي ذهبي» held now
+    /// (the gold «ID 8888» chip). Null otherwise (also older servers).
+    @JsonKey(
+      includeIfNull: false,
+      fromJson: userGoldenIdFromJson,
+      toJson: userGoldenIdToJson,
+    )
+    UserGoldenId? goldenId,
 
     /// v1.90-social (D293, §10.105.5; owner «نعم»): the automatic
     /// verification badge «شارة التوثيق» — the seal right after the name

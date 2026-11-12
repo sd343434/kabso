@@ -22,7 +22,17 @@ import {
   type AdminVipTierListDto,
   type AdminVipUploadDto,
 } from '../vip/vip-admin.service.js';
+import { VIP_GOLDEN_ID_PATTERN } from '../vip/vip-identity.js';
+import {
+  VipIdentityService,
+  adminGoldenIdRemoveBody,
+  adminGoldenIdsAddBody,
+  adminGoldenIdsQuery,
+  type AdminVipGoldenIdListDto,
+} from '../vip/vip-identity.service.js';
 import { VIP_CODE_PATTERN } from '../vip/vip-rules.js';
+import { AppException } from '../../common/errors/app-exception.js';
+import { ErrorCode } from '../../common/errors/error-codes.js';
 import {
   createVipTierBody,
   reorderVipTiersBody,
@@ -55,7 +65,10 @@ export const VIP_UPLOAD_PATH = '/api/v1/admin/vip/uploads';
 @RateLimit({ bucket: 'admin:ip', rule: 'adminIp', key: byIp, replacesDefault: true })
 @UseGuards(AdminSessionGuard)
 export class AdminVipController {
-  constructor(private readonly vip: VipAdminService) {}
+  constructor(
+    private readonly vip: VipAdminService,
+    private readonly identity: VipIdentityService,
+  ) {}
 
   /**
    * v1.83-social (D258, §10.94.6): one file of a tier's badge or perk art — an SVGA 2.x animation or a PNG / WebP
@@ -118,6 +131,39 @@ export class AdminVipController {
     @CurrentAdmin() admin: AdminContext,
   ): Promise<AdminVipTierDto> {
     return this.vip.setEnabled(pathUuid(tierId), false, body.reason, viaOf(admin));
+  }
+
+  /** v1.131-social (D378, §10.168.4): the golden ID stock «آيدي ذهبي» (`catalog.view`). */
+  @Get('golden-ids')
+  @RequireCapability('catalog.view')
+  goldenIds(
+    @Query(new ZodValidationPipe(adminGoldenIdsQuery)) q: z.output<typeof adminGoldenIdsQuery>,
+  ): Promise<AdminVipGoldenIdListDto> {
+    return this.identity.adminList(q);
+  }
+
+  /** D378: numbers added to the stock, each with the class its digits give (`catalog.manage`, a reason, audited). */
+  @Post('golden-ids')
+  @HttpCode(201)
+  @RequireCapability('catalog.manage')
+  addGoldenIds(
+    @Body(new ZodValidationPipe(adminGoldenIdsAddBody)) body: z.output<typeof adminGoldenIdsAddBody>,
+    @CurrentAdmin() admin: AdminContext,
+  ): Promise<AdminVipGoldenIdListDto> {
+    return this.identity.adminAdd(body, viaOf(admin));
+  }
+
+  /** D378: a FREE number taken out of the stock (`catalog.manage`, a reason, audited). */
+  @Post('golden-ids/:number/remove')
+  @HttpCode(200)
+  @RequireCapability('catalog.manage')
+  removeGoldenId(
+    @Param('number') number: string,
+    @Body(new ZodValidationPipe(adminGoldenIdRemoveBody)) body: z.output<typeof adminGoldenIdRemoveBody>,
+    @CurrentAdmin() admin: AdminContext,
+  ): Promise<AdminVipGoldenIdListDto> {
+    if (!VIP_GOLDEN_ID_PATTERN.test(number)) throw new AppException(ErrorCode.NOT_FOUND);
+    return this.identity.adminRemove(number, body.reason, viaOf(admin));
   }
 
   @Put('tier-order')

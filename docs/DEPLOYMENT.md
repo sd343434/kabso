@@ -4375,3 +4375,23 @@ ship inside the app; nothing is fetched at run time).
   noto-emoji-animation gallery / the 2022 Google for Developers post) from a machine that can open it, and keep the
   attribution in Settings › «التراخيص» (PRE_PRODUCTION_CHECKLIST). App size: + 3.7 MiB (3 864 243 bytes of JSON).
 - **Order:** deploy the API image (the migration runs first) → ship the APK. An older app ignores `statusEmojiId`.
+
+### 5.121 The VIP identity perks (D378; migration `20270510090000_vip_identity_perks`) — [IMPLEMENTED, draft contract v1.131-social; not deployed, not device-tested]
+
+CONVENTIONS §10.168 (owner 2026-11-11). One migration, no new setting, no new secret, no new host.
+
+- **Migration** `20270510090000_vip_identity_perks` (the usual `migrate` job, as the migration role): adds
+  `vip_memberships.signature` (with the CHECK `vip_memberships_signature_length`), the enum value `VIP` of
+  `premium_username_source`, the enums `vip_golden_id_class` / `vip_golden_id_state` and the table `vip_golden_ids`
+  (CHECKs `vip_golden_ids_number_format`, `vip_golden_ids_state_fields`; unique holder; FK to `users` ON DELETE SET
+  NULL). An ordinary table: the runtime role's DML comes from the default privileges (KL-013, no GRANT). Nothing existing
+  is changed or deleted; small tables, no long lock.
+- **Sweeper:** the golden IDs ride the premium-usernames sweep interval (`premiumUsernames.sweepIntervalSeconds`); the
+  premium-usernames sweeper also moves VIP leases to their membership's end. No new setting.
+- **After deploy (owner / panel):** add numbers to «مخزون الآيدي الذهبي» on the VIP page (e.g. `88 8888 2026 12345`),
+  then set the class on each tier's GOLDEN_ID and the medal on PREMIUM_USERNAME; upload the art of ANIMATED_COVER,
+  ANIMATED_SIGNATURE and STORY_RING (optional; without art the app draws the tier's colours) and the colour of
+  STORY_RING. A perk not ticked on any tier does nothing.
+- **Order:** deploy the API image (the migration runs first) with the admin panel, then ship the APK. An older app ignores
+  the new fields (a VIP premium username shows as a rental there).
+

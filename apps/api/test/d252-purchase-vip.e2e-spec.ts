@@ -185,18 +185,27 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
     // D258: the perks the app does are listed for the panel.
     expect(empty.body).toMatchObject({
       data: [],
+      // D378 (§10.168): + the eight identity perks.
       builtPerks: [
+        'ANIMATED_COVER',
+        'ANIMATED_SIGNATURE',
         'AVATAR_FRAME',
         'BADGE',
         'CHAT_BUBBLE',
         'CHAT_NAME_COLOR',
         'DAILY_BULLET',
+        'DM_BUBBLE',
         'ENTRY_BANNER',
         'ENTRY_EFFECT',
+        'GLOWING_NAME',
+        'GOLDEN_ID',
         'LEVEL_SPEEDUP',
         'MIC_WAVE',
+        'POST_BADGE',
+        'PREMIUM_USERNAME',
         'PROFILE_CARD',
         'PROFILE_VISITORS',
+        'STORY_RING',
       ],
     });
     expect(empty.body.suggestedPerks).toContain('BADGE');

@@ -35,6 +35,7 @@ import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
@@ -813,6 +814,15 @@ class _Body extends ConsumerWidget {
                     effects: KSpecialIdEffects.full,
                   )
                 // D299h: a staff ID as the gold special-ID pill, «Kabso».
+                else if (profile.staffId == null && profile.goldenId != null)
+                  // D378 (GOLDEN_ID): the golden ID instead of the plain ID.
+                  Flexible(
+                    child: VipGoldenIdChip(
+                      goldenId: profile.goldenId,
+                      height: 18,
+                      effects: KSpecialIdEffects.full,
+                    ),
+                  )
                 else if (profile.staffId case final id?)
                   Flexible(
                     child: KStaffIdText(

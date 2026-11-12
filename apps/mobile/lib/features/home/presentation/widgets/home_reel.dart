@@ -22,6 +22,8 @@ import 'package:kabso_live/features/posts/presentation/announcement_label.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
+import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
@@ -48,6 +50,7 @@ class FeedReelData {
     this.authorId,
     this.authorPremium = false,
     this.authorVerification,
+    this.authorVip,
     this.isFollowingAuthor,
     this.caption,
     this.cover,
@@ -68,6 +71,9 @@ class FeedReelData {
 
   /// D293 (owner «نعم»): the author's verification badge, after the handle.
   final VerificationBadge? authorVerification;
+
+  /// D378 (POST_BADGE): the author's VIP — the badge after the handle.
+  final UserVip? authorVip;
   final ImageProvider? authorAvatar;
 
   /// The reel's post id (real reels only): like, comment, save and share
@@ -1299,6 +1305,15 @@ class _ReelInfo extends StatelessWidget {
                   ),
                   // D293: the verification seal right after the handle.
                   VerificationSeal(reel.authorVerification, fontSize: 16),
+                  // D378 (POST_BADGE): the VIP badge after the name.
+                  if (reel.authorVip.isMember) ...[
+                    const SizedBox(width: 4),
+                    VipNameBadge(
+                      vip: reel.authorVip,
+                      height: 18,
+                      perk: VipPerks.postBadge,
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -132,6 +132,20 @@ export enum AuditAction {
   VIP_TIER_REORDER = 'vip.tier.reorder',
   /** v1.82-social (D252): a person bought, renewed or upgraded a VIP tier with coins. */
   VIP_PURCHASE = 'vip.purchase',
+  /** v1.131-social (D378, §10.168.5): a member set or cleared their ANIMATED_SIGNATURE text. */
+  VIP_SIGNATURE_SET = 'vip.signature.set',
+  /**
+   * v1.131-social (D378, §10.168.4): golden IDs «آيدي ذهبي» — a holder took or gave back a number, a number went into
+   * its grace or back to the stock (the sweeper), the owner added or removed numbers of the stock.
+   */
+  VIP_GOLDEN_ID_CLAIM = 'vip.golden_id.claim',
+  VIP_GOLDEN_ID_RELEASE = 'vip.golden_id.release',
+  VIP_GOLDEN_ID_GRACE = 'vip.golden_id.grace',
+  VIP_GOLDEN_ID_FREE = 'vip.golden_id.free',
+  VIP_GOLDEN_ID_STOCK_ADD = 'vip.golden_id.stock_add',
+  VIP_GOLDEN_ID_STOCK_REMOVE = 'vip.golden_id.stock_remove',
+  /** v1.131-social (D378, §10.168.3): a premium username claimed free with the PREMIUM_USERNAME perk. */
+  PREMIUM_USERNAME_VIP_CLAIM = 'premium_username.vip_claim',
   /** D270 (§10.98): «المتجر» — an item added, changed or switched on / off in the panel. */
   STORE_ITEM_ADD = 'store.item.add',
   STORE_ITEM_UPDATE = 'store.item.update',

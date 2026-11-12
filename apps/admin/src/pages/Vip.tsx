@@ -13,6 +13,7 @@ import { formatNumber } from "../format";
 import { Icon } from "../ui/icons";
 import { ENTRY_CAR, EntryDisplaySelect, type EntryDisplay } from "./Store";
 import "./vip.css";
+import { VipGoldenIds } from "./VipGoldenIds";
 
 /** `AdminVipPerk` (v1.82-social, D252). `available`: the app really does it (server list, read-only). */
 export interface AdminVipPerk {
@@ -668,7 +669,9 @@ function ScalarInput({
             <option key={o} value={o}>
               {schema.source === "ROCKET_STAGE"
                 ? t("vipRocketStage", { n: o.replace("STAGE_", "") })
-                : o}
+                : schema.source === "GOLDEN_ID_CLASS"
+                  ? t(`vipGoldenClass_${o}` as Key)
+                  : o}
             </option>
           ))}
         </select>
@@ -1513,6 +1516,8 @@ export function Vip() {
         )}
         <p className="muted small">{t("vipOffNote")}</p>
       </div>
+      {/* D378 (§10.168.4): the golden ID stock «آيدي ذهبي». */}
+      <VipGoldenIds />
       {edit && data && (
         <TierForm
           tier={edit === "new" ? null : edit}
