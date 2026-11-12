@@ -439,7 +439,9 @@ export class LiveGiftsService {
       if (gift.pkBooster !== null)
         throw AppException.validation([{ field: 'anonymous', issue: 'invalid_value' }]);
       if (!(await vipPrivacyOn(this.prisma, callerId, 'ANONYMOUS_GIFT', this.clock.now()))) {
-        throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [{ field: 'anonymous', issue: 'no_perk' }]);
+        throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [
+          { field: 'anonymous', issue: 'no_perk' },
+        ]);
       }
     }
     // D145c (§7): a lucky streak (MAX X) has its own burst limit; normal gifts keep theirs. A retry

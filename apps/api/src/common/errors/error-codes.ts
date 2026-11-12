@@ -734,7 +734,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.STORE_UNAVAILABLE]: 'This store item cannot be bought now.',
   [ErrorCode.STORE_PRICE_CHANGED]: 'The price of this store item changed.',
   [ErrorCode.STAFF_PROTECTED]: 'This cannot be done to the Kabso Team.',
-  [ErrorCode.VIP_PROTECTED]: "This member's VIP protects them from moderators; only the host or the Kabso Team can.",
+  [ErrorCode.VIP_PROTECTED]:
+    "This member's VIP protects them from moderators; only the host or the Kabso Team can.",
   [ErrorCode.LIVE_STAFF_REFUSED]: 'The Kabso Team does not do this in a live.',
   [ErrorCode.STAFF_STEP_UP_REQUIRED]: 'Enter your authenticator code to use the staff tools.',
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 'Set up the authenticator in the admin panel first.',

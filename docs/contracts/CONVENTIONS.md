@@ -12385,8 +12385,8 @@ received) files an ordinary USER report on the real sender with the send as cont
 `Report.liveGift` in the panel); `blockAnonymousGiftSender` / `unblockAnonymousGiftSender` (`PUT` / `DELETE
 /live/gifts/{giftId}/anonymous-block`, anonymous sends only) refuse or allow again every further anonymous gift from that
 sender (`anonymous_gift_blocks`; their named gifts still arrive; an ordinary block covers everything), audited
-`live.gift.anonymous_block`. In the app a long press on an anonymous gift line opens «إبلاغ» and «رفض الهدايا المجهولة
-من هذا المرسل». Conversation gifts are never anonymous (CHECK `live_gifts_anonymous_live`).
+`live.gift.anonymous_block`. In the app a tap on an anonymous gift's strip (by one of its recipients) opens «إبلاغ عن المرسل» and «رفض الهدايا
+المجهولة من هذا المرسل»; an anonymous strip never opens a person card. Conversation gifts are never anonymous (CHECK `live_gifts_anonymous_live`).
 
 **Content gifts (D372) — documented hook, not built here:** a gift on a post or reel would take the same
 `anonymous` flag on its own send row, the same checks (`vipPrivacyOn(…, 'ANONYMOUS_GIFT')`, blocks, the anonymous
