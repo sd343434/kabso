@@ -246,6 +246,15 @@ Future<void> _pump(
   await tester.pump();
 }
 
+/// D375: a story card's picture (the tray reads it from the network
+/// otherwise).
+final MemoryImage _storyThumb = fixtureImage(
+  top: const Color(0xFF6A7BA0),
+  bottom: const Color(0xFF2A3048),
+  width: 160,
+  height: 202,
+);
+
 /// Every perk at once, as the composite golden shows them.
 class _Showcase extends StatelessWidget {
   const new();
@@ -310,6 +319,7 @@ class _Showcase extends StatelessWidget {
               ),
               username: 'layla',
               vip: _vip1,
+              thumbnail: _storyThumb,
             ),
             FeedStoryData(
               authorName: ar ? 'عمر' : 'Omar',
@@ -320,11 +330,13 @@ class _Showcase extends StatelessWidget {
               username: 'omar',
               vip: _vip1,
               seen: true,
+              thumbnail: _storyThumb,
             ),
             FeedStoryData(
               authorName: ar ? 'هدى' : 'Huda',
               username: 'huda',
               vip: _vip0,
+              thumbnail: _storyThumb,
             ),
           ],
         ),
@@ -515,11 +527,27 @@ void main() {
     ) async {
       await _pump(
         tester,
-        const FeedStoriesTray(
+        // D375's cards read the first story's picture unless the fixture
+        // gives one ([FeedStoryData.thumbnail]): no network in a test.
+        FeedStoriesTray(
           stories: [
-            FeedStoryData(authorName: 'A', username: 'a', vip: _vip1),
-            FeedStoryData(authorName: 'B', username: 'b', vip: _vip0),
-            FeedStoryData(authorName: 'C', username: 'c'),
+            FeedStoryData(
+              authorName: 'A',
+              username: 'a',
+              vip: _vip1,
+              thumbnail: _storyThumb,
+            ),
+            FeedStoryData(
+              authorName: 'B',
+              username: 'b',
+              vip: _vip0,
+              thumbnail: _storyThumb,
+            ),
+            FeedStoryData(
+              authorName: 'C',
+              username: 'c',
+              thumbnail: _storyThumb,
+            ),
           ],
         ),
       );
