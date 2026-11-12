@@ -397,6 +397,10 @@ model User {
   gameTicketSpendsMonthly GameTicketSpendMonthly[]
   giftCoinsSentHourly     GiftCoinsSentHourly[]
   giftCoinsSentMonthly    GiftCoinsSentMonthly[]
+  /// v1.134-social (D381, §10.171): MONTHLY_ROCKETS' grants, and SCHEDULED_GIFT's gifts (sent / to this user).
+  vipRocketGrants         VipRocketGrant[]
+  vipScheduledGiftsSent   VipScheduledGift[]       @relation("VipScheduledGiftSender")
+  vipScheduledGiftsTo     VipScheduledGift[]       @relation("VipScheduledGiftRecipient")
 
   @@index([createdAt], map: "users_created_at_idx")
   /// v1.95-social (D301, §10.112.4): «لوحة المؤسس» counts who is online now.
@@ -1352,6 +1356,11 @@ enum WalletLedgerReason {
   /// v1.130-social (D376, §10.167): a status pack «حزمة الحالة» bought or renewed (reference: the
   /// `status_pack_purchases` row).
   STATUS_PACK_PURCHASE
+  /// v1.134-social (D381, §10.171.5): a scheduled gift's coins held at scheduling (reference: the
+  /// `vip_scheduled_gifts` row), and given back — when it is delivered (then charged as its DM_GIFT in the same
+  /// transaction), cancelled or could not be delivered.
+  VIP_SCHEDULED_GIFT
+  VIP_SCHEDULED_GIFT_RELEASE
 
   @@map("wallet_ledger_reason")
 }
@@ -2377,6 +2386,9 @@ model Report {
   /// v1.133-social (D380, §10.170.5): a USER report filed by a recipient from a gift (`reportLiveGift`; an anonymous
   /// send names no one to them): the send it came from.
   contextLiveGiftId         String?          @map("context_live_gift_id") @db.Uuid
+  /// v1.134-social (D381, §10.171.3): the shared queue's order — 2 a safety reason (NUDITY, VIOLENCE, ILLEGAL; from
+  /// anyone), 1 from a PRIORITY_SUPPORT holder, 0 otherwise; fixed when the report is made.
+  priority                  Int              @default(0) @db.SmallInt
 
   reporter                User               @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
   targetPost              Post?              @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
@@ -2406,6 +2418,7 @@ model Report {
   @@unique([reporterId, targetProfileLinkId], map: "reports_open_profile_link_once", where: raw("status = 'OPEN'::report_status AND target_profile_link_id IS NOT NULL"))
   @@unique([reporterId, targetDmGroupId], map: "reports_open_dm_group_once", where: raw("status = 'OPEN'::report_status AND target_dm_group_id IS NOT NULL"))
   @@index([status, createdAt, id], map: "reports_status_created_idx")
+  @@index([status, priority(sort: Desc), createdAt, id], map: "reports_status_priority_idx")
   @@index([targetPostId], map: "reports_target_post_idx")
   @@index([targetCommentId], map: "reports_target_comment_idx")
   @@index([targetUserId], map: "reports_target_user_idx")
@@ -8623,6 +8636,9 @@ model WaConversation {
   purgeAfter         DateTime?            @map("purge_after") @db.Timestamptz(3)
   /// D366 (v1.123-social, §10.159): the department «القسم» (GENERAL until a transfer moves it; only a transfer does).
   department         WaDepartment         @default(GENERAL)
+  /// v1.134-social (D381, §10.171.3): the linked account held PRIORITY_SUPPORT when it was linked or last wrote —
+  /// listed first in the staff inbox.
+  priority           Boolean              @default(false)
   createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
 
@@ -8880,4 +8896,66 @@ model AnonymousGiftBlock {
   @@id([recipientId, senderId])
   @@index([senderId], map: "anonymous_gift_blocks_sender_idx")
   @@map("anonymous_gift_blocks")
+}
+
+/// v1.134-social (D381, CONVENTIONS §10.171.4): MONTHLY_ROCKETS — one grant per member and calendar month
+/// (`LIVE_RANKINGS_TIME_ZONE`), made on the first read of the month: `count` traffic cards of the stage's length into
+/// `live_boost_cards`. Audited (`vip.monthly_rockets.grant`).
+model VipRocketGrant {
+  userId    String   @map("user_id") @db.Uuid
+  /// The month's first day.
+  month     DateTime @db.Date
+  tierId    String?  @map("tier_id") @db.Uuid
+  stage     Int      @db.SmallInt
+  minutes   Int
+  count     Int
+  grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, month], map: "vip_rocket_grants_pkey")
+  @@map("vip_rocket_grants")
+}
+
+/// v1.134-social (D381, §10.171.5): a scheduled gift's state.
+enum VipScheduledGiftStatus {
+  PENDING
+  DELIVERED
+  CANCELLED
+  FAILED
+
+  @@map("vip_scheduled_gift_status")
+}
+
+/// v1.134-social (D381, CONVENTIONS §10.171.5): SCHEDULED_GIFT «هدية مؤجلة» — a gift the sender scheduled for a
+/// person at a time; its coins are held at scheduling (wallet ledger VIP_SCHEDULED_GIFT) and given back on delivery
+/// (charged as the conversation gift, DM_GIFT, in the same transaction), cancellation or failure
+/// (VIP_SCHEDULED_GIFT_RELEASE). Delivered by the worker as a gift in the pair's conversation.
+model VipScheduledGift {
+  id          String                 @id @default(uuid(7)) @db.Uuid
+  senderId    String                 @map("sender_id") @db.Uuid
+  /// Null once the recipient's account is gone (the gift then fails and its coins come back).
+  recipientId String?                @map("recipient_id") @db.Uuid
+  clientId    String                 @map("client_id") @db.Uuid
+  giftCode    String                 @map("gift_code") @db.VarChar(40)
+  quantity    Int
+  unitPrice   Int                    @map("unit_price")
+  coinsHeld   BigInt                 @map("coins_held")
+  deliverAt   DateTime               @map("deliver_at") @db.Timestamptz(3)
+  status      VipScheduledGiftStatus @default(PENDING)
+  /// FAILED: the error code that stopped the delivery.
+  failure     String?                @db.VarChar(64)
+  /// DELIVERED: the conversation message of the gift.
+  dmMessageId String?                @map("dm_message_id") @db.Uuid
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  handledAt   DateTime?              @map("handled_at") @db.Timestamptz(3)
+
+  sender    User  @relation("VipScheduledGiftSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User? @relation("VipScheduledGiftRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+
+  @@unique([senderId, clientId], map: "vip_scheduled_gifts_client_once")
+  @@index([deliverAt], map: "vip_scheduled_gifts_due_idx", where: raw("status = 'PENDING'::vip_scheduled_gift_status"))
+  @@index([senderId, createdAt(sort: Desc)], map: "vip_scheduled_gifts_sender_idx")
+  @@index([recipientId], map: "vip_scheduled_gifts_recipient_idx")
+  @@map("vip_scheduled_gifts")
 }

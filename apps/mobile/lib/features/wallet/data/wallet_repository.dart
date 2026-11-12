@@ -42,6 +42,10 @@ enum WalletLedgerReason {
   contentGift('CONTENT_GIFT'),
   // D376: a status pack «حزمة الحالة» bought or renewed.
   statusPackPurchase('STATUS_PACK_PURCHASE'),
+  // D381: a scheduled gift's coins held, and given back on delivery (then
+  // charged as its conversation gift), cancellation or failure.
+  vipScheduledGift('VIP_SCHEDULED_GIFT'),
+  vipScheduledGiftRelease('VIP_SCHEDULED_GIFT_RELEASE'),
   other('');
 
   new(this.wire);

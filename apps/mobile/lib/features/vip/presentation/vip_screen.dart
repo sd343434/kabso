@@ -21,6 +21,7 @@ import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_carousel.dart';
+import 'package:kabso_live/features/vip/presentation/vip_gift_perks.dart';
 import 'package:kabso_live/features/vip/presentation/vip_identity_screen.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_ref_parts.dart';
@@ -490,61 +491,72 @@ class _VipScreenState extends ConsumerState<VipScreen> {
   }
 
   /// «الخاص بي VIP»: the member's own VIP — its tier, end and days left.
-  Future<void> _showMine(VipMembership membership) =>
-      showModalBottomSheet<void>(
-        context: context,
-        backgroundColor: VipPalette.of(context).sheet,
-        builder: (sheet) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(KSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _MemberStatus(membership: membership),
-                // D258: «من زار ملفي» (PROFILE_VISITORS).
-                if (_holds(membership, VipPerks.profileVisitors)) ...[
-                  const SizedBox(height: KSpacing.sm),
-                  ListTile(
-                    key: VipScreen.visitorsKey,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.visibility_outlined),
-                    title: Text(context.l10n.vipVisitorsEntry),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      Navigator.of(sheet).pop();
-                      unawaited(context.push(AppRoutes.vipVisitors));
-                    },
-                  ),
-                ],
-                // D378: «هويتي المميزة» (signature, golden ID, username).
-                if (VipIdentityScreen.hasAny(
-                  vipLookOf(
-                    UserVip(
-                      tier: membership.tierCode,
-                      rank: 0,
-                      color: membership.tierColor,
-                    ),
-                    ref.read(vipTiersProvider).value,
-                  ),
-                ))
-                  ListTile(
-                    key: VipScreen.identityKey,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.badge_outlined),
-                    title: Text(context.l10n.vipIdentityEntry),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      Navigator.of(sheet).pop();
-                      unawaited(context.push(AppRoutes.vipIdentity));
-                    },
-                  ),
-                // D374: the daily coins row is gone (the owner removed
-                // DAILY_COINS, 2026-11-11).
+  Future<void> _showMine(VipMembership membership) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: VipPalette.of(context).sheet,
+      builder: (sheet) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(KSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MemberStatus(membership: membership),
+              // D258: «من زار ملفي» (PROFILE_VISITORS).
+              if (_holds(membership, VipPerks.profileVisitors)) ...[
+                const SizedBox(height: KSpacing.sm),
+                ListTile(
+                  key: VipScreen.visitorsKey,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.visibility_outlined),
+                  title: Text(context.l10n.vipVisitorsEntry),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(sheet).pop();
+                    unawaited(context.push(AppRoutes.vipVisitors));
+                  },
+                ),
               ],
-            ),
+              // D378: «هويتي المميزة» (signature, golden ID, username).
+              if (VipIdentityScreen.hasAny(
+                vipLookOf(
+                  UserVip(
+                    tier: membership.tierCode,
+                    rank: 0,
+                    color: membership.tierColor,
+                  ),
+                  ref.read(vipTiersProvider).value,
+                ),
+              ))
+                ListTile(
+                  key: VipScreen.identityKey,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.badge_outlined),
+                  title: Text(context.l10n.vipIdentityEntry),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(sheet).pop();
+                    unawaited(context.push(AppRoutes.vipIdentity));
+                  },
+                ),
+              // D374: the daily coins row is gone (the owner removed
+              // DAILY_COINS, 2026-11-11).
+              // D381: what the gift, CP, support, rocket and voice perks
+              // give now, and «هدية مؤجلة».
+              VipPerksNowSection(
+                now: membership.perksNow,
+                onOpenScheduled: () {
+                  Navigator.of(sheet).pop();
+                  openVipScheduledGifts(context);
+                },
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 /// D304: the page's top bar — back at the reading start (mirrors in RTL),

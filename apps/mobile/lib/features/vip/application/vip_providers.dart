@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/misc.dart' show ProviderFamily;
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/vip/application/vip_gift_perks_providers.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/data/vip_gift_perks_repository.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 
 // Names and perks are localized by the server, so a language change
@@ -25,7 +27,13 @@ final FutureProvider<VipMembership?> myVipProvider = FutureProvider.autoDispose(
     ref
       ..watch(languageControllerProvider)
       ..watch(currentUserProvider.select((u) => u?.id));
-    return ref.watch(vipRepositoryProvider).mine();
+    return ref.watch(vipRepositoryProvider).mine().then((m) {
+      // v1.134-social (D381): LONGER_VOICE's limit for the recorders.
+      ref
+          .read(vipVoiceLimitProvider.notifier)
+          .set(m?.perksNow?.voiceLimit ?? defaultVoiceLimit);
+      return m;
+    });
   },
 );
 

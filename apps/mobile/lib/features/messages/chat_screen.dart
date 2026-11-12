@@ -30,7 +30,9 @@ import 'package:kabso_live/features/push/open_conversation.dart';
 import 'package:kabso_live/features/push/push_payload.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
+import 'package:kabso_live/features/vip/application/vip_gift_perks_providers.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
+import 'package:kabso_live/features/vip/data/vip_gift_perks_repository.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -69,7 +71,8 @@ class ChatScreen extends ConsumerStatefulWidget {
   /// The peer's premium username tier (D146), or null for a regular one.
   final PremiumTier? premiumTier;
 
-  /// The longest voice note (the CP-017 pipeline, §11.1).
+  /// The longest voice note (the CP-017 pipeline, §11.1) without
+  /// LONGER_VOICE; v1.134-social (D381) a holder's is `vipVoiceLimitProvider`.
   static const maxVoice = Duration(seconds: 30);
 
   static const noticeKey = Key('chat.notice');
@@ -321,7 +324,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _tick = Timer.periodic(const Duration(seconds: 1), (t) {
         if (!mounted) return;
         setState(() => _elapsed += const Duration(seconds: 1));
-        if (_elapsed >= ChatScreen.maxVoice) {
+        if (_elapsed >= ref.read(vipVoiceLimitProvider)) {
           unawaited(_stopVoice(send: true));
         }
       });
@@ -359,7 +362,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         KSnack.error(context, l10n.liveVoiceSilent);
         return;
       }
-      if (clip.bytes.length > maxVoiceBytes) {
+      if (clip.bytes.length > voiceBytesFor(ref.read(vipVoiceLimitProvider))) {
         KSnack.error(context, l10n.liveVoiceTooLarge);
         return;
       }

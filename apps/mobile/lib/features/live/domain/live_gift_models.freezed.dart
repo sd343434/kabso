@@ -1568,7 +1568,12 @@ mixin _$GiftCatalogue {
 /// null from an older server (every win has its line).
  int? get luckyChatMinMultiplier;/// v1.46-live (D207): the tabs with their names and icons, in order
 /// (empty from an older API: [categories] with the app's names).
- List<GiftTab> get tabs;
+ List<GiftTab> get tabs;/// v1.134-social (D381, §10.171.1) EXCLUSIVE_GIFTS: the exclusive gifts
+/// the caller's VIP may send — the sheet's «VIP» tab (empty: no tab).
+ List<String> get vipGiftCodes;/// v1.134-social (D381, §10.171.6) HIGHER_GIFT_QUANTITY: the larger
+/// quantities the caller may send beside [quantities] (never a lucky
+/// gift or a quip).
+ List<int> get vipQuantities;
 /// Create a copy of GiftCatalogue
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1582,20 +1587,20 @@ $GiftCatalogueCopyWith<GiftCatalogue> get copyWith => _$GiftCatalogueCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as GiftCatalogue;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GiftCatalogue&&(identical(other.version, _this.version) || other.version == _this.version)&&const DeepCollectionEquality().equals(other.categories, _this.categories)&&const DeepCollectionEquality().equals(other.quantities, _this.quantities)&&(identical(other.maxRecipients, _this.maxRecipients) || other.maxRecipients == _this.maxRecipients)&&(identical(other.comboWindowSeconds, _this.comboWindowSeconds) || other.comboWindowSeconds == _this.comboWindowSeconds)&&const DeepCollectionEquality().equals(other.data, _this.data)&&(identical(other.luckyChatMinMultiplier, _this.luckyChatMinMultiplier) || other.luckyChatMinMultiplier == _this.luckyChatMinMultiplier)&&const DeepCollectionEquality().equals(other.tabs, _this.tabs));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GiftCatalogue&&(identical(other.version, _this.version) || other.version == _this.version)&&const DeepCollectionEquality().equals(other.categories, _this.categories)&&const DeepCollectionEquality().equals(other.quantities, _this.quantities)&&(identical(other.maxRecipients, _this.maxRecipients) || other.maxRecipients == _this.maxRecipients)&&(identical(other.comboWindowSeconds, _this.comboWindowSeconds) || other.comboWindowSeconds == _this.comboWindowSeconds)&&const DeepCollectionEquality().equals(other.data, _this.data)&&(identical(other.luckyChatMinMultiplier, _this.luckyChatMinMultiplier) || other.luckyChatMinMultiplier == _this.luckyChatMinMultiplier)&&const DeepCollectionEquality().equals(other.tabs, _this.tabs)&&const DeepCollectionEquality().equals(other.vipGiftCodes, _this.vipGiftCodes)&&const DeepCollectionEquality().equals(other.vipQuantities, _this.vipQuantities));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as GiftCatalogue;
-  return Object.hash(runtimeType,_this.version,const DeepCollectionEquality().hash(_this.categories),const DeepCollectionEquality().hash(_this.quantities),_this.maxRecipients,_this.comboWindowSeconds,const DeepCollectionEquality().hash(_this.data),_this.luckyChatMinMultiplier,const DeepCollectionEquality().hash(_this.tabs));
+  return Object.hash(runtimeType,_this.version,const DeepCollectionEquality().hash(_this.categories),const DeepCollectionEquality().hash(_this.quantities),_this.maxRecipients,_this.comboWindowSeconds,const DeepCollectionEquality().hash(_this.data),_this.luckyChatMinMultiplier,const DeepCollectionEquality().hash(_this.tabs),const DeepCollectionEquality().hash(_this.vipGiftCodes),const DeepCollectionEquality().hash(_this.vipQuantities));
 }
 
 @override
 String toString() {
   final _this = this as GiftCatalogue;
-  return 'GiftCatalogue(version: ${_this.version}, categories: ${_this.categories}, quantities: ${_this.quantities}, maxRecipients: ${_this.maxRecipients}, comboWindowSeconds: ${_this.comboWindowSeconds}, data: ${_this.data}, luckyChatMinMultiplier: ${_this.luckyChatMinMultiplier}, tabs: ${_this.tabs})';
+  return 'GiftCatalogue(version: ${_this.version}, categories: ${_this.categories}, quantities: ${_this.quantities}, maxRecipients: ${_this.maxRecipients}, comboWindowSeconds: ${_this.comboWindowSeconds}, data: ${_this.data}, luckyChatMinMultiplier: ${_this.luckyChatMinMultiplier}, tabs: ${_this.tabs}, vipGiftCodes: ${_this.vipGiftCodes}, vipQuantities: ${_this.vipQuantities})';
 }
 
 
@@ -1606,7 +1611,7 @@ abstract mixin class $GiftCatalogueCopyWith<$Res>  {
   factory $GiftCatalogueCopyWith(GiftCatalogue value, $Res Function(GiftCatalogue) _then) = _$GiftCatalogueCopyWithImpl;
 @useResult
 $Res call({
- String version, List<String> categories, List<int> quantities, int maxRecipients, int comboWindowSeconds, List<Gift> data, int? luckyChatMinMultiplier, List<GiftTab> tabs
+ String version, List<String> categories, List<int> quantities, int maxRecipients, int comboWindowSeconds, List<Gift> data, int? luckyChatMinMultiplier, List<GiftTab> tabs, List<String> vipGiftCodes, List<int> vipQuantities
 });
 
 
@@ -1623,7 +1628,7 @@ class _$GiftCatalogueCopyWithImpl<$Res>
 
 /// Create a copy of GiftCatalogue
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? version = null,Object? categories = null,Object? quantities = null,Object? maxRecipients = null,Object? comboWindowSeconds = null,Object? data = null,Object? luckyChatMinMultiplier = freezed,Object? tabs = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? version = null,Object? categories = null,Object? quantities = null,Object? maxRecipients = null,Object? comboWindowSeconds = null,Object? data = null,Object? luckyChatMinMultiplier = freezed,Object? tabs = null,Object? vipGiftCodes = null,Object? vipQuantities = null,}) {
   return _then(GiftCatalogue(
 version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as String,categories: null == categories ? _self.categories : categories // ignore: cast_nullable_to_non_nullable
@@ -1633,7 +1638,9 @@ as int,comboWindowSeconds: null == comboWindowSeconds ? _self.comboWindowSeconds
 as int,data: null == data ? _self.data : data // ignore: cast_nullable_to_non_nullable
 as List<Gift>,luckyChatMinMultiplier: freezed == luckyChatMinMultiplier ? _self.luckyChatMinMultiplier : luckyChatMinMultiplier // ignore: cast_nullable_to_non_nullable
 as int?,tabs: null == tabs ? _self.tabs : tabs // ignore: cast_nullable_to_non_nullable
-as List<GiftTab>,
+as List<GiftTab>,vipGiftCodes: null == vipGiftCodes ? _self.vipGiftCodes : vipGiftCodes // ignore: cast_nullable_to_non_nullable
+as List<String>,vipQuantities: null == vipQuantities ? _self.vipQuantities : vipQuantities // ignore: cast_nullable_to_non_nullable
+as List<int>,
   ));
 }
 
@@ -1718,10 +1725,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String version,  List<String> categories,  List<int> quantities,  int maxRecipients,  int comboWindowSeconds,  List<Gift> data,  int? luckyChatMinMultiplier,  List<GiftTab> tabs)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String version,  List<String> categories,  List<int> quantities,  int maxRecipients,  int comboWindowSeconds,  List<Gift> data,  int? luckyChatMinMultiplier,  List<GiftTab> tabs,  List<String> vipGiftCodes,  List<int> vipQuantities)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _GiftCatalogue() when $default != null:
-return $default(_that.version,_that.categories,_that.quantities,_that.maxRecipients,_that.comboWindowSeconds,_that.data,_that.luckyChatMinMultiplier,_that.tabs);case _:
+return $default(_that.version,_that.categories,_that.quantities,_that.maxRecipients,_that.comboWindowSeconds,_that.data,_that.luckyChatMinMultiplier,_that.tabs,_that.vipGiftCodes,_that.vipQuantities);case _:
   return orElse();
 
 }
@@ -1739,10 +1746,10 @@ return $default(_that.version,_that.categories,_that.quantities,_that.maxRecipie
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String version,  List<String> categories,  List<int> quantities,  int maxRecipients,  int comboWindowSeconds,  List<Gift> data,  int? luckyChatMinMultiplier,  List<GiftTab> tabs)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String version,  List<String> categories,  List<int> quantities,  int maxRecipients,  int comboWindowSeconds,  List<Gift> data,  int? luckyChatMinMultiplier,  List<GiftTab> tabs,  List<String> vipGiftCodes,  List<int> vipQuantities)  $default,) {final _that = this;
 switch (_that) {
 case _GiftCatalogue():
-return $default(_that.version,_that.categories,_that.quantities,_that.maxRecipients,_that.comboWindowSeconds,_that.data,_that.luckyChatMinMultiplier,_that.tabs);case _:
+return $default(_that.version,_that.categories,_that.quantities,_that.maxRecipients,_that.comboWindowSeconds,_that.data,_that.luckyChatMinMultiplier,_that.tabs,_that.vipGiftCodes,_that.vipQuantities);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1759,10 +1766,10 @@ return $default(_that.version,_that.categories,_that.quantities,_that.maxRecipie
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String version,  List<String> categories,  List<int> quantities,  int maxRecipients,  int comboWindowSeconds,  List<Gift> data,  int? luckyChatMinMultiplier,  List<GiftTab> tabs)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String version,  List<String> categories,  List<int> quantities,  int maxRecipients,  int comboWindowSeconds,  List<Gift> data,  int? luckyChatMinMultiplier,  List<GiftTab> tabs,  List<String> vipGiftCodes,  List<int> vipQuantities)?  $default,) {final _that = this;
 switch (_that) {
 case _GiftCatalogue() when $default != null:
-return $default(_that.version,_that.categories,_that.quantities,_that.maxRecipients,_that.comboWindowSeconds,_that.data,_that.luckyChatMinMultiplier,_that.tabs);case _:
+return $default(_that.version,_that.categories,_that.quantities,_that.maxRecipients,_that.comboWindowSeconds,_that.data,_that.luckyChatMinMultiplier,_that.tabs,_that.vipGiftCodes,_that.vipQuantities);case _:
   return null;
 
 }
@@ -1774,7 +1781,7 @@ return $default(_that.version,_that.categories,_that.quantities,_that.maxRecipie
 @JsonSerializable()
 
 class _GiftCatalogue implements GiftCatalogue {
-  const _GiftCatalogue({required this.version, required  List<String> categories, required  List<int> quantities, required this.maxRecipients, required this.comboWindowSeconds, required  List<Gift> data, this.luckyChatMinMultiplier,  List<GiftTab> tabs = const <GiftTab>[]}): _categories = categories,_quantities = quantities,_data = data,_tabs = tabs;
+  const _GiftCatalogue({required this.version, required  List<String> categories, required  List<int> quantities, required this.maxRecipients, required this.comboWindowSeconds, required  List<Gift> data, this.luckyChatMinMultiplier,  List<GiftTab> tabs = const <GiftTab>[],  List<String> vipGiftCodes = const <String>[],  List<int> vipQuantities = const <int>[]}): _categories = categories,_quantities = quantities,_data = data,_tabs = tabs,_vipGiftCodes = vipGiftCodes,_vipQuantities = vipQuantities;
   factory _GiftCatalogue.fromJson(Map<String, dynamic> json) => _$GiftCatalogueFromJson(json);
 
 @override final  String version;
@@ -1816,6 +1823,30 @@ class _GiftCatalogue implements GiftCatalogue {
   return EqualUnmodifiableListView(_tabs);
 }
 
+/// v1.134-social (D381, §10.171.1) EXCLUSIVE_GIFTS: the exclusive gifts
+/// the caller's VIP may send — the sheet's «VIP» tab (empty: no tab).
+ final  List<String> _vipGiftCodes;
+/// v1.134-social (D381, §10.171.1) EXCLUSIVE_GIFTS: the exclusive gifts
+/// the caller's VIP may send — the sheet's «VIP» tab (empty: no tab).
+@override@JsonKey() List<String> get vipGiftCodes {
+  if (_vipGiftCodes is EqualUnmodifiableListView) return _vipGiftCodes;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_vipGiftCodes);
+}
+
+/// v1.134-social (D381, §10.171.6) HIGHER_GIFT_QUANTITY: the larger
+/// quantities the caller may send beside [quantities] (never a lucky
+/// gift or a quip).
+ final  List<int> _vipQuantities;
+/// v1.134-social (D381, §10.171.6) HIGHER_GIFT_QUANTITY: the larger
+/// quantities the caller may send beside [quantities] (never a lucky
+/// gift or a quip).
+@override@JsonKey() List<int> get vipQuantities {
+  if (_vipQuantities is EqualUnmodifiableListView) return _vipQuantities;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_vipQuantities);
+}
+
 
 /// Create a copy of GiftCatalogue
 /// with the given fields replaced by the non-null parameter values.
@@ -1830,18 +1861,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GiftCatalogue&&(identical(other.version, version) || other.version == version)&&const DeepCollectionEquality().equals(other.categories, _categories)&&const DeepCollectionEquality().equals(other.quantities, _quantities)&&(identical(other.maxRecipients, maxRecipients) || other.maxRecipients == maxRecipients)&&(identical(other.comboWindowSeconds, comboWindowSeconds) || other.comboWindowSeconds == comboWindowSeconds)&&const DeepCollectionEquality().equals(other.data, _data)&&(identical(other.luckyChatMinMultiplier, luckyChatMinMultiplier) || other.luckyChatMinMultiplier == luckyChatMinMultiplier)&&const DeepCollectionEquality().equals(other.tabs, _tabs));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GiftCatalogue&&(identical(other.version, version) || other.version == version)&&const DeepCollectionEquality().equals(other.categories, _categories)&&const DeepCollectionEquality().equals(other.quantities, _quantities)&&(identical(other.maxRecipients, maxRecipients) || other.maxRecipients == maxRecipients)&&(identical(other.comboWindowSeconds, comboWindowSeconds) || other.comboWindowSeconds == comboWindowSeconds)&&const DeepCollectionEquality().equals(other.data, _data)&&(identical(other.luckyChatMinMultiplier, luckyChatMinMultiplier) || other.luckyChatMinMultiplier == luckyChatMinMultiplier)&&const DeepCollectionEquality().equals(other.tabs, _tabs)&&const DeepCollectionEquality().equals(other.vipGiftCodes, _vipGiftCodes)&&const DeepCollectionEquality().equals(other.vipQuantities, _vipQuantities));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,version,const DeepCollectionEquality().hash(_categories),const DeepCollectionEquality().hash(_quantities),maxRecipients,comboWindowSeconds,const DeepCollectionEquality().hash(_data),luckyChatMinMultiplier,const DeepCollectionEquality().hash(_tabs));
+    return Object.hash(runtimeType,version,const DeepCollectionEquality().hash(_categories),const DeepCollectionEquality().hash(_quantities),maxRecipients,comboWindowSeconds,const DeepCollectionEquality().hash(_data),luckyChatMinMultiplier,const DeepCollectionEquality().hash(_tabs),const DeepCollectionEquality().hash(_vipGiftCodes),const DeepCollectionEquality().hash(_vipQuantities));
 }
 
 @override
 String toString() {
-    return 'GiftCatalogue(version: $version, categories: $categories, quantities: $quantities, maxRecipients: $maxRecipients, comboWindowSeconds: $comboWindowSeconds, data: $data, luckyChatMinMultiplier: $luckyChatMinMultiplier, tabs: $tabs)';
+    return 'GiftCatalogue(version: $version, categories: $categories, quantities: $quantities, maxRecipients: $maxRecipients, comboWindowSeconds: $comboWindowSeconds, data: $data, luckyChatMinMultiplier: $luckyChatMinMultiplier, tabs: $tabs, vipGiftCodes: $vipGiftCodes, vipQuantities: $vipQuantities)';
 }
 
 
@@ -1852,7 +1883,7 @@ abstract mixin class _$GiftCatalogueCopyWith<$Res> implements $GiftCatalogueCopy
   factory _$GiftCatalogueCopyWith(_GiftCatalogue value, $Res Function(_GiftCatalogue) _then) = __$GiftCatalogueCopyWithImpl;
 @override @useResult
 $Res call({
- String version, List<String> categories, List<int> quantities, int maxRecipients, int comboWindowSeconds, List<Gift> data, int? luckyChatMinMultiplier, List<GiftTab> tabs
+ String version, List<String> categories, List<int> quantities, int maxRecipients, int comboWindowSeconds, List<Gift> data, int? luckyChatMinMultiplier, List<GiftTab> tabs, List<String> vipGiftCodes, List<int> vipQuantities
 });
 
 
@@ -1869,7 +1900,7 @@ class __$GiftCatalogueCopyWithImpl<$Res>
 
 /// Create a copy of GiftCatalogue
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? version = null,Object? categories = null,Object? quantities = null,Object? maxRecipients = null,Object? comboWindowSeconds = null,Object? data = null,Object? luckyChatMinMultiplier = freezed,Object? tabs = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? version = null,Object? categories = null,Object? quantities = null,Object? maxRecipients = null,Object? comboWindowSeconds = null,Object? data = null,Object? luckyChatMinMultiplier = freezed,Object? tabs = null,Object? vipGiftCodes = null,Object? vipQuantities = null,}) {
   return _then(_GiftCatalogue(
 version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as String,categories: null == categories ? _self._categories : categories // ignore: cast_nullable_to_non_nullable
@@ -1879,7 +1910,9 @@ as int,comboWindowSeconds: null == comboWindowSeconds ? _self.comboWindowSeconds
 as int,data: null == data ? _self._data : data // ignore: cast_nullable_to_non_nullable
 as List<Gift>,luckyChatMinMultiplier: freezed == luckyChatMinMultiplier ? _self.luckyChatMinMultiplier : luckyChatMinMultiplier // ignore: cast_nullable_to_non_nullable
 as int?,tabs: null == tabs ? _self._tabs : tabs // ignore: cast_nullable_to_non_nullable
-as List<GiftTab>,
+as List<GiftTab>,vipGiftCodes: null == vipGiftCodes ? _self._vipGiftCodes : vipGiftCodes // ignore: cast_nullable_to_non_nullable
+as List<String>,vipQuantities: null == vipQuantities ? _self._vipQuantities : vipQuantities // ignore: cast_nullable_to_non_nullable
+as List<int>,
   ));
 }
 

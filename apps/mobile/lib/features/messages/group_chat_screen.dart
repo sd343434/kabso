@@ -25,6 +25,8 @@ import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/push/open_conversation.dart';
 import 'package:kabso_live/features/push/push_payload.dart';
+import 'package:kabso_live/features/vip/application/vip_gift_perks_providers.dart';
+import 'package:kabso_live/features/vip/data/vip_gift_perks_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -246,7 +248,8 @@ class _GroupChatState extends ConsumerState<GroupChatScreen> {
       _tick = Timer.periodic(const Duration(seconds: 1), (t) {
         if (!mounted) return;
         setState(() => _elapsed += const Duration(seconds: 1));
-        if (_elapsed >= const Duration(seconds: 30)) {
+        // v1.134-social (D381): LONGER_VOICE's limit, else 30 s.
+        if (_elapsed >= ref.read(vipVoiceLimitProvider)) {
           unawaited(_stopVoice(send: true));
         }
       });
@@ -284,7 +287,7 @@ class _GroupChatState extends ConsumerState<GroupChatScreen> {
         KSnack.error(context, l10n.liveVoiceSilent);
         return;
       }
-      if (clip.bytes.length > maxVoiceBytes) {
+      if (clip.bytes.length > voiceBytesFor(ref.read(vipVoiceLimitProvider))) {
         KSnack.error(context, l10n.liveVoiceTooLarge);
         return;
       }

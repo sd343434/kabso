@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { vipPerkHeldIn } from '../vip/vip-gift-perks.js';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -74,6 +75,22 @@ function linkSnapshotDto(value: Prisma.JsonValue | null): ProfileLinkSnapshot | 
 }
 
 /** `Report` (openapi v1.5-social); `reporter` in admin views only. */
+/** v1.134-social (D381, §10.171.3): the reasons that keep the first place in the queue, whoever reports. */
+export const SAFETY_REPORT_REASONS: ReadonlySet<string> = new Set(['NUDITY', 'VIOLENCE', 'ILLEGAL']);
+
+/**
+ * v1.134-social (D381, §10.171.3): a new report's priority — 2 for a safety reason (everyone), else 1 when the reporter
+ * holds PRIORITY_SUPPORT now, else 0.
+ */
+export async function reportPriorityOf(
+  db: Pick<Prisma.TransactionClient, 'vipMembership' | 'vipTierPerk'>,
+  reporterId: string,
+  reason: string,
+): Promise<number> {
+  if (SAFETY_REPORT_REASONS.has(reason)) return 2;
+  return (await vipPerkHeldIn(db, reporterId, 'PRIORITY_SUPPORT', new Date())) ? 1 : 0;
+}
+
 export interface ReportDto {
   id: string;
   targetType:
@@ -106,6 +123,11 @@ export interface ReportDto {
    * came from and whether it was anonymous (the target is the real sender).
    */
   liveGift?: { id: string; anonymous: boolean };
+  /**
+   * v1.134-social (D381, §10.171.3): admin views — the shared queue's order: 2 a safety reason, 1 from a
+   * PRIORITY_SUPPORT holder, 0 otherwise.
+   */
+  priority?: number;
 }
 
 /** v1.133-social (D380): `LiveGiftReportResult` — never names the sender (an anonymous send stays anonymous). */
@@ -469,6 +491,8 @@ export class SafetyService {
           targetType: input.targetType,
           reason: input.reason,
           note: input.note ?? null,
+          // v1.134-social (D381, §10.171.3): the shared queue's order, fixed now.
+          priority: await reportPriorityOf(this.prisma, reporterId, input.reason),
           ...(contextLiveRoomId !== null ? { contextLiveRoomId } : {}),
           ...target,
         },
@@ -664,6 +688,22 @@ export class SafetyService {
   }
 
   /**
+   * v1.134-social (D381): the rows after the cursor's in the open queue's order (priority desc, then oldest first). The
+   * cursor keeps its shape ({at, id}); the priority is the cursor row's (fixed when a report is made).
+   */
+  private async afterInPriorityOrder(after: { at: Date; id: string }): Promise<Prisma.ReportWhereInput> {
+    const row = await this.prisma.report.findUnique({ where: { id: after.id }, select: { priority: true } });
+    const p = row?.priority ?? 0;
+    return {
+      OR: [
+        { priority: { lt: p } },
+        { priority: p, createdAt: { gt: after.at } },
+        { priority: p, createdAt: after.at, id: { gt: after.id } },
+      ],
+    };
+  }
+
+  /**
    * `GET /admin/reports`: oldest first (MODERATION; checked by the guard). v1.78-live (D288): the shared queue's
    * `RESOLVED` — every closed report, newest resolution first.
    */
@@ -689,11 +729,10 @@ export class SafetyService {
       : await this.prisma.report.findMany({
           where: {
             status: query.status as AdminReportsQuery['status'],
-            ...(after
-              ? { OR: [{ createdAt: { gt: after.at } }, { createdAt: after.at, id: { gt: after.id } }] }
-              : {}),
+            ...(after ? await this.afterInPriorityOrder(after) : {}),
           },
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          // v1.134-social (D381, §10.171.3): the higher priority first (safety, then PRIORITY_SUPPORT), each oldest first.
+          orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
           take: query.limit + 1,
           include: REPORT_INCLUDE,
         });
@@ -922,7 +961,7 @@ export class SafetyService {
       status: row.status,
       createdAt: row.createdAt.toISOString(),
       resolvedAt: row.resolvedAt?.toISOString() ?? null,
-      ...(admin ? { reporter: userSummary(row.reporter) } : {}),
+      ...(admin ? { reporter: userSummary(row.reporter), priority: row.priority } : {}),
       ...(admin && row.targetType === 'DM_MESSAGE'
         ? { dmSnapshot: dmSnapshotDto(row.dmSnapshot, this.media.publicBaseUrl) ?? undefined }
         : {}),

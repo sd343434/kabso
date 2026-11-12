@@ -198,6 +198,10 @@ class KLiveGiftSheet extends ConsumerStatefulWidget {
 
   /// v1.43-live (D195): the PK boosters' tab (during a PK battle only).
   static const pkTab = 'PK';
+
+  /// v1.134-social (D381, EXCLUSIVE_GIFTS): the exclusive gifts the caller's
+  /// VIP may send (`GiftCatalogue.vipGiftCodes`), the first tab.
+  static const vipTab = 'VIP';
   static const priceSortKey = Key('gift.priceSort');
   static const wealthKey = Key('gift.wealth');
 
@@ -823,9 +827,18 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     ];
     final popular = shown.indexOf(GiftCategory.popular);
     final recentAt = popular >= 0 ? popular + 1 : (shown.isEmpty ? 0 : 1);
+    // v1.134-social (D381): the «VIP» tab while the caller may send any
+    // exclusive gift offered here.
+    final vip =
+        catalogue != null &&
+        catalogue.vipGiftCodes.any((code) {
+          final g = catalogue.byCode(code);
+          return g != null && _offered(g);
+        });
     return [
       // v1.43-live (D195): the boosters first during a PK battle.
       if (pk) KLiveGiftSheet.pkTab,
+      if (vip) KLiveGiftSheet.vipTab,
       ...shown.take(recentAt),
       KLiveGiftSheet.recentTab,
       ...shown.skip(recentAt),
@@ -882,6 +895,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     final isBag = tab == KLiveGiftSheet.bagTab;
     final isRecent = tab == KLiveGiftSheet.recentTab;
     final isPk = tab == KLiveGiftSheet.pkTab;
+    final isVip = tab == KLiveGiftSheet.vipTab;
     final isLuckyTab = tab == GiftCategory.lucky;
     final bagAsync = isBag ? ref.watch(giftBagProvider) : null;
     final recent = isRecent ? ref.watch(recentGiftsProvider) : const <String>[];
@@ -907,6 +921,11 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
       tabCells = [
         if (catalogue != null)
           for (final g in _boosters(catalogue)) _Cell(g),
+      ];
+    } else if (isVip) {
+      tabCells = [
+        for (final code in catalogue?.vipGiftCodes ?? const <String>[])
+          if (catalogue?.byCode(code) case final g? when _offered(g)) _Cell(g),
       ];
     } else if (isRecent) {
       // Gifts no longer in the catalogue drop out.
@@ -946,9 +965,15 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     // v1.43-live (D195): a booster goes to the host, one at a time.
     final boosterSelected = selected?.gift.pkBooster != null;
     final isQuipsTab = tab == GiftCategory.quips;
+    // v1.134-social (D381, §10.171.6): a HIGHER_GIFT_QUANTITY holder's
+    // larger quantities — never for a lucky gift (nor a quip).
+    final luckyPicked = selected?.gift.category == GiftCategory.lucky;
     final quantities = quipSelected || boosterSelected
         ? const [1]
-        : catalogue?.quantities ?? const [1];
+        : [
+            ...(catalogue?.quantities ?? const [1]),
+            if (!luckyPicked && !isLuckyTab) ...?catalogue?.vipQuantities,
+          ];
     final quantity = quantities.contains(_quantity)
         ? _quantity!
         : quantities.first;
@@ -1712,6 +1737,7 @@ class LiveGiftTabs extends StatelessWidget {
         GiftCategory.quips => l10n.liveGiftTabQuips,
         KLiveGiftSheet.recentTab => l10n.liveGiftTabRecent,
         KLiveGiftSheet.pkTab => l10n.liveGiftTabPk,
+        KLiveGiftSheet.vipTab => l10n.liveGiftTabVip,
         _ => id,
       };
 

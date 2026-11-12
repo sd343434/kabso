@@ -18611,4 +18611,144 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveGiftReported => 'Reported. Thank you.';
+
+  @override
+  String get liveGiftTabVip => 'VIP';
+
+  @override
+  String get vipNowTitle => 'What your perks give you now';
+
+  @override
+  String vipNowRockets(String count, String minutes) {
+    return 'This month\'s rockets: $count × $minutes min';
+  }
+
+  @override
+  String vipNowRocketsNext(String date) {
+    return 'Next batch $date';
+  }
+
+  @override
+  String vipNowFreeCp(String left, String perMonth) {
+    return 'Free CP requests: $left of $perMonth left this month';
+  }
+
+  @override
+  String vipNowMaxQuantity(String count) {
+    return 'Send up to $count gifts at once';
+  }
+
+  @override
+  String vipNowVoice(String seconds) {
+    return 'Voice messages up to $seconds s';
+  }
+
+  @override
+  String vipNowExclusive(String count) {
+    return '$count exclusive gifts in the VIP tab';
+  }
+
+  @override
+  String get vipNowPriority =>
+      'Priority support — your reports and support chats first';
+
+  @override
+  String get vipScheduledEntry => 'Scheduled gift';
+
+  @override
+  String vipScheduledEntrySub(String pending, String max) {
+    return '$pending of $max waiting';
+  }
+
+  @override
+  String get vipScheduledEmptyTitle => 'No scheduled gifts';
+
+  @override
+  String get vipScheduledEmptyBody =>
+      'Pick a gift and a time; it arrives in the chat on time.';
+
+  @override
+  String get vipScheduledNew => 'Schedule a gift';
+
+  @override
+  String get vipScheduledTo => 'To (username)';
+
+  @override
+  String get vipScheduledGift => 'Gift';
+
+  @override
+  String get vipScheduledQuantity => 'Quantity';
+
+  @override
+  String get vipScheduledWhen => 'When';
+
+  @override
+  String vipScheduledHold(String coins) {
+    return '$coins are held now and come back if it is cancelled or cannot be sent.';
+  }
+
+  @override
+  String get vipScheduledSubmit => 'Schedule';
+
+  @override
+  String get vipScheduledDone => 'Gift scheduled';
+
+  @override
+  String get vipScheduledCancel => 'Cancel gift';
+
+  @override
+  String get vipScheduledCancelled => 'Gift cancelled; the coins are back';
+
+  @override
+  String get vipScheduledStatusPending => 'Waiting';
+
+  @override
+  String get vipScheduledStatusDelivered => 'Sent';
+
+  @override
+  String get vipScheduledStatusCancelled => 'Cancelled';
+
+  @override
+  String get vipScheduledStatusFailed => 'Not sent — coins returned';
+
+  @override
+  String vipScheduledLine(String quantity, String gift, String name) {
+    return '$quantity × $gift to $name';
+  }
+
+  @override
+  String vipScheduledAt(String date) {
+    return '$date';
+  }
+
+  @override
+  String get vipScheduledNoPerkTitle => 'Scheduled gifts are a VIP perk';
+
+  @override
+  String get vipScheduledTooMany => 'You have the most gifts waiting';
+
+  @override
+  String get vipScheduledBadTime =>
+      'Pick a time at least 5 minutes ahead and within a year';
+
+  @override
+  String cpSendBodyFree(String left) {
+    return 'Free with your VIP — $left free requests left this month. Nothing is charged, so nothing comes back.';
+  }
+
+  @override
+  String get walletReasonVipScheduledGift => 'Scheduled gift (held)';
+
+  @override
+  String get walletReasonVipScheduledGiftRelease => 'Scheduled gift (released)';
+
+  @override
+  String vipScheduledMeta(String when, String status) {
+    return '$when · $status';
+  }
+
+  @override
+  String vipScheduledGiftOption(String name, String coins) {
+    return '$name · $coins';
+  }
 }

@@ -15,6 +15,15 @@ import type { BuyVipBody } from './vip.schemas.js';
 import { wearVipItemsIn } from './vip-bag.js';
 import { syncVipIdentityIn } from './vip-identity-ops.js';
 import { vipHoldsPerkIn } from './vip-perks.js';
+import {
+  VIP_SCHEDULED_GIFT_MAX_PENDING,
+  vipExclusiveGiftsIn,
+  vipFreeCpRequestsIn,
+  vipGiftCodesFor,
+  vipPerkHeldIn,
+  vipPerkIntIn,
+} from './vip-gift-perks.js';
+import { grantVipMonthlyRocketsIn, type VipMonthlyRocketsDto } from './vip-monthly-rockets.js';
 import { PROFILE_VISITORS_DAYS, PROFILE_VISITORS_MAX } from './profile-visits.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
@@ -156,6 +165,29 @@ export interface MyVipDto {
   rechargePoints: number;
   /** v1.83-social (D258): present while the member held DAILY_COINS. D374: never sent (the perk was removed). */
   dailyCoins?: VipDailyCoinsDto;
+  /**
+   * v1.134-social (D381, §10.171.7): what the member's gift, reward, support and voice perks give now — each part only
+   * while that perk is held («الخاص بي VIP»). Absent without an active membership.
+   */
+  perksNow?: VipPerksNowDto;
+}
+
+/** `VipPerksNow` (v1.134-social, D381, §10.171.7). */
+export interface VipPerksNowDto {
+  /** MONTHLY_ROCKETS: this month's rockets (granted on this read when not yet). */
+  monthlyRockets?: VipMonthlyRocketsDto;
+  /** FREE_CP_REQUEST: this month's free CP requests. */
+  freeCpRequests?: { perMonth: number; used: number; left: number; resetsAt: string };
+  /** HIGHER_GIFT_QUANTITY: the largest quantity of one send. */
+  maxGiftQuantity?: number;
+  /** LONGER_VOICE: the longest voice message in seconds. */
+  voiceSeconds?: number;
+  /** EXCLUSIVE_GIFTS: how many exclusive gifts the member may send (their «VIP» tab). */
+  exclusiveGifts?: number;
+  /** SCHEDULED_GIFT: the member's scheduled gifts waiting, and the most that may wait. */
+  scheduledGifts?: { pending: number; maxPending: number };
+  /** PRIORITY_SUPPORT: true while held. */
+  prioritySupport?: true;
 }
 
 /** v1.83-social (D258): `VipDailyCoinsClaim`. */
@@ -351,7 +383,44 @@ export class VipService {
       membership: membershipDto(lang, m, m.tier, now),
       ...(renewal ? { renewal } : {}),
       rechargePoints,
+      perksNow: await this.perksNow(userId, m.tier.sortOrder, now),
     };
+  }
+
+  /** v1.134-social (D381, §10.171.7): `MyVip.perksNow` of a member of the tier ranked [rank]. */
+  private async perksNow(userId: string, rank: number, now: Date): Promise<VipPerksNowDto> {
+    const out: VipPerksNowDto = {};
+    const rockets = await this.prisma.$transaction((tx) =>
+      grantVipMonthlyRocketsIn(tx, userId, now, {
+        timeZone: this.config.live.rankingsTimeZone,
+        stageMinutes: this.config.boosts.prices.map((p) => p.minutes),
+      }),
+    );
+    if (rockets && (await vipPerkHeldIn(this.prisma, userId, 'MONTHLY_ROCKETS', now)))
+      out.monthlyRockets = rockets;
+    const free = await vipFreeCpRequestsIn(this.prisma, userId, now, this.config.live.rankingsTimeZone);
+    if (free) {
+      out.freeCpRequests = {
+        perMonth: free.perMonth,
+        used: free.used,
+        left: free.left,
+        resetsAt: free.resetsAt.toISOString(),
+      };
+    }
+    const max = await vipPerkIntIn(this.prisma, userId, 'HIGHER_GIFT_QUANTITY', now);
+    if (max !== null) out.maxGiftQuantity = max;
+    const voice = await vipPerkIntIn(this.prisma, userId, 'LONGER_VOICE', now);
+    if (voice !== null) out.voiceSeconds = voice;
+    const exclusive = vipGiftCodesFor(await vipExclusiveGiftsIn(this.prisma), rank);
+    if (exclusive.length > 0) out.exclusiveGifts = exclusive.length;
+    if (await vipPerkHeldIn(this.prisma, userId, 'SCHEDULED_GIFT', now)) {
+      const pending = await this.prisma.vipScheduledGift.count({
+        where: { senderId: userId, status: 'PENDING' },
+      });
+      out.scheduledGifts = { pending, maxPending: VIP_SCHEDULED_GIFT_MAX_PENDING };
+    }
+    if (await vipPerkHeldIn(this.prisma, userId, 'PRIORITY_SUPPORT', now)) out.prioritySupport = true;
+    return out;
   }
 
   /**

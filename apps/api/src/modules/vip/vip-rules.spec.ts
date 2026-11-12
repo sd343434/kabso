@@ -144,8 +144,16 @@ describe('VIP helpers', () => {
     // D374: the owner removed DAILY_COINS («ازلها»): no longer built.
     expect(vipPerkAvailable('DAILY_COINS')).toBe(false);
     // D380 (§10.170): + the four privacy perks; D378 (§10.168): + the eight identity perks; D379 (§10.169): + the
-    // ten live-room perks.
-    expect(VIP_BUILT_PERKS.size).toBe(11 + 4 + 8 + 10);
+    // ten live-room perks; D381 (v1.134-social): + seven more (gifts, CP, support, rockets, voice).
+    expect(VIP_BUILT_PERKS.size).toBe(11 + 4 + 8 + 10 + 7);
+    for (const c of [
+      'EXCLUSIVE_GIFTS',
+      'FREE_CP_REQUEST',
+      'PRIORITY_SUPPORT',
+      'MONTHLY_ROCKETS',
+      'SCHEDULED_GIFT',
+    ])
+      expect(vipPerkAvailable(c), c).toBe(true);
   });
 
   it("D258: a tier holds every lower tier's perks; the highest tier's perk wins for a code", () => {

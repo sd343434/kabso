@@ -156,6 +156,8 @@ export enum AuditAction {
    * anonymous gifts of a send's sender (actor: the recipient, target: the sender — for the team).
    */
   LIVE_GIFT_ANONYMOUS_BLOCK = 'live.gift.anonymous_block',
+  /** v1.134-social (D381, §10.171.4): a member's MONTHLY_ROCKETS of a month added to their traffic cards. */
+  VIP_MONTHLY_ROCKETS_GRANT = 'vip.monthly_rockets.grant',
   /** D270 (§10.98): «المتجر» — an item added, changed or switched on / off in the panel. */
   STORE_ITEM_ADD = 'store.item.add',
   STORE_ITEM_UPDATE = 'store.item.update',

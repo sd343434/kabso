@@ -20,6 +20,31 @@ export const MAX_VOICE_DURATION_MS = 30_000;
  */
 export const VOICE_DURATION_TOLERANCE_MS = 500;
 
+/** A voice clip's limits: its longest length and largest size. */
+export interface VoiceLimits {
+  readonly maxMs: number;
+  readonly maxBytes: number;
+}
+
+/** Everyone's limits (30 s, 1 MiB). */
+export const DEFAULT_VOICE_LIMITS: VoiceLimits = { maxMs: MAX_VOICE_DURATION_MS, maxBytes: MAX_VOICE_BYTES };
+
+/** v1.134-social (D381): LONGER_VOICE's largest value (the catalogue's `int` 31–600 s). */
+export const MAX_VIP_VOICE_SECONDS = 600;
+
+/**
+ * v1.134-social (D381, §10.171.8) LONGER_VOICE: the limits of a holder of [seconds] (null: not held → the defaults) —
+ * that length, and the size scaled from 1 MiB per 30 s (the same bit rate with room to spare).
+ */
+export function voiceLimitsFor(seconds: number | null): VoiceLimits {
+  if (seconds === null || seconds * 1000 <= MAX_VOICE_DURATION_MS) return DEFAULT_VOICE_LIMITS;
+  const s = Math.min(seconds, MAX_VIP_VOICE_SECONDS);
+  return { maxMs: s * 1000, maxBytes: Math.ceil((MAX_VOICE_BYTES * s * 1000) / MAX_VOICE_DURATION_MS) };
+}
+
+/** The largest voice upload anyone may request (a 600 s holder's): the request's first bound. */
+export const MAX_ANY_VOICE_BYTES = voiceLimitsFor(MAX_VIP_VOICE_SECONDS).maxBytes;
+
 /** Why an upload is not an acceptable voice clip (clients get MEDIA_INVALID). */
 export class InvalidAudioError extends Error {}
 
@@ -89,8 +114,11 @@ function movieDurationMs(bytes: Buffer, mvhd: Box): number {
  * Throws {@link InvalidAudioError} for anything that is not an MPEG-4 audio file of at most
  * 30 s (plus {@link VOICE_DURATION_TOLERANCE_MS}) whose tracks are all sound tracks.
  */
-export function verifyVoiceClip(bytes: Buffer): { durationMs: number } {
-  if (bytes.length > MAX_VOICE_BYTES) throw new InvalidAudioError('too large');
+export function verifyVoiceClip(
+  bytes: Buffer,
+  limits: VoiceLimits = DEFAULT_VOICE_LIMITS,
+): { durationMs: number } {
+  if (bytes.length > limits.maxBytes) throw new InvalidAudioError('too large');
   const top = boxes(bytes, 0, bytes.length);
   if (top[0]?.type !== 'ftyp') throw new InvalidAudioError('not an MPEG-4 file');
   const moov = top.find((b) => b.type === 'moov');
@@ -108,8 +136,8 @@ export function verifyVoiceClip(bytes: Buffer): { durationMs: number } {
     if (handler !== 'soun') throw new InvalidAudioError(`a ${handler} track`);
   }
   const durationMs = movieDurationMs(bytes, mvhd);
-  if (durationMs > MAX_VOICE_DURATION_MS + VOICE_DURATION_TOLERANCE_MS) {
-    throw new InvalidAudioError(`${String(durationMs)} ms is longer than 30 s`);
+  if (durationMs > limits.maxMs + VOICE_DURATION_TOLERANCE_MS) {
+    throw new InvalidAudioError(`${String(durationMs)} ms is longer than ${String(limits.maxMs / 1000)} s`);
   }
-  return { durationMs: Math.min(durationMs, MAX_VOICE_DURATION_MS) };
+  return { durationMs: Math.min(durationMs, limits.maxMs) };
 }

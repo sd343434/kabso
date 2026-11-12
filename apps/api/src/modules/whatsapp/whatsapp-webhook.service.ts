@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { vipPerkHeldIn } from '../vip/vip-gift-perks.js';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -211,6 +212,10 @@ export class WhatsAppWebhookService {
           lastDirection: 'INBOUND',
           updatedAt: now,
           ...(reopened ? { status: 'OPEN', closedAt: null, closedById: null } : {}),
+          // v1.134-social (D381, §10.171.3): refreshed on every message of a linked account.
+          ...(conv.linkedUserId
+            ? { priority: (await vipPerkHeldIn(tx, conv.linkedUserId, 'PRIORITY_SUPPORT', now)) !== null }
+            : {}),
         },
       });
       if (reopened) {

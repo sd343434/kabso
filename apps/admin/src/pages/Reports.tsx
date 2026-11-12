@@ -94,6 +94,16 @@ export function ReportCard({
         <div className="row">
           <span className="badge info">{label('type', r.targetType)}</span>
           <span className="badge warn">{label('reason', r.reason)}</span>
+          {open && r.priority === 2 && (
+            <span className="badge bad" data-priority="2">
+              {t('prioritySafety')}
+            </span>
+          )}
+          {open && r.priority === 1 && (
+            <span className="badge info" data-priority="1">
+              {t('priorityVip')}
+            </span>
+          )}
           {open ? <StatusBadge status={r.status} /> : <span className="badge ok">{label('repOutcome', r.status)}</span>}
         </div>
         <span className="date small muted">{formatDate(r.createdAt, lang)}</span>

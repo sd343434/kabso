@@ -39,6 +39,9 @@ String walletReasonLabel(AppLocalizations l10n, WalletLedgerReason reason) =>
       WalletLedgerReason.storeIapReversal => l10n.walletReasonStoreIapReversal,
       WalletLedgerReason.contentGift => l10n.walletReasonContentGift,
       WalletLedgerReason.statusPackPurchase => l10n.walletReasonStatusPack,
+      WalletLedgerReason.vipScheduledGift => l10n.walletReasonVipScheduledGift,
+      WalletLedgerReason.vipScheduledGiftRelease =>
+        l10n.walletReasonVipScheduledGiftRelease,
       WalletLedgerReason.other => l10n.walletReasonOther,
     };
 

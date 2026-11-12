@@ -334,6 +334,8 @@ export interface PanelReport {
   /** v1.78-live (D288): who resolved it and their note (null while OPEN). */
   resolvedBy: { id: string; username: string; displayName: string } | null;
   resolutionNote: string | null;
+  /** v1.134-social (D381, §10.171.3): 2 a safety reason, 1 a PRIORITY_SUPPORT holder's report, 0 otherwise. */
+  priority?: number;
   reporter?: { id: string; username: string; displayName: string; avatarUrl: string | null };
   dmSnapshot?: { text: string | null; sender: string | null; mediaUrl: string | null };
   linkSnapshot?: { username: string; url: string; label: string | null };
@@ -1335,6 +1337,8 @@ export interface WaConversation {
   createdAt: string;
   /** D366 (§10.159): the department (absent from an older API: GENERAL). */
   department?: WaDepartment;
+  /** v1.134-social (D381, §10.171.3): a PRIORITY_SUPPORT holder's conversation (listed first by the API). */
+  priority?: boolean;
 }
 /** D366 (v1.123-social, §10.159): the WhatsApp departments, catalogue order. */
 export type WaDepartment = 'PAYMENTS' | 'AGENCIES' | 'TECHNICAL' | 'REPORTS' | 'GENERAL';

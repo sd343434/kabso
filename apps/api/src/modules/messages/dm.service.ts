@@ -893,12 +893,35 @@ export class DmService {
    * is a request message) and then the live gift pipeline without a room
    * ({@link LiveGiftsService.sendDirect}); the gift message is written in the send's transaction.
    */
+  /**
+   * v1.134-social (D381, §10.171.5): whether [callerId] may send a gift to [username] in a conversation now (the
+   * recipient rules of `POST /dm/gifts`: 400 oneself, 404 unknown / inactive / a block either way, 403 privacy and the
+   * request rules). Returns the recipient.
+   */
+  async assertMayGift(
+    callerId: string,
+    username: string,
+    field: string,
+  ): Promise<{ id: string; username: string }> {
+    const to = await this.recipient(callerId, username, field);
+    this.assertDecision(this.decide(await this.factsIn(this.prisma, callerId, to.id)), 'GIFT');
+    return to;
+  }
+
   async sendGift(
     callerId: string,
     body: unknown,
     region: LuckyRegionInput,
+    /**
+     * v1.134-social (D381, §10.171.5): a scheduled gift's delivery — run inside the send's transaction after the pair's
+     * checks and before the charge (it gives the held coins back); a throw rolls the send back.
+     */
+    options: { inTransaction?: (tx: Prisma.TransactionClient) => Promise<void> } = {},
   ): Promise<{ created: boolean; result: DmGiftResultDto }> {
-    const parsed = dmGiftSendSchema(this.gifts.quantities).safeParse(body ?? {}, { reportInput: true });
+    // v1.134-social (D381, §10.171.6): a HIGHER_GIFT_QUANTITY holder's larger quantities too.
+    const parsed = dmGiftSendSchema(await this.gifts.quantitiesFor(callerId, body)).safeParse(body ?? {}, {
+      reportInput: true,
+    });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;
     const clientId = input.clientId.toLowerCase();
@@ -920,6 +943,7 @@ export class DmService {
           before: async (tx) => {
             asRequest = await this.gateIn(tx, callerId, to, 'GIFT');
             conversationId = await this.conversationIn(tx, callerId, to.id, this.clock.now());
+            if (options.inTransaction) await options.inTransaction(tx);
             return conversationId;
           },
           after: async (tx, gift) => {

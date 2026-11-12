@@ -630,6 +630,8 @@ export function catalogueVersion(
   now = new Date(),
   /** v1.89-live (D318): the lucky chat threshold (a change reloads the app's catalogue); undefined: not hashed. */
   luckyChatMinMultiplier?: number,
+  /** v1.134-social (D381): the caller's VIP gift codes and extra quantities; undefined (none): not hashed. */
+  vip?: { readonly codes: readonly string[]; readonly quantities: readonly number[] },
 ): string {
   // v1.79-live (D289): the badges running at `now` (a badge's end changes the version, so the app reloads the
   // catalogue); a gift without badges keeps its old hash part ('NONE' where the single badge was).
@@ -649,6 +651,7 @@ export function catalogueVersion(
     q: quantities,
     c: comboWindowSeconds,
     ...(luckyChatMinMultiplier !== undefined ? { l: luckyChatMinMultiplier } : {}),
+    ...(vip ? { v: [vip.codes, vip.quantities] } : {}),
     // v1.27-live (D132): the tabs; v1.46-live (D207): with both names and the icon (they are managed now).
     ...(tabs ? { t: tabs.map((t) => [t.code, t.nameAr, t.nameEn, t.iconObjectKey]) } : {}),
     g: gifts.map((g) => [

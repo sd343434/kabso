@@ -253,6 +253,15 @@ abstract class GiftCatalogue with _$GiftCatalogue {
     /// v1.46-live (D207): the tabs with their names and icons, in order
     /// (empty from an older API: [categories] with the app's names).
     @Default(<GiftTab>[]) List<GiftTab> tabs,
+
+    /// v1.134-social (D381, §10.171.1) EXCLUSIVE_GIFTS: the exclusive gifts
+    /// the caller's VIP may send — the sheet's «VIP» tab (empty: no tab).
+    @Default(<String>[]) List<String> vipGiftCodes,
+
+    /// v1.134-social (D381, §10.171.6) HIGHER_GIFT_QUANTITY: the larger
+    /// quantities the caller may send beside [quantities] (never a lucky
+    /// gift or a quip).
+    @Default(<int>[]) List<int> vipQuantities,
   }) = _GiftCatalogue;
 
   factory fromJson(Map<String, dynamic> json) => _$GiftCatalogueFromJson(json);

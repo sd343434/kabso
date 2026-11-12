@@ -96,17 +96,31 @@ const D379 = [
   'SEAT_RESERVE',
 ];
 
+/** v1.134-social (D381): the gift / CP / support / rocket / voice perks built. */
+const D381_BUILT = [
+  'EXCLUSIVE_GIFTS',
+  'FREE_CP_REQUEST',
+  'PRIORITY_SUPPORT',
+  'MONTHLY_ROCKETS',
+  'SCHEDULED_GIFT',
+  'HIGHER_GIFT_QUANTITY',
+  'LONGER_VOICE',
+];
+
 const issues = (code: string, value: unknown) => vipPerkValueIssues(code, value).map((i) => i.issue);
 
 describe('D374 VIP perk catalogue', () => {
   it("holds the owner's list: eleven built, the new ones, MONTHLY_GIFT; codes unique; DAILY_COINS and HIDE_COINS_SENT removed", () => {
     const codes = VIP_PERK_CATALOGUE.map((e) => e.code);
     expect(new Set(codes).size).toBe(codes.length);
-    // BUILT holds D380's four (§10.170); D378 and D379 built theirs from NEW too.
-    expect([...VIP_CATALOGUE_BUILT].sort()).toEqual([...BUILT, ...D378_BUILT, ...D379].sort());
-    expect([...VIP_BUILT_PERKS].sort()).toEqual([...BUILT, ...D378_BUILT, ...D379].sort());
+    // BUILT holds D380's four (§10.170); D378, D379 and D381 built theirs from NEW too.
+    const built = [...BUILT, ...D378_BUILT, ...D379, ...D381_BUILT].sort();
+    expect([...VIP_CATALOGUE_BUILT].sort()).toEqual(built);
+    expect([...VIP_BUILT_PERKS].sort()).toEqual(built);
     for (const c of NEW) {
-      expect(vipCatalogueEntry(c)?.built, c).toBe(D378_BUILT.includes(c) || D379.includes(c) || D380.includes(c));
+      expect(vipCatalogueEntry(c)?.built, c).toBe(
+        D378_BUILT.includes(c) || D379.includes(c) || D380.includes(c) || D381_BUILT.includes(c),
+      );
     }
     // D380: the owner removed HIDE_COINS_SENT (2026-11-12): D220's free switch hides the number for everyone.
     expect(vipCatalogueEntry('HIDE_COINS_SENT')).toBeUndefined();

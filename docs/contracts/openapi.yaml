@@ -709,6 +709,18 @@ info:
     `kickMuteShield` (present only while the perk is held; 409 `VIP_UNAVAILABLE` `no_perk` otherwise). HIDE_COINS_SENT
     is removed from the catalogue (owner 2026-11-12: D220's free switch stays free for everyone). Migration `20270512090000_vip_privacy_perks`.
     Additive (an older app sends no `anonymous`, ignores the new fields and shows «مجهول» as a name).
+    **D381 (DRAFT v1.134-social)** VIP perks phase 2 — gifts, CP, support, rockets, voice (CONVENTIONS §10.171; owner
+    2026-11-11): EXCLUSIVE_GIFTS (a listed gift is not in `getGiftCatalogue` / `getGiftBag` for a member whose VIP may
+    not send it and any send is 409 `GIFT_UNAVAILABLE`; `GiftCatalogue.vipGiftCodes` «VIP» tab), HIGHER_GIFT_QUANTITY
+    (`GiftCatalogue.vipQuantities`; `LiveGiftSendRequest.quantity` up to 99 999 for holders; never for a lucky gift or a
+    quip), FREE_CP_REQUEST (`CpConfig.vipFreeRequests`; a free request costs 0 and refunds nothing), PRIORITY_SUPPORT
+    (`Report.priority` and the queue's order in `listAdminReports`; `WaConversation.priority` and the inbox order),
+    MONTHLY_ROCKETS (traffic cards each calendar month, `MyVip.perksNow.monthlyRockets`), SCHEDULED_GIFT
+    (`listVipScheduledGifts`, `scheduleVipGift`, `cancelVipScheduledGift` — `/me/vip/scheduled-gifts`; ledger reasons
+    `VIP_SCHEDULED_GIFT` / `VIP_SCHEDULED_GIFT_RELEASE`), LONGER_VOICE (`createMediaUpload` voice clips up to the
+    holder's seconds, the size scaled with them); `MyVip.perksNow` (`VipPerksNow`). Migration
+    `20270513090000_vip_gift_perks`. Additive for the app (new fields ignored; a non-member sees no change except that
+    an exclusive gift leaves the catalogue).
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -11361,6 +11373,9 @@ paths:
       tags: [admin-moderation]
       operationId: listAdminReports
       summary: "Open reports, oldest first (permission MODERATION)"
+      description: |
+        v1.134-social (D381, CONVENTIONS §10.171.3): OPEN, ACTIONED and DISMISSED pages list the higher `priority` first
+        (safety reasons, then PRIORITY_SUPPORT holders' reports), each oldest first; the cursor keeps its shape.
       parameters:
         - name: status
           in: query
@@ -12261,6 +12276,83 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/MyVip' }
         '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/vip/scheduled-gifts:
+    get:
+      tags: [vip]
+      operationId: listVipScheduledGifts
+      summary: "The caller's scheduled gifts «هدية مؤجلة» (v1.134-social, D381)"
+      description: |
+        CONVENTIONS §10.171.5. Listed whether or not the caller still holds SCHEDULED_GIFT (the coins are theirs). Gift
+        names follow `Accept-Language`, else the caller's locale. Checks: 401.
+      responses:
+        '200':
+          description: The list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VipScheduledGiftList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [vip]
+      operationId: scheduleVipGift
+      summary: "Schedules a gift to a person at a time (SCHEDULED_GIFT, v1.134-social, D381)"
+      description: |
+        CONVENTIONS §10.171.5. Checks, in order: 401; 429 (`dm:write`); 400 body (`quantity` one of the caller's
+        quantities); a retry with the same `clientId` → 200 (nothing charged again); 409 `VIP_UNAVAILABLE`
+        `{field: perk, issue: no_perk}`; 400 `deliverAt` `out_of_range` (under 5 minutes or over 366 days ahead); the
+        recipient as `sendDmGift` checks it now (400 `to` oneself, 404 unknown / inactive / a block either way, 403
+        `DM_NOT_ALLOWED`); 409 `GIFT_UNAVAILABLE` (not a gift that can be scheduled, or an exclusive gift the caller's
+        VIP may not send); 409 `VIP_UNAVAILABLE` `{field: pending, issue: too_many}` (10 waiting); 403 restrictions;
+        409 `TOPUP_ACCOUNT_FROZEN`; 409 `INSUFFICIENT_COINS`. Then the coins are held (wallet ledger
+        `VIP_SCHEDULED_GIFT`). At `deliverAt` (within the worker's minute) the gift is sent as the caller's gift in the
+        pair's conversation (`sendDmGift`'s pipeline: the «هدية» message and its push; the rules of that moment apply);
+        the held coins come back (`VIP_SCHEDULED_GIFT_RELEASE`) and the gift is charged (`DM_GIFT`) in that same
+        transaction. A refused delivery → FAILED and the coins come back.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScheduleVipGiftRequest' }
+      responses:
+        '200':
+          description: A retry of an earlier scheduling (same `clientId`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VipScheduledGiftResult' }
+        '201':
+          description: Scheduled; the coins are held.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VipScheduledGiftResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/vip/scheduled-gifts/{scheduledGiftId}:
+    delete:
+      tags: [vip]
+      operationId: cancelVipScheduledGift
+      summary: "Cancels a pending scheduled gift; its coins come back (v1.134-social, D381)"
+      description: |
+        CONVENTIONS §10.171.5. Also after the VIP ended. Checks: 401; 429 (`dm:write`); 404 (not the caller's); 409
+        `VIP_UNAVAILABLE` `{field: status, issue: not_pending}` (delivered, cancelled or failed already).
+      parameters:
+        - name: scheduledGiftId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Cancelled (wallet ledger `VIP_SCHEDULED_GIFT_RELEASE`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VipScheduledGiftResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/vip/daily-coins:
     post:
@@ -22506,7 +22598,7 @@ paths:
       tags: [staff]
       operationId: getStaffWhatsAppConversations
       summary: "The shared inbox: unassigned, mine, all open or closed; search by name or phone (newest activity first)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp.view` (v1.120-social, D360, §10.155: the WhatsApp level VIEW or above; checked on every request). Staff work (§10.96.14). (v1.134-social, D381, §10.171.3) `priority` conversations (a PRIORITY_SUPPORT holder's) first, each newest activity first."
       parameters:
         - name: filter
           in: query
@@ -24311,7 +24403,7 @@ components:
         closesAt: { type: [string, 'null'], format: date-time }
     WaConversation:
       type: object
-      required: [id, phone, name, status, assignedTo, assignedToMe, unreadCount, lastMessageAt, lastPreview, lastDirection, window, linkedAccount, closedAt, createdAt, department]
+      required: [id, phone, name, status, assignedTo, assignedToMe, unreadCount, lastMessageAt, lastPreview, lastDirection, window, linkedAccount, closedAt, createdAt, department, priority]
       properties:
         id: { type: string, format: uuid }
         phone: { type: string, pattern: '^\+[1-9][0-9]{6,14}$', description: "E.164." }
@@ -24334,6 +24426,7 @@ components:
         closedAt: { type: [string, 'null'], format: date-time }
         createdAt: { type: string, format: date-time }
         department: { $ref: '#/components/schemas/WaDepartment' }
+        priority: { type: boolean, description: "v1.134-social (D381, §10.171.3): the linked account held PRIORITY_SUPPORT when it was linked or last wrote — the inbox lists these first (each newest first)." }
     WaConversationPage:
       type: object
       required: [data, page]
@@ -36741,7 +36834,9 @@ components:
           description: |
             At most 15 728 640 (15 MiB) for images, 1 048 576 for `LIVE_CHAT_VOICE` and `DM_VOICE`,
             (v1.41-social, D162) 104 857 600 (100 MiB) for `REEL_VIDEO` and 209 715 200 (200 MiB)
-            for `POST_VIDEO` (else `too_big`).
+            for `POST_VIDEO` (else `too_big`). (v1.134-social, D381, §10.171.8) A LONGER_VOICE holder's voice clip:
+            1 048 576 per 30 s of the perk's seconds (180 s → 6 MiB); the clip itself up to those seconds (else the
+            completion fails `MEDIA_INVALID`).
     CompleteMediaUploadRequest:
       type: object
       additionalProperties: false
@@ -37489,6 +37584,11 @@ components:
         reporter:
           description: Admin views only.
           $ref: '#/components/schemas/UserSummary'
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 2
+          description: "v1.134-social (D381, §10.171.3) admin views only: the shared queue's order — 2 a safety reason (NUDITY, VIOLENCE, ILLEGAL; whoever reports), 1 from a PRIORITY_SUPPORT holder, 0 otherwise; fixed when the report is made."
         resolvedAt: { type: [string, 'null'], format: date-time }
         dmSnapshot:
           description: (v1.40-social, D155) Admin views of `DM_MESSAGE` reports only.
@@ -37837,6 +37937,10 @@ components:
       required: [requestCost, requestTtlDays, giftAmounts, gifts, tiers]
       properties:
         requestCost: { type: integer, minimum: 1, description: "Coins a CP request costs (99), refunded unless accepted." }
+        vipFreeRequests:
+          $ref: '#/components/schemas/VipFreeCpRequests'
+          description: "v1.134-social (D381, §10.171.2): the caller's FREE_CP_REQUEST this month; absent without the perk. While `left` > 0 a request costs nothing (and refunds nothing)."
+
         requestTtlDays: { type: integer, minimum: 1 }
         giftAmounts:
           type: array
@@ -39102,6 +39206,22 @@ components:
             at least this; everything else about a smaller win stays (coins, banner, the sender's result). The OWNER's
             panel value, else `LUCKY_CHAT_MIN_MULTIPLIER` (250). Absent from older servers (every win has its line).
             A change changes `version`.
+        vipGiftCodes:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: |
+            v1.134-social (D381, CONVENTIONS §10.171.1): the exclusive gifts (EXCLUSIVE_GIFTS) the caller's VIP may send,
+            in code order — the app shows them in a «VIP» tab (they are also in `data`, in their own tabs). An exclusive
+            gift the caller may not send is not in `data` at all. Absent when none. A change changes `version`.
+        vipQuantities:
+          type: array
+          minItems: 1
+          items: { type: integer, minimum: 1, maximum: 99999 }
+          description: |
+            v1.134-social (D381, §10.171.6): HIGHER_GIFT_QUANTITY — the larger quantities the caller may send beside
+            `quantities` (ascending; the steps 3344 · 5200 · 9999 · 13140 · 52000 · 99999 up to the perk's maximum, and
+            the maximum). Never for a lucky gift or a quip (400). Absent when none. A change changes `version`.
         data:
           type: array
           items: { $ref: '#/components/schemas/Gift' }
@@ -39132,8 +39252,8 @@ components:
         quantity:
           type: integer
           minimum: 1
-          maximum: 9999
-          description: One of `GiftCatalogue.quantities` (else 400 `invalid_value`); each recipient receives this many.
+          maximum: 99999
+          description: One of `GiftCatalogue.quantities` (else 400 `invalid_value`); each recipient receives this many. (v1.134-social, D381) Or one of the caller's `GiftCatalogue.vipQuantities` (HIGHER_GIFT_QUANTITY) — not for a lucky gift or a quip.
         recipients:
           type: array
           minItems: 1
@@ -39787,7 +39907,7 @@ components:
       properties:
         to: { type: string, minLength: 1, maxLength: 64 }
         giftCode: { type: string, minLength: 1, maxLength: 40 }
-        quantity: { type: integer, description: "One of `GiftCatalogue.quantities`." }
+        quantity: { type: integer, description: "One of `GiftCatalogue.quantities` (v1.134-social, D381: or the caller's `vipQuantities`, not for a lucky gift or a quip)." }
         source: { $ref: '#/components/schemas/LiveGiftSource' }
         clientId: { type: string, format: uuid, description: "The send's id: a retry is never charged again." }
     DmGiftResult:
@@ -39847,6 +39967,10 @@ components:
         - CONTENT_GIFT
         # v1.130-social (D376, CONVENTIONS §10.167): a status pack bought or renewed (reference: the purchase).
         - STATUS_PACK_PURCHASE
+        # v1.134-social (D381, CONVENTIONS §10.171.5): a scheduled gift's coins held, and given back on delivery (then
+        # charged as its DM_GIFT), cancellation or failure.
+        - VIP_SCHEDULED_GIFT
+        - VIP_SCHEDULED_GIFT_RELEASE
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]
@@ -40417,6 +40541,9 @@ components:
         dailyCoins:
           $ref: '#/components/schemas/VipDailyCoins'
           description: "v1.83-social (D258, §10.94.5) — present while the active membership held DAILY_COINS with an amount. v1.129-social (D374): never sent (the owner removed the perk); kept for older clients."
+        perksNow:
+          $ref: '#/components/schemas/VipPerksNow'
+          description: "v1.134-social (D381, §10.171.7): what the member's gift, reward, support and voice perks give now («الخاص بي VIP»). Present with an active membership; each part only while that perk is held (inheritance included)."
         renewal:
           type: object
           required: [tierId, priceCoins, pricePoints, discountPercent, until]
@@ -40427,6 +40554,98 @@ components:
             pricePoints: { type: ['integer', 'null'], format: int64, minimum: 1, description: "v1.126-social (D370): the renewal's points price (`BuyVipRequest.pricePoints` with `payWith: POINTS`); null when the tier has no points price." }
             discountPercent: { type: integer, minimum: 1, maximum: 90 }
             until: { type: string, format: date-time, description: "The discount holds until then (the end + 7 days)." }
+    VipPerksNow:
+      type: object
+      description: "v1.134-social (D381, CONVENTIONS §10.171.7). Each property only while its perk is held."
+      properties:
+        monthlyRockets: { $ref: '#/components/schemas/VipMonthlyRockets' }
+        freeCpRequests: { $ref: '#/components/schemas/VipFreeCpRequests' }
+        maxGiftQuantity: { type: integer, minimum: 1, maximum: 99999, description: "HIGHER_GIFT_QUANTITY: the largest quantity of one send." }
+        voiceSeconds: { type: integer, minimum: 31, maximum: 600, description: "LONGER_VOICE: the longest voice message (DMs and the live chat), seconds." }
+        exclusiveGifts: { type: integer, minimum: 1, description: "EXCLUSIVE_GIFTS: how many exclusive gifts the member may send (their «VIP» tab)." }
+        scheduledGifts:
+          type: object
+          required: [pending, maxPending]
+          description: "SCHEDULED_GIFT: the member's scheduled gifts waiting, and the most that may wait."
+          properties:
+            pending: { type: integer, minimum: 0 }
+            maxPending: { type: integer, minimum: 1 }
+        prioritySupport: { type: boolean, enum: [true], description: "PRIORITY_SUPPORT: present (true) while held." }
+    VipMonthlyRockets:
+      type: object
+      required: [month, stage, minutes, count, grantedAt, nextAt]
+      description: "v1.134-social (D381, §10.171.4): this calendar month's MONTHLY_ROCKETS grant (`LIVE_RANKINGS_TIME_ZONE`) — `count` traffic cards of the stage's length added to the member's boost cards (`getLiveBoostOffers`), once a month, on the month's first `getMyVip` / `getLiveBoostOffers`."
+      properties:
+        month: { type: string, format: date, description: "The month's first day." }
+        stage: { type: integer, minimum: 1, maximum: 4, description: "The rocket stage (D233): the Nth `LIVE_BOOST_PRICES` length." }
+        minutes: { type: integer, minimum: 1 }
+        count: { type: integer, minimum: 1, maximum: 30 }
+        grantedAt: { type: string, format: date-time }
+        nextAt: { type: string, format: date-time, description: "The next month's start (the next grant)." }
+    VipFreeCpRequests:
+      type: object
+      required: [perMonth, used, left, resetsAt]
+      description: "v1.134-social (D381, §10.171.2): FREE_CP_REQUEST this calendar month (`LIVE_RANKINGS_TIME_ZONE`). A free request is used when sent, whatever happens to it (nothing was charged, so nothing is refunded)."
+      properties:
+        perMonth: { type: integer, minimum: 1, maximum: 30 }
+        used: { type: integer, minimum: 0 }
+        left: { type: integer, minimum: 0 }
+        resetsAt: { type: string, format: date-time, description: "The next month's start." }
+    ScheduleVipGiftRequest:
+      type: object
+      additionalProperties: false
+      required: [to, giftCode, quantity, deliverAt, clientId]
+      description: "v1.134-social (D381, §10.171.5)."
+      properties:
+        to: { type: string, minLength: 1, maxLength: 64, description: "The recipient's username." }
+        giftCode: { type: string, minLength: 1, maxLength: 40, description: "A paid gift of a normal tab (not lucky, a quip, custom, an event's own or a PK booster)." }
+        quantity: { type: integer, minimum: 1, maximum: 99999, description: "One of `GiftCatalogue.quantities` or `vipQuantities`." }
+        deliverAt: { type: string, format: date-time, description: "5 minutes to 366 days from now (else 400 `out_of_range`)." }
+        clientId: { type: string, format: uuid, description: "A retry with the same id answers 200 and charges nothing again." }
+    VipScheduledGiftStatus:
+      type: string
+      enum: [PENDING, DELIVERED, CANCELLED, FAILED]
+    VipScheduledGift:
+      type: object
+      required: [id, to, giftCode, gift, quantity, coins, deliverAt, status, failure, createdAt, handledAt]
+      description: "v1.134-social (D381, §10.171.5): a gift scheduled «هدية مؤجلة»."
+      properties:
+        id: { type: string, format: uuid }
+        to:
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+          description: "The recipient; null once their account is gone."
+        giftCode: { type: string }
+        gift:
+          oneOf:
+            - $ref: '#/components/schemas/Gift'
+            - type: 'null'
+          description: "The gift as the catalogue shows it now; null when it no longer exists."
+        quantity: { type: integer, minimum: 1 }
+        coins: { type: integer, format: int64, minimum: 1, description: "The coins held for it (the price at scheduling × quantity)." }
+        deliverAt: { type: string, format: date-time }
+        status: { $ref: '#/components/schemas/VipScheduledGiftStatus' }
+        failure: { type: [string, 'null'], description: "FAILED: why — an error code of CONVENTIONS §4 (e.g. `DM_NOT_ALLOWED`, `INSUFFICIENT_COINS`, `GIFT_UNAVAILABLE`) or `RECIPIENT_GONE`, `SENDER_INACTIVE`, `ERROR`." }
+        createdAt: { type: string, format: date-time }
+        handledAt: { type: [string, 'null'], format: date-time }
+    VipScheduledGiftList:
+      type: object
+      required: [data, pending, maxPending]
+      properties:
+        data:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/VipScheduledGift' }
+          description: "The caller's newest 50: the pending ones first (soonest first), then the others newest first."
+        pending: { type: integer, minimum: 0 }
+        maxPending: { type: integer, minimum: 1, description: "At most this many wait at a time (10)." }
+    VipScheduledGiftResult:
+      type: object
+      required: [scheduledGift, coins]
+      properties:
+        scheduledGift: { $ref: '#/components/schemas/VipScheduledGift' }
+        coins: { type: integer, format: int64, description: "The caller's balance now." }
     VipDailyCoins:
       type: object
       required: [amount, claimedToday, nextAt]

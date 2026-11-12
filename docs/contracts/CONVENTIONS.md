@@ -128,7 +128,7 @@ All non-2xx responses use one envelope:
 | 409 | `BAG_SEND_PERMANENT_WHOLE_ONLY` | *(v1.48-social, DRAFT, D171)* `POST /me/bag/transfers` asked to send `days` of a **permanent** item; a permanent item is sent whole only (`days` absent or null). Nothing changed (§10.45). |
 | 409 | `BAG_SEND_EXCEEDS_REMAINING` | *(v1.48-social, DRAFT, D171)* `POST /me/bag/transfers` asked to send `days` that are not less than the item's remaining time (to send everything, leave `days` out). Nothing changed (§10.45). |
 | 409 | `BAG_RECIPIENT_HAS_PERMANENT` | *(v1.48-social, DRAFT, D171)* The recipient already owns that item **permanently**, so time sent would be lost. Nothing changed (§10.45). |
-| 409 | `GIFT_UNAVAILABLE` | *(v1.23-live, DRAFT, CP-020)* A gift send named a code that is not in the gift catalogue or was disabled. Nothing was charged or sent; the app reloads `GET /gifts/catalogue` (§10.23). |
+| 409 | `GIFT_UNAVAILABLE` | *(v1.134-social, D381)* Also: an exclusive gift (EXCLUSIVE_GIFTS, §10.171.1) sent by a member whose VIP may not send it (live, conversation and scheduled gifts), and `scheduleVipGift` naming a gift that cannot be scheduled. *(v1.23-live, DRAFT, CP-020)* A gift send named a code that is not in the gift catalogue or was disabled. Nothing was charged or sent; the app reloads `GET /gifts/catalogue` (§10.23). |
 | 409 | `GIFT_BAG_INSUFFICIENT` | *(v1.23-live, DRAFT, CP-020)* A send with `source: BAG` needs more of that gift (quantity × recipients) than the caller's gift bag holds. Nothing was taken or sent; the app reloads `GET /me/gifts/bag` (§10.23). |
 | 409 | `LIVE_GIFT_RECIPIENT_UNAVAILABLE` | *(v1.23-live, DRAFT, CP-020)* A recipient of a gift send is not the host or seated in that live now, has no ACTIVE account with that username, or blocked the sender (or was blocked by them). Nothing was charged or sent; the app reloads the seats (§10.23). |
 | 409 | `CP_TASK_NOT_COMPLETED` | *(v1.24-live, DRAFT, CP-021)* A claim for a daily CP task that is not completed yet today (§10.24). Nothing was added. |
@@ -229,7 +229,7 @@ All non-2xx responses use one envelope:
 | 409 | `WHATSAPP_CONVERSATION_ASSIGNED` | *(v1.116-social, DRAFT, D355)* The conversation belongs to another staff member: reply, claim, release or close needs it to be the caller's or unassigned (a transfer, release or close by `support.whatsapp.manage` is allowed). §10.151.4. |
 | 409 | `WHATSAPP_CONVERSATION_CLOSED` | *(v1.116-social, DRAFT, D355)* The conversation is closed: reopen it first (a new customer message reopens it by itself). §10.151.4. |
 | 502 | `WHATSAPP_SEND_FAILED` | *(v1.116-social, DRAFT, D355)* Meta refused or did not answer: `details: [{field: whatsapp \| templates, issue: meta_<code> \| http_<status>}]`. Nothing was stored; the staff member may retry. Meta's throughput codes (130429, 131056, 80007, 4) answer 429 `RATE_LIMITED` with `Retry-After: 60` instead. §10.151.4. |
-| 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). *(v1.129-social, D374)* `claimVipDailyCoins`: always `{field: "perk", issue: "retired"}` (the owner removed the daily coins). *(v1.132-social, D379)* the live-room perks (§10.169): `{field: "perk", issue: "no_perk"}` — the caller holds the perk (or its value) not now (`sendLiveSeatEmoji` with a VIP token, `pinLiveChatMessage`, `startLiveRoom` with `vipMinTier`, `reserveLiveSeat`); `{field: "perk", issue: "used_up"}` — `pinLiveChatMessage`: the day's pins are used. |
+| 409 | `VIP_UNAVAILABLE` | *(v1.134-social, D381, §10.171.5)* `scheduleVipGift`: `{field: "perk", issue: "no_perk"}` (no SCHEDULED_GIFT now) or `{field: "pending", issue: "too_many"}` (10 waiting); `cancelVipScheduledGift`: `{field: "status", issue: "not_pending"}`. *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). *(v1.129-social, D374)* `claimVipDailyCoins`: always `{field: "perk", issue: "retired"}` (the owner removed the daily coins). *(v1.132-social, D379)* the live-room perks (§10.169): `{field: "perk", issue: "no_perk"}` — the caller holds the perk (or its value) not now (`sendLiveSeatEmoji` with a VIP token, `pinLiveChatMessage`, `startLiveRoom` with `vipMinTier`, `reserveLiveSeat`); `{field: "perk", issue: "used_up"}` — `pinLiveChatMessage`: the day's pins are used. |
 | 409 | `VIP_PRICE_CHANGED` | *(v1.82-social, DRAFT, D252)* `buyVip`: `priceCoins` differs from the tier's price now (the owner changed it in the panel). Nothing was charged; the app reloads the tiers and shows the new price. §10.93. |
 | 409 | `INSUFFICIENT_RECHARGE_POINTS` | *(v1.126-social, DRAFT, D370)* `buyVip` with `payWith: POINTS`: the caller's recharge points «نقاط الشحن» do not cover the tier's points price (also while the balance is below 0 after a reversal). Nothing was charged; the app shows the balance and how points are earned. `VIP_PRICE_CHANGED` and `VIP_UNAVAILABLE` (new issue `no_points_price`: the tier has no points price) apply to a points purchase as to a coin one. §10.163. |
 | 409 | `CONTENT_GIFT_RECIPIENT_UNAVAILABLE` | *(v1.127-social, DRAFT, D372)* `sendContentGift`: a gift on this post or reel «هدية الدعم» cannot be sent — `details: [{field: "post", issue: "own_content" \| "not_creator"}]` (the caller's own post; its author is neither a host nor a content creator). Checked again under the post's lock. Nothing was charged. A post the caller cannot see (deleted, removed, a block either way, an author who is not ACTIVE) is 404 `NOT_FOUND` as on every post route. §10.164. |
@@ -788,6 +788,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.134-social (draft) | 2026-11-12 | **D381 (owner 2026-11-11: VIP perks phase 2 — gifts, CP, support, rockets, voice):** EXCLUSIVE_GIFTS, FREE_CP_REQUEST, PRIORITY_SUPPORT, MONTHLY_ROCKETS, SCHEDULED_GIFT, HIGHER_GIFT_QUANTITY and LONGER_VOICE built (`built: true`). `GiftCatalogue.vipGiftCodes` / `vipQuantities`; an exclusive gift is left out of `getGiftCatalogue` / `getGiftBag` for a member whose VIP may not send it and any send of it is 409 `GIFT_UNAVAILABLE`; `LiveGiftSendRequest.quantity` maximum 99 999 (a holder's `vipQuantities`; never a lucky gift or a quip); `CpConfig.vipFreeRequests` (`VipFreeCpRequests`; a free request has `cost` 0 and refunds nothing); `Report.priority` (admin views) and `listAdminReports`' order (priority, then oldest); `WaConversation.priority` and the inbox's order; `MyVip.perksNow` (`VipPerksNow`, `VipMonthlyRockets`); `listVipScheduledGifts` / `scheduleVipGift` / `cancelVipScheduledGift` (`/me/vip/scheduled-gifts`; `VipScheduledGift*`, `ScheduleVipGiftRequest`; 409 `VIP_UNAVAILABLE` `no_perk` · `too_many` · `not_pending`); wallet ledger reasons `VIP_SCHEDULED_GIFT` / `VIP_SCHEDULED_GIFT_RELEASE`; `createMediaUpload` voice clips up to the holder's LONGER_VOICE seconds (1 MiB per 30 s). Migration `20270513090000_vip_gift_perks`. §10.171. | **Additive** for the app (new fields ignored; a non-member sees no change except that an exclusive gift leaves the catalogue). The panel unchanged (the D374 grid edits the values). The staff inbox and the reports queue reorder (a priority first). |
 | v1.133-social (draft) | 2026-11-12 | **D380 (owner 2026-11-11: the VIP privacy perks, each with a switch for its holder):** HIDDEN_VISIT «زيارة خفية» (no row, no count in «من زار ملفي»), RANKING_ANONYMOUS «اسم مخفي في التصنيفات» (`UserSummary.anonymous` «مجهول» on the public boards to everyone but the member; the live's host keeps the names on their own room's lists), KICK_MUTE_SHIELD (403 `VIP_PROTECTED` (new) to a room moderator's kick / chat mute / seat mute / seat removal, audited `vip.shield.refused`), ANONYMOUS_GIFT «إهداء مجهول» (`LiveGiftSendRequest.anonymous`, `LiveGift.anonymous`; 409 `VIP_UNAVAILABLE` `no_perk`, 409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE` `refused`, 60 an hour; `reportLiveGift`, `blockAnonymousGiftSender` / `unblockAnonymousGiftSender`, `LiveGiftReportRequest`, `LiveGiftReportResult`, `AnonymousGiftBlockResult`, `Report.liveGift`, audit `live.gift.anonymous_block`); `PrivacySettings` / `UpdatePrivacyRequest` `hiddenVisit`, `rankingAnonymous`, `kickMuteShield` (only while held; else 409 `VIP_UNAVAILABLE` `no_perk`). HIDE_COINS_SENT removed from the catalogue (owner 2026-11-12: D220's free switch stays free for everyone). Migration `20270512090000_vip_privacy_perks`. §10.170. | **Additive for the apps** (an older app sends no `anonymous`, ignores the new fields and shows «مجهول» as a plain name). **Behaviour change** for room moderators (403 on a protected holder) and for readers of the public boards (anonymous rows). |
 | v1.132-social (draft) | 2026-11-12 | **D379 (owner 2026-11-11: the VIP perks inside live rooms):** ten D374 perks built (`built: true`) — SEAT_EMOJI (`sendLiveSeatEmoji` token `:vip_<n>:`, `LiveSeatEmoji.vipArt`), PINNED_MESSAGE (`pinLiveChatMessage` / `unpinLiveChatMessage` `POST` / `DELETE /live/rooms/{roomId}/chat-pin`, `LiveChatPinRequest`, `LiveChatPin`, `LiveChatMessageList.pin`, data `chat-pin` / `chat-unpin`), HOST_GREETING (`join` data `hostGreeting`), SEAT_CROWN (app only), BIG_GIFT_RAIN (data `vip-rain` on topic `gift`), TICKER_HOLD (`gift-ticker` data `holdSeconds`), VIEWER_LIST_PRIORITY (`listLiveRoomViewers` order), SEAT_REQUEST_PRIORITY (`listLiveSeatRequests` order), VIP_ROOM (`StartLiveRoomRequest.vipMinTier`, `LiveRoomSummary.vipMinTier` `LiveVipMinTier`), SEAT_RESERVE (`reserveLiveSeat` / `releaseLiveSeat` `PUT` / `DELETE /live/rooms/{roomId}/seats/{seatIndex}/reservation`, `LiveSeatReserveRequest`, `LiveSeat.reservation` `LiveSeatReservation`, data `seat-reserved`); codes `LIVE_VIP_ONLY` (403), `LIVE_PIN_BUSY` (409); `VIP_UNAVAILABLE` `perk` `used_up`. Migration `20270511090000_vip_live_perks`. §4, §10.169. | **Additive** (new operations, optional fields and data message types; older apps ignore them; a VIP room's refusal is a new code an older app shows as its generic error; a reserved seat reads LOCKED to an older app). |
 | v1.131-social (draft) | 2026-11-12 | **D378 (owner 2026-11-11: the VIP identity perks):** ANIMATED_COVER, PREMIUM_USERNAME, GOLDEN_ID, ANIMATED_SIGNATURE, POST_BADGE, STORY_RING, GLOWING_NAME and DM_BUBBLE built (`VipPerk.available` true); `UserVip.signature`; `UserSummary.goldenId` / `PublicProfile.goldenId` (`UserGoldenId`, `VipGoldenIdClass`); `setMyVipSignature` (`PUT /me/vip/signature`), `getMyVipGoldenIds`, `claimMyVipGoldenId`, `releaseMyVipGoldenId`; `claimVipPremiumUsername` (`POST /me/premium-username/vip-claim`), `PremiumUsernameStore.vipTier`, `MyPremiumUsername.source` `VIP`; the panel's golden ID stock `listAdminVipGoldenIds`, `addAdminVipGoldenIds`, `removeAdminVipGoldenId`; `VipPerkValueSchema.source` `GOLDEN_ID_CLASS`. Migration `20270510090000_vip_identity_perks`. §10.168. | **Additive** (new fields and operations; an older app ignores them and shows a `VIP` premium username as a rental). |
@@ -12857,3 +12858,88 @@ D220 (§10.74) already gives **everyone** the free switch `hideCoinsSent` «إخ
 «مجانية للجميع واخفها من ميزات في اي بي»): the switch stays free for everyone and the perk leaves the VIP catalogue. It
 joins `VIP_RETIRED_PERKS` (§10.166) with DAILY_COINS: a save naming it is refused `unknown_perk`; a tier row saved
 before is ignored, listed to the panel as retired and dropped on the next save.
+
+### 10.171 VIP perks phase 2 — gifts, CP, support, rockets, voice *(v1.134-social, DRAFT — D381)*
+
+Owner (2026-11-11, board D381): seven perks of the D374 catalogue are built — EXCLUSIVE_GIFTS, FREE_CP_REQUEST,
+PRIORITY_SUPPORT, MONTHLY_ROCKETS, SCHEDULED_GIFT, HIGHER_GIFT_QUANTITY and LONGER_VOICE (`built: true`, value shapes
+unchanged from §10.166). Every check reads the member's **effective** perk now (`vip-gift-perks.ts`: the enabled row of
+the highest-ranked tier at or below the member's active tier — D258 inheritance), so an ended VIP removes them at once
+and a member of a higher tier holds a lower tier's perk. Nothing changes for a person who does not hold the perk. Blocks,
+privacy, restrictions, reports and staff powers always win.
+
+#### 10.171.1 EXCLUSIVE_GIFTS (value: a list of gift codes)
+
+A gift on any tier's enabled list is **exclusive**: it may be sent by a member whose active tier ranks at or above the
+**lowest** tier listing it (a higher tier inherits the lower lists: «the lower tier's list carries up»). For anyone else
+it is left out of `getGiftCatalogue` and `getGiftBag` (bag pieces stay and show again while a VIP that may send it is
+held), and any send of it — live (`sendLiveGift`, the multi-recipient and direct paths), conversation (`sendDmGift`) or
+scheduled — is 409 `GIFT_UNAVAILABLE`, before anything is charged. `GiftCatalogue.vipGiftCodes`: the exclusive codes the
+caller may send, in code order — the app shows them in a «VIP» tab first (they stay in their own tabs too). The lists are
+cached 30 s per API process and forgotten on every panel save of the tiers in that process (another instance follows
+within 30 s). A code may also be on no list and in a normal tab: it is then open to everyone as before.
+
+#### 10.171.2 FREE_CP_REQUEST (value: requests per month, 1–30)
+
+While the holder has free requests left this **calendar month** (the programs' clock `LIVE_RANKINGS_TIME_ZONE`, D99), a CP
+request costs nothing: the row's `cost` is 0 (CHECK relaxed to `cost >= 0`) and no `CP_REQUEST` ledger row is written.
+A free request uses its slot when sent, whatever happens to it: declined, cancelled or expired, nothing is refunded (no
+`CP_REFUND` — nothing was charged). After N, 99 coins as before. `CpConfig.vipFreeRequests` (`perMonth`, `used`,
+`left`, `resetsAt`) only for holders; the app shows «مجاني (x متبقٍ)» on the request button.
+
+#### 10.171.3 PRIORITY_SUPPORT (no value)
+
+- **Reports** (D288's shared queue): `reports.priority` is fixed when a report is made — **2** a safety reason (NUDITY,
+  VIOLENCE, ILLEGAL) from anyone (safety keeps its own first place for everybody), **1** a report from a PRIORITY_SUPPORT
+  holder, **0** otherwise; existing safety reports back-filled to 2. `listAdminReports` (every status filter but the
+  RESOLVED view, newest resolution first) orders by `priority` descending, then oldest first; the cursor keeps its
+  `{at, id}` shape and reads the cursor row's priority. `Report.priority` in admin views only.
+- **WhatsApp support inbox** (D355): `wa_conversations.priority` — set when a staff member links the conversation to an
+  account holding the perk, and refreshed on every inbound message of a linked account (so an ended VIP clears it on the
+  next message); unlinking clears it. The inbox lists `priority` conversations first, each newest activity first.
+- There is no separate ticket system: these two queues are the support queues.
+
+#### 10.171.4 MONTHLY_ROCKETS (value: `{count 1–30, stage STAGE_1…STAGE_4}`)
+
+`count` traffic cards of the stage's length (the Nth `LIVE_BOOST_PRICES` length, D233: 10 · 20 · 30 · 60 minutes by
+default) are added to the holder's `live_boost_cards` once per **calendar month** (`LIVE_RANKINGS_TIME_ZONE`), on the
+month's first `getMyVip` or `getLiveBoostOffers` while the perk is held. `vip_rocket_grants` (key: member + month) makes
+it idempotent (a concurrent read inserts nothing); audited `vip.monthly_rockets.grant` (stage, minutes, count, the cards
+after; `cardsAfter: null` when the member already held the most cards of that length — the month is still used). A month
+without the perk is not granted later. `MyVip.perksNow.monthlyRockets` shows this month's grant and `nextAt`.
+
+#### 10.171.5 SCHEDULED_GIFT «هدية مؤجلة» (no value)
+
+The surface: «الخاص بي VIP» → «هدية مؤجلة» (and the conversation's gift sheet), `/me/vip/scheduled-gifts`. Scheduling
+checks the conversation-gift rules **now** (the recipient: not oneself, active, no block either way, privacy and request
+rules — 400 / 404 / 403 as `sendDmGift`), the gift (a paid gift of a normal tab — not lucky, a quip, custom, an event's own
+or a PK booster; an exclusive gift the caller's VIP may send), the quantity (the caller's quantities, §10.171.6), the
+sender's restrictions and coin debt, `deliverAt` 5 minutes to 366 days ahead, at most **10** pending per sender, and
+**holds** the coins at once (ledger `VIP_SCHEDULED_GIFT`, the price at scheduling × quantity). `clientId` makes it
+idempotent. At `deliverAt` the worker (the DM sweeper's cadence) sends it as the sender's gift in the pair's conversation
+(`sendDmGift`'s pipeline: the «هدية» message, the recipient's push, charm, levels) with the scheduled gift's id as the
+send's `clientId`; in that send's transaction the held coins come back (`VIP_SCHEDULED_GIFT_RELEASE`) and the gift is
+charged (`DM_GIFT`) at its price then. The rules of that moment apply; a refused delivery (a block since, the account gone,
+the gift switched off, the sender's VIP no longer allowing an exclusive gift or a VIP quantity, too few coins after a price
+rise …) closes it FAILED with the error code and gives the coins back; an unexpected error retries until 24 h after
+`deliverAt`, then fails. The sender may cancel a pending gift (coins back), also after the VIP ended. The recipient sees
+only the delivered gift.
+
+#### 10.171.6 HIGHER_GIFT_QUANTITY (value: the largest quantity, 1–99 999)
+
+A holder may send, beside `LIVE_GIFT_QUANTITIES`, the steps 3344 · 5200 · 9999 · 13140 · 52000 · 99999 up to the perk's
+value and the value itself (`GiftCatalogue.vipQuantities`); the server accepts them only for holders (400 `quantity`
+`invalid_value` otherwise). **Lucky gifts and quips keep the configured quantities** (their odds and chat lines are
+tuned for them), holders included. A bag send still needs the pieces.
+
+#### 10.171.7 «الخاص بي VIP» — `MyVip.perksNow`
+
+With an active membership: `monthlyRockets`, `freeCpRequests`, `maxGiftQuantity`, `voiceSeconds`, `exclusiveGifts` (a
+count), `scheduledGifts` (`pending`, `maxPending`) and `prioritySupport`, each only while held.
+
+#### 10.171.8 LONGER_VOICE (value: seconds, 31–600)
+
+A holder's voice clips (`DM_VOICE`, `LIVE_CHAT_VOICE`) may last the perk's seconds and weigh 1 MiB per 30 s of them
+(180 s → 6 MiB); checked when the upload is requested (`byteSize`, 400 `too_big`) and again when completed (the length,
+`MEDIA_INVALID`). Everyone else keeps 30 s and 1 MiB. The CHECK `media_assets_duration_shape` allows voice clips up to
+600 s. The app's recorder stops at the caller's limit (`perksNow.voiceSeconds`, else 30 s).

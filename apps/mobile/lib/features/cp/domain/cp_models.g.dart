@@ -48,6 +48,11 @@ _CpConfig _$CpConfigFromJson(Map<String, dynamic> json) => _CpConfig(
           ?.map((e) => CpGiftPreset.fromJson(e as Map<String, dynamic>))
           .toList() ??
       const <CpGiftPreset>[],
+  vipFreeRequests: json['vipFreeRequests'] == null
+      ? null
+      : CpVipFreeRequests.fromJson(
+          json['vipFreeRequests'] as Map<String, dynamic>,
+        ),
 );
 
 Map<String, dynamic> _$CpConfigToJson(_CpConfig instance) => <String, dynamic>{
@@ -56,7 +61,22 @@ Map<String, dynamic> _$CpConfigToJson(_CpConfig instance) => <String, dynamic>{
   'giftAmounts': instance.giftAmounts,
   'tiers': instance.tiers,
   'gifts': instance.gifts,
+  'vipFreeRequests': instance.vipFreeRequests,
 };
+
+_CpVipFreeRequests _$CpVipFreeRequestsFromJson(Map<String, dynamic> json) =>
+    _CpVipFreeRequests(
+      perMonth: (json['perMonth'] as num).toInt(),
+      used: (json['used'] as num).toInt(),
+      left: (json['left'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$CpVipFreeRequestsToJson(_CpVipFreeRequests instance) =>
+    <String, dynamic>{
+      'perMonth': instance.perMonth,
+      'used': instance.used,
+      'left': instance.left,
+    };
 
 _CpRequest _$CpRequestFromJson(Map<String, dynamic> json) => _CpRequest(
   id: json['id'] as String,

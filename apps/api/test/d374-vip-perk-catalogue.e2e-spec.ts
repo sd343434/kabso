@@ -89,8 +89,9 @@ describe('D374 VIP perk catalogue', { timeout: 180_000 }, () => {
     expect(list.body.artLimits.MP4).toEqual({ maxBytes: 8 * 1024 * 1024, maxSeconds: 15 });
     const byCode = new Map(catalogue.map((e) => [e.code, e]));
     expect(byCode.get('MIC_WAVE')).toMatchObject({ built: true, category: 'ROOM' });
+    // D381 (v1.134-social) built LONGER_VOICE.
     expect(byCode.get('LONGER_VOICE')).toMatchObject({
-      built: false,
+      built: true,
       value: { kind: 'int', min: 31, max: 600, unit: 'seconds' },
     });
     expect(byCode.get('ANIMATED_COVER')!.art!.kinds).toContain('MP4');
@@ -154,7 +155,7 @@ describe('D374 VIP perk catalogue', { timeout: 180_000 }, () => {
     expectContract(res, 'listVipTiers');
     const vip1 = (res.body.data as { code: string; perks: PerkOut[] }[]).find((t) => t.code === 'VIP_1')!;
     const app = new Map(vip1.perks.map((pk) => [pk.code, pk]));
-    expect(app.get('LONGER_VOICE')).toMatchObject({ value: 180, available: false, category: 'CHAT' });
+    expect(app.get('LONGER_VOICE')).toMatchObject({ value: 180, available: true, category: 'CHAT' });
     expect(app.get('MIC_WAVE')).toMatchObject({ available: true, value: null });
   });
 
@@ -289,9 +290,9 @@ describe('D374 VIP perk catalogue', { timeout: 180_000 }, () => {
       ['VIP_ROOM', null, 'VIP_2'],
     ]);
     expect(t2.effectivePerks.find((pk) => pk.code === 'BADGE')!.available).toBe(true);
-    // D379 (§10.169): SEAT_RESERVE is built since; LONGER_VOICE is not.
+    // D379 (§10.169): SEAT_RESERVE is built since; D381 (v1.134-social): LONGER_VOICE too.
     expect(t2.effectivePerks.find((pk) => pk.code === 'SEAT_RESERVE')!.available).toBe(true);
-    expect(t2.effectivePerks.find((pk) => pk.code === 'LONGER_VOICE')!.available).toBe(false);
+    expect(t2.effectivePerks.find((pk) => pk.code === 'LONGER_VOICE')!.available).toBe(true);
     expect((await p.send(owner, 'post', `/admin/vip/tiers/${VIP1}/enable`, { reason: 'D374' })).status).toBe(
       200,
     );

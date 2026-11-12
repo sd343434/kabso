@@ -61,7 +61,13 @@ export type WalletLedgerReason =
   /** v1.127-social (D372, §10.164): a gift sent on a post or reel «هدية الدعم» (reference: the send). */
   | 'CONTENT_GIFT'
   /** v1.130-social (D376, §10.167): a status pack bought or renewed (reference: the `status_pack_purchases` row). */
-  | 'STATUS_PACK_PURCHASE';
+  | 'STATUS_PACK_PURCHASE'
+  /**
+   * v1.134-social (D381, §10.171.5): a scheduled gift's coins held (reference: the `vip_scheduled_gifts` row), and
+   * given back on delivery (then charged as its DM_GIFT), cancellation or failure (reference: the same row).
+   */
+  | 'VIP_SCHEDULED_GIFT'
+  | 'VIP_SCHEDULED_GIFT_RELEASE';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

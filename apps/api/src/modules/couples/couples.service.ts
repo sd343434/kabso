@@ -33,6 +33,7 @@ import {
 } from './couples.constants.js';
 import { cpGiftSendSchema, cpRequestSendSchema, type CpRequestListQuery } from './couples.schemas.js';
 import { recordCpPointsIn } from './cp-points.js';
+import { vipFreeCpRequestsIn } from '../vip/vip-gift-perks.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -98,6 +99,11 @@ export interface CpConfigDto {
   /** v1.24-live (CP-021): the named gift card of each amount, ascending. */
   gifts: { code: string; amount: number; name: string; assetKey: string }[];
   tiers: { level: number; minPoints: number; name: string }[];
+  /**
+   * v1.134-social (D381, §10.171.2): the caller's free CP requests this month (FREE_CP_REQUEST); absent without the
+   * perk. `resetsAt`: the next calendar month's start (`LIVE_RANKINGS_TIME_ZONE`).
+   */
+  vipFreeRequests?: { perMonth: number; used: number; left: number; resetsAt: string };
 }
 
 const REQUEST_INCLUDE = {
@@ -156,9 +162,25 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
     await this.sweepInFlight?.catch(() => undefined);
   }
 
+  /** v1.134-social (D381, §10.171.2): [userId]'s free CP requests this month ({@link vipFreeCpRequestsIn}). */
+  private freeRequestsIn(db: Tx | PrismaService, userId: string, now: Date) {
+    return vipFreeCpRequestsIn(db, userId, now, this.config.live.rankingsTimeZone);
+  }
+
   /** `GET /cp/config`. */
-  configDto(lang: ContentLanguage): CpConfigDto {
+  async configDto(userId: string, lang: ContentLanguage): Promise<CpConfigDto> {
+    const free = await this.freeRequestsIn(this.prisma, userId, this.clock.now());
     return {
+      ...(free
+        ? {
+            vipFreeRequests: {
+              perMonth: free.perMonth,
+              used: free.used,
+              left: free.left,
+              resetsAt: free.resetsAt.toISOString(),
+            },
+          }
+        : {}),
       requestCost: CP_REQUEST_COST_COINS,
       requestTtlDays: CP_REQUEST_TTL_MS / DAY_MS,
       giftAmounts: [...CP_GIFT_AMOUNTS],
@@ -197,6 +219,8 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
 
   /** Gives a request's coins back (CP_REFUND, reference the request id). */
   private async refundIn(tx: Tx, request: Pick<LockedRequest, 'id' | 'sender_id' | 'cost'>): Promise<void> {
+    // v1.134-social (D381): a free request (FREE_CP_REQUEST, cost 0) charged nothing, so nothing comes back.
+    if (request.cost <= 0) return;
     await this.wallet.creditIn(tx, request.sender_id, request.cost, 'CP_REFUND', request.id);
   }
 
@@ -257,27 +281,32 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
           if (pending.expires_at > now) throw new AppException(ErrorCode.CP_REQUEST_PENDING);
           await this.closeWithRefundIn(tx, pending, 'EXPIRED');
         }
+        // v1.134-social (D381, §10.171.2): a FREE_CP_REQUEST holder's request is free while this month's are left.
+        const free = await this.freeRequestsIn(tx, callerId, now);
+        const cost = free !== null && free.left > 0 ? 0 : CP_REQUEST_COST_COINS;
         const request = await tx.cpRequest.create({
           data: {
             senderId: callerId,
             receiverId: target.id,
             clientId,
-            cost: CP_REQUEST_COST_COINS,
+            cost,
             createdAt: now,
             expiresAt: new Date(now.getTime() + CP_REQUEST_TTL_MS),
           },
           select: { id: true },
         });
-        const charged = await this.wallet.debitIn(
-          tx,
-          callerId,
-          CP_REQUEST_COST_COINS,
-          'CP_REQUEST',
-          request.id,
-        );
-        if (!charged) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
+        let coins: bigint;
+        if (cost > 0) {
+          const charged = await this.wallet.debitIn(tx, callerId, cost, 'CP_REQUEST', request.id);
+          if (!charged) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
+          coins = charged.coins;
+        } else {
+          coins =
+            (await tx.wallet.findUnique({ where: { userId: callerId }, select: { coins: true } }))?.coins ??
+            0n;
+        }
         await this.notifier.notify(tx, { type: 'CP_REQUEST', recipientId: target.id, actorId: callerId });
-        return { id: request.id, coins: charged.coins };
+        return { id: request.id, coins };
       });
     } catch (err) {
       const index = violatedUniqueIndex(err);

@@ -13,6 +13,8 @@ import type {
   PkBoosterKind,
 } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { AppException } from '../../common/errors/app-exception.js';
+import { ErrorCode } from '../../common/errors/error-codes.js';
 import { giftArtUrl } from './gift-art.js';
 import {
   catalogueVersion,
@@ -21,6 +23,14 @@ import {
   type GiftCategoryCode,
 } from './gift-catalogue.js';
 import { activeItemBadges, legacyGiftBadge, type ItemBadgeDto } from './item-badges.js';
+import {
+  vipExclusiveGiftsIn,
+  vipExtraQuantities,
+  vipGiftCodesFor,
+  vipMaySendGift,
+  vipPerkIntIn,
+  vipRankIn,
+} from '../vip/vip-gift-perks.js';
 import {
   globalStripsDefaultsOf,
   luckyMultipliersOf,
@@ -148,6 +158,16 @@ export interface GiftCatalogueDto {
   comboWindowSeconds: number;
   /** v1.89-live (D318, §10.121): a lucky win has a chat line from this multiplier (the panel's value, else the config). */
   luckyChatMinMultiplier: number;
+  /**
+   * v1.134-social (D381, §10.171.1): the exclusive gifts (EXCLUSIVE_GIFTS) the caller may send — their «VIP» tab; absent
+   * when none. Those gifts are in `data`; an exclusive gift the caller may not send is not listed at all.
+   */
+  vipGiftCodes?: string[];
+  /**
+   * v1.134-social (D381, §10.171.6): the larger quantities the caller's HIGHER_GIFT_QUANTITY allows beside `quantities`
+   * (ascending; never for a lucky gift or a quip); absent when none.
+   */
+  vipQuantities?: number[];
   data: GiftDto[];
 }
 
@@ -289,10 +309,12 @@ export class GiftsService {
    * `GET /gifts/catalogue`: enabled gifts of the listed tabs, by tab, then sort order, then code. v1.100-social (D312):
    * the «مُخصَّص» tab only when it holds a listed gift (an older app shows an unknown kind as a plain, empty tab).
    */
-  async catalogue(lang: ContentLanguage): Promise<GiftCatalogueDto> {
+  async catalogue(userId: string, lang: ContentLanguage): Promise<GiftCatalogueDto> {
     const listed = await this.listedCategories();
     const categories0 = listed.map((t) => t.code);
-    const gifts = await this.prisma.gift.findMany({
+    // v1.134-social (D381): an exclusive gift is listed only to a member whose VIP may send it.
+    const vip = await this.vipOf(userId);
+    const all = await this.prisma.gift.findMany({
       // v1.100-social (D312): a custom gift is listed while its owner is an ACTIVE account (it is not sendable otherwise).
       where: {
         enabled: true,
@@ -304,6 +326,11 @@ export class GiftsService {
       include: GIFT_OWNER_INCLUDE,
       orderBy: [...CATALOGUE_ORDER],
     });
+    const gifts = all.filter((g) => vipMaySendGift(vip.exclusive, g.code, vip.rank));
+    const vipGiftCodes = vipGiftCodesFor(vip.exclusive, vip.rank).filter((c) =>
+      gifts.some((g) => g.code === c),
+    );
+    const vipQuantities = vipExtraQuantities(this.quantities, vip.maxQuantity);
     const tabs = listed.filter((t) => t.kind !== 'CUSTOM' || gifts.some((g) => g.category === t.code));
     const categories = tabs.map((t) => t.code);
     const quantities = [...this.quantities];
@@ -321,6 +348,9 @@ export class GiftsService {
         tabs,
         now,
         luckyChatMinMultiplier,
+        vipGiftCodes.length > 0 || vipQuantities.length > 0
+          ? { codes: vipGiftCodes, quantities: vipQuantities }
+          : undefined,
       ),
       categories,
       tabs: tabs.map((t) => giftCategoryTabDto(t, lang, this.publicBaseUrl)),
@@ -328,8 +358,58 @@ export class GiftsService {
       maxRecipients: LIVE_GIFT_MAX_RECIPIENTS,
       comboWindowSeconds: LIVE_GIFT_COMBO_WINDOW_SECONDS,
       luckyChatMinMultiplier,
+      ...(vipGiftCodes.length > 0 ? { vipGiftCodes } : {}),
+      ...(vipQuantities.length > 0 ? { vipQuantities } : {}),
       data: gifts.map((g) => giftDto(g, lang, this.publicBaseUrl, now)),
     };
+  }
+
+  /**
+   * v1.134-social (D381, §10.171.6): the quantities [userId]'s send of [body] may use — `LIVE_GIFT_QUANTITIES`, and
+   * for a HIGHER_GIFT_QUANTITY holder its larger steps up to the perk's maximum. The VIP is read only when the body's
+   * quantity is not a configured one (the usual send costs no extra query).
+   */
+  async quantitiesFor(userId: string, body: unknown): Promise<readonly number[]> {
+    const base = this.quantities;
+    const q =
+      typeof body === 'object' && body !== null ? (body as { quantity?: unknown }).quantity : undefined;
+    if (typeof q !== 'number' || base.includes(q)) return base;
+    const max = await vipPerkIntIn(this.prisma, userId, 'HIGHER_GIFT_QUANTITY', new Date());
+    return [...base, ...vipExtraQuantities(base, max)];
+  }
+
+  /**
+   * v1.134-social (D381, §10.171.1): an exclusive gift (on a tier's EXCLUSIVE_GIFTS) is sent only by a member whose
+   * active VIP may send it (that tier or a higher one) — else 409 `GIFT_UNAVAILABLE`, as for a gift that is not listed.
+   */
+  async assertVipMaySend(userId: string, giftCode: string): Promise<void> {
+    const exclusive = await vipExclusiveGiftsIn(this.prisma);
+    if (!exclusive.has(giftCode)) return;
+    const rank = await vipRankIn(this.prisma, userId, new Date());
+    if (!vipMaySendGift(exclusive, giftCode, rank)) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+  }
+
+  /** D381 (§10.171.6): a lucky gift or a quip is sent in the configured quantities only, VIP or not. */
+  assertBaseQuantity(quantity: number): void {
+    if (!this.quantities.includes(quantity))
+      throw AppException.validation([{ field: 'quantity', issue: 'invalid_value' }]);
+  }
+
+  /**
+   * v1.134-social (D381): the caller's VIP as the gift panel needs it — the rank of their active tier (null: none),
+   * the exclusive gifts and their HIGHER_GIFT_QUANTITY maximum (null: not held).
+   */
+  async vipOf(
+    userId: string,
+  ): Promise<{ rank: number | null; exclusive: ReadonlyMap<string, number>; maxQuantity: number | null }> {
+    const now = new Date();
+    const [rank, exclusive] = await Promise.all([
+      vipRankIn(this.prisma, userId, now),
+      vipExclusiveGiftsIn(this.prisma),
+    ]);
+    const maxQuantity =
+      rank === null ? null : await vipPerkIntIn(this.prisma, userId, 'HIGHER_GIFT_QUANTITY', now);
+    return { rank, exclusive, maxQuantity };
   }
 
   private luckyChat: { readonly at: number; readonly value: number } | null = null;
@@ -382,8 +462,13 @@ export class GiftsService {
         { giftCode: 'asc' },
       ],
     });
+    // v1.134-social (D381): an exclusive gift the caller's VIP may not send is not listed (its pieces stay, and show
+    // again while a VIP that may send it is held).
+    const vip = await this.vipOf(userId);
     return {
-      data: rows.map((r) => ({ ...giftDto(r.gift, lang, this.publicBaseUrl), quantity: r.quantity })),
+      data: rows
+        .filter((r) => vipMaySendGift(vip.exclusive, r.giftCode, vip.rank))
+        .map((r) => ({ ...giftDto(r.gift, lang, this.publicBaseUrl), quantity: r.quantity })),
     };
   }
 }

@@ -4436,3 +4436,24 @@ CONVENTIONS §10.170 (owner 2026-11-11). One migration, no new setting, no new s
   generic «not allowed» message for a protected member.
 - **Rollback:** the columns and the table are additive; an older API image ignores them (an anonymous gift sent before
   a rollback would then show its real sender — roll forward instead).
+
+### 5.124 VIP perks phase 2 — gifts, CP, support, rockets, voice (D381; migration `20270513090000_vip_gift_perks`) — [IMPLEMENTED, draft contract v1.134-social; not deployed, not device-tested]
+
+CONVENTIONS §10.171 (owner 2026-11-11). One migration, no new setting, no new secret, no new host. The scheduled-gift
+worker runs inside the API on the DM sweeper's cadence (`DM_SWEEP_INTERVAL_SECONDS`; 0 switches it off with the sweeper).
+
+- **Migration** `20270513090000_vip_gift_perks` (the usual `migrate` job, as the migration role): the ledger reasons
+  `VIP_SCHEDULED_GIFT` / `VIP_SCHEDULED_GIFT_RELEASE` (`ALTER TYPE … ADD VALUE`, the sign CHECK rebuilt in place);
+  `cp_requests` CHECK `cost >= 0` (was `> 0`); `media_assets_duration_shape` allows voice clips up to 600 s;
+  `reports.priority` (SMALLINT, default 0; open safety reports back-filled to 2 — one `UPDATE` over `reports`) with the
+  index `reports_status_priority_idx`; `wa_conversations.priority` (BOOLEAN, default false); new tables
+  `vip_rocket_grants` and `vip_scheduled_gifts` (runtime grants from the default privileges, KL-013; full DML). Small
+  tables; the `reports` index is built without `CONCURRENTLY` (a short write lock on `reports`).
+- **After deploy (owner / panel):** tick the seven perks on the tiers that should hold them and set their values
+  (EXCLUSIVE_GIFTS: the gift codes; FREE_CP_REQUEST: per month; MONTHLY_ROCKETS: count + stage; HIGHER_GIFT_QUANTITY: the
+  maximum; LONGER_VOICE: seconds). A gift put on an EXCLUSIVE_GIFTS list disappears from everyone else's gift panel at
+  once (within 30 s on other API instances).
+- **Rollback note:** the enum values cannot be removed; an older API image ignores the new columns and tables, but
+  scheduled gifts pending at a rollback keep their coins held until a D381 API delivers or the sender cancels them.
+- **Order:** deploy the API image (the migration runs first), then ship the APK. The admin panel needs no change (the
+  D374 grid edits the values). An older app keeps working (new fields ignored).

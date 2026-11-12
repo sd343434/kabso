@@ -571,7 +571,9 @@ as String,
 /// @nodoc
 mixin _$CpConfig {
 
- int get requestCost; int get requestTtlDays; List<int> get giftAmounts; List<CpTier> get tiers; List<CpGiftPreset> get gifts;
+ int get requestCost; int get requestTtlDays; List<int> get giftAmounts; List<CpTier> get tiers; List<CpGiftPreset> get gifts;/// v1.134-social (D381, §10.171.2) FREE_CP_REQUEST: the caller's free
+/// requests this month; null without the perk.
+ CpVipFreeRequests? get vipFreeRequests;
 /// Create a copy of CpConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -585,20 +587,20 @@ $CpConfigCopyWith<CpConfig> get copyWith => _$CpConfigCopyWithImpl<CpConfig>(thi
 @override
 bool operator ==(Object other) {
   final _this = this as CpConfig;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CpConfig&&(identical(other.requestCost, _this.requestCost) || other.requestCost == _this.requestCost)&&(identical(other.requestTtlDays, _this.requestTtlDays) || other.requestTtlDays == _this.requestTtlDays)&&const DeepCollectionEquality().equals(other.giftAmounts, _this.giftAmounts)&&const DeepCollectionEquality().equals(other.tiers, _this.tiers)&&const DeepCollectionEquality().equals(other.gifts, _this.gifts));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CpConfig&&(identical(other.requestCost, _this.requestCost) || other.requestCost == _this.requestCost)&&(identical(other.requestTtlDays, _this.requestTtlDays) || other.requestTtlDays == _this.requestTtlDays)&&const DeepCollectionEquality().equals(other.giftAmounts, _this.giftAmounts)&&const DeepCollectionEquality().equals(other.tiers, _this.tiers)&&const DeepCollectionEquality().equals(other.gifts, _this.gifts)&&(identical(other.vipFreeRequests, _this.vipFreeRequests) || other.vipFreeRequests == _this.vipFreeRequests));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as CpConfig;
-  return Object.hash(runtimeType,_this.requestCost,_this.requestTtlDays,const DeepCollectionEquality().hash(_this.giftAmounts),const DeepCollectionEquality().hash(_this.tiers),const DeepCollectionEquality().hash(_this.gifts));
+  return Object.hash(runtimeType,_this.requestCost,_this.requestTtlDays,const DeepCollectionEquality().hash(_this.giftAmounts),const DeepCollectionEquality().hash(_this.tiers),const DeepCollectionEquality().hash(_this.gifts),_this.vipFreeRequests);
 }
 
 @override
 String toString() {
   final _this = this as CpConfig;
-  return 'CpConfig(requestCost: ${_this.requestCost}, requestTtlDays: ${_this.requestTtlDays}, giftAmounts: ${_this.giftAmounts}, tiers: ${_this.tiers}, gifts: ${_this.gifts})';
+  return 'CpConfig(requestCost: ${_this.requestCost}, requestTtlDays: ${_this.requestTtlDays}, giftAmounts: ${_this.giftAmounts}, tiers: ${_this.tiers}, gifts: ${_this.gifts}, vipFreeRequests: ${_this.vipFreeRequests})';
 }
 
 
@@ -609,11 +611,11 @@ abstract mixin class $CpConfigCopyWith<$Res>  {
   factory $CpConfigCopyWith(CpConfig value, $Res Function(CpConfig) _then) = _$CpConfigCopyWithImpl;
 @useResult
 $Res call({
- int requestCost, int requestTtlDays, List<int> giftAmounts, List<CpTier> tiers, List<CpGiftPreset> gifts
+ int requestCost, int requestTtlDays, List<int> giftAmounts, List<CpTier> tiers, List<CpGiftPreset> gifts, CpVipFreeRequests? vipFreeRequests
 });
 
 
-
+$CpVipFreeRequestsCopyWith<$Res>? get vipFreeRequests;
 
 }
 /// @nodoc
@@ -626,17 +628,30 @@ class _$CpConfigCopyWithImpl<$Res>
 
 /// Create a copy of CpConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? requestCost = null,Object? requestTtlDays = null,Object? giftAmounts = null,Object? tiers = null,Object? gifts = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? requestCost = null,Object? requestTtlDays = null,Object? giftAmounts = null,Object? tiers = null,Object? gifts = null,Object? vipFreeRequests = freezed,}) {
   return _then(CpConfig(
 requestCost: null == requestCost ? _self.requestCost : requestCost // ignore: cast_nullable_to_non_nullable
 as int,requestTtlDays: null == requestTtlDays ? _self.requestTtlDays : requestTtlDays // ignore: cast_nullable_to_non_nullable
 as int,giftAmounts: null == giftAmounts ? _self.giftAmounts : giftAmounts // ignore: cast_nullable_to_non_nullable
 as List<int>,tiers: null == tiers ? _self.tiers : tiers // ignore: cast_nullable_to_non_nullable
 as List<CpTier>,gifts: null == gifts ? _self.gifts : gifts // ignore: cast_nullable_to_non_nullable
-as List<CpGiftPreset>,
+as List<CpGiftPreset>,vipFreeRequests: freezed == vipFreeRequests ? _self.vipFreeRequests : vipFreeRequests // ignore: cast_nullable_to_non_nullable
+as CpVipFreeRequests?,
   ));
 }
+/// Create a copy of CpConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$CpVipFreeRequestsCopyWith<$Res>? get vipFreeRequests {
+    if (_self.vipFreeRequests == null) {
+    return null;
+  }
 
+  return $CpVipFreeRequestsCopyWith<$Res>(_self.vipFreeRequests!, (value) {
+    return _then(_self.copyWith(vipFreeRequests: value));
+  });
+}
 }
 
 
@@ -718,10 +733,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers,  List<CpGiftPreset> gifts)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers,  List<CpGiftPreset> gifts,  CpVipFreeRequests? vipFreeRequests)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CpConfig() when $default != null:
-return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers,_that.gifts);case _:
+return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers,_that.gifts,_that.vipFreeRequests);case _:
   return orElse();
 
 }
@@ -739,10 +754,10 @@ return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers,  List<CpGiftPreset> gifts)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers,  List<CpGiftPreset> gifts,  CpVipFreeRequests? vipFreeRequests)  $default,) {final _that = this;
 switch (_that) {
 case _CpConfig():
-return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers,_that.gifts);case _:
+return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers,_that.gifts,_that.vipFreeRequests);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -759,10 +774,10 @@ return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers,  List<CpGiftPreset> gifts)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers,  List<CpGiftPreset> gifts,  CpVipFreeRequests? vipFreeRequests)?  $default,) {final _that = this;
 switch (_that) {
 case _CpConfig() when $default != null:
-return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers,_that.gifts);case _:
+return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers,_that.gifts,_that.vipFreeRequests);case _:
   return null;
 
 }
@@ -774,7 +789,7 @@ return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.t
 @JsonSerializable()
 
 class _CpConfig implements CpConfig {
-  const _CpConfig({required this.requestCost, required this.requestTtlDays, required  List<int> giftAmounts, required  List<CpTier> tiers,  List<CpGiftPreset> gifts = const <CpGiftPreset>[]}): _giftAmounts = giftAmounts,_tiers = tiers,_gifts = gifts;
+  const _CpConfig({required this.requestCost, required this.requestTtlDays, required  List<int> giftAmounts, required  List<CpTier> tiers,  List<CpGiftPreset> gifts = const <CpGiftPreset>[], this.vipFreeRequests}): _giftAmounts = giftAmounts,_tiers = tiers,_gifts = gifts;
   factory _CpConfig.fromJson(Map<String, dynamic> json) => _$CpConfigFromJson(json);
 
 @override final  int requestCost;
@@ -800,6 +815,9 @@ class _CpConfig implements CpConfig {
   return EqualUnmodifiableListView(_gifts);
 }
 
+/// v1.134-social (D381, §10.171.2) FREE_CP_REQUEST: the caller's free
+/// requests this month; null without the perk.
+@override final  CpVipFreeRequests? vipFreeRequests;
 
 /// Create a copy of CpConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -814,18 +832,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CpConfig&&(identical(other.requestCost, requestCost) || other.requestCost == requestCost)&&(identical(other.requestTtlDays, requestTtlDays) || other.requestTtlDays == requestTtlDays)&&const DeepCollectionEquality().equals(other.giftAmounts, _giftAmounts)&&const DeepCollectionEquality().equals(other.tiers, _tiers)&&const DeepCollectionEquality().equals(other.gifts, _gifts));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CpConfig&&(identical(other.requestCost, requestCost) || other.requestCost == requestCost)&&(identical(other.requestTtlDays, requestTtlDays) || other.requestTtlDays == requestTtlDays)&&const DeepCollectionEquality().equals(other.giftAmounts, _giftAmounts)&&const DeepCollectionEquality().equals(other.tiers, _tiers)&&const DeepCollectionEquality().equals(other.gifts, _gifts)&&(identical(other.vipFreeRequests, vipFreeRequests) || other.vipFreeRequests == vipFreeRequests));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,requestCost,requestTtlDays,const DeepCollectionEquality().hash(_giftAmounts),const DeepCollectionEquality().hash(_tiers),const DeepCollectionEquality().hash(_gifts));
+    return Object.hash(runtimeType,requestCost,requestTtlDays,const DeepCollectionEquality().hash(_giftAmounts),const DeepCollectionEquality().hash(_tiers),const DeepCollectionEquality().hash(_gifts),vipFreeRequests);
 }
 
 @override
 String toString() {
-    return 'CpConfig(requestCost: $requestCost, requestTtlDays: $requestTtlDays, giftAmounts: $giftAmounts, tiers: $tiers, gifts: $gifts)';
+    return 'CpConfig(requestCost: $requestCost, requestTtlDays: $requestTtlDays, giftAmounts: $giftAmounts, tiers: $tiers, gifts: $gifts, vipFreeRequests: $vipFreeRequests)';
 }
 
 
@@ -836,11 +854,11 @@ abstract mixin class _$CpConfigCopyWith<$Res> implements $CpConfigCopyWith<$Res>
   factory _$CpConfigCopyWith(_CpConfig value, $Res Function(_CpConfig) _then) = __$CpConfigCopyWithImpl;
 @override @useResult
 $Res call({
- int requestCost, int requestTtlDays, List<int> giftAmounts, List<CpTier> tiers, List<CpGiftPreset> gifts
+ int requestCost, int requestTtlDays, List<int> giftAmounts, List<CpTier> tiers, List<CpGiftPreset> gifts, CpVipFreeRequests? vipFreeRequests
 });
 
 
-
+@override $CpVipFreeRequestsCopyWith<$Res>? get vipFreeRequests;
 
 }
 /// @nodoc
@@ -853,14 +871,303 @@ class __$CpConfigCopyWithImpl<$Res>
 
 /// Create a copy of CpConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? requestCost = null,Object? requestTtlDays = null,Object? giftAmounts = null,Object? tiers = null,Object? gifts = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? requestCost = null,Object? requestTtlDays = null,Object? giftAmounts = null,Object? tiers = null,Object? gifts = null,Object? vipFreeRequests = freezed,}) {
   return _then(_CpConfig(
 requestCost: null == requestCost ? _self.requestCost : requestCost // ignore: cast_nullable_to_non_nullable
 as int,requestTtlDays: null == requestTtlDays ? _self.requestTtlDays : requestTtlDays // ignore: cast_nullable_to_non_nullable
 as int,giftAmounts: null == giftAmounts ? _self._giftAmounts : giftAmounts // ignore: cast_nullable_to_non_nullable
 as List<int>,tiers: null == tiers ? _self._tiers : tiers // ignore: cast_nullable_to_non_nullable
 as List<CpTier>,gifts: null == gifts ? _self._gifts : gifts // ignore: cast_nullable_to_non_nullable
-as List<CpGiftPreset>,
+as List<CpGiftPreset>,vipFreeRequests: freezed == vipFreeRequests ? _self.vipFreeRequests : vipFreeRequests // ignore: cast_nullable_to_non_nullable
+as CpVipFreeRequests?,
+  ));
+}
+
+/// Create a copy of CpConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$CpVipFreeRequestsCopyWith<$Res>? get vipFreeRequests {
+    if (_self.vipFreeRequests == null) {
+    return null;
+  }
+
+  return $CpVipFreeRequestsCopyWith<$Res>(_self.vipFreeRequests!, (value) {
+    return _then(_self.copyWith(vipFreeRequests: value));
+  });
+}
+}
+
+
+/// @nodoc
+mixin _$CpVipFreeRequests {
+
+ int get perMonth; int get used; int get left;
+/// Create a copy of CpVipFreeRequests
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CpVipFreeRequestsCopyWith<CpVipFreeRequests> get copyWith => _$CpVipFreeRequestsCopyWithImpl<CpVipFreeRequests>(this as CpVipFreeRequests, _$identity);
+
+  /// Serializes this CpVipFreeRequests to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as CpVipFreeRequests;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CpVipFreeRequests&&(identical(other.perMonth, _this.perMonth) || other.perMonth == _this.perMonth)&&(identical(other.used, _this.used) || other.used == _this.used)&&(identical(other.left, _this.left) || other.left == _this.left));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as CpVipFreeRequests;
+  return Object.hash(runtimeType,_this.perMonth,_this.used,_this.left);
+}
+
+@override
+String toString() {
+  final _this = this as CpVipFreeRequests;
+  return 'CpVipFreeRequests(perMonth: ${_this.perMonth}, used: ${_this.used}, left: ${_this.left})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CpVipFreeRequestsCopyWith<$Res>  {
+  factory $CpVipFreeRequestsCopyWith(CpVipFreeRequests value, $Res Function(CpVipFreeRequests) _then) = _$CpVipFreeRequestsCopyWithImpl;
+@useResult
+$Res call({
+ int perMonth, int used, int left
+});
+
+
+
+
+}
+/// @nodoc
+class _$CpVipFreeRequestsCopyWithImpl<$Res>
+    implements $CpVipFreeRequestsCopyWith<$Res> {
+  _$CpVipFreeRequestsCopyWithImpl(this._self, this._then);
+
+  final CpVipFreeRequests _self;
+  final $Res Function(CpVipFreeRequests) _then;
+
+/// Create a copy of CpVipFreeRequests
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? perMonth = null,Object? used = null,Object? left = null,}) {
+  return _then(CpVipFreeRequests(
+perMonth: null == perMonth ? _self.perMonth : perMonth // ignore: cast_nullable_to_non_nullable
+as int,used: null == used ? _self.used : used // ignore: cast_nullable_to_non_nullable
+as int,left: null == left ? _self.left : left // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [CpVipFreeRequests].
+extension CpVipFreeRequestsPatterns on CpVipFreeRequests {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _CpVipFreeRequests value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _CpVipFreeRequests() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _CpVipFreeRequests value)  $default,){
+final _that = this;
+switch (_that) {
+case _CpVipFreeRequests():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _CpVipFreeRequests value)?  $default,){
+final _that = this;
+switch (_that) {
+case _CpVipFreeRequests() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int perMonth,  int used,  int left)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _CpVipFreeRequests() when $default != null:
+return $default(_that.perMonth,_that.used,_that.left);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int perMonth,  int used,  int left)  $default,) {final _that = this;
+switch (_that) {
+case _CpVipFreeRequests():
+return $default(_that.perMonth,_that.used,_that.left);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int perMonth,  int used,  int left)?  $default,) {final _that = this;
+switch (_that) {
+case _CpVipFreeRequests() when $default != null:
+return $default(_that.perMonth,_that.used,_that.left);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _CpVipFreeRequests implements CpVipFreeRequests {
+  const _CpVipFreeRequests({required this.perMonth, required this.used, required this.left});
+  factory _CpVipFreeRequests.fromJson(Map<String, dynamic> json) => _$CpVipFreeRequestsFromJson(json);
+
+@override final  int perMonth;
+@override final  int used;
+@override final  int left;
+
+/// Create a copy of CpVipFreeRequests
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$CpVipFreeRequestsCopyWith<_CpVipFreeRequests> get copyWith => __$CpVipFreeRequestsCopyWithImpl<_CpVipFreeRequests>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$CpVipFreeRequestsToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CpVipFreeRequests&&(identical(other.perMonth, perMonth) || other.perMonth == perMonth)&&(identical(other.used, used) || other.used == used)&&(identical(other.left, left) || other.left == left));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,perMonth,used,left);
+}
+
+@override
+String toString() {
+    return 'CpVipFreeRequests(perMonth: $perMonth, used: $used, left: $left)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$CpVipFreeRequestsCopyWith<$Res> implements $CpVipFreeRequestsCopyWith<$Res> {
+  factory _$CpVipFreeRequestsCopyWith(_CpVipFreeRequests value, $Res Function(_CpVipFreeRequests) _then) = __$CpVipFreeRequestsCopyWithImpl;
+@override @useResult
+$Res call({
+ int perMonth, int used, int left
+});
+
+
+
+
+}
+/// @nodoc
+class __$CpVipFreeRequestsCopyWithImpl<$Res>
+    implements _$CpVipFreeRequestsCopyWith<$Res> {
+  __$CpVipFreeRequestsCopyWithImpl(this._self, this._then);
+
+  final _CpVipFreeRequests _self;
+  final $Res Function(_CpVipFreeRequests) _then;
+
+/// Create a copy of CpVipFreeRequests
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? perMonth = null,Object? used = null,Object? left = null,}) {
+  return _then(_CpVipFreeRequests(
+perMonth: null == perMonth ? _self.perMonth : perMonth // ignore: cast_nullable_to_non_nullable
+as int,used: null == used ? _self.used : used // ignore: cast_nullable_to_non_nullable
+as int,left: null == left ? _self.left : left // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
