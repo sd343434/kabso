@@ -852,6 +852,13 @@ export function PerksEditor({
                 const on = p !== undefined && p.stale === undefined;
                 const title = lang === "ar" ? e.titleAr : e.titleEn;
                 const ok = !on || valueOk(e.value, p.value);
+                // Owner: a perk with no art and no value is just a tick, no box opens for it
+                // (one that was switched off keeps its box, so it can be switched back on).
+                const simple =
+                  e.art === null &&
+                  e.value.kind === "none" &&
+                  e.code !== "BADGE" &&
+                  p?.enabled !== false;
                 return (
                   <div
                     className={`vip-perk ${on ? "on" : ""}`}
@@ -878,7 +885,7 @@ export function PerksEditor({
                     <span className="muted small">
                       {lang === "ar" ? e.descriptionAr : e.descriptionEn}
                     </span>
-                    {on && (
+                    {on && !simple && (
                       <div className="vip-perk-fields" data-vip-perk-fields={e.code}>
                         {e.code === "BADGE" && (
                           // D268: the BADGE perk's art is the badge right after the name.

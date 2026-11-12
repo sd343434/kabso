@@ -119,6 +119,7 @@ const CATALOGUE: CatalogueEntry[] = [
       { key: "stage", labelAr: "نوع الصاروخ", labelEn: "Rocket type", schema: { kind: "enum", source: "ROCKET_STAGE", options: ["STAGE_1", "STAGE_2", "STAGE_3", "STAGE_4"] } },
     ],
   }),
+  entry("PROFILE_VISIT_HIDE", "ROOM", false, { kind: "none" }),
 ];
 
 const LIST: AdminVipTierList = {
@@ -362,6 +363,27 @@ describe("D252 VIP in the panel", () => {
     expect(html).toContain("data-vip-stale");
     expect(html).toContain('data-vip-stale-remove="DAILY_COINS"');
     expect(html).toContain("أزيلت");
+  });
+
+  it("D374 (owner): a perk with no art and no value is a tick only, no box opens for it", () => {
+    const simple = CATALOGUE.find((e) => e.code === "PROFILE_VISIT_HIDE")!;
+    const editor = (perks: ReturnType<typeof perkOf>[]) =>
+      render(
+        "ar",
+        capsOf("OWNER"),
+        <PerksEditor perks={perks} catalogue={CATALOGUE} onChange={noop} tierCode="VIP_1" />,
+      );
+    const on = editor([perkOf(simple)]);
+    expect(on).toContain('data-vip-perk-pick="PROFILE_VISIT_HIDE"');
+    expect(on).not.toContain('data-vip-perk-fields="PROFILE_VISIT_HIDE"');
+    expect(on).not.toContain('data-vip-upload="PROFILE_VISIT_HIDE');
+    // A ticked perk that was switched off keeps its box, so it can be switched back on.
+    const off = editor([{ ...perkOf(simple), enabled: false }]);
+    expect(off).toContain('data-vip-perk-fields="PROFILE_VISIT_HIDE"');
+    // A perk with art still opens its upload box.
+    const art = editor([perkOf(CATALOGUE[1]!)]);
+    expect(art).toContain('data-vip-perk-fields="AVATAR_FRAME"');
+    expect(art).toContain('data-vip-upload="AVATAR_FRAME:animation"');
   });
 
   it("D374: the perks are a checkbox grid by category, «مبنية / قريباً» each; a ticked perk shows its fields", () => {
