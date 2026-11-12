@@ -63,9 +63,18 @@ Future<CutoutStrip> composeCutoutStrip(
   final images = <ui.Image>[];
   try {
     for (final f in kept) {
+      // The engine reads raw RGBA as premultiplied: the colour is scaled by
+      // the person's alpha (the background becomes transparent black, not an
+      // additive glow over dark themes).
       final rgba = Uint8List.fromList(f.rgba);
-      for (var i = 0, p = 3; i < f.alpha.length; i++, p += 4) {
-        rgba[p] = f.alpha[i];
+      for (var i = 0, p = 0; i < f.alpha.length; i++, p += 4) {
+        final a = f.alpha[i];
+        if (a != 255) {
+          rgba[p] = rgba[p] * a ~/ 255;
+          rgba[p + 1] = rgba[p + 1] * a ~/ 255;
+          rgba[p + 2] = rgba[p + 2] * a ~/ 255;
+        }
+        rgba[p + 3] = a;
       }
       images.add(await _decode(rgba, f.width, f.height));
     }

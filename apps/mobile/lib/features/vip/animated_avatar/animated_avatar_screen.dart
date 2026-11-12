@@ -285,10 +285,17 @@ class _AnimatedAvatarScreenState extends ConsumerState<AnimatedAvatarScreen> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(KRadius.lg),
                       child: CustomPaint(
-                        painter: _Checkerboard(
-                          light: palette.surfaceRaised,
-                          dark: palette.surfaceOverlay,
-                        ),
+                        // The transparency checkerboard: two greys that
+                        // read in either theme.
+                        painter: Theme.of(context).brightness == Brightness.dark
+                            ? _Checkerboard(
+                                light: const Color(0xFF2A2A31),
+                                dark: const Color(0xFF3A3A43),
+                              )
+                            : _Checkerboard(
+                                light: const Color(0xFFF4F4F6),
+                                dark: const Color(0xFFDDDDE3),
+                              ),
                         child: stage,
                       ),
                     ),

@@ -36154,7 +36154,7 @@ components:
       description: "(v1.136-social, D384, §10.173) The VIP animated cut-out picture «صورة متحركة»: a looping animated WebP with alpha (the person, background removed on the phone) and its first frame as a still WebP (reduced motion, «إخفاء المؤثرات»). Square frames."
       properties:
         url: { type: string, format: uri, description: "The looping animated WebP (12 frames a second, at most 36 frames, ≤ 1.5 MiB)." }
-        stillUrl: { type: string, format: uri, description: The first frame, a still WebP of the same size. }
+        stillUrl: { type: string, format: uri, description: "The first frame, a still WebP of the same size." }
         width: { type: integer, minimum: 64, maximum: 512 }
         height: { type: integer, minimum: 64, maximum: 512 }
     PostText:

@@ -4329,3 +4329,29 @@ CONVENTIONS §10.172 (owner 2026-11-12). No migration, no new setting, no new se
   people's bags). Store `PROFILE_CARD` items (kind unchanged, still sold) draw their art as the card's background.
 - **Order:** API and panel in any order (shapes unchanged); then the APK. An older app keeps drawing the art its way and
   ignores the colour.
+
+### 5.126 The VIP animated picture «صورة متحركة» (D384; migrations `20270514090000`, `20270514090100`) — [IMPLEMENTED, draft contract v1.136-social; not deployed, not device-tested]
+
+CONVENTIONS §10.173 (owner 2026-11-12). No new setting, no new secret, no new host, no new server dependency (the
+strip is re-encoded with `sharp`, already used for every image).
+
+- **Migrations:** `20270514090000_vip_animated_avatar_enums` (`notification_type` `ANIMATED_AVATAR_REMOVED`, its own
+  transaction) then `20270514090100_vip_animated_avatar` (`user_profiles.animated_avatar_media_id` / `_url` /
+  `_still_url`, CHECK `user_profiles_animated_avatar_shape`, FK to `media_assets` NO ACTION, `media_assets_kind_known`
+  + `ANIMATED_AVATAR`). Additive; the runtime role's DML comes from the default privileges (no GRANT). Nothing to
+  back-fill.
+- **Storage:** each clip is two objects under `media/<id>/` (`clip.webp` ≤ 1.5 MiB, `still.webp`), immutable cache; the
+  raw strip (≤ 8 MiB) is deleted after `complete`. The CDN path is the one every media file uses.
+- **After deploy (owner / panel):** open a VIP tier, tick «صورة متحركة» (ANIMATED_AVATAR; a tick only, no value, no
+  art). Lower tiers' holders inherit it upward as every perk. Moderators remove a clip from the user page («حذف الصورة
+  المتحركة», `users.avatar`).
+- **App build:** two new Flutter plugins — `camera` 0.12.2 (BSD-3-Clause) and `google_mlkit_selfie_segmentation`
+  0.12.1 (MIT; the native Google ML Kit selfie segmentation SDK under Google's ML Kit terms). Android: the bundled
+  segmentation model adds roughly 4–5 MB to the APK (minSdk 24 unchanged; CAMERA already declared). **iOS: the
+  deployment target rises from 15.0 to 15.5** (ML Kit's pod) and `ios/Podfile` is committed with `platform :ios,
+  '15.5'` (Flutter's own template otherwise). The CI `ios` job is the first place this is built; it was not built
+  here (no macOS).
+- **Order:** API (migrations first) and panel in any order, then the APK. An older app ignores
+  `PublicProfile.animatedAvatar` and keeps the round photo; it has no entry to record a clip.
+- **Rollback:** the API can go back (the columns stay unused; the enum value stays). Clips already stored remain in
+  object storage until removed.

@@ -12413,7 +12413,8 @@ fails, and for everyone without one, the round photo with its frame shows as bef
 background like the round photo. The member's own profile header is unchanged (the person card only).
 
 The app's VIP page shows the entry «صورة متحركة» to a holder (record, preview the cut-out over a checkerboard, save,
-re-record, remove). A recording where no person is found in most frames is refused on the phone.
+re-record, remove). A recording where no person is found in most frames is refused on the phone. Picking an existing video from the gallery is not offered yet (it needs a native frame extractor; an owner
+decision).
 
 #### 10.173.5 Moderation and safety
 

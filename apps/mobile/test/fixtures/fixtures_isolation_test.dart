@@ -40,6 +40,9 @@ void main() {
       'feedReels(',
       'feedStories(',
       'fixtureNow',
+      // D384 (test/fixtures/vip/cutout_d384_fixtures.dart).
+      'syntheticCutout',
+      'paintSyntheticBust(',
       // KL-038 (test/fixtures/live/live_api_fixtures.dart,
       // test/helpers/fake_live_repository.dart).
       'apiRooms(',
