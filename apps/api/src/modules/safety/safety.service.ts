@@ -45,12 +45,15 @@ import { lockUserPairIn } from '../social/pair-lock.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import {
   createReportSchema,
+  liveGiftReportSchema,
   reportActionSchema,
   updatePrivacySchema,
   type AdminReportsQuery,
   type CreateReportInput,
 } from './safety.schemas.js';
 import { visibleStoryWhere } from '../stories/stories.service.js';
+import { vipHoldsPerkIn } from '../vip/vip-perks.js';
+import { VIP_PRIVACY_SWITCH_CODES, VIP_PRIVACY_SWITCHES } from '../vip/vip-privacy.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -98,6 +101,16 @@ export interface ReportDto {
   dmGroupSnapshot?: DmGroupSnapshotDto;
   /** v1.47-social (D175): admin views of PROFILE_LINK reports — what the link was. */
   linkSnapshot?: ProfileLinkSnapshot;
+  /**
+   * v1.133-social (D380, §10.170.5): admin views of a USER report filed from a gift (`reportLiveGift`) — the send it
+   * came from and whether it was anonymous (the target is the real sender).
+   */
+  liveGift?: { id: string; anonymous: boolean };
+}
+
+/** v1.133-social (D380): `LiveGiftReportResult` — never names the sender (an anonymous send stays anonymous). */
+export interface LiveGiftReportResultDto {
+  reportedAt: string;
 }
 
 /** v1.47-social (D175): a reported profile link as it was when reported. */
@@ -120,7 +133,21 @@ export interface PrivacyDto {
   hideCherriesReceived: boolean;
   /** v1.77-social (D220, §10.74): others do not get `PublicProfile.coinsSent` (default false). */
   hideCoinsSent: boolean;
+  /**
+   * v1.133-social (D380, §10.170.1): the VIP privacy switches — each present only while the caller holds its perk
+   * (HIDDEN_VISIT, RANKING_ANONYMOUS, KICK_MUTE_SHIELD; the switch is kept when the membership ends).
+   */
+  hiddenVisit?: boolean;
+  rankingAnonymous?: boolean;
+  kickMuteShield?: boolean;
 }
+
+/** D380: the stored column (Prisma field) of each VIP privacy switch. */
+const VIP_SWITCH_COLUMNS = {
+  hiddenVisit: 'vipHiddenVisit',
+  rankingAnonymous: 'vipRankingAnonymous',
+  kickMuteShield: 'vipKickMuteShield',
+} as const;
 
 /**
  * Every report on the same target as `report` (v1.60-social, D191: shared with the admin panel's warn and ban, which
@@ -170,6 +197,8 @@ export function reportTargetId(report: Report): string | undefined {
 
 const REPORT_INCLUDE = {
   reporter: { select: USER_SUMMARY_SELECT },
+  // D380: a report filed from a gift — the send and whether it was anonymous.
+  contextLiveGift: { select: { id: true, anonymous: true } },
   targetUser: { select: { profile: { select: { username: true } } } },
   // D193: the content was deleted with its author's account and is under a legal hold (the hold keeps its id).
   legalHold: { select: { targetId: true } },
@@ -903,17 +932,146 @@ export class SafetyService {
       ...(admin && row.targetType === 'PROFILE_LINK'
         ? { linkSnapshot: linkSnapshotDto(row.linkSnapshot) }
         : {}),
+      ...(admin && row.contextLiveGift
+        ? { liveGift: { id: row.contextLiveGift.id, anonymous: row.contextLiveGift.anonymous } }
+        : {}),
     };
+  }
+
+  /**
+   * v1.133-social (D380, §10.170.5): a live gift the caller received (any send, anonymous or not; never their own), or
+   * 404 — the reporter learns nothing else about it.
+   */
+  private async receivedLiveGift(
+    callerId: string,
+    giftId: string,
+  ): Promise<{ id: string; senderId: string; roomId: string | null; anonymous: boolean }> {
+    if (!isUuid(giftId)) throw new AppException(ErrorCode.NOT_FOUND);
+    const gift = await this.prisma.liveGift.findFirst({
+      where: {
+        id: giftId.toLowerCase(),
+        dmConversationId: null,
+        senderId: { not: callerId },
+        recipients: { some: { userId: callerId } },
+      },
+      select: { id: true, senderId: true, roomId: true, anonymous: true },
+    });
+    if (!gift) throw new AppException(ErrorCode.NOT_FOUND);
+    return gift;
+  }
+
+  /**
+   * v1.133-social (D380, §10.170.5) `POST /live/gifts/{giftId}/reports`: a recipient reports the sender of a live gift
+   * — the way to report an ANONYMOUS_GIFT, whose sender they cannot name. Filed as an ordinary USER report on the real
+   * sender (the team's queue, alerts and actions as any report), with the send (`contextLiveGiftId`) and its live as
+   * the context. The answer never names the sender. The reporter's OPEN report on the same person is reused (201 new,
+   * 200 already reported).
+   */
+  async reportLiveGift(
+    reporterId: string,
+    giftId: string,
+    body: unknown,
+  ): Promise<{ result: LiveGiftReportResultDto; created: boolean }> {
+    const parsed = liveGiftReportSchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const gift = await this.receivedLiveGift(reporterId, giftId);
+    const where: Prisma.ReportWhereInput = { reporterId, status: 'OPEN', targetUserId: gift.senderId };
+    const existing = await this.prisma.report.findFirst({ where, select: { id: true, createdAt: true, contextLiveGiftId: true } });
+    if (existing) {
+      if (existing.contextLiveGiftId === null) {
+        await this.prisma.report.update({ where: { id: existing.id }, data: { contextLiveGiftId: gift.id } });
+      }
+      return { result: { reportedAt: existing.createdAt.toISOString() }, created: false };
+    }
+    try {
+      const row = await this.prisma.report.create({
+        data: {
+          id: uuidv7(),
+          reporterId,
+          targetType: 'USER',
+          targetUserId: gift.senderId,
+          reason: parsed.data.reason,
+          note: parsed.data.note ?? null,
+          contextLiveGiftId: gift.id,
+          ...(gift.roomId !== null ? { contextLiveRoomId: gift.roomId } : {}),
+        },
+        select: { id: true, createdAt: true },
+      });
+      await this.reportAlerts.afterNewReport(row.id, reporterId);
+      return { result: { reportedAt: row.createdAt.toISOString() }, created: true };
+    } catch (err) {
+      if (violatedUniqueIndex(err) !== null) {
+        const raced = await this.prisma.report.findFirst({ where, select: { createdAt: true } });
+        if (raced) return { result: { reportedAt: raced.createdAt.toISOString() }, created: false };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * v1.133-social (D380, §10.170.5) `PUT` / `DELETE /live/gifts/{giftId}/anonymous-block`: the recipient of an
+   * ANONYMOUS_GIFT send refuses (or allows again) every further anonymous gift from its sender, without learning who it
+   * is; the sender's named gifts are unaffected (an ordinary block, from a named gift or the profile, covers everything).
+   * Only for an anonymous send the caller received (404 otherwise). Idempotent; audited
+   * `live.gift.anonymous_block` when it changes (for the team; the recipient's view never names the sender).
+   */
+  async setAnonymousGiftBlock(
+    recipientId: string,
+    giftId: string,
+    blocked: boolean,
+    meta: PrivacyMeta,
+  ): Promise<{ blocked: boolean }> {
+    const gift = await this.receivedLiveGift(recipientId, giftId);
+    if (!gift.anonymous) throw new AppException(ErrorCode.NOT_FOUND);
+    const changed = blocked
+      ? (
+          await this.prisma.anonymousGiftBlock.createMany({
+            data: [{ recipientId, senderId: gift.senderId, giftId: gift.id }],
+            skipDuplicates: true,
+          })
+        ).count
+      : (await this.prisma.anonymousGiftBlock.deleteMany({ where: { recipientId, senderId: gift.senderId } }))
+          .count;
+    if (changed > 0) {
+      await this.audit.record({
+        action: AuditAction.LIVE_GIFT_ANONYMOUS_BLOCK,
+        actorUserId: recipientId,
+        targetType: 'user',
+        targetId: gift.senderId,
+        metadata: { giftId: gift.id, blocked },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+    }
+    return { blocked };
   }
 
   // ---------------------------------------------------------------------------------------------
   // Privacy
 
+  /** D380 (§10.170.1): the VIP privacy switches the caller holds now. */
+  private async heldSwitches(userId: string): Promise<Set<keyof typeof VIP_SWITCH_COLUMNS>> {
+    const now = new Date();
+    const held = await Promise.all(
+      VIP_PRIVACY_SWITCH_CODES.map(async (code) => ({
+        field: VIP_PRIVACY_SWITCHES[code].field,
+        held: await vipHoldsPerkIn(this.prisma, userId, code, now),
+      })),
+    );
+    return new Set(held.filter((h) => h.held).map((h) => h.field));
+  }
+
   async privacy(userId: string): Promise<PrivacyDto> {
-    const [row, settings] = await Promise.all([
+    const [row, settings, held] = await Promise.all([
       this.prisma.privacySettings.findUnique({ where: { userId } }),
       this.prisma.userSettings.findUnique({ where: { userId }, select: { isPrivate: true } }),
+      this.heldSwitches(userId),
     ]);
+    const vip: Partial<Record<keyof typeof VIP_SWITCH_COLUMNS, boolean>> = {};
+    for (const code of VIP_PRIVACY_SWITCH_CODES) {
+      const sw = VIP_PRIVACY_SWITCHES[code];
+      if (held.has(sw.field)) vip[sw.field] = row?.[VIP_SWITCH_COLUMNS[sw.field]] ?? sw.default;
+    }
     return {
       whoCanMention: row?.whoCanMention ?? 'EVERYONE',
       defaultWhoCanComment: row?.defaultWhoCanComment ?? 'EVERYONE',
@@ -922,6 +1080,7 @@ export class SafetyService {
       isPrivate: settings?.isPrivate ?? false,
       hideCherriesReceived: row?.hideCherriesReceived ?? false,
       hideCoinsSent: row?.hideCoinsSent ?? false,
+      ...vip,
     };
   }
 
@@ -933,10 +1092,30 @@ export class SafetyService {
   async updatePrivacy(userId: string, body: unknown, meta: PrivacyMeta): Promise<PrivacyDto> {
     const parsed = updatePrivacySchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
-    const { isPrivate, ...rest } = parsed.data;
+    const { isPrivate, hiddenVisit, rankingAnonymous, kickMuteShield, ...plain } = parsed.data;
+    // D380 (§10.170.1): a VIP privacy switch is set only while its perk is held (409 otherwise, nothing changed).
+    const switches = { hiddenVisit, rankingAnonymous, kickMuteShield };
+    const asked = (Object.keys(switches) as (keyof typeof switches)[]).filter((k) => switches[k] !== undefined);
+    if (asked.length > 0) {
+      const held = await this.heldSwitches(userId);
+      const missing = asked.filter((k) => !held.has(k));
+      if (missing.length > 0) {
+        throw new AppException(
+          ErrorCode.VIP_UNAVAILABLE,
+          undefined,
+          missing.map((field) => ({ field, issue: 'no_perk' })),
+        );
+      }
+    }
+    const rest: Prisma.PrivacySettingsUncheckedUpdateInput & typeof plain = { ...plain };
+    for (const k of asked) rest[VIP_SWITCH_COLUMNS[k]] = switches[k];
     await this.prisma.$transaction(async (tx) => {
       if (Object.keys(rest).length > 0) {
-        await tx.privacySettings.upsert({ where: { userId }, create: { userId, ...rest }, update: rest });
+        await tx.privacySettings.upsert({
+          where: { userId },
+          create: { userId, ...(rest as Omit<Prisma.PrivacySettingsUncheckedCreateInput, 'userId'>) },
+          update: rest,
+        });
       }
       if (isPrivate === undefined) return;
       const [locked] = await tx.$queryRaw<{ is_private: boolean | null }[]>`

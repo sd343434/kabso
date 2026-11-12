@@ -132,6 +132,16 @@ export enum AuditAction {
   VIP_TIER_REORDER = 'vip.tier.reorder',
   /** v1.82-social (D252): a person bought, renewed or upgraded a VIP tier with coins. */
   VIP_PURCHASE = 'vip.purchase',
+  /**
+   * v1.133-social (D380, §10.170.4): KICK_MUTE_SHIELD refused a room moderator's kick / chat mute / seat mute of a
+   * holder (actor: the moderator, target: the member; `metadata.action`, `metadata.roomId`).
+   */
+  VIP_SHIELD_REFUSED = 'vip.shield.refused',
+  /**
+   * v1.133-social (D380, §10.170.5): a recipient refused (`metadata.blocked` true) or allowed again (false) the
+   * anonymous gifts of a send's sender (actor: the recipient, target: the sender — for the team).
+   */
+  LIVE_GIFT_ANONYMOUS_BLOCK = 'live.gift.anonymous_block',
   /** D270 (§10.98): «المتجر» — an item added, changed or switched on / off in the panel. */
   STORE_ITEM_ADD = 'store.item.add',
   STORE_ITEM_UPDATE = 'store.item.update',

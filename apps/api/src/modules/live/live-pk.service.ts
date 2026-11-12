@@ -17,6 +17,7 @@ import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
+import { anonymousUserSummary, vipPrivacyOnIn } from '../vip/vip-privacy.js';
 import { UsersService } from '../users/users.service.js';
 import { TrailingThrottle } from './live-metadata.service.js';
 import {
@@ -772,6 +773,14 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       select: { hostId: true, points: true },
     });
     const pkPointsOf = (hostId: string) => records.find((r) => r.hostId === hostId)?.points ?? 0;
+    // v1.133-social (D380, §10.170.3): the top supporters are a public board sent alike to both rooms — a member with
+    // RANKING_ANONYMOUS on is «مجهول» there (to everyone; the hosts' own PK history keeps the names).
+    const anonymous = await vipPrivacyOnIn(
+      this.prisma,
+      [...supporters.A, ...supporters.B].map((s) => s.userId),
+      'RANKING_ANONYMOUS',
+      now,
+    );
     const forfeitPoints = row.type === 'DARES' ? (await pkDareSettingsIn(this.prisma)).forfeitPoints : null;
     const dare = row.type === 'DARES' ? await this.dareDto(row) : null;
     const people = await this.summaries([
@@ -809,7 +818,10 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
         boosterUses: counts,
         supporters: supporters[s]
           .filter((p) => people.has(p.userId))
-          .map((p) => ({ user: people.get(p.userId)!, points: p.points })),
+          .map((p) => ({
+            user: anonymous.has(p.userId) ? anonymousUserSummary() : people.get(p.userId)!,
+            points: p.points,
+          })),
         guests: guests
           .filter((g) => g.room_id === roomId && people.has(g.user_id))
           .slice(0, 3)

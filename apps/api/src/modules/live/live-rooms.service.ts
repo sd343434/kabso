@@ -147,6 +147,12 @@ export interface UserSummaryDto {
    * present only while the user holds one (an active account; the stored `user_verification_badges` row).
    */
   verification?: VerificationBadgeValue;
+  /**
+   * v1.133-social (D380, §10.170): true (else absent) on the stand-in «مجهول» shown instead of a VIP member — a board's
+   * row with RANKING_ANONYMOUS on, the sender of an ANONYMOUS_GIFT (`anonymousUserSummary`): a random id, no picture,
+   * no badges; the apps show their own «مجهول» and open nothing on a tap.
+   */
+  anonymous?: true;
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER';

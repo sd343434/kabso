@@ -29,8 +29,15 @@ const BUILT = [
   'DAILY_BULLET',
   'PROFILE_VISITORS',
   'LEVEL_SPEEDUP',
+  // D380 (§10.170): the privacy perks built.
+  'HIDDEN_VISIT',
+  'RANKING_ANONYMOUS',
+  'KICK_MUTE_SHIELD',
+  'ANONYMOUS_GIFT',
 ];
-/** The owner's new perks (D374), registered not built. */
+/** D380: the privacy perks built by D380 (counted with BUILT, registered by D374 with the new ones). */
+const D380 = ['HIDDEN_VISIT', 'RANKING_ANONYMOUS', 'KICK_MUTE_SHIELD', 'ANONYMOUS_GIFT'];
+/** The owner's new perks (D374), registered not built (D380's four since built). */
 const NEW = [
   'ANIMATED_COVER',
   'PREMIUM_USERNAME',
@@ -72,9 +79,11 @@ describe('D374 VIP perk catalogue', () => {
     expect(new Set(codes).size).toBe(codes.length);
     expect([...VIP_CATALOGUE_BUILT].sort()).toEqual([...BUILT].sort());
     expect([...VIP_BUILT_PERKS].sort()).toEqual([...BUILT].sort());
-    for (const c of NEW) expect(vipCatalogueEntry(c)?.built, c).toBe(false);
+    for (const c of NEW) expect(vipCatalogueEntry(c)?.built, c).toBe(D380.includes(c));
+    // D380: HIDE_COINS_SENT stays «قريباً» (D220's free switch already hides the number).
+    expect(vipCatalogueEntry('HIDE_COINS_SENT')?.built).toBe(false);
     expect(vipCatalogueEntry('MONTHLY_GIFT')?.built).toBe(false);
-    expect(codes).toHaveLength(BUILT.length + NEW.length + 1);
+    expect(codes).toHaveLength(BUILT.length - D380.length + NEW.length + 1);
     expect(codes.length).toBeLessThanOrEqual(VIP_MAX_PERKS);
     expect(VIP_MAX_PERKS).toBeGreaterThanOrEqual(64);
     // The owner removed DAILY_COINS (2026-11-11): not in the catalogue, retired.

@@ -19,6 +19,7 @@ import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-vi
 import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec, type SocialPosition } from '../posts/social-cursor.js';
 import { holdCherriesIn, taskCherryLockIn } from './cherry-ledger.js';
+import { anonymousUserSummary } from '../vip/vip-privacy.js';
 import { cherriesValueMinor, withdrawableCherries, withdrawalCherries } from './economy-math.js';
 
 /** `CherryPayoutRules` (openapi v1.52-social, D179). */
@@ -220,10 +221,11 @@ export class CherriesService {
               sender_id: string;
               coins: bigint;
               share_bps: number;
+              anonymous: boolean;
             }[]
           >`
             SELECT g.id::text AS id, (g.dm_conversation_id IS NOT NULL) AS dm, g.gift_code, gf.name_ar, gf.name_en,
-                   g.quantity, g.sender_id::text AS sender_id, gr.coins, g.host_share_bps AS share_bps
+                   g.quantity, g.sender_id::text AS sender_id, gr.coins, g.host_share_bps AS share_bps, g.anonymous
               FROM live_gifts g
               JOIN gifts gf ON gf.code = g.gift_code
               JOIN live_gift_recipients gr ON gr.gift_id = g.id AND gr.user_id = ${me}::uuid
@@ -261,8 +263,13 @@ export class CherriesService {
                 giftCoins: Number(g.coins),
                 shareBps: g.share_bps,
                 context: g.dm ? 'DM' : 'LIVE',
-                sender: senders.get(g.sender_id) ?? null,
-                ...(deleted.has(g.sender_id) ? { senderDeleted: true as const } : {}),
+                // v1.133-social (D380, §10.170.5): an anonymous send names no one to its recipient («مجهول»).
+                ...(g.anonymous && g.sender_id !== me
+                  ? { sender: anonymousUserSummary() }
+                  : {
+                      sender: senders.get(g.sender_id) ?? null,
+                      ...(deleted.has(g.sender_id) ? { senderDeleted: true as const } : {}),
+                    }),
               }
             : null,
         };

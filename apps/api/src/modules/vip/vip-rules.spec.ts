@@ -131,6 +131,11 @@ describe('VIP helpers', () => {
       'PROFILE_VISITORS',
       'DAILY_BULLET',
       'LEVEL_SPEEDUP',
+      // D380 (§10.170).
+      'HIDDEN_VISIT',
+      'RANKING_ANONYMOUS',
+      'KICK_MUTE_SHIELD',
+      'ANONYMOUS_GIFT',
     ]) {
       expect(VIP_BUILT_PERKS.has(code)).toBe(true);
       expect(vipPerkAvailable(code)).toBe(true);
@@ -138,7 +143,7 @@ describe('VIP helpers', () => {
     expect(vipPerkAvailable('MONTHLY_GIFT')).toBe(false);
     // D374: the owner removed DAILY_COINS («ازلها»): no longer built.
     expect(vipPerkAvailable('DAILY_COINS')).toBe(false);
-    expect(VIP_BUILT_PERKS.size).toBe(11);
+    expect(VIP_BUILT_PERKS.size).toBe(15);
   });
 
   it("D258: a tier holds every lower tier's perks; the highest tier's perk wins for a code", () => {

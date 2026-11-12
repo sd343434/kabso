@@ -9,6 +9,7 @@ import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-vi
 import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec, type SocialPosition } from '../posts/social-cursor.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
+import { anonymousUserSummary } from '../vip/vip-privacy.js';
 
 /** `WalletLedgerEntry` (openapi v1.43-social, D164). */
 export interface WalletLedgerEntryDto {
@@ -146,9 +147,10 @@ export class WalletHistoryService {
         gift_coins: bigint;
         share_bps: number;
         coins: bigint;
+        anonymous: boolean;
       }[]
     >`
-      SELECT g.id::text AS id, g.created_at, (g.dm_conversation_id IS NOT NULL) AS dm, g.gift_code,
+      SELECT g.id::text AS id, g.created_at, (g.dm_conversation_id IS NOT NULL) AS dm, g.gift_code, g.anonymous,
              gf.name_ar, gf.name_en, g.quantity, g.sender_id::text AS sender_id, gr.coins AS gift_coins,
              g.host_share_bps AS share_bps, floor(gr.coins * g.host_share_bps / 10000.0)::bigint AS coins
         FROM live_gift_recipients gr
@@ -176,8 +178,13 @@ export class WalletHistoryService {
         giftCoins: Number(r.gift_coins),
         shareBps: r.share_bps,
         coins: Number(r.coins),
-        sender: senders.get(r.sender_id) ?? null,
-        ...(deleted.has(r.sender_id) ? { senderDeleted: true as const } : {}),
+        // v1.133-social (D380, §10.170.5): an anonymous send names no one to its recipient («مجهول»).
+        ...(r.anonymous && r.sender_id !== me
+          ? { sender: anonymousUserSummary() }
+          : {
+              sender: senders.get(r.sender_id) ?? null,
+              ...(deleted.has(r.sender_id) ? { senderDeleted: true as const } : {}),
+            }),
       })),
       page: {
         hasMore,

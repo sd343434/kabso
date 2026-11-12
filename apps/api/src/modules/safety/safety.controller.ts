@@ -24,7 +24,12 @@ import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import type { PageDto } from '../posts/post-views.js';
 import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { adminReportsQuerySchema, type AdminReportsQuery } from './safety.schemas.js';
-import { SafetyService, type PrivacyDto, type ReportDto } from './safety.service.js';
+import {
+  SafetyService,
+  type LiveGiftReportResultDto,
+  type PrivacyDto,
+  type ReportDto,
+} from './safety.service.js';
 
 const BLOCK_LIMIT = {
   bucket: 'social:block',
@@ -107,6 +112,48 @@ export class SafetyController {
     const { report, created } = await this.safety.report(auth.userId, body);
     res.status(created ? 201 : 200);
     return report;
+  }
+
+  /** v1.133-social (D380, §10.170.5): a recipient reports a gift's sender (anonymous or not); never names them. */
+  @Post('live/gifts/:giftId/reports')
+  @RateLimit({ bucket: 'social:report', rule: 'reportUser', key: byUserId, replacesDefault: true })
+  async reportLiveGift(
+    @CurrentAuth() auth: AuthContext,
+    @Param('giftId') giftId: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LiveGiftReportResultDto> {
+    const { result, created } = await this.safety.reportLiveGift(auth.userId, giftId, body);
+    res.status(created ? 201 : 200);
+    return result;
+  }
+
+  /** v1.133-social (D380, §10.170.5): refuse the anonymous gifts of an anonymous send's sender. */
+  @Put('live/gifts/:giftId/anonymous-block')
+  @HttpCode(200)
+  @RateLimit(BLOCK_LIMIT)
+  blockAnonymousSender(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Param('giftId') giftId: string,
+  ): Promise<{ blocked: boolean }> {
+    return this.safety.setAnonymousGiftBlock(auth.userId, giftId, true, {
+      ip: clientIp(req),
+      requestId: getRequestId(req),
+    });
+  }
+
+  @Delete('live/gifts/:giftId/anonymous-block')
+  @HttpCode(200)
+  unblockAnonymousSender(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Param('giftId') giftId: string,
+  ): Promise<{ blocked: boolean }> {
+    return this.safety.setAnonymousGiftBlock(auth.userId, giftId, false, {
+      ip: clientIp(req),
+      requestId: getRequestId(req),
+    });
   }
 
   @Get('me/privacy')

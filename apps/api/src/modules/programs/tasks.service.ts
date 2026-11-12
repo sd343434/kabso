@@ -58,6 +58,7 @@ import {
   type TaskPoolBand,
 } from './programs-rules.js';
 import { isLimitedStaff, refuseLimitedStaff } from '../live/live-staff.js';
+import { rankedUser, vipPrivacyOnIn } from '../vip/vip-privacy.js';
 
 type Tx = Prisma.TransactionClient;
 type Db = Pick<Tx, '$queryRaw'>;
@@ -1582,6 +1583,12 @@ export class TasksService {
     lucky: boolean,
     limit: number,
     viewer: string | null = null,
+    /**
+     * v1.133-social (D380, §10.170.3): the public «تارجت» chip — who reads it (null: a guest): a supporter with
+     * RANKING_ANONYMOUS on is «مجهول» (no support level) to everyone but themselves and the host. Undefined: the host's
+     * own statistics (never masked).
+     */
+    reader?: string | null,
   ): Promise<{ list: HostSupporterDto[]; me: HostSupporterRankDto | null }> {
     const rows = await this.prisma.$queryRaw<{ id: string; coins: bigint; cherries: bigint; rank: bigint }[]>`
       WITH per AS (
@@ -1625,14 +1632,21 @@ export class TasksService {
     ]);
     const byId = new Map(users.map((u) => [u.id, userSummary(u)]));
     const levelOf = new Map(levels.map((l) => [l.id, l.level]));
+    const anonymous =
+      reader === undefined
+        ? new Set<string>()
+        : await vipPrivacyOnIn(this.prisma, ids, 'RANKING_ANONYMOUS', new Date());
     const list = top
       .filter((r) => byId.has(r.id))
-      .map((r) => ({
-        user: byId.get(r.id)!,
-        coins: Number(r.coins),
-        cherries: Number(r.cherries),
-        supportLevel: levelOf.get(r.id) ?? null,
-      }));
+      .map((r) => {
+        const user = rankedUser(byId.get(r.id)!, anonymous, reader ?? null, [host]);
+        return {
+          user,
+          coins: Number(r.coins),
+          cherries: Number(r.cherries),
+          supportLevel: user.anonymous ? null : (levelOf.get(r.id) ?? null),
+        };
+      });
     return { list, me };
   }
 
@@ -1699,8 +1713,8 @@ export class TasksService {
     const [giftsCherries, luckyCherries, top, luckyTop] = await Promise.all([
       this.hostCherries(host, day.start, day.end, false),
       this.hostCherries(host, day.start, day.end, true),
-      this.supporters(host, day.start, day.end, false, HOST_SUPPORTERS_LIMIT, me),
-      this.supporters(host, day.start, day.end, true, HOST_SUPPORTERS_LIMIT, me),
+      this.supporters(host, day.start, day.end, false, HOST_SUPPORTERS_LIMIT, me, viewer),
+      this.supporters(host, day.start, day.end, true, HOST_SUPPORTERS_LIMIT, me, viewer),
     ]);
     const target = (received: number, t: number): HostTargetDto => ({
       received,
@@ -1736,8 +1750,8 @@ export class TasksService {
       this.targets.daily(host, lang),
       this.hostCherries(host, day.start, day.end, false),
       this.hostCherries(host, day.start, day.end, true),
-      this.supporters(host, day.start, day.end, false, HOST_SUPPORTERS_LIMIT, me),
-      this.supporters(host, day.start, day.end, true, HOST_SUPPORTERS_LIMIT, me),
+      this.supporters(host, day.start, day.end, false, HOST_SUPPORTERS_LIMIT, me, viewer),
+      this.supporters(host, day.start, day.end, true, HOST_SUPPORTERS_LIMIT, me, viewer),
       this.levelOf(this.prisma, host).then(async (level) =>
         bandForLevel(level, await this.bands(this.prisma)),
       ),

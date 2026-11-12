@@ -135,7 +135,8 @@ describe('D374 VIP perk catalogue', { timeout: 180_000 }, () => {
     const saved = new Map((ok.body.perks as (PerkOut & { titleAr: string })[]).map((pk) => [pk.code, pk]));
     expect(saved.size).toBe(VIP_PERK_CATALOGUE.length);
     // Absent titles are the catalogue's.
-    expect(saved.get('HIDDEN_VISIT')!.titleAr).toBe('زيارة مخفية');
+    // D380: the owner's title «زيارة خفية».
+    expect(saved.get('HIDDEN_VISIT')!.titleAr).toBe('زيارة خفية');
     expect(saved.get('DAILY_BULLET')).toMatchObject({ amount: 5, value: 5 });
     expect(saved.get('LEVEL_SPEEDUP')).toMatchObject({ amount: 2, value: 2 });
     expect(saved.get('MONTHLY_ROCKETS')!.value).toEqual({ count: 2, stage: 'STAGE_2' });
