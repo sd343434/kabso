@@ -978,6 +978,8 @@ describe('KL-037 public profile and follow', () => {
       // v1.77-social (D220): the lifetime totals the user does not hide (nothing received or sent yet).
       cherriesReceived: 0,
       coinsSent: 0,
+      // v1.130-social (D376, §10.167): no status emoji «الحالة» worn.
+      statusEmojiId: null,
     });
     const self = await profile(target, target.username);
     expectContract(self, 'getPublicProfile');

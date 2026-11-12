@@ -27,6 +27,8 @@ const ME_REQUIRED = [
   'coverUrl',
   // v1.90-social (D293): the automatic verification badge (nullable, always present).
   'verification',
+  // v1.130-social (D376, §10.167): the status emoji «الحالة» (nullable, always present).
+  'statusEmojiId',
   'id',
   'email',
   'emailVerified',

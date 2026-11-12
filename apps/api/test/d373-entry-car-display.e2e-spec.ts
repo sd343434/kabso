@@ -297,14 +297,21 @@ describe('D373 an entry car plays full screen or half screen', { timeout: 180_00
     const tier = (list.body.data as { id: string; perks: Json[] }[]).find((t) => t.id === VIP1)!;
     expect(tier.perks.find((x) => x.code === 'ENTRY_EFFECT')!.entryDisplay).toBe('FULL_SCREEN');
     expect(tier.perks.find((x) => x.code === 'BADGE')!.entryDisplay).toBeNull();
-    // The panel's perk inputs: the output less what is not an input.
+    // The panel's perk inputs: the output less what is not an input. v1.129-social (D374): a perk outside the catalogue
+    // (retired, or saved before it) is dropped, as the panel does — the server refuses its code.
     const inputs = (extra: (code: string) => Json) =>
-      tier.perks.map((x) => {
-        const { available: _a, entryDisplay: _e, ...rest } = x;
-        void _a;
-        void _e;
-        return { ...rest, ...extra(x.code as string) };
-      });
+      tier.perks
+        .filter((x) => x.catalogued !== false && x.retired !== true)
+        .map((x) => {
+          // v1.129-social (D374): `category`, `catalogued` and `retired` are read-only too.
+          const { available: _a, entryDisplay: _e, category: _c, catalogued: _k, retired: _r, ...rest } = x;
+          void _a;
+          void _e;
+          void _c;
+          void _k;
+          void _r;
+          return { ...rest, ...extra(x.code as string) };
+        });
 
     const bad = await p.send(owner, 'patch', `/admin/vip/tiers/${VIP1}`, {
       perks: inputs((code) => (code === 'BADGE' ? { entryDisplay: 'HALF_SCREEN' } : {})),

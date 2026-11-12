@@ -78,6 +78,8 @@ describe('POST /auth/register', () => {
       coverUrl: null,
       // v1.90-social (D293): no verification badge yet.
       verification: null,
+      // v1.130-social (D376, §10.167): no status emoji «الحالة» yet.
+      statusEmojiId: null,
     });
     const { tokens } = res.body as AuthBody;
     expect(tokens.accessToken.split('.')).toHaveLength(3);

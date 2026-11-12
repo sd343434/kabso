@@ -87,11 +87,14 @@ describe('D166 contract coverage', () => {
     // (store items bought with coins or cherries); neither is a B5 money purchase, so both are excluded here.
     // v1.110-social (D345, §10.144) is B5 for the stores only: Google Play / App Store purchases under
     // `/store/iap/` and the panel's `/admin/store-iap/` (int21: excluded by path; nothing else may buy coins).
+    // v1.130-social (D376, §10.167): `buyStatusPack POST /status-packs/{packId}/purchases` buys a status pack with
+    // coins (like D270's store items), not a B5 money purchase: excluded by path.
     expect(
       ids.filter(
         (id) =>
           /recharge-packages\/|purchase/i.test(id) &&
           !/\/me\/(vip|store)\//.test(id) &&
+          !/ \/api\/v1\/status-packs\//.test(id) &&
           !/ \/api\/v1\/(store\/iap|admin\/store-iap)\//.test(id),
       ),
     ).toEqual([]);
