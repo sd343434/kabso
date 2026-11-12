@@ -1,7 +1,8 @@
 // D384 (owner 2026-11-12: «انتبه جيداً لطريقة الصورة شخصية»; CONVENTIONS
-// §10.173.4): the VIP animated picture «صورة متحركة» on the person card —
-// the member's cut-out loops large above the name instead of the round
-// photo, its head over the sheet's top edge, a soft shadow under the chin;
+// §10.173.4; then «اجعلها كأنها بإطار دائري بنفس حجم الإطار السابق»): the VIP
+// animated picture «صورة متحركة» on the person card — the member's cut-out in
+// the round photo's place: the same circle, size and position, inside the
+// same ring and frames, the head popping a little over the circle's top edge;
 // its still under reduced motion or «إخفاء مؤثرات الهدايا»; the round photo
 // while it loads, when it fails and for everyone without one; over the D383
 // VIP background too; nothing overflows at 360 / 393 × 1.0 / 1.3, ar / en.
@@ -116,16 +117,22 @@ void main() {
   }
 
   group('D384 the animated picture on the person card', () {
-    testWidgets('a holder with a clip: the cut-out plays instead of the '
-        'round photo', (tester) async {
+    testWidgets('a holder with a clip: the cut-out plays in the round '
+        "photo's circle, inside the same ring", (tester) async {
       await serveStandIn(tester);
       await _card(tester, _profile());
       expect(find.byKey(LivePersonSheet.cutoutKey), findsOneWidget);
       expect(find.byKey(VipCutout.playingKey), findsOneWidget);
       expect(find.byKey(VipCutout.stillKey), findsNothing);
       expect(find.byKey(VipCutout.fallbackKey), findsNothing);
-      expect(find.byKey(VipCutout.shadowKey), findsOneWidget);
-      expect(find.byKey(LivePersonSheet.ringKey), findsNothing);
+      // The same ring as the photo, the cut-out inside it.
+      expect(
+        find.descendant(
+          of: find.byKey(LivePersonSheet.ringKey),
+          matching: find.byKey(LivePersonSheet.cutoutKey),
+        ),
+        findsOneWidget,
+      );
       expect(requested.toSet(), {syntheticCutoutUrl});
       // A tap still opens the profile (the picture keeps its role).
       expect(
@@ -193,32 +200,56 @@ void main() {
       expect(requested, contains(syntheticCutoutStillUrl));
     });
 
-    testWidgets("it sits above the name, the head over the sheet's top edge", (
+    testWidgets('the same circle as the photo: same size and place; the head '
+        "pops over the circle's top, the bottom and sides clipped", (
       tester,
     ) async {
       await serveStandIn(tester);
+      await _card(tester, _profile(cutout: false));
+      final ring = tester.getRect(find.byKey(LivePersonSheet.ringKey));
+      final name = tester.getRect(find.byKey(LivePersonSheet.nameKey));
       await _card(tester, _profile());
       final cut = tester.getRect(find.byKey(LivePersonSheet.cutoutKey));
-      // The sheet's own box starts under its top margin (the edge).
-      final box = find
-          .descendant(
-            of: find.byKey(LivePersonSheet.sheetKey),
-            matching: find.byType(Container),
-          )
-          .first;
-      final margin = tester.widget<Container>(box).margin!.vertical;
-      final sheet = tester.getRect(box);
-      final edge = sheet.top + margin;
-      final name = tester.getRect(find.byKey(LivePersonSheet.nameKey));
-      // The head is over the edge; most of the picture inside the sheet.
-      expect(cut.top, lessThan(edge));
-      expect(cut.bottom, greaterThan(edge));
-      expect(edge - cut.top, closeTo(cut.height * 0.28, 1));
-      // Large (about 43 % of 393, at most 168) and centred.
-      expect(cut.width, 168);
-      expect(cut.center.dx, closeTo(393 / 2, 1));
-      // The name below it.
-      expect(name.top, greaterThanOrEqualTo(cut.bottom - 1));
+      // The photo's circle inside the same ring, at the same place; the
+      // name does not move.
+      expect(tester.getRect(find.byKey(LivePersonSheet.ringKey)), ring);
+      expect(cut.width, LivePersonCardMetrics.avatar);
+      expect(cut.height, LivePersonCardMetrics.avatar);
+      expect(cut.center.dx, closeTo(ring.center.dx, 0.5));
+      expect(cut.center.dy, closeTo(ring.center.dy, 0.5));
+      expect(tester.getRect(find.byKey(LivePersonSheet.nameKey)), name);
+      // The picture is drawn up to the pop over the circle's top (the
+      // clip: the circle and a head band above it).
+      final drawn = tester.getRect(
+        find.descendant(
+          of: find.byKey(LivePersonSheet.cutoutKey),
+          matching: find.byType(ClipPath),
+        ),
+      );
+      expect(
+        cut.top - drawn.top,
+        closeTo(LivePersonCardMetrics.avatar * VipCutoutMetrics.pop, 0.5),
+      );
+      expect(drawn.bottom, closeTo(cut.bottom, 0.5));
+      expect(drawn.width, cut.width);
+      final clip = tester.widget<ClipPath>(
+        find.descendant(
+          of: find.byKey(LivePersonSheet.cutoutKey),
+          matching: find.byType(ClipPath),
+        ),
+      );
+      final path = clip.clipper!.getClip(drawn.size);
+      final d = cut.width;
+      final pop = d * VipCutoutMetrics.pop;
+      // The head band over the circle's top, centred.
+      expect(path.contains(Offset(d / 2, pop * 0.5)), isTrue);
+      // Clipped at the sides above the circle, and outside the circle at
+      // the bottom corners.
+      expect(path.contains(Offset(2, pop * 0.5)), isFalse);
+      expect(path.contains(Offset(2, pop + d - 2)), isFalse);
+      expect(path.contains(Offset(d - 2, pop + d - 2)), isFalse);
+      // Inside the circle.
+      expect(path.contains(Offset(d / 2, pop + d - 2)), isTrue);
     });
 
     testWidgets('over the D383 VIP background: both, the cut-out on top', (
@@ -261,16 +292,13 @@ void main() {
             expect(cut.left, greaterThanOrEqualTo(0));
             expect(cut.right, lessThanOrEqualTo(width));
             expect(cut.top, greaterThanOrEqualTo(0));
-            expect(cut.width, closeTo((width * 0.43).clamp(120, 168), 0.01));
-            // The top tools leave the face free.
+            // The photo's circle: the same size at any width.
+            expect(cut.width, LivePersonCardMetrics.avatar);
+            // The top tools leave the circle free.
             for (final tool
                 in find.byKey(LivePersonToolKeys.report).evaluate()) {
               final r = tester.getRect(find.byWidget(tool.widget));
-              expect(
-                r.right <= cut.center.dx - cut.width * 0.3 ||
-                    r.left >= cut.center.dx + cut.width * 0.3,
-                isTrue,
-              );
+              expect(r.right <= cut.left || r.left >= cut.right, isTrue);
             }
           });
         }

@@ -89,6 +89,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.da
 import 'package:kabso_live/features/live/tools/live_tools_stage.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
+import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/recharge/presentation/live_recharge_entrance.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/features/staff/application/staff_providers.dart';
@@ -2884,6 +2885,7 @@ Future<void> showHostSheet(
   String username, {
   LivePersonScope? scope,
   VoidCallback? onInvite,
+  KabsoProfileHeader? header,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -2894,14 +2896,16 @@ Future<void> showHostSheet(
   // Owner (2026-10-26): the card is as tall as its content, laid out to
   // stay under the middle of a common phone (393×852); a small phone lets
   // it grow a little rather than scroll (the card must not move). Only
-  // very large text scrolls. D383: the redesigned card (number pills, round
-  // buttons, soft pills) is taller: up to 80 % of the screen, the live still
-  // showing above it.
+  // very large text scrolls.
   constraints: KMetrics.sheetConstraints(
-    maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+    maxHeight: MediaQuery.sizeOf(context).height * 0.62,
   ),
-  builder: (_) =>
-      LivePersonSheet(username: username, scope: scope, onInvite: onInvite),
+  builder: (_) => LivePersonSheet(
+    username: username,
+    scope: scope,
+    onInvite: onInvite,
+    header: header,
+  ),
 );
 
 /// D231 (owner: «عند الضغط على الخصم لا تظهر البطاقة التعريفية»): the other

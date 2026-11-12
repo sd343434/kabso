@@ -1,9 +1,10 @@
-// D383 (owner 2026-11-12: no box or frame around the person card; a new
-// card after a reference, look only): the person card over the real audio
+// D383 (owner 2026-11-12: no box or frame around the person card; the
+// earlier layout kept, «ارى ان شكل البطاقة السابقة اجمل»; the VIP
+// PROFILE_CARD perk is its background): the person card over the real audio
 // room at 393×852 (insets 59 / 34), the clock pinned, Arabic and English,
 // light and dark:
 //
-//   person_card_d383.plain        the plain card (everyone without the perk)
+//   person_card_d383.plain        the earlier card (everyone without the perk)
 //   person_card_d383.vip_color    a VIP whose PROFILE_CARD is a colour
 //   person_card_d383.vip_art      a VIP whose PROFILE_CARD is an art (its
 //                                 still: tests never animate), under a scrim

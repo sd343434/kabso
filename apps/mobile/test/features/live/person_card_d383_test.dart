@@ -1,21 +1,17 @@
-// D383 (owner 2026-11-12: «اريد الغاء فكرة صندوق او إطار بطاقة الملف
-// التعريفية وعمل فكرة اخرى»): the person card in live and party rooms —
-// no box or frame around it; the name very large, a green «في بث الآن» line
-// while the person broadcasts, the bio, one light pill per number shown,
-// round colourful buttons for the quick actions, soft pills for the rest.
-// The VIP PROFILE_CARD perk is the card's background (a colour and / or a
-// moving art behind the content, dimmed by a scrim; still under reduced
-// motion or «إخفاء مؤثرات الهدايا»); everyone else gets the plain card.
+// D383 (owner 2026-11-12): no box or frame around the person card; the card
+// keeps its earlier layout (owner: «ارى ان شكل البطاقة السابقة اجمل لكن ميزة
+// ... خلفية متحركة للبطاقة يمكن تطبيقهم»). The VIP PROFILE_CARD perk is the
+// card's background: a colour and / or a moving art behind the content,
+// dimmed by a scrim; still under reduced motion or «إخفاء مؤثرات الهدايا».
+// Everyone else gets the earlier card exactly.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
-import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/live/application/live_viewer_prefs.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
@@ -30,7 +26,6 @@ import '../../fixtures/live/live_api_fixtures.dart';
 import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fake_safety_repository.dart';
 import '../../helpers/golden.dart';
-import '../../helpers/pump_app.dart';
 import '../bonds/bonds_harness.dart';
 
 const _vip = UserVip(tier: 'VIP_1', rank: 1, color: 0xFF2E8B3D);
@@ -137,153 +132,13 @@ Color _nameInk(WidgetTester tester) => tester
     .color!;
 
 void main() {
-  final en = l10nFor(AppLanguage.en);
-
   setUp(() {
     // The hosted art's stand-in: Kabso's own theme art (bundled).
     vipImageFor = (_) => const AssetImage('assets/live_themes/galaxy.webp');
   });
   tearDown(() => vipImageFor = NetworkImage.new);
 
-  group('D383 the new person card', () {
-    testWidgets('every element: name, live line, ID, bio, number pills, '
-        'round buttons, soft pills', (tester) async {
-      await _card(
-        tester,
-        _profile().copyWith(bio: 'Arabic music every evening'),
-        scope: LivePersonScope(
-          roomId: 'room-0',
-          onGift: (_) {},
-          onMention: (_) {},
-          onBoost: () {},
-        ),
-      );
-      expect(find.byKey(LivePersonSheet.nameKey), findsOneWidget);
-      expect(find.byKey(LivePersonSheet.liveNowKey), findsOneWidget);
-      expect(find.text(en.profileLiveNowTitle), findsOneWidget);
-      expect(find.byKey(LivePersonSheet.copyKey), findsOneWidget);
-      expect(find.text('Arabic music every evening'), findsOneWidget);
-      for (final s in LivePersonStat.values) {
-        expect(find.byKey(LivePersonSheet.statKey(s)), findsOneWidget);
-      }
-      final actions = find.byKey(LivePersonSheet.actionsKey);
-      for (final k in [
-        LivePersonSheet.followKey,
-        LivePersonSheet.messageKey,
-        LivePersonSheet.giftKey,
-        LivePersonSheet.mentionKey,
-        LivePersonSheet.boostKey,
-      ]) {
-        expect(
-          find.descendant(of: actions, matching: find.byKey(k)),
-          findsOneWidget,
-          reason: '$k',
-        );
-      }
-      final pills = find.byKey(LivePersonSheet.pillsKey);
-      for (var i = 0; i < 3; i++) {
-        expect(
-          find.descendant(
-            of: pills,
-            matching: find.byKey(LivePersonBoxes.boxKey(i)),
-          ),
-          findsOneWidget,
-        );
-      }
-      // In order: name, live line, bio, numbers, round buttons, soft pills.
-      final ys = [
-        LivePersonSheet.nameKey,
-        LivePersonSheet.liveNowKey,
-        LivePersonSheet.bioKey,
-        LivePersonSheet.statsKey,
-        LivePersonSheet.actionsKey,
-        LivePersonSheet.pillsKey,
-      ].map((k) => tester.getRect(find.byKey(k)).top).toList();
-      expect(ys, orderedEquals(List<double>.of(ys)..sort()));
-      // Every round button: a solid circle with a white icon.
-      for (final circle in tester.widgetList<Container>(
-        find.byKey(const Key('room.userCard.action.circle')),
-      )) {
-        final deco = circle.decoration! as BoxDecoration;
-        expect(deco.shape, BoxShape.circle);
-        expect(deco.color!.a, 1);
-        expect(deco.border, isNull);
-      }
-    });
-
-    testWidgets('no live line when the person does not broadcast (presence '
-        'is never shown: the server gives it to nobody here)', (tester) async {
-      await _card(tester, _profile().copyWith(liveRoomId: null, live: null));
-      expect(find.byKey(LivePersonSheet.liveNowKey), findsNothing);
-      expect(find.text(en.profileLiveNowTitle), findsNothing);
-    });
-
-    testWidgets('hidden numbers stay hidden: no pill, no value', (
-      tester,
-    ) async {
-      await _card(
-        tester,
-        _profile().copyWith(cherriesReceived: null, coinsSent: null),
-      );
-      expect(
-        find.byKey(LivePersonSheet.statKey(LivePersonStat.cherries)),
-        findsNothing,
-      );
-      expect(
-        find.byKey(LivePersonSheet.statKey(LivePersonStat.coins)),
-        findsNothing,
-      );
-      expect(find.text(en.liveCardCherries), findsNothing);
-      expect(find.text(en.liveCardCoinsSent), findsNothing);
-      expect(
-        find.byKey(LivePersonSheet.statKey(LivePersonStat.followers)),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('moderation: the host and moderators only', (tester) async {
-      // A viewer looking at a viewer: points, report, ⋯ only.
-      await _card(tester, _profile());
-      expect(find.byKey(LivePersonToolKeys.points), findsOneWidget);
-      expect(find.byKey(LivePersonToolKeys.reportQuick), findsOneWidget);
-      for (final k in [
-        LivePersonToolKeys.kick,
-        LivePersonToolKeys.mute,
-        LivePersonToolKeys.admin,
-      ]) {
-        expect(find.byKey(k), findsNothing, reason: '$k');
-      }
-      // The host: kick, chat mute and make moderator.
-      await _card(
-        tester,
-        _profile(),
-        scope: LivePersonScope(
-          roomId: 'room-0',
-          viewer: LivePersonRole.host,
-          onModerator: (_, {required moderator}) async {},
-        ),
-      );
-      for (final k in [
-        LivePersonToolKeys.kick,
-        LivePersonToolKeys.mute,
-        LivePersonToolKeys.admin,
-      ]) {
-        expect(find.byKey(k), findsOneWidget, reason: '$k');
-      }
-      // A moderator: kick and mute, not moderator.
-      await _card(
-        tester,
-        _profile(),
-        scope: LivePersonScope(
-          roomId: 'room-0',
-          viewer: LivePersonRole.moderator,
-          onModerator: (_, {required moderator}) async {},
-        ),
-      );
-      expect(find.byKey(LivePersonToolKeys.kick), findsOneWidget);
-      expect(find.byKey(LivePersonToolKeys.admin), findsNothing);
-    });
-
+  group('D383 the person card without the perk', () {
     testWidgets('a non-holder gets the plain card: no frame art, no '
         'background, the theme surface', (tester) async {
       for (final brightness in Brightness.values) {

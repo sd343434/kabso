@@ -5,7 +5,9 @@
 // stand-in (test/fixtures/vip/cutout_d384_fixtures.dart; no real face).
 //
 //   person_card_d384.cutout          the person card over the real audio
-//                                    room, the cut-out above the name
+//                                    room, the cut-out in the photo's circle
+//                                    (owner: «بإطار دائري بنفس حجم الإطار
+//                                    السابق»)
 //   person_card_d384.cutout_vip_art  the same over the D383 VIP background
 //   animated_avatar_d384.preview     «صورة متحركة» after recording: the
 //                                    cut-out previewed over the checkerboard

@@ -628,14 +628,16 @@ info:
     down with `removeAdminUserAnimatedAvatar` (`users.avatar`, audited `admin.animated_avatar.remove`, notification
     `ANIMATED_AVATAR_REMOVED`); `AdminUserDetail.user.animatedAvatarUrl`. Migrations
     `20270514090000_vip_animated_avatar_enums`, `20270514090100_vip_animated_avatar`. Additive.
-    **D383 (DRAFT v1.135-social)** the person card redesigned and the VIP `PROFILE_CARD` perk redefined (CONVENTIONS
+    **D383 (DRAFT v1.135-social)** no box or frame around the person card (its earlier layout kept) and the VIP
+    `PROFILE_CARD` perk redefined (CONVENTIONS
     §10.172; owner 2026-11-12: «الغاء فكرة صندوق او إطار بطاقة الملف التعريفية» — no box or frame around the person
     card; then «لا ستكون موجودة بحيث ستكون مثلاً تغير لون خلفية او تكون خلفية فيها عناصر متحركة»): `PROFILE_CARD` stays
     (not retired) and is now the person card's **background** — its catalogue `value` becomes `color` (`#RRGGBB`, null =
     no colour; was `none`) and its art takes SVGA / MP4 / PNG / WebP (canvas hint 1080 × 1440; was SVGA / PNG / WebP,
     720 × 1280), titled «خلفية البطاقة التعريفية» / "Card background". A tier saved before keeps its row: no value is
-    valid, and its art becomes the background. The app no longer draws the bag `PROFILE_CARD` header ornament on the
-    person card. No new operation, field, enum value or code; no migration. Additive (an older app keeps drawing the
+    valid, and its art becomes the background. The bag's `PROFILE_CARD` header ornaments are hidden in the app pending
+    the owner's decision (not drawn, not listed; items and API unchanged). Store `PROFILE_CARD` items stay on sale as
+    card backgrounds. No new operation, field, enum value or code; no migration. Additive (an older app keeps drawing the
     art as before and ignores the colour).
     **D374 (DRAFT v1.129-social)** the VIP perk catalogue (CONVENTIONS §10.166; owner 2026-11-11: each VIP tier gets
     the perks the admin picks in the panel, with art where needed): `AdminVipTierList.catalogue` (`VipPerkCatalogueEntry`,
@@ -33179,7 +33181,7 @@ components:
       properties:
         animatedAvatar:
           $ref: '#/components/schemas/AnimatedAvatar'
-          description: "(v1.136-social, D384, §10.173) The VIP animated cut-out picture — present only while the person holds an active VIP with the ANIMATED_AVATAR perk (inherited) and has set a clip, and never when either of the two blocked the other or for a limited Kabso Team account. The person card shows it above the name instead of the round photo. Absent otherwise (the clip is kept when the VIP ends and shows again on renewal)."
+          description: "(v1.136-social, D384, §10.173) The VIP animated cut-out picture — present only while the person holds an active VIP with the ANIMATED_AVATAR perk (inherited) and has set a clip, and never when either of the two blocked the other or for a limited Kabso Team account. The person card shows it in the round photo's place — the same circle, size and position, inside the same ring, VIP frame or bag frame — the head popping a little over the circle's top edge (owner: «اجعلها كأنها بإطار دائري بنفس حجم الإطار السابق»). Absent otherwise (the clip is kept when the VIP ends and shows again on renewal)."
         kabsoOwner:
           type: boolean
           const: true
@@ -37817,7 +37819,7 @@ components:
     BagCategory:
       type: string
       enum: [PROFILE_CARD, AVATAR_FRAME, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT, MIC_WAVE]
-      description: "(v1.84-social, D270, §10.98) CHAT_BUBBLE, ENTRY_BANNER and ENTRY_EFFECT are also real bag items now (sold in the store); only MIC_WAVE stays VIP-only. A bag category; one worn item each (v1.65-live, D264). PROFILE_CARD: the decoration on the profile card's header (v1.65-live, D264: or the VIP card art; v1.135-social, D383: the app no longer draws the header decoration on the person card, and the VIP / store card art is the card's background — the items stay owned and wearable). AVATAR_FRAME (v1.46-levels, D169): the frame around the user's photo (the support level's tier frames; v1.65-live, D264: the VIP frame too). (v1.65-live, D264, §10.97) VIP items only: CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT (the entry car), MIC_WAVE. More categories come later; clients ignore items of categories they do not know (§10.22)."
+      description: "(v1.84-social, D270, §10.98) CHAT_BUBBLE, ENTRY_BANNER and ENTRY_EFFECT are also real bag items now (sold in the store); only MIC_WAVE stays VIP-only. A bag category; one worn item each (v1.65-live, D264). PROFILE_CARD: the decoration on the profile card's header (v1.65-live, D264: or the VIP card art; v1.135-social, D383: the app hides the header decorations pending the owner's decision — not drawn, not listed; the items stay owned — and the VIP / store card art is the card's background). AVATAR_FRAME (v1.46-levels, D169): the frame around the user's photo (the support level's tier frames; v1.65-live, D264: the VIP frame too). (v1.65-live, D264, §10.97) VIP items only: CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT (the entry car), MIC_WAVE. More categories come later; clients ignore items of categories they do not know (§10.22)."
     BagItemSource:
       type: string
       enum: [FREE_SIGNUP, BACKFILL, ADMIN, LEVEL_REWARD, GIFT, HOST_ACTIVE, VIP, STORE, EVENT]

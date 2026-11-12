@@ -783,7 +783,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
 | v1.126-social (draft) | 2026-11-11 | **D370 (owner 2026-11-11: «نقاط الشحن» — every recharged coin is one point, the points accumulate and never expire «النقاط لا تصفر كل شهر بل تبقى مجموع», and buy VIP «استبدل بالنقاط» beside «ادفع بالعملات الذهبية»; owner-approved points prices VIP1 2 000 000 … VIP12 400 000 000):** `getMyRechargePoints` (`GET /me/recharge-points`; `RechargePoints`, `RechargePointsEntry`, `RechargePointsReason`); `BuyVipRequest.payWith` (`VipPayWith` COINS default \| POINTS) and `pricePoints` (`priceCoins` required only with COINS); `VipTier.pricePoints` / `renewPricePoints`; `MyVip.rechargePoints`, `MyVip.renewal.pricePoints`; `VipPurchaseResult.payWith` / `pricePoints` / `listPricePoints` / `rechargePoints` (`priceCoins` 0 with POINTS); code `INSUFFICIENT_RECHARGE_POINTS` (409), `VIP_UNAVAILABLE` issue `no_points_price`; the panel's `AdminVipTier.pointsPrice` (+ create / update), `listAdminUserLedger?kind=recharge_points`, `AdminUserDetail.balances.rechargePoints` / `ledger.rechargePoints`, `adjustAdminUserRechargePoints` (`AdminRechargePointsAdjustRequest` / `Result`; audit `recharge_points.adjust`). Migration `20270430090000_recharge_points`. §4, §8, §10.163. | **Additive.** An older app sends no `payWith` and buys with coins exactly as before (the coin purchase's idempotency hash is unchanged); new response fields are ignored by older clients. No back-fill: points start with the recharges after the deploy. |
 | v1.136-social (draft) | 2026-11-12 | **D384 (owner 2026-11-12: «انتبه جيداً لطريقة الصورة شخصية» — a reference recording, look only, kept out of git, D40; then: an animated cut-out clip, and a VIP perk):** the VIP «صورة متحركة» — catalogue code `ANIMATED_AVATAR` (IDENTITY, value none, no art, **built**); `MediaKind` `ANIMATED_AVATAR` (`image/png` ≤ 8 MiB: a strip of 2–36 square frames, 64–512 px, alpha, 12 a second; re-encoded to a looping animated WebP ≤ 1.5 MiB + a still); `setMyAnimatedAvatar` / `removeMyAnimatedAvatar` (`PUT` / `DELETE /me/animated-avatar`, `SetAnimatedAvatarRequest`, `AnimatedAvatar`; 409 `VIP_UNAVAILABLE` `no_perk`); `PublicProfile.animatedAvatar` (optional: only while the perk is held, never across a block); the panel's `removeAdminUserAnimatedAvatar` (`users.avatar`), `AdminUserDetail.user.animatedAvatarUrl`; `NotificationType.ANIMATED_AVATAR_REMOVED`; audit `user.animated_avatar.update`, `admin.animated_avatar.remove`. Migrations `20270514090000_vip_animated_avatar_enums`, `20270514090100_vip_animated_avatar`. §4, §7, §8, §10.94.1, §10.166.1, §10.173. | **Additive** (new operations, an optional response field, enum values; clients ignore unknown notification types; an older app shows the round photo). |
-| v1.135-social (draft) | 2026-11-12 | **D383 (owner 2026-11-12: «اريد الغاء فكرة صندوق او إطار بطاقة الملف التعريفية وعمل فكرة اخرى»; then «لا ستكون موجودة بحيث ستكون مثلاً تغير لون خلفية او تكون خلفية فيها عناصر متحركة»):** the person card in live and party rooms redesigned (no box or frame around it); the VIP perk `PROFILE_CARD` **kept and redefined** as the card's background — catalogue `value` `none` → `color` (`#RRGGBB`, null = none), art SVGA / MP4 / PNG / WebP (hint 1080 × 1440; MP4 is new for this perk), titles «خلفية البطاقة التعريفية» / "Card background". The bag `PROFILE_CARD` header ornament is no longer drawn on the person card (items kept). No new operation, field, enum value or error code; no migration. §10.94.1, §10.166.1, §10.172. | **Additive.** A tier saved before is valid (no value) and its art becomes the background; an older app draws the art as before and ignores the colour; the panel's generic perk form already edits a `color` value and MP4 art. |
+| v1.135-social (draft) | 2026-11-12 | **D383 (owner 2026-11-12: «اريد الغاء فكرة صندوق او إطار بطاقة الملف التعريفية وعمل فكرة اخرى»; then «لا ستكون موجودة بحيث ستكون مثلاً تغير لون خلفية او تكون خلفية فيها عناصر متحركة»):** no box or frame around the person card in live and party rooms (owner, then: «ارى ان شكل البطاقة السابقة اجمل» — the earlier layout is kept, only the background changes); the VIP perk `PROFILE_CARD` **kept and redefined** as the card's background — catalogue `value` `none` → `color` (`#RRGGBB`, null = none), art SVGA / MP4 / PNG / WebP (hint 1080 × 1440; MP4 is new for this perk), titles «خلفية البطاقة التعريفية» / "Card background". The bag `PROFILE_CARD` header ornaments are hidden in the app pending the owner's decision (one UI flag; items, the free `bunny_royal` and the API kept); store `PROFILE_CARD` items stay on sale as backgrounds. No new operation, field, enum value or error code; no migration. §10.94.1, §10.166.1, §10.172. | **Additive.** A tier saved before is valid (no value) and its art becomes the background; an older app draws the art as before and ignores the colour; the panel's generic perk form already edits a `color` value and MP4 art. |
 | v1.129-social (draft) | 2026-11-11 | **D374 (owner 2026-11-11: each VIP tier gets the perks the admin PICKS in the panel, with art uploads where needed — the owner's list: the eleven built perks kept, thirty new ones registered «قريباً»; and «ازلها»: DAILY_COINS removed):** the VIP perk catalogue — `AdminVipTierList.catalogue` (`VipPerkCatalogueEntry`: code, category, ar / en title and description, `built`, `value` (`VipPerkValueSchema`: none \| int \| enum \| color \| list \| art_list \| composite), `art` (kinds SVGA / PNG / WEBP / MP4 and a size hint), `legacyAmount`), `maxPerks` (64; was 20), `artLimits` (`VipArtLimit`); `suggestedPerks` = every catalogue code; `AdminVipPerk` / `VipPerk` gain `value` (`VipPerkValue`), `video`, `category`; `AdminVipPerk.catalogued` / `retired`; `AdminVipPerkInput` gains `value` and `video`, its titles become optional (the catalogue's by default) and its `code` must be a catalogue code (400 `unknown_perk`; value issues at `perks.N.value[.…]`); `VipTier.effectivePerks` (with `VipPerk.fromTier`); `uploadAdminVipArt` `kind=video` (MP4, `contentType: video/mp4`); `claimVipDailyCoins` **deprecated** — always 409 `VIP_UNAVAILABLE` `perk` `retired`; `MyVip.dailyCoins` never sent. Migration `20270503090000_vip_perk_catalogue`. §10.93.1, §10.94.5, §10.166. | **Additive for the app** (new fields ignored by older clients; an older app hides the daily-coins row because `dailyCoins` is absent). **Stricter for the panel** (a save naming a code outside the catalogue — any free-text code, or DAILY_COINS — is refused; the new panel ships with the API). |
 | v1.117-live (draft) | 2026-11-11 | **D371 (owner: «اريد جعل سعر الرسائل العامة ب ١٠ الاف كوينز»):** a bullet message «رسالة عامة» (`sendLiveBullet`) costs **10 000 coins** instead of 15 (`LIVE_BULLET_COST_COINS`); a balance under 10 000 → 409 `INSUFFICIENT_COINS`. VIP free public messages (D258) unchanged (still free); a paid bullet still counts its coins as family points (now 10 000). §4 (409 row), §10.19. | **Behaviour change, shapes unchanged.** An older app's hint and «not enough coins» text still say 15 coins; the server charges 10 000. |
 | v1.116-live (draft) | 2026-11-11 | **D369 (owner: «الغي البث المتعدد لا اريده»): the multi-guest live is retired.** `startLiveRoom` `mode` MULTI → 400 `VALIDATION_FAILED` `mode` / `invalid_value` (as PK); `StartLiveRoomRequest.mode` enum SOLO, AUDIO, PODCAST, STREAMER. No list returns a MULTI room (`listLiveRooms` every `kind` and no kind, `listActiveLiveBoosts`); `kind=multi` stays valid and answers an empty page; `kind=party` = AUDIO; `party_all` loses MULTI. A MULTI room started before the deploy runs on until it ends (no migration, no job); `LiveRoomMode.MULTI`, the rows, `LiveConfig.seatCounts.MULTI`, the capacity weights and the panel's mode filter are kept. §10.4, §10.141, §10.162. | **Behaviour change** (a request enum value removed; lists no longer return MULTI rooms). Older apps: their multi-guest go-live is refused with 400 (the app shows its validation error); their hub and party lists simply contain no MULTI room. |
@@ -6769,7 +6769,7 @@ code; §10.93 stays the tier / purchase rules. The perks land in phases (each ph
 | `CHAT_NAME_COLOR` | The name in chat lines in a bright tint of the tier's colour. | — |
 | `CHAT_BUBBLE` | The chat line drawn in the perk's still (stretched), else a bubble in the tier's colour; a worn CP bubble wins. | — |
 | `PROFILE_CARD` | The person card's sheet drawn over the perk's art. *(v1.135-social, D383: the card's background — a colour and / or the art behind the content, §10.172; no longer a frame.)* | — |
-| `ANIMATED_AVATAR` | *(v1.136-social, D384, §10.173)* «صورة متحركة»: the member's own short clip with the background removed, looping above the name on the person card instead of the round photo. | — |
+| `ANIMATED_AVATAR` | *(v1.136-social, D384, §10.173)* «صورة متحركة»: the member's own short clip with the background removed, looping on the person card in the round photo's place — the same circle, size and position, inside the same ring, VIP frame or bag frame — the head popping a little over the circle's top edge (owner: «اجعلها كأنها بإطار دائري بنفس حجم الإطار السابق»). | — |
 | `ENTRY_BANNER`, `ENTRY_EFFECT` | On joining a live: the banner with the name, and the entry effect (the owner's car) once. | — |
 | `MIC_WAVE` | The perk's SVGA around the member's seat while they speak. | — |
 | `DAILY_BULLET` | Free public messages a day. | 1–100 |
@@ -12307,29 +12307,28 @@ app hides its claim row. The wallet ledger reason `VIP_DAILY_COINS`, the past le
 stay (history); the wallet keeps naming the reason «كوينز VIP اليومية». The app drops the «الخاص بي VIP» daily-coins row
 and its strings, and the purchase panel's daily-coins total line.
 
-### 10.172 The person card redesigned; PROFILE_CARD is the card's background *(v1.135-social, DRAFT — D383)*
+### 10.172 No box or frame around the person card; PROFILE_CARD is the card's background *(v1.135-social, DRAFT — D383)*
 
 Owner (2026-11-12): «اريد الغاء فكرة صندوق او إطار بطاقة الملف التعريفية وعمل فكرة اخرى مثل هذه تقريباً» (a
 third-party reference, look only, kept out of git — D40), then, on the VIP perk: «لا ستكون موجودة بحيث ستكون مثلاً تغير
-لون خلفية او تكون خلفية فيها عناصر متحركة». The box / frame idea for the person card is cancelled for everyone.
+لون خلفية او تكون خلفية فيها عناصر متحركة», and on the layout: «ارى ان شكل البطاقة السابقة اجمل لكن ميزة الصورة الجديدة
+وخلفية متحركة للبطاقة يمكن تطبيقهم». The box / frame idea for the person card is cancelled for everyone; **the card keeps
+its earlier layout** (D220: the picture over the top edge, the name, «ID: username», the badges, the four numbers with
+their dividers, the family / couple and gift wall pills, Follow, the gift and Chat, the moderation row) — **only its
+background changes**.
 
 #### 10.172.1 The person card (app only)
 
-The sheet that opens on a tap on a person in a live or party room (`LivePersonSheet`; not the full profile page): the
-picture over the top edge in the avatar frame the person wears (unchanged), then the name very large and bold, a green
-«في بث الآن» line while the person broadcasts (`PublicProfile.liveRoomId`, public), «ID: username», the badge pills, the
-bio, **one light pill per number shown** (followers, following, and `cherriesReceived` / `coinsSent` only when sent —
-§10.74; short Latin numbers), the quick actions as **round colourful buttons** (follow / unfollow / requested / unblock,
-chat, gift, mention, traffic card, seat invite — each only where it was offered before; a solid design-token colour
-with a white icon) and the rest as **soft pills** (family, couple, gift wall, «تعديل الملف»). The moderation tools
-(«إبلاغ», points, kick, chat mute, moderator, the mic, ⋯) keep their rules on the top row, restyled as soft circles.
+The sheet that opens on a tap on a person in a live or party room (`LivePersonSheet`; not the full profile page):
 
-- **Presence.** The card never shows an activity status: `FamilyMember.presence` is the only presence the API gives,
-  to family members only and only when the person allows it (`showActivityStatus`, §10.25). A general «نشط الآن» would
-  need a new field (not part of this change).
-- **No frame.** The bag `PROFILE_CARD` header ornament (`PublicProfile.profileCard`, CP-019) is no longer drawn on the
-  card. The items stay owned, wearable and listed in the bag; the server is unchanged.
-- **No social links** on the card: that needs new data (a later decision).
+- **No frame.** The VIP card art is no longer drawn as a frame around the card (no 9-slice, no inner panel).
+- **The bag's header ornaments — hidden pending the owner's decision** (owner 2026-11-12: «اخفيها الآن حتى نأخذ قرار
+  حاسم»). The catalogue ornaments of the bag's `PROFILE_CARD` category (`bunny_royal`, `kabi_royal`, `golden_stags`,
+  `emerald_wings`; `PublicProfile.profileCard`, CP-019) are not drawn on the card's top edge and not listed in the bag
+  (no «بطاقة تعريفية» slot or section for them), so nobody can see or wear them for now. A pure UI hide behind one app
+  flag (`kabsoProfileHeadersHidden` in `kabso_profile_header.dart`): the owned items, the free `bunny_royal` at sign-up,
+  the assets and the API are unchanged. The VIP and store `PROFILE_CARD` items (the background, below) stay listed.
+- **Everyone without the perk** gets the earlier card exactly.
 
 #### 10.172.2 `PROFILE_CARD`, the card's background
 
@@ -12343,12 +12342,15 @@ The perk stays in the catalogue (built, not retired) with a new meaning:
   متحركة.» / "The person card's background in rooms: a colour or a moving background." (defaults; a title saved in the
   panel wins as before).
 
-The app draws, for a member holding the perk (inherited as every perk, D258): the colour across the sheet, and the art
-over it **covering the whole sheet behind the content** — the SVGA first, else the MP4 (`VipPerk.video`), else the
-still — under a black 55 % scrim so the white text stays ≥ 4.5:1 on any art. With a colour alone, the text is white on
-a dark colour and near-black on a light one (≥ 4.5:1). Under reduced motion or «إخفاء مؤثرات الهدايا» the art is still
-(its still, else the first frame). Everyone else gets the plain card. A worn store `PROFILE_CARD` item (`wear.profileCard`,
-§10.98.4) replaces the VIP one as before and is drawn the same way, as the background.
+The app draws, for a member holding the perk (inherited as every perk, D258): the colour across the card's sheet, and
+the art over it **covering the whole sheet behind the content** (the sheet's own rounded top, no frame) — the SVGA first,
+else the MP4 (`VipPerk.video`), else the still — under a black 55 % scrim so the white text stays ≥ 4.5:1 on any art.
+With a colour alone, the text is white on a dark colour and near-black on a light one (≥ 4.5:1). Under reduced motion or
+«إخفاء مؤثرات الهدايا» the art is still (its still, else the first frame). A worn store `PROFILE_CARD` item
+(`wear.profileCard`, §10.98.4) replaces the VIP one as before and is drawn the same way, as the background. The store
+keeps selling `PROFILE_CARD` items as **card backgrounds** (owner: «سوف يكون مكانها بطاقات متحركة جديدة»): the existing
+frame-style store art is to be replaced by the owner with new animated backgrounds; the store API and panel are
+unchanged.
 
 The panel needs no change: its perk form is generic (a colour field for a `color` value, an MP4 upload where the
 catalogue's art takes MP4). No new operation, field, enum value or error code; no migration.
@@ -12358,9 +12360,11 @@ catalogue's art takes MP4). No new operation, field, enum value or error code; n
 Owner (2026-11-12), about a screen recording of another app's person card (look only, kept out of git — D40): «انتبه
 جيداً لطريقة الصورة شخصية». There the person's picture is a cut-out — head and shoulders, the background removed — that
 loops a short clip (smiling, laughing) large above the name, popping up with the sheet, the head over the sheet's top
-edge. Owner answers: (1) an animated cut-out clip the member records; the app removes the background and loops it above
-the name on the person card; (2) a VIP perk, ticked per tier in the panel like the others; members without it keep the
-round photo.
+edge. Owner answers: (1) an animated cut-out clip the member records; the app removes the background and loops it on
+the person card; (2) a VIP perk, ticked per tier in the panel like the others; members without it keep the round photo.
+Then (owner, 2026-11-12): «ارى ان شكل البطاقة السابقة اجمل لكن ميزة الصورة الجديدة وخلفية متحركة للبطاقة يمكن
+تطبيقهم. والصورة الشخصية الجديدة اجعلها كأنها بإطار دائري بنفس حجم الإطار السابق» — the card keeps its earlier layout
+and the cut-out sits in the round photo's circle.
 
 #### 10.173.1 The perk
 
@@ -12406,9 +12410,11 @@ it comes back without a new upload); is not a limited Kabso Team account (§10.9
 **neither the caller nor the person has blocked the other**. The caller always sees their own while they hold the perk.
 Nothing else carries the clip (no `UserSummary`, chat line or seat field).
 
-The app (person card in live and party rooms, D383): the cut-out loops **above the name**, large (about 168 px square at
-393 pt wide), its lower part inside the sheet and the head over the sheet's top edge, with a soft shadow under the chin;
-it rises with the sheet. Under reduced motion or «إخفاء مؤثرات الهدايا» it shows the still. While it loads or if it
+The app (person card in live and party rooms, D383): the cut-out loops **in the round photo's circle** — the same
+diameter and position, inside the same ring and the VIP frame or bag frame the person wears, on the circle's own fill —
+clipped to the circle at the bottom and the sides, the head popping up to 16 % of the diameter over the circle's top edge
+(a 3D look). The name and the rest of the card do not move. The recharge-agent, host-agent and couple frames are drawn
+around a photo, so they keep the photo. Under reduced motion or «إخفاء مؤثرات الهدايا» it shows the still. While it loads or if it
 fails, and for everyone without one, the round photo with its frame shows as before. It sits over the D383 VIP
 background like the round photo. The member's own profile header is unchanged (the person card only).
 
