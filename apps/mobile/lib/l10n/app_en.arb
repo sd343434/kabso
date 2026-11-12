@@ -5594,7 +5594,7 @@
   "vipNowFreeCp": "Free CP requests: {left} of {perMonth} left this month",
   "vipNowMaxQuantity": "Send up to {count} gifts at once",
   "vipNowVoice": "Voice messages up to {seconds} s",
-  "vipNowExclusive": "Exclusive gifts in the VIP tab: {count}",
+  "vipNowExclusive": "{count} exclusive gifts in the VIP tab",
   "vipNowPriority": "Priority support — your reports and support chats first",
   "vipScheduledEntry": "Scheduled gift",
   "vipScheduledEntrySub": "{pending} of {max} waiting",

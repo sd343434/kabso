@@ -14,6 +14,7 @@ import 'package:kabso_live/features/families/application/families_providers.dart
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/vip/application/vip_gift_perks_providers.dart';
+import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_gift_perks_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -24,8 +25,11 @@ import 'package:material_ui/material_ui.dart';
 
 /// What the member's D381 perks give now — one row per held perk; nothing
 /// while loading, on an error or without any of them.
-class VipPerksNowSection extends ConsumerWidget {
-  const new({super.key, this.onOpenScheduled});
+class VipPerksNowSection extends StatelessWidget {
+  const new({required this.now, super.key, this.onOpenScheduled});
+
+  /// `MyVip.perksNow` (null: an older API — nothing shown).
+  final VipPerksNow? now;
 
   static const sectionKey = Key('vip.now');
   static Key rowKey(String code) => Key('vip.now.$code');
@@ -35,8 +39,8 @@ class VipPerksNowSection extends ConsumerWidget {
   final VoidCallback? onOpenScheduled;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final now = ref.watch(vipPerksNowProvider).value;
+  Widget build(BuildContext context) {
+    final now = this.now;
     if (now == null || now.isEmpty) return const SizedBox.shrink();
     final l10n = context.l10n;
     final localeTag = Localizations.localeOf(context).toLanguageTag();
@@ -226,7 +230,7 @@ class _Row extends ConsumerWidget {
       showCoins(ref, r.coins);
       ref
         ..invalidate(vipScheduledGiftsProvider)
-        ..invalidate(vipPerksNowProvider);
+        ..invalidate(myVipProvider);
       KSnack.success(context, l10n.vipScheduledCancelled);
     } on Object catch (e) {
       if (!context.mounted) return;
@@ -345,7 +349,7 @@ class _VipScheduleFormState extends ConsumerState<VipScheduleForm> {
       showCoins(ref, r.coins);
       ref
         ..invalidate(vipScheduledGiftsProvider)
-        ..invalidate(vipPerksNowProvider);
+        ..invalidate(myVipProvider);
       KSnack.success(context, l10n.vipScheduledDone);
       Navigator.of(context).pop(true);
     } on Object catch (e) {

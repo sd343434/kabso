@@ -43,6 +43,7 @@ import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
+import 'package:kabso_live/features/vip/application/vip_gift_perks_providers.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -194,6 +195,7 @@ Future<_Room> _pumpRoom(
   AppLanguage language = AppLanguage.en,
   List<UserSummary> blocked = const [],
   bool signedIn = true,
+  List<Override> extra = const [],
 }) async {
   final repo = _audioRoom();
   final engine = FakeLiveMediaEngine()..present.add('user-0');
@@ -214,7 +216,7 @@ Future<_Room> _pumpRoom(
       picker,
       signedIn: signedIn,
       blocked: blocked,
-    ),
+    )..addAll(extra),
   );
   await tester.pumpAndSettle();
   return _Room(
@@ -567,6 +569,29 @@ void main() {
       expect(room.media.liveChatUploads, hasLength(1));
       expect(room.repo.chatCalls, contains('voice:c1'));
       expect(find.byKey(LiveRoomComposer.recordingKey), findsNothing);
+      await _leave(tester);
+    });
+
+    // v1.134-social (D381, LONGER_VOICE): a holder's clip runs to the perk's
+    // seconds before it stops and sends by itself.
+    testWidgets('a LONGER_VOICE holder records up to the perk (120 s)', (
+      tester,
+    ) async {
+      final room = await _pumpRoom(
+        tester,
+        extra: [vipVoiceLimitProvider.overrideWith(_HolderVoice.new)],
+      );
+      await _openComposer(tester);
+      await tester.tap(find.byKey(LiveRoomComposer.voiceKey));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 31));
+      expect(room.recorder.stops, 0);
+      await tester.pump(const Duration(seconds: 88));
+      expect(room.recorder.stops, 0);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      expect(room.recorder.stops, 1);
+      expect(room.media.liveChatUploads, hasLength(1));
       await _leave(tester);
     });
 
@@ -1106,4 +1131,10 @@ void main() {
       await _leave(tester);
     });
   });
+}
+
+/// D381: a LONGER_VOICE holder of 120 s.
+class _HolderVoice extends VipVoiceLimit {
+  @override
+  Duration build() => const Duration(seconds: 120);
 }

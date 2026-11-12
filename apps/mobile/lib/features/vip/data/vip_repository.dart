@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/features/vip/data/vip_gift_perks_repository.dart';
 
 // «شراء VIP» (openapi v1.82-social, D252, CONVENTIONS §10.93): the tiers the
 // owner manages in the admin panel (order, price, length, perks), the
@@ -264,9 +265,10 @@ final class VipMembership {
     required this.daysLeft,
     this.badgeAnimation,
     this.badgeStill,
+    this.perksNow,
   });
 
-  factory fromJson(Map<String, dynamic> json) {
+  factory fromJson(Map<String, dynamic> json, [VipPerksNow? perksNow]) {
     final tier = json['tier']! as Map<String, dynamic>;
     return VipMembership(
       tierId: tier['id']! as String,
@@ -279,6 +281,7 @@ final class VipMembership {
       startedAt: DateTime.parse(json['startedAt']! as String),
       expiresAt: DateTime.parse(json['expiresAt']! as String),
       daysLeft: _int(json['daysLeft']),
+      perksNow: perksNow,
     );
   }
 
@@ -297,6 +300,10 @@ final class VipMembership {
   final DateTime startedAt;
   final DateTime expiresAt;
   final int daysLeft;
+
+  /// v1.134-social (D381): `MyVip.perksNow` (from `GET /me/vip`; null
+  /// elsewhere).
+  final VipPerksNow? perksNow;
 }
 
 /// `VipPurchaseResult.kind`.
@@ -377,7 +384,13 @@ class VipRepositoryImpl implements VipRepository {
   Future<VipMembership?> mine() => guardApiCall(() async {
     final res = await _dio.get<Map<String, dynamic>>('/me/vip');
     final m = res.data!['membership'];
-    return m == null ? null : VipMembership.fromJson(m as Map<String, dynamic>);
+    final now = res.data!['perksNow'];
+    return m == null
+        ? null
+        : VipMembership.fromJson(
+            m as Map<String, dynamic>,
+            now is Map<String, dynamic> ? VipPerksNow.fromJson(now) : null,
+          );
   });
 
   @override

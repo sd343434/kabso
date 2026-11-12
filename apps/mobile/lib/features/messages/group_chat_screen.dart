@@ -245,8 +245,6 @@ class _GroupChatState extends ConsumerState<GroupChatScreen> {
         _recording = true;
         _elapsed = Duration.zero;
       });
-      // v1.134-social (D381): load the caller's LONGER_VOICE limit now.
-      ref.read(vipVoiceLimitProvider);
       _tick = Timer.periodic(const Duration(seconds: 1), (t) {
         if (!mounted) return;
         setState(() => _elapsed += const Duration(seconds: 1));

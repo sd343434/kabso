@@ -15332,7 +15332,7 @@
   "@vipNowMaxQuantity": {"description": "D381 HIGHER_GIFT_QUANTITY.", "placeholders": {"count": {"type": "String"}}},
   "vipNowVoice": "رسائل صوتية حتى {seconds} ثانية",
   "@vipNowVoice": {"description": "D381 LONGER_VOICE.", "placeholders": {"seconds": {"type": "String"}}},
-  "vipNowExclusive": "هدايا حصرية في تبويب VIP: {count}",
+  "vipNowExclusive": "{count} هدايا حصرية في تبويب VIP",
   "@vipNowExclusive": {"description": "D381 EXCLUSIVE_GIFTS.", "placeholders": {"count": {"type": "String"}}},
   "vipNowPriority": "دعم بأولوية — بلاغاتك ومحادثات الدعم أولاً",
   "@vipNowPriority": {"description": "D381 PRIORITY_SUPPORT."},

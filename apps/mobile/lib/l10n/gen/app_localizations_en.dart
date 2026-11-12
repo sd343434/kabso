@@ -18073,7 +18073,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String vipNowExclusive(String count) {
-    return 'Exclusive gifts in the VIP tab: $count';
+    return '$count exclusive gifts in the VIP tab';
   }
 
   @override

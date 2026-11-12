@@ -17,7 +17,6 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/posts/application/compose_controller.dart'
     show newIdempotencyKey;
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
-import 'package:kabso_live/features/vip/application/vip_gift_perks_providers.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
@@ -491,8 +490,6 @@ class _VipScreenState extends ConsumerState<VipScreen> {
 
   /// «الخاص بي VIP»: the member's own VIP — its tier, end and days left.
   Future<void> _showMine(VipMembership membership) {
-    // D381: fresh perks (this also grants the month's rockets).
-    ref.invalidate(vipPerksNowProvider);
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -524,6 +521,7 @@ class _VipScreenState extends ConsumerState<VipScreen> {
               // D381: what the gift, CP, support, rocket and voice perks
               // give now, and «هدية مؤجلة».
               VipPerksNowSection(
+                now: membership.perksNow,
                 onOpenScheduled: () {
                   Navigator.of(sheet).pop();
                   openVipScheduledGifts(context);

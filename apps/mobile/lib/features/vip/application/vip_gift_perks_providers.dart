@@ -7,22 +7,24 @@ import 'package:kabso_live/features/vip/data/vip_gift_perks_repository.dart';
 // rocket and voice perks now, and the scheduled gifts. A new signed-in
 // person reloads them.
 
-/// `MyVip.perksNow` (none without an active membership; reading it also
-/// grants this month's MONTHLY_ROCKETS on the server).
-final FutureProvider<VipPerksNow> vipPerksNowProvider = FutureProvider((ref) {
-  ref.watch(currentUserProvider.select((u) => u?.id));
-  if (ref.read(currentUserProvider) == null) {
-    return Future.value(VipPerksNow.none);
+/// LONGER_VOICE: the caller's longest voice clip — 30 s until `GET /me/vip`
+/// said otherwise (the Me hub, the VIP page and «الخاص بي VIP» read it).
+/// The recorders read it without asking the server.
+class VipVoiceLimit extends Notifier<Duration> {
+  @override
+  Duration build() {
+    ref.watch(currentUserProvider.select((u) => u?.id));
+    return defaultVoiceLimit;
   }
-  return ref.watch(vipGiftPerksRepositoryProvider).perksNow();
-});
 
-/// LONGER_VOICE: the caller's longest voice clip — 30 s until the perks are
-/// known, on an error, or without the perk.
-final Provider<Duration> vipVoiceLimitProvider = Provider((ref) {
-  final now = ref.watch(vipPerksNowProvider).value;
-  return now?.voiceLimit ?? defaultVoiceLimit;
-});
+  /// The limit `GET /me/vip` answered.
+  // A notifier's update method (not a property of the class).
+  // ignore: use_setters_to_change_properties
+  void set(Duration limit) => state = limit;
+}
+
+final NotifierProvider<VipVoiceLimit, Duration> vipVoiceLimitProvider =
+    NotifierProvider(VipVoiceLimit.new);
 
 /// The caller's scheduled gifts «هدية مؤجلة» (`GET /me/vip/scheduled-gifts`).
 final FutureProvider<VipScheduledGiftList> vipScheduledGiftsProvider =

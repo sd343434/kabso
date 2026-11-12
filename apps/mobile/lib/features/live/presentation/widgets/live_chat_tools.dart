@@ -233,10 +233,8 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
       _recording = true;
       _seconds = 0;
     });
-    // 30 s at most (v1.134-social, D381: LONGER_VOICE's limit for a holder,
-    // read now and on every tick — the perks load meanwhile): it stops and
-    // sends by itself.
-    ref.read(vipVoiceLimitProvider);
+    // 30 s at most (v1.134-social, D381: LONGER_VOICE's limit for a holder):
+    // it stops and sends by itself.
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _seconds++);

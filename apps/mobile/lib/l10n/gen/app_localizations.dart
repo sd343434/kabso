@@ -30439,7 +30439,7 @@ abstract class AppLocalizations {
   /// D381 EXCLUSIVE_GIFTS.
   ///
   /// In ar, this message translates to:
-  /// **'هدايا حصرية في تبويب VIP: {count}'**
+  /// **'{count} هدايا حصرية في تبويب VIP'**
   String vipNowExclusive(String count);
 
   /// D381 PRIORITY_SUPPORT.
