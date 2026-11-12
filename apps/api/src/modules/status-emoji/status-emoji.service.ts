@@ -65,7 +65,9 @@ export function statusPackExpiryAfter(held: Date | null, days: number, now: Date
 }
 
 export function statusPackRequestHash(packId: string, body: BuyStatusPackBody): string {
-  return createHash('sha256').update([packId, String(body.days), String(body.price)].join('\n')).digest('hex');
+  return createHash('sha256')
+    .update([packId, String(body.days), String(body.price)].join('\n'))
+    .digest('hex');
 }
 
 /**
@@ -83,14 +85,19 @@ export class StatusEmojiService {
   ) {}
 
   /** `PUT /me/status`: sets (or, with null, clears) the caller's status; the updated `Me`. */
-  async setStatus(userId: string, statusEmojiId: string | null, meta: { ip: string | null; requestId: string }) {
+  async setStatus(
+    userId: string,
+    statusEmojiId: string | null,
+    meta: { ip: string | null; requestId: string },
+  ) {
     // v1.72-live (D283, §10.96.10): a limited Kabso Team account keeps the team's fixed look.
     await refuseLimitedStaff(this.prisma, userId, 'frame');
     if (statusEmojiId !== null && statusEmojiKind(statusEmojiId) === 'unknown') {
       throw AppException.validation([{ field: 'statusEmojiId', issue: 'invalid_value' }]);
     }
     await this.prisma.$transaction(async (tx) => {
-      if (!(await this.users.lockActiveById(tx, userId))) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+      if (!(await this.users.lockActiveById(tx, userId)))
+        throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
       const now = this.clock.now();
       const [row] = await tx.$queryRaw<{ status_emoji_id: string | null }[]>`
         SELECT status_emoji_id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
@@ -132,13 +139,18 @@ export class StatusEmojiService {
     const now = this.clock.now();
     await this.clearEndedStatus(this.prisma, userId, now);
     const [offers, held, wallet] = await Promise.all([
-      this.prisma.statusPackOffer.findMany({ where: { enabled: true }, orderBy: [{ packId: 'asc' }, { days: 'asc' }] }),
+      this.prisma.statusPackOffer.findMany({
+        where: { enabled: true },
+        orderBy: [{ packId: 'asc' }, { days: 'asc' }],
+      }),
       this.prisma.userStatusPack.findMany({ where: { userId }, select: { packId: true, expiresAt: true } }),
       this.prisma.wallet.findUnique({ where: { userId }, select: { coins: true } }),
     ]);
     const data: StatusPackDto[] = [];
     for (const [id, emojis] of Object.entries(STORE_STATUS_PACKS)) {
-      const options = offers.filter((o) => o.packId === id).map((o) => ({ days: o.days, coins: Number(o.coins) }));
+      const options = offers
+        .filter((o) => o.packId === id)
+        .map((o) => ({ days: o.days, coins: Number(o.coins) }));
       const end = held.find((h) => h.packId === id)?.expiresAt ?? null;
       const active = end !== null && end.getTime() > now.getTime() ? end : null;
       // A pack with no price is not on sale; one the caller holds is still listed (its emojis stay usable).
@@ -174,7 +186,8 @@ export class StatusEmojiService {
     try {
       const id = await this.prisma.$transaction(async (tx) => {
         await tx.$executeRawUnsafe(`SET LOCAL lock_timeout = '4s'`);
-        if (!(await this.users.lockActiveById(tx, userId))) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+        if (!(await this.users.lockActiveById(tx, userId)))
+          throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
         // One buyer's purchases run one after another (the same lock as the store's: one wallet).
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:store-buyer'), hashtext(${userId}))`;
         const now = this.clock.now();
@@ -183,7 +196,9 @@ export class StatusEmojiService {
           SELECT coins, enabled FROM status_pack_offers
            WHERE pack_id = ${packId} AND days = ${body.days} FOR SHARE`;
         if (!offer || !offer.enabled) {
-          throw new AppException(ErrorCode.STORE_UNAVAILABLE, undefined, [{ field: 'days', issue: 'not_priced' }]);
+          throw new AppException(ErrorCode.STORE_UNAVAILABLE, undefined, [
+            { field: 'days', issue: 'not_priced' },
+          ]);
         }
         if (offer.coins !== BigInt(body.price)) throw new AppException(ErrorCode.STORE_PRICE_CHANGED);
         const [held] = await tx.$queryRaw<{ expires_at: Date }[]>`
@@ -193,7 +208,9 @@ export class StatusEmojiService {
         const extended = heldUntil !== null && heldUntil.getTime() > now.getTime();
         const expiresAt = statusPackExpiryAfter(heldUntil, body.days, now);
         if (expiresAt.getTime() - now.getTime() > STATUS_PACK_MAX_AHEAD_DAYS * DAY_MS) {
-          throw new AppException(ErrorCode.STORE_UNAVAILABLE, undefined, [{ field: 'days', issue: 'too_far' }]);
+          throw new AppException(ErrorCode.STORE_UNAVAILABLE, undefined, [
+            { field: 'days', issue: 'too_far' },
+          ]);
         }
         const purchaseId = randomUUID();
         const change = await debitIn(tx, userId, offer.coins, 'STATUS_PACK_PURCHASE', purchaseId);
@@ -261,7 +278,11 @@ export class StatusEmojiService {
     await tx.user.updateMany({ where: { id: userId, statusEmojiId: id }, data: { statusEmojiId: null } });
   }
 
-  private async findReplay(userId: string, key: string, requestHash: string): Promise<StatusPackPurchaseDto | null> {
+  private async findReplay(
+    userId: string,
+    key: string,
+    requestHash: string,
+  ): Promise<StatusPackPurchaseDto | null> {
     const purchase = await this.prisma.statusPackPurchase.findUnique({
       where: { userId_idempotencyKey: { userId, idempotencyKey: key } },
       select: { id: true, requestHash: true },

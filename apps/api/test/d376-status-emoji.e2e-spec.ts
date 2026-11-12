@@ -25,7 +25,10 @@ const PRICE = 100_000;
 interface TestUser {
   readonly id: string;
   readonly username: string;
-  readonly token: string;
+  readonly email: string;
+  readonly password: string;
+  /** Renewed by `jump` (an access token lasts 15 minutes of the faked clock). */
+  token: string;
 }
 
 describe('D376 contract coverage', () => {
@@ -49,13 +52,26 @@ describe('D376 «الحالة»', { timeout: 180_000 }, () => {
 
   const auth = (u: TestUser) => ({ Authorization: `Bearer ${u.token}` });
   const signup = async (): Promise<TestUser> => {
-    const { res } = await registerVerified(ctx);
+    const { res, payload } = await registerVerified(ctx);
     expect(res.status).toBe(201);
     return {
       id: res.body.user.id as string,
       username: res.body.user.username as string,
+      email: String(payload.email),
+      password: String(payload.password),
       token: res.body.tokens.accessToken as string,
     };
+  };
+  /** Moves the faked clock by [ms] and signs [users] in again (their access tokens have expired by then). */
+  const jump = async (ms: number, ...users: TestUser[]) => {
+    vi.setSystemTime(new Date(Date.now() + ms));
+    for (const u of users) {
+      const res = await ctx.http
+        .post('/api/v1/auth/login')
+        .send({ identifier: u.email, password: u.password });
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+      u.token = res.body.tokens.accessToken as string;
+    }
   };
   const setStatus = (u: TestUser, statusEmojiId: string | null) =>
     ctx.http.put('/api/v1/me/status').set(auth(u)).send({ statusEmojiId });
@@ -68,12 +84,26 @@ describe('D376 «الحالة»', { timeout: 180_000 }, () => {
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     expectContract(res, 'listStatusPacks');
     return res.body as {
-      data: { id: string; emojiIds: string[]; options: { days: number; coins: number }[]; expiresAt: string | null }[];
+      data: {
+        id: string;
+        emojiIds: string[];
+        options: { days: number; coins: number }[];
+        expiresAt: string | null;
+      }[];
       coins: number;
     };
   };
-  const buy = (u: TestUser, body: { days: number; price: number }, key: string = randomUUID(), pack = 'premium') =>
-    ctx.http.post(`/api/v1/status-packs/${pack}/purchases`).set(auth(u)).set('Idempotency-Key', key).send(body);
+  const buy = (
+    u: TestUser,
+    body: { days: number; price: number },
+    key: string = randomUUID(),
+    pack = 'premium',
+  ) =>
+    ctx.http
+      .post(`/api/v1/status-packs/${pack}/purchases`)
+      .set(auth(u))
+      .set('Idempotency-Key', key)
+      .send(body);
   const me = async (u: TestUser) => {
     const res = await ctx.http.get('/api/v1/me').set(auth(u));
     expect(res.status).toBe(200);
@@ -90,7 +120,7 @@ describe('D376 «الحالة»', { timeout: 180_000 }, () => {
 
   beforeAll(async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: start });
-    ctx = await createTestApp({ LIVE_HOSTING_ENABLED: 'true', LIVE_HEARTBEAT_STALE_SECONDS: '36000000' }, [
+    ctx = await createTestApp({ LIVE_HOSTING_ENABLED: 'true', LIVE_HEARTBEAT_STALE_SECONDS: '3600' }, [
       { token: LIVE_MEDIA_PROVIDER, value: media },
     ]);
   });
@@ -129,22 +159,26 @@ describe('D376 «الحالة»', { timeout: 180_000 }, () => {
     expect((await me(u)).statusEmojiId).toBe('lulu.rainbow');
 
     // The same value: 200, no new audit row.
-    const before = await ctx.prisma.auditLog.count({ where: { action: 'user.status.update', actorUserId: u.id } });
+    const before = await ctx.prisma.auditLog.count({
+      where: { action: 'user.status.update', actorUserId: u.id },
+    });
     expect((await setStatus(u, 'lulu.rainbow')).status).toBe(200);
-    expect(await ctx.prisma.auditLog.count({ where: { action: 'user.status.update', actorUserId: u.id } })).toBe(
-      before,
-    );
+    expect(
+      await ctx.prisma.auditLog.count({ where: { action: 'user.status.update', actorUserId: u.id } }),
+    ).toBe(before);
 
     // «بدون حالة».
     const cleared = await setStatus(u, null);
     expect(cleared.status).toBe(200);
     expect(cleared.body.statusEmojiId).toBeNull();
     expect((await ctx.prisma.user.findUnique({ where: { id: u.id } }))?.statusEmojiId).toBeNull();
-    const last = await ctx.prisma.auditLog.findFirst({
+    // (The clock is frozen, so the rows share a time: look for the change, not for the newest row.)
+    const rows = await ctx.prisma.auditLog.findMany({
       where: { action: 'user.status.update', actorUserId: u.id },
-      orderBy: { createdAt: 'desc' },
+      select: { metadata: true },
     });
-    expect(last?.metadata).toEqual({ from: 'lulu.rainbow', to: null });
+    expect(rows.map((r) => r.metadata)).toContainEqual({ from: 'lulu.rainbow', to: null });
+    expect(rows).toHaveLength(before + 1);
 
     // The database refuses a malformed id even past the API.
     await expect(
@@ -177,7 +211,9 @@ describe('D376 «الحالة»', { timeout: 180_000 }, () => {
     const comments = await ctx.http.get(`/api/v1/posts/${postId}/comments`).set(auth(viewer));
     expect(comments.status).toBe(200);
     expectContract(comments, 'listComments');
-    const authors = (comments.body.data as { author: { id: string; statusEmojiId?: string } }[]).map((c) => c.author);
+    const authors = (comments.body.data as { author: { id: string; statusEmojiId?: string } }[]).map(
+      (c) => c.author,
+    );
     expect(authors.find((a) => a.id === star.id)?.statusEmojiId).toBe('noto.party');
     expect(authors.find((a) => a.id === plain.id)).not.toHaveProperty('statusEmojiId');
 
@@ -257,7 +293,10 @@ describe('D376 «الحالة»', { timeout: 180_000 }, () => {
     expect(cheap.body.error.code).toBe('STORE_PRICE_CHANGED');
     const week = await buy(u, { days: 7, price: PRICE });
     expect(week.status).toBe(409);
-    expect(week.body.error).toMatchObject({ code: 'STORE_UNAVAILABLE', details: [{ field: 'days', issue: 'not_priced' }] });
+    expect(week.body.error).toMatchObject({
+      code: 'STORE_UNAVAILABLE',
+      details: [{ field: 'days', issue: 'not_priced' }],
+    });
     expect(await balance(u)).toBe(PRICE * 3);
 
     // Buy: 201, coins taken once, ledger row, pack until now + 30 days.
@@ -265,7 +304,13 @@ describe('D376 «الحالة»', { timeout: 180_000 }, () => {
     const bought = await buy(u, { days: 30, price: PRICE }, key);
     expect(bought.status, JSON.stringify(bought.body)).toBe(201);
     expectContract(bought, 'buyStatusPack');
-    expect(bought.body).toMatchObject({ packId: 'premium', days: 30, price: PRICE, extended: false, coins: PRICE * 2 });
+    expect(bought.body).toMatchObject({
+      packId: 'premium',
+      days: 30,
+      price: PRICE,
+      extended: false,
+      coins: PRICE * 2,
+    });
     const firstEnd = new Date(now().getTime() + 30 * DAY).toISOString();
     expect(bought.body.expiresAt).toBe(firstEnd);
     const ledger = await ctx.prisma.walletLedgerEntry.findMany({
@@ -295,7 +340,7 @@ describe('D376 «الحالة»', { timeout: 180_000 }, () => {
     expect((await packs(u)).data.find((p) => p.id === 'premium')?.expiresAt).toBe(firstEnd);
 
     // Renew 10 days later: the 30 days are added to the 20 left (max(now, end) + days).
-    vi.setSystemTime(new Date(now().getTime() + 10 * DAY));
+    await jump(10 * DAY, u);
     const renewed = await buy(u, { days: 30, price: PRICE });
     expect(renewed.status).toBe(201);
     expect(renewed.body.extended).toBe(true);
@@ -313,9 +358,9 @@ describe('D376 «الحالة»', { timeout: 180_000 }, () => {
     expect((await profile(viewer, u)).statusEmojiId).toBe('premium.peacock');
 
     // One second before the end: still shown. After it: none in Me, the profile and comments; the row still holds it.
-    vi.setSystemTime(new Date(now().getTime() + 30 * DAY - 1000));
+    await jump(30 * DAY - 1000, u, viewer);
     expect((await me(u)).statusEmojiId).toBe('premium.peacock');
-    vi.setSystemTime(new Date(now().getTime() + 2000));
+    await jump(2000);
     expect((await me(u)).statusEmojiId).toBeNull();
     expect((await profile(viewer, u)).statusEmojiId).toBeNull();
     const post = await ctx.http
@@ -325,7 +370,9 @@ describe('D376 «الحالة»', { timeout: 180_000 }, () => {
       .send({ text: 'expired' });
     expect(post.status).toBe(201);
     expect(post.body.author).not.toHaveProperty('statusEmojiId');
-    expect((await ctx.prisma.user.findUnique({ where: { id: u.id } }))?.statusEmojiId).toBe('premium.peacock');
+    expect((await ctx.prisma.user.findUnique({ where: { id: u.id } }))?.statusEmojiId).toBe(
+      'premium.peacock',
+    );
 
     // Setting it again is refused; the listing shows the pack not held and clears the stored emoji.
     expect((await setStatus(u, 'premium.peacock')).status).toBe(409);

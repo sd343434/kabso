@@ -6,7 +6,8 @@
 -- 2. `status_pack_offers`: the price of a status pack per duration (coins), seeded with the owner's «المميزة».
 -- 3. `user_status_packs`: the packs a person holds and until when (a renewal adds days: max(now, end) + days).
 -- 4. `status_pack_purchases`: append-only for the runtime group (KL-013); `(user_id, idempotency_key)` unique.
--- 5. `wallet_ledger_reason` + `STATUS_PACK_PURCHASE` (added in its own statement: the new value is not used here).
+-- 5. `wallet_ledger_reason` + `STATUS_PACK_PURCHASE` (added in its own statement: the new value is not used here), a
+--    debit in the ledger's sign rule `wallet_ledger_reason_sign`.
 --
 -- New tables get their runtime grants from the default privileges (KL-013, migration 20261016130000).
 DO $$
@@ -18,6 +19,21 @@ END
 $$;
 
 ALTER TYPE "wallet_ledger_reason" ADD VALUE IF NOT EXISTS 'STATUS_PACK_PURCHASE';
+
+-- The ledger's sign rule: STATUS_PACK_PURCHASE is a debit. Extended in place (read from the catalogue, not restated),
+-- as 20270417090100_store_iap did; the new enum value is compared as text, so it is not used in this transaction.
+DO $$
+DECLARE
+  def text;
+BEGIN
+  SELECT pg_get_constraintdef(c.oid) INTO STRICT def
+    FROM pg_constraint c
+   WHERE c.conrelid = 'wallet_ledger'::regclass AND c.conname = 'wallet_ledger_reason_sign';
+  ALTER TABLE "wallet_ledger" DROP CONSTRAINT "wallet_ledger_reason_sign";
+  EXECUTE format('ALTER TABLE wallet_ledger ADD CONSTRAINT wallet_ledger_reason_sign CHECK ((%s) OR (reason::text = %L AND delta < 0))',
+                 substring(def FROM '^CHECK \((.*)\)$'), 'STATUS_PACK_PURCHASE');
+END
+$$;
 
 -- 1. The status worn.
 ALTER TABLE "users" ADD COLUMN "status_emoji_id" VARCHAR(64);

@@ -317,7 +317,9 @@ export class PublicProfileService {
       hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
       verification: verification?.badge ?? null,
       // v1.130-social (D376, §10.167): «الحالة» (a store pack's only while held; never on a limited staff account).
-      statusEmojiId: staff ? null : visibleStatusEmoji(status?.statusEmojiId, status?.statusPacks, new Date()),
+      statusEmojiId: staff
+        ? null
+        : visibleStatusEmoji(status?.statusEmojiId, status?.statusPacks, new Date()),
       // v1.72-live (D283, §10.96.10): a limited staff account wears only the team frame (the app's) and its region's
       // team cover — no bag, VIP or store frame, no VIP / store wear, no cover of its own.
       avatarFrame: staff ? null : avatarFrame,

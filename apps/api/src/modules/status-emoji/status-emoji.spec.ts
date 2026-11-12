@@ -48,10 +48,7 @@ describe('D376 status emoji catalogue', () => {
     }
     const catalogue = readFileSync(repo('apps/mobile/lib/features/status/status_catalogue.dart'), 'utf8');
     const appStatusIds = [...catalogue.matchAll(/StatusEmojiSpec\(\s*'([a-z0-9_.]+)'/g)].map((m) => m[1]);
-    const serverNonKabso = [
-      ...FREE_STATUS_PACKS.noto!.map((e) => `noto.${e}`),
-      ...allStatusEmojiIds().store,
-    ];
+    const serverNonKabso = [...FREE_STATUS_PACKS.noto!.map((e) => `noto.${e}`), ...allStatusEmojiIds().store];
     expect(appStatusIds.sort()).toEqual(serverNonKabso.sort());
   });
 
@@ -79,7 +76,9 @@ describe('D376 status emoji catalogue', () => {
     expect(visibleStatusEmoji('premium.owl', held, now)).toBe('premium.owl');
     expect(visibleStatusEmoji('premium.owl', ended, now)).toBeNull();
     expect(visibleStatusEmoji('premium.owl', undefined, now)).toBeNull();
-    expect(visibleStatusEmoji('premium.owl', [{ packId: 'other', expiresAt: new Date(now.getTime() + DAY) }], now)).toBeNull();
+    expect(
+      visibleStatusEmoji('premium.owl', [{ packId: 'other', expiresAt: new Date(now.getTime() + DAY) }], now),
+    ).toBeNull();
     expect(visibleStatusEmoji('gone.id', held, now)).toBeNull();
     expect(visibleStatusEmoji(null, held, now)).toBeNull();
   });
