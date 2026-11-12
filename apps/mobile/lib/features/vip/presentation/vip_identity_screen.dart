@@ -465,15 +465,15 @@ class _PremiumCardState extends ConsumerState<_PremiumCard> {
           children: [
             for (final n in value.names)
               if (n.tier case final tier?)
-                InkWell(
-                  key: VipIdentityScreen.premiumNameKey(n.username),
-                  borderRadius: BorderRadius.circular(KRadius.md),
-                  onTap: _busy ? null : () => unawaited(_claim(n.username)),
-                  child: Semantics(
-                    button: true,
-                    label: l10n.vipPremiumClaim(n.username),
-                    excludeSemantics: true,
-                    child: KSpecialUsername(username: n.username, tier: tier),
+                Semantics(
+                  button: true,
+                  label: l10n.vipPremiumClaim(n.username),
+                  excludeSemantics: true,
+                  child: KSpecialUsername(
+                    key: VipIdentityScreen.premiumNameKey(n.username),
+                    username: n.username,
+                    tier: tier,
+                    onTap: _busy ? null : () => unawaited(_claim(n.username)),
                   ),
                 ),
           ],
