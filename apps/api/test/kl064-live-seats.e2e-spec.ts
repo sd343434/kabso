@@ -55,6 +55,8 @@ describe('CP-011 seats contract coverage', () => {
         .filter((o) => !o.path.endsWith('/seat-requests/{requestId}/vote'))
         // v1.114-live (D363 scope extension): a backstage guest goes on air; d363-video-podcast covers it.
         .filter((o) => !o.path.endsWith('/seats/{seatIndex}/on-air'))
+        // v1.132-social (D379): the VIP host's kept seat; d379-vip-live-perks covers it.
+        .filter((o) => !o.path.endsWith('/seats/{seatIndex}/reservation'))
         .map((o) => `${o.operationId} ${o.method.toUpperCase()} ${o.path}`)
         .sort(),
     ).toEqual(

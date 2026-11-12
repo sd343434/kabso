@@ -233,6 +233,9 @@ _LiveRoomSummary _$LiveRoomSummaryFromJson(Map<String, dynamic> json) =>
       popular: json['popular'] as bool? ?? false,
       hostCountry: json['hostCountry'] as String?,
       hostIsCreator: json['hostIsCreator'] as bool? ?? false,
+      vipMinTier: json['vipMinTier'] == null
+          ? null
+          : LiveVipMinTier.fromJson(json['vipMinTier'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
@@ -258,6 +261,7 @@ Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
       'popular': instance.popular,
       'hostCountry': instance.hostCountry,
       'hostIsCreator': instance.hostIsCreator,
+      'vipMinTier': instance.vipMinTier,
     };
 
 const _$LiveRoomModeEnumMap = {
@@ -320,6 +324,9 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
       ? null
       : LiveStreamer.fromJson(json['streamer'] as Map<String, dynamic>),
   hostIsCreator: json['hostIsCreator'] as bool? ?? false,
+  vipMinTier: json['vipMinTier'] == null
+      ? null
+      : LiveVipMinTier.fromJson(json['vipMinTier'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
@@ -351,6 +358,7 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'podcast': instance.podcast,
   'streamer': instance.streamer,
   'hostIsCreator': instance.hostIsCreator,
+  'vipMinTier': instance.vipMinTier,
 };
 
 const _$LiveRoomStatusEnumMap = {
@@ -550,6 +558,11 @@ _LiveSeat _$LiveSeatFromJson(Map<String, dynamic> json) => _LiveSeat(
       ? null
       : LivePodcastHotSeat.fromJson(json['hotSeat'] as Map<String, dynamic>),
   backstage: json['backstage'] as bool? ?? false,
+  reservation: json['reservation'] == null
+      ? null
+      : LiveSeatReservation.fromJson(
+          json['reservation'] as Map<String, dynamic>,
+        ),
 );
 
 Map<String, dynamic> _$LiveSeatToJson(_LiveSeat instance) => <String, dynamic>{
@@ -562,6 +575,7 @@ Map<String, dynamic> _$LiveSeatToJson(_LiveSeat instance) => <String, dynamic>{
   'guestTitle': instance.guestTitle,
   'hotSeat': instance.hotSeat,
   'backstage': instance.backstage,
+  'reservation': instance.reservation,
 };
 
 const _$LiveSeatStateEnumMap = {

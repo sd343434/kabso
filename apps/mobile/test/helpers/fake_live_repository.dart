@@ -337,6 +337,7 @@ class FakeLiveRepository implements LiveRepository {
     String? theme,
     PodcastSetup? podcast,
     LiveStreamer? streamer,
+    String? vipMinTier,
   }) async {
     startRequests.add((
       title: title,

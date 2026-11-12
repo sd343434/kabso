@@ -129,6 +129,8 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.ownerOnly => l10n.errorOwnerOnly,
     ErrorCode.ownerJourneyLimit => l10n.errorOwnerJourneyLimit,
     ErrorCode.liveCapacityFull => l10n.errorLiveCapacityFull,
+    ErrorCode.liveVipOnly => l10n.errorLiveVipOnly,
+    ErrorCode.livePinBusy => l10n.errorLivePinBusy,
     ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
     ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
     ErrorCode.rechargeApplicationNotAllowed =>

@@ -70,6 +70,10 @@ abstract interface class LiveRepository {
 
     /// v1.56-live (D213): a STREAMER's starting layout (version ignored).
     LiveStreamer? streamer,
+
+    /// v1.132-social (D379, §10.169.9): AUDIO only — a VIP room's lowest
+    /// tier (its code), within the host's VIP_ROOM perk.
+    String? vipMinTier,
   });
 
   /// v1.56-live (D213, CONVENTIONS §10.86): `PUT /live/rooms/{roomId}/
@@ -417,6 +421,7 @@ class LiveRepositoryImpl implements LiveRepository {
     String? theme,
     PodcastSetup? podcast,
     LiveStreamer? streamer,
+    String? vipMinTier,
   }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/live/rooms',
@@ -428,6 +433,8 @@ class LiveRepositoryImpl implements LiveRepository {
         'seatCount': ?seatCount,
         'theme': ?theme,
         if (podcast != null) 'podcast': podcast.toJson(),
+        if (vipMinTier != null && mode == LiveRoomMode.audio)
+          'vipMinTier': vipMinTier,
         if (streamer != null && mode == LiveRoomMode.streamer)
           'streamer': {
             'orientation': streamer.orientation.wire,

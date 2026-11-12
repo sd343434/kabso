@@ -153,6 +153,9 @@ describe('KL-037 contract coverage', () => {
             // v1.95-social (D301): the owner's journey and official posts; d301-owner-profile covers them.
             'listUserJourney',
             'listUserOfficialPosts',
+            // v1.132-social (D379): the VIP pinned message; d379-vip-live-perks covers it.
+            'pinLiveChatMessage',
+            'unpinLiveChatMessage',
           ].includes(o.operationId),
       )
       .filter(
@@ -395,6 +398,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         wishGifts: [],
         // v1.82-live (D295): the host is not a content creator (d295 covers creators).
         hostIsCreator: false,
+        // v1.132-social (D379): not a VIP room (d379-vip-live-perks covers them).
+        vipMinTier: null,
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },

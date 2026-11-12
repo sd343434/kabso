@@ -571,7 +571,11 @@ class LiveChatController extends Notifier<LiveChatState> {
           LiveProgramSegmentStarted() ||
           LiveStickersChanged() ||
           LiveWatchChanged() ||
-          LiveWatchSuggested():
+          LiveWatchSuggested() ||
+          // v1.132-social (D379): LiveVipRoom shows pins and rains.
+          LiveChatPinned() ||
+          LiveChatUnpinned() ||
+          VipGiftRainReceived():
         // CP-020: LiveGiftEffects plays gifts and lucky wins and, D178,
         // puts their lines in this chat (addGift / addLuckyWin: the
         // sender's own answer too, once); D138's seat emojis play on the

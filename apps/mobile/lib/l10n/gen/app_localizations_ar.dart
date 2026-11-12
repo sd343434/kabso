@@ -18055,4 +18055,78 @@ class AppLocalizationsAr extends AppLocalizations {
   String vipPointsPer(String days) {
     return 'نقطة / $days يوماً';
   }
+
+  @override
+  String get errorLiveVipOnly => 'هذه الغرفة لأعضاء VIP من مستواها فما فوق';
+
+  @override
+  String get errorLivePinBusy => 'هناك رسالة مثبتة الآن، حاول بعد قليل';
+
+  @override
+  String get liveVipPinAction => 'تثبيت';
+
+  @override
+  String get liveVipPinRemove => 'إزالة';
+
+  @override
+  String liveVipPinnedBy(String name) {
+    return 'مثبتة · $name';
+  }
+
+  @override
+  String get liveVipPinUsedUp => 'استخدمت تثبيتات اليوم';
+
+  @override
+  String liveVipGreetingTitle(String level) {
+    return 'VIP $level دخل البث';
+  }
+
+  @override
+  String get liveVipGreetingAction => 'رحّب';
+
+  @override
+  String liveVipGreetingLine(String name) {
+    return 'أهلاً وسهلاً بـ @$name 👑';
+  }
+
+  @override
+  String get liveVipLockTitle => 'غرفة VIP خاصة';
+
+  @override
+  String liveVipLockBody(String tier) {
+    return 'هذه الغرفة لأعضاء $tier فما فوق';
+  }
+
+  @override
+  String get liveVipLockGetVip => 'اشترك في VIP';
+
+  @override
+  String get liveVipLockClose => 'حسناً';
+
+  @override
+  String get liveVipRoomToggle => 'غرفة VIP';
+
+  @override
+  String get liveVipRoomHint =>
+      'يدخلها أعضاء VIP من المستوى الذي تختاره فما فوق';
+
+  @override
+  String get liveVipReserveAction => 'احجز لصديق';
+
+  @override
+  String get liveVipReserveTitle => 'قفل المقعد لصديق';
+
+  @override
+  String get liveVipReserveHint => 'اسم المستخدم';
+
+  @override
+  String get liveVipReserveConfirm => 'احجز';
+
+  @override
+  String liveVipReservedFor(String name) {
+    return 'محجوز لـ $name';
+  }
+
+  @override
+  String get liveVipReleaseAction => 'إلغاء الحجز';
 }

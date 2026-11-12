@@ -18039,4 +18039,80 @@ class AppLocalizationsEn extends AppLocalizations {
   String vipPointsPer(String days) {
     return 'points / $days days';
   }
+
+  @override
+  String get errorLiveVipOnly =>
+      'This room is for VIP members of its tier and above.';
+
+  @override
+  String get errorLivePinBusy =>
+      'Another message is pinned right now. Try again shortly.';
+
+  @override
+  String get liveVipPinAction => 'Pin';
+
+  @override
+  String get liveVipPinRemove => 'Remove';
+
+  @override
+  String liveVipPinnedBy(String name) {
+    return 'Pinned · $name';
+  }
+
+  @override
+  String get liveVipPinUsedUp => 'You have used today\'s pins';
+
+  @override
+  String liveVipGreetingTitle(String level) {
+    return 'VIP $level joined';
+  }
+
+  @override
+  String get liveVipGreetingAction => 'Welcome';
+
+  @override
+  String liveVipGreetingLine(String name) {
+    return 'Welcome, @$name 👑';
+  }
+
+  @override
+  String get liveVipLockTitle => 'Private VIP room';
+
+  @override
+  String liveVipLockBody(String tier) {
+    return 'This room is for $tier members and above';
+  }
+
+  @override
+  String get liveVipLockGetVip => 'Get VIP';
+
+  @override
+  String get liveVipLockClose => 'OK';
+
+  @override
+  String get liveVipRoomToggle => 'VIP room';
+
+  @override
+  String get liveVipRoomHint =>
+      'Only VIP members of the tier you pick and above can enter';
+
+  @override
+  String get liveVipReserveAction => 'Keep for a friend';
+
+  @override
+  String get liveVipReserveTitle => 'Keep this seat for a friend';
+
+  @override
+  String get liveVipReserveHint => 'Username';
+
+  @override
+  String get liveVipReserveConfirm => 'Keep';
+
+  @override
+  String liveVipReservedFor(String name) {
+    return 'Kept for $name';
+  }
+
+  @override
+  String get liveVipReleaseAction => 'Release seat';
 }
