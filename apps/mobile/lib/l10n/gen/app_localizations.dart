@@ -5696,6 +5696,12 @@ abstract class AppLocalizations {
   /// **'شكراً، وصلنا البلاغ'**
   String get storyReported;
 
+  /// D375 story viewer: a person in the people carousel at the bottom (accessibility; a tap opens their stories)
+  ///
+  /// In ar, this message translates to:
+  /// **'قصص {name}'**
+  String storyPeopleOf(String name);
+
   /// Story photo accessibility label
   ///
   /// In ar, this message translates to:

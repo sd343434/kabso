@@ -3220,6 +3220,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get storyReported => 'شكراً، وصلنا البلاغ';
 
   @override
+  String storyPeopleOf(String name) {
+    return 'قصص $name';
+  }
+
+  @override
   String storyPhotoOf(String name) {
     return 'قصة $name';
   }

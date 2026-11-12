@@ -3590,6 +3590,15 @@
   "@storyReported": {
     "description": "Message after reporting a story"
   },
+  "storyPeopleOf": "قصص {name}",
+  "@storyPeopleOf": {
+    "description": "D375 story viewer: a person in the people carousel at the bottom (accessibility; a tap opens their stories)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "storyPhotoOf": "قصة {name}",
   "@storyPhotoOf": {
     "description": "Story photo accessibility label",
