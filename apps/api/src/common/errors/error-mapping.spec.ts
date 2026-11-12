@@ -71,6 +71,8 @@ describe('ErrorCode', () => {
         'STORE_PRICE_CHANGED',
         // v1.68-live (D273).
         'STAFF_PROTECTED',
+        // v1.133-social (D380).
+        'VIP_PROTECTED',
         'LIVE_STAFF_REFUSED',
         'STAFF_STEP_UP_REQUIRED',
         'STAFF_TOTP_NOT_ENROLLED',
@@ -371,6 +373,7 @@ describe('ErrorCode', () => {
       STORE_UNAVAILABLE: 409,
       STORE_PRICE_CHANGED: 409,
       STAFF_PROTECTED: 403,
+      VIP_PROTECTED: 403,
       LIVE_STAFF_REFUSED: 403,
       STAFF_STEP_UP_REQUIRED: 403,
       STAFF_TOTP_NOT_ENROLLED: 409,

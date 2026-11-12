@@ -324,7 +324,6 @@ class VipPrivilegeCard extends StatelessWidget {
     'ANONYMOUS_GIFT' => Icons.card_giftcard_rounded,
     'HIDDEN_VISIT' ||
     'RANKING_ANONYMOUS' ||
-    'HIDE_COINS_SENT' => Icons.visibility_off_rounded,
     'KICK_MUTE_SHIELD' => Icons.shield_rounded,
     'DM_BUBBLE' => Icons.forum_rounded,
     'POST_BADGE' => Icons.verified_rounded,

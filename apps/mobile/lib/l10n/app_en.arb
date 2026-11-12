@@ -5734,5 +5734,22 @@
   "liveVipReserveHint": "Username",
   "liveVipReserveConfirm": "Keep",
   "liveVipReservedFor": "Kept for {name}",
-  "liveVipReleaseAction": "Release seat"
+  "liveVipReleaseAction": "Release seat",
+  "privacyVipTitle": "VIP perks",
+  "privacyVipHiddenVisit": "Hidden visit",
+  "privacyVipHiddenVisitHint": "Your profile visits are not shown in «Profile visitors».",
+  "privacyVipRankingAnonymous": "Anonymous in rankings",
+  "privacyVipRankingAnonymousHint": "You show as «Anonymous» on rankings and supporter lists.",
+  "privacyVipKickMuteShield": "Shield from moderators",
+  "privacyVipKickMuteShieldHint": "A room's moderators cannot kick or mute you; the host and the Kabso Team still can.",
+  "errorVipProtected": "This member's VIP protects them from moderators; only the host or the Kabso Team can.",
+  "vipAnonymousName": "Anonymous",
+  "liveGiftAnonymousToggle": "Send anonymously",
+  "liveGiftAnonymousOn": "Anonymous: you show as «Anonymous»",
+  "liveGiftAnonymousFrom": "A gift from «Anonymous»",
+  "liveGiftAnonymousHint": "The sender is not shown to you; the team keeps their name.",
+  "liveGiftAnonymousReport": "Report the sender",
+  "liveGiftAnonymousRefuse": "Refuse anonymous gifts from this sender",
+  "liveGiftAnonymousRefused": "You will get no more anonymous gifts from this sender.",
+  "liveGiftReported": "Reported. Thank you."
 }

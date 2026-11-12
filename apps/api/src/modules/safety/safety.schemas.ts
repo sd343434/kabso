@@ -66,6 +66,12 @@ export const createReportSchema = z.strictObject({
 });
 export type CreateReportInput = z.output<typeof createReportSchema>;
 
+/** v1.133-social (D380, §10.170.5): `LiveGiftReportRequest` — a recipient reports the sender of a gift. */
+export const liveGiftReportSchema = z.strictObject({
+  reason: z.enum(REPORT_REASONS),
+  note: noteSchema.optional(),
+});
+
 /** `ReportActionRequest`. */
 export const reportActionSchema = z.strictObject({
   action: z.enum(['REMOVE_TARGET', 'DISMISS']),
@@ -87,6 +93,11 @@ export const updatePrivacySchema = z
     // v1.77-social (D220, §10.74): leave the lifetime totals out of the card and profile for others.
     hideCherriesReceived: z.boolean().optional(),
     hideCoinsSent: z.boolean().optional(),
+    // v1.133-social (D380, §10.170.1): the VIP privacy switches — only while the caller holds the perk (else 409
+    // `VIP_UNAVAILABLE` `{field: <the switch>, issue: no_perk}`).
+    hiddenVisit: z.boolean().optional(),
+    rankingAnonymous: z.boolean().optional(),
+    kickMuteShield: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });
 

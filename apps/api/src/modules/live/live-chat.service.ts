@@ -39,6 +39,7 @@ import { vipLivePerkIn, vipPinValue } from '../vip/vip-live-perks.js';
 import { programWindowsIn } from '../programs/programs-time.js';
 import { liveChatPinSchema } from './live.schemas.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
+import { refuseVipShielded } from '../vip/vip-privacy.js';
 
 // ---- Response shapes (openapi v1.9-live, CP-013) -----------------------------------------------
 
@@ -511,6 +512,14 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     if (privilege === 'MODERATOR' && (await this.isModerator(row.id, target.id))) throw forbidden();
     // v1.68-live (D273, §10.96.7): «فريق كابسو» is never chat-muted (lifting an old mute is allowed).
     if (muted) await assertNotStaffTarget(this.prisma, target.id);
+    // v1.133-social (D380, §10.170.4): a moderator never chat-mutes a KICK_MUTE_SHIELD holder (lifting a mute is fine).
+    if (muted && privilege === 'MODERATOR') {
+      await refuseVipShielded(
+        this.prisma,
+        { actorId: callerId, targetId: target.id, roomId: row.id, action: 'CHAT_MUTE' },
+        this.clock.now(),
+      );
+    }
     if (muted) {
       await this.prisma.liveChatMute.createMany({
         data: [{ roomId: row.id, userId: target.id, mutedById: callerId, createdAt: this.clock.now() }],

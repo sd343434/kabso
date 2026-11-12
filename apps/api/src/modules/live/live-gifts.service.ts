@@ -55,6 +55,7 @@ import {
 import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
 import { vipPerkAmountIn } from '../vip/vip-perks.js';
 import { vipIntValue, vipLivePerkIn } from '../vip/vip-live-perks.js';
+import { ANONYMOUS_GIFT_RATE, anonymousUserSummary, vipPrivacyOn } from '../vip/vip-privacy.js';
 import { vipSpedUp } from '../vip/vip-rules.js';
 import { liveGiftSendSchema } from './live.schemas.js';
 import { quipSlot } from '../gifts/quips.js';
@@ -100,6 +101,19 @@ export interface LiveGiftDto {
   recipients: UserSummaryDto[];
   combo: LiveGiftComboDto;
   createdAt: string;
+  /**
+   * v1.133-social (D380, §10.170.5): true (else absent) on an ANONYMOUS_GIFT send — `sender` is «مجهول»
+   * (`UserSummary.anonymous`) in the room's data message, the tickers and the recipients' histories; the sender's own
+   * response (and a retry) keeps their real `sender`.
+   */
+  anonymous?: true;
+}
+
+/**
+ * v1.133-social (D380, §10.170.5): [gift] as everyone but its sender sees it — an anonymous send's sender is «مجهول».
+ */
+export function publicGiftDto(gift: LiveGiftDto): LiveGiftDto {
+  return gift.anonymous ? { ...gift, sender: anonymousUserSummary() } : gift;
 }
 
 /** `LiveGiftResult`: the send, the sender's coins and what the bag holds of that gift after it. */
@@ -299,6 +313,7 @@ function toDto(row: GiftRow, originRoomId: string, publicBaseUrl: string | undef
     recipients: row.recipients.map((r) => userSummary(r.user)),
     combo: { id: row.comboId, count: row.comboCount, quantity: Number(row.comboQuantity) },
     createdAt: row.createdAt.toISOString(),
+    ...(row.anonymous ? { anonymous: true as const } : {}),
   };
 }
 
@@ -402,6 +417,7 @@ export class LiveGiftsService {
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;
     const clientId = input.clientId.toLowerCase();
+    const anonymous = input.anonymous === true;
 
     const first = await this.byClientId(callerId, clientId);
     if (first) return { created: false, result: await this.replay(callerId, first, row.id) };
@@ -449,6 +465,17 @@ export class LiveGiftsService {
     const isCustom = gift.category === CUSTOM_CATEGORY;
     if (isCustom && input.source !== 'COINS')
       throw AppException.validation([{ field: 'source', issue: 'invalid_value' }]);
+    // v1.133-social (D380, §10.170.5): «إهداء مجهول» — only for an ANONYMOUS_GIFT holder (inheritance, an active
+    // membership); never a PK booster (the battle names its booster); its own burst limit (anti-harassment).
+    if (anonymous) {
+      if (gift.pkBooster !== null)
+        throw AppException.validation([{ field: 'anonymous', issue: 'invalid_value' }]);
+      if (!(await vipPrivacyOn(this.prisma, callerId, 'ANONYMOUS_GIFT', this.clock.now()))) {
+        throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [
+          { field: 'anonymous', issue: 'no_perk' },
+        ]);
+      }
+    }
     // D145c (§7): a lucky streak (MAX X) has its own burst limit; normal gifts keep theirs. A retry
     // with the same clientId was answered above and is not counted here.
     await this.limiter.consume(
@@ -467,6 +494,19 @@ export class LiveGiftsService {
     }
     const to = recipients as Recipient[];
     await this.assertNoBlocks(callerId, to);
+    if (anonymous) {
+      // D380 (§10.170.5): a recipient who refused this sender's anonymous gifts never gets one (their named gifts
+      // still reach them); a block either way was refused above like any send.
+      const refused = await this.prisma.anonymousGiftBlock.count({
+        where: { senderId: callerId, recipientId: { in: to.map((r) => r.id) } },
+      });
+      if (refused > 0) {
+        throw new AppException(ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE, undefined, [
+          { field: 'anonymous', issue: 'refused' },
+        ]);
+      }
+      await this.limiter.consume('live:gift:anonymous', callerId, ANONYMOUS_GIFT_RATE);
+    }
     // v1.43-live (D195, §10.58): a PK booster's gift goes to the host alone, one at a time.
     if (gift.pkBooster !== null) {
       this.pk.assertBoosterSend({
@@ -669,11 +709,11 @@ export class LiveGiftsService {
           WITH sent AS (
             INSERT INTO live_gifts (id, sender_id, client_id, room_id, gift_code, quantity, source, unit_price,
                                     total_coins, coins_charged, recipients_key, combo_id, combo_count,
-                                    combo_quantity, host_share_bps, created_at)
+                                    combo_quantity, host_share_bps, anonymous, created_at)
             VALUES (${giftId}::uuid, ${callerId}::uuid, ${clientId}::uuid, ${row.id}::uuid, ${gift.code},
                     ${input.quantity}, ${input.source}::live_gift_source, ${unitPrice}, ${amounts.totalCoins},
                     ${isCoins ? amounts.totalCoins : 0}, ${key}, ${combo.id}::uuid, ${combo.count},
-                    ${combo.quantity}, ${hostShareBps}, ${at}::timestamptz)
+                    ${combo.quantity}, ${hostShareBps}, ${anonymous}, ${at}::timestamptz)
             RETURNING id),
           free_quip AS (
             INSERT INTO live_free_quips (room_id, user_id, gift_id, created_at)
@@ -892,6 +932,7 @@ export class LiveGiftsService {
             recipients: toIds.map((id) => people.get(id)!),
             combo: { id: combo.id, count: combo.count, quantity: Number(combo.quantity) },
             createdAt: at,
+            ...(anonymous ? { anonymous: true as const } : {}),
           };
           const quip: LiveQuipDto | null =
             slot === null
@@ -905,7 +946,8 @@ export class LiveGiftsService {
                   durationMs: state.sound_ms!,
                   text: state.quip_text,
                   free: freeQuip,
-                  sender: dto.sender,
+                  // D380: an anonymous quip is heard from «مجهول».
+                  sender: publicGiftDto(dto).sender,
                   startsAt: slot.startsAt.toISOString(),
                   delayMs: slot.delayMs,
                   createdAt: at,
@@ -923,6 +965,9 @@ export class LiveGiftsService {
     }
 
     const dto = created.dto;
+    // v1.133-social (D380, §10.170.5): what the room, the tickers and the other lives see (an anonymous send's sender
+    // is «مجهول»); the caller's response below keeps `dto`.
+    const shown = publicGiftDto(dto);
     const quip = created.quip;
     if (quip) {
       // v1.32-live (D154): a quip is heard, not shown as a gift effect: only the `quip` message.
@@ -931,11 +976,11 @@ export class LiveGiftsService {
       });
     } else {
       this.background.run('live gift data message', async () => {
-        await this.broadcast(row.id, { type: 'gift', gift: dto });
+        await this.broadcast(row.id, { type: 'gift', gift: shown });
       });
       // v1.41-live (D178): a big enough send is a strip in every other live (one at a time).
       this.background.run('gift global ticker', async () => {
-        await this.giftTicker.offer(dto as unknown as GiftTickerGiftDto);
+        await this.giftTicker.offer(shown as unknown as GiftTickerGiftDto);
       });
     }
     // v1.132-social (D379, §10.169): a VIP member's big send plays the uploaded rain effect (BIG_GIFT_RAIN).
@@ -943,7 +988,8 @@ export class LiveGiftsService {
       await this.offerRain(callerId, dto);
     });
     // v1.62-live (D254): a support or charm level reaching the panel's threshold is a banner in every live.
-    const levelUps = created.levelUps;
+    // D380: an anonymous sender's own level-up is not announced (its moment would name them); the recipients' are.
+    const levelUps = anonymous ? created.levelUps.filter((u) => u.userId !== callerId) : created.levelUps;
     if (levelUps.length > 0) {
       this.background.run('level ticker', async () => {
         await this.levelTicker.offerAll(
@@ -971,7 +1017,7 @@ export class LiveGiftsService {
         giftId: dto.id,
         roomId: dto.roomId,
         giftCode: dto.giftCode,
-        sender: dto.sender,
+        sender: shown.sender,
         multiplier: luckyResult.topMultiplier,
         coinsWon: luckyResult.coinsWon,
         createdAt: dto.createdAt,

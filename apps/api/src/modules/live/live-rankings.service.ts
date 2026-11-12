@@ -8,6 +8,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { UserSummaryDto } from './live-rooms.service.js';
 import { GAME_SPEND_HOURLY_RETENTION_MS, MONTHLY_RETENTION_MS } from './game-ticket-spends.js';
+import { rankedUser, vipPrivacyOnIn } from '../vip/vip-privacy.js';
 
 /**
  * The boards' periods (CP-016 A, CONVENTIONS §10.15). v1.87-live (D314, §10.119): and MONTH «هذا الشهر», YEAR «هذه
@@ -170,22 +171,35 @@ export class LiveRankingsService {
        ORDER BY w.points DESC, w.host_user_id
        LIMIT ${board === 'RICH' ? LIVE_RICH_MAX : LIVE_RANKING_MAX}`;
 
+    // v1.133-social (D380, §10.170.3): a member with RANKING_ANONYMOUS on is «مجهول» to everyone but themselves — no
+    // name, picture or live (the live card would name them); the rank and the points stay.
+    const anonymous = await vipPrivacyOnIn(
+      this.prisma,
+      rows.map((r) => r.host_user_id),
+      'RANKING_ANONYMOUS',
+      now,
+    );
     const result: LiveRankingsDto = {
       board,
       period,
       startsAt: start.toISOString(),
       endsAt: end.toISOString(),
-      data: rows.map((r, i) => ({
-        rank: i + 1,
-        host: {
-          id: r.host_user_id,
-          username: r.username,
-          displayName: r.display_name,
-          avatarUrl: r.avatar_url,
-        },
-        points: Number(r.points),
-        liveRoom: r.room_id ? { id: r.room_id, title: r.room_title ?? '', coverUrl: r.cover_url } : null,
-      })),
+      data: rows.map((r, i) => {
+        const host = rankedUser(
+          { id: r.host_user_id, username: r.username, displayName: r.display_name, avatarUrl: r.avatar_url },
+          anonymous,
+          callerId,
+        );
+        return {
+          rank: i + 1,
+          host,
+          points: Number(r.points),
+          liveRoom:
+            r.room_id && host.anonymous !== true
+              ? { id: r.room_id, title: r.room_title ?? '', coverUrl: r.cover_url }
+              : null,
+        };
+      }),
     };
     // `me`: a host on the popularity board; any signed-in caller on the GAMES (D315) and RICH (D320) boards.
     const ranked =

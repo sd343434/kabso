@@ -1,5 +1,6 @@
 import { Prisma } from '../../generated/prisma/client.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
+import { vipPrivacyOn } from './vip-privacy.js';
 
 /** A second opening within this long is the same visit (not counted again). */
 export const PROFILE_VISIT_GAP_MS = 10 * 60 * 1000;
@@ -12,6 +13,10 @@ export const PROFILE_VISITORS_MAX = 100;
  * v1.83-social (D258, §10.94.9): [visitorId] opened [ownerId]'s profile at [now]. Never for oneself, never while either
  * blocked the other. One row per pair: the last visit moves; `visits` grows only for an opening at least
  * {@link PROFILE_VISIT_GAP_MS} after the last one. Best effort: a failure never fails the profile read.
+ *
+ * v1.133-social (D380, §10.170.2) «زيارة خفية»: a visitor holding HIDDEN_VISIT with the switch on leaves nothing — no
+ * row, no count, no «زائر مخفي» (a count of hidden visitors would still tell the owner that someone with VIP looked,
+ * and when). The visitor's earlier rows stay as they were (only new visits are hidden).
  */
 export async function recordProfileVisit(
   prisma: PrismaService,
@@ -20,6 +25,7 @@ export async function recordProfileVisit(
   now: Date,
 ): Promise<void> {
   if (ownerId === visitorId) return;
+  if (await vipPrivacyOn(prisma, visitorId, 'HIDDEN_VISIT', now)) return;
   const gap = new Date(now.getTime() - PROFILE_VISIT_GAP_MS);
   await prisma.$executeRaw(Prisma.sql`
     INSERT INTO profile_visits (owner_id, visitor_id, first_visited_at, last_visited_at, visits)

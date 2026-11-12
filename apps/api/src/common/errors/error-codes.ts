@@ -358,6 +358,12 @@ export enum ErrorCode {
    */
   STAFF_PROTECTED = 'STAFF_PROTECTED',
   /**
+   * v1.133-social (DRAFT, D380, §10.170.4): the target holds KICK_MUTE_SHIELD «حماية من طرد وكتم المشرف العادي» — a room
+   * moderator cannot kick, chat-mute or seat-mute them (the host and the Kabso Team still can) —
+   * `details: [{field: 'username', issue: 'vip_shield'}]`. Nothing changed; audited `vip.shield.refused`.
+   */
+  VIP_PROTECTED = 'VIP_PROTECTED',
+  /**
    * v1.68-live (DRAFT, D273, §10.96.6): a Kabso staff member (a watch role) in a live does not send gifts, tap, send
    * bullets or take a seat — `details: [{field: 'staff', issue: 'gifts' | 'taps' | 'bullets' | 'seat' | 'hidden_chat'}]`.
    */
@@ -567,6 +573,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.STORE_UNAVAILABLE]: 409,
   [ErrorCode.STORE_PRICE_CHANGED]: 409,
   [ErrorCode.STAFF_PROTECTED]: 403,
+  [ErrorCode.VIP_PROTECTED]: 403,
   [ErrorCode.LIVE_STAFF_REFUSED]: 403,
   [ErrorCode.STAFF_STEP_UP_REQUIRED]: 403,
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 409,
@@ -747,6 +754,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.STORE_UNAVAILABLE]: 'This store item cannot be bought now.',
   [ErrorCode.STORE_PRICE_CHANGED]: 'The price of this store item changed.',
   [ErrorCode.STAFF_PROTECTED]: 'This cannot be done to the Kabso Team.',
+  [ErrorCode.VIP_PROTECTED]:
+    "This member's VIP protects them from moderators; only the host or the Kabso Team can.",
   [ErrorCode.LIVE_STAFF_REFUSED]: 'The Kabso Team does not do this in a live.',
   [ErrorCode.STAFF_STEP_UP_REQUIRED]: 'Enter your authenticator code to use the staff tools.',
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 'Set up the authenticator in the admin panel first.',

@@ -37,6 +37,9 @@ class PrivacyController extends AsyncNotifier<PrivacySettings> {
     bool? isPrivate,
     bool? hideCherriesReceived,
     bool? hideCoinsSent,
+    bool? hiddenVisit,
+    bool? rankingAnonymous,
+    bool? kickMuteShield,
   }) async {
     final next = await ref
         .read(safetyRepositoryProvider)
@@ -48,6 +51,9 @@ class PrivacyController extends AsyncNotifier<PrivacySettings> {
           isPrivate: isPrivate,
           hideCherriesReceived: hideCherriesReceived,
           hideCoinsSent: hideCoinsSent,
+          hiddenVisit: hiddenVisit,
+          rankingAnonymous: rankingAnonymous,
+          kickMuteShield: kickMuteShield,
         );
     // D175: the session's user (Me, Edit profile) shows the new state.
     if (isPrivate != null) {
@@ -80,6 +86,12 @@ class PrivacyScreen extends ConsumerWidget {
   /// D220: hide the card's lifetime cherries received / coins sent.
   static const hideCherriesKey = Key('privacy.hideCherriesReceived');
   static const hideCoinsKey = Key('privacy.hideCoinsSent');
+
+  /// D380 (§10.170.1): the VIP privacy switches, shown only while held.
+  static const vipSectionKey = Key('privacy.vip');
+  static const hiddenVisitKey = Key('privacy.vip.hiddenVisit');
+  static const rankingAnonymousKey = Key('privacy.vip.rankingAnonymous');
+  static const kickMuteShieldKey = Key('privacy.vip.kickMuteShield');
 
   /// D175: the private-account switch and the follow-requests row.
   static const privateKey = Key('privacy.private');
@@ -314,6 +326,56 @@ class PrivacyScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+            ],
+            // v1.133-social (D380, §10.170.1): «امتيازات VIP» — the privacy
+            // switches the caller's VIP holds (each absent otherwise).
+            if (value.hasVipSwitches) ...[
+              KeyedSubtree(
+                key: vipSectionKey,
+                child: header(l10n.privacyVipTitle),
+              ),
+              if (value.hiddenVisit case final on?)
+                SwitchListTile(
+                  key: hiddenVisitKey,
+                  value: on,
+                  title: Text(l10n.privacyVipHiddenVisit),
+                  subtitle: Text(l10n.privacyVipHiddenVisitHint),
+                  onChanged: (v) => unawaited(
+                    save(
+                      () => ref
+                          .read(privacyProvider.notifier)
+                          .change(hiddenVisit: v),
+                    ),
+                  ),
+                ),
+              if (value.rankingAnonymous case final on?)
+                SwitchListTile(
+                  key: rankingAnonymousKey,
+                  value: on,
+                  title: Text(l10n.privacyVipRankingAnonymous),
+                  subtitle: Text(l10n.privacyVipRankingAnonymousHint),
+                  onChanged: (v) => unawaited(
+                    save(
+                      () => ref
+                          .read(privacyProvider.notifier)
+                          .change(rankingAnonymous: v),
+                    ),
+                  ),
+                ),
+              if (value.kickMuteShield case final on?)
+                SwitchListTile(
+                  key: kickMuteShieldKey,
+                  value: on,
+                  title: Text(l10n.privacyVipKickMuteShield),
+                  subtitle: Text(l10n.privacyVipKickMuteShieldHint),
+                  onChanged: (v) => unawaited(
+                    save(
+                      () => ref
+                          .read(privacyProvider.notifier)
+                          .change(kickMuteShield: v),
+                    ),
+                  ),
+                ),
             ],
             // v1.66-social (D198, §10.61.1): a copy of the person's data.
             header(l10n.privacyDataTitle),

@@ -22,7 +22,8 @@ abstract interface class LiveGiftRepository {
 
   /// `POST /live/rooms/{roomId}/gifts`: [quantity] of [giftCode] to each of
   /// [recipients] (usernames). A retry with the same [clientId] returns the
-  /// first send and is never charged again.
+  /// first send and is never charged again. v1.133-social (D380,
+  /// §10.170.5): [anonymous] «إهداء مجهول» (ANONYMOUS_GIFT holders only).
   Future<LiveGiftResult> send(
     String roomId, {
     required String giftCode,
@@ -30,6 +31,20 @@ abstract interface class LiveGiftRepository {
     required List<String> recipients,
     required LiveGiftSource source,
     required String clientId,
+    bool anonymous = false,
+  });
+
+  /// `POST /live/gifts/{giftId}/reports` (v1.133-social, D380): a recipient
+  /// reports the sender of a live gift (an anonymous one included) without
+  /// learning who it is.
+  Future<void> reportGift(String giftId, {required String reason});
+
+  /// `PUT` / `DELETE /live/gifts/{giftId}/anonymous-block` (D380): refuse
+  /// (or allow again) every further anonymous gift from the sender of this
+  /// anonymous send. Returns whether it is refused now.
+  Future<bool> setAnonymousSenderRefused(
+    String giftId, {
+    required bool refused,
   });
 
   /// `GET /live/gifts/lucky/odds` (v1.27-live, D132): the published odds and
@@ -103,6 +118,7 @@ class LiveGiftRepositoryImpl implements LiveGiftRepository {
     required List<String> recipients,
     required LiveGiftSource source,
     required String clientId,
+    bool anonymous = false,
   }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/live/rooms/${pathSegment(roomId)}/gifts',
@@ -115,9 +131,31 @@ class LiveGiftRepositoryImpl implements LiveGiftRepository {
           LiveGiftSource.bag => 'BAG',
         },
         'clientId': clientId,
+        if (anonymous) 'anonymous': true,
       },
     );
     return LiveGiftResult.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> reportGift(String giftId, {required String reason}) =>
+      guardApiCall(() async {
+        await _dio.post<Map<String, dynamic>>(
+          '/live/gifts/${pathSegment(giftId)}/reports',
+          data: {'reason': reason},
+        );
+      });
+
+  @override
+  Future<bool> setAnonymousSenderRefused(
+    String giftId, {
+    required bool refused,
+  }) => guardApiCall(() async {
+    final path = '/live/gifts/${pathSegment(giftId)}/anonymous-block';
+    final res = refused
+        ? await _dio.put<Map<String, dynamic>>(path)
+        : await _dio.delete<Map<String, dynamic>>(path);
+    return res.data?['blocked'] == true;
   });
 
   @override

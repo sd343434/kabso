@@ -18563,4 +18563,60 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveVipReleaseAction => 'إلغاء الحجز';
+
+  @override
+  String get privacyVipTitle => 'امتيازات VIP';
+
+  @override
+  String get privacyVipHiddenVisit => 'زيارة خفية';
+
+  @override
+  String get privacyVipHiddenVisitHint =>
+      'زياراتك للملفات لا تظهر في «من زار ملفي».';
+
+  @override
+  String get privacyVipRankingAnonymous => 'اسم مخفي في التصنيفات';
+
+  @override
+  String get privacyVipRankingAnonymousHint =>
+      'تظهر «مجهول» في قوائم الترتيب والداعمين.';
+
+  @override
+  String get privacyVipKickMuteShield => 'حماية من طرد وكتم المشرف العادي';
+
+  @override
+  String get privacyVipKickMuteShieldHint =>
+      'لا يطردك أو يكتمك مشرف الغرفة؛ يبقى المضيف وفريق كابسو قادرين.';
+
+  @override
+  String get errorVipProtected =>
+      'هذا العضو محمي بامتياز VIP؛ يستطيع المضيف أو فريق كابسو فقط.';
+
+  @override
+  String get vipAnonymousName => 'مجهول';
+
+  @override
+  String get liveGiftAnonymousToggle => 'إهداء مجهول';
+
+  @override
+  String get liveGiftAnonymousOn => 'إهداء مجهول: يظهر اسمك «مجهول»';
+
+  @override
+  String get liveGiftAnonymousFrom => 'هدية من «مجهول»';
+
+  @override
+  String get liveGiftAnonymousHint =>
+      'لن يُكشف لك المرسل؛ يبقى اسمه في سجل الفريق.';
+
+  @override
+  String get liveGiftAnonymousReport => 'إبلاغ عن المرسل';
+
+  @override
+  String get liveGiftAnonymousRefuse => 'رفض الهدايا المجهولة من هذا المرسل';
+
+  @override
+  String get liveGiftAnonymousRefused => 'لن تصلك هدايا مجهولة من هذا المرسل.';
+
+  @override
+  String get liveGiftReported => 'تم الإبلاغ، شكراً لك.';
 }

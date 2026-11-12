@@ -121,6 +121,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.whatsappConversationClosed => l10n.waErrClosed,
     ErrorCode.whatsappSendFailed => l10n.waErrSend,
     ErrorCode.staffProtected => l10n.errorStaffProtected,
+    ErrorCode.vipProtected => l10n.errorVipProtected,
     ErrorCode.liveStaffRefused => l10n.errorLiveStaffRefused,
     ErrorCode.staffStepUpRequired => l10n.errorStaffStepUpRequired,
     ErrorCode.staffTotpNotEnrolled => l10n.errorStaffTotpNotEnrolled,

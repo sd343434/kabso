@@ -29,8 +29,15 @@ const BUILT = [
   'DAILY_BULLET',
   'PROFILE_VISITORS',
   'LEVEL_SPEEDUP',
+  // D380 (§10.170): the privacy perks built.
+  'HIDDEN_VISIT',
+  'RANKING_ANONYMOUS',
+  'KICK_MUTE_SHIELD',
+  'ANONYMOUS_GIFT',
 ];
-/** The owner's new perks (D374), registered not built. */
+/** D380: the privacy perks built by D380 (counted with BUILT, registered by D374 with the new ones). */
+const D380 = ['HIDDEN_VISIT', 'RANKING_ANONYMOUS', 'KICK_MUTE_SHIELD', 'ANONYMOUS_GIFT'];
+/** The owner's new perks (D374), registered not built (D380's four since built). */
 const NEW = [
   'ANIMATED_COVER',
   'PREMIUM_USERNAME',
@@ -39,7 +46,6 @@ const NEW = [
   'EXCLUSIVE_GIFTS',
   'HIDDEN_VISIT',
   'RANKING_ANONYMOUS',
-  'HIDE_COINS_SENT',
   'KICK_MUTE_SHIELD',
   'ANONYMOUS_GIFT',
   'DM_BUBBLE',
@@ -93,19 +99,25 @@ const D379 = [
 const issues = (code: string, value: unknown) => vipPerkValueIssues(code, value).map((i) => i.issue);
 
 describe('D374 VIP perk catalogue', () => {
-  it("holds the owner's list: eleven built, thirty new ones not built, MONTHLY_GIFT; codes unique; DAILY_COINS removed", () => {
+  it("holds the owner's list: eleven built, the new ones, MONTHLY_GIFT; codes unique; DAILY_COINS and HIDE_COINS_SENT removed", () => {
     const codes = VIP_PERK_CATALOGUE.map((e) => e.code);
     expect(new Set(codes).size).toBe(codes.length);
+    // BUILT holds D380's four (§10.170); D378 and D379 built theirs from NEW too.
     expect([...VIP_CATALOGUE_BUILT].sort()).toEqual([...BUILT, ...D378_BUILT, ...D379].sort());
     expect([...VIP_BUILT_PERKS].sort()).toEqual([...BUILT, ...D378_BUILT, ...D379].sort());
-    for (const c of NEW) expect(vipCatalogueEntry(c)?.built, c).toBe(D378_BUILT.includes(c) || D379.includes(c));
+    for (const c of NEW) {
+      expect(vipCatalogueEntry(c)?.built, c).toBe(D378_BUILT.includes(c) || D379.includes(c) || D380.includes(c));
+    }
+    // D380: the owner removed HIDE_COINS_SENT (2026-11-12): D220's free switch hides the number for everyone.
+    expect(vipCatalogueEntry('HIDE_COINS_SENT')).toBeUndefined();
+    expect(vipPerkRetired('HIDE_COINS_SENT')).toBe(true);
     expect(vipCatalogueEntry('MONTHLY_GIFT')?.built).toBe(false);
-    expect(codes).toHaveLength(BUILT.length + NEW.length + 1);
+    expect(codes).toHaveLength(BUILT.length - D380.length + NEW.length + 1);
     expect(codes.length).toBeLessThanOrEqual(VIP_MAX_PERKS);
     expect(VIP_MAX_PERKS).toBeGreaterThanOrEqual(64);
     // The owner removed DAILY_COINS (2026-11-11): not in the catalogue, retired.
     expect(vipCatalogueEntry('DAILY_COINS')).toBeUndefined();
-    expect(VIP_RETIRED_PERKS).toEqual(['DAILY_COINS']);
+    expect(VIP_RETIRED_PERKS).toEqual(['DAILY_COINS', 'HIDE_COINS_SENT']);
     expect(vipPerkRetired('DAILY_COINS')).toBe(true);
     expect(vipPerkRetired('BADGE')).toBe(false);
     // The code is MIC_WAVE (not MIC_SOUND_WAVE).

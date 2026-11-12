@@ -146,6 +146,16 @@ export enum AuditAction {
   VIP_GOLDEN_ID_STOCK_REMOVE = 'vip.golden_id.stock_remove',
   /** v1.131-social (D378, §10.168.3): a premium username claimed free with the PREMIUM_USERNAME perk. */
   PREMIUM_USERNAME_VIP_CLAIM = 'premium_username.vip_claim',
+  /**
+   * v1.133-social (D380, §10.170.4): KICK_MUTE_SHIELD refused a room moderator's kick / chat mute / seat mute of a
+   * holder (actor: the moderator, target: the member; `metadata.action`, `metadata.roomId`).
+   */
+  VIP_SHIELD_REFUSED = 'vip.shield.refused',
+  /**
+   * v1.133-social (D380, §10.170.5): a recipient refused (`metadata.blocked` true) or allowed again (false) the
+   * anonymous gifts of a send's sender (actor: the recipient, target: the sender — for the team).
+   */
+  LIVE_GIFT_ANONYMOUS_BLOCK = 'live.gift.anonymous_block',
   /** D270 (§10.98): «المتجر» — an item added, changed or switched on / off in the panel. */
   STORE_ITEM_ADD = 'store.item.add',
   STORE_ITEM_UPDATE = 'store.item.update',

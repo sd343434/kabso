@@ -33,6 +33,9 @@ class PrivacySettings {
     this.isPrivate = false,
     this.hideCherriesReceived,
     this.hideCoinsSent,
+    this.hiddenVisit,
+    this.rankingAnonymous,
+    this.kickMuteShield,
   });
 
   factory fromJson(Map<String, dynamic> json) => PrivacySettings(
@@ -48,6 +51,10 @@ class PrivacySettings {
     // v1.77-social (D220); absent from older servers: no switch shown.
     hideCherriesReceived: json['hideCherriesReceived'] as bool?,
     hideCoinsSent: json['hideCoinsSent'] as bool?,
+    // v1.133-social (D380, §10.170.1): present only while the VIP perk is held.
+    hiddenVisit: json['hiddenVisit'] as bool?,
+    rankingAnonymous: json['rankingAnonymous'] as bool?,
+    kickMuteShield: json['kickMuteShield'] as bool?,
   );
 
   final MentionPolicy whoCanMention;
@@ -77,6 +84,22 @@ class PrivacySettings {
   /// v1.77-social (D220, §10.74): «إخفاء الكوينز المرسلة»; null like
   /// [hideCherriesReceived].
   final bool? hideCoinsSent;
+
+  /// v1.133-social (D380, §10.170.2): «زيارة خفية» (HIDDEN_VISIT). Null: the
+  /// caller's VIP does not hold the perk, so the switch is not shown.
+  final bool? hiddenVisit;
+
+  /// v1.133-social (D380, §10.170.3): «اسم مخفي في التصنيفات»
+  /// (RANKING_ANONYMOUS); null like [hiddenVisit].
+  final bool? rankingAnonymous;
+
+  /// v1.133-social (D380, §10.170.4): «حماية من طرد وكتم المشرف العادي»
+  /// (KICK_MUTE_SHIELD); null like [hiddenVisit].
+  final bool? kickMuteShield;
+
+  /// D380: the caller holds at least one VIP privacy switch.
+  bool get hasVipSwitches =>
+      hiddenVisit != null || rankingAnonymous != null || kickMuteShield != null;
 }
 
 /// Block, mute, reports of users and privacy (docs/contracts/openapi.yaml
@@ -125,6 +148,9 @@ abstract interface class SafetyRepository {
     bool? isPrivate,
     bool? hideCherriesReceived,
     bool? hideCoinsSent,
+    bool? hiddenVisit,
+    bool? rankingAnonymous,
+    bool? kickMuteShield,
   });
 }
 
@@ -234,6 +260,9 @@ class SafetyRepositoryImpl implements SafetyRepository {
     bool? isPrivate,
     bool? hideCherriesReceived,
     bool? hideCoinsSent,
+    bool? hiddenVisit,
+    bool? rankingAnonymous,
+    bool? kickMuteShield,
   }) => guardApiCall(() async {
     final res = await _dio.patch<Map<String, dynamic>>(
       '/me/privacy',
@@ -245,6 +274,9 @@ class SafetyRepositoryImpl implements SafetyRepository {
         'isPrivate': ?isPrivate,
         'hideCherriesReceived': ?hideCherriesReceived,
         'hideCoinsSent': ?hideCoinsSent,
+        'hiddenVisit': ?hiddenVisit,
+        'rankingAnonymous': ?rankingAnonymous,
+        'kickMuteShield': ?kickMuteShield,
       },
     );
     return PrivacySettings.fromJson(res.data!);

@@ -367,6 +367,9 @@ model User {
   /// v1.126-social (D370, §10.163): recharge points «نقاط الشحن» — the balance and the append-only ledger.
   rechargePoints          RechargePointsBalance?
   rechargePointsLedger    RechargePointsEntry[]
+  /// v1.133-social (D380, §10.170.5): anonymous senders this person refused, and the refusals of this sender.
+  anonymousGiftBlocksMade AnonymousGiftBlock[] @relation("AnonymousGiftBlockRecipient")
+  anonymousGiftBlocksGot  AnonymousGiftBlock[] @relation("AnonymousGiftBlockSender")
   /// D270 (§10.98).
   storePurchases          StorePurchase[]          @relation("StorePurchaseBuyer")
   storeGiftsReceived      StorePurchase[]          @relation("StorePurchaseRecipient")
@@ -2371,6 +2374,9 @@ model Report {
   /// v1.68-live (D273, §10.96.6): a USER report made inside a live (the context, not the target): the live's staff
   /// see it with the live's reports and are alerted.
   contextLiveRoomId         String?          @map("context_live_room_id") @db.Uuid
+  /// v1.133-social (D380, §10.170.5): a USER report filed by a recipient from a gift (`reportLiveGift`; an anonymous
+  /// send names no one to them): the send it came from.
+  contextLiveGiftId         String?          @map("context_live_gift_id") @db.Uuid
 
   reporter                User               @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
   targetPost              Post?              @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
@@ -2379,6 +2385,7 @@ model Report {
   targetStory             Story?             @relation(fields: [targetStoryId], references: [id], onDelete: Cascade)
   targetLiveRoom          LiveRoom?          @relation("ReportTargetLive", fields: [targetLiveRoomId], references: [id], onDelete: Cascade)
   contextLiveRoom         LiveRoom?          @relation("ReportContextLive", fields: [contextLiveRoomId], references: [id], onDelete: SetNull)
+  contextLiveGift         LiveGift?          @relation("ReportContextGift", fields: [contextLiveGiftId], references: [id], onDelete: SetNull)
   targetLiveChatMessage   LiveChatMessage?   @relation(fields: [targetLiveChatMessageId], references: [id], onDelete: Cascade)
   targetCpConfession      CpConfession?      @relation(fields: [targetCpConfessionId], references: [id], onDelete: Cascade)
   targetFamilyChatMessage FamilyChatMessage? @relation(fields: [targetFamilyChatMessageId], references: [id], onDelete: Cascade)
@@ -2411,6 +2418,7 @@ model Report {
   @@index([targetDmGroupId], map: "reports_target_dm_group_idx")
   @@index([targetProfileLinkId], map: "reports_target_profile_link_idx")
   @@index([legalHoldId], map: "reports_legal_hold_idx")
+  @@index([contextLiveGiftId], map: "reports_context_live_gift_idx", where: raw("context_live_gift_id IS NOT NULL"))
   @@index([contextLiveRoomId], map: "reports_context_live_room_idx", where: raw("context_live_room_id IS NOT NULL"))
   @@index([resolvedAt(sort: Desc), id(sort: Desc)], map: "reports_resolved_idx", where: raw("status <> 'OPEN'::report_status"))
   @@map("reports")
@@ -2429,6 +2437,13 @@ model PrivacySettings {
   hideCherriesReceived Boolean       @default(false) @map("hide_cherries_received")
   /// v1.77-social (D220, §10.74): the same for the lifetime coins sent on gifts.
   hideCoinsSent        Boolean       @default(false) @map("hide_coins_sent")
+  /// v1.133-social (D380, §10.170): the VIP privacy switches, read only while the perk is held (kept when it ends).
+  /// HIDDEN_VISIT «زيارة خفية» (default on).
+  vipHiddenVisit       Boolean       @default(true) @map("vip_hidden_visit")
+  /// RANKING_ANONYMOUS «اسم مخفي في التصنيفات» (default off).
+  vipRankingAnonymous  Boolean       @default(false) @map("vip_ranking_anonymous")
+  /// KICK_MUTE_SHIELD «حماية من طرد وكتم المشرف العادي» (default on).
+  vipKickMuteShield    Boolean       @default(true) @map("vip_kick_mute_shield")
   updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -3622,6 +3637,9 @@ model LiveGift {
   /// v1.32-live (D154, §10.33): the recipients' earnings share of `total_coins` at the time of the send,
   /// in basis points (the category's GIFT_HOST_SHARE_PERCENTS; LUCKY: LUCKY_GIFT_HOST_SHARE_PERCENT).
   hostShareBps     Int            @map("host_share_bps")
+  /// v1.133-social (D380, §10.170.5): an ANONYMOUS_GIFT send «إهداء مجهول» — shown as «مجهول» to the room, the
+  /// recipients and the other lives; `senderId` stays the real sender. Live sends only (CHECK).
+  anonymous        Boolean        @default(false)
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
 
   sender         User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
@@ -3640,6 +3658,9 @@ model LiveGift {
   /// v1.127-social (D372).
   post           Post?               @relation(fields: [postId], references: [id], onDelete: SetNull)
   comment        Comment?
+  /// v1.133-social (D380): reports filed from this send, and anonymous senders refused from it.
+  contextReports      Report[]             @relation("ReportContextGift")
+  anonymousGiftBlocks AnonymousGiftBlock[]
 
   @@unique([senderId, clientId], map: "live_gifts_client_once")
   @@index([senderId, roomId, createdAt(sort: Desc)], map: "live_gifts_sender_room_idx")
@@ -8841,4 +8862,22 @@ model VipGoldenId {
 
   @@index([class, state, number], map: "vip_golden_ids_class_idx")
   @@map("vip_golden_ids")
+}
+
+/// v1.133-social (D380, CONVENTIONS §10.170.5): a recipient of an ANONYMOUS_GIFT send refused any further anonymous
+/// gift from its sender («حظر الهدايا المجهولة من هذا المرسل») without learning who it is; the sender's named gifts are
+/// unaffected (an ordinary block covers everything). `gift_id`: the send it was made from (null once that send is gone).
+model AnonymousGiftBlock {
+  recipientId String   @map("recipient_id") @db.Uuid
+  senderId    String   @map("sender_id") @db.Uuid
+  giftId      String?  @map("gift_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  recipient User      @relation("AnonymousGiftBlockRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  sender    User      @relation("AnonymousGiftBlockSender", fields: [senderId], references: [id], onDelete: Cascade)
+  gift      LiveGift? @relation(fields: [giftId], references: [id], onDelete: SetNull)
+
+  @@id([recipientId, senderId])
+  @@index([senderId], map: "anonymous_gift_blocks_sender_idx")
+  @@map("anonymous_gift_blocks")
 }

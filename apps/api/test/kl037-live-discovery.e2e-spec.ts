@@ -156,6 +156,10 @@ describe('KL-037 contract coverage', () => {
             // v1.132-social (D379): the VIP pinned message; d379-vip-live-perks covers it.
             'pinLiveChatMessage',
             'unpinLiveChatMessage',
+            // v1.133-social (D380): a gift's report and the anonymous-gift refusal; d380-vip-privacy covers them.
+            'reportLiveGift',
+            'blockAnonymousGiftSender',
+            'unblockAnonymousGiftSender',
           ].includes(o.operationId),
       )
       .filter(

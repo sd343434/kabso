@@ -23,9 +23,13 @@ class LuckyComboGift {
     required this.unitPrice,
     required this.assetKey,
     this.imageUrl,
+    this.anonymous = false,
   });
 
   final String code;
+
+  /// D380 (§10.170.5): the combo keeps the panel's «إهداء مجهول».
+  final bool anonymous;
   final int quantity;
 
   /// Usernames, in the order the panel sent them.
@@ -374,6 +378,7 @@ class LuckyComboController extends Notifier<LuckyComboState> {
       recipients: gift.recipients,
       source: LiveGiftSource.coins,
       clientId: clientId,
+      anonymous: gift.anonymous,
     );
     // D145c: paced — never faster than [minGap] between two sends.
     Future<LiveGiftResult> paced() async {

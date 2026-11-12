@@ -111,6 +111,9 @@ class FakeSafetyRepository implements SafetyRepository {
     bool? isPrivate,
     bool? hideCherriesReceived,
     bool? hideCoinsSent,
+    bool? hiddenVisit,
+    bool? rankingAnonymous,
+    bool? kickMuteShield,
   }) async {
     _step(
       'updatePrivacy:${whoCanMention?.wire ?? ''}:'
@@ -119,7 +122,10 @@ class FakeSafetyRepository implements SafetyRepository {
       '${whoCanMessage == null ? '' : ':message=${whoCanMessage.wire}'}'
       '${isPrivate == null ? '' : ':private=$isPrivate'}'
       '${hideCherriesReceived == null ? '' : ':hideCh=$hideCherriesReceived'}'
-      '${hideCoinsSent == null ? '' : ':hideCoins=$hideCoinsSent'}',
+      '${hideCoinsSent == null ? '' : ':hideCoins=$hideCoinsSent'}'
+      '${hiddenVisit == null ? '' : ':hiddenVisit=$hiddenVisit'}'
+      '${rankingAnonymous == null ? '' : ':rankingAnon=$rankingAnonymous'}'
+      '${kickMuteShield == null ? '' : ':shield=$kickMuteShield'}',
     );
     return privacySettings = PrivacySettings(
       whoCanMention: whoCanMention ?? privacySettings.whoCanMention,
@@ -132,6 +138,9 @@ class FakeSafetyRepository implements SafetyRepository {
       hideCherriesReceived:
           hideCherriesReceived ?? privacySettings.hideCherriesReceived,
       hideCoinsSent: hideCoinsSent ?? privacySettings.hideCoinsSent,
+      hiddenVisit: hiddenVisit ?? privacySettings.hiddenVisit,
+      rankingAnonymous: rankingAnonymous ?? privacySettings.rankingAnonymous,
+      kickMuteShield: kickMuteShield ?? privacySettings.kickMuteShield,
     );
   }
 }

@@ -245,6 +245,7 @@ _LiveGift _$LiveGiftFromJson(Map<String, dynamic> json) => _LiveGift(
   audioUrl: json['audioUrl'] as String?,
   audioBytes: (json['audioBytes'] as num?)?.toInt(),
   audioDurationMs: (json['audioDurationMs'] as num?)?.toInt(),
+  anonymous: json['anonymous'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$LiveGiftToJson(_LiveGift instance) => <String, dynamic>{
@@ -269,6 +270,7 @@ Map<String, dynamic> _$LiveGiftToJson(_LiveGift instance) => <String, dynamic>{
   'audioUrl': instance.audioUrl,
   'audioBytes': instance.audioBytes,
   'audioDurationMs': instance.audioDurationMs,
+  'anonymous': ?trueOrNull(instance.anonymous),
 };
 
 const _$LiveGiftSourceEnumMap = {

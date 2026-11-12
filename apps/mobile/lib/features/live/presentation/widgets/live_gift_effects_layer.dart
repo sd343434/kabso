@@ -6,12 +6,14 @@ import 'package:kabso_live/core/models/item_badge.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
 import 'package:kabso_live/features/live/application/live_viewer_prefs.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_anonymous_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_global_strip_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_level_ticker_bar.dart';
@@ -19,6 +21,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_program_card.
 import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_win_banner.dart';
+import 'package:kabso_live/features/vip/presentation/vip_anonymous.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -193,7 +196,12 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
                       LiveGlobalStripLanes(
                         roomId: roomId,
                         onOpenRoom: onOpenRoom,
-                        onPerson: onSender,
+                        // D380: «مجهول» opens no card.
+                        onPerson: onSender == null
+                            ? null
+                            : (u) {
+                                if (!u.anonymous) onSender!(u);
+                              },
                       ),
                     ],
                   ),
@@ -414,6 +422,17 @@ class LiveGiftStrips extends ConsumerWidget {
     );
     final catalogue = ref.watch(giftCatalogueProvider).value;
     final onSender = this.onSender;
+    final me = ref.watch(currentUserProvider.select((u) => u?.id));
+    // v1.133-social (D380, §10.170.5): an anonymous gift's strip opens no
+    // card; its recipients get «إبلاغ» / «رفض الهدايا المجهولة» instead.
+    VoidCallback? tapOf(LiveStrip strip) => switch (strip) {
+      LiveGiftStrip(:final gift) when gift.anonymous =>
+        me != null && gift.recipients.any((r) => r.id == me)
+            ? () => openAnonymousGiftActions(context, ref, gift)
+            : null,
+      _ when strip.sender.anonymous => null,
+      _ => onSender == null ? null : () => onSender(strip.sender),
+    };
     final column = Column(
       key: stripsKey,
       mainAxisSize: MainAxisSize.min,
@@ -426,7 +445,7 @@ class LiveGiftStrips extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: KSpacing.xxs),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: onSender == null ? null : () => onSender(strip.sender),
+              onTap: tapOf(strip),
               child: switch (strip) {
                 LiveGiftStrip(:final gift) => LiveGiftBanner(
                   key: LiveGiftEffectsLayer.bannerKey(gift.combo.id),
@@ -457,7 +476,17 @@ class LiveGiftStrips extends ConsumerWidget {
             ),
             child: column,
           );
-    return onSender == null ? IgnorePointer(child: strips) : strips;
+    final anonymousForMe =
+        me != null &&
+        banners.any(
+          (b) =>
+              b is LiveGiftStrip &&
+              b.gift.anonymous &&
+              b.gift.recipients.any((r) => r.id == me),
+        );
+    return onSender == null && !anonymousForMe
+        ? IgnorePointer(child: strips)
+        : strips;
   }
 }
 
@@ -526,7 +555,8 @@ class LiveGiftBanner extends StatelessWidget {
     final gift = this.gift;
     final quip = this.quip;
     final sentBy = gift?.sender ?? quip!.sender;
-    final sender = KFormat.bidiIsolate(sentBy.displayName);
+    // D380: «مجهول» in the reader's language for an anonymous send.
+    final sender = KFormat.bidiIsolate(sentBy.shownName(l10n));
     final String line;
     final Widget art;
     final int? count;
@@ -572,11 +602,7 @@ class LiveGiftBanner extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          KAvatar(
-            name: sentBy.displayName,
-            imageUrl: sentBy.avatarUrl,
-            size: 30,
-          ),
+          personAvatar(sentBy, size: 30),
           const SizedBox(width: KSpacing.xs),
           Flexible(
             child: Column(

@@ -34,6 +34,7 @@ import {
 } from './gift-events.js';
 import { EVENT_LEADERBOARD_MAX, parseEventPrizes, prizeForRank, type EventPrize } from './programs-rules.js';
 import { parseStoredDesign, type EventDesign } from './event-design.js';
+import { rankedUser, vipPrivacyOnIn } from '../vip/vip-privacy.js';
 import { EVENT_BOARD_BG_KIND } from './event-media.js';
 import {
   audienceSql,
@@ -1090,6 +1091,14 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       select: USER_SUMMARY_SELECT,
     });
     const byId = new Map(profiles.map((u) => [u.id, u]));
+    // v1.133-social (D380, §10.170.3): RANKING_ANONYMOUS — «مجهول» to everyone but the member (rank, score and prize
+    // stay; the prize is paid to the real account as before).
+    const anonymous = await vipPrivacyOnIn(
+      this.prisma,
+      shown.map((r) => r.user_id),
+      'RANKING_ANONYMOUS',
+      this.clock.now(),
+    );
     const myRank = mine ? Number(mine.rank) : null;
     return {
       eventId: e.id,
@@ -1102,7 +1111,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         return [
           {
             rank,
-            user: userSummary(u),
+            user: rankedUser(userSummary(u), anonymous, me),
             score: Number(r.score),
             prizeCoins: prizeForRank(prizes, rank),
           },
@@ -1246,6 +1255,12 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       select: USER_SUMMARY_SELECT,
     });
     const byId = new Map(profiles.map((u) => [u.id, u]));
+    // v1.133-social (D380, §10.170.3): RANKING_ANONYMOUS — a person (or a CP partner) is «مجهول» to everyone but
+    // themselves; the AGENCIES board names agencies (its row is the agency, shown as it is).
+    const anonymous =
+      kind === 'AGENCIES'
+        ? new Set<string>()
+        : await vipPrivacyOnIn(this.prisma, ids, 'RANKING_ANONYMOUS', this.clock.now());
     const minPoints = board.minPoints;
     const bundleOf = (r: BoardRow & { prize?: PrizeItem[] }) =>
       r.prize ?? (r.score >= minPoints ? [...bundleForRank(lines, Number(r.rank))] : []);
@@ -1272,10 +1287,10 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         return [
           {
             rank: Number(r.rank),
-            user: userSummary(u),
+            user: rankedUser(userSummary(u), anonymous, me),
             score: Number(r.score),
             prizeCoins: bundleCoins(bundle),
-            ...(p ? { partner: userSummary(p) } : {}),
+            ...(p ? { partner: rankedUser(userSummary(p), anonymous, me) } : {}),
             ...(r.agency_id ? { agency: { id: r.agency_id, name: r.agency_name } } : {}),
             qualified: r.score >= minPoints,
             prize: bundle.map(named),

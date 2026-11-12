@@ -700,6 +700,8 @@ export function liveGiftSendSchema(quantities: readonly number[]) {
     // string first, so a missing source reports `required` (a bare enum reports `invalid_value`).
     source: z.string().pipe(z.enum(['COINS', 'BAG'])),
     clientId: z.uuid(),
+    // v1.133-social (D380, §10.170.5): «إهداء مجهول» — the room and the recipients see «مجهول» (ANONYMOUS_GIFT holders).
+    anonymous: z.boolean().optional(),
   });
 }
 export type LiveGiftSendInput = z.output<ReturnType<typeof liveGiftSendSchema>>;

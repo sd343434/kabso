@@ -29,6 +29,12 @@ abstract final class VipPerks {
   static const storyRing = 'STORY_RING';
   static const glowingName = 'GLOWING_NAME';
   static const dmBubble = 'DM_BUBBLE';
+
+  /// D380 (§10.170): the privacy perks.
+  static const hiddenVisit = 'HIDDEN_VISIT';
+  static const rankingAnonymous = 'RANKING_ANONYMOUS';
+  static const kickMuteShield = 'KICK_MUTE_SHIELD';
+  static const anonymousGift = 'ANONYMOUS_GIFT';
 }
 
 /// D258: the VIP catalogue kept for the whole session (every chat line, seat

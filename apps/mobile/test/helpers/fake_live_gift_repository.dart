@@ -53,6 +53,32 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
   final Map<String, AppFailure> failNext = {};
   final List<FakeGiftSend> sends = [];
 
+  /// D380: the clientIds of the anonymous sends; the gifts reported and
+  /// the anonymous senders refused (by gift id).
+  final List<String> anonymousClientIds = [];
+  final List<({String giftId, String reason})> giftReports = [];
+  final Set<String> refusedGifts = {};
+
+  @override
+  Future<void> reportGift(String giftId, {required String reason}) async {
+    _record('reportGift');
+    giftReports.add((giftId: giftId, reason: reason));
+  }
+
+  @override
+  Future<bool> setAnonymousSenderRefused(
+    String giftId, {
+    required bool refused,
+  }) async {
+    _record('anonymousBlock');
+    if (refused) {
+      refusedGifts.add(giftId);
+    } else {
+      refusedGifts.remove(giftId);
+    }
+    return refused;
+  }
+
   /// While set, a send waits for it (an answer still on its way).
   Completer<void>? sendGate;
 
@@ -125,7 +151,9 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
     required List<String> recipients,
     required LiveGiftSource source,
     required String clientId,
+    bool anonymous = false,
   }) async {
+    if (anonymous) anonymousClientIds.add(clientId);
     sends.add((
       roomId: roomId,
       giftCode: giftCode,

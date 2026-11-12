@@ -22,6 +22,7 @@ import { releaseUserIn, type ReleasedUser } from './live-seats.store.js';
 import { liveKickBodySchema } from './live.schemas.js';
 import { assertNotStaffTarget } from './live-staff.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
+import { refuseVipShielded } from '../vip/vip-privacy.js';
 
 // ---- Response shapes (openapi v1.20-live, D105) ------------------------------------------------
 
@@ -125,12 +126,20 @@ export class LiveKicksService {
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
     const parsed = liveKickBodySchema.safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
-    if (!staff) await this.privilege(this.prisma, row, callerId);
+    const privilege = staff ? null : await this.privilege(this.prisma, row, callerId);
     const target = await this.users.findActivePublicUser(parsed.data.username);
     if (!target) throw notFound();
     if (target.id === callerId || target.id === row.host_user_id) throw forbidden();
     // v1.68-live (D273, §10.96.7): nobody removes «فريق كابسو» from a live.
     await assertNotStaffTarget(this.prisma, target.id);
+    // v1.133-social (D380, §10.170.4): a moderator never kicks a KICK_MUTE_SHIELD holder (the host and the team can).
+    if (privilege === 'MODERATOR') {
+      await refuseVipShielded(
+        this.prisma,
+        { actorId: callerId, targetId: target.id, roomId: row.id, action: 'KICK' },
+        this.clock.now(),
+      );
+    }
 
     const now = this.clock.now();
     const outcome = await this.prisma.$transaction(async (tx) => {

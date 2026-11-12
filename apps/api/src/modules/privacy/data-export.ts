@@ -214,6 +214,10 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
           whoCanMessage: true,
           hideCherriesReceived: true,
           hideCoinsSent: true,
+          // v1.133-social (D380, §10.170): the VIP privacy switches.
+          vipHiddenVisit: true,
+          vipRankingAnonymous: true,
+          vipKickMuteShield: true,
         },
       },
       notificationPrefs: {
@@ -468,6 +472,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
         totalCoins: true,
         coinsCharged: true,
         createdAt: true,
+        anonymous: true,
         recipients: { select: { userId: true, coins: true } },
       },
     }),
@@ -481,7 +486,15 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
       select: {
         coins: true,
         gift: {
-          select: { id: true, senderId: true, giftCode: true, quantity: true, source: true, createdAt: true },
+          select: {
+            id: true,
+            senderId: true,
+            giftCode: true,
+            quantity: true,
+            source: true,
+            createdAt: true,
+            anonymous: true,
+          },
         },
       },
     }),
@@ -494,7 +507,8 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     ...blocked.map((b) => b.blockedId),
     ...muted.map((m) => m.mutedId),
     ...sent.flatMap((g) => g.recipients.map((r) => r.userId)),
-    ...received.map((r) => r.gift.senderId),
+    // v1.133-social (D380, §10.170.5): an anonymous gift's sender is not the recipient's data («مجهول»).
+    ...received.filter((r) => !r.gift.anonymous || r.gift.senderId === u).map((r) => r.gift.senderId),
   ]);
   const messages = dmRows.map((m) => {
     const mine = m.senderId === u;
@@ -531,6 +545,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
       coinsCharged: str(g.coinsCharged),
       at: iso(g.createdAt),
       to: g.recipients.map((r) => ({ ...refOf(refs, r.userId), coins: str(r.coins) })),
+      ...(g.anonymous ? { anonymous: true } : {}),
     })),
     received: received.map((r) => ({
       id: r.gift.id,
@@ -539,7 +554,10 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
       source: r.gift.source,
       coins: str(r.coins),
       at: iso(r.gift.createdAt),
-      from: refOf(refs, r.gift.senderId),
+      from:
+        r.gift.anonymous && r.gift.senderId !== u
+          ? { username: null, anonymous: true }
+          : refOf(refs, r.gift.senderId),
     })),
   };
 

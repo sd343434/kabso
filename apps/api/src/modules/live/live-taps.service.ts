@@ -29,6 +29,7 @@ import {
 } from './live-taps.js';
 import { liveTapsRequestSchema } from './live.schemas.js';
 import { UsersService } from '../users/users.service.js';
+import { rankedUser, vipPrivacyOn, vipPrivacyOnIn } from '../vip/vip-privacy.js';
 
 /** `LiveTapsResult` (CP-012). */
 export interface LiveTapsResultDto {
@@ -285,8 +286,19 @@ export class LiveTapsService {
       take: LIVE_CONTRIBUTORS_MAX,
       include: { user: { select: USER_SUMMARY_SELECT } },
     });
+    // v1.133-social (D380, §10.170.3): a member with RANKING_ANONYMOUS on is «مجهول» to the room — but not to
+    // themselves nor to the host of this live (who thanks and moderates their own supporters).
+    const anonymous = await vipPrivacyOnIn(
+      this.prisma,
+      rows.map((r) => r.userId),
+      'RANKING_ANONYMOUS',
+      this.clock.now(),
+    );
     return {
-      data: rows.map((r) => ({ user: userSummary(r.user), points: Number(r.points) })),
+      data: rows.map((r) => ({
+        user: rankedUser(userSummary(r.user), anonymous, callerId, [row.host_user_id]),
+        points: Number(r.points),
+      })),
     };
   }
 
@@ -323,6 +335,15 @@ export class LiveTapsService {
       displayName: target.displayName,
       avatarUrl: target.avatarUrl,
     };
+    // v1.133-social (D380, §10.170.3): the standing of a member with RANKING_ANONYMOUS on is not told to others (their
+    // points and place would name the «مجهول» row): 0 and no rank, as for someone who gave nothing.
+    if (
+      callerId !== target.id &&
+      callerId !== row.host_user_id &&
+      (await vipPrivacyOn(this.prisma, target.id, 'RANKING_ANONYMOUS', this.clock.now()))
+    ) {
+      return { user, points: 0, rank: null };
+    }
     const where = contributorsWhere(row.id, row.host_user_id, callerId);
     const mine = await this.prisma.liveRoomTapper.findFirst({
       where: { AND: [where, { userId: target.id }] },

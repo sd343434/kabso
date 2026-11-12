@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode, type ErrorDetail } from '../../common/errors/error-codes.js';
 import { assertNotStaffTarget, refuseWatchStaff } from './live-staff.js';
+import { refuseVipShielded } from '../vip/vip-privacy.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { Prisma } from '../../generated/prisma/client.js';
@@ -1457,6 +1458,14 @@ export class LiveSeatsService {
       if (!seat?.userId) throw seatUnavailable();
       await this.assertMayActOn(tx, room, callerId, privilege, seat.userId);
       if (seat.mutedByHost === input.muted) return { result: undefined, version: null, effects: [] };
+      // v1.133-social (D380, §10.170.4): a moderator never mutes a KICK_MUTE_SHIELD holder's mic (unmuting is fine).
+      if (input.muted && privilege === 'MODERATOR' && seat.userId !== callerId) {
+        await refuseVipShielded(
+          this.prisma,
+          { actorId: callerId, targetId: seat.userId, roomId: room.id, action: 'SEAT_MUTE' },
+          now,
+        );
+      }
       await tx.liveRoomSeat.update({
         where: { roomId_seatIndex: { roomId: room.id, seatIndex: index } },
         data: { mutedByHost: input.muted, updatedAt: now },
@@ -1491,6 +1500,14 @@ export class LiveSeatsService {
       const seat = await this.seatAt(tx, room, index);
       if (!seat?.userId) return { result: undefined, version: null, effects: [] };
       await this.assertMayActOn(tx, room, callerId, privilege, seat.userId);
+      // v1.133-social (D380, §10.170.4): a moderator never takes a KICK_MUTE_SHIELD holder off their seat.
+      if (privilege === 'MODERATOR' && seat.userId !== callerId) {
+        await refuseVipShielded(
+          this.prisma,
+          { actorId: callerId, targetId: seat.userId, roomId: room.id, action: 'SEAT_REMOVE' },
+          this.clock.now(),
+        );
+      }
       await tx.liveRoomSeat.delete({ where: { roomId_seatIndex: { roomId: room.id, seatIndex: index } } });
       return {
         result: undefined,

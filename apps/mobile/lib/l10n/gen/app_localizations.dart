@@ -31281,6 +31281,108 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إلغاء الحجز'**
   String get liveVipReleaseAction;
+
+  /// D380 VIP privacy: the privacy screen's section of the VIP privacy switches
+  ///
+  /// In ar, this message translates to:
+  /// **'امتيازات VIP'**
+  String get privacyVipTitle;
+
+  /// D380 VIP privacy: HIDDEN_VISIT switch
+  ///
+  /// In ar, this message translates to:
+  /// **'زيارة خفية'**
+  String get privacyVipHiddenVisit;
+
+  /// D380 VIP privacy: HIDDEN_VISIT hint
+  ///
+  /// In ar, this message translates to:
+  /// **'زياراتك للملفات لا تظهر في «من زار ملفي».'**
+  String get privacyVipHiddenVisitHint;
+
+  /// D380 VIP privacy: RANKING_ANONYMOUS switch
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم مخفي في التصنيفات'**
+  String get privacyVipRankingAnonymous;
+
+  /// D380 VIP privacy: RANKING_ANONYMOUS hint
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر «مجهول» في قوائم الترتيب والداعمين.'**
+  String get privacyVipRankingAnonymousHint;
+
+  /// D380 VIP privacy: KICK_MUTE_SHIELD switch
+  ///
+  /// In ar, this message translates to:
+  /// **'حماية من طرد وكتم المشرف العادي'**
+  String get privacyVipKickMuteShield;
+
+  /// D380 VIP privacy: KICK_MUTE_SHIELD hint
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يطردك أو يكتمك مشرف الغرفة؛ يبقى المضيف وفريق كابسو قادرين.'**
+  String get privacyVipKickMuteShieldHint;
+
+  /// D380 VIP privacy: VIP_PROTECTED
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا العضو محمي بامتياز VIP؛ يستطيع المضيف أو فريق كابسو فقط.'**
+  String get errorVipProtected;
+
+  /// D380 VIP privacy: the stand-in name of an anonymous VIP member
+  ///
+  /// In ar, this message translates to:
+  /// **'مجهول'**
+  String get vipAnonymousName;
+
+  /// D380 VIP privacy: the gift panel's ANONYMOUS_GIFT switch
+  ///
+  /// In ar, this message translates to:
+  /// **'إهداء مجهول'**
+  String get liveGiftAnonymousToggle;
+
+  /// D380 VIP privacy: the gift panel's ANONYMOUS_GIFT switch while on
+  ///
+  /// In ar, this message translates to:
+  /// **'إهداء مجهول: يظهر اسمك «مجهول»'**
+  String get liveGiftAnonymousOn;
+
+  /// D380 VIP privacy: the recipient's anonymous gift sheet title
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية من «مجهول»'**
+  String get liveGiftAnonymousFrom;
+
+  /// D380 VIP privacy: the recipient's anonymous gift sheet hint
+  ///
+  /// In ar, this message translates to:
+  /// **'لن يُكشف لك المرسل؛ يبقى اسمه في سجل الفريق.'**
+  String get liveGiftAnonymousHint;
+
+  /// D380 VIP privacy: report an anonymous gift's sender
+  ///
+  /// In ar, this message translates to:
+  /// **'إبلاغ عن المرسل'**
+  String get liveGiftAnonymousReport;
+
+  /// D380 VIP privacy: refuse the sender's anonymous gifts
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض الهدايا المجهولة من هذا المرسل'**
+  String get liveGiftAnonymousRefuse;
+
+  /// D380 VIP privacy: after refusing
+  ///
+  /// In ar, this message translates to:
+  /// **'لن تصلك هدايا مجهولة من هذا المرسل.'**
+  String get liveGiftAnonymousRefused;
+
+  /// D380 VIP privacy: after reporting a gift's sender
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الإبلاغ، شكراً لك.'**
+  String get liveGiftReported;
 }
 
 class _AppLocalizationsDelegate

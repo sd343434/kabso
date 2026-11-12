@@ -236,6 +236,7 @@ All non-2xx responses use one envelope:
 | 409 | `STORE_UNAVAILABLE` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: the item cannot be bought now — `details: [{field: "item", issue: "item_off" \| "owned_permanent"}]` (switched off in the panel; the recipient holds it with no end) or `[{field: "days", issue: "not_priced" \| "too_far"}]` (no price for that currency and duration; the end would pass 3 650 days from now). Nothing was charged. §10.98. *(v1.130-social, D376)* Also `buyStatusPack` (`days` / `not_priced` or `too_far`, §10.167.3) and `setMyStatusEmoji` (`statusEmojiId` / `pack_not_owned`: a «المميزة» emoji while the pack is not held; nothing changed, the app offers «متجر الحالة»). |
 | 409 | `STORE_PRICE_CHANGED` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: `price` differs from the item's price for that currency and duration now (the owner changed it in the panel). Nothing was charged; the app reloads the items and shows the new price. §10.98. *(v1.130-social, D376)* Also `buyStatusPack`: `price` is not the server's `status_pack_offers` price now (§10.167.3). |
 | 403 | `STAFF_PROTECTED` | *(v1.68-live, DRAFT, D273)* The target holds a panel role (OWNER, MODERATION, SUPPORT, FINANCE): nobody acts on «فريق كابسو» from the app — a live kick or chat mute, removing their chat message, a seat mute / removal, a family kick or chat mute. The app says «لا يمكن اتخاذ إجراء ضد فريق كابسو». Nothing changed. §10.96.7. |
+| 403 | `VIP_PROTECTED` | *(v1.133-social, DRAFT, D380)* The target's VIP holds KICK_MUTE_SHIELD «حماية من طرد وكتم المشرف العادي» with the switch on: a room moderator cannot kick them, mute them in the chat, mute their seat or take them off a seat (the host and the Kabso Team still can); `details: [{field: "username", issue: "vip_shield"}]`. Nothing changed; audited `vip.shield.refused`. The app says «هذا العضو محمي بامتياز VIP؛ يستطيع المضيف أو فريق كابسو فقط». §10.170.4. |
 | 403 | `LIVE_STAFF_REFUSED` | *(v1.68-live, DRAFT, D273)* A Kabso staff member (OWNER, MODERATION, SUPPORT) in a live does not send gifts, tap, send bullets or take a seat; a hidden observer does not chat — `details: [{field: "staff", issue: "gifts" \| "taps" \| "bullets" \| "seat" \| "hidden_chat"}]`. Nothing charged or sent. §10.96.6. |
 | 403 | `STAFF_STEP_UP_REQUIRED` | **Deprecated v1.76-live (D286): no longer returned — the tools need no code.** *(v1.68-live, DRAFT, D273)* A staff tool in the app without a valid step-up grant (none, expired, or ended by sign-out, a revoked role, a lockout or a reset authenticator): the app asks for the panel authenticator code (`createStaffStepUp`). §10.96.6. |
 | 409 | `STAFF_TOTP_NOT_ENROLLED` | *(v1.68-live, DRAFT, D273)* `createStaffStepUp`: the staff member has not set up the panel authenticator yet; the app sends them to admin.<domain>. §10.96.6. |
@@ -787,6 +788,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.133-social (draft) | 2026-11-12 | **D380 (owner 2026-11-11: the VIP privacy perks, each with a switch for its holder):** HIDDEN_VISIT «زيارة خفية» (no row, no count in «من زار ملفي»), RANKING_ANONYMOUS «اسم مخفي في التصنيفات» (`UserSummary.anonymous` «مجهول» on the public boards to everyone but the member; the live's host keeps the names on their own room's lists), KICK_MUTE_SHIELD (403 `VIP_PROTECTED` (new) to a room moderator's kick / chat mute / seat mute / seat removal, audited `vip.shield.refused`), ANONYMOUS_GIFT «إهداء مجهول» (`LiveGiftSendRequest.anonymous`, `LiveGift.anonymous`; 409 `VIP_UNAVAILABLE` `no_perk`, 409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE` `refused`, 60 an hour; `reportLiveGift`, `blockAnonymousGiftSender` / `unblockAnonymousGiftSender`, `LiveGiftReportRequest`, `LiveGiftReportResult`, `AnonymousGiftBlockResult`, `Report.liveGift`, audit `live.gift.anonymous_block`); `PrivacySettings` / `UpdatePrivacyRequest` `hiddenVisit`, `rankingAnonymous`, `kickMuteShield` (only while held; else 409 `VIP_UNAVAILABLE` `no_perk`). HIDE_COINS_SENT removed from the catalogue (owner 2026-11-12: D220's free switch stays free for everyone). Migration `20270512090000_vip_privacy_perks`. §10.170. | **Additive for the apps** (an older app sends no `anonymous`, ignores the new fields and shows «مجهول» as a plain name). **Behaviour change** for room moderators (403 on a protected holder) and for readers of the public boards (anonymous rows). |
 | v1.132-social (draft) | 2026-11-12 | **D379 (owner 2026-11-11: the VIP perks inside live rooms):** ten D374 perks built (`built: true`) — SEAT_EMOJI (`sendLiveSeatEmoji` token `:vip_<n>:`, `LiveSeatEmoji.vipArt`), PINNED_MESSAGE (`pinLiveChatMessage` / `unpinLiveChatMessage` `POST` / `DELETE /live/rooms/{roomId}/chat-pin`, `LiveChatPinRequest`, `LiveChatPin`, `LiveChatMessageList.pin`, data `chat-pin` / `chat-unpin`), HOST_GREETING (`join` data `hostGreeting`), SEAT_CROWN (app only), BIG_GIFT_RAIN (data `vip-rain` on topic `gift`), TICKER_HOLD (`gift-ticker` data `holdSeconds`), VIEWER_LIST_PRIORITY (`listLiveRoomViewers` order), SEAT_REQUEST_PRIORITY (`listLiveSeatRequests` order), VIP_ROOM (`StartLiveRoomRequest.vipMinTier`, `LiveRoomSummary.vipMinTier` `LiveVipMinTier`), SEAT_RESERVE (`reserveLiveSeat` / `releaseLiveSeat` `PUT` / `DELETE /live/rooms/{roomId}/seats/{seatIndex}/reservation`, `LiveSeatReserveRequest`, `LiveSeat.reservation` `LiveSeatReservation`, data `seat-reserved`); codes `LIVE_VIP_ONLY` (403), `LIVE_PIN_BUSY` (409); `VIP_UNAVAILABLE` `perk` `used_up`. Migration `20270511090000_vip_live_perks`. §4, §10.169. | **Additive** (new operations, optional fields and data message types; older apps ignore them; a VIP room's refusal is a new code an older app shows as its generic error; a reserved seat reads LOCKED to an older app). |
 | v1.131-social (draft) | 2026-11-12 | **D378 (owner 2026-11-11: the VIP identity perks):** ANIMATED_COVER, PREMIUM_USERNAME, GOLDEN_ID, ANIMATED_SIGNATURE, POST_BADGE, STORY_RING, GLOWING_NAME and DM_BUBBLE built (`VipPerk.available` true); `UserVip.signature`; `UserSummary.goldenId` / `PublicProfile.goldenId` (`UserGoldenId`, `VipGoldenIdClass`); `setMyVipSignature` (`PUT /me/vip/signature`), `getMyVipGoldenIds`, `claimMyVipGoldenId`, `releaseMyVipGoldenId`; `claimVipPremiumUsername` (`POST /me/premium-username/vip-claim`), `PremiumUsernameStore.vipTier`, `MyPremiumUsername.source` `VIP`; the panel's golden ID stock `listAdminVipGoldenIds`, `addAdminVipGoldenIds`, `removeAdminVipGoldenId`; `VipPerkValueSchema.source` `GOLDEN_ID_CLASS`. Migration `20270510090000_vip_identity_perks`. §10.168. | **Additive** (new fields and operations; an older app ignores them and shows a `VIP` premium username as a rental). |
 | v1.130-social (draft) | 2026-11-12 | **D376 (owner 2026-11-12: «الحالة» — animated status emoji that rise over the picture like bubbles and burst with sparkles; free packs (Kabso's own + «عام», 24 Google Noto animated emoji) and «المميزة» sold whole for 100 000 coins / 30 days, renewable):** `Me.statusEmojiId`, `PublicProfile.statusEmojiId`, `UserSummary.statusEmojiId` (nullable / absent; pattern `<pack>.<emoji>`); `setMyStatusEmoji` (`PUT /me/status`, `SetStatusEmojiRequest`; audit `user.status.update`); `listStatusPacks` (`GET /status-packs`, `StatusPackList`, `StatusPack`, `StatusPackOption`); `buyStatusPack` (`POST /status-packs/{packId}/purchases`, `Idempotency-Key`, `BuyStatusPackRequest`, `StatusPackPurchaseResult`; audit `status_pack.purchase`); `WalletLedgerReason.STATUS_PACK_PURCHASE`; codes reused: `STORE_UNAVAILABLE` (`pack_not_owned`, `not_priced`, `too_far`), `STORE_PRICE_CHANGED`, `INSUFFICIENT_COINS`, `IDEMPOTENCY_CONFLICT`. Migration `20270505090000_status_emoji`. §4, §7, §8, §10.167. | **Additive.** An older app ignores the new fields (no status is drawn) and shows the new ledger reason as a generic change. |
@@ -6683,7 +6685,8 @@ programme and is unchanged.
   app really does (`VIP_BUILT_PERKS`). That list was empty at D252; D258 filled it phase by phase (§10.94) and since D374
   it is derived from the catalogue's `built` flags — eleven codes today: `BADGE`, `AVATAR_FRAME`, `CHAT_NAME_COLOR`,
   `PROFILE_CARD`, `ENTRY_BANNER`, `ENTRY_EFFECT`, `CHAT_BUBBLE`, `MIC_WAVE`, `DAILY_BULLET`, `PROFILE_VISITORS`,
-  `LEVEL_SPEEDUP` (`DAILY_COINS` was the twelfth until the owner removed it, §10.166.6). Every other perk is
+  `LEVEL_SPEEDUP` (`DAILY_COINS` was the twelfth until the owner removed it, §10.166.6); D380 (§10.170) adds
+  `HIDDEN_VISIT`, `RANKING_ANONYMOUS`, `KICK_MUTE_SHIELD` and `ANONYMOUS_GIFT`. Every other perk is
   `available: false` and the app shows it as listed «قريباً», never as active — as SVIP's perks (§10.41). Building a perk
   (art by the owner, a change in the live room) flips its catalogue entry to `built`.
 - Tiers are never deleted (memberships and purchases point at them). One switched off is no longer listed, bought or
@@ -12425,7 +12428,7 @@ served to the panel as `AdminVipTierList.catalogue` (a `VIP_TIER` enum's `option
 | ENTRANCE | `ENTRY_BANNER` (art), `ENTRY_EFFECT` (art) | `HOST_GREETING` |
 | CHAT | `CHAT_BUBBLE` (art), `DAILY_BULLET` (int 1–100 a day, legacy amount) | `DM_BUBBLE` (draws CHAT_BUBBLE's art), `PINNED_MESSAGE` (composite: `count` 1–20 a day, `seconds` 10–600), `TICKER_HOLD` (int 1–60 s), `LONGER_VOICE` (int 31–600 s) |
 | ROOM | `MIC_WAVE` (art) | `SEAT_EMOJI` (art pack: ≤ 24 https files), `SEAT_CROWN` (art), `SEAT_REQUEST_PRIORITY`, `SEAT_RESERVE` (int 1–60 min), `VIEWER_LIST_PRIORITY`, `KICK_MUTE_SHIELD`, `VIP_ROOM` (enum: a tier code, the lowest tier let in) |
-| PRIVACY | `PROFILE_VISITORS` | `HIDDEN_VISIT`, `RANKING_ANONYMOUS`, `HIDE_COINS_SENT`, `ANONYMOUS_GIFT` |
+| PRIVACY | `PROFILE_VISITORS` | `HIDDEN_VISIT`, `RANKING_ANONYMOUS`, `ANONYMOUS_GIFT` (HIDE_COINS_SENT removed by the owner, D380 §10.170.6) |
 | GIFTS | — | `EXCLUSIVE_GIFTS` (list: ≤ 50 gift codes that exist), `BIG_GIFT_RAIN` (int threshold 1–10^9 coins + art incl. MP4), `SCHEDULED_GIFT`, `HIGHER_GIFT_QUANTITY` (int 1–99 999), `MONTHLY_GIFT` (kept from the earlier suggestions) |
 | REWARDS | `LEVEL_SPEEDUP` (int 1–100 %, legacy amount) | `MONTHLY_ROCKETS` (composite: `count` 1–30 a month, `stage` STAGE_1…STAGE_4 — the live boost «صاروخ» stages, D233), `FREE_CP_REQUEST` (int 1–30 a month) |
 | SERVICE | — | `PRIORITY_SUPPORT` |
@@ -12759,3 +12762,98 @@ new operations). Migration `20270511090000_vip_live_perks` (`live_rooms.vip_min_
 seat actions' rule (§7). Not done: a VIP room cannot be opened or changed from `PATCH` after going live (the host goes live
 again); the host's greeting line is the app's text, not a stored template.
 
+### 10.170 The VIP privacy perks «زيارة خفية · اسم مخفي · حماية · إهداء مجهول» *(v1.133-social, DRAFT — D380)*
+
+Owner (2026-11-11, via the coordinator): build the D374 privacy perks HIDDEN_VISIT, RANKING_ANONYMOUS, HIDE_COINS_SENT,
+KICK_MUTE_SHIELD and ANONYMOUS_GIFT, each with a switch for its holder. A perk works only for a member whose **effective**
+perks include it (D258 inheritance: their tier's or a lower tier's enabled row) while the membership is active, and only
+while the catalogue says it is built (`vipPrivacyOnIn`, `apps/api/src/modules/vip/vip-privacy.ts`, one query for a whole
+list). When the membership ends (or the panel switches the perk off on every tier up to theirs) everything is as for a
+non-member at once; the switch itself is kept for a renewal. Blocks, reports, automated safety and the Kabso Team's
+powers always win.
+
+#### 10.170.1 The holder's switches (`getPrivacy` / `updatePrivacy`)
+
+| Perk | Field | Default | Why this default |
+|---|---|---|---|
+| HIDDEN_VISIT «زيارة خفية» | `hiddenVisit` | on | a visit is a private act; the perk works as soon as it is bought |
+| RANKING_ANONYMOUS «اسم مخفي في التصنيفات» | `rankingAnonymous` | off | VIP is mostly bought to be seen; hiding is the member's choice |
+| KICK_MUTE_SHIELD «حماية من طرد وكتم المشرف العادي» | `kickMuteShield` | on | protection takes nothing visible from the member |
+
+Stored in `privacy_settings` (`vip_hidden_visit`, `vip_ranking_anonymous`, `vip_kick_mute_shield`); a person without a
+row has the defaults. `PrivacySettings` carries a field only while its perk is held; `updatePrivacy` with a field whose
+perk is not held → 409 `VIP_UNAVAILABLE` `{field: <field>, issue: no_perk}` (nothing changed, the other fields of the
+request included). ANONYMOUS_GIFT has no stored switch: it is chosen on each send. The app shows the held switches in
+«الخصوصية» under «امتيازات VIP».
+
+#### 10.170.2 HIDDEN_VISIT «زيارة خفية»
+
+A holder with the switch on opens a profile and **nothing** is recorded for its owner — no row, no count and no «زائر
+مخفي» line (`recordProfileVisit`). Choice: a count of hidden visitors would still tell the owner that some VIP member
+looked, and when (the count moves right after a visit), which is what the perk hides. Rows from before (or from while the
+switch was off) stay as they were. The D258 visitors list is not a staff audit and nothing else changes: the audit log,
+request logs, the data export and every staff tool are unaffected; blocks still stop visits being recorded either way.
+
+#### 10.170.3 RANKING_ANONYMOUS «اسم مخفي في التصنيفات»
+
+With the switch on, the member is the stand-in «مجهول» (`UserSummary.anonymous` true: a fresh random `id` on every
+answer, so rows cannot be linked across lists or reads; `username` `kabso.anonymous`, which no account can take; no
+picture — the apps draw the generic avatar; no badges, no support level, no live card) on the public boards, to
+everyone but themselves: the popularity / rich / games boards (`listLiveRankings`; a host's «في بث الآن» card is dropped
+too), a live's contributors (`listLiveContributors`), a person's standing in a live asked by someone else
+(`getLiveContributor`: 0 points and no rank, as someone who gave nothing), the event and gift-event boards (a CP
+partner too; prizes are still paid to the real account; the AGENCIES board names agencies and is unchanged), the PK top
+supporters (sent alike to both rooms, so «مجهول» there for both hosts too) and the host's «تارجت» supporters chip.
+Rank, points and score stay. **The host of a live keeps the real names on their own room's contributors and their own
+«تارجت» list** (choice: the host thanks, rewards and moderates their supporters; the list is about their own room),
+and the host's private statistics are never masked. The Kabso Team's panel is unchanged. A member's place is not hidden
+anywhere a list is not public (their own «me» row, wallet histories).
+
+#### 10.170.4 KICK_MUTE_SHIELD «حماية من طرد وكتم المشرف العادي»
+
+A room **moderator** (appointed by the host) cannot kick a holder out of the live (`kickFromLive`), mute them in the chat
+(`muteLiveChatUser`), mute their seat (`muteLiveSeat` muted true) or take them off a seat (`removeFromLiveSeat`): 403
+`VIP_PROTECTED` `{field: username, issue: vip_shield}`, nothing changed, audited `vip.shield.refused` (actor the
+moderator, target the member, `metadata.roomId` and `metadata.action` KICK · CHAT_MUTE · SEAT_MUTE · SEAT_REMOVE; the
+row is written on its own connection, so it stays though the request rolls back). Lifting a mute is always allowed. The
+**host** of the room and the **Kabso Team** (their staff tools, §10.96.7) are never refused; reports, the automated
+safety checks and account-level actions apply as to anyone. The app says «هذا العضو محمي بامتياز VIP؛ يستطيع المضيف أو
+فريق كابسو فقط».
+
+#### 10.170.5 ANONYMOUS_GIFT «إهداء مجهول»
+
+`LiveGiftSendRequest.anonymous` true, chosen per send in the gift panel (a switch shown only to holders). Checks after the
+gift is known: a PK booster cannot be anonymous (400 `anonymous` / `invalid_value`); the caller must hold the perk (409
+`VIP_UNAVAILABLE` `{field: anonymous, issue: no_perk}`); a block either way refuses the send as always (409
+`LIVE_GIFT_RECIPIENT_UNAVAILABLE`); a recipient who refused this sender's anonymous gifts refuses it (409
+`LIVE_GIFT_RECIPIENT_UNAVAILABLE` `{field: anonymous, issue: refused}`); at most **60 anonymous sends an hour** per sender
+(429, on top of the gifts' own limits). Nothing is charged when refused.
+
+What is anonymous: the room's `gift` data message, the global gift ticker, a quip's `quip` message, the `lucky-win`
+message, the recipients' cherry and wallet histories (`sender` «مجهول») and a recipient's data export (`from:
+{anonymous: true}`); the sender's own support-level banner is not announced for that send (it would name them). What
+keeps the real sender: `live_gifts.sender_id`, the coin ledger, the audit, the admin panel, the sender's own response,
+retry, history and data export. The economy is unchanged (charm, support points, popularity and the sender's
+contribution points count as for a named send). Known limit: a sender's contribution points in a live's public
+contributors list still grow with an anonymous send; a holder who also wants that hidden turns RANKING_ANONYMOUS on.
+
+The recipient, who never learns who sent it: `reportLiveGift` (`POST /live/gifts/{giftId}/reports`, any live send they
+received) files an ordinary USER report on the real sender with the send as context (`reports.context_live_gift_id`;
+`Report.liveGift` in the panel); `blockAnonymousGiftSender` / `unblockAnonymousGiftSender` (`PUT` / `DELETE
+/live/gifts/{giftId}/anonymous-block`, anonymous sends only) refuse or allow again every further anonymous gift from that
+sender (`anonymous_gift_blocks`; their named gifts still arrive; an ordinary block covers everything), audited
+`live.gift.anonymous_block`. In the app a tap on an anonymous gift's strip (by one of its recipients) opens «إبلاغ عن المرسل» and «رفض الهدايا
+المجهولة من هذا المرسل»; an anonymous strip never opens a person card. Conversation gifts are never anonymous (CHECK `live_gifts_anonymous_live`).
+
+**Content gifts (D372) — documented hook, not built here:** a gift on a post or reel would take the same
+`anonymous` flag on its own send row, the same checks (`vipPrivacyOn(…, 'ANONYMOUS_GIFT')`, blocks, the anonymous
+refusals keyed by sender and recipient, `ANONYMOUS_GIFT_RATE`), show «مجهول» with `anonymousUserSummary()` wherever the
+sender is listed to others, and accept `reportLiveGift`-style report and refusal endpoints keyed by that send.
+
+#### 10.170.6 HIDE_COINS_SENT — removed
+
+D220 (§10.74) already gives **everyone** the free switch `hideCoinsSent` «إخفاء الكوينز المرسلة», which removes
+`PublicProfile.coinsSent` from the profile header and the person card for others. The owner decided (2026-11-12,
+«مجانية للجميع واخفها من ميزات في اي بي»): the switch stays free for everyone and the perk leaves the VIP catalogue. It
+joins `VIP_RETIRED_PERKS` (§10.166) with DAILY_COINS: a save naming it is refused `unknown_perk`; a tier row saved
+before is ignored, listed to the panel as retired and dropped on the next save.
