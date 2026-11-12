@@ -585,7 +585,9 @@ void main() {
           overrides: [
             sharedPreferencesProvider.overrideWithValue(prefs),
             dmRepositoryProvider.overrideWithValue(dm),
-            supportRepositoryProvider.overrideWithValue(FakeSupportRepository()),
+            supportRepositoryProvider.overrideWithValue(
+              FakeSupportRepository(),
+            ),
             dmPinsRepositoryProvider.overrideWithValue(FakeDmPinsRepository()),
             currentUserProvider.overrideWithValue(testUser()),
           ],
@@ -601,7 +603,9 @@ void main() {
           overrides: [
             sharedPreferencesProvider.overrideWithValue(prefs),
             dmRepositoryProvider.overrideWithValue(dm),
-            supportRepositoryProvider.overrideWithValue(FakeSupportRepository()),
+            supportRepositoryProvider.overrideWithValue(
+              FakeSupportRepository(),
+            ),
             dmPinsRepositoryProvider.overrideWithValue(FakeDmPinsRepository()),
             currentUserProvider.overrideWithValue(null),
           ],
