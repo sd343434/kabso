@@ -64,6 +64,10 @@ services:
       FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase-admin.json
     volumes:
       - ${KABSO_FIREBASE_ADMIN_FILE:-/etc/kabso/firebase-admin.json}:/run/secrets/firebase-admin.json:ro
+      # D355 WhatsApp: the System User token, app secret and verify token as files
+      # (docs/DEPLOYMENT.md §11.13): folder root:1000 750, files root:1000 640. A missing
+      # folder becomes an empty one and WhatsApp stays off (no WHATSAPP_* settings).
+      - ${KABSO_WHATSAPP_SECRETS_DIR:-/opt/kabso/secrets/whatsapp}:/run/secrets/whatsapp:ro
     depends_on:
       postgres:
         condition: service_healthy

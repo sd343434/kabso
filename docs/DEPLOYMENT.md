@@ -1824,15 +1824,20 @@ Meta's screens and names change often — follow Meta's current wording; the lin
    e.g. `kabso_followup` (Utility, Arabic): «مرحباً {{1}}، هل ما زلت تحتاج المساعدة في طلبك {{2}}؟», plus an English one.
    Only **APPROVED** templates appear in «إرسال قالب» (the inbox re-reads Meta's list every 10 minutes, or at once
    with «اختبار الاتصال»). Marketing templates need the customer's opt-in.
-7. **Files on the server** (as root; readable by the API container's user only — the same pattern as §5.108):
+7. **Files on the server** (as root; the API runs as uid/gid 1000, so the folder and files belong to root:1000 and
+   are readable by that group only; never paste a secret into a chat or a command line — `read -rs` keeps it off
+   the screen and out of the shell history):
    ```sh
-   install -d -m 700 /opt/kabso/secrets/whatsapp
-   umask 077
-   printf '%s' '<the System User token>'        > /opt/kabso/secrets/whatsapp/access_token
-   printf '%s' '<the App secret>'               > /opt/kabso/secrets/whatsapp/app_secret
-   openssl rand -hex 32                         > /opt/kabso/secrets/whatsapp/verify_token   # any random string
+   install -d -m 750 -o root -g 1000 /opt/kabso/secrets/whatsapp
+   cd /opt/kabso/secrets/whatsapp
+   read -rsp 'System User token: ' T; printf '%s' "$T" > access_token; unset T; echo
+   read -rsp 'App secret: ' S; printf '%s' "$S" > app_secret; unset S; echo
+   openssl rand -hex 32 > verify_token          # any random string
+   chown root:1000 access_token app_secret verify_token
+   chmod 640 access_token app_secret verify_token
    ```
-   Mount the folder read-only into the API container and set in the server's env file:
+   `infra/deploy/docker-compose.yml` mounts this folder read-only at `/run/secrets/whatsapp` (another folder:
+   `KABSO_WHATSAPP_SECRETS_DIR` in `kabso.env`). Then set in `/etc/kabso/api.env`:
    ```
    WHATSAPP_PHONE_NUMBER_ID=<Phone number ID>
    WHATSAPP_BUSINESS_ACCOUNT_ID=<WhatsApp Business Account ID>
