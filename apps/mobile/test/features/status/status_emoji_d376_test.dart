@@ -8,6 +8,8 @@
 // layer (bubbles with one ticker, reduced motion → still, the comments'
 // badge, busy seat rows animate only the speakers).
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -86,6 +88,21 @@ void main() {
       expect(StatusCatalogue.byId('noto.happy')!.stillAt, 0);
       expect(StatusCatalogue.byId('kabi.love')!.stillAt, 0);
       expect(StatusCatalogue.byId('premium.parrot'), isNull);
+      // Every file of assets/emojis/noto/ is a status emoji, and back.
+      final notoFiles = Directory('assets/emojis/noto')
+          .listSync()
+          .whereType<File>()
+          .map((f) => f.path.replaceAll(r'\', '/'))
+          .where((p) => p.endsWith('.json'))
+          .toSet();
+      expect(notoFiles, {
+        for (final e in [
+          ...StatusCatalogue.pack('noto')!.emojis,
+          ...premium.emojis,
+        ])
+          e.asset,
+      });
+      expect(notoFiles, hasLength(51));
       expect(StatusCatalogue.byId('nope.x'), isNull);
     });
   });

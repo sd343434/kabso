@@ -117,12 +117,13 @@ class _StatusStoreScreenState extends ConsumerState<StatusStoreScreen> {
           .buy(
             packId: widget.packId,
             days: option.days,
-            price: option.coins,
+            priceCoins: option.coins,
             idempotencyKey: newIdempotencyKey(),
           );
       // The live rooms' balance reads again (if it was read).
-      ref.invalidate(liveCoinsProvider);
-      ref.invalidate(statusPacksProvider);
+      ref
+        ..invalidate(liveCoinsProvider)
+        ..invalidate(statusPacksProvider);
       if (!mounted) return;
       setState(() {
         _busy = false;
@@ -383,7 +384,7 @@ class _StatusStoreScreenState extends ConsumerState<StatusStoreScreen> {
             child: _OptionCard(
               key: StatusStoreScreen.optionKey(o.days),
               days: l10n.statusStoreDays(KFormat.grouped(o.days)),
-              price: KFormat.grouped(o.coins),
+              coins: KFormat.grouped(o.coins),
               selected: o == option,
               onTap: () => setState(() => _days = o.days),
             ),
@@ -396,14 +397,14 @@ class _StatusStoreScreenState extends ConsumerState<StatusStoreScreen> {
 class _OptionCard extends StatelessWidget {
   const new({
     required this.days,
-    required this.price,
+    required this.coins,
     required this.selected,
     required this.onTap,
     super.key,
   });
 
   final String days;
-  final String price;
+  final String coins;
   final bool selected;
   final VoidCallback onTap;
 
@@ -437,7 +438,7 @@ class _OptionCard extends StatelessWidget {
               ),
               const AppIcon(AppIcons.coin, size: 16, color: KBrandColors.gold),
               const SizedBox(width: KSpacing.xs),
-              Text(price, style: t.bodyStrong.copyWith(color: p.textPrimary)),
+              Text(coins, style: t.bodyStrong.copyWith(color: p.textPrimary)),
             ],
           ),
         ),

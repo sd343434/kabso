@@ -21,12 +21,17 @@ class FakeStatusRepository implements StatusRepository {
   Future<StatusPackPurchase> buy({
     required String packId,
     required int days,
-    required int price,
+    required int priceCoins,
     required String idempotencyKey,
   }) async {
     final failure = buyFailure;
     if (failure != null) throw failure;
-    bought.add((packId: packId, days: days, price: price, key: idempotencyKey));
+    bought.add((
+      packId: packId,
+      days: days,
+      price: priceCoins,
+      key: idempotencyKey,
+    ));
     final now = DateTime.now().toUtc();
     final held = list.pack(packId)?.expiresAt;
     final from = held != null && held.isAfter(now) ? held : now;
@@ -34,16 +39,17 @@ class FakeStatusRepository implements StatusRepository {
     list = StatusPackList(
       packs: [
         for (final p in list.packs)
-          p.id == packId
-              ? StatusPackOffer(
-                  id: p.id,
-                  emojiIds: p.emojiIds,
-                  options: p.options,
-                  expiresAt: until,
-                )
-              : p,
+          if (p.id == packId)
+            StatusPackOffer(
+              id: p.id,
+              emojiIds: p.emojiIds,
+              options: p.options,
+              expiresAt: until,
+            )
+          else
+            p,
       ],
-      coins: list.coins - price,
+      coins: list.coins - priceCoins,
     );
     return StatusPackPurchase(
       packId: packId,

@@ -16,9 +16,7 @@ StatusPackList statusPackListFixture({
   packs: [
     StatusPackOffer(
       id: 'premium',
-      emojiIds: [
-        for (final e in StatusCatalogue.pack('premium')!.emojis) e.id,
-      ],
+      emojiIds: [for (final e in StatusCatalogue.pack('premium')!.emojis) e.id],
       options: priced
           ? const [StatusPackOption(days: 30, coins: 100000)]
           : const [],

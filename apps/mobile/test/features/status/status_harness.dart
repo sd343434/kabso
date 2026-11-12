@@ -82,7 +82,7 @@ List<Override> statusOverrides(FakeStatusRepository repo, {int coins = 0}) => [
 
 /// Opens the picker as Edit profile does (a modal sheet over a page).
 class StatusSheetHost extends StatefulWidget {
-  const new({required this.initialId, this.onPick});
+  const new({required this.initialId, super.key, this.onPick});
 
   final String? initialId;
   final ValueChanged<StatusPick?>? onPick;

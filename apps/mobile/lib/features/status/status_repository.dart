@@ -97,12 +97,12 @@ abstract interface class StatusRepository {
   /// `GET /status-packs`.
   Future<StatusPackList> packs();
 
-  /// `POST /status-packs/{packId}/purchases` (`Idempotency-Key`); [price]
+  /// `POST /status-packs/{packId}/purchases` (`Idempotency-Key`); [priceCoins]
   /// is the one shown (the server charges its own).
   Future<StatusPackPurchase> buy({
     required String packId,
     required int days,
-    required int price,
+    required int priceCoins,
     required String idempotencyKey,
   });
 }
@@ -138,12 +138,12 @@ class StatusRepositoryImpl implements StatusRepository {
   Future<StatusPackPurchase> buy({
     required String packId,
     required int days,
-    required int price,
+    required int priceCoins,
     required String idempotencyKey,
   }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/status-packs/$packId/purchases',
-      data: {'days': days, 'price': price},
+      data: {'days': days, 'price': priceCoins},
       options: Options(headers: {'Idempotency-Key': idempotencyKey}),
     );
     final body = res.data!;
