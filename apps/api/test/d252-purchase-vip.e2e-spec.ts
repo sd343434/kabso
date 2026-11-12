@@ -185,6 +185,8 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
     // D258: the perks the app does are listed for the panel.
     expect(empty.body).toMatchObject({
       data: [],
+      // D381 (v1.134-social): EXCLUSIVE_GIFTS, FREE_CP_REQUEST, HIGHER_GIFT_QUANTITY, LONGER_VOICE, MONTHLY_ROCKETS,
+      // PRIORITY_SUPPORT and SCHEDULED_GIFT built.
       builtPerks: [
         'AVATAR_FRAME',
         'BADGE',
@@ -193,10 +195,17 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
         'DAILY_BULLET',
         'ENTRY_BANNER',
         'ENTRY_EFFECT',
+        'EXCLUSIVE_GIFTS',
+        'FREE_CP_REQUEST',
+        'HIGHER_GIFT_QUANTITY',
         'LEVEL_SPEEDUP',
+        'LONGER_VOICE',
         'MIC_WAVE',
+        'MONTHLY_ROCKETS',
+        'PRIORITY_SUPPORT',
         'PROFILE_CARD',
         'PROFILE_VISITORS',
+        'SCHEDULED_GIFT',
       ],
     });
     expect(empty.body.suggestedPerks).toContain('BADGE');
