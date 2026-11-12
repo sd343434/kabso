@@ -24,10 +24,13 @@ Future<bool> sendCpRequest(
   final l10n = context.l10n;
   final int cost;
   final int days;
+  final int freeLeft;
   try {
     final config = await ref.read(cpConfigProvider.future);
     cost = config.requestCost;
     days = config.requestTtlDays;
+    // v1.134-social (D381): a FREE_CP_REQUEST holder's free requests.
+    freeLeft = config.vipFreeRequests?.left ?? 0;
   } on Object catch (e) {
     if (context.mounted) {
       KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
@@ -38,7 +41,9 @@ Future<bool> sendCpRequest(
   final ok = await confirmBond(
     context,
     title: l10n.cpSendTitle(name),
-    body: l10n.cpSendBody(l10n.bondsCoins(cost), l10n.bondsDays(days)),
+    body: freeLeft > 0
+        ? l10n.cpSendBodyFree('$freeLeft')
+        : l10n.cpSendBody(l10n.bondsCoins(cost), l10n.bondsDays(days)),
     confirm: l10n.cpSendRequest,
   );
   if (!ok || !context.mounted) return false;
@@ -50,6 +55,7 @@ Future<bool> sendCpRequest(
     if (!context.mounted) return true;
     showCoins(ref, result.coins);
     refreshCp(ref);
+    if (freeLeft > 0) ref.invalidate(cpConfigProvider);
     KSnack.success(context, l10n.cpSent(name));
     return true;
   } on Object catch (e) {

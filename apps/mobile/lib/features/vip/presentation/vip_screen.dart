@@ -17,10 +17,12 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/posts/application/compose_controller.dart'
     show newIdempotencyKey;
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
+import 'package:kabso_live/features/vip/application/vip_gift_perks_providers.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_carousel.dart';
+import 'package:kabso_live/features/vip/presentation/vip_gift_perks.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_ref_parts.dart';
 import 'package:kabso_live/features/wallet/application/wallet_providers.dart';
@@ -488,39 +490,51 @@ class _VipScreenState extends ConsumerState<VipScreen> {
   }
 
   /// «الخاص بي VIP»: the member's own VIP — its tier, end and days left.
-  Future<void> _showMine(VipMembership membership) =>
-      showModalBottomSheet<void>(
-        context: context,
-        backgroundColor: VipPalette.of(context).sheet,
-        builder: (sheet) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(KSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _MemberStatus(membership: membership),
-                // D258: «من زار ملفي» (PROFILE_VISITORS).
-                if (_holds(membership, VipPerks.profileVisitors)) ...[
-                  const SizedBox(height: KSpacing.sm),
-                  ListTile(
-                    key: VipScreen.visitorsKey,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.visibility_outlined),
-                    title: Text(context.l10n.vipVisitorsEntry),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      Navigator.of(sheet).pop();
-                      unawaited(context.push(AppRoutes.vipVisitors));
-                    },
-                  ),
-                ],
-                // D374: the daily coins row is gone (the owner removed
-                // DAILY_COINS, 2026-11-11).
+  Future<void> _showMine(VipMembership membership) {
+    // D381: fresh perks (this also grants the month's rockets).
+    ref.invalidate(vipPerksNowProvider);
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: VipPalette.of(context).sheet,
+      builder: (sheet) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(KSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MemberStatus(membership: membership),
+              // D258: «من زار ملفي» (PROFILE_VISITORS).
+              if (_holds(membership, VipPerks.profileVisitors)) ...[
+                const SizedBox(height: KSpacing.sm),
+                ListTile(
+                  key: VipScreen.visitorsKey,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.visibility_outlined),
+                  title: Text(context.l10n.vipVisitorsEntry),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(sheet).pop();
+                    unawaited(context.push(AppRoutes.vipVisitors));
+                  },
+                ),
               ],
-            ),
+              // D374: the daily coins row is gone (the owner removed
+              // DAILY_COINS, 2026-11-11).
+              // D381: what the gift, CP, support, rocket and voice perks
+              // give now, and «هدية مؤجلة».
+              VipPerksNowSection(
+                onOpenScheduled: () {
+                  Navigator.of(sheet).pop();
+                  openVipScheduledGifts(context);
+                },
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 /// D304: the page's top bar — back at the reading start (mirrors in RTL),

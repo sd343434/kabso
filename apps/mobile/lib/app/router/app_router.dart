@@ -113,6 +113,7 @@ import 'package:kabso_live/features/store/presentation/store_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_viewer_screen.dart';
+import 'package:kabso_live/features/vip/presentation/vip_gift_perks.dart';
 import 'package:kabso_live/features/vip/presentation/vip_screen.dart';
 import 'package:kabso_live/features/vip/presentation/vip_visitors_screen.dart';
 import 'package:kabso_live/features/wallet/presentation/recharge_points_screen.dart';
@@ -624,6 +625,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.vipVisitors,
         builder: (_, _) => const VipVisitorsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.vipScheduledGifts,
+        builder: (_, _) => const VipScheduledGiftsScreen(),
       ),
       // Debug/profile only; `kReleaseMode` is a compile-time constant, so
       // the routes and the previews are tree-shaken out of release builds.

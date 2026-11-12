@@ -377,6 +377,10 @@ abstract final class AppRoutes {
   /// D258: «من زار ملفي» (members holding PROFILE_VISITORS).
   static const vipVisitors = '/vip/visitors';
 
+  /// D381: «هدية مؤجلة» (members holding SCHEDULED_GIFT; the list stays for
+  /// cancelling after the VIP ended).
+  static const vipScheduledGifts = '/vip/scheduled-gifts';
+
   /// The page of event [eventId].
   static String event(String eventId) =>
       '/events/${Uri.encodeComponent(eventId)}';

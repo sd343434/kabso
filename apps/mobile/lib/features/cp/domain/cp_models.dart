@@ -49,9 +49,24 @@ abstract class CpConfig with _$CpConfig {
     required List<int> giftAmounts,
     required List<CpTier> tiers,
     @Default(<CpGiftPreset>[]) List<CpGiftPreset> gifts,
+
+    /// v1.134-social (D381, §10.171.2) FREE_CP_REQUEST: the caller's free
+    /// requests this month; null without the perk.
+    CpVipFreeRequests? vipFreeRequests,
   }) = _CpConfig;
 
   factory fromJson(Map<String, dynamic> json) => _$CpConfigFromJson(json);
+}
+
+/// `VipFreeCpRequests` (v1.134-social, D381): while [left] > 0 a request is
+/// free — nothing charged, so nothing comes back.
+@freezed
+abstract class CpVipFreeRequests with _$CpVipFreeRequests {
+  const factory({required int perMonth, required int used, required int left}) =
+      _CpVipFreeRequests;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$CpVipFreeRequestsFromJson(json);
 }
 
 /// `CpRequest`: a pending (or answered) CP request.

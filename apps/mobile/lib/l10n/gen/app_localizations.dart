@@ -30393,6 +30393,216 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'نقطة / {days} يوماً'**
   String vipPointsPer(String days);
+
+  /// D381 EXCLUSIVE_GIFTS: the gift sheet's tab of the exclusive gifts the caller's VIP may send.
+  ///
+  /// In ar, this message translates to:
+  /// **'VIP'**
+  String get liveGiftTabVip;
+
+  /// D381 «الخاص بي VIP»: the heading of the perks' current state.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما تمنحك ميزاتك الآن'**
+  String get vipNowTitle;
+
+  /// D381 MONTHLY_ROCKETS: the traffic cards granted this month.
+  ///
+  /// In ar, this message translates to:
+  /// **'صواريخ هذا الشهر: {count} × {minutes} دقيقة'**
+  String vipNowRockets(String count, String minutes);
+
+  /// D381 MONTHLY_ROCKETS: when the next month's cards come.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدفعة التالية {date}'**
+  String vipNowRocketsNext(String date);
+
+  /// D381 FREE_CP_REQUEST.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات CP مجانية: {left} من {perMonth} متبقية هذا الشهر'**
+  String vipNowFreeCp(String left, String perMonth);
+
+  /// D381 HIGHER_GIFT_QUANTITY.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل حتى {count} هدية دفعة واحدة'**
+  String vipNowMaxQuantity(String count);
+
+  /// D381 LONGER_VOICE.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسائل صوتية حتى {seconds} ثانية'**
+  String vipNowVoice(String seconds);
+
+  /// D381 EXCLUSIVE_GIFTS.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا حصرية في تبويب VIP: {count}'**
+  String vipNowExclusive(String count);
+
+  /// D381 PRIORITY_SUPPORT.
+  ///
+  /// In ar, this message translates to:
+  /// **'دعم بأولوية — بلاغاتك ومحادثات الدعم أولاً'**
+  String get vipNowPriority;
+
+  /// D381 SCHEDULED_GIFT: the «الخاص بي VIP» row and the page title.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية مؤجلة'**
+  String get vipScheduledEntry;
+
+  /// D381 SCHEDULED_GIFT: pending count.
+  ///
+  /// In ar, this message translates to:
+  /// **'{pending} من {max} بانتظار الإرسال'**
+  String vipScheduledEntrySub(String pending, String max);
+
+  /// D381.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا هدايا مؤجلة'**
+  String get vipScheduledEmptyTitle;
+
+  /// D381.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر هدية وموعداً، وتصل في وقتها إلى المحادثة.'**
+  String get vipScheduledEmptyBody;
+
+  /// D381: the new scheduled gift button and sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'جدولة هدية'**
+  String get vipScheduledNew;
+
+  /// D381.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلى (اسم المستخدم)'**
+  String get vipScheduledTo;
+
+  /// D381.
+  ///
+  /// In ar, this message translates to:
+  /// **'الهدية'**
+  String get vipScheduledGift;
+
+  /// D381.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكمية'**
+  String get vipScheduledQuantity;
+
+  /// D381.
+  ///
+  /// In ar, this message translates to:
+  /// **'الموعد'**
+  String get vipScheduledWhen;
+
+  /// D381: the hold notice.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُحجز {coins} الآن وتُرجع إن أُلغيت أو تعذّر الإرسال.'**
+  String vipScheduledHold(String coins);
+
+  /// D381.
+  ///
+  /// In ar, this message translates to:
+  /// **'جدولة'**
+  String get vipScheduledSubmit;
+
+  /// D381.
+  ///
+  /// In ar, this message translates to:
+  /// **'جُدولت الهدية'**
+  String get vipScheduledDone;
+
+  /// D381.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الهدية'**
+  String get vipScheduledCancel;
+
+  /// D381.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغيت الهدية وأُرجعت العملات'**
+  String get vipScheduledCancelled;
+
+  /// D381 status.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار الإرسال'**
+  String get vipScheduledStatusPending;
+
+  /// D381 status.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت'**
+  String get vipScheduledStatusDelivered;
+
+  /// D381 status.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغيت'**
+  String get vipScheduledStatusCancelled;
+
+  /// D381 status.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر الإرسال — أُرجعت العملات'**
+  String get vipScheduledStatusFailed;
+
+  /// D381: a scheduled gift row.
+  ///
+  /// In ar, this message translates to:
+  /// **'{quantity} × {gift} إلى {name}'**
+  String vipScheduledLine(String quantity, String gift, String name);
+
+  /// D381: the delivery time.
+  ///
+  /// In ar, this message translates to:
+  /// **'{date}'**
+  String vipScheduledAt(String date);
+
+  /// D381.
+  ///
+  /// In ar, this message translates to:
+  /// **'الهدية المؤجلة من ميزات VIP'**
+  String get vipScheduledNoPerkTitle;
+
+  /// D381: 409 too_many.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت إلى الحد الأقصى من الهدايا المنتظرة'**
+  String get vipScheduledTooMany;
+
+  /// D381: 400 deliverAt.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر موعداً بعد 5 دقائق على الأقل وخلال سنة'**
+  String get vipScheduledBadTime;
+
+  /// D381 FREE_CP_REQUEST: the confirmation body of a free request.
+  ///
+  /// In ar, this message translates to:
+  /// **'مجاني بميزة VIP — {left} طلبات مجانية متبقية هذا الشهر. لا تُرجع العملات لأنه لا يُخصم شيء.'**
+  String cpSendBodyFree(String left);
+
+  /// D381 ledger VIP_SCHEDULED_GIFT.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية مؤجلة (محجوزة)'**
+  String get walletReasonVipScheduledGift;
+
+  /// D381 ledger VIP_SCHEDULED_GIFT_RELEASE.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية مؤجلة (أُرجعت)'**
+  String get walletReasonVipScheduledGiftRelease;
 }
 
 class _AppLocalizationsDelegate

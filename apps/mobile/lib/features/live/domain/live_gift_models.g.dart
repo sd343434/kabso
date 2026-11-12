@@ -173,6 +173,16 @@ _GiftCatalogue _$GiftCatalogueFromJson(Map<String, dynamic> json) =>
               ?.map((e) => GiftTab.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const <GiftTab>[],
+      vipGiftCodes:
+          (json['vipGiftCodes'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
+      vipQuantities:
+          (json['vipQuantities'] as List<dynamic>?)
+              ?.map((e) => (e as num).toInt())
+              .toList() ??
+          const <int>[],
     );
 
 Map<String, dynamic> _$GiftCatalogueToJson(_GiftCatalogue instance) =>
@@ -185,6 +195,8 @@ Map<String, dynamic> _$GiftCatalogueToJson(_GiftCatalogue instance) =>
       'data': instance.data,
       'luckyChatMinMultiplier': instance.luckyChatMinMultiplier,
       'tabs': instance.tabs,
+      'vipGiftCodes': instance.vipGiftCodes,
+      'vipQuantities': instance.vipQuantities,
     };
 
 _GiftBagItem _$GiftBagItemFromJson(Map<String, dynamic> json) => _GiftBagItem(

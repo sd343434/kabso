@@ -16,6 +16,8 @@ import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.da
 import 'package:kabso_live/features/posts/application/compose_controller.dart'
     show photoPickerProvider;
 import 'package:kabso_live/features/posts/data/media_repository.dart';
+import 'package:kabso_live/features/vip/application/vip_gift_perks_providers.dart';
+import 'package:kabso_live/features/vip/data/vip_gift_perks_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -106,7 +108,6 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
   bool _micPaused = false;
   int _seconds = 0;
   Timer? _tick;
-  Timer? _limit;
 
   @override
   void dispose() {
@@ -146,9 +147,7 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
 
   void _stopTimers() {
     _tick?.cancel();
-    _limit?.cancel();
     _tick = null;
-    _limit = null;
   }
 
   LiveChatController get _chat =>
@@ -234,11 +233,17 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
       _recording = true;
       _seconds = 0;
     });
+    // 30 s at most (v1.134-social, D381: LONGER_VOICE's limit for a holder,
+    // read now and on every tick — the perks load meanwhile): it stops and
+    // sends by itself.
+    ref.read(vipVoiceLimitProvider);
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _seconds++);
+      if (!mounted) return;
+      setState(() => _seconds++);
+      if (_seconds >= ref.read(vipVoiceLimitProvider).inSeconds) {
+        unawaited(_stopAndSend());
+      }
     });
-    // 30 s at most: it stops and sends by itself.
-    _limit = Timer(LiveRoomComposer.maxVoice, () => unawaited(_stopAndSend()));
   }
 
   Future<void> _cancelVoice() async {
@@ -283,7 +288,7 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
         KSnack.error(context, l10n.liveVoiceSilent);
         return;
       }
-      if (bytes.length > maxVoiceBytes) {
+      if (bytes.length > voiceBytesFor(ref.read(vipVoiceLimitProvider))) {
         KSnack.error(context, l10n.liveVoiceTooLarge);
         return;
       }

@@ -18055,4 +18055,133 @@ class AppLocalizationsAr extends AppLocalizations {
   String vipPointsPer(String days) {
     return 'نقطة / $days يوماً';
   }
+
+  @override
+  String get liveGiftTabVip => 'VIP';
+
+  @override
+  String get vipNowTitle => 'ما تمنحك ميزاتك الآن';
+
+  @override
+  String vipNowRockets(String count, String minutes) {
+    return 'صواريخ هذا الشهر: $count × $minutes دقيقة';
+  }
+
+  @override
+  String vipNowRocketsNext(String date) {
+    return 'الدفعة التالية $date';
+  }
+
+  @override
+  String vipNowFreeCp(String left, String perMonth) {
+    return 'طلبات CP مجانية: $left من $perMonth متبقية هذا الشهر';
+  }
+
+  @override
+  String vipNowMaxQuantity(String count) {
+    return 'أرسل حتى $count هدية دفعة واحدة';
+  }
+
+  @override
+  String vipNowVoice(String seconds) {
+    return 'رسائل صوتية حتى $seconds ثانية';
+  }
+
+  @override
+  String vipNowExclusive(String count) {
+    return 'هدايا حصرية في تبويب VIP: $count';
+  }
+
+  @override
+  String get vipNowPriority => 'دعم بأولوية — بلاغاتك ومحادثات الدعم أولاً';
+
+  @override
+  String get vipScheduledEntry => 'هدية مؤجلة';
+
+  @override
+  String vipScheduledEntrySub(String pending, String max) {
+    return '$pending من $max بانتظار الإرسال';
+  }
+
+  @override
+  String get vipScheduledEmptyTitle => 'لا هدايا مؤجلة';
+
+  @override
+  String get vipScheduledEmptyBody =>
+      'اختر هدية وموعداً، وتصل في وقتها إلى المحادثة.';
+
+  @override
+  String get vipScheduledNew => 'جدولة هدية';
+
+  @override
+  String get vipScheduledTo => 'إلى (اسم المستخدم)';
+
+  @override
+  String get vipScheduledGift => 'الهدية';
+
+  @override
+  String get vipScheduledQuantity => 'الكمية';
+
+  @override
+  String get vipScheduledWhen => 'الموعد';
+
+  @override
+  String vipScheduledHold(String coins) {
+    return 'تُحجز $coins الآن وتُرجع إن أُلغيت أو تعذّر الإرسال.';
+  }
+
+  @override
+  String get vipScheduledSubmit => 'جدولة';
+
+  @override
+  String get vipScheduledDone => 'جُدولت الهدية';
+
+  @override
+  String get vipScheduledCancel => 'إلغاء الهدية';
+
+  @override
+  String get vipScheduledCancelled => 'أُلغيت الهدية وأُرجعت العملات';
+
+  @override
+  String get vipScheduledStatusPending => 'بانتظار الإرسال';
+
+  @override
+  String get vipScheduledStatusDelivered => 'أُرسلت';
+
+  @override
+  String get vipScheduledStatusCancelled => 'أُلغيت';
+
+  @override
+  String get vipScheduledStatusFailed => 'تعذّر الإرسال — أُرجعت العملات';
+
+  @override
+  String vipScheduledLine(String quantity, String gift, String name) {
+    return '$quantity × $gift إلى $name';
+  }
+
+  @override
+  String vipScheduledAt(String date) {
+    return '$date';
+  }
+
+  @override
+  String get vipScheduledNoPerkTitle => 'الهدية المؤجلة من ميزات VIP';
+
+  @override
+  String get vipScheduledTooMany => 'وصلت إلى الحد الأقصى من الهدايا المنتظرة';
+
+  @override
+  String get vipScheduledBadTime =>
+      'اختر موعداً بعد 5 دقائق على الأقل وخلال سنة';
+
+  @override
+  String cpSendBodyFree(String left) {
+    return 'مجاني بميزة VIP — $left طلبات مجانية متبقية هذا الشهر. لا تُرجع العملات لأنه لا يُخصم شيء.';
+  }
+
+  @override
+  String get walletReasonVipScheduledGift => 'هدية مؤجلة (محجوزة)';
+
+  @override
+  String get walletReasonVipScheduledGiftRelease => 'هدية مؤجلة (أُرجعت)';
 }
