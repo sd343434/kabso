@@ -713,74 +713,78 @@ class NotificationRow extends StatelessWidget {
         when,
       ].join('. ').replaceAll(_isolates, ''),
       excludeSemantics: true,
-      child: InkWell(
-        onTap: target == null ? null : () => context.push(target),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: KSpacing.lg,
-            vertical: KSpacing.md,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              leading,
-              const SizedBox(width: KSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text.rich(
-                      TextSpan(style: body, children: spans),
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (preview != null) ...[
-                      const SizedBox(height: KSpacing.xs),
-                      Text(
-                        preview,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: body.copyWith(color: p.textSecondary),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (thumbUrl != null) ...[
+      // A row is usable on any surface (the ink needs a Material).
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: target == null ? null : () => context.push(target),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: KSpacing.lg,
+              vertical: KSpacing.md,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                leading,
                 const SizedBox(width: KSpacing.md),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(KRadius.sm),
-                  child: ColoredBox(
-                    color: p.surfaceRaised,
-                    child: Image.network(
-                      thumbUrl,
-                      width: thumb,
-                      height: thumb,
-                      fit: BoxFit.cover,
-                      excludeFromSemantics: true,
-                      errorBuilder: (_, _, _) =>
-                          const SizedBox.square(dimension: thumb),
-                    ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text.rich(
+                        TextSpan(style: body, children: spans),
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (preview != null) ...[
+                        const SizedBox(height: KSpacing.xs),
+                        Text(
+                          preview,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: body.copyWith(color: p.textSecondary),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-              ],
-              // D382: unread is a small dot at the end of the first line.
-              if (!item.read) ...[
-                const SizedBox(width: KSpacing.sm),
-                Padding(
-                  padding: const EdgeInsets.only(top: 7),
-                  child: Container(
-                    key: unreadDotKey,
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: p.primary,
-                      shape: BoxShape.circle,
+                if (thumbUrl != null) ...[
+                  const SizedBox(width: KSpacing.md),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(KRadius.sm),
+                    child: ColoredBox(
+                      color: p.surfaceRaised,
+                      child: Image.network(
+                        thumbUrl,
+                        width: thumb,
+                        height: thumb,
+                        fit: BoxFit.cover,
+                        excludeFromSemantics: true,
+                        errorBuilder: (_, _, _) =>
+                            const SizedBox.square(dimension: thumb),
+                      ),
                     ),
                   ),
-                ),
+                ],
+                // D382: unread is a small dot at the end of the first line.
+                if (!item.read) ...[
+                  const SizedBox(width: KSpacing.sm),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 7),
+                    child: Container(
+                      key: unreadDotKey,
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: p.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

@@ -612,8 +612,8 @@ void main() {
         // The short time follows the sentence in the same paragraph.
         expect(
           find.textContaining(
-            '${_en.notifComment('⁨Sara Mohammed⁩')} '
-            '⁨${_en.relativeShortHours(7)}⁩',
+            '${_en.notifComment('\u2068Sara Mohammed\u2069')} '
+            '\u2068${_en.relativeShortHours(7)}\u2069',
             findRichText: true,
           ),
           findsOneWidget,

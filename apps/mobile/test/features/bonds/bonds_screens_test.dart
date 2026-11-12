@@ -559,16 +559,17 @@ void main() {
           plain(w.text.toPlainText()),
       ];
       final who = plain(en.notifActors('Sara', 0));
-      expect(texts, contains(plain(en.notifCpRequest(who))));
-      expect(texts, contains(plain(en.notifCpAccepted(who))));
-      expect(texts, contains(plain(en.notifFamilyJoinAccepted('Stars'))));
-      expect(texts, contains(plain(en.notifFamilyJoinDeclined('Stars'))));
-      expect(texts, contains(plain(en.notifMedalAwarded('First couple'))));
+      // D382: the short time follows the sentence in the same paragraph.
+      Matcher says(String sentence) =>
+          contains(matches('^${RegExp.escape(plain(sentence))} \\S'));
+      expect(texts, says(en.notifCpRequest(who)));
+      expect(texts, says(en.notifCpAccepted(who)));
+      expect(texts, says(en.notifFamilyJoinAccepted('Stars')));
+      expect(texts, says(en.notifFamilyJoinDeclined('Stars')));
+      expect(texts, says(en.notifMedalAwarded('First couple')));
       expect(
         texts,
-        contains(
-          plain(en.notifBagItemReceived(who, en.notifBagItemProfileCard)),
-        ),
+        says(en.notifBagItemReceived(who, en.notifBagItemProfileCard)),
       );
       expect(tester.takeException(), isNull);
     });
