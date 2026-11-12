@@ -190,6 +190,11 @@ export function WaConversationList({
                 <span className="tag open">{ownerText(t, c)}</span>
               )}
               <DepartmentTag d={c.department} />
+              {c.priority && (
+                <span className="tag vip" data-wa-priority>
+                  {t('priorityVip')}
+                </span>
+              )}
             </span>
           </button>
         </li>
