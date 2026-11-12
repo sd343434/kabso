@@ -197,9 +197,14 @@ class CategoryPatternPainter extends CustomPainter {
 /// bottom, where the photo sits) and the pattern at low opacity. It never
 /// takes a tap.
 class CategoryCoverOverlay extends StatelessWidget {
-  const new({required this.look, super.key});
+  const new({required this.look, this.solid = false, super.key});
 
   final CategoryLook look;
+
+  /// No cover picture of the person's own: the accent replaces the default
+  /// Kabso cover (deep at the top, the accent at the bottom) instead of
+  /// tinting it.
+  final bool solid;
 
   static const overlayKey = Key('profile.category.cover');
 
@@ -221,10 +226,15 @@ class CategoryCoverOverlay extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
-              colors: [
-                look.accent.withValues(alpha: tintBottom),
-                look.accent.withValues(alpha: tintTop),
-              ],
+              colors: solid
+                  ? [
+                      look.accent,
+                      Color.lerp(look.accent, const Color(0xFF0B0B0D), 0.72)!,
+                    ]
+                  : [
+                      look.accent.withValues(alpha: tintBottom),
+                      look.accent.withValues(alpha: tintTop),
+                    ],
             ),
           ),
         ),

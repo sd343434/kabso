@@ -14,6 +14,9 @@ import 'package:kabso_live/features/profile/category/category_style.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+/// The pictures of the featured items (tests load them from memory).
+ImageProvider Function(String url) featuredImageFor = NetworkImage.new;
+
 /// D386 (CONVENTIONS §10.175.2): the featured section under a verified
 /// category's header — «أعمالي», «تلاواتي», «قصائدي», «معرضي» … — from
 /// `GET /users/{username}/featured`: the person's pins (up to 6, in their
@@ -267,7 +270,7 @@ class _PostPicture extends StatelessWidget {
     );
     if (url == null) return placeholder;
     return Image(
-      image: NetworkImage(url),
+      image: featuredImageFor(url),
       fit: BoxFit.cover,
       excludeFromSemantics: true,
       errorBuilder: (_, _, _) => placeholder,
@@ -576,6 +579,7 @@ class _Wave extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     height: 12,
+    width: double.infinity,
     child: CustomPaint(painter: _WavePainter(color, seed)),
   );
 }
@@ -634,10 +638,7 @@ class _PoemCard extends StatelessWidget {
             padding: const EdgeInsets.all(KSpacing.md),
             child: Column(
               children: [
-                Text(
-                  '❝',
-                  style: TextStyle(color: look.accent, fontSize: 22, height: 1),
-                ),
+                Icon(Icons.format_quote_rounded, color: look.accent, size: 24),
                 const SizedBox(height: KSpacing.xs),
                 Expanded(
                   child: Center(
@@ -937,21 +938,10 @@ class _Gallery extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       children: [
-        for (final (i, post) in items.indexed)
+        for (final post in items)
           ClipRRect(
             key: FeaturedSectionSliver.itemKey(post.id),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(i == 0 ? KRadius.md : 2),
-              topRight: Radius.circular(i == 2 ? KRadius.md : 2),
-              bottomLeft: Radius.circular(
-                i == items.length - 3 || items.length <= 3 && i == 0
-                    ? KRadius.md
-                    : 2,
-              ),
-              bottomRight: Radius.circular(
-                i == items.length - 1 && i % 3 == 2 ? KRadius.md : 2,
-              ),
-            ),
+            borderRadius: BorderRadius.circular(KRadius.sm),
             child: Material(
               type: MaterialType.transparency,
               child: InkWell(
@@ -1069,7 +1059,7 @@ class _FeaturedReorderSheetState extends State<FeaturedReorderSheet> {
                         borderRadius: BorderRadius.circular(KRadius.sm),
                         child: switch (post.media.firstOrNull) {
                           final m? => Image(
-                            image: NetworkImage(m.posterUrl ?? m.thumbUrl),
+                            image: featuredImageFor(m.posterUrl ?? m.thumbUrl),
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) =>
                                 ColoredBox(color: p.surfaceOverlay),

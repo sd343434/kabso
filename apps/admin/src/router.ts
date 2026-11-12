@@ -36,6 +36,8 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'hosts', pattern: '/live-hosts' },
   // v1.73-social (D209): «طلبات المضيفين».
   { name: 'hostApplications', pattern: '/host-applications' },
+  // v1.138-social (D386): «طلبات توثيق الفئة».
+  { name: 'categoryRequests', pattern: '/category-requests' },
   { name: 'hostApplication', pattern: '/host-applications/:id' },
   // v1.74-social (D217): «الدعوات».
   { name: 'referrals', pattern: '/referrals' },

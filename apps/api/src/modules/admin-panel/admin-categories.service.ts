@@ -294,7 +294,7 @@ export class AdminCategoriesService {
       where: { id: requestId },
       select: ROW_SELECT,
     });
-    return rowDto(r as RowIn);
+    return rowDto(r);
   }
 
   /** `approveAdminCategoryRequest`: the request's category (still the account's — a change cancels it) is verified. */

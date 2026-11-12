@@ -16,6 +16,7 @@ import { Hosts, Lives } from './pages/Lives';
 import { DeviceBans } from './pages/LiveModeration';
 import { LiveWatch } from './pages/LiveWatch';
 import { HostApplicationDetail, HostApplications } from './pages/HostApplications';
+import { CategoryRequests } from './pages/Categories';
 import { PkDares } from './pages/PkDares';
 import { CreatorApplications, MyRecruits, Recruits } from './pages/Recruits';
 import { LevelRaiseApps, LevelRaiseDetail, LevelRaises, LevelRaiseSettingsPage } from './pages/LevelRaises';
@@ -216,6 +217,9 @@ export function App() {
           break;
         case 'hostApplications':
           page = <HostApplications />;
+          break;
+        case 'categoryRequests':
+          page = <CategoryRequests />;
           break;
         case 'hostApplication':
           page = <HostApplicationDetail id={match.params.id!} />;

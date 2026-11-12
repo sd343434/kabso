@@ -828,7 +828,12 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
           // D386: a verified category's accent tint and pattern.
           if (CategoryLookScope.maybeOf(context) case final look?
               when staff == null)
-            CategoryCoverOverlay(look: look),
+            CategoryCoverOverlay(
+              look: look,
+              // The VIP animated cover keeps showing (a tint over it).
+              solid:
+                  profile.coverUrl == null && !(profile.vip?.member ?? false),
+            ),
           // D299e: a shade under the status bar and the bar, so the white
           // @username reads over a bright cover.
           const Align(

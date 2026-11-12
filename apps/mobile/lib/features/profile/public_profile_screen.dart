@@ -403,7 +403,9 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   /// تم الطلب / إلغاء الحظر), «مراسلة» with the send icon, then the header's
   /// chevron ([toggle]: the family / couple / medals tiles). Your own page
   /// gets «تعديل الملف» (+ the chevron). The ⋯ is in the top bar (owner 4).
-  Widget _actions(PublicProfile profile, Widget? toggle) {
+  /// [inner] is the header's context (under the page's D386 category look,
+  /// which colours the primary pill).
+  Widget _actions(PublicProfile profile, Widget? toggle, BuildContext inner) {
     final l10n = context.l10n;
     final quiet = ProfileCoverButtons.pill(context);
     final tail = [
@@ -441,7 +443,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     }
     final main = profile.blockedByMe
         ? ProfileCoverButtons.gradientPill(
-            context: context,
+            context: inner,
             key: PublicProfileScreen.unblockKey,
             onPressed: () => _unblock(profile),
             child: ProfileCoverButtons.label(l10n.safetyUnblock),
@@ -462,7 +464,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             child: ProfileCoverButtons.label(l10n.followRequested),
           )
         : ProfileCoverButtons.gradientPill(
-            context: context,
+            context: inner,
             key: PublicProfileScreen.followKey,
             // D175: a private account gets a follow request (§10.47).
             onPressed: profile.canFollowOrRequest
@@ -615,7 +617,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               SliverToBoxAdapter(
                 child: ProfileCoverHeader(
                   profile: profile,
-                  actions: (_, toggle) => _actions(profile, toggle),
+                  actions: (inner, toggle) => _actions(profile, toggle, inner),
                   // D301: the owner's cover video, in the app's language.
                   coverVideo: ownerCoverVideoFor(context, profile),
                   // D121: the lists; a private account's are its followers'

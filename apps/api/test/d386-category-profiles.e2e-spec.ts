@@ -421,9 +421,7 @@ describe('D386 category profiles', { timeout: 600_000 }, () => {
     expect((await control(owner, staff, 'VERIFY')).status).toBe(200);
     const viewer = await user();
     expect(await profile(viewer, staff)).toMatchObject({ category: 'POET', categoryVerified: true });
-    await withMigrationClient((db) =>
-      db.$transaction((tx) => grantRoleIn(tx, staff.email, 'SUPPORT' as never)),
-    );
+    await withMigrationClient((db) => db.$transaction((tx) => grantRoleIn(tx, staff.email, 'SUPPORT')));
     vi.useRealTimers();
     expect(await profile(viewer, staff)).toMatchObject({ category: null, categoryVerified: false });
     expect(await me(staff)).toMatchObject({ category: null, categoryVerified: false });

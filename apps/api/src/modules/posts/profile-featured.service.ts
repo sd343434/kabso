@@ -151,7 +151,7 @@ export class ProfileFeaturedService {
       select: { category: true, categoryVerifiedAt: true },
     });
     if (!profile?.category || profile.categoryVerifiedAt === null) return EMPTY;
-    const section = FEATURED_SECTION_OF[profile.category as AccountCategory];
+    const section = FEATURED_SECTION_OF[profile.category];
     // D367: a Kabso Team account shows no category, so no section either.
     if (section === null || (await isPanelStaff(this.prisma, authorId))) return EMPTY;
     const schedule = section === 'PROGRAM' ? await this.schedule(authorId) : [];

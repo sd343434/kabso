@@ -4534,3 +4534,27 @@ CONVENTIONS §10.174 (owner 2026-11-12). One migration and one optional setting;
 - **Order:** deploy the API image (the migration runs first), then the panel, then ship the APK. An older app shows no
   row and no support chat; an older staff app or panel must not open the inbox while in-app threads exist (their phone
   is null) — none is deployed with D355 yet.
+
+### 5.128 A profile page per account category (D386; migrations `20270516090000`, `20270516090100`) — [IMPLEMENTED, draft contract v1.138-social; not deployed, not device-tested]
+
+CONVENTIONS §10.175 (owner 2026-11-12). Two migrations and two optional settings; no new secret, no new host.
+
+- **Migration** `20270516090000_category_profiles_enums` (its own transaction, as PostgreSQL requires for new enum values):
+  13 values of `account_category`; `notification_type` `CATEGORY_VERIFIED`, `CATEGORY_REVIEWED`.
+- **Migration** `20270516090100_category_profiles`: `user_profiles.category_verified_at`, `category_verified_by`,
+  `category_locked_at`, `category_locked_by` (all null for existing rows — nobody is verified or locked after deploy;
+  CHECK `user_profiles_category_verified_shape` holds trivially); type `category_request_status`; tables
+  `category_verification_requests` (partial unique index `category_verification_requests_one_pending`) and
+  `profile_featured_pins` (CHECK `profile_featured_pins_position`, unique per person and position). Runtime grants from
+  the default privileges (KL-013; full DML). Small or new tables; the `user_profiles` change only adds nullable columns
+  (no rewrite) and a CHECK and two foreign keys validated against null columns.
+- **Settings:** `RATE_LIMIT_FEATURED_PINS_USER` (default `60/3600`), `RATE_LIMIT_CATEGORY_REQUEST_USER` (default
+  `5/86400`).
+- **Panel:** «طلبات توثيق الفئة» under the users group (`users.control_view` reads, `users.profile_edit` acts — existing
+  capabilities, no role change); the user page's «فئة الحساب» block.
+- **Rollback note:** an older API image ignores the new columns and tables, but it cannot read a profile whose
+  `account_category` holds one of the 13 new values (Prisma rejects an unknown enum value). Before rolling the API back,
+  clear them: `UPDATE user_profiles SET account_category = NULL, category_verified_at = NULL WHERE account_category IN
+  ('QURAN_RECITER', …, 'TRAVELER')` (after an export if needed). The enum values, columns and tables can stay.
+- **Order:** deploy the API image (the migrations run first), then the panel, then ship the APK. An older app shows a
+  new category as nothing and keeps the default page.
