@@ -521,6 +521,7 @@ export function UserDetail({ id }: { id: string }) {
       {action === 'unban' && reasonAction('unban', t('unban'))}
       {action === 'avatar' && reasonAction('avatar/remove', t('removeAvatar'), true)}
       {action === 'cover' && reasonAction('cover/remove', t('ctRemoveCover'), true)}
+      {action === 'animatedAvatar' && reasonAction('animated-avatar/remove', t('ctRemoveAnimatedAvatar'), true)}
       {action === 'revoke' && reasonAction('special-username/revoke', t('revokeSpecial'))}
       {action === 'signout' && reasonAction('sessions/revoke', t('signOutAll'), true)}
       {revokeOne && reasonAction('sessions/revoke', t('signOut'), true, { sessionId: revokeOne })}
