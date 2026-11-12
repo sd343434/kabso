@@ -3194,6 +3194,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storyReported => 'Thanks, we got your report';
 
   @override
+  String storyPeopleOf(String name) {
+    return '$name\'s stories';
+  }
+
+  @override
   String storyPhotoOf(String name) {
     return '$name\'s story';
   }
@@ -16838,12 +16843,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String createSuggestionPosts(String count) {
     return '$count posts';
   }
-
-  @override
-  String get dmStoriesTitle => 'Stories';
-
-  @override
-  String get dmStoriesAdd => 'Add story';
 
   @override
   String relativeShortMinutes(int n) {

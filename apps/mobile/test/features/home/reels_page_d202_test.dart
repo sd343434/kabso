@@ -189,14 +189,17 @@ Finder _onPage(Finder f) =>
 
 void main() {
   group('header (D294)', () {
-    testWidgets('the posts page bar: Search at the start, «Posts | Reels» '
-        'centred with Reels selected, the bell at the end; no feed tabs, no '
-        'chip', (tester) async {
+    testWidgets('the posts page bar: «+» at the start (owner 2026-11-12), '
+        '«Posts | Reels» centred with Reels selected, Search then the bell at '
+        'the end; no feed tabs, no chip', (tester) async {
       await _pump(tester);
+      final create = tester.getRect(find.byKey(FeedScreen.createKey));
       final search = tester.getRect(find.byKey(FeedScreen.searchKey));
       final bell = tester.getRect(find.byKey(NotificationsBell.bellKey));
+      expect(create.size, const Size.square(KSizes.minTouchTarget));
+      expect(create.left, KSpacing.xs);
       expect(search.size, const Size.square(KSizes.minTouchTarget));
-      expect(search.left, KSpacing.xs);
+      expect(search.right, bell.left);
       expect(bell.right, 393 - KSpacing.xs);
       // The same words in the same order as on Posts; Reels is selected,
       // Posts is the switch back (a button, never selected).
@@ -767,8 +770,10 @@ void main() {
           expect(handle.right, lessThan(rail.left));
         }
         expect(rail.bottom, 800 - KHomeReels.railBottom);
+        final create = tester.getCenter(find.byKey(FeedScreen.createKey)).dx;
+        expect(create < 180, !ar, reason: '«+» at the reading start');
         final search = tester.getCenter(find.byKey(FeedScreen.searchKey)).dx;
-        expect(search < 180, !ar, reason: 'Search at the reading start');
+        expect(search < 180, ar, reason: 'Search at the reading end');
         final l10n = l10nFor(language);
         for (final label in [l10n.homeTabPosts, l10n.homeTabReels]) {
           final r = tester.getRect(_tab(label));

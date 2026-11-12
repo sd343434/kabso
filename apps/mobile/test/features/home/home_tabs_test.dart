@@ -288,9 +288,10 @@ void main() {
   });
 
   group('header (D218 follow-up: the bar of before)', () {
-    testWidgets('48 dp: Search at the start, the bell at the end with «+» '
-        '(D322) beside it (48 dp targets), «Posts» centred with the «Reels» '
-        'switch word after it; no avatar or name', (tester) async {
+    testWidgets('48 dp: «+» (D322) at the start (owner 2026-11-12: «انقل '
+        'ال + محل البحث», «اعكس امكانهم»), the bell at the end with Search '
+        'beside it (48 dp targets), «Posts» centred with the «Reels» switch '
+        'word after it; no avatar or name', (tester) async {
       await _pump(
         tester,
         overrides: [currentUserProvider.overrideWithValue(testUser())],
@@ -311,7 +312,7 @@ void main() {
       final tabs = tester.getRect(find.byKey(FeedScreen.tabsKey));
       expect(tabs.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
       expect(
-        tester.getRect(find.byKey(FeedScreen.searchKey)),
+        tester.getRect(find.byKey(FeedScreen.createKey)),
         Rect.fromLTWH(
           KSpacing.xs,
           header.bottom - KMetrics.topBarHeight,
@@ -331,10 +332,10 @@ void main() {
         findsNothing,
       );
       expect(find.text(testUser().displayName), findsNothing);
-      // D322: «+» (the create menu) right beside the bell.
-      final create = tester.getRect(find.byKey(FeedScreen.createKey));
-      expect(create.size, const Size.square(KSizes.minTouchTarget));
-      expect(create.right, moreOrLessEquals(bell.left));
+      // Owner 2026-11-12: Search right beside the bell, where «+» was.
+      final search = tester.getRect(find.byKey(FeedScreen.searchKey));
+      expect(search.size, const Size.square(KSizes.minTouchTarget));
+      expect(search.right, moreOrLessEquals(bell.left));
       expect(find.byTooltip(_en.feedCreate), findsOneWidget);
       expect(find.byType(AppBar), findsNothing);
       expect(find.text(_en.homeEmptyTitle), findsOneWidget);
@@ -343,9 +344,7 @@ void main() {
     for (final language in AppLanguage.values) {
       for (final viewport in GoldenViewport.values) {
         testWidgets('real fonts, ${language.name} ${viewport.name}: «Posts» '
-            'and the switch word fit between Search and the bell', (
-          tester,
-        ) async {
+            'and the switch word fit between «+» and Search', (tester) async {
           await loadAppFonts();
           await _pump(tester, language: language, viewport: viewport);
           final tabs = tester.getRect(find.byKey(FeedScreen.tabsKey));
@@ -358,18 +357,21 @@ void main() {
     }
 
     for (final language in AppLanguage.values) {
-      testWidgets('mirrors in ${language.name}: Search at the reading start, '
-          'the bell at the end', (tester) async {
+      testWidgets('mirrors in ${language.name}: «+» at the reading start, '
+          'Search then the bell at the end', (tester) async {
         await _pump(tester, language: language);
+        final create = tester.getCenter(find.byKey(FeedScreen.createKey)).dx;
         final search = tester.getCenter(find.byKey(FeedScreen.searchKey)).dx;
         final bell = tester.getCenter(find.byKey(NotificationsBell.bellKey)).dx;
         const edge = KSpacing.xs + KSizes.minTouchTarget / 2;
         if (language == AppLanguage.ar) {
-          expect(search, 393 - edge);
+          expect(create, 393 - edge);
           expect(bell, edge);
+          expect(search, edge + KSizes.minTouchTarget);
         } else {
-          expect(search, edge);
+          expect(create, edge);
           expect(bell, 393 - edge);
+          expect(search, 393 - edge - KSizes.minTouchTarget);
         }
       });
     }

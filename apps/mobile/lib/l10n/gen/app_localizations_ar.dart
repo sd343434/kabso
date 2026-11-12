@@ -3220,6 +3220,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get storyReported => 'شكراً، وصلنا البلاغ';
 
   @override
+  String storyPeopleOf(String name) {
+    return 'قصص $name';
+  }
+
+  @override
   String storyPhotoOf(String name) {
     return 'قصة $name';
   }
@@ -16837,12 +16842,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String createSuggestionPosts(String count) {
     return '$count منشور';
   }
-
-  @override
-  String get dmStoriesTitle => 'القصص';
-
-  @override
-  String get dmStoriesAdd => 'أضف قصة';
 
   @override
   String relativeShortMinutes(int n) {

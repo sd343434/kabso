@@ -5696,6 +5696,12 @@ abstract class AppLocalizations {
   /// **'شكراً، وصلنا البلاغ'**
   String get storyReported;
 
+  /// D375 story viewer: a person in the people carousel at the bottom (accessibility; a tap opens their stories)
+  ///
+  /// In ar, this message translates to:
+  /// **'قصص {name}'**
+  String storyPeopleOf(String name);
+
   /// Story photo accessibility label
   ///
   /// In ar, this message translates to:
@@ -28437,18 +28443,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{count} منشور'**
   String createSuggestionPosts(String count);
-
-  /// D336: the Messages tab's page title above the story cards.
-  ///
-  /// In ar, this message translates to:
-  /// **'القصص'**
-  String get dmStoriesTitle;
-
-  /// D336: the caller's story card on the Messages tab (no active story).
-  ///
-  /// In ar, this message translates to:
-  /// **'أضف قصة'**
-  String get dmStoriesAdd;
 
   /// D336: compact time since, in minutes (the Messages tab's rows and story cards).
   ///

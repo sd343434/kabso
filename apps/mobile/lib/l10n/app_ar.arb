@@ -3590,6 +3590,15 @@
   "@storyReported": {
     "description": "Message after reporting a story"
   },
+  "storyPeopleOf": "قصص {name}",
+  "@storyPeopleOf": {
+    "description": "D375 story viewer: a person in the people carousel at the bottom (accessibility; a tap opens their stories)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "storyPhotoOf": "قصة {name}",
   "@storyPhotoOf": {
     "description": "Story photo accessibility label",
@@ -14666,10 +14675,6 @@
   "@uploadView": {"description": "D333: open the new post."},
   "createSuggestionPosts": "{count} منشور",
   "@createSuggestionPosts": {"description": "D333: a suggested hashtag's post count (already compact).", "placeholders": {"count": {"type": "String"}}},
-  "dmStoriesTitle": "القصص",
-  "@dmStoriesTitle": {"description": "D336: the Messages tab's page title above the story cards."},
-  "dmStoriesAdd": "أضف قصة",
-  "@dmStoriesAdd": {"description": "D336: the caller's story card on the Messages tab (no active story)."},
   "relativeShortMinutes": "{n}د",
   "@relativeShortMinutes": {"description": "D336: compact time since, in minutes (the Messages tab's rows and story cards).", "placeholders": {"n": {"type": "int"}}},
   "relativeShortHours": "{n}س",
