@@ -64,15 +64,31 @@ const NEW = [
   'LONGER_VOICE',
 ];
 
+/** v1.134-social (D381): the gift / CP / support / rocket / voice perks built. */
+const D381_BUILT = [
+  'EXCLUSIVE_GIFTS',
+  'FREE_CP_REQUEST',
+  'PRIORITY_SUPPORT',
+  'MONTHLY_ROCKETS',
+  'SCHEDULED_GIFT',
+  'HIGHER_GIFT_QUANTITY',
+  'LONGER_VOICE',
+];
+
 const issues = (code: string, value: unknown) => vipPerkValueIssues(code, value).map((i) => i.issue);
 
 describe('D374 VIP perk catalogue', () => {
   it("holds the owner's list: eleven built, thirty new ones not built, MONTHLY_GIFT; codes unique; DAILY_COINS removed", () => {
     const codes = VIP_PERK_CATALOGUE.map((e) => e.code);
     expect(new Set(codes).size).toBe(codes.length);
-    expect([...VIP_CATALOGUE_BUILT].sort()).toEqual([...BUILT].sort());
-    expect([...VIP_BUILT_PERKS].sort()).toEqual([...BUILT].sort());
-    for (const c of NEW) expect(vipCatalogueEntry(c)?.built, c).toBe(false);
+    const built = [...BUILT, ...D381_BUILT].sort();
+    expect([...VIP_CATALOGUE_BUILT].filter((c) => built.includes(c)).sort()).toEqual(built);
+    expect([...VIP_BUILT_PERKS].filter((c) => built.includes(c)).sort()).toEqual(built);
+    for (const c of NEW) {
+      if (D381_BUILT.includes(c)) expect(vipCatalogueEntry(c)?.built, c).toBe(true);
+    }
+    // The other new perks are built by their own branches (D378–D380) or stay «قريباً».
+    expect(VIP_CATALOGUE_BUILT.length).toBeLessThanOrEqual(BUILT.length + NEW.length);
     expect(vipCatalogueEntry('MONTHLY_GIFT')?.built).toBe(false);
     expect(codes).toHaveLength(BUILT.length + NEW.length + 1);
     expect(codes.length).toBeLessThanOrEqual(VIP_MAX_PERKS);
