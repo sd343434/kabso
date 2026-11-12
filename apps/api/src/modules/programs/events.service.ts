@@ -1258,7 +1258,9 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     // v1.133-social (D380, §10.170.3): RANKING_ANONYMOUS — a person (or a CP partner) is «مجهول» to everyone but
     // themselves; the AGENCIES board names agencies (its row is the agency, shown as it is).
     const anonymous =
-      kind === 'AGENCIES' ? new Set<string>() : await vipPrivacyOnIn(this.prisma, ids, 'RANKING_ANONYMOUS', this.clock.now());
+      kind === 'AGENCIES'
+        ? new Set<string>()
+        : await vipPrivacyOnIn(this.prisma, ids, 'RANKING_ANONYMOUS', this.clock.now());
     const minPoints = board.minPoints;
     const bundleOf = (r: BoardRow & { prize?: PrizeItem[] }) =>
       r.prize ?? (r.score >= minPoints ? [...bundleForRank(lines, Number(r.rank))] : []);

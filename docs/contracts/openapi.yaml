@@ -615,6 +615,21 @@ info:
     (`POST /admin/users/{userId}/recharge-points/adjustments`, audited `recharge_points.adjust`). A reversed top-up or
     a refunded store purchase takes its points back (the balance may go below 0). Migration
     `20270430090000_recharge_points`. Additive (an older app sends no `payWith` and buys with coins as before).
+    **D380 (DRAFT v1.133-social)** the VIP privacy perks (CONVENTIONS §10.170; owner 2026-11-11): HIDDEN_VISIT
+    «زيارة خفية» (a holder's profile visit leaves no row in `listMyProfileVisitors`, not even a count), RANKING_ANONYMOUS
+    «اسم مخفي في التصنيفات» (`UserSummary.anonymous`: «مجهول», a random id, no picture or badge, on the public boards —
+    `listLiveRankings`, `listLiveContributors`, the event and gift-event boards, the PK top supporters, the host's
+    «تارجت» supporters — to everyone but the member; the host of the live keeps the names on their own room's list),
+    KICK_MUTE_SHIELD «حماية من طرد وكتم المشرف العادي» (a room moderator's kick, chat mute, seat mute or seat removal of a
+    holder → 403 `VIP_PROTECTED` (new), audited `vip.shield.refused`; the host and the Kabso Team still can),
+    ANONYMOUS_GIFT «إهداء مجهول» (`LiveGiftSendRequest.anonymous`, `LiveGift.anonymous`: the room, the tickers and the
+    recipients see «مجهول»; the ledger, the audit, the panel and the sender's own response keep the real sender;
+    `reportLiveGift` (`POST /live/gifts/{giftId}/reports`) and `blockAnonymousGiftSender` / `unblockAnonymousGiftSender`
+    (`PUT` / `DELETE /live/gifts/{giftId}/anonymous-block`) for the recipient, who never learns who it was;
+    `Report.liveGift` for the panel). The holder's switches: `PrivacySettings.hiddenVisit` / `rankingAnonymous` /
+    `kickMuteShield` (present only while the perk is held; 409 `VIP_UNAVAILABLE` `no_perk` otherwise). HIDE_COINS_SENT
+    stays «قريباً» (D220's free switch already hides the number). Migration `20270512090000_vip_privacy_perks`.
+    Additive (an older app sends no `anonymous`, ignores the new fields and shows «مجهول» as a name).
     **D374 (DRAFT v1.129-social)** the VIP perk catalogue (CONVENTIONS §10.166; owner 2026-11-11: each VIP tier gets
     the perks the admin picks in the panel, with art where needed): `AdminVipTierList.catalogue` (`VipPerkCatalogueEntry`,
     `VipPerkValueSchema`), `maxPerks` (64; was 20), `artLimits` (`VipArtLimit`); `AdminVipPerk` / `VipPerk` gain `value`
@@ -3827,7 +3842,8 @@ paths:
         The user can no longer send in this live (403 `LIVE_CHAT_MUTED`); their earlier
         messages stay. Lasts for this live only; it is not a block. A moderator cannot mute the
         host or another moderator, and nobody mutes the host (403 `AUTH_FORBIDDEN`). Unknown
-        user → 404. Ended room → 409 `LIVE_ROOM_ENDED`.
+        user → 404. Ended room → 409 `LIVE_ROOM_ENDED`. v1.133-social (D380, §10.170.4): a moderator muting a
+        KICK_MUTE_SHIELD holder → 403 `VIP_PROTECTED` (audited `vip.shield.refused`; unmuting is allowed).
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/UsernamePath'
@@ -3868,7 +3884,9 @@ paths:
         when the caller is not the host or a moderator; 404 for an unknown or inactive user;
         403 `AUTH_FORBIDDEN` when the target is the caller, the host, or (for a moderator)
         another moderator. Kicking someone already kicked → 200 with the first kick (nothing
-        sent or audited again). Audited (`live.kick`).
+        sent or audited again). Audited (`live.kick`). v1.133-social (D380, §10.170.4): a moderator kicking a member
+        whose VIP holds KICK_MUTE_SHIELD with the switch on → 403 `VIP_PROTECTED` (audited `vip.shield.refused`; the
+        host and the Kabso Team still can).
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -4279,7 +4297,7 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403':
-          description: "`LIVE_KICKED`, `LIVE_CHAT_NOT_IN_ROOM`; v1.27-live (D132) `LUCKY_GIFT_REGION_UNAVAILABLE` or `LUCKY_GIFT_AGE_UNCONFIRMED` (nothing charged, drawn or sent)."
+          description: "`LIVE_KICKED`, `LIVE_CHAT_NOT_IN_ROOM`; v1.27-live (D132) `LUCKY_GIFT_REGION_UNAVAILABLE` or `LUCKY_GIFT_AGE_UNCONFIRMED` (nothing charged, drawn or sent). v1.133-social (D380): `anonymous` is described on `LiveGiftSendRequest` (409 `VIP_UNAVAILABLE`, 409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE` `refused`, 429)."
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -4294,6 +4312,79 @@ paths:
                   code: GIFT_BAG_INSUFFICIENT
                   message: Not enough of that gift in your bag.
                   requestId: 0192f1d0-7777-7000-8000-000000000018
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/gifts/{giftId}/reports:
+    post:
+      tags: [live]
+      operationId: reportLiveGift
+      summary: "A recipient reports the sender of a live gift, anonymous or not (v1.133-social, D380)"
+      description: |
+        CONVENTIONS §10.170.5. For a live send the caller received (any send, an ANONYMOUS_GIFT one included; never
+        their own, never a conversation gift; otherwise 404): filed as an ordinary USER report on the real sender (the
+        team's queue, alerts and actions as any report, with the send and its live as the context — `Report.liveGift`
+        in the panel). The answer never names the sender. The caller's OPEN report on the same person is reused (200).
+        Rate-limited like `createReport` on a user.
+      parameters:
+        - { name: giftId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveGiftReportRequest' }
+            example: { reason: HARASSMENT }
+      responses:
+        '201':
+          description: Reported.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveGiftReportResult' }
+        '200':
+          description: Already reported (an OPEN report by the caller on the same person).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveGiftReportResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/gifts/{giftId}/anonymous-block:
+    put:
+      tags: [live]
+      operationId: blockAnonymousGiftSender
+      summary: "Refuse every further anonymous gift from the sender of this anonymous send (v1.133-social, D380)"
+      description: |
+        CONVENTIONS §10.170.5. Only for an ANONYMOUS_GIFT send the caller received (404 otherwise). The caller never
+        learns who sent it; the sender's named gifts still reach them (an ordinary block covers everything). The sender's
+        next anonymous send to the caller → 409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE`. Idempotent; audited
+        `live.gift.anonymous_block` when it changes.
+      parameters:
+        - { name: giftId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Refused.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnonymousGiftBlockResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: unblockAnonymousGiftSender
+      summary: "Allow the anonymous gifts of this anonymous send's sender again (v1.133-social, D380)"
+      description: CONVENTIONS §10.170.5. As `blockAnonymousGiftSender`; idempotent.
+      parameters:
+        - { name: giftId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Allowed again.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnonymousGiftBlockResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/live/gifts/lucky/odds:
@@ -5881,7 +5972,8 @@ paths:
       description: |
         While `mutedByHost`, the media server withdraws the guest's microphone, so they cannot
         unmute themselves. An empty seat → 409 `LIVE_SEAT_UNAVAILABLE`. A moderator cannot mute
-        another moderator (403). Idempotent.
+        another moderator (403). Idempotent. v1.133-social (D380, §10.170.4): a moderator muting a KICK_MUTE_SHIELD
+        holder → 403 `VIP_PROTECTED` (audited `vip.shield.refused`; unmuting is allowed).
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/SeatIndexPath'
@@ -5915,7 +6007,8 @@ paths:
       summary: "Host or moderator: take a guest off their seat (CP-011)"
       description: |
         The guest keeps watching. An empty seat → 200 unchanged. A moderator cannot remove another
-        moderator (403).
+        moderator (403). v1.133-social (D380, §10.170.4): a moderator removing a KICK_MUTE_SHIELD holder → 403
+        `VIP_PROTECTED` (audited `vip.shield.refused`).
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/SeatIndexPath'
@@ -32621,6 +32714,10 @@ components:
         verification:
           $ref: '#/components/schemas/VerificationBadge'
           description: "(v1.90-social, D293, §10.105.5; owner «نعم»: beside the name everywhere) — present only while the user holds an automatic verification badge with an active account; only its type, never an amount. Read with the summary's own query (no per-row query). The apps draw the seal right after the name wherever a summary's name is shown: live chat lines and join lines, the viewers list, seats, the person card, follow lists, search results, post / reel and comment authors, DM lists and headers, live cards. Absent otherwise."
+        anonymous:
+          type: boolean
+          enum: [true]
+          description: "(v1.133-social, D380, §10.170) present (true) only on the stand-in «مجهول» the server shows instead of a VIP member — a public board's row whose member turned RANKING_ANONYMOUS on, or the sender of an ANONYMOUS_GIFT send: a fresh random `id` on every answer, `username` `kabso.anonymous` (no account can take it), `displayName` «مجهول», no picture and no badge. The apps show their own «مجهول» with the generic avatar and open nothing on a tap."
     UserVip:
       type: object
       required: [tier, rank, color]
@@ -36580,6 +36677,13 @@ components:
         dmGroupSnapshot:
           description: (v1.104-social, D339) Admin views of `DM_GROUP` reports only.
           $ref: '#/components/schemas/DmGroupReportSnapshot'
+        liveGift:
+          type: object
+          required: [id, anonymous]
+          description: "(v1.133-social, D380, §10.170.5) Admin views of a USER report filed from a gift (`reportLiveGift`): the send it came from and whether it was anonymous (the target is always the real sender)."
+          properties:
+            id: { type: string, format: uuid }
+            anonymous: { type: boolean }
     ReportPage:
       type: object
       required: [data, page]
@@ -36606,6 +36710,9 @@ components:
         showActivityStatus: { type: boolean, description: "(v1.25-live, CP-022) Others may see when the user was last active (default true, CONVENTIONS §10.25)." }
         hideCherriesReceived: { type: boolean, description: "(v1.77-social, D220) «إخفاء الكرز المستلم»: others do not get `PublicProfile.cherriesReceived` (default false = shown; CONVENTIONS §10.74). The user and the admin panel still see it." }
         hideCoinsSent: { type: boolean, description: "(v1.77-social, D220) «إخفاء الكوينز المرسلة»: others do not get `PublicProfile.coinsSent` (default false = shown; CONVENTIONS §10.74). The user and the admin panel still see it." }
+        hiddenVisit: { type: boolean, description: "(v1.133-social, D380, §10.170.2) «زيارة خفية» — present only while the caller's VIP holds HIDDEN_VISIT: on (the default), their profile visits leave nothing in «من زار ملفي»." }
+        rankingAnonymous: { type: boolean, description: "(v1.133-social, D380, §10.170.3) «اسم مخفي في التصنيفات» — present only while the caller's VIP holds RANKING_ANONYMOUS: on, they are «مجهول» on the public boards (default off)." }
+        kickMuteShield: { type: boolean, description: "(v1.133-social, D380, §10.170.4) «حماية من طرد وكتم المشرف العادي» — present only while the caller's VIP holds KICK_MUTE_SHIELD: on (the default), a room moderator cannot kick or mute them." }
     UpdatePrivacyRequest:
       type: object
       additionalProperties: false
@@ -36623,6 +36730,9 @@ components:
             Existing followers are kept. Audited `user.privacy.private` when it changes.
         hideCherriesReceived: { type: boolean, description: "(v1.77-social, D220, CONVENTIONS §10.74) Hide the lifetime cherries received from others." }
         hideCoinsSent: { type: boolean, description: "(v1.77-social, D220, CONVENTIONS §10.74) Hide the lifetime coins sent from others." }
+        hiddenVisit: { type: boolean, description: "(v1.133-social, D380, §10.170.1) Only while the caller's VIP holds HIDDEN_VISIT (else 409 `VIP_UNAVAILABLE` `{field: hiddenVisit, issue: no_perk}`, nothing changed). Kept when the membership ends." }
+        rankingAnonymous: { type: boolean, description: "(v1.133-social, D380, §10.170.1) Only while the caller's VIP holds RANKING_ANONYMOUS (else 409 `VIP_UNAVAILABLE` `no_perk`)." }
+        kickMuteShield: { type: boolean, description: "(v1.133-social, D380, §10.170.1) Only while the caller's VIP holds KICK_MUTE_SHIELD (else 409 `VIP_UNAVAILABLE` `no_perk`)." }
     # ---- v1.21-live (DRAFT, CP-018, D106) — families, CP couples and medals ---------------------
     FamilyRole:
       type: string
@@ -38196,6 +38306,34 @@ components:
           type: string
           format: uuid
           description: Chosen by the app for each send; a retry with the same id returns the first send and is never charged again.
+        anonymous:
+          type: boolean
+          description: |
+            (v1.133-social, D380, §10.170.5) «إهداء مجهول»: true sends as «مجهول» — only for a member whose VIP holds
+            ANONYMOUS_GIFT (else 409 `VIP_UNAVAILABLE` `{field: anonymous, issue: no_perk}`); never a PK booster
+            (400 `anonymous` / `invalid_value`); refused when a recipient refused this sender's anonymous gifts
+            (409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE` `{field: anonymous, issue: refused}` — the same as a block, which is
+            checked first); at most 60 anonymous sends an hour (429). Absent / false: a named send, as before.
+    LiveGiftReportRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      description: (v1.133-social, D380, §10.170.5) As `CreateReportRequest` for a user, without the target.
+      properties:
+        reason: { $ref: '#/components/schemas/ReportReason' }
+        note: { type: string, maxLength: 500 }
+    LiveGiftReportResult:
+      type: object
+      required: [reportedAt]
+      description: (v1.133-social, D380) Never names the sender.
+      properties:
+        reportedAt: { type: string, format: date-time }
+    AnonymousGiftBlockResult:
+      type: object
+      required: [blocked]
+      description: (v1.133-social, D380) Whether the sender of the send is refused now.
+      properties:
+        blocked: { type: boolean }
     LiveGiftCombo:
       type: object
       required: [id, count, quantity]
@@ -38238,6 +38376,10 @@ components:
           description: In the order the sender listed them.
         combo: { $ref: '#/components/schemas/LiveGiftCombo' }
         createdAt: { type: string, format: date-time }
+        anonymous:
+          type: boolean
+          enum: [true]
+          description: "(v1.133-social, D380, §10.170.5) present (true) only on an ANONYMOUS_GIFT send: in the `gift` data message, the tickers, the `quip` and `lucky-win` messages and the recipients' histories `sender` is «مجهول» (`UserSummary.anonymous`); the sender's own response (and a retry) keeps their real `sender`. The recipient reports it with `reportLiveGift` and refuses further anonymous gifts with `blockAnonymousGiftSender` (by this `id`)."
     LiveGiftResult:
       type: object
       required: [gift, coins, bagQuantity]
@@ -38913,7 +39055,7 @@ components:
           oneOf:
             - $ref: '#/components/schemas/UserSummary'
             - type: 'null'
-          description: Null when the sender's account is not active or a block stands between them.
+          description: Null when the sender's account is not active or a block stands between them. v1.133-social (D380, §10.170.5) «مجهول» (`UserSummary.anonymous`) for an ANONYMOUS_GIFT send.
         senderDeleted:
           type: boolean
           description: |

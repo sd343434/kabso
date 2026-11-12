@@ -1289,6 +1289,14 @@ export class LiveSeatsService {
       const seat = await this.seatAt(tx, room, index);
       if (!seat?.userId) return { result: undefined, version: null, effects: [] };
       await this.assertMayActOn(tx, room, callerId, privilege, seat.userId);
+      // v1.133-social (D380, §10.170.4): a moderator never takes a KICK_MUTE_SHIELD holder off their seat.
+      if (privilege === 'MODERATOR' && seat.userId !== callerId) {
+        await refuseVipShielded(
+          this.prisma,
+          { actorId: callerId, targetId: seat.userId, roomId: room.id, action: 'SEAT_REMOVE' },
+          this.clock.now(),
+        );
+      }
       await tx.liveRoomSeat.delete({ where: { roomId_seatIndex: { roomId: room.id, seatIndex: index } } });
       return {
         result: undefined,

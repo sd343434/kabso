@@ -4314,3 +4314,25 @@ same object storage as the VIP SVGA / stills, under `media/vip/<tier>/`).
 - **Order:** deploy the API image (the migration runs first) together with the admin panel (the old panel's free-text
   codes would be refused by the new API), then ship the APK. An older app keeps working: it reads `perks` (not
   `effectivePerks`) and no longer sees a daily-coins row.
+
+### 5.123 The VIP privacy perks (D380; migration `20270512090000_vip_privacy_perks`) — [IMPLEMENTED, draft contract v1.133-social; not deployed, not device-tested]
+
+CONVENTIONS §10.170 (owner 2026-11-11). One migration, no new setting, no new secret, no new host.
+
+- **Migration** `20270512090000_vip_privacy_perks` (the usual `migrate` job, as the migration role): adds three boolean
+  columns with defaults to `privacy_settings` (`vip_hidden_visit` true, `vip_ranking_anonymous` false,
+  `vip_kick_mute_shield` true), `live_gifts.anonymous` (default false; CHECK `live_gifts_anonymous_live`: never on a
+  conversation gift), `reports.context_live_gift_id` (nullable FK, partial index) and the new table
+  `anonymous_gift_blocks` (runtime DML through the default privileges, like any table). `ADD COLUMN … DEFAULT` on
+  PostgreSQL 16 is a catalogue change (no table rewrite); `live_gifts` is large, so the CHECK validation scans it once
+  under the migration's lock — run it in the usual low-traffic window. **Nothing is deleted**; every existing row keeps
+  its values (old gifts are named sends, old reports have no gift context).
+- **After deploy (owner / panel):** tick HIDDEN_VISIT, RANKING_ANONYMOUS, KICK_MUTE_SHIELD and ANONYMOUS_GIFT on the VIP
+  tiers that should have them (a tier also holds the lower tiers' perks). HIDE_COINS_SENT stays «قريباً» (D220's free
+  switch already hides the number) until the owner decides.
+- **Order:** deploy the API image (the migration runs first), then ship the APK. The admin panel needs no change (the
+  reports list shows the reported sender as for any USER report). An older app keeps working: it never sends
+  `anonymous`, ignores the new privacy fields and shows «مجهول» as a plain name; a moderator on an older app gets the
+  generic «not allowed» message for a protected member.
+- **Rollback:** the columns and the table are additive; an older API image ignores them (an anonymous gift sent before
+  a rollback would then show its real sender — roll forward instead).

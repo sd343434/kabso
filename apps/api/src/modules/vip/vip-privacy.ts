@@ -107,14 +107,14 @@ export function rankedUser(
 }
 
 /** D380 (§10.170.4): what a room moderator tried on a KICK_MUTE_SHIELD holder. */
-export type VipShieldAction = 'KICK' | 'CHAT_MUTE' | 'SEAT_MUTE';
+export type VipShieldAction = 'KICK' | 'CHAT_MUTE' | 'SEAT_MUTE' | 'SEAT_REMOVE';
 
 /**
  * v1.133-social (D380, §10.170.4) «حماية من طرد وكتم المشرف العادي»: a room MODERATOR (appointed by the host) may not
- * kick, chat-mute or seat-mute a member holding KICK_MUTE_SHIELD with the switch on — 403 `VIP_PROTECTED`, audited
- * `vip.shield.refused` (written on its own connection, so it stays when the caller's transaction rolls back). The host
- * and the Kabso Team (their own staff tools) are never refused; reports and automated safety are untouched. Call only
- * for a moderator's action.
+ * kick, chat-mute, seat-mute or take off a seat a member holding KICK_MUTE_SHIELD with the switch on — 403
+ * `VIP_PROTECTED`, audited `vip.shield.refused` (written on its own connection, so it stays when the caller's
+ * transaction rolls back). The host and the Kabso Team (their own staff tools) are never refused; reports and automated
+ * safety are untouched. Call only for a moderator's action.
  */
 export async function refuseVipShielded(
   db: Pick<Prisma.TransactionClient, '$queryRaw' | 'auditLog'>,

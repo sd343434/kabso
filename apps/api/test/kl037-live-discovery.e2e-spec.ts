@@ -153,6 +153,10 @@ describe('KL-037 contract coverage', () => {
             // v1.95-social (D301): the owner's journey and official posts; d301-owner-profile covers them.
             'listUserJourney',
             'listUserOfficialPosts',
+            // v1.133-social (D380): a gift's report and the anonymous-gift refusal; d380-vip-privacy covers them.
+            'reportLiveGift',
+            'blockAnonymousGiftSender',
+            'unblockAnonymousGiftSender',
           ].includes(o.operationId),
       )
       .filter(

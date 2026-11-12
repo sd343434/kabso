@@ -976,7 +976,10 @@ export class SafetyService {
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const gift = await this.receivedLiveGift(reporterId, giftId);
     const where: Prisma.ReportWhereInput = { reporterId, status: 'OPEN', targetUserId: gift.senderId };
-    const existing = await this.prisma.report.findFirst({ where, select: { id: true, createdAt: true, contextLiveGiftId: true } });
+    const existing = await this.prisma.report.findFirst({
+      where,
+      select: { id: true, createdAt: true, contextLiveGiftId: true },
+    });
     if (existing) {
       if (existing.contextLiveGiftId === null) {
         await this.prisma.report.update({ where: { id: existing.id }, data: { contextLiveGiftId: gift.id } });
@@ -1095,7 +1098,9 @@ export class SafetyService {
     const { isPrivate, hiddenVisit, rankingAnonymous, kickMuteShield, ...plain } = parsed.data;
     // D380 (§10.170.1): a VIP privacy switch is set only while its perk is held (409 otherwise, nothing changed).
     const switches = { hiddenVisit, rankingAnonymous, kickMuteShield };
-    const asked = (Object.keys(switches) as (keyof typeof switches)[]).filter((k) => switches[k] !== undefined);
+    const asked = (Object.keys(switches) as (keyof typeof switches)[]).filter(
+      (k) => switches[k] !== undefined,
+    );
     if (asked.length > 0) {
       const held = await this.heldSwitches(userId);
       const missing = asked.filter((k) => !held.has(k));
