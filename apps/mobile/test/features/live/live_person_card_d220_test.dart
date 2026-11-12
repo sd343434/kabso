@@ -1,16 +1,15 @@
-// D220 (owner 2026-11-01): the person card in a live, after the owner's
-// reference (layout only): a compact sheet under the live, the picture over
-// its top edge in the worn frame or a clean ring, «Report», the name and
-// «ID: username», the badge pills, the four numbers (two hideable — the
-// server leaves them out, the rest re-centre), the family/couple and gift
-// wall pills, «+ Follow», the round gift and «Chat»; «Edit profile» on your
-// own card. Arabic and English, 393×852 and 360×800 at text ×1.3, light and
-// dark, long names, many badges, reduced motion.
+// D220 (owner 2026-11-01), redesigned by D383 (owner 2026-11-12: no box or
+// frame around the card): the person card in a live — a sheet under the
+// live, the picture over its top edge in the worn frame or a clean ring,
+// «Report», the name and «ID: username», the badge pills, one number pill per
+// number (two hideable — the server leaves them out), Follow, Chat and the
+// gift as round buttons, the family / couple / gift wall as soft pills;
+// «Edit profile» on your own card. Arabic and English, 393×852 and 360×800
+// at text ×1.0 and ×1.3, light and dark, long names, many badges.
 
 import 'package:flutter_svga/flutter_svga.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/format/k_format.dart';
-import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -26,7 +25,6 @@ import 'package:kabso_live/features/medals/domain/medal_models.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
-import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -84,7 +82,6 @@ Future<BondFakes> _card(
   Brightness brightness = Brightness.light,
   LivePersonScope? scope = _scope,
   int levels = 1,
-  KabsoProfileHeader? header,
   FakeSafetyRepository? safety,
 }) async {
   setViewport(tester, viewport);
@@ -96,8 +93,7 @@ Future<BondFakes> _card(
       body: Builder(
         builder: (context) => Center(
           child: TextButton(
-            onPressed: () =>
-                showHostSheet(context, 'host0', scope: scope, header: header),
+            onPressed: () => showHostSheet(context, 'host0', scope: scope),
             child: const Text('open'),
           ),
         ),
@@ -125,6 +121,29 @@ String _ltr(String v) => '\u2066$v\u2069';
 
 Finder _stat(LivePersonStat s) => find.byKey(LivePersonSheet.statKey(s));
 
+/// D383: the pills' reading order — row by row, then along the reading
+/// direction ([rtl]: from the right).
+void _expectReadingOrder(
+  WidgetTester tester,
+  List<Finder> pills, {
+  bool rtl = false,
+}) {
+  final rects = [for (final f in pills) tester.getRect(f)];
+  for (var i = 1; i < rects.length; i++) {
+    final a = rects[i - 1];
+    final b = rects[i];
+    final sameRow = (a.center.dy - b.center.dy).abs() < 1;
+    if (sameRow) {
+      expect(
+        rtl ? b.center.dx < a.center.dx : b.center.dx > a.center.dx,
+        isTrue,
+      );
+    } else {
+      expect(b.top, greaterThanOrEqualTo(a.bottom));
+    }
+  }
+}
+
 void main() {
   final en = l10nFor(AppLanguage.en);
 
@@ -151,10 +170,9 @@ void main() {
           reason: stat.name,
         );
       }
-      final xs = <double>[
-        for (final s in LivePersonStat.values) tester.getCenter(_stat(s)).dx,
-      ];
-      expect(xs, orderedEquals(List<double>.of(xs)..sort()));
+      _expectReadingOrder(tester, [
+        for (final s in LivePersonStat.values) _stat(s),
+      ]);
     });
 
     for (final (hidden, count) in [
@@ -163,7 +181,7 @@ void main() {
       ((cherries: true, coins: true), 2),
     ]) {
       testWidgets('hidden by the person (cherries ${hidden.cherries}, coins '
-          '${hidden.coins}): $count numbers, spread evenly', (tester) async {
+          '${hidden.coins}): $count number pills, centred', (tester) async {
         await _card(
           tester,
           _profile(
@@ -181,26 +199,13 @@ void main() {
           hidden.cherries,
         );
         expect(_stat(LivePersonStat.coins).evaluate().isEmpty, hidden.coins);
-        // A thin divider only between the numbers shown.
-        expect(
-          find.byWidgetPredicate(
-            (w) =>
-                w.key is ValueKey<String> &&
-                (w.key! as ValueKey<String>).value.startsWith(
-                  'room.userCard.statDivider.',
-                ),
-          ),
-          findsNWidgets(count - 1),
-        );
-        // Equal cells across the row, centred under the card.
+        // D383: the pills shown sit centred under the card, in order.
+        _expectReadingOrder(tester, [for (final s in shown) _stat(s)]);
         final rects = [for (final s in shown) tester.getRect(_stat(s))];
-        final width = rects.first.width;
-        for (final r in rects) {
-          expect(r.width, closeTo(width, 0.5));
-        }
-        final row = tester.getRect(find.byKey(LivePersonSheet.statsKey));
+        final left = rects.map((r) => r.left).reduce((a, b) => a < b ? a : b);
+        final right = rects.map((r) => r.right).reduce((a, b) => a > b ? a : b);
         final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
-        expect(row.center.dx, closeTo(screen.width / 2, 0.5));
+        expect((left + right) / 2, closeTo(screen.width / 2, 1));
       });
     }
 
@@ -208,13 +213,9 @@ void main() {
       tester,
     ) async {
       await _card(tester, _profile(ar: true), language: AppLanguage.ar);
-      final xs = <double>[
-        for (final s in LivePersonStat.values) tester.getCenter(_stat(s)).dx,
-      ];
-      expect(
-        xs,
-        orderedEquals(List<double>.of(xs)..sort((a, b) => b.compareTo(a))),
-      );
+      _expectReadingOrder(tester, [
+        for (final s in LivePersonStat.values) _stat(s),
+      ], rtl: true);
       // «إبلاغ» at the reading start (the right).
       final report = tester.getCenter(
         find.byKey(LivePersonToolKeys.reportQuick),
@@ -341,9 +342,8 @@ void main() {
       expect(fakes.visited, ['/users/host0']);
     });
 
-    testWidgets('the round gift opens the gift panel for this person', (
-      tester,
-    ) async {
+    testWidgets('D383: the gift is a round pink button with a white icon '
+        'and opens the gift panel for this person', (tester) async {
       LiveGiftPreselectSeen? seen;
       await _card(
         tester,
@@ -354,35 +354,22 @@ void main() {
         ),
       );
       final gift = find.byKey(LivePersonSheet.giftKey);
-      // Owner: the app's main gift icon (the live bar's), not a new art.
-      expect(
-        tester
-            .widget<KabsoArtIcon>(
-              find.descendant(of: gift, matching: find.byType(KabsoArtIcon)),
-            )
-            .art,
-        KabsoArt.mainGift,
-      );
-      // Owner: inside a circle as high as Follow / Chat, art ≈ 62 %.
-      final circle = tester.widget<Container>(
-        find.descendant(of: gift, matching: find.byType(Container)).first,
-      );
-      final deco = circle.decoration! as BoxDecoration;
+      const circleKey = Key('room.userCard.action.circle');
+      final circle = find.descendant(of: gift, matching: find.byKey(circleKey));
+      final deco =
+          tester.widget<Container>(circle).decoration! as BoxDecoration;
       expect(deco.shape, BoxShape.circle);
-      expect(deco.border, isNotNull);
-      expect(deco.color, isNotNull);
-      final art = tester.getSize(
-        find.descendant(of: gift, matching: find.byType(KabsoArtIcon)),
+      expect(deco.color, LivePersonActionColors.gift);
+      final icon = tester.widget<Icon>(
+        find.descendant(of: circle, matching: find.byType(Icon)),
       );
-      final ring = tester.getSize(gift);
-      expect(art.width / ring.width, inInclusiveRange(0.58, 0.68));
-      expect(
-        ring.height,
-        closeTo(
-          tester.getSize(find.byKey(LivePersonSheet.messageKey)).height,
-          0.5,
-        ),
+      expect(icon.color, const Color(0xFFFFFFFF));
+      // As large as Chat's circle; a ≥ 48 tap target.
+      final chat = find.descendant(
+        of: find.byKey(LivePersonSheet.messageKey),
+        matching: find.byKey(circleKey),
       );
+      expect(tester.getSize(circle), tester.getSize(chat));
       final size = tester.getSize(gift);
       expect(size.width, greaterThanOrEqualTo(48));
       expect(size.height, greaterThanOrEqualTo(48));
@@ -413,81 +400,88 @@ void main() {
 
     for (final language in AppLanguage.values) {
       for (final viewport in GoldenViewport.values) {
-        testWidgets('${language.name} ${viewport.name} ×1.3: a long name, '
-            'many badges, a premium ID, a frame — nothing overflows', (
-          tester,
-        ) async {
-          tester.platformDispatcher.textScaleFactorTestValue = 1.3;
-          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-          final ar = language == AppLanguage.ar;
-          await _card(
+        for (final scale in [1.0, 1.3]) {
+          testWidgets('${language.name} ${viewport.name} ×$scale: a long name, '
+              'many badges, a premium ID, a frame — nothing overflows', (
             tester,
-            _profile(
-              ar: ar,
-              name: ar
-                  ? 'سارة عبد الرحمن الهاشمية من مدينة الإسكندرية الجميلة'
-                  : 'Sara Abdulrahman Al-Hashimi from beautiful Alexandria',
-              frame: const AvatarFrame(
-                code: 'host_frame_pink',
-                assetKey: 'host_frame_pink',
+          ) async {
+            tester.platformDispatcher.textScaleFactorTestValue = scale;
+            addTearDown(
+              tester.platformDispatcher.clearTextScaleFactorTestValue,
+            );
+            final ar = language == AppLanguage.ar;
+            await _card(
+              tester,
+              _profile(
+                ar: ar,
+                name: ar
+                    ? 'سارة عبد الرحمن الهاشمية من مدينة الإسكندرية الجميلة'
+                    : 'Sara Abdulrahman Al-Hashimi from beautiful Alexandria',
+                frame: const AvatarFrame(
+                  code: 'host_frame_pink',
+                  assetKey: 'host_frame_pink',
+                ),
+              ).copyWith(
+                premiumTier: PremiumTier.gold,
+                medals: ProfileMedals(
+                  owned: 6,
+                  total: 9,
+                  showcase: [
+                    for (final c in ['A', 'B', 'C', 'D', 'E', 'F'])
+                      ProfileMedal(code: c, name: c, iconKey: 'medal_$c'),
+                  ],
+                ),
               ),
-            ).copyWith(
-              premiumTier: PremiumTier.gold,
-              medals: ProfileMedals(
-                owned: 6,
-                total: 9,
-                showcase: [
-                  for (final c in ['A', 'B', 'C', 'D', 'E', 'F'])
-                    ProfileMedal(code: c, name: c, iconKey: 'medal_$c'),
-                ],
+              language: language,
+              viewport: viewport,
+              levels: 3,
+              scope: LivePersonScope(
+                roomId: 'room-0',
+                viewer: LivePersonRole.host,
+                target: LivePersonRole.moderator,
+                onGift: (_) {},
+                onMention: (_) {},
+                onBoost: () {},
               ),
-            ),
-            language: language,
-            viewport: viewport,
-            levels: 3,
-            scope: const LivePersonScope(
-              roomId: 'room-0',
-              viewer: LivePersonRole.host,
-              target: LivePersonRole.moderator,
-            ),
-          );
-          expect(tester.takeException(), isNull);
-          // The name keeps one line with an ellipsis at its end.
-          final name = tester.widget<Text>(
-            find.descendant(
-              of: find.byKey(LivePersonSheet.nameKey),
-              matching: find.byType(Text),
-            ),
-          );
-          expect(name.maxLines, 1);
-          expect(name.overflow, TextOverflow.ellipsis);
-          // Every part of the card is reachable (it scrolls with large
-          // text) and inside the screen's width.
-          final screen =
-              tester.view.physicalSize / tester.view.devicePixelRatio;
-          for (final k in [
-            LivePersonSheet.badgesKey,
-            LivePersonSheet.statsKey,
-            LivePersonSheet.followKey,
-            LivePersonSheet.messageKey,
-          ]) {
-            await tester.ensureVisible(find.byKey(k));
-            await tester.pumpAndSettle();
-            final r = tester.getRect(find.byKey(k));
-            expect(r.left, greaterThanOrEqualTo(0), reason: '$k');
-            expect(r.right, lessThanOrEqualTo(screen.width), reason: '$k');
-          }
-          expect(tester.takeException(), isNull);
-        });
+            );
+            expect(tester.takeException(), isNull);
+            // The name keeps one line with an ellipsis at its end.
+            final name = tester.widget<Text>(
+              find.descendant(
+                of: find.byKey(LivePersonSheet.nameKey),
+                matching: find.byType(Text),
+              ),
+            );
+            expect(name.maxLines, 1);
+            expect(name.overflow, TextOverflow.ellipsis);
+            // Every part of the card is reachable (it scrolls with large
+            // text) and inside the screen's width.
+            final screen =
+                tester.view.physicalSize / tester.view.devicePixelRatio;
+            for (final k in [
+              LivePersonSheet.badgesKey,
+              LivePersonSheet.statsKey,
+              LivePersonSheet.followKey,
+              LivePersonSheet.messageKey,
+              LivePersonSheet.giftKey,
+              LivePersonSheet.boostKey,
+              LivePersonSheet.actionsKey,
+              LivePersonSheet.pillsKey,
+            ]) {
+              await tester.ensureVisible(find.byKey(k));
+              await tester.pumpAndSettle();
+              final r = tester.getRect(find.byKey(k));
+              expect(r.left, greaterThanOrEqualTo(0), reason: '$k');
+              expect(r.right, lessThanOrEqualTo(screen.width), reason: '$k');
+            }
+            expect(tester.takeException(), isNull);
+          });
+        }
       }
     }
 
-    testWidgets('reduced motion: the profile card header stays still', (
-      tester,
-    ) async {
-      final animate = KabsoProfileHeaderArt.animate;
-      KabsoProfileHeaderArt.animate = true;
-      addTearDown(() => KabsoProfileHeaderArt.animate = animate);
+    testWidgets('D383: a worn bag profile card (the header ornament on the '
+        "card's edge) is no longer drawn on the card", (tester) async {
       tester.platformDispatcher.accessibilityFeaturesTestValue =
           const FakeAccessibilityFeatures(disableAnimations: true);
       addTearDown(
@@ -502,15 +496,15 @@ void main() {
           ),
         ),
       );
-      expect(find.byKey(const Key('room.userCard.header')), findsOneWidget);
+      expect(find.byKey(const Key('room.userCard.header')), findsNothing);
       expect(find.byType(SVGAImage), findsNothing);
+      expect(find.byKey(LivePersonSheet.vipCardKey), findsNothing);
       expect(tester.takeException(), isNull);
-      // The picture stays above the sheet with the header behind it.
       expect(find.byKey(LivePersonSheet.ringKey), findsOneWidget);
     });
 
-    testWidgets('Arabic: short Latin numbers (no «مليون» / «ألف»), smaller '
-        'than the name, grey dividers between them', (tester) async {
+    testWidgets('Arabic: short Latin numbers (no «مليون» / «ألف»), large '
+        'and bold in light pills, smaller than the name', (tester) async {
       await _card(tester, _profile(ar: true), language: AppLanguage.ar);
       for (final v in ['1.5M', '59.4K', '5.8M', '33.2K']) {
         expect(find.text(_ltr(v)), findsOneWidget, reason: v);
@@ -523,75 +517,66 @@ void main() {
           matching: find.text(_ltr('1.5M')),
         ),
       );
-      expect(number.style!.fontSize, 17);
-      final dividers = [
-        for (var i = 1; i < 4; i++)
-          find.byKey(LivePersonSheet.statDividerKey(i)),
-      ];
-      final row = tester.getRect(find.byKey(LivePersonSheet.statsKey));
-      for (final d in dividers) {
-        final r = tester.getRect(d);
-        expect(r.width, 1);
-        expect(r.height, lessThan(row.height * 0.75));
-        expect(r.center.dy, closeTo(row.center.dy, 0.5));
-        // Between two numbers.
-      }
-      // Each divider sits between its two neighbours (RTL: right to left).
-      final f = tester.getCenter(_stat(LivePersonStat.followers)).dx;
-      final g = tester.getCenter(_stat(LivePersonStat.following)).dx;
-      final d1 = tester.getCenter(dividers.first).dx;
-      expect(d1, lessThan(f));
-      expect(d1, greaterThan(g));
+      expect(number.style!.fontSize, LivePersonCardMetrics.statNumber);
+      expect(number.style!.fontWeight, FontWeight.w800);
+      final name = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(LivePersonSheet.nameKey),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(name.style!.fontSize, LivePersonCardMetrics.name);
+      expect(name.style!.fontWeight, FontWeight.w800);
+      expect(number.style!.fontSize, lessThan(name.style!.fontSize!));
     });
 
-    testWidgets('dividers follow the theme token (light and dark)', (
+    testWidgets('the number pills follow the theme token (light and dark)', (
       tester,
     ) async {
-      Color line() => tester
-          .widget<Container>(find.byKey(LivePersonSheet.statDividerKey(1)))
-          .color!;
+      Color pill() =>
+          (tester
+                      .widget<Container>(
+                        find
+                            .descendant(
+                              of: _stat(LivePersonStat.followers),
+                              matching: find.byType(Container),
+                            )
+                            .first,
+                      )
+                      .decoration!
+                  as BoxDecoration)
+              .color!;
       await _card(tester, _profile());
-      final light = line();
+      expect(pill(), KPalette.light.surfaceOverlay);
       await _card(tester, _profile(), brightness: Brightness.dark);
-      final dark = line();
-      expect(light, isNot(dark));
-      expect(light.a, 1);
-      // Owner: a little more visible in dark mode than the plain border.
-      final context = tester.element(find.byKey(LivePersonSheet.statsKey));
-      expect(
-        dark.computeLuminance(),
-        greaterThan(context.palette.border.computeLuminance()),
-      );
+      expect(pill(), KPalette.dark.surfaceOverlay);
     });
 
-    testWidgets('owner: «+ Follow» is filled brand red with white text '
-        '(≥ 4.5:1); followed, a neutral outline «Unfollow»', (tester) async {
-      BoxDecoration pill() =>
-          tester
-                  .widget<DecoratedBox>(
-                    find
-                        .descendant(
-                          of: find.byKey(LivePersonSheet.followKey),
-                          matching: find.byType(DecoratedBox),
-                        )
-                        .first,
-                  )
-                  .decoration
-              as BoxDecoration;
-      Color label(String text) => tester
-          .widget<Text>(
-            find.descendant(
-              of: find.byKey(LivePersonSheet.followKey),
-              matching: find.text(text),
-            ),
+    testWidgets('D383: Follow is a round button in the brand red with a '
+        'white icon (≥ 4.5:1); followed, a neutral «Unfollow»', (tester) async {
+      const circleKey = Key('room.userCard.action.circle');
+      final follow = find.byKey(LivePersonSheet.followKey);
+      Color circle() =>
+          (tester
+                      .widget<Container>(
+                        find.descendant(
+                          of: follow,
+                          matching: find.byKey(circleKey),
+                        ),
+                      )
+                      .decoration!
+                  as BoxDecoration)
+              .color!;
+      Color icon() => tester
+          .widget<Icon>(
+            find.descendant(of: follow, matching: find.byType(Icon)),
           )
-          .style!
           .color!;
       for (final brightness in Brightness.values) {
         await _card(tester, _profile(), brightness: brightness);
-        final context = tester.element(find.byKey(LivePersonSheet.followKey));
+        final context = tester.element(follow);
         final red = context.palette.primary;
-        expect(pill().color, red);
+        expect(circle(), red);
         // The theme's brand red (`primary`: #E50914 dark, #C8080F light).
         expect(
           red,
@@ -599,20 +584,21 @@ void main() {
               ? KBrandColors.red500
               : const Color(0xFFC8080F),
         );
-        final white = label(en.liveCardFollow);
-        expect(white, context.palette.onPrimary);
+        final white = icon();
+        expect(white, const Color(0xFFFFFFFF));
         double lum(Color c) => c.computeLuminance();
         final ratio = (lum(white) + 0.05) / (lum(red) + 0.05);
         expect(ratio, greaterThanOrEqualTo(4.5), reason: '$brightness');
+        expect(
+          find.descendant(of: follow, matching: find.text(en.liveCardFollow)),
+          findsOneWidget,
+        );
       }
       await _card(tester, _profile().copyWith(isFollowing: true));
-      expect(pill().color, isNull);
-      expect(pill().border, isNotNull);
+      expect(circle(), LivePersonActionColors.neutral);
       expect(
-        label(en.liveCardUnfollow),
-        isNot(
-          tester.element(find.byKey(LivePersonSheet.followKey)).palette.primary,
-        ),
+        find.descendant(of: follow, matching: find.text(en.liveCardUnfollow)),
+        findsOneWidget,
       );
     });
 

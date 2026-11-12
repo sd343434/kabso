@@ -174,6 +174,22 @@ describe('D374 VIP perk catalogue', () => {
     expect(issues('PINNED_MESSAGE', [3, 60])).toEqual(['invalid_type']);
   });
 
+  it('D383: PROFILE_CARD is the card background — an optional colour and an SVGA / MP4 / still art, not retired', () => {
+    const e = vipCatalogueEntry('PROFILE_CARD');
+    expect(e).toMatchObject({ category: 'IDENTITY', built: true, value: { kind: 'color' } });
+    expect(e?.art).toEqual({ kinds: ['SVGA', 'MP4', 'PNG', 'WEBP'], width: 1080, height: 1440 });
+    expect(e?.titleEn).toBe('Card background');
+    expect(vipPerkRetired('PROFILE_CARD')).toBe(false);
+    // A tier saved before D383 (no value) stays valid: its art is the background.
+    expect(issues('PROFILE_CARD', null)).toEqual([]);
+    expect(issues('PROFILE_CARD', '#1E2A44')).toEqual([]);
+    expect(issues('PROFILE_CARD', '#1e2a44')).toEqual(['invalid_format']);
+    expect(issues('PROFILE_CARD', 3)).toEqual(['invalid_type']);
+    expect(
+      vipPerkInput.safeParse({ code: 'PROFILE_CARD', video: 'https://cdn.example.test/bg.mp4' }).success,
+    ).toBe(true);
+  });
+
   it('a code outside the catalogue (a retired one included) is unknown', () => {
     expect(issues('NOT_A_PERK', null)).toEqual(['unknown_perk']);
     expect(issues('DAILY_COINS', 5)).toEqual(['unknown_perk']);

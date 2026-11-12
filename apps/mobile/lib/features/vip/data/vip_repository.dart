@@ -40,6 +40,7 @@ final class VipPerk {
     this.artHeight,
     this.amount,
     this.video,
+    this.videoUrl,
     this.value,
     this.category,
     this.fromTier,
@@ -68,6 +69,10 @@ final class VipPerk {
     artWidth: _intOrNull(json['artWidth']),
     artHeight: _intOrNull(json['artHeight']),
     amount: _intOrNull(json['amount']),
+    videoUrl: switch (json['video']) {
+      final String url when url.startsWith('https://') => url,
+      _ => null,
+    },
     value: json['value'],
     category: json['category'] as String?,
     fromTier: json['fromTier'] as String?,
@@ -91,6 +96,11 @@ final class VipPerk {
 
   /// D270: the [animation] is an MP4 (a store item's art), else an SVGA.
   final ArtVideo? video;
+
+  /// v1.129-social (D374): the perk's own MP4 art (`VipPerk.video`, a plain
+  /// MP4 uploaded in the panel), or null. Only the renderers that take an
+  /// MP4 read it (D383: the person card's background, after the SVGA).
+  final String? videoUrl;
 
   /// v1.129-social (D374, §10.166): the perk's value for the tier, as its
   /// catalogue says (a number, a text, a list or an object), or null. For

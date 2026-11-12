@@ -402,11 +402,30 @@ Widget? vipBubbleArt(VipLook? look) {
   return VipSvga(url: perk.animation!, nine: VipSvgaNine.bubble);
 }
 
-/// D258: the PROFILE_CARD art behind a member's person card, or null.
-VipPerk? vipCardPerk(VipLook? look) {
+/// D383 (owner 2026-11-12: «تغير لون خلفية او تكون خلفية فيها عناصر
+/// متحركة»): the PROFILE_CARD perk is the person card's background, no
+/// longer a box or frame around it — a colour (the perk's `value`,
+/// `#RRGGBB`) and / or an art filling the card behind its content (an SVGA,
+/// else the perk's MP4, else its still; a store card's art the same way).
+/// Null without the perk, or with neither a colour nor an art.
+typedef VipCardBackground = ({Color? color, VipPerk? art});
+
+VipCardBackground? vipCardBackground(VipLook? look) {
   final perk = look?.perk(VipPerks.profileCard);
-  final none = perk == null || (perk.still == null && perk.animation == null);
-  return none ? null : perk;
+  if (perk == null) return null;
+  final color = vipHexColor(perk.value);
+  final hasArt =
+      perk.still != null || perk.animation != null || perk.videoUrl != null;
+  if (color == null && !hasArt) return null;
+  return (color: color, art: hasArt ? perk : null);
+}
+
+/// `#RRGGBB` → an opaque colour; anything else → null.
+Color? vipHexColor(Object? value) {
+  if (value is! String) return null;
+  final m = RegExp(r'^#([0-9A-Fa-f]{6})$').firstMatch(value);
+  if (m == null) return null;
+  return Color(0xFF000000 | int.parse(m.group(1)!, radix: 16));
 }
 
 /// D258 (MIC_WAVE): while a VIP member speaks on a seat, the owner's wave

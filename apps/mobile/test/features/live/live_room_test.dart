@@ -566,8 +566,8 @@ void main() {
       expect(_label(l10n.liveFollow), findsOneWidget);
     });
 
-    testWidgets("D220: the card's bottom row — Follow (followed), the round "
-        'gift and Chat; Mention above it', (tester) async {
+    testWidgets("D383: the card's round buttons — Follow (followed), Chat, "
+        'the gift and Mention in one row, in reading order', (tester) async {
       await _pumpRoom(
         tester,
         profile: apiProfile(isFollowing: true),
@@ -593,25 +593,21 @@ void main() {
       for (final f in [follow, gift, mention, message]) {
         expect(f, findsOneWidget);
       }
-      // Followed (owner): the pill offers «Unfollow».
+      // Followed (owner): the button offers «Unfollow».
       expect(
         find.descendant(of: follow, matching: find.text(l10n.liveCardUnfollow)),
         findsOneWidget,
       );
-      // In reading order: Follow, Gift, Chat on one line; Mention above.
+      // D383: in reading order on one line: Follow, Chat, Gift, Mention.
       final ar = Directionality.of(tester.element(sheet)) == TextDirection.rtl;
-      final xs = [
-        for (final f in [follow, gift, message]) tester.getCenter(f).dx,
-      ];
-      expect(
-        ar ? xs[0] > xs[1] && xs[1] > xs[2] : xs[0] < xs[1] && xs[1] < xs[2],
-        isTrue,
-      );
-      expect(
-        tester.getCenter(follow).dy,
-        closeTo(tester.getCenter(message).dy, 0.5),
-      );
-      expect(tester.getCenter(mention).dy, lessThan(tester.getCenter(gift).dy));
+      final order = [follow, message, gift, mention];
+      final xs = [for (final f in order) tester.getCenter(f).dx];
+      for (var i = 1; i < xs.length; i++) {
+        expect(ar ? xs[i] < xs[i - 1] : xs[i] > xs[i - 1], isTrue);
+      }
+      for (final f in order) {
+        expect(tester.getRect(f).top, closeTo(tester.getRect(follow).top, 0.5));
+      }
       for (final f in [follow, gift, mention, message]) {
         final size = tester.getSize(f);
         expect(size.height, greaterThanOrEqualTo(48));
@@ -2688,7 +2684,7 @@ void main() {
         // CP-018: Sara has no family and no partner; the signed-in viewer
         // (not Sara) may send her a CP request; the gift wall is coming.
         await card(tester, viewer: LivePersonRole.viewer);
-        // D220: the family and the couple share the gradient pill.
+        // D383: the family, the couple and the gift wall are soft pills.
         expect(find.text(l10n.liveCardFamilyNone), findsOneWidget);
         expect(find.text(l10n.cpSendShort), findsOneWidget);
         expect(find.text(l10n.liveUserGiftWall), findsOneWidget);
@@ -2697,10 +2693,16 @@ void main() {
         expect(find.text(l10n.liveUserMedals), findsNothing);
         expect(find.byKey(LivePersonBoxes.boxKey(3)), findsNothing);
         expect(find.byKey(const Key('room.userCard.medals')), findsNothing);
-        // The three boxes sit side by side.
-        final family = tester.getRect(find.byKey(LivePersonBoxes.boxKey(0)));
-        final gifts = tester.getRect(find.byKey(LivePersonBoxes.boxKey(2)));
-        expect(family.center.dy, closeTo(gifts.center.dy, 0.5));
+        // The three sit together in the soft pills' row, in order.
+        for (var i = 0; i < 3; i++) {
+          expect(
+            find.descendant(
+              of: find.byKey(const Key('room.userCard.pills')),
+              matching: find.byKey(LivePersonBoxes.boxKey(i)),
+            ),
+            findsOneWidget,
+          );
+        }
         // No counts anywhere.
         expect(find.textContaining('/'), findsNothing);
         // Someone else's empty family is not a button.

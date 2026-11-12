@@ -9,7 +9,6 @@ import 'package:kabso_live/core/countries/countries.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
-import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -19,6 +18,7 @@ import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
+import 'package:kabso_live/features/live/application/live_viewer_prefs.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
@@ -29,14 +29,11 @@ import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
-import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
-import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
-import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -63,83 +60,79 @@ Future<void> setHostFollowing(
 ImageProvider? _networkImage(String? url) =>
     url == null || url.isEmpty ? null : NetworkImage(url);
 
-/// The card's colours (D220, measured on the owner's reference, E — a small
-/// phone photographed in perspective): white in light mode, the app's
-/// surface in dark mode.
+/// The card's colours (D383): the plain card on the theme's raised surface
+/// with light pills ([pill]); on a VIP background ([LivePersonSheet]) the
+/// text follows the backdrop — white over an art (under its scrim) or a dark
+/// colour, near-black over a light colour.
 @immutable
 class _Look {
   const new({
     required this.sheet,
     required this.ink,
     required this.soft,
-    required this.line,
-    required this.divider,
-    required this.fill,
+    required this.pill,
     required this.ring,
-    this.flat = false,
+    required this.tool,
+    this.onBackdrop = false,
   });
 
   factory of(BuildContext context) {
-    final scoped = _LookScope.maybeOf(context);
-    if (scoped != null) return scoped;
     final p = context.palette;
-    return Theme.of(context).brightness == Brightness.dark
-        ? _Look(
-            sheet: p.surfaceRaised,
-            ink: p.textPrimary,
-            soft: p.textSecondary,
-            line: p.border,
-            // Owner: a little lighter than the border in dark mode, still
-            // subtle (the strong border token at 60 %).
-            divider: p.borderStrong.withValues(alpha: 0.6),
-            fill: p.surfaceOverlay,
-            ring: p.surfaceRaised,
-          )
-        : _Look(
-            sheet: const Color(0xFFFFFFFF),
-            ink: const Color(0xFF2E3130),
-            soft: const Color(0xFF9A9BA5),
-            // The theme's divider token (lines, outlines).
-            line: p.border,
-            divider: p.border,
-            fill: p.surface,
-            ring: const Color(0xFFFFFFFF),
-          );
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return _Look(
+      sheet: p.surfaceRaised,
+      ink: p.textPrimary,
+      soft: p.textSecondary,
+      pill: p.surfaceOverlay,
+      ring: p.surfaceRaised,
+      tool: dark ? p.textSecondary : const Color(0xFF5B5E66),
+    );
   }
 
-  /// D258 (owner: «لون الكتابة على هذا vip اجعله ابيض»): every text and
-  /// icon white on the VIP card art, which lies over a deep shade of the
-  /// tier colour; no button shadows ([flat]).
-  factory vipOn(Color backdrop) => _Look(
-    sheet: backdrop,
-    ink: const Color(0xFFFFFFFF),
-    soft: const Color(0xFFFFFFFF),
-    line: const Color(0x80FFFFFF),
-    divider: const Color(0x66FFFFFF),
-    fill: const Color(0x26FFFFFF),
-    ring: const Color(0xFFFFFFFF),
-    flat: true,
-  );
+  /// D383: over a VIP background — [light] text (white) over an art's scrim
+  /// or a dark colour; near-black text over a light colour.
+  factory onBackdrop({required Color sheet, required bool light}) => light
+      ? _Look(
+          sheet: sheet,
+          ink: const Color(0xFFFFFFFF),
+          soft: const Color(0xE6FFFFFF),
+          pill: const Color(0x29FFFFFF),
+          ring: const Color(0xFFFFFFFF),
+          tool: const Color(0xFFFFFFFF),
+          onBackdrop: true,
+        )
+      : _Look(
+          sheet: sheet,
+          ink: KPalette.light.textPrimary,
+          soft: const Color(0xD90B0B0D),
+          pill: const Color(0x1F000000),
+          ring: const Color(0xFFFFFFFF),
+          tool: KPalette.light.textPrimary,
+          onBackdrop: true,
+        );
 
+  /// The sheet's own colour (under a VIP background: its colour, or the
+  /// art's base).
   final Color sheet;
   final Color ink;
   final Color soft;
-  final Color line;
 
-  /// The thin line between two numbers.
-  final Color divider;
-
-  /// A subtle neutral fill (the gift circle).
-  final Color fill;
+  /// D383: the light rounded pills (numbers, soft buttons, tools).
+  final Color pill;
 
   /// The clean ring around a picture without a frame.
   final Color ring;
 
-  /// D258: no shadows under the buttons (the VIP card).
-  final bool flat;
+  /// The top row's tools.
+  final Color tool;
+
+  /// D383: the card wears a VIP background.
+  final bool onBackdrop;
 }
 
-/// D220 geometry (E: the reference's right phone, ≈ 0.97 px per dp).
+/// D383 geometry (owner 2026-11-12, after a reference, look only: the name
+/// very large, a green live line, the bio, light number pills, round
+/// colourful buttons, soft pill buttons).
 abstract final class LivePersonCardMetrics {
   /// The round picture (without its ring).
   static const double avatar = 84;
@@ -148,56 +141,66 @@ abstract final class LivePersonCardMetrics {
   static const double ring = 3;
 
   /// The sheet's top corners.
-  static const double radius = 22;
+  static const double radius = 26;
 
-  /// Number over label: the four numbers' row.
-  static const double statNumber = 17;
+  /// The name, very large and bold.
+  static const double name = 28;
 
-  /// The gift art inside its circle (≈ 62 % of [action]).
-  static const double giftArt = 30;
+  /// The number in a number pill.
+  static const double statNumber = 19;
 
-  /// The thin grey line between two numbers (≈ 60 % of the row).
-  static const double statDivider = 22;
+  /// A number pill's and a soft pill button's height.
+  static const double pill = 44;
 
-  /// The two pills (family + couple, gift wall).
-  static const double pill = 40;
+  /// A round colourful button (≥ 48 with its label: the tap target).
+  static const double action = 52;
 
-  /// Follow, the round gift and Chat.
-  static const double action = 48;
+  /// The white icon inside a round button.
+  static const double actionIcon = 24;
+
+  /// The width of a round button's column (its label wraps inside it).
+  static const double actionWidth = 64;
 }
 
-/// A person's card in a live (D220, owner 2026-11-01, after a reference,
-/// layout only): a compact white bottom sheet under which the live stays
-/// visible. The person's round picture sits centred over the sheet's top
+/// D383: the round buttons' solid colours — design tokens that keep a white
+/// icon at ≥ 3:1 in both themes (a solid fill does not change with the
+/// theme).
+abstract final class LivePersonActionColors {
+  static const chat = Color(0xFF1A64BF); // color.light.info
+  static const Color gift = KLiveColors.pkLeft;
+  static const mention = Color(0xFF137A43); // color.light.success
+  static const boost = Color(0xFF955C00); // color.light.warning
+  static const invite = Color(0xFF1A64BF); // color.light.info
+  static const neutral = Color(0xFF666671); // color.light.textTertiary
+}
+
+/// A person's card in a live or party room — the sheet that opens on a tap
+/// on a person (D220, redesigned by D383, owner 2026-11-12: «الغاء فكرة
+/// صندوق او إطار بطاقة الملف التعريفية»): no box or frame around the card
+/// any more. The person's round picture sits centred over the sheet's top
 /// edge, inside the avatar frame they wear (bag `AVATAR_FRAME`, the agent
-/// frames, the couple's Special Frame) or a clean ring; «إبلاغ» and the
-/// host's tools on the top row; the name, «ID: username», one row of badge
-/// pills (role, levels, recharge and agent badges, medals), the four
-/// numbers — followers, following, cherries received, coins sent (each of
-/// the last two only when the person shows it, §10.74; the rest re-centre)
-/// — the family-and-couple gradient pill and the gift wall pill, then
-/// «+ متابعة», the round gift and «دردشة». Your own card: «تعديل الملف».
+/// frames, the couple's Special Frame, the VIP frame) or a clean ring; then
+/// the name very large and bold, a green «في بث الآن» line while the person
+/// broadcasts (public; nothing else about presence is known here), «ID:
+/// username», the badge pills, the bio, one light pill per number the card
+/// shows (followers, following, and cherries received / coins sent unless the
+/// person hides them, §10.74), the quick actions as round colourful buttons
+/// (follow, chat, gift, mention, traffic card, seat invite) and the rest as
+/// soft pills (family, couple, gift wall, edit profile).
 ///
-/// Everything the earlier card did stays (D86 onward): the moderation row
-/// (kick, chat mute, moderator, the mic, points, ⋯ report / block), the
-/// mention, traffic card and seat invite, copy the ID, open the profile
-/// from the picture or the name, and its honest states (loading, error).
+/// The moderation tools stay on the top row with their rules (D86 onward):
+/// «إبلاغ», points, kick, chat mute, moderator, the mic, ⋯ report / block.
+///
+/// D383: a VIP's PROFILE_CARD perk is the card's background — the tier's
+/// colour and / or its art filling the sheet behind the content, dimmed by a
+/// scrim so the text stays readable; still under reduced motion or
+/// «إخفاء مؤثرات الهدايا». Everyone else gets the plain card.
 class LivePersonSheet extends ConsumerWidget {
-  const new({
-    required this.username,
-    super.key,
-    this.scope,
-    this.onInvite,
-    this.header,
-  });
+  const new({required this.username, super.key, this.scope, this.onInvite});
 
   final String username;
   final LivePersonScope? scope;
   final VoidCallback? onInvite;
-
-  /// The person's header decoration on the card's top edge; null: the
-  /// profile card they wear (`PublicProfile.profileCard`, CP-019), or none.
-  final KabsoProfileHeader? header;
 
   static const sheetKey = Key('room.hostSheet');
   static const inviteKey = Key('room.userCard.invite');
@@ -217,7 +220,7 @@ class LivePersonSheet extends ConsumerWidget {
   static const mentionKey = Key('room.userCard.mention');
   static const boostKey = Key('room.userCard.boost');
 
-  /// D220: «+ متابعة» / «متابَع» / «تم الطلب».
+  /// D220: «متابعة» / «إلغاء المتابعة» / «تم الطلب».
   static const followKey = Key('room.userCard.follow');
 
   /// D299h: the staff ID as the gold special-ID pill.
@@ -235,18 +238,30 @@ class LivePersonSheet extends ConsumerWidget {
   static const bagFrameKey = Key('room.userCard.bagFrame');
   static const ringKey = Key('room.userCard.ring');
 
-  /// D258: the VIP card art behind the sheet.
+  /// D383: the VIP background's art (behind the content), its colour and
+  /// the scrim over the art.
   static const vipCardKey = Key('room.userCard.vipCard');
+  static const vipColorKey = Key('room.userCard.vipColor');
+  static const vipScrimKey = Key('room.userCard.vipScrim');
 
-  /// D220: the badge pills row and the four numbers.
+  /// D383: the art plays, or shows its still (reduced motion, «إخفاء
+  /// مؤثرات الهدايا»).
+  static const vipArtPlayingKey = Key('room.userCard.vipArt.playing');
+  static const vipArtStillKey = Key('room.userCard.vipArt.still');
+
+  /// D220: the badge pills row and the numbers.
   static const badgesKey = Key('room.userCard.badges');
   static const statsKey = Key('room.userCard.stats');
-
-  /// D220: the line before the [index]-th number shown (1-based gaps).
-  static Key statDividerKey(int index) =>
-      Key('room.userCard.statDivider.$index');
   static Key statKey(LivePersonStat stat) =>
       Key('room.userCard.stat.${stat.name}');
+
+  /// D383: the green «في بث الآن» line and the bio.
+  static const liveNowKey = Key('room.userCard.liveNow');
+  static const bioKey = Key('room.userCard.bio');
+
+  /// D383: the round buttons' row and the soft pills' row.
+  static const actionsKey = Key('room.userCard.actions');
+  static const pillsKey = Key('room.userCard.pills');
 
   /// D220: «تعديل الملف» on your own card.
   static const editKey = Key('room.userCard.edit');
@@ -261,22 +276,24 @@ class LivePersonSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final loaded = ref.watch(publicProfileProvider(username));
     final profile = loaded.value;
-    // D258: on the owner's animated VIP card, every text and icon is white
-    // over a deep shade of the tier colour (owner).
     final vipLook = ref.watch(vipLookProvider(profile?.vip));
-    final cardPerk = vipCardPerk(vipLook);
-    final vipCard = cardPerk != null && vipPlays(cardPerk) && vipLook != null
-        ? _Look.vipOn(vipLook.bubbleShades.$2)
-        : null;
-    final look = vipCard ?? _Look.of(context);
-    final header =
-        this.header ?? KabsoProfileHeader.byCode(profile?.profileCard?.code);
+    // D383: the PROFILE_CARD perk (or a worn store card) is the background.
+    final backdrop = vipCardBackground(vipLook);
+    final plain = _Look.of(context);
+    final look = switch (backdrop) {
+      null => plain,
+      (color: final c, :final art) => _Look.onBackdrop(
+        sheet: c ?? plain.sheet,
+        // Over an art: white on its scrim; over a colour alone: what reads.
+        light: art != null || (c ?? plain.sheet).computeLuminance() < 0.19,
+      ),
+    };
     final picture = _Picture.of(profile, username);
     final scope = this.scope;
     // D258: the VIP frame's plaque hangs below the picture: the name moves
     // down by as much (only for the plain ring, where the VIP frame shows).
     final vipFrame = picture.vipFrame
-        ? ref.watch(vipLookProvider(profile?.vip))?.perk(VipPerks.avatarFrame)
+        ? vipLook?.perk(VipPerks.avatarFrame)
         : null;
     const avatar = LivePersonCardMetrics.avatar;
     final vipDrop =
@@ -294,110 +311,151 @@ class LivePersonSheet extends ConsumerWidget {
           )
         : 0.0;
 
-    return LayoutBuilder(
-      builder: (context, box) {
-        // The sheet's top edge goes through the picture's centre, or lower
-        // when the header decoration rises higher than the picture.
-        final edge = header == null
-            ? picture.centreY
-            : math.max(picture.centreY, header.overhang(box.maxWidth));
-        final body = profile == null
-            ? _State(error: loaded.error, look: look)
-            : _Body(
-                profile: profile,
+    // The sheet's top edge goes through the picture's centre.
+    final edge = picture.centreY;
+    final body = profile == null
+        ? _State(error: loaded.error, look: look)
+        : _Body(
+            profile: profile,
+            username: username,
+            scope: scope,
+            onInvite: onInvite,
+            look: look,
+            // Room under the edge for the picture's lower part.
+            top: picture.height - picture.centreY + 8 + vipDrop,
+          );
+    const corners = BorderRadius.vertical(
+      top: Radius.circular(LivePersonCardMetrics.radius),
+    );
+    return Stack(
+      key: sheetKey,
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        // Attached to the bottom, a plain sheet: the live shows above it.
+        Container(
+          margin: EdgeInsets.only(top: edge),
+          decoration: BoxDecoration(color: look.sheet, borderRadius: corners),
+          child: Stack(
+            children: [
+              if (backdrop != null)
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: corners,
+                    child: _Backdrop(background: backdrop),
+                  ),
+                ),
+              SafeArea(
+                top: false,
+                // Large text: the card scrolls instead of overflowing.
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: body,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // The top row: «إبلاغ», points and the host's tools at the start;
+        // the mutes and ⋯ at the end, either side of the picture.
+        if (scope != null && profile != null)
+          PositionedDirectional(
+            top: edge + 8,
+            start: 10,
+            end: 10,
+            child: LivePersonTools(
+              scope: scope,
+              person: (
+                id: profile.id,
                 username: username,
-                scope: scope,
-                onInvite: onInvite,
-                look: look,
-                // Room under the edge for the picture's lower part.
-                top: picture.height - picture.centreY + 6 + vipDrop,
-              );
-        final sheet = Stack(
-          key: sheetKey,
-          clipBehavior: Clip.none,
-          alignment: Alignment.topCenter,
-          children: [
-            // Attached to the bottom, a plain sheet: the live shows above it.
-            Container(
-              margin: EdgeInsets.only(top: edge),
-              decoration: BoxDecoration(
-                color: look.sheet,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(LivePersonCardMetrics.radius),
-                ),
+                name: profile.displayName,
               ),
-              child: _VipCard(
-                vip: profile?.vip,
-                sheet: look.sheet,
-                child: SafeArea(
-                  top: false,
-                  // Large text: the card scrolls instead of overflowing.
-                  child: SingleChildScrollView(
-                    // D258: the VIP card hugs its content (owner).
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      0,
-                      16,
-                      vipCard == null ? 12 : 2,
-                    ),
-                    child: body,
-                  ),
-                ),
-              ),
+              self: profile.isSelf,
+              // D273: no actions against «فريق كابسو».
+              kabsoTeam: profile.kabsoTeam,
+              // D311: no founder actions on an owner.
+              kabsoOwner: profile.kabsoOwner,
+              middle: picture.width + 8,
+              ink: look.tool,
+              fill: look.pill,
             ),
-            if (header != null)
-              Positioned(
-                top: edge - header.overhang(box.maxWidth),
-                left: 0,
-                child: KabsoProfileHeaderArt(
-                  header,
-                  key: const Key('room.userCard.header'),
-                  width: box.maxWidth,
-                ),
-              ),
-            // The top row: «إبلاغ», points and the host's tools at the start;
-            // the mutes and ⋯ at the end, either side of the picture.
-            if (scope != null && profile != null)
-              PositionedDirectional(
-                // D258 (owner): on the VIP card, inside the art's top band.
-                top: edge + (vipCard == null ? 8 : 22),
-                start: 10,
-                end: 10,
-                child: LivePersonTools(
-                  scope: scope,
-                  person: (
-                    id: profile.id,
-                    username: username,
-                    name: profile.displayName,
-                  ),
-                  self: profile.isSelf,
-                  // D273: no actions against «فريق كابسو».
-                  kabsoTeam: profile.kabsoTeam,
-                  // D311: no founder actions on an owner.
-                  kabsoOwner: profile.kabsoOwner,
-                  middle: picture.width + 8,
-                  // D258: white on the VIP card.
-                  ink: vipCard?.ink,
-                ),
-              ),
-            Positioned(
-              top: edge - picture.centreY,
-              child: Semantics(
-                button: true,
-                label: context.l10n.liveUserViewProfile,
-                child: GestureDetector(
-                  key: profileKey,
-                  onTap: () => _openProfile(context, username),
-                  child: picture.build(look),
-                ),
-              ),
+          ),
+        Positioned(
+          top: edge - picture.centreY,
+          child: Semantics(
+            button: true,
+            label: context.l10n.liveUserViewProfile,
+            child: GestureDetector(
+              key: profileKey,
+              onTap: () => _openProfile(context, username),
+              child: picture.build(look),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// D383: the VIP background — its colour, the art over it (covering the
+/// sheet) and, over an art, a scrim so white text stays ≥ 4.5:1 on any art.
+/// The art is still under reduced motion and «إخفاء مؤثرات الهدايا»: its
+/// still, else the SVGA's or the video's first frame.
+class _Backdrop extends ConsumerWidget {
+  const new({required this.background});
+
+  final VipCardBackground background;
+
+  /// Black at 55 %: white text over it reads ≥ 4.5:1 even on a white art.
+  static const scrim = Color(0x8C000000);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final art = background.art;
+    final color = background.color;
+    final hidden = ref.watch(
+      liveViewerPrefsProvider.select((p) => p.giftEffectsHidden),
+    );
+    final playing = !hidden && !MediaQuery.disableAnimationsOf(context);
+    Widget? artWidget;
+    if (art != null) {
+      // An SVGA first, else the perk's MP4 (or a store card's MP4).
+      final svga = art.video == null ? art.animation : null;
+      final mp4 = art.video != null ? art.animation : art.videoUrl;
+      final animation = svga ?? mp4;
+      final video = svga != null
+          ? null
+          : (art.video ?? (mp4 == null ? null : ArtVideo.plain));
+      artWidget = KeyedSubtree(
+        key: playing
+            ? LivePersonSheet.vipArtPlayingKey
+            : LivePersonSheet.vipArtStillKey,
+        // Still: the players show their first frame without motion; with a
+        // still, only the still is drawn.
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(disableAnimations: !playing),
+          child: VipAnimatedArt(
+            animation: animation,
+            still: art.still,
+            video: video,
+            fit: BoxFit.cover,
+            animate: playing || art.still == null,
+          ),
+        ),
+      );
+    }
+    return IgnorePointer(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (color != null)
+            ColoredBox(key: LivePersonSheet.vipColorKey, color: color),
+          if (artWidget != null) ...[
+            KeyedSubtree(key: LivePersonSheet.vipCardKey, child: artWidget),
+            const ColoredBox(key: LivePersonSheet.vipScrimKey, color: scrim),
           ],
-        );
-        return vipCard == null
-            ? sheet
-            : _LookScope(look: vipCard, child: sheet);
-      },
+        ],
+      ),
     );
   }
 }
@@ -585,10 +643,10 @@ class _Body extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final text = context.textStyles;
+    final palette = context.palette;
     final profile = this.profile;
     final scope = this.scope;
-    // D258: on the VIP card art, the colours measured for it.
-    final look = _LookScope.maybeOf(context) ?? this.look;
+    final look = this.look;
     // D361 (§10.156): the founder shows no level (the server sends none too).
     final levels = profile.kabsoOwner
         ? const <PublicLevel>[]
@@ -661,8 +719,7 @@ class _Body extends ConsumerWidget {
         ),
     ];
 
-    // §10.74: the server leaves out a number the person hides; the others
-    // share the row evenly (4 → 3 → 2).
+    // §10.74: the server leaves out a number the person hides — no pill.
     final stats = <(LivePersonStat, int, String)>[
       (LivePersonStat.followers, profile.followerCount, l10n.liveCardFollowers),
       (
@@ -676,12 +733,53 @@ class _Body extends ConsumerWidget {
         (LivePersonStat.coins, n, l10n.liveCardCoinsSent),
     ];
 
-    final extras = <Widget>[
+    // D383: the quick actions as round colourful buttons.
+    final actions = <Widget>[
+      if (!profile.isSelf) ...[
+        _FollowButton(profile: profile, username: username, look: look),
+        _RoundAction(
+          key: LivePersonSheet.messageKey,
+          look: look,
+          color: LivePersonActionColors.chat,
+          icon: Icons.chat_bubble_rounded,
+          label: l10n.liveCardChat,
+          onTap: () => _close(
+            context,
+            () => unawaited(
+              context.push(
+                AppRoutes.chat(profile.username),
+                extra: (
+                  displayName: profile.displayName,
+                  premiumTier: profile.premiumTier,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+      // CP-020: the gift panel with this person chosen.
+      if (!profile.isSelf)
+        if (scope?.onGift case final onGift?)
+          _RoundAction(
+            key: LivePersonSheet.giftKey,
+            look: look,
+            color: LivePersonActionColors.gift,
+            icon: Icons.card_giftcard_rounded,
+            label: l10n.liveCardSendGift,
+            onTap: () => _close(
+              context,
+              () => onGift((
+                username: profile.username,
+                name: profile.displayName,
+              )),
+            ),
+          ),
       // D135: puts @username into the chat box.
       if (!profile.isSelf && scope?.onMention != null)
-        _SmallAction(
+        _RoundAction(
           key: LivePersonSheet.mentionKey,
           look: look,
+          color: LivePersonActionColors.mention,
           icon: Icons.alternate_email_rounded,
           label: l10n.liveUserMention,
           onTap: () =>
@@ -689,29 +787,148 @@ class _Body extends ConsumerWidget {
         ),
       // D154b: a traffic card for the host's live.
       if (!profile.isSelf && scope?.onBoost != null)
-        _SmallAction(
+        _RoundAction(
           key: LivePersonSheet.boostKey,
           look: look,
-          icon: Icons.confirmation_number_rounded,
+          color: LivePersonActionColors.boost,
+          icon: Icons.rocket_launch_rounded,
           label: l10n.liveBoostGiftAction,
           onTap: () => _close(context, scope!.onBoost!),
         ),
       if (!profile.isSelf && onInvite != null)
-        _SmallAction(
+        _RoundAction(
           key: LivePersonSheet.inviteKey,
           look: look,
+          color: LivePersonActionColors.invite,
           icon: Icons.event_seat_rounded,
           label: l10n.liveSeatInviteSend,
           onTap: () => _close(context, onInvite!),
         ),
     ];
 
+    final family = profile.family == null
+        ? null
+        : KFormat.bidiIsolate(profile.family!.name);
+    final partner = switch (profile.cp) {
+      final cp? => (
+        name: KFormat.bidiIsolate(
+          cp.partner.displayName.isEmpty
+              ? cp.partner.username
+              : cp.partner.displayName,
+        ),
+        avatar: _networkImage(cp.partner.avatarUrl),
+      ),
+      null => null,
+    };
+    final cpValue = profile.cp == null && cpAction == BondTap.sendCp
+        ? l10n.cpSendShort
+        : null;
+    final cpLine = partner?.name ?? cpValue ?? l10n.liveUserCp;
+    // The live line's green: the theme's, or what reads on the backdrop
+    // (the dark theme's bright green under white text).
+    final green = !look.onBackdrop
+        ? palette.success
+        : look.ink.computeLuminance() > 0.5
+        ? KPalette.dark.success
+        : KPalette.light.success;
+
+    // D383: the rest as soft pills (icon + label).
+    final pills = <Widget>[
+      if (profile.isSelf)
+        _SoftPill(
+          key: LivePersonSheet.editKey,
+          look: look,
+          leading: Icon(Icons.edit_rounded, size: 18, color: look.ink),
+          label: l10n.liveCardEditProfile,
+          semantics: l10n.liveCardEditProfile,
+          onTap: () => _close(
+            context,
+            () => unawaited(context.push(AppRoutes.editProfile)),
+          ),
+        ),
+      _SoftPill(
+        key: LivePersonBoxes.boxKey(0),
+        look: look,
+        leading: Image.asset(
+          'assets/card_boxes/family.webp',
+          width: 24,
+          height: 24,
+          excludeFromSemantics: true,
+        ),
+        label: family ?? l10n.liveCardFamilyNone,
+        muted: family == null,
+        semantics: '${l10n.liveUserFamily}, ${family ?? l10n.liveUserNone}',
+        onTap: bondAction(
+          context,
+          ref,
+          profile,
+          familyTap(profile),
+          before: Navigator.of(context).pop,
+        ),
+      ),
+      _SoftPill(
+        key: LivePersonBoxes.boxKey(1),
+        look: look,
+        leading: partner == null
+            ? Image.asset(
+                'assets/card_boxes/cp.webp',
+                width: 24,
+                height: 24,
+                excludeFromSemantics: true,
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  KAvatar(
+                    // Initials without the direction marks.
+                    name: partner.name.replaceAll(
+                      RegExp('[\u2066-\u2069]'),
+                      '',
+                    ),
+                    image: partner.avatar,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.favorite_rounded,
+                    size: 13,
+                    color: Color(0xFFD62A66),
+                  ),
+                ],
+              ),
+        label: cpLine,
+        semantics: '${l10n.liveUserCp}, $cpLine',
+        onTap: bondAction(
+          context,
+          ref,
+          profile,
+          cpAction,
+          before: Navigator.of(context).pop,
+        ),
+      ),
+      // A person's gift wall has no API yet: it says it is coming.
+      _SoftPill(
+        key: LivePersonBoxes.boxKey(2),
+        look: look,
+        leading: Image.asset(
+          'assets/card_boxes/gift_wall.webp',
+          width: 24,
+          height: 24,
+          excludeFromSemantics: true,
+        ),
+        label: l10n.liveUserGiftWall,
+        semantics: '${l10n.liveUserGiftWall}, ${l10n.liveUserSoon}',
+        onTap: () =>
+            KSnack.info(context, l10n.liveUserBoxSoon(l10n.liveUserGiftWall)),
+      ),
+    ];
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(height: top),
-        // The name (opens the profile, like the picture). D268 (owner:
-        // «ايقونة vip دائماً تأتي بعد الاسم»): the VIP badge right after it.
+        // The name, very large and bold (opens the profile, like the
+        // picture). D268: the VIP badge right after it.
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -732,11 +949,10 @@ class _Body extends ConsumerWidget {
                       textAlign: TextAlign.center,
                       style: text.title.copyWith(
                         color: look.ink,
-                        fontSize: 20,
-                        // D258: the special colour at semi-bold (owner).
-                        fontWeight: profile.vip.isMember
-                            ? FontWeight.w600
-                            : FontWeight.w700,
+                        fontSize: LivePersonCardMetrics.name,
+                        height: 1.2,
+                        letterSpacing: -0.3,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
@@ -747,22 +963,54 @@ class _Body extends ConsumerWidget {
             VerificationSeal(
               profile.verification,
               key: LivePersonSheet.verificationKey,
-              fontSize: 20,
+              fontSize: 24,
               gap: 6,
             ),
             if (profile.vip.isMember) ...[
               const SizedBox(width: 6),
-              // As tall as the name's line.
               VipNameBadge(vip: profile.vip, height: 24),
             ],
-            // D282: a staff account wears the Kabso Team badge after the
-            // name; D299i: taller than the name's line, so its name reads.
+            // D282 / D299i: a staff account wears the Kabso Team badge.
             if (profile.kabsoTeam) ...[
               const SizedBox(width: 6),
               const KabsoTeamBadge(height: KabsoTeamBadge.cardHeight),
             ],
           ],
         ),
+        // D383: a green line while the person broadcasts (public: their
+        // profile says «في بث الآن» too). The activity status is never
+        // shown here: the server gives it to family members only, and only
+        // when the person allows it (§10.25, `showActivityStatus`).
+        if (profile.liveRoomId != null)
+          Padding(
+            key: LivePersonSheet.liveNowKey,
+            padding: const EdgeInsets.only(top: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: green,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    l10n.profileLiveNowTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodyStrong.copyWith(
+                      color: green,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         const SizedBox(height: 2),
         // «ID: username», copied with one tap (D283c: «ID: Kabso01» for a
         // staff account).
@@ -836,7 +1084,7 @@ class _Body extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       // «ID: username» reads left to right in both
-                      // languages (the reference's ID line).
+                      // languages.
                       textDirection: TextDirection.ltr,
                       style: text.caption.copyWith(
                         color: look.soft,
@@ -856,7 +1104,7 @@ class _Body extends ConsumerWidget {
             l10n.rechargeAgentIdLine(KFormat.bidiIsolate(code)),
             key: const Key('room.userCard.agentCode'),
             style: text.caption.copyWith(
-              color: const Color(0xFFC0262D),
+              color: look.onBackdrop ? look.ink : const Color(0xFFC0262D),
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -865,7 +1113,7 @@ class _Body extends ConsumerWidget {
             l10n.hostAgentIdLine(KFormat.bidiIsolate(code)),
             key: const Key('room.userCard.hostAgentCode'),
             style: text.caption.copyWith(
-              color: const Color(0xFF1D5FD1),
+              color: look.onBackdrop ? look.ink : const Color(0xFF1D5FD1),
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -879,193 +1127,51 @@ class _Body extends ConsumerWidget {
           ),
         if (profile.bio case final bio? when bio.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.only(top: 8),
             child: Text(
               bio,
+              key: LivePersonSheet.bioKey,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: text.caption.copyWith(color: look.soft),
+              style: text.body.copyWith(color: look.soft, height: 1.35),
             ),
           ),
-        const SizedBox(height: 12),
-        // D220 (owner): short Latin numbers, smaller, equal columns, a
-        // thin grey line between two numbers (only between those shown).
-        IntrinsicHeight(
-          child: Row(
-            key: LivePersonSheet.statsKey,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final (i, (stat, value, label)) in stats.indexed) ...[
-                if (i > 0)
-                  Center(
-                    child: Container(
-                      key: LivePersonSheet.statDividerKey(i),
-                      width: 1,
-                      height: LivePersonCardMetrics.statDivider,
-                      color: look.divider,
-                    ),
-                  ),
-                Expanded(
-                  child: Semantics(
-                    key: LivePersonSheet.statKey(stat),
-                    label: '$label ${KFormat.compactLatin(value)}',
-                    excludeSemantics: true,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            KFormat.compactLatin(value),
-                            maxLines: 1,
-                            style: text.title.copyWith(
-                              color: look.ink,
-                              fontSize: LivePersonCardMetrics.statNumber,
-                              fontWeight: FontWeight.w700,
-                              height: 1.15,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 1),
-                        // A long label shrinks a little to stay whole.
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            label,
-                            maxLines: 1,
-                            textAlign: TextAlign.center,
-                            style: text.caption.copyWith(
-                              color: look.soft,
-                              fontSize: 11,
-                              height: 1.2,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
         const SizedBox(height: 14),
-        // The family-and-couple gradient pill, then the gift wall.
-        SizedBox(
-          height: LivePersonCardMetrics.pill,
-          child: Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: _BondsPill(
-                  family: profile.family == null
-                      ? null
-                      : KFormat.bidiIsolate(profile.family!.name),
-                  cpPartner: switch (profile.cp) {
-                    final cp? => (
-                      name: KFormat.bidiIsolate(
-                        cp.partner.displayName.isEmpty
-                            ? cp.partner.username
-                            : cp.partner.displayName,
-                      ),
-                      avatar: _networkImage(cp.partner.avatarUrl),
-                    ),
-                    null => null,
-                  },
-                  cpValue: profile.cp == null && cpAction == BondTap.sendCp
-                      ? l10n.cpSendShort
-                      : null,
-                  onFamily: bondAction(
-                    context,
-                    ref,
-                    profile,
-                    familyTap(profile),
-                    before: Navigator.of(context).pop,
-                  ),
-                  onCp: bondAction(
-                    context,
-                    ref,
-                    profile,
-                    cpAction,
-                    before: Navigator.of(context).pop,
-                  ),
-                ),
+        // D383: one light pill per number shown (short Latin numbers).
+        Wrap(
+          key: LivePersonSheet.statsKey,
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final (stat, value, label) in stats)
+              _StatPill(
+                key: LivePersonSheet.statKey(stat),
+                look: look,
+                value: KFormat.compactLatin(value),
+                label: label,
               ),
-              const SizedBox(width: 8),
-              const Expanded(flex: 2, child: _GiftWallPill()),
-            ],
-          ),
+          ],
         ),
-        if (extras.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: _CentredRow(spacing: 8, children: extras),
+        if (actions.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Wrap(
+            key: LivePersonSheet.actionsKey,
+            alignment: WrapAlignment.center,
+            spacing: 6,
+            runSpacing: 10,
+            children: actions,
           ),
+        ],
         const SizedBox(height: 14),
-        if (profile.isSelf)
-          _OutlineButton(
-            key: LivePersonSheet.editKey,
-            look: look,
-            icon: Icons.edit_rounded,
-            label: l10n.liveCardEditProfile,
-            onTap: () => _close(
-              context,
-              () => unawaited(context.push(AppRoutes.editProfile)),
-            ),
-          )
-        else
-          SizedBox(
-            height: LivePersonCardMetrics.action,
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 11,
-                  child: _FollowPill(
-                    profile: profile,
-                    username: username,
-                    look: look,
-                  ),
-                ),
-                // CP-020: the gift panel with this person chosen.
-                if (scope?.onGift case final onGift?) ...[
-                  const SizedBox(width: 8),
-                  _GiftButton(
-                    look: look,
-                    onTap: () => _close(
-                      context,
-                      () => onGift((
-                        username: profile.username,
-                        name: profile.displayName,
-                      )),
-                    ),
-                  ),
-                ],
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 9,
-                  child: _OutlineButton(
-                    key: LivePersonSheet.messageKey,
-                    look: look,
-                    icon: Icons.sms_outlined,
-                    label: l10n.liveCardChat,
-                    onTap: () => _close(
-                      context,
-                      () => unawaited(
-                        context.push(
-                          AppRoutes.chat(profile.username),
-                          extra: (
-                            displayName: profile.displayName,
-                            premiumTier: profile.premiumTier,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        Wrap(
+          key: LivePersonSheet.pillsKey,
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: pills,
+        ),
       ],
     );
   }
@@ -1073,10 +1179,10 @@ class _Body extends ConsumerWidget {
 
 /// A row centred when it fits; a long row scrolls sideways (many badges).
 class _CentredRow extends StatelessWidget {
-  const new({required this.children, super.key, this.spacing = 6});
+  const new({required this.children, super.key});
 
   final List<Widget> children;
-  final double spacing;
+  static const double spacing = 6;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -1089,7 +1195,7 @@ class _CentredRow extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             for (var i = 0; i < children.length; i++) ...[
-              if (i > 0) SizedBox(width: spacing),
+              if (i > 0) const SizedBox(width: spacing),
               children[i],
             ],
           ],
@@ -1101,7 +1207,7 @@ class _CentredRow extends StatelessWidget {
 
 /// Sinks a little while pressed (the design's `_Press`).
 class _Press extends StatefulWidget {
-  const new({required this.child, required this.label, super.key, this.onTap});
+  const new({required this.child, required this.label, this.onTap});
 
   final Widget child;
   final String label;
@@ -1148,208 +1254,210 @@ class _PressState extends State<_Press> {
   }
 }
 
-/// The gradient pill (the reference's orange showcase pill): the family at
-/// the start and the couple at the end, each opening what exists (CP-018,
-/// `bondAction`). Keys: `LivePersonBoxes.boxKey(0)` (family), `(1)` (couple).
-class _BondsPill extends StatelessWidget {
+/// D383: a number pill — the number large and bold, its label beside it
+/// (the reference's «45.4K All-time reacts received»), read as one.
+class _StatPill extends StatelessWidget {
   const new({
-    required this.family,
-    required this.cpPartner,
-    required this.cpValue,
-    required this.onFamily,
-    required this.onCp,
+    required this.look,
+    required this.value,
+    required this.label,
+    super.key,
   });
 
-  final String? family;
-  final ({String name, ImageProvider? avatar})? cpPartner;
-  final String? cpValue;
-  final VoidCallback? onFamily;
-  final VoidCallback? onCp;
-
-  static const _colors = [Color(0xFFFFC596), Color(0xFFFF9466)];
-  static const _ink = Color(0xFF4A1D05);
+  final _Look look;
+  final String value;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final text = context.textStyles;
-    final style = text.caption.copyWith(
-      color: _ink,
-      fontSize: 12.5,
-      height: 1.2,
-      fontWeight: FontWeight.w800,
-    );
-    final partner = cpPartner;
-    final cpLine = partner?.name ?? cpValue ?? l10n.liveUserCp;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        gradient: const LinearGradient(colors: _colors),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x33FF8A55),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _Press(
-              key: LivePersonBoxes.boxKey(0),
-              label: '${l10n.liveUserFamily}, ${family ?? l10n.liveUserNone}',
-              onTap: onFamily,
-              child: Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(6, 0, 4, 0),
-                child: Row(
-                  children: [
-                    Image.asset(
-                      'assets/card_boxes/family.webp',
-                      width: 26,
-                      height: 26,
-                      excludeFromSemantics: true,
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        family ?? l10n.liveCardFamilyNone,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: family == null
-                            ? style.copyWith(
-                                color: _ink.withValues(alpha: 0.6),
-                                fontWeight: FontWeight.w600,
-                              )
-                            : style,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Container(width: 1, height: 20, color: const Color(0x66FFFFFF)),
-          Expanded(
-            child: _Press(
-              key: LivePersonBoxes.boxKey(1),
-              label: '${l10n.liveUserCp}, $cpLine',
-              onTap: onCp,
-              child: Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(4, 0, 6, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (partner != null) ...[
-                      KAvatar(
-                        // Initials without the direction marks.
-                        name: partner.name.replaceAll(
-                          RegExp('[\u2066-\u2069]'),
-                          '',
-                        ),
-                        image: partner.avatar,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 2),
-                      const Icon(
-                        Icons.favorite_rounded,
-                        size: 13,
-                        color: Color(0xFFD62A66),
-                      ),
-                    ] else
-                      Image.asset(
-                        'assets/card_boxes/cp.webp',
-                        width: 24,
-                        height: 24,
-                        excludeFromSemantics: true,
-                      ),
-                    const SizedBox(width: 2),
-                    Flexible(
-                      child: Text(
-                        partner?.name ?? cpValue ?? l10n.liveUserCp,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: style,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// «حائط الهدايا» in purple (the reference's Gift Wall pill). A person's
-/// gift wall has no API yet: it says it is coming (`LivePersonBoxes.
-/// boxKey(2)`).
-class _GiftWallPill extends StatelessWidget {
-  const new();
-
-  static const _colors = [Color(0xFFC77BFB), Color(0xFF9445E6)];
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return _Press(
-      key: LivePersonBoxes.boxKey(2),
-      label: '${l10n.liveUserGiftWall}, ${l10n.liveUserSoon}',
-      onTap: () =>
-          KSnack.info(context, l10n.liveUserBoxSoon(l10n.liveUserGiftWall)),
-      child: DecoratedBox(
+    return Semantics(
+      label: '$label $value',
+      excludeSemantics: true,
+      child: Container(
+        constraints: const BoxConstraints(
+          minHeight: LivePersonCardMetrics.pill,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          gradient: const LinearGradient(colors: _colors),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x339445E6),
-              blurRadius: 8,
-              offset: Offset(0, 2),
+          color: look.pill,
+          borderRadius: BorderRadius.circular(KRadius.lg),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              maxLines: 1,
+              // Short Latin numbers read left to right in both languages.
+              textDirection: TextDirection.ltr,
+              style: text.title.copyWith(
+                color: look.ink,
+                fontSize: LivePersonCardMetrics.statNumber,
+                fontWeight: FontWeight.w800,
+                height: 1.1,
+              ),
+            ),
+            const SizedBox(width: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 92),
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: text.caption.copyWith(
+                  color: look.soft,
+                  fontSize: 12,
+                  height: 1.2,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                'assets/card_boxes/gift_wall.webp',
-                width: 26,
-                height: 26,
-                excludeFromSemantics: true,
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  l10n.liveUserGiftWall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.textStyles.caption.copyWith(
-                    color: const Color(0xFFFFFFFF),
-                    fontSize: 12.5,
-                    height: 1.2,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 }
 
-/// Owner (2026-11-01, «اجعله احمر وعندما يكون متابع الشخص يكون زر الغاء
-/// المتابعة»): «+ متابعة» filled in the brand red (white text, the palette's
-/// `primary` / `onPrimary`); once followed, a neutral outline «إلغاء
-/// المتابعة» that asks first (as the profile page) and unfollows; D175's
-/// «تم الطلب» for a private account (a tap asks, then cancels the request).
-class _FollowPill extends ConsumerWidget {
+/// D383: a round colourful button — a solid circle in a token colour with a
+/// white icon, its label under it (a 64 × ≥ 72 tap target).
+class _RoundAction extends StatelessWidget {
+  const new({
+    required this.look,
+    required this.color,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    super.key,
+  });
+
+  final _Look look;
+  final Color color;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  static const circleKey = Key('room.userCard.action.circle');
+
+  @override
+  Widget build(BuildContext context) => _Press(
+    label: label,
+    onTap: onTap,
+    child: SizedBox(
+      width: LivePersonCardMetrics.actionWidth,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            key: circleKey,
+            width: LivePersonCardMetrics.action,
+            height: LivePersonCardMetrics.action,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              boxShadow: look.onBackdrop
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.28),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+            ),
+            child: Icon(
+              icon,
+              size: LivePersonCardMetrics.actionIcon,
+              color: const Color(0xFFFFFFFF),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: context.textStyles.caption.copyWith(
+              color: look.ink,
+              fontSize: 11.5,
+              height: 1.2,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// D383: a soft pill button — a light rounded pill with an icon and a label
+/// (the reference's «Edit Profile»): the family, the couple, the gift wall,
+/// «تعديل الملف». Without [onTap] it is not a button (nothing to open).
+class _SoftPill extends StatelessWidget {
+  const new({
+    required this.look,
+    required this.leading,
+    required this.label,
+    required this.semantics,
+    required this.onTap,
+    this.muted = false,
+    super.key,
+  });
+
+  final _Look look;
+  final Widget leading;
+  final String label;
+  final String semantics;
+  final VoidCallback? onTap;
+
+  /// «لا عائلة بعد»: the label in the soft colour.
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) => _Press(
+    label: semantics,
+    onTap: onTap,
+    child: Container(
+      constraints: const BoxConstraints(
+        minHeight: LivePersonCardMetrics.pill,
+        maxWidth: 220,
+      ),
+      padding: const EdgeInsetsDirectional.fromSTEB(10, 6, 14, 6),
+      decoration: BoxDecoration(
+        color: look.pill,
+        borderRadius: BorderRadius.circular(KRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          leading,
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.bodyStrong.copyWith(
+                color: muted ? look.soft : look.ink,
+                fontSize: 14,
+                fontWeight: muted ? FontWeight.w600 : FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// D383: Follow as a round button — «متابعة» in the brand colour (the
+/// palette's `primary`, a white icon); once followed «إلغاء المتابعة» in a
+/// neutral grey that asks first (as the profile page) and unfollows; D175's
+/// «تم الطلب» for a private account (a tap asks, then cancels the request);
+/// D218's «إلغاء الحظر» for someone you blocked.
+class _FollowButton extends ConsumerWidget {
   const new({
     required this.profile,
     required this.username,
@@ -1386,7 +1494,6 @@ class _FollowPill extends ConsumerWidget {
     final blocked = profile.blockedByMe;
     final following = !blocked && profile.isFollowing;
     final requested = !blocked && profile.followRequested;
-    final plain = following || requested;
     final label = blocked
         ? l10n.safetyUnblock
         : following
@@ -1394,9 +1501,19 @@ class _FollowPill extends ConsumerWidget {
         : requested
         ? l10n.followRequested
         : l10n.liveCardFollow;
-    final ink = plain ? look.ink : palette.onPrimary;
-    return _Press(
+    return _RoundAction(
       key: blocked ? LivePersonSheet.unblockKey : LivePersonSheet.followKey,
+      look: look,
+      color: following || requested || blocked
+          ? LivePersonActionColors.neutral
+          : palette.primary,
+      icon: blocked
+          ? Icons.lock_open_rounded
+          : following
+          ? Icons.person_remove_alt_1_rounded
+          : requested
+          ? Icons.hourglass_top_rounded
+          : Icons.person_add_alt_1_rounded,
       label: label,
       onTap: () => unawaited(() async {
         if (blocked) {
@@ -1423,196 +1540,8 @@ class _FollowPill extends ConsumerWidget {
         }
         await setHostFollowing(context, ref, username, follow: true);
       }()),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(KRadius.pill),
-          color: plain ? null : palette.primary,
-          border: plain ? Border.all(color: look.line, width: 1.2) : null,
-          boxShadow: plain || look.flat
-              ? null
-              : [
-                  BoxShadow(
-                    color: palette.primary.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-        ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  blocked
-                      ? Icons.lock_open_rounded
-                      : following
-                      ? Icons.person_remove_alt_1_rounded
-                      : requested
-                      ? Icons.hourglass_top_rounded
-                      : Icons.add_rounded,
-                  size: 20,
-                  color: ink,
-                ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.textStyles.bodyStrong.copyWith(
-                      color: ink,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
-}
-
-/// The gift button between Follow and Chat (owner: «اجعل ايقونة الهدايا
-/// بداخل دائرة»): the app's main gift icon (the live bar's colourful box)
-/// centred at ≈ 62 % inside a circle as high as the pills beside it, with a
-/// subtle neutral fill and the outline of the Chat pill.
-class _GiftButton extends StatelessWidget {
-  const new({required this.onTap, required this.look});
-
-  final VoidCallback onTap;
-  final _Look look;
-
-  static const circleKey = Key('room.userCard.gift.circle');
-
-  @override
-  Widget build(BuildContext context) => _Press(
-    key: LivePersonSheet.giftKey,
-    label: context.l10n.liveCardSendGift,
-    onTap: onTap,
-    child: Container(
-      key: circleKey,
-      width: LivePersonCardMetrics.action,
-      height: LivePersonCardMetrics.action,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: look.fill,
-        border: Border.all(color: look.line, width: 1.2),
-      ),
-      child: const KabsoArtIcon(
-        KabsoArt.mainGift,
-        size: LivePersonCardMetrics.giftArt,
-      ),
-    ),
-  );
-}
-
-/// «دردشة» and «تعديل الملف»: an outline pill.
-class _OutlineButton extends StatelessWidget {
-  const new({
-    required this.look,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    super.key,
-  });
-
-  final _Look look;
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => _Press(
-    label: label,
-    onTap: onTap,
-    child: Container(
-      height: LivePersonCardMetrics.action,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(KRadius.pill),
-        border: Border.all(color: look.line, width: 1.2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 19, color: look.ink),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.textStyles.bodyStrong.copyWith(
-                color: look.ink,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-/// The smaller actions the card keeps (mention, traffic card, seat
-/// invite): a light outline chip each.
-class _SmallAction extends StatelessWidget {
-  const new({
-    required this.look,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    super.key,
-  });
-
-  final _Look look;
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => _Press(
-    label: label,
-    onTap: onTap,
-    // A 48 pt target with the 36 pt chip drawn inside it.
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
-      child: Center(
-        widthFactor: 1,
-        child: Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(KRadius.pill),
-            border: Border.all(color: look.line),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: look.ink),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                maxLines: 1,
-                style: context.textStyles.caption.copyWith(
-                  color: look.ink,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
 }
 
 /// The host's or a moderator's badge among the card's pills.
@@ -1661,129 +1590,6 @@ class _RoleBadge extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// D258 (PROFILE_CARD): a VIP's card art behind the person card's sheet
-/// (the owner's still or SVGA framing an opaque panel that holds the text).
-class _VipCard extends ConsumerWidget {
-  const new({required this.vip, required this.sheet, required this.child});
-
-  final UserVip? vip;
-
-  /// The card's own surface: the text sits on it, never on the art.
-  final Color sheet;
-  final Widget child;
-
-  /// How much of the art shows around the panel (the card's border).
-  static const frame = 12.0;
-
-  /// The animated card's frame width at a phone's width (its border is about
-  /// 25 of its 720 units).
-  static const animatedFrame = 14.0;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final perk = vipCardPerk(ref.watch(vipLookProvider(vip)));
-    if (perk == null) return child;
-    // D258: the owner's art frames the card; the names, numbers and buttons
-    // stay on the card's own opaque surface (≥ 4.5:1 as without VIP).
-    // D258: the owner's animated card (its SVGA 9-sliced to the sheet: the
-    // crest rises above the sheet, the frame follows its edges). The text
-    // stays on the card's own opaque panel inside the frame.
-    if (vipPlays(perk)) {
-      return _VipCardArt(perk: perk, child: child);
-    }
-    // Clipped to the sheet's rounded top (only with the art: no change
-    // to the plain card).
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(
-        top: Radius.circular(LivePersonCardMetrics.radius),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            key: LivePersonSheet.vipCardKey,
-            child: VipAnimatedArt(
-              animation: perk.animation,
-              still: perk.still,
-              video: perk.video,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Positioned.fill(
-            left: frame,
-            right: frame,
-            bottom: frame,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: sheet,
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(16),
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(frame, 0, frame, frame),
-            child: child,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// D258: the colours the person card's text uses on a VIP card art.
-class _LookScope extends InheritedWidget {
-  const new({required this.look, required super.child});
-
-  final _Look look;
-
-  static _Look? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_LookScope>()?.look;
-
-  @override
-  bool updateShouldNotify(_LookScope old) => old.look != look;
-}
-
-/// D258 (owner: «عند وضع vip يتم ازالة الصندوق الابيض»): the owner's
-/// animated card IS the card's background — its SVGA 9-sliced to the sheet
-/// (the crest rises above it) over a deep shade of the tier colour; the
-/// content sits directly on it in white ([_Look.vipOn], set by the sheet).
-class _VipCardArt extends StatelessWidget {
-  const new({required this.perk, required this.child});
-
-  final VipPerk perk;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    const frame = _VipCard.animatedFrame;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned.fill(
-          key: LivePersonSheet.vipCardKey,
-          child: IgnorePointer(
-            child: VipSvga(
-              url: perk.animation!,
-              nine: VipSvgaNine.card,
-              // A big art: frames at about half the device's pixels.
-              resolution: 0.5,
-              still: perk.still == null
-                  ? null
-                  : Image(image: vipArtImage(perk.still!), fit: BoxFit.cover),
-            ),
-          ),
-        ),
-        // The art's frame at the sides; the content hugs the bottom.
-        Padding(
-          padding: const EdgeInsets.fromLTRB(frame, 0, frame, 2),
-          child: child,
-        ),
-      ],
     );
   }
 }

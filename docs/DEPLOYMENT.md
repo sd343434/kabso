@@ -4314,3 +4314,18 @@ same object storage as the VIP SVGA / stills, under `media/vip/<tier>/`).
 - **Order:** deploy the API image (the migration runs first) together with the admin panel (the old panel's free-text
   codes would be refused by the new API), then ship the APK. An older app keeps working: it reads `perks` (not
   `effectivePerks`) and no longer sees a daily-coins row.
+
+### 5.125 The person card redesigned; PROFILE_CARD becomes the card's background (D383; no migration) — [IMPLEMENTED, draft contract v1.135-social; not deployed, not device-tested]
+
+CONVENTIONS §10.172 (owner 2026-11-12). No migration, no new setting, no new secret, no new host.
+
+- **API:** only the catalogue entry of `PROFILE_CARD` changes (value `color`, art SVGA / MP4 / still, new default
+  titles). Every tier row stays as it is: a row saved before (no value, its art) is valid and its art becomes the card's
+  background. Nothing is deleted; nothing to run on the server.
+- **After deploy (owner / panel):** open a VIP tier, tick «خلفية البطاقة التعريفية» and set a colour and / or upload the
+  background art (SVGA preferred, else MP4 ≤ 8 MB / 15 s, or a still; about 1080 × 1440). Art made earlier as a frame
+  (`svip_box`) now shows as a full background under a scrim: replace it with background art.
+- **Bag and store:** the bag's profile-card header ornaments are no longer drawn on the person card (the items stay in
+  people's bags). Store `PROFILE_CARD` items (kind unchanged, still sold) draw their art as the card's background.
+- **Order:** API and panel in any order (shapes unchanged); then the APK. An older app keeps drawing the art its way and
+  ignores the colour.
