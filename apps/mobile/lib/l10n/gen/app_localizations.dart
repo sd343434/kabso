@@ -30393,6 +30393,108 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'نقطة / {days} يوماً'**
   String vipPointsPer(String days);
+
+  /// D384 «صورة متحركة» (the VIP animated picture): the entry in «الخاص بي VIP» and the screen title.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة متحركة'**
+  String get vipAnimatedAvatarEntry;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): the screen's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل 3 ثوانٍ لوجهك: نزيل الخلفية على هاتفك، وتظهر صورتك متحركة فوق اسمك في بطاقتك داخل الغرف.'**
+  String get vipAnimatedAvatarIntro;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): the stage with no clip.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد صورة متحركة بعد'**
+  String get vipAnimatedAvatarEmpty;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): the record button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل'**
+  String get vipAnimatedAvatarRecord;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): record again after a preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة التسجيل'**
+  String get vipAnimatedAvatarRerecord;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): save the previewed cut-out.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get vipAnimatedAvatarSave;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): remove the saved clip.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة'**
+  String get vipAnimatedAvatarRemove;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): shown over the camera while recording.
+  ///
+  /// In ar, this message translates to:
+  /// **'انظر إلى الكاميرا وابتسم'**
+  String get vipAnimatedAvatarLook;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): while recording.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ التسجيل…'**
+  String get vipAnimatedAvatarRecording;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): while the phone removes the background.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ إزالة الخلفية…'**
+  String get vipAnimatedAvatarProcessing;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): above the previewed cut-out.
+  ///
+  /// In ar, this message translates to:
+  /// **'هكذا ستظهر في بطاقتك'**
+  String get vipAnimatedAvatarPreview;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): no person found in most frames.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم نجد وجهك في المقطع. سجّل مجدداً في إضاءة جيدة وانظر إلى الكاميرا.'**
+  String get vipAnimatedAvatarNoPerson;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): the camera is unavailable or not allowed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر فتح الكاميرا. اسمح للتطبيق باستخدام الكاميرا ثم حاول مجدداً.'**
+  String get vipAnimatedAvatarCameraError;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): the strip is over the upload limit.
+  ///
+  /// In ar, this message translates to:
+  /// **'المقطع كبير جداً. سجّل مقطعاً أقصر.'**
+  String get vipAnimatedAvatarTooLarge;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): after saving.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظت صورتك المتحركة'**
+  String get vipAnimatedAvatarSaved;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): after removing.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُزيلت صورتك المتحركة'**
+  String get vipAnimatedAvatarRemoved;
+
+  /// D384 «صورة متحركة» (the VIP animated picture): the ANIMATED_AVATAR_REMOVED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'أزال فريق الإشراف صورتك المتحركة لمخالفتها الإرشادات'**
+  String get notifAnimatedAvatarRemoved;
 }
 
 class _AppLocalizationsDelegate

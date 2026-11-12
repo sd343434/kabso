@@ -19,6 +19,9 @@ abstract final class VipPerks {
   static const dailyBullet = 'DAILY_BULLET';
   static const profileVisitors = 'PROFILE_VISITORS';
   static const levelSpeedup = 'LEVEL_SPEEDUP';
+
+  /// v1.136-social (D384): «صورة متحركة» — the member's own cut-out clip.
+  static const animatedAvatar = 'ANIMATED_AVATAR';
 }
 
 /// D258: the VIP catalogue kept for the whole session (every chat line, seat

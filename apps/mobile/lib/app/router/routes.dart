@@ -377,6 +377,9 @@ abstract final class AppRoutes {
   /// D258: «من زار ملفي» (members holding PROFILE_VISITORS).
   static const vipVisitors = '/vip/visitors';
 
+  /// D384: «صورة متحركة» (members holding ANIMATED_AVATAR).
+  static const vipAnimatedAvatar = '/vip/animated-avatar';
+
   /// The page of event [eventId].
   static String event(String eventId) =>
       '/events/${Uri.encodeComponent(eventId)}';

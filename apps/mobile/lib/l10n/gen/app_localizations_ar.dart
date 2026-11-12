@@ -18055,4 +18055,59 @@ class AppLocalizationsAr extends AppLocalizations {
   String vipPointsPer(String days) {
     return 'نقطة / $days يوماً';
   }
+
+  @override
+  String get vipAnimatedAvatarEntry => 'صورة متحركة';
+
+  @override
+  String get vipAnimatedAvatarIntro =>
+      'سجّل 3 ثوانٍ لوجهك: نزيل الخلفية على هاتفك، وتظهر صورتك متحركة فوق اسمك في بطاقتك داخل الغرف.';
+
+  @override
+  String get vipAnimatedAvatarEmpty => 'لا توجد صورة متحركة بعد';
+
+  @override
+  String get vipAnimatedAvatarRecord => 'تسجيل';
+
+  @override
+  String get vipAnimatedAvatarRerecord => 'إعادة التسجيل';
+
+  @override
+  String get vipAnimatedAvatarSave => 'حفظ';
+
+  @override
+  String get vipAnimatedAvatarRemove => 'إزالة';
+
+  @override
+  String get vipAnimatedAvatarLook => 'انظر إلى الكاميرا وابتسم';
+
+  @override
+  String get vipAnimatedAvatarRecording => 'جارٍ التسجيل…';
+
+  @override
+  String get vipAnimatedAvatarProcessing => 'جارٍ إزالة الخلفية…';
+
+  @override
+  String get vipAnimatedAvatarPreview => 'هكذا ستظهر في بطاقتك';
+
+  @override
+  String get vipAnimatedAvatarNoPerson =>
+      'لم نجد وجهك في المقطع. سجّل مجدداً في إضاءة جيدة وانظر إلى الكاميرا.';
+
+  @override
+  String get vipAnimatedAvatarCameraError =>
+      'تعذّر فتح الكاميرا. اسمح للتطبيق باستخدام الكاميرا ثم حاول مجدداً.';
+
+  @override
+  String get vipAnimatedAvatarTooLarge => 'المقطع كبير جداً. سجّل مقطعاً أقصر.';
+
+  @override
+  String get vipAnimatedAvatarSaved => 'حُفظت صورتك المتحركة';
+
+  @override
+  String get vipAnimatedAvatarRemoved => 'أُزيلت صورتك المتحركة';
+
+  @override
+  String get notifAnimatedAvatarRemoved =>
+      'أزال فريق الإشراف صورتك المتحركة لمخالفتها الإرشادات';
 }

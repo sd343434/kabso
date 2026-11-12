@@ -16,6 +16,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
 import 'package:kabso_live/features/owner_profile/domain/owner_models.dart';
 import 'package:kabso_live/features/staff/domain/staff_identity.dart';
+import 'package:kabso_live/features/vip/domain/animated_avatar.dart';
 
 part 'profile_models.freezed.dart';
 part 'profile_models.g.dart';
@@ -223,6 +224,17 @@ abstract class PublicProfile with _$PublicProfile {
     /// the server); null on anyone else's profile and from older servers
     /// (the founder's page then shows «–», never a made-up 0).
     @JsonKey(includeIfNull: false) int? founderFeedbackCount,
+
+    /// v1.136-social (D384, §10.173.4): the VIP animated picture «صورة
+    /// متحركة» — only while the person holds the ANIMATED_AVATAR perk and has
+    /// a clip, never across a block; null otherwise and from older servers
+    /// (the round photo shows).
+    @JsonKey(
+      fromJson: animatedAvatarFromJson,
+      toJson: animatedAvatarToJson,
+      includeIfNull: false,
+    )
+    AnimatedAvatar? animatedAvatar,
   }) = _PublicProfile;
 
   const new _();

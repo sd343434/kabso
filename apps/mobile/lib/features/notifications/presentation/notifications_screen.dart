@@ -277,6 +277,10 @@ class NotificationRow extends StatelessWidget {
         item.type == NotificationType.coverRemoved) {
       return AppRoutes.editProfile;
     }
+    // D384: a removed animated picture leads to «صورة متحركة».
+    if (item.type == NotificationType.animatedAvatarRemoved) {
+      return AppRoutes.vipAnimatedAvatar;
+    }
     if (item.type == NotificationType.followRequest) {
       return AppRoutes.followRequests;
     }
@@ -443,6 +447,7 @@ class NotificationRow extends StatelessWidget {
       ),
       NotificationType.avatarRemoved => l10n.notifAvatarRemoved,
       NotificationType.coverRemoved => l10n.notifCoverRemoved,
+      NotificationType.animatedAvatarRemoved => l10n.notifAnimatedAvatarRemoved,
       NotificationType.dataExportReady => l10n.notifDataExportReady,
       NotificationType.rechargeCoinsReceived => l10n.notifRechargeCoins(
         who,
@@ -620,6 +625,7 @@ class NotificationRow extends StatelessWidget {
               item.type == NotificationType.contentRemoved ||
                       item.type == NotificationType.avatarRemoved ||
                       item.type == NotificationType.coverRemoved ||
+                      item.type == NotificationType.animatedAvatarRemoved ||
                       item.type == NotificationType.liveModerated
                   ? Icons.gpp_maybe_outlined
                   : item.type.isAgency
@@ -634,6 +640,7 @@ class NotificationRow extends StatelessWidget {
                   item.type == NotificationType.contentRemoved ||
                       item.type == NotificationType.avatarRemoved ||
                       item.type == NotificationType.coverRemoved ||
+                      item.type == NotificationType.animatedAvatarRemoved ||
                       item.type == NotificationType.liveModerated
                   ? p.error
                   : p.primary,

@@ -91,6 +91,9 @@ class VipScreen extends ConsumerStatefulWidget {
 
   /// D258: «من زار ملفي» in the member's sheet.
   static const visitorsKey = Key('vip.visitors');
+
+  /// D384: «صورة متحركة» in the member's sheet.
+  static const animatedAvatarKey = Key('vip.animatedAvatar');
   static const Key emblemKey = VipTierCard.emblemKey;
   static const ctaKey = Key('vip.cta');
   static const barKey = Key('vip.bar');
@@ -511,6 +514,21 @@ class _VipScreenState extends ConsumerState<VipScreen> {
                     onTap: () {
                       Navigator.of(sheet).pop();
                       unawaited(context.push(AppRoutes.vipVisitors));
+                    },
+                  ),
+                ],
+                // D384: «صورة متحركة» (ANIMATED_AVATAR).
+                if (_holds(membership, VipPerks.animatedAvatar)) ...[
+                  const SizedBox(height: KSpacing.sm),
+                  ListTile(
+                    key: VipScreen.animatedAvatarKey,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.face_retouching_natural_outlined),
+                    title: Text(context.l10n.vipAnimatedAvatarEntry),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.of(sheet).pop();
+                      unawaited(context.push(AppRoutes.vipAnimatedAvatar));
                     },
                   ),
                 ],

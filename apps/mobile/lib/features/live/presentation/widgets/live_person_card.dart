@@ -33,6 +33,8 @@ import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/domain/animated_avatar.dart';
+import 'package:kabso_live/features/vip/presentation/vip_cutout.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -195,6 +197,12 @@ abstract final class LivePersonActionColors {
 /// colour and / or its art filling the sheet behind the content, dimmed by a
 /// scrim so the text stays readable; still under reduced motion or
 /// «إخفاء مؤثرات الهدايا». Everyone else gets the plain card.
+///
+/// D384: a VIP holding ANIMATED_AVATAR who set a clip shows it instead of
+/// the round photo — the cut-out (no background) looping large above the
+/// name, the head over the sheet's top edge, a soft shadow under the chin;
+/// it pops up with the sheet. Its still under reduced motion or «إخفاء
+/// مؤثرات الهدايا»; the round photo while it loads or if it fails.
 class LivePersonSheet extends ConsumerWidget {
   const new({required this.username, super.key, this.scope, this.onInvite});
 
@@ -249,6 +257,9 @@ class LivePersonSheet extends ConsumerWidget {
   static const vipArtPlayingKey = Key('room.userCard.vipArt.playing');
   static const vipArtStillKey = Key('room.userCard.vipArt.still');
 
+  /// D384: the VIP animated picture «صورة متحركة» (the cut-out).
+  static const cutoutKey = Key('room.userCard.cutout');
+
   /// D220: the badge pills row and the numbers.
   static const badgesKey = Key('room.userCard.badges');
   static const statsKey = Key('room.userCard.stats');
@@ -288,7 +299,22 @@ class LivePersonSheet extends ConsumerWidget {
         light: art != null || (c ?? plain.sheet).computeLuminance() < 0.19,
       ),
     };
-    final picture = _Picture.of(profile, username);
+    // D384: the animated cut-out (a VIP holding ANIMATED_AVATAR), still
+    // under reduced motion or «إخفاء مؤثرات الهدايا».
+    final playing =
+        !ref.watch(
+          liveViewerPrefsProvider.select((p) => p.giftEffectsHidden),
+        ) &&
+        !MediaQuery.disableAnimationsOf(context);
+    final cutout = profile?.animatedAvatar;
+    final picture = cutout != null
+        ? _Picture.cutout(
+            profile!,
+            cutout,
+            side: VipCutoutMetrics.sideFor(MediaQuery.sizeOf(context).width),
+            playing: playing,
+          )
+        : _Picture.of(profile, username);
     final scope = this.scope;
     // D258: the VIP frame's plaque hangs below the picture: the name moves
     // down by as much (only for the plain ring, where the VIP frame shows).
@@ -375,7 +401,7 @@ class LivePersonSheet extends ConsumerWidget {
               kabsoTeam: profile.kabsoTeam,
               // D311: no founder actions on an owner.
               kabsoOwner: profile.kabsoOwner,
-              middle: picture.width + 8,
+              middle: picture.toolsGap,
               ink: look.tool,
               fill: look.pill,
             ),
@@ -505,7 +531,54 @@ class _Picture {
     required this.centreY,
     required this.build,
     this.vipFrame = false,
-  });
+    double? toolsGap,
+  }) : toolsGap = toolsGap ?? width + 8;
+
+  /// D384: the VIP animated picture — the cut-out in a [side] square, its
+  /// upper [VipCutoutMetrics.overEdge] over the sheet's top edge; the round
+  /// photo in its ring while it loads or if it fails.
+  factory cutout(
+    PublicProfile profile,
+    AnimatedAvatar avatar, {
+    required double side,
+    required bool playing,
+  }) {
+    const small = LivePersonCardMetrics.avatar;
+    return _Picture(
+      width: side,
+      height: side,
+      centreY: side * VipCutoutMetrics.overEdge,
+      toolsGap: side * VipCutoutMetrics.toolsGap,
+      build: (look) => TweenAnimationBuilder<double>(
+        // It pops up with the sheet (no motion when still).
+        tween: Tween(begin: playing ? 0.86 : 1, end: 1),
+        duration: playing ? const Duration(milliseconds: 420) : Duration.zero,
+        curve: Curves.easeOutBack,
+        builder: (context, scale, child) => Transform.scale(
+          scale: scale,
+          alignment: Alignment.bottomCenter,
+          child: child,
+        ),
+        child: VipCutout(
+          key: LivePersonSheet.cutoutKey,
+          avatar: avatar,
+          side: side,
+          playing: playing,
+          fallback: Container(
+            padding: const EdgeInsets.all(LivePersonCardMetrics.ring),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: look.ring),
+            child: ClipOval(
+              child: KAvatar(
+                name: profile.displayName,
+                image: _networkImage(profile.avatarUrl),
+                size: small,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   factory of(PublicProfile? profile, String username) {
     const avatar = LivePersonCardMetrics.avatar;
@@ -614,6 +687,9 @@ class _Picture {
 
   /// D258: the plain ring, where a VIP's frame is drawn.
   final bool vipFrame;
+
+  /// The width the card's top tools leave free for the picture.
+  final double toolsGap;
   final Widget Function(_Look look) build;
 }
 
