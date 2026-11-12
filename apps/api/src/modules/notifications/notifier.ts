@@ -40,6 +40,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'AVATAR_REMOVED',
   // v1.76-social (D218): a moderator removed the profile cover.
   'COVER_REMOVED',
+  // v1.136-social (D384): a moderator removed the VIP animated picture.
+  'ANIMATED_AVATAR_REMOVED',
   // v1.60-social (D191): a moderator warned the person (from the panel's report queue).
   'MODERATION_WARNING',
   // v1.66-social (D198): the data export «تنزيل بياناتي» is ready.
@@ -222,6 +224,8 @@ export class Notifier {
         | 'PREMIUM_USERNAME_EXPIRED'
         | 'AVATAR_REMOVED'
         | 'COVER_REMOVED'
+        // v1.136-social (D384): a moderator removed the VIP animated picture (no target).
+        | 'ANIMATED_AVATAR_REMOVED'
         | 'MODERATION_WARNING'
         | 'DATA_EXPORT_READY'
         // v1.72-social (D208): the team edited the profile (no target).

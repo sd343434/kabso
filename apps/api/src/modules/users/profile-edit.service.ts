@@ -22,6 +22,7 @@ import {
 } from './profile-fields.js';
 import { UsersService, type MeDto } from './users.service.js';
 import { refuseLimitedStaff } from '../live/live-staff.js';
+import { vipHoldsPerkIn } from '../vip/vip-perks.js';
 import { isKabsoOwner } from '../owner-profile/owner-core.js';
 
 /** Request metadata for audit records. */
@@ -61,6 +62,17 @@ export interface AvatarDto {
 export interface CoverDto {
   coverUrl: string;
 }
+
+/** `AnimatedAvatar` (v1.136-social, D384, §10.173). */
+export interface AnimatedAvatarDto {
+  url: string;
+  stillUrl: string;
+  width: number;
+  height: number;
+}
+
+/** v1.136-social (D384): the VIP perk that lets a member set an animated picture. */
+export const ANIMATED_AVATAR_PERK = 'ANIMATED_AVATAR';
 
 /**
  * Editing the own profile (v1.45-social, D168, CONVENTIONS §10.42): the display name and bio of
@@ -291,6 +303,135 @@ export class ProfileEditService {
       return this.applyCoverIn(tx, userId, old, null, meta);
     });
     await this.media.deleteObjects(oldKeys);
+  }
+
+  /**
+   * v1.136-social (D384, CONVENTIONS §10.173.3): `PUT /me/animated-avatar`. Order after auth and the rate limit: limited
+   * staff (403 `avatar`) → uploads switch (503) → body → the perk (409 `VIP_UNAVAILABLE` `perk` / `no_perk` without an
+   * active VIP holding ANIMATED_AVATAR) → the asset (400 `mediaId` / `invalid_value` unless it is a READY, unattached
+   * `ANIMATED_AVATAR` of the caller from the last 24 hours). The old clip's asset is deleted in the same transaction,
+   * its objects after commit. Setting the current clip again changes nothing.
+   */
+  async setAnimatedAvatar(userId: string, body: unknown, meta: ProfileEditMeta): Promise<AnimatedAvatarDto> {
+    await refuseLimitedStaff(this.prisma, userId, 'avatar');
+    await this.media.assertEnabled();
+    const parsed = setAvatarSchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const mediaId = parsed.data.mediaId.toLowerCase();
+    if (!(await vipHoldsPerkIn(this.prisma, userId, ANIMATED_AVATAR_PERK, this.clock.now()))) {
+      throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [{ field: 'perk', issue: 'no_perk' }]);
+    }
+    let dto: AnimatedAvatarDto | null = null;
+    const oldKeys = await this.prisma.$transaction(async (tx) => {
+      const old = await this.lockAnimatedAvatar(tx, userId);
+      if (
+        old.animated_avatar_media_id === mediaId &&
+        old.animated_avatar_url &&
+        old.animated_avatar_still_url
+      ) {
+        const asset = await tx.mediaAsset.findUniqueOrThrow({
+          where: { id: mediaId },
+          select: { width: true, height: true },
+        });
+        dto = {
+          url: old.animated_avatar_url,
+          stillUrl: old.animated_avatar_still_url,
+          width: asset.width,
+          height: asset.height,
+        };
+        return [];
+      }
+      const claimed = await this.media.claimAssetsIn(tx, userId, [mediaId], 'ANIMATED_AVATAR');
+      if (!claimed) throw AppException.validation([{ field: 'mediaId', issue: 'invalid_value' }]);
+      const asset = claimed[0]!;
+      dto = {
+        url: this.media.largeUrl(asset),
+        stillUrl: this.media.thumbUrl(asset),
+        width: asset.width,
+        height: asset.height,
+      };
+      return this.applyAnimatedAvatarIn(
+        tx,
+        userId,
+        old,
+        { mediaId, url: dto.url, stillUrl: dto.stillUrl },
+        meta,
+      );
+    });
+    await this.media.deleteObjects(oldKeys);
+    return dto!;
+  }
+
+  /**
+   * v1.136-social (D384): `DELETE /me/animated-avatar` — the round photo shows again; idempotent; works without the
+   * perk (a former member deletes the kept clip) and while uploads are off.
+   */
+  async removeAnimatedAvatar(userId: string, meta: ProfileEditMeta): Promise<void> {
+    await refuseLimitedStaff(this.prisma, userId, 'avatar');
+    const oldKeys = await this.prisma.$transaction(async (tx) => {
+      const old = await this.lockAnimatedAvatar(tx, userId);
+      if (old.animated_avatar_media_id === null) return [];
+      return this.applyAnimatedAvatarIn(tx, userId, old, null, meta);
+    });
+    await this.media.deleteObjects(oldKeys);
+  }
+
+  private async lockAnimatedAvatar(
+    tx: Prisma.TransactionClient,
+    userId: string,
+  ): Promise<{
+    animated_avatar_media_id: string | null;
+    animated_avatar_url: string | null;
+    animated_avatar_still_url: string | null;
+  }> {
+    const [row] = await tx.$queryRaw<
+      {
+        animated_avatar_media_id: string | null;
+        animated_avatar_url: string | null;
+        animated_avatar_still_url: string | null;
+      }[]
+    >`
+      SELECT animated_avatar_media_id::text AS animated_avatar_media_id, animated_avatar_url, animated_avatar_still_url
+        FROM user_profiles WHERE user_id = ${userId}::uuid
+         FOR UPDATE`;
+    if (!row) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+    return row;
+  }
+
+  /** Sets (or clears) the animated picture, deletes the replaced asset's row; returns its object keys. */
+  private async applyAnimatedAvatarIn(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    old: { animated_avatar_media_id: string | null },
+    next: { mediaId: string; url: string; stillUrl: string } | null,
+    meta: ProfileEditMeta,
+  ): Promise<string[]> {
+    await tx.userProfile.update({
+      where: { userId },
+      data: {
+        animatedAvatarMediaId: next?.mediaId ?? null,
+        animatedAvatarUrl: next?.url ?? null,
+        animatedAvatarStillUrl: next?.stillUrl ?? null,
+      },
+    });
+    let oldKeys: string[] = [];
+    if (old.animated_avatar_media_id !== null) {
+      const gone = await tx.mediaAsset.delete({
+        where: { id: old.animated_avatar_media_id },
+        select: { largeKey: true, thumbKey: true },
+      });
+      oldKeys = [gone.largeKey, gone.thumbKey];
+    }
+    await this.audit.recordIn(tx, {
+      action: AuditAction.ANIMATED_AVATAR_UPDATE,
+      actorUserId: userId,
+      targetType: 'user',
+      targetId: userId,
+      metadata: { animatedAvatar: next === null ? 'removed' : 'set' },
+      ip: meta.ip,
+      requestId: meta.requestId,
+    });
+    return oldKeys;
   }
 
   private async lockCover(

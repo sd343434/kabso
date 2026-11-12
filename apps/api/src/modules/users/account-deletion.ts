@@ -480,7 +480,8 @@ export async function purgeAccountIn(
   await tx.$executeRaw`
     UPDATE user_profiles
        SET username = ${tombstone}, display_name = ${DELETED_DISPLAY_NAME}, bio = NULL, avatar_url = NULL,
-           avatar_media_id = NULL, cover_url = NULL, cover_media_id = NULL, country_code = NULL, premium_tier = NULL, gender = NULL, show_gender = FALSE,
+           avatar_media_id = NULL, cover_url = NULL, cover_media_id = NULL, animated_avatar_media_id = NULL,
+           animated_avatar_url = NULL, animated_avatar_still_url = NULL, country_code = NULL, premium_tier = NULL, gender = NULL, show_gender = FALSE,
            account_category = NULL, updated_at = ${at}::timestamptz
      WHERE user_id = ${u}`;
   const assets = await tx.$queryRaw<{ large_key: string; thumb_key: string; poster_key: string | null }[]>`

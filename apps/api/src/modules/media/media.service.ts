@@ -34,6 +34,11 @@ import {
   type VideoInfo,
   type VideoKind,
 } from './media-video.js';
+import {
+  MAX_ANIMATED_AVATAR_BYTES,
+  processAnimatedAvatar,
+  type ProcessedAnimatedAvatar,
+} from './media-animated.js';
 import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { OBJECT_STORAGE, type ObjectStorage } from './object-storage.js';
 
@@ -116,6 +121,9 @@ export const MEDIA_KINDS = [
   // v1.104-social (D339, §10.133): a group conversation's photo (a centre-cropped square, like a family emblem); attached
   // only by `createDmGroup` / `updateDmGroup`.
   'DM_GROUP_PHOTO',
+  // v1.136-social (D384, §10.173.2): the VIP animated picture — a PNG strip of square frames with alpha, re-encoded to a
+  // looping animated WebP and a still; attached only by `PUT /me/animated-avatar`.
+  'ANIMATED_AVATAR',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
@@ -134,9 +142,10 @@ export function isVoiceKind(kind: string): boolean {
   return kind === 'LIVE_CHAT_VOICE' || kind === 'DM_VOICE';
 }
 
-/** The largest upload of `kind` (images 15 MiB, voice clips 1 MiB, videos per D162). */
+/** The largest upload of `kind` (images 15 MiB, voice clips 1 MiB, videos per D162; D384's strip 8 MiB). */
 export function maxUploadBytes(kind: MediaKind): number {
   if (isVoiceKind(kind)) return MAX_VOICE_BYTES;
+  if (kind === 'ANIMATED_AVATAR') return MAX_ANIMATED_AVATAR_BYTES;
   if (isVideoKind(kind)) return VIDEO_LIMITS[kind].maxBytes;
   return MAX_IMAGE_BYTES;
 }
@@ -161,7 +170,11 @@ export const createMediaUploadSchema = z
           ? 'video'
           : 'image';
     const wanted = isVoiceKind(value.kind) ? 'audio' : isVideoKind(value.kind) ? 'video' : 'image';
-    if (family(value.contentType) !== wanted) {
+    if (
+      family(value.contentType) !== wanted ||
+      // v1.136-social (D384): the animated picture's strip is a PNG only.
+      (value.kind === 'ANIMATED_AVATAR' && value.contentType !== 'image/png')
+    ) {
       ctx.addIssue({ code: 'custom', path: ['contentType'], params: { issue: 'invalid_value' } });
     } else if (value.byteSize > maxUploadBytes(value.kind)) {
       ctx.addIssue({ code: 'custom', path: ['byteSize'], params: { issue: 'too_big' } });
@@ -433,6 +446,16 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       }
       return this.toDto(await this.storeVoice(userId, upload, bytes, clip.durationMs, kind));
     }
+    if (kind === 'ANIMATED_AVATAR') {
+      let animated: ProcessedAnimatedAvatar;
+      try {
+        animated = await processAnimatedAvatar(bytes);
+      } catch (err) {
+        if (err instanceof InvalidImageError) return fail(err.message);
+        throw err;
+      }
+      return this.toDto(await this.storeAnimatedAvatar(userId, upload, animated));
+    }
     const shape: ImageShape =
       kind === 'HOME_BANNER'
         ? 'banner'
@@ -529,6 +552,54 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn({ uploadId: upload.id, error: safeErrorLog(err) }, 'Upload object not deleted');
     });
     return asset;
+  }
+
+  /**
+   * v1.136-social (D384, §10.173.2): a checked strip, re-encoded: the looping animated WebP at `media/{id}/clip.webp`
+   * (`url`) and its first frame at `media/{id}/still.webp` (`thumbUrl`), both at the frame size; no blurhash (a cut-out
+   * has no background to hint). Idempotent with the asset id = the upload id.
+   */
+  private async storeAnimatedAvatar(
+    userId: string,
+    upload: { id: string; objectKey: string },
+    animated: ProcessedAnimatedAvatar,
+  ): Promise<MediaAsset> {
+    const largeKey = `media/${upload.id}/clip.webp`;
+    const thumbKey = `media/${upload.id}/still.webp`;
+    await this.storage.put(largeKey, animated.clip, 'image/webp', IMMUTABLE_CACHE);
+    await this.storage.put(thumbKey, animated.still, 'image/webp', IMMUTABLE_CACHE);
+    const asset = await this.prisma.$transaction(async (tx) => {
+      await tx.mediaAsset.createMany({
+        data: [
+          {
+            id: upload.id,
+            ownerId: userId,
+            kind: 'ANIMATED_AVATAR',
+            width: animated.side,
+            height: animated.side,
+            blurhash: null,
+            largeKey,
+            thumbKey,
+            byteSize: animated.clip.length,
+          },
+        ],
+        skipDuplicates: true,
+      });
+      await tx.mediaUpload.updateMany({
+        where: { id: upload.id, status: 'PENDING' },
+        data: { status: 'COMPLETED', completedAt: new Date(), mediaAssetId: upload.id },
+      });
+      return tx.mediaAsset.findUniqueOrThrow({ where: { id: upload.id } });
+    });
+    await this.storage.delete([upload.objectKey]).catch((err: unknown) => {
+      this.logger.warn({ uploadId: upload.id, error: safeErrorLog(err) }, 'Upload object not deleted');
+    });
+    return asset;
+  }
+
+  /** v1.136-social (D384): the public URL of an asset's thumbnail variant (the animated picture's still). */
+  thumbUrl(asset: Pick<MediaAsset, 'thumbKey'>): string {
+    return this.publicUrl(asset.thumbKey);
   }
 
   /** The caller's READY, unattached `VIDEO_POSTER` younger than 24 h, or null. */

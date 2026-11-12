@@ -131,6 +131,8 @@ describe('VIP helpers', () => {
       'PROFILE_VISITORS',
       'DAILY_BULLET',
       'LEVEL_SPEEDUP',
+      // v1.136-social (D384).
+      'ANIMATED_AVATAR',
     ]) {
       expect(VIP_BUILT_PERKS.has(code)).toBe(true);
       expect(vipPerkAvailable(code)).toBe(true);
@@ -138,7 +140,8 @@ describe('VIP helpers', () => {
     expect(vipPerkAvailable('MONTHLY_GIFT')).toBe(false);
     // D374: the owner removed DAILY_COINS («ازلها»): no longer built.
     expect(vipPerkAvailable('DAILY_COINS')).toBe(false);
-    expect(VIP_BUILT_PERKS.size).toBe(11);
+    // D374's eleven + D384's ANIMATED_AVATAR.
+    expect(VIP_BUILT_PERKS.size).toBe(12);
   });
 
   it("D258: a tier holds every lower tier's perks; the highest tier's perk wins for a code", () => {

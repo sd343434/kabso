@@ -388,49 +388,56 @@ model User {
 }
 
 model UserProfile {
-  userId              String               @id @map("user_id") @db.Uuid
+  userId                 String               @id @map("user_id") @db.Uuid
   /// Lowercase; format enforced by CHECK constraint `user_profiles_username_format`.
-  username            String               @unique @db.VarChar(30)
+  username               String               @unique @db.VarChar(30)
   /// ≤ 100 code points, 1–50 grapheme clusters (contract v1.2 §6).
-  displayName         String               @map("display_name") @db.VarChar(100)
-  bio                 String?              @db.VarChar(300)
-  avatarUrl           String?              @map("avatar_url") @db.VarChar(2048)
+  displayName            String               @map("display_name") @db.VarChar(100)
+  bio                    String?              @db.VarChar(300)
+  avatarUrl              String?              @map("avatar_url") @db.VarChar(2048)
   /// v1.72-live (D283, §10.96.10): `avatar_url` is the Kabso Team's fixed picture while the account is limited staff
   /// (MODERATION / SUPPORT / FINANCE, not OWNER); the person's own photo URL waits in `staff_saved_avatar_url`.
-  staffAvatar         Boolean              @default(false) @map("staff_avatar")
-  staffSavedAvatarUrl String?              @map("staff_saved_avatar_url") @db.VarChar(2048)
+  staffAvatar            Boolean              @default(false) @map("staff_avatar")
+  staffSavedAvatarUrl    String?              @map("staff_saved_avatar_url") @db.VarChar(2048)
   /// v1.45-social (D168): the user's profile photo when it was uploaded (an `AVATAR` asset); its
   /// 640 px URL is `avatarUrl`. CHECK `user_profiles_avatar_media_has_url`.
-  avatarMediaId       String?              @unique @map("avatar_media_id") @db.Uuid
+  avatarMediaId          String?              @unique @map("avatar_media_id") @db.Uuid
   /// v1.76-social (D218, §10.73.3): the profile cover (a `PROFILE_COVER` asset) and its 1 080 px URL; both null
   /// (the app's Kabso gradient) or both set (CHECK `user_profiles_cover_media_has_url`).
-  coverMediaId        String?              @unique @map("cover_media_id") @db.Uuid
-  coverUrl            String?              @map("cover_url") @db.VarChar(2048)
-  locale              String               @default("ar") @db.VarChar(8)
+  coverMediaId           String?              @unique @map("cover_media_id") @db.Uuid
+  coverUrl               String?              @map("cover_url") @db.VarChar(2048)
+  /// v1.136-social (D384, §10.173): the VIP animated cut-out picture «صورة متحركة» (an `ANIMATED_AVATAR` asset), its
+  /// looping animated WebP and its first frame; all three null or all set (CHECK `user_profiles_animated_avatar_shape`).
+  /// Kept when the VIP ends: the API shows it only while the ANIMATED_AVATAR perk is held.
+  animatedAvatarMediaId  String?              @unique @map("animated_avatar_media_id") @db.Uuid
+  animatedAvatarUrl      String?              @map("animated_avatar_url") @db.VarChar(2048)
+  animatedAvatarStillUrl String?              @map("animated_avatar_still_url") @db.VarChar(2048)
+  locale                 String               @default("ar") @db.VarChar(8)
   /// v1.27.1-live (D133): the user's own country (ISO 3166-1 alpha-2, upper case), or null (none set;
   /// never inferred). CHECK `user_profiles_country_code_format`. Decides `scope=nearby` (§10.28).
-  countryCode         String?              @map("country_code") @db.Char(2)
+  countryCode            String?              @map("country_code") @db.Char(2)
   /// v1.28-live (D146): the tier of the premium username the user has now (set and cleared with
   /// `username` by the premium-usernames module); null for a regular username.
-  premiumTier         PremiumUsernameTier? @map("premium_tier")
+  premiumTier            PremiumUsernameTier? @map("premium_tier")
   /// v1.47-social (D175): chosen at sign-up (null for accounts created before, and social sign-in,
   /// until set). Private unless `showGender` (owner: private by default).
-  gender              Gender?
-  showGender          Boolean              @default(false) @map("show_gender")
+  gender                 Gender?
+  showGender             Boolean              @default(false) @map("show_gender")
   /// v1.47-social (D175): the account category shown under the name; optional.
-  category            AccountCategory?     @map("account_category")
+  category               AccountCategory?     @map("account_category")
   /// v1.85-social (D278b, §10.99): the profile tags «منشنات», in order; 0–10 (CHECK
   /// `user_profiles_tags_count`), each 1–24 code points (the app's `PATCH /me` rules).
-  tags                String[]             @default([]) @db.VarChar(24)
+  tags                   String[]             @default([]) @db.VarChar(24)
   /// v1.91-social (D292, §10.106): the icon of each tag (a closed set, or `flag:<country>`); empty (rows before
   /// v1.91-social) or one per tag (CHECK `user_profiles_tag_icons_len`).
-  tagIcons            String[]             @default([]) @map("tag_icons") @db.VarChar(24)
-  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tagIcons               String[]             @default([]) @map("tag_icons") @db.VarChar(24)
+  createdAt              DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  avatarMedia MediaAsset? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: NoAction)
-  coverMedia  MediaAsset? @relation("ProfileCover", fields: [coverMediaId], references: [id], onDelete: NoAction)
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatarMedia         MediaAsset? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: NoAction)
+  coverMedia          MediaAsset? @relation("ProfileCover", fields: [coverMediaId], references: [id], onDelete: NoAction)
+  animatedAvatarMedia MediaAsset? @relation("ProfileAnimatedAvatar", fields: [animatedAvatarMediaId], references: [id], onDelete: NoAction)
 
   @@map("user_profiles")
 }
@@ -1877,35 +1884,37 @@ model MediaAsset {
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   attachedAt DateTime? @map("attached_at") @db.Timestamptz(3)
 
-  owner           User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  upload          MediaUpload?
-  postMedia       PostMedia?
-  story           Story?
-  liveCover       LiveHost?
-  chatMessage     LiveChatMessage?
+  owner                 User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  upload                MediaUpload?
+  postMedia             PostMedia?
+  story                 Story?
+  liveCover             LiveHost?
+  chatMessage           LiveChatMessage?
   /// CP-018: a family's emblem.
-  familyEmblem    Family?
+  familyEmblem          Family?
   /// CP-022: a family's cover.
-  familyCover     Family?            @relation("FamilyCover")
+  familyCover           Family?            @relation("FamilyCover")
   /// D124: a home banner's picture (v1.97-social, D303: a video banner's poster).
-  homeBanner      HomeBanner?        @relation("HomeBannerMedia")
+  homeBanner            HomeBanner?        @relation("HomeBannerMedia")
   /// v1.97-social (D303): a video banner's `BANNER_VIDEO`.
-  homeBannerVideo HomeBanner?        @relation("HomeBannerVideo")
+  homeBannerVideo       HomeBanner?        @relation("HomeBannerVideo")
   /// v1.101-social (D325): the event whose Live home banner this is (before publish).
-  eventBanners    Event[]            @relation("EventBannerMedia")
+  eventBanners          Event[]            @relation("EventBannerMedia")
   /// D155: a direct message's picture or voice clip.
-  dmMessage       DmMessage?
+  dmMessage             DmMessage?
   /// v1.104-social (D339): a group message's picture or voice clip, and a group's photo.
-  dmGroupMessage  DmGroupMessage?
-  dmGroupPhoto    DmGroup?           @relation("DmGroupPhoto")
+  dmGroupMessage        DmGroupMessage?
+  dmGroupPhoto          DmGroup?           @relation("DmGroupPhoto")
   /// D168: a profile photo.
-  profileAvatar   UserProfile?       @relation("ProfileAvatar")
+  profileAvatar         UserProfile?       @relation("ProfileAvatar")
   /// D218: a profile cover.
-  profileCover    UserProfile?       @relation("ProfileCover")
+  profileCover          UserProfile?       @relation("ProfileCover")
+  /// D384: a VIP animated picture.
+  profileAnimatedAvatar UserProfile?       @relation("ProfileAnimatedAvatar")
   /// v1.89-social (D290): the video of a level-raise request.
-  levelRaise      LevelRaiseRequest?
+  levelRaise            LevelRaiseRequest?
   /// v1.95-social (D301): the owner's cover video (one language).
-  ownerCoverVideo OwnerCoverVideo?
+  ownerCoverVideo       OwnerCoverVideo?
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")
@@ -2484,6 +2493,8 @@ enum NotificationType {
   EVENT_PRIZE_WON
   /// v1.101-social (D325, system; target EVENT): an event for the person's audience started (once per person and event).
   EVENT_STARTED
+  /// v1.136-social (D384, §10.173.5, system, no target): a moderator removed the VIP animated picture.
+  ANIMATED_AVATAR_REMOVED
 
   @@map("notification_type")
 }

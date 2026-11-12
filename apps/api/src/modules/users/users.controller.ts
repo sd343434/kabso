@@ -13,6 +13,7 @@ import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import { Public } from '../auth/public.decorator.js';
 import {
   ProfileEditService,
+  type AnimatedAvatarDto,
   type AvatarDto,
   type CoverDto,
   type ProfileEditMeta,
@@ -170,5 +171,37 @@ export class CoverController {
   @RateLimit(COVER)
   async removeCover(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest): Promise<void> {
     await this.profiles.removeCover(auth.userId, meta(req));
+  }
+}
+
+/** v1.136-social (D384, §7): `PUT` and `DELETE /me/animated-avatar` share the avatar's rule in their own bucket. */
+const ANIMATED_AVATAR = {
+  bucket: 'me:animated-avatar',
+  rule: 'avatarUser',
+  key: byUserId,
+  replacesDefault: true,
+} as const;
+
+/** The caller's VIP animated picture «صورة متحركة» (v1.136-social, D384, CONVENTIONS §10.173.3). */
+@Controller('me/animated-avatar')
+export class AnimatedAvatarController {
+  constructor(private readonly profiles: ProfileEditService) {}
+
+  @Put()
+  @HttpCode(200)
+  @RateLimit(ANIMATED_AVATAR)
+  setAnimatedAvatar(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Body() body: unknown,
+  ): Promise<AnimatedAvatarDto> {
+    return this.profiles.setAnimatedAvatar(auth.userId, body, meta(req));
+  }
+
+  @Delete()
+  @HttpCode(204)
+  @RateLimit(ANIMATED_AVATAR)
+  async removeAnimatedAvatar(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest): Promise<void> {
+    await this.profiles.removeAnimatedAvatar(auth.userId, meta(req));
   }
 }

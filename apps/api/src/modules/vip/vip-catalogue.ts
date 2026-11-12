@@ -205,6 +205,21 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     art: null,
   },
   {
+    // v1.136-social (D384, owner 2026-11-12, CONVENTIONS §10.173): the member's own short clip with its background
+    // removed on the phone, looping above the name on the person card instead of the round photo. No value and no art
+    // of the tier (a tick only, D374): the member uploads the clip (`PUT /me/animated-avatar`).
+    code: 'ANIMATED_AVATAR',
+    category: 'IDENTITY',
+    titleAr: 'صورة متحركة',
+    titleEn: 'Animated picture',
+    descriptionAr: 'صورتك مقطع قصير متحرك بلا خلفية فوق اسمك في بطاقة الشخص.',
+    descriptionEn:
+      'Your picture as a short moving clip without its background, above your name on the person card.',
+    built: true,
+    value: NONE,
+    art: null,
+  },
+  {
     code: 'GLOWING_NAME',
     category: 'IDENTITY',
     titleAr: 'اسم متوهج',

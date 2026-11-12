@@ -615,6 +615,19 @@ info:
     (`POST /admin/users/{userId}/recharge-points/adjustments`, audited `recharge_points.adjust`). A reversed top-up or
     a refunded store purchase takes its points back (the balance may go below 0). Migration
     `20270430090000_recharge_points`. Additive (an older app sends no `payWith` and buys with coins as before).
+    **D384 (DRAFT v1.136-social)** the VIP «صورة متحركة» — an animated cut-out picture on the person card (CONVENTIONS
+    §10.173; owner 2026-11-12: «انتبه جيداً لطريقة الصورة شخصية», then: an animated cut-out clip, a VIP perk): the
+    catalogue gains `ANIMATED_AVATAR` (IDENTITY, value none, no art, built). The member records a short clip on the
+    phone; the app removes the background on the device (person segmentation) and uploads the frames as one PNG strip,
+    `MediaKind` `ANIMATED_AVATAR` (`image/png`, ≤ 8 MiB; square frames 64–512 px, 2–36 frames, 12 a second, alpha
+    required), which the server checks and re-encodes into a looping animated WebP with alpha (≤ 1.5 MiB) and a still
+    of the first frame. `setMyAnimatedAvatar` (`PUT /me/animated-avatar`, `SetAnimatedAvatarRequest`, `AnimatedAvatar`;
+    409 `VIP_UNAVAILABLE` `perk` / `no_perk` without the perk) and `removeMyAnimatedAvatar` (`DELETE`, idempotent).
+    `PublicProfile.animatedAvatar` is present only while the person holds the perk (inherited, D258) and has a clip,
+    and never across a block either way; the clip is kept when the VIP ends and shows again on renewal. Staff take it
+    down with `removeAdminUserAnimatedAvatar` (`users.avatar`, audited `admin.animated_avatar.remove`, notification
+    `ANIMATED_AVATAR_REMOVED`); `AdminUserDetail.user.animatedAvatarUrl`. Migrations
+    `20270514090000_vip_animated_avatar_enums`, `20270514090100_vip_animated_avatar`. Additive.
     **D383 (DRAFT v1.135-social)** the person card redesigned and the VIP `PROFILE_CARD` perk redefined (CONVENTIONS
     §10.172; owner 2026-11-12: «الغاء فكرة صندوق او إطار بطاقة الملف التعريفية» — no box or frame around the person
     card; then «لا ستكون موجودة بحيث ستكون مثلاً تغير لون خلفية او تكون خلفية فيها عناصر متحركة»): `PROFILE_CARD` stays
@@ -2223,6 +2236,49 @@ paths:
       description: |
         CONVENTIONS §10.73.3. `coverUrl` becomes null and the `PROFILE_COVER` asset is deleted. Works while uploads
         are off. No cover → 204 too. Same rate limit as `setMyCover`.
+      responses:
+        '204': { description: Removed (or there was none). }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/animated-avatar:
+    put:
+      tags: [me]
+      operationId: setMyAnimatedAvatar
+      summary: "Set the caller's animated cut-out picture «صورة متحركة» (v1.136-social, D384, VIP perk ANIMATED_AVATAR)"
+      description: |
+        CONVENTIONS §10.173. Order after auth and the rate limit (the avatar's rule, own bucket): limited staff (403
+        `STAFF_ACCOUNT_LIMITED` `avatar`) → `MEDIA_UPLOADS_ENABLED` (503 `MEDIA_UPLOADS_UNAVAILABLE`) → body → the perk:
+        an active VIP holding `ANIMATED_AVATAR` (on the tier or one below it), else 409 `VIP_UNAVAILABLE` `perk` /
+        `no_perk` → the asset: a READY, unattached `ANIMATED_AVATAR` asset of the caller from the last 24 hours, else
+        400 `mediaId` / `invalid_value`. The clip replaces the previous one (whose asset is deleted). Setting the
+        current clip again changes nothing. Visible at once; reports (`USER`) and moderators handle abuse
+        (`removeAdminUserAnimatedAvatar`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetAnimatedAvatarRequest' }
+      responses:
+        '200':
+          description: The clip now in use.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnimatedAvatar' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [me]
+      operationId: removeMyAnimatedAvatar
+      summary: "Remove the caller's animated picture; the round photo shows again (v1.136-social, D384, idempotent)"
+      description: |
+        CONVENTIONS §10.173. The clip's `ANIMATED_AVATAR` asset is deleted. Works without the perk (after the VIP
+        ended) and while uploads are off. No clip → 204 too. Same rate limit as `setMyAnimatedAvatar`.
       responses:
         '204': { description: Removed (or there was none). }
         '401': { $ref: '#/components/responses/Error' }
@@ -12620,6 +12676,32 @@ paths:
       operationId: removeAdminUserCover
       summary: "Removes the profile cover — the `profile-admin remove-cover` rule (users.avatar; reason required; audited) (v1.76-social, D218)"
       description: "(v1.76-social, D218) CONVENTIONS §10.73.3. The user is told (`COVER_REMOVED`); the profile shows the Kabso gradient; the files are deleted from storage after. Audited `admin.cover.remove`. 409 `ADMIN_ACTION_REFUSED` when there is no cover."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Removed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAvatarRemoved' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/animated-avatar/remove:
+    post:
+      tags: [admin-panel]
+      operationId: removeAdminUserAnimatedAvatar
+      summary: "Removes the VIP animated picture «صورة متحركة» (users.avatar; reason required; audited) (v1.136-social, D384)"
+      description: "(v1.136-social, D384) CONVENTIONS §10.173.5. The clip goes (the person card shows the round photo again), the user is told (`ANIMATED_AVATAR_REMOVED`), the files are deleted from storage after. Audited `admin.animated_avatar.remove`. 409 `ADMIN_ACTION_REFUSED` when there is no clip."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminUserIdPath'
@@ -26395,6 +26477,7 @@ components:
             email: { type: string }
             status: { type: string, enum: [ACTIVE, SUSPENDED, PENDING_DELETION, DELETED] }
             avatarUrl: { type: [string, 'null'] }
+            animatedAvatarUrl: { type: string, format: uri, description: "(v1.136-social, D384, §10.173.5) The person's VIP animated picture (the looping WebP), present only when they have one — whether or not they hold the perk now. «حذف الصورة المتحركة» removes it." }
             createdAt: { type: string, format: date-time }
             role: { type: string, enum: [USER, ADMIN] }
             lastActiveAt: { type: [string, 'null'], format: date-time }
@@ -33094,6 +33177,9 @@ components:
       type: object
       required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe, verification]
       properties:
+        animatedAvatar:
+          $ref: '#/components/schemas/AnimatedAvatar'
+          description: "(v1.136-social, D384, §10.173) The VIP animated cut-out picture — present only while the person holds an active VIP with the ANIMATED_AVATAR perk (inherited) and has set a clip, and never when either of the two blocked the other or for a limited Kabso Team account. The person card shows it above the name instead of the round photo. Absent otherwise (the clip is kept when the VIP ends and shows again on renewal)."
         kabsoOwner:
           type: boolean
           const: true
@@ -35843,8 +35929,9 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE, PROFILE_COVER, LEVEL_RAISE_VIDEO, PROFILE_COVER_VIDEO, OWNER_FEEDBACK_IMAGE, DM_GROUP_PHOTO]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE, PROFILE_COVER, LEVEL_RAISE_VIDEO, PROFILE_COVER_VIDEO, OWNER_FEEDBACK_IMAGE, DM_GROUP_PHOTO, ANIMATED_AVATAR]
       description: |
+        (v1.136-social, D384, §10.173.2) `ANIMATED_AVATAR`: the VIP animated cut-out picture — `image/png` only, ≤ 8 MiB: a vertical strip of 2–36 square frames (64–512 px wide, height = frames × width) with alpha, 12 frames a second; re-encoded into a looping animated WebP (≤ 1.5 MiB) and a still of the first frame; attached only by `setMyAnimatedAvatar`. Anything else → `completeMediaUpload` 400 `MEDIA_INVALID`.
         (v1.104-social, D339, §10.133) `DM_GROUP_PHOTO`: a group conversation's photo (a centre-cropped square like `FAMILY_EMBLEM`; attached by `createDmGroup` / `updateDmGroup`).
         (v1.95-social, D301, §10.112) `PROFILE_COVER_VIDEO`: the owner's cover video (like a reel's: ≤ 100 MiB, ≤ 60 s, a poster; owner only, else 403 `OWNER_ONLY`); `OWNER_FEEDBACK_IMAGE`: a private picture of «اقترح ميزة / أبلغ عن موظف» (never completed, consumed by `createOwnerFeedback`).
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
@@ -35878,7 +35965,8 @@ components:
             `audio/mp4` (AAC in MPEG-4, `.m4a`) is for `LIVE_CHAT_VOICE` and (D155) `DM_VOICE` only,
             and those kinds take nothing else (CP-017; else `invalid_value`). (v1.41-social, D162)
             `video/mp4` and `video/quicktime` are for `POST_VIDEO` and `REEL_VIDEO` only, and those
-            kinds take nothing else (else `invalid_value`).
+            kinds take nothing else (else `invalid_value`). (v1.136-social, D384) `ANIMATED_AVATAR` takes
+            `image/png` only (else `invalid_value`).
         byteSize:
           type: integer
           minimum: 1
@@ -35886,7 +35974,7 @@ components:
           description: |
             At most 15 728 640 (15 MiB) for images, 1 048 576 for `LIVE_CHAT_VOICE` and `DM_VOICE`,
             (v1.41-social, D162) 104 857 600 (100 MiB) for `REEL_VIDEO` and 209 715 200 (200 MiB)
-            for `POST_VIDEO` (else `too_big`).
+            for `POST_VIDEO` (else `too_big`). (v1.136-social, D384) 8 388 608 (8 MiB) for `ANIMATED_AVATAR`.
     CompleteMediaUploadRequest:
       type: object
       additionalProperties: false
@@ -36053,6 +36141,22 @@ components:
       required: [coverUrl]
       properties:
         coverUrl: { type: string, format: uri, description: "v1.76-social (D218). WebP, long side 1 080 px (smaller if the picture was); the app covers the banner area." }
+    SetAnimatedAvatarRequest:
+      type: object
+      additionalProperties: false
+      required: [mediaId]
+      properties:
+        mediaId: { type: string, format: uuid, description: "v1.136-social (D384). A READY, unattached ANIMATED_AVATAR asset of the caller." }
+    AnimatedAvatar:
+      type: object
+      additionalProperties: false
+      required: [url, stillUrl, width, height]
+      description: "(v1.136-social, D384, §10.173) The VIP animated cut-out picture «صورة متحركة»: a looping animated WebP with alpha (the person, background removed on the phone) and its first frame as a still WebP (reduced motion, «إخفاء المؤثرات»). Square frames."
+      properties:
+        url: { type: string, format: uri, description: "The looping animated WebP (12 frames a second, at most 36 frames, ≤ 1.5 MiB)." }
+        stillUrl: { type: string, format: uri, description: The first frame, a still WebP of the same size. }
+        width: { type: integer, minimum: 64, maximum: 512 }
+        height: { type: integer, minimum: 64, maximum: 512 }
     PostText:
       type: string
       maxLength: 2200
@@ -36408,8 +36512,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED]
+      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». (v1.136-social, D384) `ANIMATED_AVATAR_REMOVED` (system, no target): a moderator removed your VIP animated picture «صورة متحركة» (§10.173.5); the app opens the VIP page. Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED, ANIMATED_AVATAR_REMOVED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]

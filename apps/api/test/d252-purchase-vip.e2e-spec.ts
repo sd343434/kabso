@@ -186,6 +186,8 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
     expect(empty.body).toMatchObject({
       data: [],
       builtPerks: [
+        // v1.136-social (D384).
+        'ANIMATED_AVATAR',
         'AVATAR_FRAME',
         'BADGE',
         'CHAT_BUBBLE',

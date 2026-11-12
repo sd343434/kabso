@@ -29,6 +29,8 @@ const BUILT = [
   'DAILY_BULLET',
   'PROFILE_VISITORS',
   'LEVEL_SPEEDUP',
+  // v1.136-social (D384): the VIP animated picture.
+  'ANIMATED_AVATAR',
 ];
 /** The owner's new perks (D374), registered not built. */
 const NEW = [
@@ -67,7 +69,7 @@ const NEW = [
 const issues = (code: string, value: unknown) => vipPerkValueIssues(code, value).map((i) => i.issue);
 
 describe('D374 VIP perk catalogue', () => {
-  it("holds the owner's list: eleven built, thirty new ones not built, MONTHLY_GIFT; codes unique; DAILY_COINS removed", () => {
+  it("holds the owner's list: eleven built (twelve with D384's ANIMATED_AVATAR), thirty new ones not built, MONTHLY_GIFT; codes unique; DAILY_COINS removed", () => {
     const codes = VIP_PERK_CATALOGUE.map((e) => e.code);
     expect(new Set(codes).size).toBe(codes.length);
     expect([...VIP_CATALOGUE_BUILT].sort()).toEqual([...BUILT].sort());

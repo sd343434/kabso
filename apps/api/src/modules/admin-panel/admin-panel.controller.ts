@@ -245,6 +245,18 @@ export class AdminUsersController {
     return this.users.removeCover(pathUuid(userId), body.reason, admin);
   }
 
+  /** v1.136-social (D384, §10.173.5): take a violating VIP animated picture down (the avatar's capability). */
+  @Post('users/:userId/animated-avatar/remove')
+  @HttpCode(200)
+  @RequireCapability('users.avatar')
+  removeAnimatedAvatar(
+    @Param('userId') userId: string,
+    @Body(new ZodValidationPipe(reasonSchema)) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.users.removeAnimatedAvatar(pathUuid(userId), body.reason, admin);
+  }
+
   @Post('users/:userId/special-username')
   @HttpCode(200)
   @RequireCapability('users.special_username')
