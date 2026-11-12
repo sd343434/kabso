@@ -249,7 +249,7 @@ Map<String, dynamic>? userVipToJson(UserVip? vip) => vip == null
           'rank': vip.rank,
           'color': '#${_hex6(vip.color)}',
           if (vip.off.isNotEmpty) 'off': [...vip.off],
-          if (vip.signature case final s?) 'signature': s,
+          'signature': ?vip.signature,
         },
         if (vip.store.isNotEmpty) 'wear': storeWearToJson(vip.store),
       };

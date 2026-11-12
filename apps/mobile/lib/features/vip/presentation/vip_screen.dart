@@ -21,6 +21,7 @@ import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_carousel.dart';
+import 'package:kabso_live/features/vip/presentation/vip_identity_screen.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_ref_parts.dart';
 import 'package:kabso_live/features/wallet/application/wallet_providers.dart';
@@ -91,6 +92,7 @@ class VipScreen extends ConsumerStatefulWidget {
 
   /// D258: «من زار ملفي» in the member's sheet.
   static const visitorsKey = Key('vip.visitors');
+  static const identityKey = Key('vip.identity');
   static const Key emblemKey = VipTierCard.emblemKey;
   static const ctaKey = Key('vip.cta');
   static const barKey = Key('vip.bar');
@@ -514,6 +516,28 @@ class _VipScreenState extends ConsumerState<VipScreen> {
                     },
                   ),
                 ],
+                // D378: «هويتي المميزة» (signature, golden ID, username).
+                if (VipIdentityScreen.hasAny(
+                  vipLookOf(
+                    UserVip(
+                      tier: membership.tierCode,
+                      rank: 0,
+                      color: membership.tierColor,
+                    ),
+                    ref.read(vipTiersProvider).value,
+                  ),
+                ))
+                  ListTile(
+                    key: VipScreen.identityKey,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.badge_outlined),
+                    title: Text(context.l10n.vipIdentityEntry),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.of(sheet).pop();
+                      unawaited(context.push(AppRoutes.vipIdentity));
+                    },
+                  ),
                 // D374: the daily coins row is gone (the owner removed
                 // DAILY_COINS, 2026-11-11).
               ],

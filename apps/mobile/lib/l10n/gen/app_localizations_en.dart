@@ -18039,4 +18039,136 @@ class AppLocalizationsEn extends AppLocalizations {
   String vipPointsPer(String days) {
     return 'points / $days days';
   }
+
+  @override
+  String get vipIdentityEntry => 'My VIP identity';
+
+  @override
+  String get vipIdentityTitle => 'My VIP identity';
+
+  @override
+  String get vipIdentityNoneTitle => 'No identity perks in your tier';
+
+  @override
+  String get vipIdentityNoneMessage =>
+      'The signature, golden ID and premium username come with the VIP tiers that include them.';
+
+  @override
+  String get vipIdentityNotHeld =>
+      'This perk is not part of your membership now.';
+
+  @override
+  String get vipIdentityNotYourClass => 'This is outside your tier\'s class.';
+
+  @override
+  String get vipIdentitySave => 'Save';
+
+  @override
+  String get vipIdentitySaved => 'Saved';
+
+  @override
+  String get vipSignatureTitle => 'Animated signature';
+
+  @override
+  String vipSignatureSubtitle(int max) {
+    return 'Shown under your posts and public messages, up to $max characters.';
+  }
+
+  @override
+  String get vipSignatureHint => 'Write your signature';
+
+  @override
+  String get vipSignatureClear => 'Remove';
+
+  @override
+  String get vipSignatureCleared => 'Signature removed';
+
+  @override
+  String get vipSignatureBlocked =>
+      'The signature has a word that is not allowed.';
+
+  @override
+  String vipSignatureTooLong(int max) {
+    return 'The signature is longer than $max characters.';
+  }
+
+  @override
+  String get vipSignatureTooShort => 'Write the signature first.';
+
+  @override
+  String get vipSignatureInvalid =>
+      'The signature is one line without hidden characters.';
+
+  @override
+  String vipSignatureSemantics(String text) {
+    return 'Signature: $text';
+  }
+
+  @override
+  String get vipGoldenIdTitle => 'Golden ID';
+
+  @override
+  String vipGoldenIdSubtitle(String cls) {
+    return 'Pick a free number of the class: $cls';
+  }
+
+  @override
+  String get vipGoldenIdNoClass => 'No class is set on this perk yet.';
+
+  @override
+  String get vipGoldenIdNoneFree => 'No free numbers of your class right now.';
+
+  @override
+  String vipGoldenIdPick(String number) {
+    return 'Take $number';
+  }
+
+  @override
+  String get vipGoldenIdTaken => 'This number is taken.';
+
+  @override
+  String vipGoldenIdTaken2(String number) {
+    return '$number is now your golden ID';
+  }
+
+  @override
+  String get vipGoldenIdRelease => 'Give back';
+
+  @override
+  String get vipGoldenIdReleased => 'Number given back';
+
+  @override
+  String get vipGoldenIdGrace =>
+      'Kept for you after your membership; renew VIP to get it back before it returns to the stock.';
+
+  @override
+  String get vipGoldenIdHint => 'golden ID';
+
+  @override
+  String get vipGoldenClassRepeated => 'Repeated digit';
+
+  @override
+  String vipGoldenClassDigits(int n) {
+    return '$n digits';
+  }
+
+  @override
+  String get vipPremiumTitle => 'Free premium username';
+
+  @override
+  String get vipPremiumSubtitle =>
+      'Pick a premium username of your tier\'s class or lower; it stays yours for the membership.';
+
+  @override
+  String get vipPremiumNone => 'No names available right now.';
+
+  @override
+  String vipPremiumClaim(String username) {
+    return 'Take $username free';
+  }
+
+  @override
+  String vipPremiumClaimed(String username) {
+    return '$username is now your username';
+  }
 }

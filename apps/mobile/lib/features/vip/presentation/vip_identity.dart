@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -25,7 +26,7 @@ bool vipMotionAllowed(BuildContext context) =>
     VipAnimatedArt.animationsEnabled &&
     !(MediaQuery.maybeDisableAnimationsOf(context) ?? false);
 
-// ---- ANIMATED_COVER -----------------------------------------------------------------------------
+// ---- ANIMATED_COVER ---------------------------------------------------------
 
 /// D378 (§10.168.1, ANIMATED_COVER): the tier's cover art (SVGA / MP4 /
 /// still, 1080 × 720) across the profile's cover while the member holds the
@@ -67,7 +68,7 @@ class VipAnimatedCover extends ConsumerWidget {
   }
 }
 
-// ---- GOLDEN_ID ----------------------------------------------------------------------------------
+// ---- GOLDEN_ID --------------------------------------------------------------
 
 /// D378 (§10.168.4, GOLDEN_ID): the golden ID «آيدي ذهبي» as the gold
 /// special-ID pill the staff IDs wear (D299h, [KStaffIdText]) — «ID 8888»,
@@ -103,7 +104,7 @@ class VipGoldenIdChip extends StatelessWidget {
   }
 }
 
-// ---- ANIMATED_SIGNATURE -------------------------------------------------------------------------
+// ---- ANIMATED_SIGNATURE -----------------------------------------------------
 
 /// Geometry of the signature line.
 abstract final class KVipSignature {
@@ -164,9 +165,8 @@ class _VipSignatureLineState extends ConsumerState<VipSignatureLine>
     final art = perk != null && (perk.still != null || perk.animation != null);
     final (top, bottom) = look.bubbleShades;
     final ink = vipNameTint(look.color);
-    final scaler = MediaQuery.textScalerOf(
-      context,
-    ).clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
     final label = Text(
       // A mixed-direction signature keeps its order.
       KFormat.bidiIsolate(text),
@@ -182,7 +182,7 @@ class _VipSignatureLineState extends ConsumerState<VipSignatureLine>
         shadows: const [Shadow(color: Color(0x99000000), blurRadius: 2)],
       ),
     );
-    final Widget swept = motion
+    final swept = motion
         ? AnimatedBuilder(
             animation: _sweep,
             child: label,
@@ -266,7 +266,7 @@ class _VipSignatureLineState extends ConsumerState<VipSignatureLine>
   }
 }
 
-// ---- STORY_RING ---------------------------------------------------------------------------------
+// ---- STORY_RING -------------------------------------------------------------
 
 /// D378 (§10.168.7, STORY_RING): the ring's colours along its sweep — the
 /// perk's colour (or the tier's), a light tint of it and back — or null
@@ -314,7 +314,7 @@ class VipStoryRingPainter extends CustomPainter {
       old.opacity != opacity;
 }
 
-/// D378 (STORY_RING): [child] (the picture, [imageSize] across) in the
+/// D378 (STORY_RING): [child] (the picture) in the
 /// member's ring — painted in the perk's colour, with the perk's art (300 ×
 /// 300, its SVGA playing) over it when uploaded — [outerSize] across. A seen
 /// story's ring is dimmed. Without the perk: [fallback].
@@ -381,7 +381,7 @@ class VipStoryRing extends ConsumerWidget {
   }
 }
 
-// ---- GLOWING_NAME -------------------------------------------------------------------------------
+// ---- GLOWING_NAME -----------------------------------------------------------
 
 /// D378 (§10.168.9, GLOWING_NAME): a glow in the tier's colour around a
 /// member's name in the live chat, breathing slowly (1.8 s); reduce motion
@@ -417,9 +417,7 @@ class _VipGlowingNameState extends ConsumerState<VipGlowingName>
   @override
   Widget build(BuildContext context) {
     final look = ref.watch(vipLookProvider(widget.vip));
-    if (look == null ||
-        !look.vip.member ||
-        !look.has(VipPerks.glowingName)) {
+    if (look == null || !look.vip.member || !look.has(VipPerks.glowingName)) {
       if (_pulse.isAnimating) _pulse.stop();
       return widget.child;
     }
@@ -470,7 +468,7 @@ class _VipGlowingNameState extends ConsumerState<VipGlowingName>
   }
 }
 
-// ---- DM_BUBBLE ----------------------------------------------------------------------------------
+// ---- DM_BUBBLE --------------------------------------------------------------
 
 /// D378 (§10.168.10, DM_BUBBLE; owner: «هي نفس فقاعة التكست»): a member's
 /// direct-message bubble in their tier's chat bubble — the CHAT_BUBBLE

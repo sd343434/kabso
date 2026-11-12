@@ -377,6 +377,10 @@ abstract final class AppRoutes {
   /// D258: «من زار ملفي» (members holding PROFILE_VISITORS).
   static const vipVisitors = '/vip/visitors';
 
+  /// D378: «هويتي المميزة» — the signature, golden ID and VIP premium
+  /// username (members holding one of them).
+  static const vipIdentity = '/vip/identity';
+
   /// The page of event [eventId].
   static String event(String eventId) =>
       '/events/${Uri.encodeComponent(eventId)}';

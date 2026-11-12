@@ -7,13 +7,13 @@ import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/premium/domain/premium_models.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_identity_repository.dart';
-import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -93,8 +93,7 @@ class VipIdentityScreen extends ConsumerWidget {
                     const _GoldenIdCard(),
                     const SizedBox(height: KSpacing.md),
                   ],
-                  if (look.has(VipPerks.premiumUsername))
-                    const _PremiumCard(),
+                  if (look.has(VipPerks.premiumUsername)) const _PremiumCard(),
                 ],
               ),
       ),
@@ -144,10 +143,9 @@ class _Card extends StatelessWidget {
   }
 }
 
-void _say(BuildContext context, String text) =>
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+void _say(BuildContext context, String text) => ScaffoldMessenger.of(context)
+  ..hideCurrentSnackBar()
+  ..showSnackBar(SnackBar(content: Text(text)));
 
 /// The message for a refused identity call.
 String _refusal(AppLocalizations l10n, Object error) {
@@ -167,7 +165,7 @@ String _refusal(AppLocalizations l10n, Object error) {
   };
 }
 
-// ---- ANIMATED_SIGNATURE -------------------------------------------------------------------------
+// ---- ANIMATED_SIGNATURE -----------------------------------------------------
 
 class _SignatureCard extends ConsumerStatefulWidget {
   const new({required this.look});
@@ -205,7 +203,10 @@ class _SignatureCardState extends ConsumerState<_SignatureCard> {
       });
       final me = ref.read(currentUserProvider)?.username;
       if (me != null) ref.invalidate(publicProfileProvider(me));
-      _say(context, stored == null ? l10n.vipSignatureCleared : l10n.saved);
+      _say(
+        context,
+        stored == null ? l10n.vipSignatureCleared : l10n.vipIdentitySaved,
+      );
     } on Object catch (e) {
       if (mounted) _say(context, _refusal(l10n, e));
     } finally {
@@ -247,7 +248,6 @@ class _SignatureCardState extends ConsumerState<_SignatureCard> {
             key: VipIdentityScreen.signatureFieldKey,
             controller: _text,
             maxLength: vipSignatureMax,
-            maxLines: 1,
             onChanged: (_) => setState(() => _touched = true),
             decoration: InputDecoration(hintText: l10n.vipSignatureHint),
           ),
@@ -257,7 +257,7 @@ class _SignatureCardState extends ConsumerState<_SignatureCard> {
               Expanded(
                 child: KButton(
                   key: VipIdentityScreen.signatureSaveKey,
-                  label: l10n.save,
+                  label: l10n.vipIdentitySave,
                   loading: _busy,
                   onPressed: _text.text.trim().isEmpty
                       ? null
@@ -282,7 +282,7 @@ class _SignatureCardState extends ConsumerState<_SignatureCard> {
   }
 }
 
-// ---- GOLDEN_ID ----------------------------------------------------------------------------------
+// ---- GOLDEN_ID --------------------------------------------------------------
 
 /// The name of a golden ID class.
 String vipGoldenClassName(AppLocalizations l10n, String? cls) => switch (cls) {
@@ -358,7 +358,10 @@ class _GoldenIdCardState extends ConsumerState<_GoldenIdCard> {
                     onPressed: _busy
                         ? null
                         : () => unawaited(
-                            _run(repo.releaseGoldenId, l10n.vipGoldenIdReleased),
+                            _run(
+                              repo.releaseGoldenId,
+                              l10n.vipGoldenIdReleased,
+                            ),
                           ),
                   ),
                 ],
@@ -412,7 +415,7 @@ class _GoldenIdCardState extends ConsumerState<_GoldenIdCard> {
   }
 }
 
-// ---- PREMIUM_USERNAME ---------------------------------------------------------------------------
+// ---- PREMIUM_USERNAME -------------------------------------------------------
 
 class _PremiumCard extends ConsumerStatefulWidget {
   const new();
@@ -470,11 +473,7 @@ class _PremiumCardState extends ConsumerState<_PremiumCard> {
                     button: true,
                     label: l10n.vipPremiumClaim(n.username),
                     excludeSemantics: true,
-                    child: KSpecialUsername(
-                      username: n.username,
-                      tier: tier,
-                      height: 22,
-                    ),
+                    child: KSpecialUsername(username: n.username, tier: tier),
                   ),
                 ),
           ],
