@@ -13,6 +13,7 @@ final class LiveSeatEmoji {
     required this.user,
     required this.token,
     required this.createdAt,
+    this.vipArt,
   });
 
   factory fromJson(Map<String, dynamic> json) => LiveSeatEmoji(
@@ -21,6 +22,7 @@ final class LiveSeatEmoji {
     user: UserSummary.fromJson(json['user']! as Map<String, dynamic>),
     token: json['token']! as String,
     createdAt: DateTime.parse(json['createdAt']! as String),
+    vipArt: json['vipArt'] as String?,
   );
 
   final String id;
@@ -33,11 +35,17 @@ final class LiveSeatEmoji {
   final String token;
   final DateTime createdAt;
 
+  /// v1.132-social (D379, §10.169.1): a `:vip_<n>:` token's file (an https
+  /// SVGA by its extension, else a PNG / WebP picture), played for everyone
+  /// whatever their own VIP; null for the owner's packs.
+  final String? vipArt;
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'seat': seat,
     'user': user.toJson(),
     'token': token,
     'createdAt': createdAt.toUtc().toIso8601String(),
+    if (vipArt != null) 'vipArt': vipArt,
   };
 }

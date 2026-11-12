@@ -107,9 +107,22 @@ export const SEAT_EMOJI_TOKENS: ReadonlySet<string> = new Set(
   Object.entries(SEAT_EMOJI_PACKS).flatMap(([pack, ids]) => ids.map((id) => `:${pack}_${id}:`)),
 );
 
-/** True for a token of one of the owner's packs. */
+/**
+ * v1.132-social (D379, §10.169): a VIP member's own pack (SEAT_EMOJI «إيموجي VIP على المقعد»): `:vip_<n>:` plays the
+ * n-th file (1 …) of the art pack their tier's perk carries; the message names the file (`vipArt`), so everyone in the
+ * room sees it, whatever their own VIP.
+ */
+export const VIP_SEAT_EMOJI_TOKEN = /^:vip_([1-9][0-9]?):$/;
+
+/** The 1-based index of a VIP pack token, or null. */
+export function vipSeatEmojiIndex(token: string): number | null {
+  const m = VIP_SEAT_EMOJI_TOKEN.exec(token);
+  return m ? Number(m[1]) : null;
+}
+
+/** True for a token of one of the owner's packs (or, D379, a VIP pack token). */
 export function isSeatEmojiToken(token: string): boolean {
-  return SEAT_EMOJI_TOKENS.has(token);
+  return SEAT_EMOJI_TOKENS.has(token) || vipSeatEmojiIndex(token) !== null;
 }
 
 /** Counting rule: one seat emoji every 2 seconds per user (CONVENTIONS §7, §10.30). */

@@ -95,6 +95,11 @@ model User {
   liveModeratorOf        LiveRoomModerator[]
   liveTaps               LiveRoomTapper[]
   liveChatMessages       LiveChatMessage[]          @relation("LiveChatAuthor")
+  /// v1.132-social (D379): the VIP pins «تثبيت رسالتك» this person made or took down, and seats reserved for / by them.
+  liveChatPins           LiveChatPin[]              @relation("LiveChatPinAuthor")
+  liveChatPinsRemoved    LiveChatPin[]              @relation("LiveChatPinRemover")
+  liveSeatReservations   LiveSeatReservation[]      @relation("LiveSeatReservedFor")
+  liveSeatReservationsBy LiveSeatReservation[]      @relation("LiveSeatReservedBy")
   liveChatDeletions      LiveChatMessage[]          @relation("LiveChatDeleter")
   liveChatMutes          LiveChatMute[]             @relation("LiveChatMuted")
   liveChatMutesBy        LiveChatMute[]             @relation("LiveChatMutedBy")
@@ -843,10 +848,14 @@ model LiveRoom {
   streamerMain          String?            @map("streamer_main") @db.VarChar(16)
   /// v1.56-live (D213): increases on every change of the layout (media metadata `streamerVersion`).
   streamerVersion       Int                @default(0) @map("streamer_version")
+  /// v1.132-social (D379, §10.169): a VIP room «غرفة VIP خاصة» — only members of this tier or a higher one enter (the
+  /// host, and the staff for moderation, always); null = open to all. AUDIO only (CHECK `live_rooms_vip_audio`).
+  vipMinTierId          String?            @map("vip_min_tier_id") @db.Uuid
   createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   host               User                   @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+  vipMinTier         VipTier?               @relation(fields: [vipMinTierId], references: [id], onDelete: Restrict)
   category           LiveCategory?          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   viewers            LiveRoomViewer[]
   /// v1.64-live (D260): the staff member this live is assigned to, and the staff watching it visibly.
@@ -888,6 +897,9 @@ model LiveRoom {
   pkQueueEntries     PkQueueEntry[]
   /// v1.45-live (D201): second-camera pairings of this live.
   secondCameras      LiveSecondCamera[]
+  /// v1.132-social (D379): the VIP pins of this live's chat and its reserved seats.
+  chatPins           LiveChatPin[]
+  seatReservations   LiveSeatReservation[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@unique([hostUserId, episodeNumber], map: "live_rooms_host_episode_key")
@@ -900,6 +912,7 @@ model LiveRoom {
   @@index([hostUserId, startedAt(sort: Desc)], map: "live_rooms_host_started_idx")
   @@index([categoryId], map: "live_rooms_category_id_idx")
   @@index([startedAt], map: "live_rooms_started_at_idx")
+  @@index([vipMinTierId], map: "live_rooms_vip_min_tier_idx", where: raw("vip_min_tier_id IS NOT NULL"))
   @@map("live_rooms")
 }
 
@@ -935,6 +948,29 @@ model LiveRoomSeat {
   @@index([demoteAt], map: "live_room_seats_demote_idx", where: raw("demote_at IS NOT NULL"))
   @@index([userId], map: "live_room_seats_user_idx")
   @@map("live_room_seats")
+}
+
+/// v1.132-social (D379, CONVENTIONS §10.169): «قفل المقعد لصديق» — the HOST of an AUDIO live, a VIP member holding
+/// SEAT_RESERVE, keeps an empty seat for one person until `until` (the perk's minutes). Nobody else takes it; the person
+/// takes it like any seat (a request or an invitation); it is released when they are seated, when the host frees it, or
+/// at `until` (read as gone from then on; cleared by the next seat change). One per seat; one per person and room.
+model LiveSeatReservation {
+  roomId       String   @map("room_id") @db.Uuid
+  seatIndex    Int      @map("seat_index") @db.SmallInt
+  userId       String   @map("user_id") @db.Uuid
+  reservedById String   @map("reserved_by_id") @db.Uuid
+  createdAt    DateTime @map("created_at") @db.Timestamptz(3)
+  until        DateTime @db.Timestamptz(3)
+
+  room       LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User     @relation("LiveSeatReservedFor", fields: [userId], references: [id], onDelete: Cascade)
+  reservedBy User     @relation("LiveSeatReservedBy", fields: [reservedById], references: [id], onDelete: Cascade)
+
+  @@id([roomId, seatIndex], map: "live_seat_reservations_pkey")
+  @@unique([roomId, userId], map: "live_seat_reservations_one_per_user")
+  @@index([userId], map: "live_seat_reservations_user_idx")
+  @@index([reservedById], map: "live_seat_reservations_by_idx")
+  @@map("live_seat_reservations")
 }
 
 /// CP-011: the state of a seat request or invitation.
@@ -1213,6 +1249,8 @@ model LiveChatMessage {
   deletedBy User?       @relation("LiveChatDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
   media     MediaAsset? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
   reports   Report[]
+  /// v1.132-social (D379): the VIP pins of this message.
+  pins      LiveChatPin[]
 
   @@unique([userId, clientId], map: "live_chat_messages_client_once")
   @@index([roomId, createdAt], map: "live_chat_messages_room_created_idx")
@@ -1220,6 +1258,34 @@ model LiveChatMessage {
   /// The expired-media sweep (only messages that still hold an asset).
   @@index([expiresAt], map: "live_chat_messages_media_expiry_idx", where: raw("media_id IS NOT NULL"))
   @@map("live_chat_messages")
+}
+
+/// v1.132-social (D379, CONVENTIONS §10.169): «تثبيت رسالتك أعلى الدردشة لثوانٍ» — a VIP member (PINNED_MESSAGE) pinned
+/// their own chat message at the top of the live's chat until `until`. One pin shows per room at a time (refused while
+/// another shows, under the room row's lock); each row counts toward the member's pins of the day. The host or a
+/// moderator (or the author) takes it down early (`removed_at`). Deleted with the message.
+model LiveChatPin {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  roomId      String    @map("room_id") @db.Uuid
+  messageId   String    @map("message_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  /// The text as pinned (the host's blocked words masked again at pin time).
+  text        String    @db.VarChar(200)
+  pinnedAt    DateTime  @map("pinned_at") @db.Timestamptz(3)
+  until       DateTime  @db.Timestamptz(3)
+  removedAt   DateTime? @map("removed_at") @db.Timestamptz(3)
+  removedById String?   @map("removed_by_id") @db.Uuid
+
+  room      LiveRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  message   LiveChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User            @relation("LiveChatPinAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  removedBy User?           @relation("LiveChatPinRemover", fields: [removedById], references: [id], onDelete: SetNull)
+
+  @@index([roomId, until(sort: Desc)], map: "live_chat_pins_room_until_idx")
+  @@index([userId, pinnedAt], map: "live_chat_pins_user_day_idx")
+  @@index([messageId], map: "live_chat_pins_message_idx")
+  @@index([removedById], map: "live_chat_pins_removed_by_idx")
+  @@map("live_chat_pins")
 }
 
 /// CP-017 (D104): why a coin balance changed.
@@ -7288,6 +7354,8 @@ model VipTier {
   memberships     VipMembership[]
   purchases       VipPurchase[]
   dailyCoinClaims VipDailyCoinClaim[]
+  /// v1.132-social (D379): the VIP rooms that let in this tier and the ones above it.
+  vipRooms        LiveRoom[]
 
   @@index([sortOrder, id], map: "vip_tiers_sort_idx")
   @@map("vip_tiers")

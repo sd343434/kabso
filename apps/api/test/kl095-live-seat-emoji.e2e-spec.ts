@@ -132,6 +132,8 @@ describe('D138 an emoji on one’s own seat', () => {
       seat: 0,
       user: { id: h.id, username: h.username, displayName: expect.any(String), avatarUrl: null },
       token: ':kabi_love:',
+      // v1.132-social (D379): null for the owner's packs.
+      vipArt: null,
       createdAt: clock.now().toISOString(),
     });
     const theirs = await sendOk(roomId, v, ':flags_ps:');

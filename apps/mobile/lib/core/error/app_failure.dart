@@ -457,6 +457,15 @@ enum ErrorCode {
   /// was created. Transient: `Retry-After` says when to try again.
   liveCapacityFull('LIVE_CAPACITY_FULL'),
 
+  /// v1.132-social (D379, §10.169.9, 403): a VIP room «غرفة VIP خاصة» —
+  /// only VIP members of its tier (`details[0].issue`, the tier code) or a
+  /// higher one enter. The app shows the lock sheet.
+  liveVipOnly('LIVE_VIP_ONLY'),
+
+  /// v1.132-social (D379, §10.169.2, 409): another pinned message shows in
+  /// this live's chat now (one at a time); `Retry-After` is its time left.
+  livePinBusy('LIVE_PIN_BUSY'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

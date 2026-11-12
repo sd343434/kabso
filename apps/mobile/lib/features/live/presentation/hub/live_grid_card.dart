@@ -6,6 +6,7 @@ import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge
 import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_vip_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -221,6 +222,13 @@ class KLiveGridCard extends StatelessWidget {
                       top: 27,
                       start: 8.5,
                       child: CreatorLiveBadge(iconOnly: true),
+                    ),
+                  // v1.132-social (D379): a VIP room's lock.
+                  if (room.vipMinTier case final vip?)
+                    PositionedDirectional(
+                      top: 8,
+                      end: 8,
+                      child: LiveVipRoomBadge(tier: vip),
                     ),
                   // Ref 165: the title 8.5 pt in, its baseline 10.6 pt up —
                   // up to 2 lines (owner 2026-11-08). D154b: «مميز» over it

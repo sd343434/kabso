@@ -5,6 +5,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/live/domain/live_podcast_video.dart';
 import 'package:kabso_live/features/live/domain/live_streamer.dart';
+import 'package:kabso_live/features/live/domain/live_vip.dart';
 
 export 'package:kabso_live/features/live/domain/live_podcast_video.dart';
 export 'package:kabso_live/features/live/domain/live_streamer.dart';
@@ -386,6 +387,11 @@ abstract class LiveRoomSummary with _$LiveRoomSummary {
     /// v1.82-live (D295): the host is a content creator «صانع محتوى» (the
     /// purple badge). Older servers: false.
     @Default(false) bool hostIsCreator,
+
+    /// v1.132-social (D379, §10.169.9): a VIP room «غرفة VIP خاصة» — only
+    /// VIP members of this tier or a higher one enter (the cards show the
+    /// lock); null: open to all (and from older servers).
+    LiveVipMinTier? vipMinTier,
   }) = _LiveRoomSummary;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -459,6 +465,11 @@ abstract class LiveRoom with _$LiveRoom {
     /// v1.82-live (D295): the host is a content creator (the purple badge next
     /// to the host's name in the room). Older servers: false.
     @Default(false) bool hostIsCreator,
+
+    /// v1.132-social (D379, §10.169.9): a VIP room «غرفة VIP خاصة» — only
+    /// VIP members of this tier or a higher one enter (the cards show the
+    /// lock); null: open to all (and from older servers).
+    LiveVipMinTier? vipMinTier,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
@@ -784,6 +795,10 @@ abstract class LiveSeat with _$LiveSeat {
     /// accepted guest of a video podcast, until the host brings them on
     /// air) — not on the stage, the director or the gift recipients.
     @Default(false) bool backstage,
+
+    /// v1.132-social (D379, §10.169.10): the host keeps this seat (LOCKED)
+    /// for someone «قفل المقعد لصديق»; null otherwise.
+    LiveSeatReservation? reservation,
   }) = _LiveSeat;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveSeatFromJson(json);

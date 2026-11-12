@@ -17,7 +17,12 @@ import {
   userSummary,
 } from '../posts/post-views.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
-import { LiveRoomsService, type RoomRow, type UserSummaryDto } from './live-rooms.service.js';
+import {
+  LiveRoomsService,
+  LIVE_TX_OPTIONS,
+  type RoomRow,
+  type UserSummaryDto,
+} from './live-rooms.service.js';
 import { isUuid, parseLiveChatSend, type LiveChatKind } from './live.schemas.js';
 import { maskBlockedWords } from './live-blocked-words.js';
 import { LiveBlockedWordsService } from './live-blocked-words.service.js';
@@ -30,6 +35,10 @@ import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.
 import { assertNotRestricted } from '../users/account-control.js';
 import { storeWearOf, wearHasEntrance } from '../store/store-rules.js';
 import { assertNotStaffTarget, isLimitedStaff, refuseWatchStaff, watchStaffAmong } from './live-staff.js';
+import { vipLivePerkIn, vipPinValue } from '../vip/vip-live-perks.js';
+import { programWindowsIn } from '../programs/programs-time.js';
+import { liveChatPinSchema } from './live.schemas.js';
+import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 
 // ---- Response shapes (openapi v1.9-live, CP-013) -----------------------------------------------
 
@@ -58,6 +67,21 @@ export interface LiveChatMessageDto {
    * levels, family, VIP and the CP bubble (`authorBadges` is then empty). Read live, so a revoked role drops it.
    */
   authorStaff: boolean;
+}
+
+/**
+ * v1.132-social (D379, §10.169): `LiveChatPin` — a VIP member's own message pinned at the top of the live's chat
+ * «تثبيت رسالتك أعلى الدردشة» until `until` (apps hide it then, or on `chat-unpin` / the message's `chat-delete`).
+ */
+export interface LiveChatPinDto {
+  id: string;
+  roomId: string;
+  messageId: string;
+  author: UserSummaryDto;
+  /** The text as pinned (the host's blocked words masked again). */
+  text: string;
+  pinnedAt: string;
+  until: string;
 }
 
 /** `LiveChatMute`. */
@@ -102,8 +126,16 @@ export type LiveChatData =
        * they show it on their profile (D175: private by default); else null (a neutral line).
        */
       readonly gender: 'MALE' | 'FEMALE' | null;
+      /**
+       * v1.132-social (D379, §10.169): the joiner holds HOST_GREETING «تحية المضيف الآلية» — the HOST's app (only the
+       * host's) shows the «VIP دخل البث» card with «رحّب»; every other app ignores it. Always sent (false otherwise).
+       */
+      readonly hostGreeting: boolean;
     }
   | { readonly type: 'chat-state'; readonly enabled: boolean }
+  /** v1.132-social (D379, §10.169): a pin shows (it replaces none: one at a time) / was taken down early. */
+  | { readonly type: 'chat-pin'; readonly pin: LiveChatPinDto }
+  | { readonly type: 'chat-unpin'; readonly id: string }
   /**
    * v1.72-live (D283, §10.96.10): a limited Kabso Team account entered VISIBLY as «فريق كابسو» (never a hidden
    * watch): the apps play the team's entry car once; no chat line (D273).
@@ -389,7 +421,10 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
    * blocked them. Guests need the room's `allowGuests` (403 LIVE_GUESTS_NOT_ALLOWED). Ended rooms
    * too.
    */
-  async list(callerId: string | null, roomId: string): Promise<{ data: LiveChatMessageDto[] }> {
+  async list(
+    callerId: string | null,
+    roomId: string,
+  ): Promise<{ data: LiveChatMessageDto[]; pin: LiveChatPinDto | null }> {
     const row = await this.rooms.visibleRow(roomId, callerId);
     if (callerId === null && !row.allow_guests) throw new AppException(ErrorCode.LIVE_GUESTS_NOT_ALLOWED);
     const rows = await this.prisma.liveChatMessage.findMany({
@@ -418,6 +453,8 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     );
     return {
       data: rows.reverse().map((r) => this.toDto(r, badges.get(r.userId) ?? NO_BADGES, staff.has(r.userId))),
+      // v1.132-social (D379): the pin showing now (a reader who blocked its author, or was blocked, sees none).
+      pin: row.status === 'LIVE' ? await this.currentPin(row.id, callerId) : null,
     };
   }
 
@@ -453,7 +490,10 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       where: { id: message.id, deletedAt: null },
       data: { deletedAt: this.clock.now(), deletedById: callerId },
     });
-    if (deleted.count > 0) await this.broadcast(row.id, { type: 'chat-delete', id: message.id });
+    if (deleted.count > 0) {
+      await this.dropPinsOf(this.prisma, message.id, callerId);
+      await this.broadcast(row.id, { type: 'chat-delete', id: message.id });
+    }
   }
 
   /**
@@ -505,7 +545,10 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       where: { id: message.id, deletedAt: null },
       data: { deletedAt: this.clock.now(), deletedById: actorId },
     });
-    if (deleted.count > 0) await this.broadcast(row.id, { type: 'chat-delete', id: message.id });
+    if (deleted.count > 0) {
+      await this.dropPinsOf(this.prisma, message.id, actorId);
+      await this.broadcast(row.id, { type: 'chat-delete', id: message.id });
+    }
     return { authorId: message.userId, deleted: deleted.count > 0 };
   }
 
@@ -606,10 +649,182 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       if (waitMs > 0 && !agent) return;
       // v1.24-live (CP-021, §10.24): the couple's Entrance Effect ("X ❤ Y entered").
       const cp = await cpEntranceOf(this.prisma, userId);
-      await this.broadcast(roomId, { type: 'join', user: userSummary(user), cp, gender });
+      // v1.132-social (D379): the host's greeting card for a member holding HOST_GREETING (never the host's own join).
+      const hostGreeting =
+        (await vipLivePerkIn(this.prisma, userId, 'HOST_GREETING', this.clock.now())) !== null &&
+        !(await this.prisma.liveRoom.count({ where: { id: roomId, hostUserId: userId } }));
+      await this.broadcast(roomId, { type: 'join', user: userSummary(user), cp, gender, hostGreeting });
     } catch (err) {
       this.logger.warn({ error: safeErrorLog(err) }, 'Could not announce a join in the live chat');
     }
+  }
+
+  // ---- v1.132-social (D379, §10.169): PINNED_MESSAGE «تثبيت رسالتك أعلى الدردشة لثوانٍ» ------------------------
+
+  /** A deleted message's pins are taken down with it (apps drop the pin on its `chat-delete`). */
+  private async dropPinsOf(
+    db: Pick<Prisma.TransactionClient, 'liveChatPin'>,
+    messageId: string,
+    actorId: string,
+  ): Promise<void> {
+    await db.liveChatPin.updateMany({
+      where: { messageId, removedAt: null },
+      data: { removedAt: this.clock.now(), removedById: actorId },
+    });
+  }
+
+  /** The pin showing in [roomId] now (not taken down, not over, its message not deleted), as [readerId] may see it. */
+  private async currentPin(roomId: string, readerId: string | null): Promise<LiveChatPinDto | null> {
+    const pin = await this.prisma.liveChatPin.findFirst({
+      where: {
+        roomId,
+        removedAt: null,
+        until: { gt: this.clock.now() },
+        message: { deletedAt: null },
+        user: {
+          status: 'ACTIVE',
+          ...(readerId === null
+            ? {}
+            : {
+                blocking: { none: { blockedId: readerId } },
+                blockedBy: { none: { blockerId: readerId } },
+              }),
+        },
+      },
+      orderBy: { until: 'desc' },
+      include: { user: { select: USER_SUMMARY_SELECT } },
+    });
+    return pin ? this.pinDto(pin) : null;
+  }
+
+  private pinDto(pin: {
+    id: string;
+    roomId: string;
+    messageId: string;
+    text: string;
+    pinnedAt: Date;
+    until: Date;
+    user: Parameters<typeof userSummary>[0];
+  }): LiveChatPinDto {
+    return {
+      id: pin.id,
+      roomId: pin.roomId,
+      messageId: pin.messageId,
+      author: userSummary(pin.user),
+      text: pin.text,
+      pinnedAt: pin.pinnedAt.toISOString(),
+      until: pin.until.toISOString(),
+    };
+  }
+
+  /**
+   * `POST /live/rooms/{roomId}/chat-pin` `{messageId}`: a VIP member pins their own TEXT message at the top of the
+   * live's chat for the perk's `seconds`, at most `count` pins a day (the day of `LIVE_RANKINGS_TIME_ZONE`, every live
+   * together). Checks: visible room (404), LIVE (409 LIVE_ROOM_ENDED), the body (400), a message of this live by the
+   * caller, TEXT, not deleted (404), kicked out (403 LIVE_KICKED), in the room (403 LIVE_CHAT_NOT_IN_ROOM), muted (403
+   * LIVE_CHAT_MUTED), the chat off (409 LIVE_CHAT_CLOSED; the host may still), the team's chat restriction (403
+   * ACCOUNT_RESTRICTED), the perk with its value (409 VIP_UNAVAILABLE `perk` `no_perk`), then under the room row's
+   * lock: another pin showing (409 LIVE_PIN_BUSY, `Retry-After` its seconds left — «one at a time»: refused, never
+   * queued), the day's pins used up (409 VIP_UNAVAILABLE `perk` `used_up`). The text is masked with the host's blocked
+   * words again.
+   */
+  async pin(callerId: string, roomId: string, body: unknown): Promise<LiveChatPinDto> {
+    const row = await this.rooms.visibleRow(roomId, callerId);
+    if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+    const parsed = liveChatPinSchema.safeParse(body ?? {}, { reportInput: true });
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const now = this.clock.now();
+    const message = await this.prisma.liveChatMessage.findFirst({
+      where: {
+        id: parsed.data.messageId.toLowerCase(),
+        roomId: row.id,
+        userId: callerId,
+        kind: 'TEXT',
+        deletedAt: null,
+      },
+      select: { id: true, text: true },
+    });
+    if (!message) throw notFound();
+    if (callerId !== row.host_user_id) {
+      if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
+      if (!(await this.inMediaSession(row.id, callerId)))
+        throw new AppException(ErrorCode.LIVE_CHAT_NOT_IN_ROOM);
+      if (row.chat_muted) throw new AppException(ErrorCode.LIVE_CHAT_MUTED);
+      if (!row.chat_enabled) throw new AppException(ErrorCode.LIVE_CHAT_CLOSED);
+    }
+    await assertNotRestricted(this.prisma, callerId, 'CHAT_MUTE');
+    const perk = await vipLivePerkIn(this.prisma, callerId, 'PINNED_MESSAGE', now);
+    const value = perk ? vipPinValue(perk.value) : null;
+    if (!value)
+      throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [{ field: 'perk', issue: 'no_perk' }]);
+    const text = maskBlockedWords(message.text, await this.blockedWords.wordsOf(row.host_user_id));
+    const { day } = await programWindowsIn(this.prisma, now, this.config.live.rankingsTimeZone);
+    const created = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM live_rooms WHERE id = ${row.id}::uuid FOR UPDATE`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:live-pin'), hashtext(${callerId}))`;
+      const showing = await tx.liveChatPin.findFirst({
+        where: { roomId: row.id, removedAt: null, until: { gt: now }, message: { deletedAt: null } },
+        orderBy: { until: 'desc' },
+        select: { until: true },
+      });
+      if (showing) {
+        const left = Math.max(1, Math.ceil((showing.until.getTime() - now.getTime()) / 1000));
+        throw new AppException(ErrorCode.LIVE_PIN_BUSY, undefined, undefined, {
+          'Retry-After': String(left),
+        });
+      }
+      const used = await tx.liveChatPin.count({
+        where: { userId: callerId, pinnedAt: { gte: day.start, lt: day.end } },
+      });
+      if (used >= value.count) {
+        throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [{ field: 'perk', issue: 'used_up' }]);
+      }
+      return tx.liveChatPin.create({
+        data: {
+          roomId: row.id,
+          messageId: message.id,
+          userId: callerId,
+          text,
+          pinnedAt: now,
+          until: new Date(now.getTime() + value.seconds * 1000),
+        },
+        include: { user: { select: USER_SUMMARY_SELECT } },
+      });
+    }, LIVE_TX_OPTIONS);
+    const pin = this.pinDto(created);
+    await this.broadcast(row.id, { type: 'chat-pin', pin });
+    return pin;
+  }
+
+  /**
+   * `DELETE /live/rooms/{roomId}/chat-pin`: takes the pin showing down early — its author, the host, or a moderator
+   * (never the host's pin nor another moderator's, as with messages); anyone else 403; idempotent (none showing → 204,
+   * nothing sent).
+   */
+  async unpin(callerId: string, roomId: string): Promise<void> {
+    const row = await this.rooms.visibleRow(roomId, callerId);
+    if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+    const now = this.clock.now();
+    const pin = await this.prisma.liveChatPin.findFirst({
+      where: { roomId: row.id, removedAt: null, until: { gt: now } },
+      orderBy: { until: 'desc' },
+      select: { id: true, userId: true },
+    });
+    if (pin?.userId !== callerId) {
+      const privilege = await this.privilege(row, callerId);
+      if (!pin) return;
+      if (
+        privilege === 'MODERATOR' &&
+        (pin.userId === row.host_user_id || (await this.isModerator(row.id, pin.userId)))
+      ) {
+        throw forbidden();
+      }
+    }
+    const removed = await this.prisma.liveChatPin.updateMany({
+      where: { id: pin.id, removedAt: null },
+      data: { removedAt: now, removedById: callerId },
+    });
+    if (removed.count > 0) await this.broadcast(row.id, { type: 'chat-unpin', id: pin.id });
   }
 
   // ---- Reports (CONVENTIONS §11.7) --------------------------------------------------------------
@@ -652,6 +867,7 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       where: { id: messageId, deletedAt: null },
       data: { deletedAt: this.clock.now(), deletedById: actorId },
     });
+    if (deleted.count > 0) await this.dropPinsOf(tx, messageId, actorId);
     return deleted.count > 0 ? message.roomId : null;
   }
 

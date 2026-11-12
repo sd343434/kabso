@@ -9,16 +9,24 @@ import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
+import 'package:kabso_live/features/live/domain/live_vip.dart';
 import 'package:material_ui/material_ui.dart' show immutable;
 
 /// One emoji playing on a tile now.
 @immutable
 final class SeatEmojiShow {
-  const new({required this.id, required this.emoji});
+  const new({required this.id, this.emoji, this.vipArt})
+    : assert(emoji != null || vipArt != null, 'an emoji or a VIP file');
 
   /// Names this play: a new one on the same tile restarts the animation.
   final String id;
-  final KabsoEmoji emoji;
+
+  /// One of the owner's packs; null for a VIP pack file ([vipArt]).
+  final KabsoEmoji? emoji;
+
+  /// v1.132-social (D379, §10.169.1): a VIP member's SEAT_EMOJI file (https
+  /// SVGA or picture), played for everyone.
+  final String? vipArt;
 }
 
 /// D138 (owner: «في البث الصوتي المستخدم يستخدمها على الكرسي … مرة واحدة
@@ -72,6 +80,12 @@ class LiveSeatEmojis extends Notifier<Map<int, SeatEmojiShow>> {
         ..add(message.id);
     }
     if (message.user.id == ref.read(currentUserProvider)?.id) return;
+    // D379: a VIP pack file plays from the message's own `vipArt`.
+    final art = message.vipArt;
+    if (art != null && art.startsWith('https://')) {
+      _play(message.seat, SeatEmojiShow(id: message.id, vipArt: art));
+      return;
+    }
     final emoji = emojiOfToken(message.token);
     if (emoji == null) return;
     _play(message.seat, SeatEmojiShow(id: message.id, emoji: emoji));
@@ -89,6 +103,28 @@ class LiveSeatEmojis extends Notifier<Map<int, SeatEmojiShow>> {
       final sent = await ref
           .read(liveRepositoryProvider)
           .sendSeatEmoji(roomId, emoji.token);
+      _seen.add(sent.id);
+      return null;
+    } on AppFailure catch (failure) {
+      if (ref.mounted && state[seat]?.id == local.id) done(seat, local.id);
+      return failure;
+    }
+  }
+
+  /// v1.132-social (D379): plays the caller's VIP pack file [n] ([art]) on
+  /// their tile [seat] at once and sends `:vip_<n>:`; a refusal takes it off
+  /// again and returns why.
+  Future<AppFailure?> sendVip({
+    required int seat,
+    required int n,
+    required String art,
+  }) async {
+    final local = SeatEmojiShow(id: 'local:${_local++}', vipArt: art);
+    _play(seat, local);
+    try {
+      final sent = await ref
+          .read(liveRepositoryProvider)
+          .sendSeatEmoji(roomId, VipLivePerks.seatEmojiToken(n));
       _seen.add(sent.id);
       return null;
     } on AppFailure catch (failure) {

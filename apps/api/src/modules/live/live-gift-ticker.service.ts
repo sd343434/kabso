@@ -13,6 +13,7 @@ import {
   type GlobalStripsSettingsDto,
 } from '../site-settings/global-strips.rules.js';
 import { LIVE_GIFT_TOPIC } from './live-gifts.js';
+import { vipIntValue, vipLivePerkIn } from '../vip/vip-live-perks.js';
 import type { UserSummaryDto } from './live-rooms.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 
@@ -43,6 +44,11 @@ export interface GiftTickerData {
   readonly kind: 'GIFT';
   readonly gift: GiftTickerGiftDto;
   readonly room: StripRoomDto;
+  /**
+   * v1.132-social (D379, §10.169): TICKER_HOLD «إيقاف الشريط العام مؤقتاً» — the sender's VIP keeps this strip this many
+   * seconds longer on screen (0 = none); the next gift strip waits for it (the lane's gate is longer by as much).
+   */
+  readonly holdSeconds: number;
 }
 
 /** v1.85-live (D305): what a game tells the strip about one prize it paid in tickets. */
@@ -85,7 +91,7 @@ export interface GameWinTickerData {
 
 /** One waiting strip, in Redis (the kind decides how it is told). */
 type StripEntry =
-  | { readonly kind: 'GIFT'; readonly gift: GiftTickerGiftDto }
+  | { readonly kind: 'GIFT'; readonly gift: GiftTickerGiftDto; readonly holdMs?: number }
   | { readonly kind: 'GAME_WIN'; readonly win: GameWinOffer };
 
 /**
@@ -94,6 +100,8 @@ type StripEntry =
  * in the app, so each kind has its own gate — a gift strip and a games strip can show at the same time.
  */
 export const GIFT_TICKER_GAP_MS = 3_000;
+/** v1.132-social (D379): the most a TICKER_HOLD keeps a strip longer (the catalogue's bound). */
+export const TICKER_HOLD_MAX_SECONDS = 60;
 /** A waiting strip older than this is dropped (no long queue). */
 export const GIFT_TICKER_PENDING_TTL_MS = 12_000;
 /** A game win's id is remembered this long (a retried hook call makes no second strip). */
@@ -137,7 +145,8 @@ return {'wait', redis.call('PTTL', KEYS[1])}
 const FLUSH_SCRIPT = `
 local current = redis.call('GET', KEYS[2])
 if not current then return {} end
-if redis.call('SET', KEYS[1], '1', 'PX', ARGV[1], 'NX') then
+local hold = tonumber(string.match(current, '"holdMs":([0-9]+)')) or 0
+if redis.call('SET', KEYS[1], '1', 'PX', tonumber(ARGV[1]) + hold, 'NX') then
   redis.call('DEL', KEYS[2])
   return {'go', current}
 end
@@ -206,7 +215,17 @@ export class LiveGiftTickerService implements OnModuleDestroy {
    */
   async offer(gift: GiftTickerGiftDto): Promise<void> {
     if (!(gift.unitPrice >= (await this.thresholds()).giftMinCoins)) return;
-    await this.offerEntry({ kind: 'GIFT', gift }, gift.createdAt);
+    // v1.132-social (D379, §10.169): the sender's TICKER_HOLD seconds (inherited too; 0 without the perk).
+    const senderId = (gift.sender as { id?: unknown } | undefined)?.id;
+    const perk =
+      typeof senderId === 'string'
+        ? await vipLivePerkIn(this.prisma, senderId, 'TICKER_HOLD', new Date())
+        : null;
+    const holdSeconds = Math.min(perk ? (vipIntValue(perk.value) ?? 0) : 0, TICKER_HOLD_MAX_SECONDS);
+    await this.offerEntry(
+      { kind: 'GIFT', gift, ...(holdSeconds > 0 ? { holdMs: holdSeconds * 1000 } : {}) },
+      gift.createdAt,
+    );
   }
 
   /**
@@ -237,7 +256,8 @@ export class LiveGiftTickerService implements OnModuleDestroy {
         keys.pending,
         JSON.stringify(entry),
         String(new Date(createdAt).getTime()),
-        String(GIFT_TICKER_GAP_MS),
+        // v1.132-social (D379): a held strip keeps its lane's gate longer (the global pacing, one strip at a time).
+        String(GIFT_TICKER_GAP_MS + (entry.kind === 'GIFT' ? (entry.holdMs ?? 0) : 0)),
         String(GIFT_TICKER_PENDING_TTL_MS),
       )) as [string, number];
       if (reply[0] === 'now') await this.tell(entry);
@@ -288,15 +308,15 @@ export class LiveGiftTickerService implements OnModuleDestroy {
   }
 
   private async tell(entry: StripEntry): Promise<void> {
-    if (entry.kind === 'GIFT') await this.tellGift(entry.gift);
+    if (entry.kind === 'GIFT') await this.tellGift(entry.gift, Math.round((entry.holdMs ?? 0) / 1000));
     else await this.tellGameWin(entry.win);
   }
 
   /** The `gift-ticker` message to every LIVE room, its own first. */
-  private async tellGift(gift: GiftTickerGiftDto): Promise<void> {
+  private async tellGift(gift: GiftTickerGiftDto, holdSeconds: number): Promise<void> {
     const origin = await this.liveRoom(gift.roomId);
     if (!origin) return;
-    const data: GiftTickerData = { type: 'gift-ticker', kind: 'GIFT', gift, room: origin };
+    const data: GiftTickerData = { type: 'gift-ticker', kind: 'GIFT', gift, room: origin, holdSeconds };
     await this.toEveryLive(JSON.stringify(data), origin.id);
   }
 

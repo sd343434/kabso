@@ -686,6 +686,14 @@ info:
     `GOLDEN_ID_CLASS` (GOLDEN_ID's value: REPEATED · THREE_DIGIT · FOUR_DIGIT · FIVE_DIGIT). Migration
     `20270510090000_vip_identity_perks`. Additive (an older app ignores the new fields; a `VIP` source is shown as a
     rental by an app that does not know it).
+    **D379 (DRAFT v1.132-social)** the VIP perks inside live rooms (CONVENTIONS §10.169; owner 2026-11-11): ten D374
+    perks built — SEAT_EMOJI (`sendLiveSeatEmoji` token `:vip_<n>:`, `LiveSeatEmoji.vipArt`), PINNED_MESSAGE
+    (`pinLiveChatMessage` / `unpinLiveChatMessage`, `LiveChatPin`, `LiveChatMessageList.pin`), HOST_GREETING (the `join`
+    data message's `hostGreeting`), SEAT_CROWN (app only), BIG_GIFT_RAIN (data `vip-rain` on topic `gift`, shape in §10.169.5), TICKER_HOLD
+    (`gift-ticker` `holdSeconds`), VIEWER_LIST_PRIORITY and SEAT_REQUEST_PRIORITY (list order), VIP_ROOM
+    (`StartLiveRoomRequest.vipMinTier`, `LiveRoomSummary.vipMinTier`), SEAT_RESERVE (`reserveLiveSeat` /
+    `releaseLiveSeat`, `LiveSeat.reservation`); codes `LIVE_VIP_ONLY` (403), `LIVE_PIN_BUSY` (409); `VIP_UNAVAILABLE`
+    `used_up`. Migration `20270511090000_vip_live_perks`. Additive.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -3241,6 +3249,10 @@ paths:
         permission** (`Me.canHost`), else 403 `LIVE_HOSTING_NOT_ALLOWED` (checked after
         `LIVE_HOSTING_ENABLED`). `allowGuests` defaults to true. v1.113-live (D351): last of all, the
         capacity guard — 503 `LIVE_CAPACITY_FULL` with `Retry-After` (CONVENTIONS §10.148).
+        **v1.132-social (D379, §10.169.9)**: `vipMinTier` (AUDIO only, else 400 `invalid_value`) opens a VIP room «غرفة VIP
+        خاصة»: the caller needs the VIP_ROOM perk (409 `VIP_UNAVAILABLE` `perk` `no_perk`); a tier that does not exist → 400
+        `vipMinTier` `not_found`; above the perk's cap (its value, else the caller's own tier) → 400 `out_of_range`. A VIP
+        room never lets guests in (`allowGuests` false).
       requestBody:
         required: true
         content:
@@ -3452,6 +3464,9 @@ paths:
         v1.20-live (D105): a signed-in caller kicked out of this live → 403 `LIVE_KICKED` (after
         the 409); a later live of the same host is not affected. v1.56-live (D213, §10.86): the host
         of a STREAMER may also publish `screen_share` (the phone screen) and `screen_share_audio`.
+        **v1.132-social (D379, §10.169.9)**: a VIP room (`LiveRoomSummary.vipMinTier`) → 403 `LIVE_VIP_ONLY`
+        `{field: vipMinTier, issue: <tier code>}` for anyone whose active VIP tier ranks below it (guests too); the host and
+        the staff's watch always enter.
       security: [{}, {bearerAuth: []}]
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
@@ -3823,6 +3838,9 @@ paths:
         `LIVE_GUESTS_NOT_ALLOWED`); a caller kicked out of this live → 403 `LIVE_KICKED`. A
         signed-in caller other than the host never sees a user they blocked or who blocked them.
         Before v1.23.2-live it was host only (anyone else → 404).
+        **v1.132-social (D379, §10.169.7)**: VIEWER_LIST_PRIORITY — the first page starts with the signed-in viewers whose
+        active VIP holds the perk (the higher tier first, then the latest joined; at most 50, no block with the reader); the
+        pages skip them afterwards.
       security: [{}, {bearerAuth: []}]
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
@@ -3887,6 +3905,8 @@ paths:
         clips and images past their `expiresAt`. A signed-in reader never gets messages from
         someone they blocked or who blocked them. Works on an ended room too.
         A room the caller may not see → 404.
+        **v1.132-social (D379, §10.169.2)**: `pin` — the VIP pin showing now (null when none, the room ended, or a block
+        with its author either way).
       security: [{}, {bearerAuth: []}]
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
@@ -3943,6 +3963,67 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/LiveChatMessage' }
         '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/chat-pin:
+    post:
+      tags: [live]
+      operationId: pinLiveChatMessage
+      summary: "VIP: pin one's own chat message at the top of the live's chat for seconds (v1.132-social, D379)"
+      description: |
+        CONVENTIONS §10.169.2 (PINNED_MESSAGE «تثبيت رسالتك أعلى الدردشة لثوانٍ»). The caller's own TEXT message of this
+        live, not deleted, shows at the top of the chat for the perk's `seconds`, at most `count` pins a day (the day of
+        `LIVE_RANKINGS_TIME_ZONE`, every live together). Checks, in order: 401; 404 a room the caller may not see; 409
+        `LIVE_ROOM_ENDED`; 400 the body; 404 the message (not the caller's, not TEXT, deleted, another live); 403
+        `LIVE_KICKED`; 403 `LIVE_CHAT_NOT_IN_ROOM`; 403 `LIVE_CHAT_MUTED`; 409 `LIVE_CHAT_CLOSED` (not the host); 403
+        `ACCOUNT_RESTRICTED`; 409 `VIP_UNAVAILABLE` `{field: perk, issue: no_perk}`; then one pin per room at a time —
+        another showing → 409 `LIVE_PIN_BUSY` with `Retry-After` (refused, never queued); 409 `VIP_UNAVAILABLE`
+        `{field: perk, issue: used_up}` (the day's pins used). The text is masked with the host's blocked words. Everyone
+        in the room gets `{"type":"chat-pin","pin":LiveChatPin}` on topic `chat`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveChatPinRequest' }
+      responses:
+        '201':
+          description: The pin.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveChatPin' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`LIVE_ROOM_ENDED`, `LIVE_CHAT_CLOSED`, `VIP_UNAVAILABLE`, or `LIVE_PIN_BUSY` (with `Retry-After`: the seconds the showing pin has left)."
+          headers:
+            Retry-After:
+              description: "`LIVE_PIN_BUSY` only: seconds until the showing pin ends."
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: unpinLiveChatMessage
+      summary: "Take the pinned message down early: its author, the host or a moderator (v1.132-social, D379)"
+      description: |
+        CONVENTIONS §10.169.2. The pin showing now is taken down: by its author, the host, or a moderator (a moderator
+        never takes down the host's or another moderator's pin → 403); anyone else → 403. Idempotent: none showing →
+        204, nothing sent. Everyone in the room gets `{"type":"chat-unpin","id"}` on topic `chat`. Deleting the
+        message also takes its pin down (apps drop it on that message's `chat-delete`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '204': { description: Taken down (or none was showing). }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
@@ -4186,6 +4267,9 @@ paths:
         the host nor seated); 429 (one every 2 s per user, with `Retry-After`). Nothing is stored. On
         success the room gets a reliable data message on topic `seat-emoji`:
         `{"type":"seat-emoji", …LiveSeatEmoji}` (best effort, like every data message).
+        **v1.132-social (D379, §10.169.1)**: also the token `:vip_<n>:` (n = 1 …) — the n-th file of the caller's
+        SEAT_EMOJI art pack (VIP perk, inherited from a lower tier too). Without the perk → 409 `VIP_UNAVAILABLE`
+        `{field: perk, issue: no_perk}`; no n-th file → 400 `token` `invalid_value`. `LiveSeatEmoji.vipArt` names the file.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -5626,6 +5710,8 @@ paths:
         `question`, it waits in the queue even while the 3 speaker seats are full, and the host's closed
         hands (`questionsOpen` false) → 409 `LIVE_QUESTIONS_CLOSED`. `question` outside a PODCAST → 400.
         Lowering the hand is `cancelLiveSeatRequest`.
+        **v1.132-social (D379)**: a VIP room → 403 `LIVE_VIP_ONLY` as `createLiveMediaToken`. A seat the host keeps for
+        someone else (`LiveSeat.reservation`) is not free; the person it is kept for gets it.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -5654,7 +5740,11 @@ paths:
       tags: [live]
       operationId: listLiveSeatRequests
       summary: "Host or moderator: pending seat requests, oldest first (CP-011)"
-      description: Host and moderators only (else 403 `AUTH_FORBIDDEN`). Cursor-paged.
+      description: |
+        Host and moderators only (else 403 `AUTH_FORBIDDEN`). Cursor-paged.
+        **v1.132-social (D379, §10.169.8)**: SEAT_REQUEST_PRIORITY — a requester whose active VIP holds the perk comes first
+        (the higher tier first), then the queue order; a request the host deferred («لاحقاً») keeps its place. The host
+        still decides. The cursor carries the priority.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/Cursor'
@@ -6152,6 +6242,62 @@ paths:
               additionalProperties: false
               properties:
                 locked: { type: boolean }
+      responses:
+        '200':
+          description: The seats after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seats/{seatIndex}/reservation:
+    put:
+      tags: [live]
+      operationId: reserveLiveSeat
+      summary: "VIP host: keep an empty seat of an audio live for one person for minutes (v1.132-social, D379)"
+      description: |
+        CONVENTIONS §10.169.10 (SEAT_RESERVE «قفل المقعد لصديق»). The HOST of an AUDIO live whose VIP holds the perk keeps
+        the EMPTY seat for `username` for the perk's minutes (a seat kept before on this index, or for this person
+        elsewhere, is replaced). 403 not the host; 409 `LIVE_SEAT_UNAVAILABLE` (not AUDIO, out of range, taken or
+        locked, the person seated or the host); 409 `VIP_UNAVAILABLE` `{field: perk, issue: no_perk}`; 404 the person
+        (not ACTIVE, or a block with the host); 403 `STAFF_PROTECTED`. The seat then reads LOCKED with
+        `LiveSeat.reservation`; nobody else takes it; the person takes it like any seat. Released when they are seated,
+        when the host locks / unlocks it or calls `releaseLiveSeat`, or at `until`. The person gets a `seat-reserved`
+        data message `{type, roomId, seatIndex, until}`; everyone re-reads the seats (`version`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/SeatIndexPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveSeatReserveRequest' }
+      responses:
+        '200':
+          description: The seats after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: releaseLiveSeat
+      summary: "Host: free a kept seat again (v1.132-social, D379)"
+      description: |
+        CONVENTIONS §10.169.10. Host only (else 403). Idempotent (no reservation → the seats unchanged).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/SeatIndexPath'
       responses:
         '200':
           description: The seats after the change.
@@ -34265,6 +34411,18 @@ components:
         hostIsCreator:
           type: boolean
           description: "v1.82-live (D295, CONVENTIONS §10.108) — the host is a content creator «صانع محتوى» (a creator-programme member now): the purple «صانع محتوى» / «Creator» badge on the card and next to the host's name in the room. Public (like the D293 creator seal). Sent by v1.82-live servers; a missing field reads as false."
+        vipMinTier:
+          description: "v1.132-social (D379, §10.169.9) — a VIP room «غرفة VIP خاصة»: only VIP members of this tier or a higher one enter (the cards show the VIP lock); null: open to all. Sent by v1.132-social servers; a missing field reads as null."
+          oneOf:
+            - $ref: '#/components/schemas/LiveVipMinTier'
+            - type: 'null'
+    LiveVipMinTier:
+      type: object
+      required: [code, name, color]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
+        name: { type: string, description: "The tier's name by `Accept-Language`." }
+        color: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
     LiveRoom:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
@@ -34395,6 +34553,10 @@ components:
         wishGifts:
           allOf: [{ $ref: '#/components/schemas/WishGiftCodes' }]
           description: "v1.27.3-live (D136): the wish list; absent → the host's last live's list (gifts that can no longer be sent are left out when shown)."
+        vipMinTier:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]{0,39}$'
+          description: "v1.132-social (D379, §10.169.9): AUDIO only — a VIP room: the lowest VIP tier let in (its code), within the caller's VIP_ROOM perk."
     UpdateLiveRoomRequest:
       type: object
       minProperties: 1
@@ -35362,6 +35524,23 @@ components:
             waits «خلف الكواليس» (a video podcast's accepted invitation) until the host brings them on air with
             `bringLiveSeatOnAir`. Apps leave them out of the stage, the director, the speakers and the gift
             recipients. False otherwise.
+        reservation:
+          description: "v1.132-social (D379, §10.169.10): SEAT_RESERVE «قفل المقعد لصديق» — the host keeps this seat (state LOCKED, so an older app shows a lock) for this person until `until`; absent otherwise."
+          allOf:
+            - $ref: '#/components/schemas/LiveSeatReservation'
+    LiveSeatReservation:
+      type: object
+      required: [user, until]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        until: { type: string, format: date-time }
+    LiveSeatReserveRequest:
+      type: object
+      required: [username]
+      additionalProperties: false
+      description: "v1.132-social (D379, §10.169.10): whom the host keeps the seat for."
+      properties:
+        username: { type: string, minLength: 1, maxLength: 40 }
     LiveSeatRequest:
       type: object
       required: [id, user, seatIndex, createdAt]
@@ -35763,6 +35942,30 @@ components:
           type: array
           maxItems: 50
           items: { $ref: '#/components/schemas/LiveChatMessage' }
+        pin:
+          description: "v1.132-social (D379, §10.169.2): the VIP pin showing now, or null. Older servers send none (read as null)."
+          oneOf:
+            - $ref: '#/components/schemas/LiveChatPin'
+            - type: 'null'
+    LiveChatPinRequest:
+      type: object
+      required: [messageId]
+      additionalProperties: false
+      description: "v1.132-social (D379, §10.169.2): the caller's own chat message to pin."
+      properties:
+        messageId: { type: string, format: uuid }
+    LiveChatPin:
+      type: object
+      description: "v1.132-social (D379, §10.169.2): a VIP member's own message pinned at the top of the live's chat «رسالة مثبتة» until `until` (apps hide it then, on `chat-unpin`, or on its message's `chat-delete`). Also the `pin` of the data message `chat-pin` (topic `chat`)."
+      required: [id, roomId, messageId, author, text, pinnedAt, until]
+      properties:
+        id: { type: string, format: uuid }
+        roomId: { type: string, format: uuid }
+        messageId: { type: string, format: uuid }
+        author: { $ref: '#/components/schemas/UserSummary' }
+        text: { type: string, maxLength: 200, description: "The text as pinned (the host's blocked words masked)." }
+        pinnedAt: { type: string, format: date-time }
+        until: { type: string, format: date-time }
     LiveChatMute:
       type: object
       required: [user, mutedAt]
@@ -35920,7 +36123,8 @@ components:
         id: { type: string, format: uuid, description: "Names this emoji (apps drop a data message they have already shown)." }
         seat: { type: integer, minimum: 0, maximum: 24, description: "The tile it plays on: 0 = the host, else `LiveSeat.index`." }
         user: { $ref: '#/components/schemas/UserSummary' }
-        token: { type: string, description: "`:<pack>_<id>:`." }
+        token: { type: string, description: "`:<pack>_<id>:`; v1.132-social (D379): or `:vip_<n>:` (a VIP pack file)." }
+        vipArt: { type: [string, 'null'], pattern: '^https://\S{1,2040}$', description: "v1.132-social (D379, §10.169.1): a `:vip_<n>:` token's file (SVGA by its extension, else a PNG / WebP picture); null for the owner's packs. Older servers send none." }
         createdAt: { type: string, format: date-time }
     LiveBulletResult:
       type: object

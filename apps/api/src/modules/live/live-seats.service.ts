@@ -28,6 +28,7 @@ import { maskBlockedWords } from './live-blocked-words.js';
 import { readStudio, type LivePodcastStudioDto } from './live-podcast-studio.js';
 import { LiveBlockedWordsService } from './live-blocked-words.service.js';
 import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
+import { vipLivePerkIn, vipIntValue, vipPerkRankSql } from '../vip/vip-live-perks.js';
 import {
   guestSeatCount,
   hasGuestSeats,
@@ -38,6 +39,7 @@ import {
   isVoiceMedia,
   liveSeatAcceptBodySchema,
   liveSeatAskBodySchema,
+  liveSeatReserveSchema,
   DEFAULT_HOT_SEAT_SECONDS,
   PODCAST_QUESTIONS_MAX,
   parseSeatIndexPath,
@@ -73,6 +75,17 @@ export interface LiveSeatDto {
    * accepted invitation, until the host brings them on air); false otherwise.
    */
   backstage?: boolean;
+  /**
+   * v1.132-social (D379, §10.169): SEAT_RESERVE «قفل المقعد لصديق» — the host keeps this empty seat for this person
+   * until `until` (the seat reads LOCKED to everyone, so an older app shows a lock); absent otherwise.
+   */
+  reservation?: LiveSeatReservationDto;
+}
+
+/** v1.132-social (D379): `LiveSeatReservation`. */
+export interface LiveSeatReservationDto {
+  user: UserSummaryDto;
+  until: string;
 }
 
 /** v1.114-live (D363): `LivePodcastHotSeat`. */
@@ -422,12 +435,20 @@ export class LiveSeatsService {
   }
 
   /** Seats 1 … seatCount-1 that are EMPTY, in order. */
-  private async freeSeats(tx: Prisma.TransactionClient, room: LockedRoom): Promise<number[]> {
+  private async freeSeats(
+    tx: Prisma.TransactionClient,
+    room: LockedRoom,
+    forUser: string | null = null,
+  ): Promise<number[]> {
     const used = new Set(
       (await tx.liveRoomSeat.findMany({ where: { roomId: room.id }, select: { seatIndex: true } })).map(
         (s) => s.seatIndex,
       ),
     );
+    // v1.132-social (D379): a seat the host keeps for someone else is not free (for that person it is).
+    for (const r of await this.reservationsIn(tx, room.id, this.clock.now())) {
+      if (r.userId !== forUser) used.add(r.seatIndex);
+    }
     const free: number[] = [];
     for (let i = 1; i < room.seatCount; i += 1) if (!used.has(i)) free.push(i);
     return free;
@@ -442,11 +463,19 @@ export class LiveSeatsService {
     room: LockedRoom,
     explicit: number | null,
     preferred: number | null,
+    forUser: string | null = null,
   ): Promise<number> {
-    const free = await this.freeSeats(tx, room);
+    const free = await this.freeSeats(tx, room, forUser);
     if (explicit !== null) {
       if (!free.includes(explicit)) throw seatUnavailable();
       return explicit;
+    }
+    // v1.132-social (D379): the person the host keeps a seat for takes that seat.
+    if (forUser !== null) {
+      const kept = (await this.reservationsIn(tx, room.id, this.clock.now())).find(
+        (r) => r.userId === forUser,
+      );
+      if (kept && free.includes(kept.seatIndex)) return kept.seatIndex;
     }
     if (preferred !== null && free.includes(preferred)) return preferred;
     const first = free[0];
@@ -495,6 +524,10 @@ export class LiveSeatsService {
     await tx.liveSeatInvite.updateMany({
       where: { roomId: room.id, userId, status: 'PENDING' },
       data: { status: 'ACCEPTED', handledAt: now },
+    });
+    // v1.132-social (D379): seated — the seat kept for them is released (and a seat kept on this index for nobody).
+    await tx.liveSeatReservation.deleteMany({
+      where: { roomId: room.id, OR: [{ userId }, { seatIndex }] },
     });
     return {
       kind: 'permission',
@@ -594,6 +627,15 @@ export class LiveSeatsService {
       }),
     ]);
     const byIndex = new Map(rows.map((r) => [r.seatIndex, r]));
+    // v1.132-social (D379): the seats the host keeps for someone (until their time).
+    const kept = new Map(
+      (
+        await this.prisma.liveSeatReservation.findMany({
+          where: { roomId, until: { gt: this.clock.now() }, user: { status: 'ACTIVE' } },
+          include: { user: { select: USER_SUMMARY_SELECT } },
+        })
+      ).map((r) => [r.seatIndex, r]),
+    );
     // v1.114-live (D363): questions everyone reads carry the host's blocked words masked (§10.11).
     const words =
       mode === 'PODCAST' && room.podcastVideo ? await this.blockedWords.wordsOf(room.hostUserId) : [];
@@ -631,6 +673,16 @@ export class LiveSeatsService {
         });
       } else if (row?.locked) {
         seats.push({ index, state: 'LOCKED', user: null, mutedByHost: false, points: 0 });
+      } else if (kept.has(index)) {
+        const r = kept.get(index)!;
+        seats.push({
+          index,
+          state: 'LOCKED',
+          user: null,
+          mutedByHost: false,
+          points: 0,
+          reservation: { user: userSummary(r.user), until: r.until.toISOString() },
+        });
       } else {
         seats.push({ index, state: 'EMPTY', user: null, mutedByHost: false, points: 0 });
       }
@@ -772,6 +824,8 @@ export class LiveSeatsService {
     if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
     // v1.68-live (D273, §10.96.6): «فريق كابسو» watches; it never takes a seat.
     if (callerId !== row.host_user_id) await refuseWatchStaff(this.prisma, callerId, 'seat');
+    // v1.132-social (D379): nobody below a VIP room's tier asks for a seat in it.
+    await this.rooms.assertVipEntry(row, callerId);
     // v1.47-live (D212): a question goes with a podcast hand only.
     if (input.question !== undefined && row.mode !== 'PODCAST') {
       throw AppException.validation([{ field: 'question', issue: 'invalid_value' }]);
@@ -804,7 +858,7 @@ export class LiveSeatsService {
       const asked = input.seatIndex ?? null;
       if (asked !== null && asked >= room.seatCount) throw seatUnavailable();
       // D212: a podcast hand waits even while the 3 speaker seats are full (it is a queue).
-      if (room.mode !== 'PODCAST' || asked !== null) await this.pickSeat(tx, room, asked, null);
+      if (room.mode !== 'PODCAST' || asked !== null) await this.pickSeat(tx, room, asked, null, callerId);
       const created = await tx.liveSeatRequest.create({
         data: {
           roomId: room.id,
@@ -851,10 +905,12 @@ export class LiveSeatsService {
       throw forbidden();
     }
     const scope = `live-seat-requests:${row.id}`;
-    let after: { at: Date; id: string } | null = null;
+    let after: { at: Date; id: string; prio: number } | null = null;
     if (query.cursor !== undefined) {
-      after = this.cursors.decode(query.cursor, scope);
-      if (!after) throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
+      const position = this.cursors.decode(query.cursor, scope);
+      if (!position) throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
+      // v1.132-social (D379): `n` is the priority + 1 (a cursor without it: after every priority request).
+      after = { at: position.at, id: position.id, prio: (position.n ?? 0) - 1 };
     }
     const limit = Math.min(query.limit, REQUEST_PAGE_MAX);
     // v1.47-live (D212): queue order — by `deferred_at` when the host said «لاحقاً», else by
@@ -868,7 +924,7 @@ export class LiveSeatsService {
     const byId = new Map(found.map((r) => [r.id, r]));
     const rows = keys.flatMap((k) => {
       const r = byId.get(k.id);
-      return r ? [{ row: r, at: k.queued_at }] : [];
+      return r ? [{ row: r, at: k.queued_at, prio: k.prio }] : [];
     });
     const hasMore = rows.length > limit;
     const page = rows.slice(0, limit);
@@ -877,29 +933,38 @@ export class LiveSeatsService {
       data: page.map((r) => requestDto(r.row, row.mode, r.row._count.votes)),
       page: {
         hasMore,
-        nextCursor: hasMore && last ? this.cursors.encode(scope, { at: last.at, id: last.row.id }) : null,
+        nextCursor:
+          hasMore && last
+            ? this.cursors.encode(scope, { at: last.at, id: last.row.id, n: last.prio + 1 })
+            : null,
       },
     };
   }
 
   /**
    * The pending requests of a room in queue order (`COALESCE(deferred_at, created_at)`, then id),
-   * ACTIVE requesters only, after the keyset position `after`.
+   * ACTIVE requesters only, after the keyset position `after`. v1.132-social (D379, §10.169): SEAT_REQUEST_PRIORITY
+   * «أولوية طلب المقعد عند المضيف» — a requester whose active VIP holds the perk comes first (the higher tier first),
+   * unless the host said «لاحقاً» on that request (a deferred hand keeps the host's choice); the host still decides.
    */
   private async queue(
     roomId: string,
-    after: { at: Date; id: string } | null,
+    after: { at: Date; id: string; prio: number } | null,
     take: number,
-  ): Promise<{ id: string; user_id: string; queued_at: Date }[]> {
+  ): Promise<{ id: string; user_id: string; queued_at: Date; prio: number }[]> {
     const keyset = after
-      ? Prisma.sql`AND (COALESCE(q.deferred_at, q.created_at), q.id) > (${after.at}::timestamptz, ${after.id}::uuid)`
+      ? Prisma.sql`WHERE (-k.prio, k.queued_at, k.uid) > (${-after.prio}::int, ${after.at}::timestamptz, ${after.id}::uuid)`
       : Prisma.empty;
-    return this.prisma.$queryRaw<{ id: string; user_id: string; queued_at: Date }[]>`
-      SELECT q.id::text AS id, q.user_id::text AS user_id, COALESCE(q.deferred_at, q.created_at) AS queued_at
-        FROM live_seat_requests q
-        JOIN users u ON u.id = q.user_id AND u.status = 'ACTIVE'
-       WHERE q.room_id = ${roomId}::uuid AND q.status = 'PENDING' ${keyset}
-       ORDER BY COALESCE(q.deferred_at, q.created_at), q.id
+    const rank = vipPerkRankSql('SEAT_REQUEST_PRIORITY', Prisma.sql`q.user_id`);
+    return this.prisma.$queryRaw<{ id: string; user_id: string; queued_at: Date; prio: number }[]>`
+      SELECT k.uid::text AS id, k.user_id::text AS user_id, k.queued_at, k.prio FROM (
+        SELECT q.id AS uid, q.user_id, COALESCE(q.deferred_at, q.created_at) AS queued_at,
+               CASE WHEN q.deferred_at IS NULL THEN COALESCE(${rank}, -1) ELSE -1 END::int AS prio
+          FROM live_seat_requests q
+          JOIN users u ON u.id = q.user_id AND u.status = 'ACTIVE'
+         WHERE q.room_id = ${roomId}::uuid AND q.status = 'PENDING') k
+       ${keyset}
+       ORDER BY k.prio DESC, k.queued_at, k.uid
        LIMIT ${take}`;
   }
 
@@ -1032,7 +1097,13 @@ export class LiveSeatsService {
       ) {
         throw seatUnavailable();
       }
-      const seatIndex = await this.pickSeat(tx, room, input.seatIndex ?? null, request.seatIndex);
+      const seatIndex = await this.pickSeat(
+        tx,
+        room,
+        input.seatIndex ?? null,
+        request.seatIndex,
+        request.userId,
+      );
       // v1.47-live (D212): an accepted podcast hand speaks for the room's question time; v1.114-live (D363): the
       // hot seat for its own time (default 60 s).
       const seconds = hotSeat
@@ -1100,7 +1171,7 @@ export class LiveSeatsService {
       if (watching === 0) throw seatUnavailable();
       const asked = input.seatIndex ?? null;
       if (asked !== null && asked >= room.seatCount) throw seatUnavailable();
-      await this.pickSeat(tx, room, asked, null);
+      await this.pickSeat(tx, room, asked, null, target.id);
       await tx.liveSeatInvite.updateMany({
         where: { roomId: room.id, userId: target.id, status: 'PENDING' },
         data: { status: 'REPLACED', handledAt: now },
@@ -1150,7 +1221,7 @@ export class LiveSeatsService {
         return { result: undefined, version: null, effects: [], error: notPending() };
       }
       if ((await this.seatOf(tx, room.id, callerId)) !== null) throw seatUnavailable();
-      const seatIndex = await this.pickSeat(tx, room, null, invite.seatIndex);
+      const seatIndex = await this.pickSeat(tx, room, null, invite.seatIndex, callerId);
       const effect = await this.seatUserIn(tx, room, callerId, seatIndex, now, null, {
         guestTitle: invite.guestTitle,
         // v1.114-live (D363, scope extension): a video podcast's guest lands backstage first.
@@ -1175,6 +1246,146 @@ export class LiveSeatsService {
         effects: [],
       };
     });
+  }
+
+  // ---- v1.132-social (D379, §10.169): SEAT_RESERVE «قفل المقعد لصديق» ----------------------------------
+
+  /** The reservations of [roomId] still running at [now]. */
+  private reservationsIn(
+    tx: Pick<Prisma.TransactionClient, 'liveSeatReservation'>,
+    roomId: string,
+    now: Date,
+  ): Promise<{ seatIndex: number; userId: string }[]> {
+    return tx.liveSeatReservation.findMany({
+      where: { roomId, until: { gt: now } },
+      select: { seatIndex: true, userId: true },
+    });
+  }
+
+  /**
+   * `PUT /live/rooms/{roomId}/seats/{seatIndex}/reservation` `{username}`: the HOST of an AUDIO live, whose VIP holds
+   * SEAT_RESERVE with its minutes, keeps the EMPTY seat for that person for the perk's minutes (a seat kept before —
+   * on this index, or for this person elsewhere — is replaced). Checks: visible LIVE room with seats (404 / 409), the
+   * body (400), the host (403), AUDIO (409 LIVE_SEAT_UNAVAILABLE), the perk (409 VIP_UNAVAILABLE `perk` `no_perk`),
+   * the person: ACTIVE, no block with the host (404), not the host, not seated, not «فريق كابسو» (409
+   * LIVE_SEAT_UNAVAILABLE / 403 STAFF_PROTECTED), the seat: in range, not taken nor locked (409). The person is told
+   * with a `seat-reserved` data message; everyone re-reads the seats (the version).
+   */
+  async reserve(
+    callerId: string,
+    roomId: string,
+    rawIndex: string,
+    body: unknown,
+    lang: ContentLanguage,
+  ): Promise<LiveSeatsDto> {
+    const input = parseBody(liveSeatReserveSchema, body);
+    const index = seatIndexOf(rawIndex);
+    const row = await this.seatedRoom(roomId, callerId);
+    if (callerId !== row.host_user_id) throw forbidden();
+    if (row.mode !== 'AUDIO') throw seatUnavailable();
+    const now = this.clock.now();
+    const perk = await vipLivePerkIn(this.prisma, callerId, 'SEAT_RESERVE', now);
+    const minutes = perk ? vipIntValue(perk.value) : null;
+    if (minutes === null) {
+      throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [{ field: 'perk', issue: 'no_perk' }]);
+    }
+    const target = await this.users.findActivePublicUser(input.username);
+    if (!target) throw notFound();
+    if (target.id !== callerId) await assertNotStaffTarget(this.prisma, target.id);
+    await this.change(row.id, async (tx, at) => {
+      const room = await this.lockRoom(tx, row.id);
+      if (await this.blockedWithHost(tx, room.hostUserId, target.id)) throw notFound();
+      if (target.id === room.hostUserId) throw seatUnavailable();
+      if ((await this.seatOf(tx, room.id, target.id)) !== null) throw seatUnavailable();
+      if (index < 1 || index >= room.seatCount) throw seatUnavailable();
+      if ((await this.seatAt(tx, room, index)) !== null) throw seatUnavailable();
+      await tx.liveSeatReservation.deleteMany({
+        where: { roomId: room.id, OR: [{ seatIndex: index }, { userId: target.id }, { until: { lte: at } }] },
+      });
+      const until = new Date(at.getTime() + minutes * 60_000);
+      await tx.liveSeatReservation.create({
+        data: {
+          roomId: room.id,
+          seatIndex: index,
+          userId: target.id,
+          reservedById: callerId,
+          createdAt: at,
+          until,
+        },
+      });
+      return {
+        result: undefined,
+        version: await this.bump(tx, room.id),
+        effects: [
+          {
+            kind: 'data',
+            identity: target.id,
+            payload: JSON.stringify({
+              type: 'seat-reserved',
+              roomId: room.id,
+              seatIndex: index,
+              until: until.toISOString(),
+            }),
+          },
+        ],
+      };
+    });
+    return this.seatsOf(row.id, callerId, lang);
+  }
+
+  /** `DELETE /live/rooms/{roomId}/seats/{seatIndex}/reservation` (the host; idempotent): the seat is free again. */
+  async release(
+    callerId: string,
+    roomId: string,
+    rawIndex: string,
+    lang: ContentLanguage,
+  ): Promise<LiveSeatsDto> {
+    const index = seatIndexOf(rawIndex);
+    const row = await this.seatedRoom(roomId, callerId);
+    if (callerId !== row.host_user_id) throw forbidden();
+    await this.change(row.id, async (tx) => {
+      await this.lockRoom(tx, row.id);
+      const released = await tx.liveSeatReservation.deleteMany({
+        where: { roomId: row.id, seatIndex: index },
+      });
+      return {
+        result: undefined,
+        version: released.count > 0 ? await this.bump(tx, row.id) : null,
+        effects: [],
+      };
+    });
+    return this.seatsOf(row.id, callerId, lang);
+  }
+
+  /**
+   * Sweeper step (D379): the reservations whose time is over are removed and their rooms' seats re-read (the version),
+   * so the seat shows free again everywhere. Returns how many were removed.
+   */
+  async releaseExpiredReservations(): Promise<number> {
+    const now = this.clock.now();
+    const due = await this.prisma.liveSeatReservation.findMany({
+      where: { until: { lte: now } },
+      select: { roomId: true },
+      distinct: ['roomId'],
+      take: 100,
+    });
+    let released = 0;
+    for (const { roomId } of due) {
+      try {
+        released += await this.change(roomId, async (tx, at) => {
+          const gone = await tx.liveSeatReservation.deleteMany({ where: { roomId, until: { lte: at } } });
+          const live = (await tx.liveRoom.count({ where: { id: roomId, status: 'LIVE' } })) > 0;
+          return {
+            result: gone.count,
+            version: gone.count > 0 && live ? await this.bump(tx, roomId) : null,
+            effects: [],
+          };
+        });
+      } catch (err) {
+        this.logger.warn({ error: safeErrorLog(err) }, 'Could not release an expired seat reservation');
+      }
+    }
+    return released;
   }
 
   // ---- On the seat -----------------------------------------------------------------------------
@@ -1309,7 +1520,17 @@ export class LiveSeatsService {
         if (input.locked) throw seatUnavailable();
         return { result: undefined, version: null, effects: [] };
       }
-      if (input.locked === (seat?.locked ?? false)) return { result: undefined, version: null, effects: [] };
+      // v1.132-social (D379): locking or unlocking a kept seat ends the reservation (the host frees it this way too).
+      const released = await tx.liveSeatReservation.deleteMany({
+        where: { roomId: room.id, seatIndex: index },
+      });
+      if (input.locked === (seat?.locked ?? false)) {
+        return {
+          result: undefined,
+          version: released.count > 0 ? await this.bump(tx, room.id) : null,
+          effects: [],
+        };
+      }
       if (input.locked) {
         await tx.liveRoomSeat.create({
           data: { roomId: room.id, seatIndex: index, locked: true, updatedAt: now },

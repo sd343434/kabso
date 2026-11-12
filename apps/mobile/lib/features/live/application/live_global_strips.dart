@@ -28,6 +28,10 @@ sealed class GlobalStrip {
 
   /// The lane it shows in (D305b: the games lane above the gifts lane).
   StripLane get lane;
+
+  /// v1.132-social (D379, §10.169.6): TICKER_HOLD — how much longer it stays
+  /// in the middle (zero for most strips).
+  Duration get hold => Duration.zero;
 }
 
 /// D305b (owner: «شريط الألعاب يكون موقعه فوق شريط الهدايا»): the two
@@ -54,6 +58,9 @@ final class GiftStrip extends GlobalStrip {
 
   @override
   StripLane get lane => StripLane.gifts;
+
+  @override
+  Duration get hold => Duration(seconds: ticker.holdSeconds);
 }
 
 final class GameWinStrip extends GlobalStrip {
@@ -232,7 +239,7 @@ class LiveGlobalStrips extends Notifier<GlobalStripLanes> {
     };
     _timers.remove(lane)?.cancel();
     if (strip == null) return;
-    _timers[lane] = Timer(showTime, () {
+    _timers[lane] = Timer(showTime + strip.hold, () {
       if (ref.mounted) _next(lane);
     });
   }

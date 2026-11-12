@@ -10,6 +10,7 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
+import { vipPerkRankSql } from '../vip/vip-live-perks.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
 import { UsersService } from '../users/users.service.js';
 import { isCreatorIn } from '../creator/creator-membership.js';
@@ -123,6 +124,11 @@ function creatorHostRefused(issue: 'CREATOR'): AppException {
 
 const GUEST_PREFIX = 'guest:';
 const VIEWER_PAGE_MAX = 50;
+/**
+ * v1.132-social (D379, §10.169): VIEWER_LIST_PRIORITY «اسمك أعلى قائمة المشاهدين» — at most this many VIP holders lead
+ * the first page of the viewer list (the higher tier first); the pages that follow skip them.
+ */
+export const VIEWER_PRIORITY_MAX = 50;
 /** v1.56-live (D213, §10.86): the data message topic of a STREAMER's layout changes. */
 export const LIVE_STREAMER_TOPIC = 'streamer';
 
@@ -234,6 +240,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     // v1.20-live (D105, §10.20): a signed-in caller kicked out of this live gets no token for it.
     if (callerId !== null && row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
     if (guestId !== undefined && !row.allow_guests) throw new AppException(ErrorCode.LIVE_GUESTS_NOT_ALLOWED);
+    // v1.132-social (D379, §10.169): a VIP room lets in its tier and the ones above (the staff came in above).
+    await this.rooms.assertVipEntry(row, callerId);
 
     const isHost = callerId !== null && callerId === row.host_user_id;
     let identity: string;
@@ -678,10 +686,14 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       after = { at: position.at, identity: position.n === 1 ? `${GUEST_PREFIX}${position.id}` : position.id };
     }
     const limit = Math.min(query.limit, VIEWER_PAGE_MAX);
+    // v1.132-social (D379): the VIP holders of VIEWER_LIST_PRIORITY lead the first page; every page skips them.
+    const priority = await this.priorityViewers(room.id, hideBlocksOf);
+    const skip = priority.map((p) => p.identity);
     const rows = await this.prisma.liveRoomViewer.findMany({
       where: {
         roomId: room.id,
         room: { status: 'LIVE' },
+        ...(skip.length > 0 ? { identity: { notIn: skip } } : {}),
         OR: [
           { guestId: { not: null } },
           {
@@ -719,7 +731,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     return {
       // v1.64-live (D260): the staff watching visibly, on the first page only.
       staff: after === null ? await this.staffWatchers(room.id) : [],
-      data: page.map((r) => ({
+      data: [...(after === null ? priority : []), ...page].map((r) => ({
         kind: r.guestId ? 'GUEST' : 'USER',
         user: r.user ? userSummary(r.user) : null,
         guestNumber: r.guestId ? this.guestNumber(r.guestId) : null,
@@ -737,6 +749,40 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
             : null,
       },
     };
+  }
+
+  /**
+   * v1.132-social (D379, §10.169): the signed-in viewers of [roomId] whose active VIP holds VIEWER_LIST_PRIORITY (their
+   * tier or a lower one), the higher tier first, then the latest joined; ACTIVE accounts with no block with [reader]
+   * either way; at most {@link VIEWER_PRIORITY_MAX}. Nothing else about the list changes (staff, the host, guests).
+   */
+  private async priorityViewers(roomId: string, reader: string | null) {
+    const rank = vipPerkRankSql('VIEWER_LIST_PRIORITY', Prisma.sql`v.user_id`);
+    const blocks =
+      reader === null
+        ? Prisma.empty
+        : Prisma.sql`AND NOT EXISTS (SELECT 1 FROM user_blocks b
+                       WHERE (b.blocker_id = v.user_id AND b.blocked_id = ${reader}::uuid)
+                          OR (b.blocker_id = ${reader}::uuid AND b.blocked_id = v.user_id))`;
+    const ranked = await this.prisma.$queryRaw<{ identity: string; rank: number }[]>`
+      SELECT * FROM (
+        SELECT v.identity, ${rank} AS rank, v.joined_at
+          FROM live_room_viewers v JOIN users u ON u.id = v.user_id AND u.status = 'ACTIVE'
+          JOIN live_rooms r ON r.id = v.room_id AND r.status = 'LIVE'
+         WHERE v.room_id = ${roomId}::uuid AND v.user_id IS NOT NULL ${blocks}) q
+       WHERE q.rank IS NOT NULL
+       ORDER BY q.rank DESC, q.joined_at DESC, q.identity DESC
+       LIMIT ${VIEWER_PRIORITY_MAX}`;
+    if (ranked.length === 0) return [];
+    const rows = await this.prisma.liveRoomViewer.findMany({
+      where: { roomId, identity: { in: ranked.map((r) => r.identity) } },
+      include: { user: { select: USER_SUMMARY_SELECT } },
+    });
+    const byIdentity = new Map(rows.map((r) => [r.identity, r]));
+    return ranked.flatMap((r) => {
+      const row = byIdentity.get(r.identity);
+      return row ? [row] : [];
+    });
   }
 
   /**
@@ -993,6 +1039,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     await this.seats.expireInvites();
     // v1.47-live (D212): podcast questions whose time is over.
     await this.seats.demoteExpired();
+    // v1.132-social (D379): seats kept for someone whose time is over.
+    await this.seats.releaseExpiredReservations();
     await closeVisitsOfEndedRooms(this.prisma);
     await this.prisma.$executeRaw`
       DELETE FROM live_room_viewers v USING live_rooms r

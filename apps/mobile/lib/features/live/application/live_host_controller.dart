@@ -53,6 +53,7 @@ class GoLiveState {
     this.frontCamera = true,
     this.micEnabled = true,
     this.allowGuests = true,
+    this.vipMinTier,
     this.room,
     this.liveSince,
     this.endedAt,
@@ -145,6 +146,10 @@ class GoLiveState {
   /// while live it is changed with `PATCH /live/rooms/{id}`.
   final bool allowGuests;
 
+  /// v1.132-social (D379, §10.169.9): AUDIO only — a VIP room's lowest tier
+  /// (its code), sent with the room; null: open to all.
+  final String? vipMinTier;
+
   /// The room once created.
   final LiveRoom? room;
   final DateTime? liveSince;
@@ -172,7 +177,9 @@ class GoLiveState {
     PodcastSetup? podcast,
     List<UserSummary>? podcastGuests,
     bool? cameraOff,
+    String? Function()? vipMinTier,
   }) => GoLiveState(
+    vipMinTier: vipMinTier == null ? this.vipMinTier : vipMinTier(),
     cameraOff: cameraOff ?? this.cameraOff,
     podcast: podcast ?? this.podcast,
     podcastGuests: podcastGuests ?? this.podcastGuests,
@@ -751,6 +758,12 @@ class LiveHostController extends Notifier<GoLiveState> {
     _refreshStreamerNotice();
   }
 
+  /// v1.132-social (D379): the VIP room's lowest tier (before going live).
+  void setVipMinTier(String? code) {
+    if (state.phase == GoLivePhase.live) return;
+    state = state.copyWith(vipMinTier: () => code);
+  }
+
   /// Before going live: local. While live: `PATCH /live/rooms/{id}`
   /// (throws an `AppFailure`; the switch is unchanged then).
   Future<void> setAllowGuests({required bool allow}) async {
@@ -834,6 +847,9 @@ class LiveHostController extends Notifier<GoLiveState> {
         podcast: state.mode == LiveRoomMode.podcast ? state.podcast : null,
         // D213: the bubble as set up (the capture consent was given).
         streamer: streamer?.state.startLayout,
+        // v1.132-social (D379): a VIP room (audio only; the server checks
+        // the host's VIP_ROOM perk and its cap).
+        vipMinTier: state.mode == LiveRoomMode.audio ? state.vipMinTier : null,
       );
       _onAir = room.id;
       // D136: the wish list picked in the setup.
@@ -900,6 +916,7 @@ class LiveHostController extends Notifier<GoLiveState> {
           frontCamera: state.frontCamera,
           micEnabled: state.micEnabled,
           allowGuests: state.allowGuests,
+          vipMinTier: state.vipMinTier,
           mode: state.mode,
           multiSeats: state.multiSeats,
           audioSeats: state.audioSeats,

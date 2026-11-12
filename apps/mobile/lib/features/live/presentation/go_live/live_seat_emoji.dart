@@ -6,6 +6,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/emoji_panel.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_vip_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:lottie/lottie.dart';
 import 'package:material_ui/material_ui.dart';
@@ -129,9 +130,20 @@ Widget? Function(int) seatEmojiOverlay(
   return (i) {
     final show = playing[i];
     if (show == null) return null;
+    final emoji = show.emoji;
+    if (emoji == null) {
+      // v1.132-social (D379): a VIP pack file.
+      return VipSeatEmojiBurst(
+        key: ValueKey('seatEmoji.$i.${show.id}'),
+        art: show.vipArt!,
+        picture: picture,
+        onDone: () =>
+            ref.read(liveSeatEmojisProvider(roomId).notifier).done(i, show.id),
+      );
+    }
     return SeatEmojiBurst(
       key: ValueKey('seatEmoji.$i.${show.id}'),
-      emoji: show.emoji,
+      emoji: emoji,
       picture: picture,
       onDone: () =>
           ref.read(liveSeatEmojisProvider(roomId).notifier).done(i, show.id),
@@ -148,18 +160,28 @@ Future<void> showSeatEmojiSheet(
   required String roomId,
   required int seat,
 }) async {
-  final picked = await showModalBottomSheet<KabsoEmoji>(
+  final picked = await showModalBottomSheet<Object>(
     context: context,
     backgroundColor: const Color(0xFFFFFFFF),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
     ),
-    builder: (sheet) => SeatEmojiSheet(onPick: (e) => Navigator.pop(sheet, e)),
+    builder: (sheet) => SeatEmojiSheet(
+      onPick: (e) => Navigator.pop(sheet, e),
+      onVip: (n, art) => Navigator.pop(sheet, (n: n, art: art)),
+    ),
   );
   if (picked == null || !context.mounted) return;
-  final failure = await ref
-      .read(liveSeatEmojisProvider(roomId).notifier)
-      .send(seat: seat, emoji: picked);
+  final seatEmojis = ref.read(liveSeatEmojisProvider(roomId).notifier);
+  final failure = switch (picked) {
+    final KabsoEmoji e => await seatEmojis.send(seat: seat, emoji: e),
+    (n: final int n, art: final String art) => await seatEmojis.sendVip(
+      seat: seat,
+      n: n,
+      art: art,
+    ),
+    _ => null,
+  };
   if (failure != null && context.mounted) {
     KSnack.error(context, failureMessage(context.l10n, failure));
   }
@@ -167,9 +189,12 @@ Future<void> showSeatEmojiSheet(
 
 /// The content of [showSeatEmojiSheet].
 class SeatEmojiSheet extends StatelessWidget {
-  const new({required this.onPick, super.key});
+  const new({required this.onPick, super.key, this.onVip});
 
   final ValueChanged<KabsoEmoji> onPick;
+
+  /// v1.132-social (D379, §10.169.1): a holder's VIP pack file n (1 …).
+  final void Function(int n, String art)? onVip;
 
   static const panelKey = Key('seatEmoji.panel');
 
@@ -199,6 +224,10 @@ class SeatEmojiSheet extends StatelessWidget {
               style: t.caption.copyWith(color: const Color(0xFF8A8D93)),
             ),
           ),
+          if (onVip case final vip?) ...[
+            const SizedBox(height: KSpacing.sm),
+            LiveVipSeatEmojiRow(onPick: vip),
+          ],
           EmojiPanel(
             key: panelKey,
             packsOnly: true,
@@ -206,6 +235,61 @@ class SeatEmojiSheet extends StatelessWidget {
             onPack: onPick,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// v1.132-social (D379, §10.169.1): a VIP pack file playing once on a seat
+/// — the SVGA (or the picture) over the picture for [SeatEmojiBurst.stillTime]
+/// and a fade, then [onDone].
+class VipSeatEmojiBurst extends StatefulWidget {
+  const new({
+    required this.art,
+    required this.picture,
+    required this.onDone,
+    super.key,
+  });
+
+  final String art;
+  final double picture;
+  final VoidCallback onDone;
+
+  /// How long it shows (the owner's emoji cycle, about 2 s).
+  static const showTime = Duration(seconds: 2);
+
+  @override
+  State<VipSeatEmojiBurst> createState() => _VipSeatEmojiBurstState();
+}
+
+class _VipSeatEmojiBurstState extends State<VipSeatEmojiBurst> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(VipSeatEmojiBurst.showTime, widget.onDone);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = SeatEmojiBurst.canvasFor(widget.picture);
+    return IgnorePointer(
+      child: ExcludeSemantics(
+        child: OverflowBox(
+          maxWidth: size,
+          maxHeight: size,
+          child: SizedBox.square(
+            dimension: size,
+            child: VipSeatEmojiArt(art: widget.art),
+          ),
+        ),
       ),
     );
   }

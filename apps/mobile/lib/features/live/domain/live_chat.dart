@@ -7,6 +7,7 @@ import 'package:kabso_live/features/live/domain/live_level_ticker.dart';
 import 'package:kabso_live/features/live/domain/live_program.dart';
 import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/domain/live_sticker.dart';
+import 'package:kabso_live/features/live/domain/live_vip.dart';
 import 'package:kabso_live/features/live/domain/live_watch.dart';
 
 part 'live_chat.freezed.dart';
@@ -203,6 +204,16 @@ sealed class LiveChatEvent {
           UserSummary.fromJson(json['user']! as Map<String, dynamic>),
           cp: LiveJoinCp.tryParse(json['cp']),
           gender: LiveJoinGender.tryParse(json['gender']),
+          hostGreeting: json['hostGreeting'] == true,
+        ),
+        // v1.132-social (D379): a VIP pin shows / was taken down early.
+        'chat-pin' => LiveChatPinned(
+          LiveChatPin.fromJson(json['pin']! as Map<String, dynamic>),
+        ),
+        'chat-unpin' => LiveChatUnpinned(json['id']! as String),
+        // v1.132-social (D379): a VIP member's big gift plays the rain effect.
+        'vip-rain' => VipGiftRainReceived(
+          VipGiftRain.fromJson(json['rain']! as Map<String, dynamic>),
         ),
         'chat-state' => LiveChatStateChanged(enabled: json['enabled']! as bool),
         // v1.72-live (D283): a Kabso Team account entered visibly.
@@ -282,6 +293,27 @@ final class LiveChatDeleted extends LiveChatEvent {
   final String id;
 }
 
+/// v1.132-social (D379, §10.169.2): a VIP pin shows at the top of the chat.
+final class LiveChatPinned extends LiveChatEvent {
+  const new(this.pin);
+
+  final LiveChatPin pin;
+}
+
+/// v1.132-social (D379): the pin [id] was taken down early.
+final class LiveChatUnpinned extends LiveChatEvent {
+  const new(this.id);
+
+  final String id;
+}
+
+/// v1.132-social (D379, §10.169.5): BIG_GIFT_RAIN over the room.
+final class VipGiftRainReceived extends LiveChatEvent {
+  const new(this.rain);
+
+  final VipGiftRain rain;
+}
+
 /// v1.47-live (D212): the joiner's gender for the line's grammar, sent
 /// only when they show it on their profile (D175).
 enum LiveJoinGender {
@@ -305,9 +337,13 @@ final class LiveStaffJoined extends LiveChatEvent {
 }
 
 final class LiveChatJoined extends LiveChatEvent {
-  const new(this.user, {this.cp, this.gender});
+  const new(this.user, {this.cp, this.gender, this.hostGreeting = false});
 
   final UserSummary user;
+
+  /// v1.132-social (D379, §10.169.3): the joiner holds HOST_GREETING — the
+  /// HOST's app shows «VIP n دخل البث» with «رحّب».
+  final bool hostGreeting;
 
   /// v1.47-live (D212): «دخل» / «دخلت»; null = a neutral line.
   final LiveJoinGender? gender;

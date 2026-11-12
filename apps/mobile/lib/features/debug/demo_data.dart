@@ -280,6 +280,7 @@ class DemoLiveRepository implements LiveRepository {
     String? theme,
     PodcastSetup? podcast,
     LiveStreamer? streamer,
+    String? vipMinTier,
   }) async => throw _serverOnly;
 
   @override

@@ -891,6 +891,8 @@ describe('CP-013 live room chat', () => {
           user: expect.objectContaining({ id: a.id, username: a.username }),
           cp: null,
           gender: null,
+          // v1.132-social (D379): always sent; false without HOST_GREETING.
+          hostGreeting: false,
         },
       ]);
       expect(media.broadcasts.filter((x) => x.room === roomId).every((x) => x.topic === 'chat')).toBe(true);
@@ -1179,6 +1181,7 @@ describe.skipIf(!url)('CP-013 chat delivery on a real LiveKit server', () => {
           user: expect.objectContaining({ id: viewer.id, username: viewer.username }),
           cp: null,
           gender: null,
+          hostGreeting: false,
         },
         { type: 'chat', message },
         { type: 'chat', message: own },

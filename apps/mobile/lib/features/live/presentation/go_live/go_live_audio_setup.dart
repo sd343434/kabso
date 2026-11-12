@@ -19,6 +19,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.da
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_vip_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -58,6 +59,8 @@ class GoLiveAudioSetup extends StatelessWidget {
     required this.hostName,
     required this.hostAvatarUrl,
     super.key,
+    this.vipMinTier,
+    this.onVipMinTier,
     this.onShare,
     this.mode = LiveRoomMode.audio,
     this.podcast = const PodcastSetup(topic: PodcastTopic.business),
@@ -112,6 +115,11 @@ class GoLiveAudioSetup extends StatelessWidget {
   final ValueChanged<String?> onCategory;
   final bool allowGuests;
   final ValueChanged<bool>? onAllowGuests;
+
+  /// v1.132-social (D379, §10.169.9): the VIP room's lowest tier (AUDIO, a
+  /// holder of VIP_ROOM); [onVipMinTier] null hides the choice.
+  final String? vipMinTier;
+  final ValueChanged<String?>? onVipMinTier;
 
   /// Settings → Share (ref 71): copies the live's invitation.
   final VoidCallback? onShare;
@@ -337,6 +345,10 @@ class GoLiveAudioSetup extends StatelessWidget {
                             onAllowGuests: onAllowGuests!,
                             onShare: onShare,
                             guestsKey: guestsKey,
+                            vipMinTier: vipMinTier,
+                            onVipMinTier: mode == LiveRoomMode.audio
+                                ? onVipMinTier
+                                : null,
                           ),
                   ),
                 ],
@@ -916,6 +928,8 @@ Future<void> showLiveSetupSettings(
   Key? guestsKey,
   VoidCallback? onWishList,
   int? wishCount,
+  String? vipMinTier,
+  ValueChanged<String?>? onVipMinTier,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -926,6 +940,7 @@ Future<void> showLiveSetupSettings(
   ),
   builder: (sheet) {
     var allow = allowGuests;
+    var vip = vipMinTier;
     final l10n = sheet.l10n;
     final text = sheet.textStyles;
     return StatefulBuilder(
@@ -1015,6 +1030,19 @@ Future<void> showLiveSetupSettings(
                 onAllowGuests(v);
               },
             ),
+            // v1.132-social (D379): «غرفة VIP» (an audio room, a holder of
+            // VIP_ROOM); the server checks the perk and its cap again.
+            if (onVipMinTier != null)
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(17.5, 0, 12, 4),
+                child: LiveVipRoomPicker(
+                  value: vip,
+                  onChanged: (code) {
+                    setState(() => vip = code);
+                    onVipMinTier(code);
+                  },
+                ),
+              ),
             const SizedBox(height: 4),
             const ColoredBox(
               color: Color(0xFFF3F3F3),

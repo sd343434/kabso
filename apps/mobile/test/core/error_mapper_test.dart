@@ -175,6 +175,9 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.ownerJourneyLimit: 409,
   // v1.113-live (D351): the capacity guard «حد الامتلاء».
   ErrorCode.liveCapacityFull: 503,
+  // v1.132-social (D379): the VIP room and the one pin at a time.
+  ErrorCode.liveVipOnly: 403,
+  ErrorCode.livePinBusy: 409,
 };
 
 DioException _badResponse(
@@ -380,6 +383,9 @@ void main() {
           'OWNER_JOURNEY_LIMIT',
           // v1.113-live (D351).
           'LIVE_CAPACITY_FULL',
+          // v1.132-social (D379).
+          'LIVE_VIP_ONLY',
+          'LIVE_PIN_BUSY',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

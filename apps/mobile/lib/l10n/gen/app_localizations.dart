@@ -31155,6 +31155,132 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أصبح {username} يوزرك'**
   String vipPremiumClaimed(String username);
+
+  /// LIVE_VIP_ONLY (403, v1.132-social, D379): a VIP room «غرفة VIP خاصة».
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الغرفة لأعضاء VIP من مستواها فما فوق'**
+  String get errorLiveVipOnly;
+
+  /// LIVE_PIN_BUSY (409, v1.132-social, D379): one pinned message per room at a time.
+  ///
+  /// In ar, this message translates to:
+  /// **'هناك رسالة مثبتة الآن، حاول بعد قليل'**
+  String get errorLivePinBusy;
+
+  /// D379 PINNED_MESSAGE: the long-press action on one's own chat message (VIP holders only).
+  ///
+  /// In ar, this message translates to:
+  /// **'تثبيت'**
+  String get liveVipPinAction;
+
+  /// D379 PINNED_MESSAGE: takes the pinned message down (its author, the host, a moderator).
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة'**
+  String get liveVipPinRemove;
+
+  /// D379 PINNED_MESSAGE: the pin bar's label above the pinned text. {name}: the author.
+  ///
+  /// In ar, this message translates to:
+  /// **'مثبتة · {name}'**
+  String liveVipPinnedBy(String name);
+
+  /// D379 PINNED_MESSAGE: VIP_UNAVAILABLE used_up.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدمت تثبيتات اليوم'**
+  String get liveVipPinUsedUp;
+
+  /// D379 HOST_GREETING: the host-only card when a holder joins. {level}: the VIP level number.
+  ///
+  /// In ar, this message translates to:
+  /// **'VIP {level} دخل البث'**
+  String liveVipGreetingTitle(String level);
+
+  /// D379 HOST_GREETING: the one-tap greeting button.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحّب'**
+  String get liveVipGreetingAction;
+
+  /// D379 HOST_GREETING: the chat line the host sends with one tap. {name}: the joiner's username.
+  ///
+  /// In ar, this message translates to:
+  /// **'أهلاً وسهلاً بـ @{name} 👑'**
+  String liveVipGreetingLine(String name);
+
+  /// D379 VIP_ROOM: the lock sheet's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'غرفة VIP خاصة'**
+  String get liveVipLockTitle;
+
+  /// D379 VIP_ROOM: the lock sheet (LIVE_VIP_ONLY). {tier}: the tier's name.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الغرفة لأعضاء {tier} فما فوق'**
+  String liveVipLockBody(String tier);
+
+  /// D379 VIP_ROOM: the lock sheet's button to the VIP page.
+  ///
+  /// In ar, this message translates to:
+  /// **'اشترك في VIP'**
+  String get liveVipLockGetVip;
+
+  /// D379 VIP_ROOM: closes the lock sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسناً'**
+  String get liveVipLockClose;
+
+  /// D379 VIP_ROOM: the audio go-live setup switch (holders only).
+  ///
+  /// In ar, this message translates to:
+  /// **'غرفة VIP'**
+  String get liveVipRoomToggle;
+
+  /// D379 VIP_ROOM: the go-live setup hint under the switch.
+  ///
+  /// In ar, this message translates to:
+  /// **'يدخلها أعضاء VIP من المستوى الذي تختاره فما فوق'**
+  String get liveVipRoomHint;
+
+  /// D379 SEAT_RESERVE: the host's empty-seat action (holders, audio rooms).
+  ///
+  /// In ar, this message translates to:
+  /// **'احجز لصديق'**
+  String get liveVipReserveAction;
+
+  /// D379 SEAT_RESERVE: the sheet's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'قفل المقعد لصديق'**
+  String get liveVipReserveTitle;
+
+  /// D379 SEAT_RESERVE: the username field.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم'**
+  String get liveVipReserveHint;
+
+  /// D379 SEAT_RESERVE: confirms.
+  ///
+  /// In ar, this message translates to:
+  /// **'احجز'**
+  String get liveVipReserveConfirm;
+
+  /// D379 SEAT_RESERVE: the kept seat's label. {name}: the person.
+  ///
+  /// In ar, this message translates to:
+  /// **'محجوز لـ {name}'**
+  String liveVipReservedFor(String name);
+
+  /// D379 SEAT_RESERVE: the host frees the kept seat.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الحجز'**
+  String get liveVipReleaseAction;
 }
 
 class _AppLocalizationsDelegate

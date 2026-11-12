@@ -585,16 +585,22 @@ class LuckyTickerGift {
 /// is `GIFT` (v1.85-live; not read: the type says it).
 @immutable
 class GiftTicker {
-  const new({required this.gift, required this.room});
+  const new({required this.gift, required this.room, this.holdSeconds = 0});
 
   /// Throws a `TypeError` when the message does not match the contract.
   factory fromJson(Map<String, dynamic> json) => GiftTicker(
     gift: LiveGift.fromJson(json['gift']! as Map<String, dynamic>),
     room: LuckyTickerRoom.fromJson(json['room']! as Map<String, dynamic>),
+    holdSeconds: ((json['holdSeconds'] as num?)?.toInt() ?? 0).clamp(0, 60),
   );
 
   final LiveGift gift;
   final LuckyTickerRoom room;
+
+  /// v1.132-social (D379, §10.169.6): TICKER_HOLD «إيقاف الشريط العام
+  /// مؤقتاً» — the sender's VIP keeps this strip this many seconds longer in
+  /// the middle (0: none; older servers send nothing).
+  final int holdSeconds;
 }
 
 /// The game of a [GameWinTicker] (v1.85-live, D305).

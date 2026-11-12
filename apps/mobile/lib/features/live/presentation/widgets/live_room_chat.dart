@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
@@ -16,7 +17,9 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
+import 'package:kabso_live/features/live/application/live_vip_room.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
+import 'package:kabso_live/features/live/domain/live_vip.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
@@ -26,6 +29,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.da
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_role_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_public_message.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_vip_perks.dart';
 import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
@@ -154,6 +158,29 @@ class LiveRoomChatLines extends ConsumerWidget {
         .toDouble();
     // D119's join strip is gone (D212): joins are lines in every room.
     const strip = SizedBox.shrink();
+    // v1.132-social (D379, §10.169.2): the VIP pin at the top of the chat;
+    // its author, the host and moderators may take it down.
+    final vip = ref.watch(liveVipRoomProvider(roomId));
+    final pin = vip.pin;
+    final me = ref.watch(currentUserProvider)?.id;
+    final pinBar = pin == null
+        ? null
+        : Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: LiveVipPinBar(
+              key: ValueKey('vipPin.${pin.id}'),
+              pin: pin,
+              left: vip.pinLeft ?? pin.length,
+              onRemove:
+                  role == LiveChatViewerRole.host ||
+                      role == LiveChatViewerRole.moderator ||
+                      pin.author.id == me
+                  ? () => unawaited(
+                      ref.read(liveVipRoomProvider(roomId).notifier).unpin(),
+                    )
+                  : null,
+            ),
+          );
     // D230 (owner's device: «تظهر رسالته في الاعلى نصفها مختفي» and «لا
     // يمكن إرجاع الرسائل بإصبعي»): the lines are anchored at the BOTTOM of
     // the area in every room — the newest just above the quick replies /
@@ -207,6 +234,7 @@ class LiveRoomChatLines extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          ?pinBar,
           if (lines != null)
             if (box.hasBoundedHeight) Flexible(child: lines) else lines,
           strip,
@@ -1833,6 +1861,15 @@ Future<void> showLiveChatActions(
   final canDelete = mine || (moderates && !protected);
   final canMute = moderates && !mine && !protected;
   final canReport = me != null && !mine;
+  // v1.132-social (D379, §10.169.2): «تثبيت» on one's own text message —
+  // a holder of PINNED_MESSAGE (with its value) only; the server decides.
+  final canPin =
+      mine &&
+      entry.kind == LiveChatKind.text &&
+      (ref.read(myVipLivePerksProvider).value ??
+                  const {})[VipLivePerks.pinnedMessage]
+              ?.value !=
+          null;
   final chat = ref.read(liveChatProvider(roomId).notifier);
   final name = entry.author.displayName;
   final handle = KHandle.isolated(
@@ -1885,6 +1922,13 @@ Future<void> showLiveChatActions(
             title: Text(l10n.liveChatViewProfile),
             onTap: () => Navigator.of(sheet).pop('profile'),
           ),
+          if (canPin)
+            ListTile(
+              key: const Key('liveChat.action.pin'),
+              leading: const Icon(Icons.push_pin_outlined),
+              title: Text(l10n.liveVipPinAction),
+              onTap: () => Navigator.of(sheet).pop('pin'),
+            ),
           if (canDelete)
             ListTile(
               key: const Key('liveChat.action.delete'),
@@ -1921,6 +1965,19 @@ Future<void> showLiveChatActions(
     switch (action) {
       case 'profile':
         onProfile(entry.author.username);
+      case 'pin':
+        final failure = await ref
+            .read(liveVipRoomProvider(roomId).notifier)
+            .pin(entry);
+        if (failure != null && context.mounted) {
+          KSnack.error(
+            context,
+            failure is ServerFailure &&
+                    failure.details.any((d) => d.issue == 'used_up')
+                ? l10n.liveVipPinUsedUp
+                : failureMessage(l10n, failure),
+          );
+        }
       case 'delete':
         await chat.delete(entry);
         if (context.mounted) KSnack.success(context, l10n.liveChatDeleted);
