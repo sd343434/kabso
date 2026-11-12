@@ -41,7 +41,7 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
     expectContract(res, 'listVipTiers');
     return res.body.data as {
       code: string;
-      perks: { code: string; available: boolean; amount: number | null; title: string }[];
+      perks: { code: string; available: boolean; amount: number | null; value?: unknown; title: string }[];
     }[];
   };
   const upload = (kind: 'animation' | 'still', tier: string, body: Buffer) =>
@@ -72,11 +72,11 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
     vi.useRealTimers();
   });
 
-  it("VIP 1 carries the owner's twelve perks; the built ones are available, amounts as chosen", async () => {
+  it("VIP 1 carries the owner's perks (D374: eleven, DAILY_COINS removed); the built ones are available, amounts as chosen", async () => {
     const u = await p.signup();
     const vip1 = (await listed(u)).find((t) => t.code === 'VIP_1')!;
     const byCode = new Map(vip1.perks.map((pk) => [pk.code, pk]));
-    expect(byCode.size).toBe(12);
+    expect(byCode.size).toBe(11);
     // VIP 1's special text colour: the owner's gold (§10.94.10).
     expect((vip1 as unknown as { nameColor: string | null }).nameColor).toBe('#FFC928');
     for (const code of [
@@ -90,14 +90,15 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
       'MIC_WAVE',
       'PROFILE_VISITORS',
       'DAILY_BULLET',
-      'DAILY_COINS',
       'LEVEL_SPEEDUP',
     ]) {
       expect(byCode.get(code)!.available, code).toBe(true);
     }
     expect(byCode.get('DAILY_BULLET')!.amount).toBe(3);
     expect(byCode.get('LEVEL_SPEEDUP')!.amount).toBe(1);
-    expect(byCode.get('DAILY_COINS')!.amount).toBeNull();
+    // D374: the seeded DAILY_COINS row is ignored (the owner removed the perk).
+    expect(byCode.has('DAILY_COINS')).toBe(false);
+    expect(byCode.get('DAILY_BULLET')!.value).toBe(3);
     expect(byCode.get('BADGE')!.amount).toBeNull();
     expect(byCode.get('MIC_WAVE')!.title).toBe('موجة المايك');
   });
@@ -109,13 +110,27 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
     const tier = (list.body.data as { id: string; code: string; perks: Record<string, unknown>[] }[]).find(
       (t) => t.code === 'VIP_1',
     )!;
-    const perks = tier.perks.map((pk) => ({
-      code: pk.code,
-      titleAr: pk.titleAr,
-      titleEn: pk.titleEn,
-      enabled: pk.enabled,
-      ...(pk.amount === null ? {} : { amount: pk.amount }),
-    }));
+    // D374: the retired DAILY_COINS row is listed to the panel as retired; saving it again is refused.
+    const retired = tier.perks.find((pk) => pk.code === 'DAILY_COINS');
+    expect(retired).toMatchObject({ retired: true, catalogued: false, available: false });
+    const withRetired = await p.send(owner, 'patch', `/admin/vip/tiers/${VIP1}`, {
+      perks: tier.perks.map((pk) => ({ code: pk.code })),
+      reason: 'owner D374',
+    });
+    expect(withRetired.status).toBe(400);
+    expect(withRetired.body.error.details).toContainEqual({
+      field: `perks.${String(tier.perks.indexOf(retired!))}.code`,
+      issue: 'unknown_perk',
+    });
+    const perks = tier.perks
+      .filter((pk) => pk.retired !== true)
+      .map((pk) => ({
+        code: pk.code,
+        titleAr: pk.titleAr,
+        titleEn: pk.titleEn,
+        enabled: pk.enabled,
+        ...(pk.amount === null ? {} : { amount: pk.amount }),
+      }));
     // An amount on a perk that takes none, or out of its range → 400.
     const bad = await p.send(owner, 'patch', `/admin/vip/tiers/${VIP1}`, {
       perks: perks.map((pk) => (pk.code === 'BADGE' ? { ...pk, amount: 2 } : pk)),
@@ -145,11 +160,11 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
     const zip = await upload('animation', 'VIP_1', Buffer.from([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]));
     expect(zip.status).toBe(409);
 
-    // The daily coins set, the frame given its art: saved and audited.
+    // The free public messages set (D374: as `value`, kept in `amount` too), the frame given its art: saved and audited.
     const ok = await p.send(owner, 'patch', `/admin/vip/tiers/${VIP1}`, {
       perks: perks.map((pk) =>
-        pk.code === 'DAILY_COINS'
-          ? { ...pk, amount: 5000 }
+        pk.code === 'DAILY_BULLET'
+          ? { code: pk.code, titleAr: pk.titleAr, titleEn: pk.titleEn, enabled: pk.enabled, value: 50 }
           : pk.code === 'AVATAR_FRAME'
             ? { ...pk, animation: anim.body.url as string }
             : pk,
@@ -160,15 +175,18 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
     });
     expect(ok.status, JSON.stringify(ok.body)).toBe(200);
     expectContract(ok, 'updateAdminVipTier');
-    const saved = (ok.body.perks as { code: string; amount: number | null; animation: string | null }[]).find(
-      (pk) => pk.code === 'DAILY_COINS',
+    const saved = (ok.body.perks as { code: string; amount: number | null; value: unknown }[]).find(
+      (pk) => pk.code === 'DAILY_BULLET',
     )!;
-    expect(saved.amount).toBe(5000);
+    expect(saved.amount).toBe(50);
+    expect(saved.value).toBe(50);
+    expect((ok.body.perks as { code: string }[]).some((pk) => pk.code === 'DAILY_COINS')).toBe(false);
     expect(ok.body.nameColor).toBe('#FFCC00');
     const audit = await withMigrationClient((db) =>
       db.auditLog.findFirst({ where: { action: 'vip.tier.update' }, orderBy: { createdAt: 'desc' } }),
     );
-    expect(JSON.stringify(audit?.metadata)).toContain('"amount":5000');
+    expect(JSON.stringify(audit?.metadata)).toContain('"amount":50');
+    expect(JSON.stringify(audit?.metadata)).toContain('"value":50');
     expect(JSON.stringify(audit?.metadata)).toContain('"nameColor":"#FFCC00"');
   });
 

@@ -18,7 +18,6 @@ abstract final class VipPerks {
   static const micWave = 'MIC_WAVE';
   static const dailyBullet = 'DAILY_BULLET';
   static const profileVisitors = 'PROFILE_VISITORS';
-  static const dailyCoins = 'DAILY_COINS';
   static const levelSpeedup = 'LEVEL_SPEEDUP';
 }
 

@@ -4,7 +4,7 @@ import { AuditAction } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Clock } from '../../common/time/clock.js';
-import type { Prisma, VipTier, VipTierPerk } from '../../generated/prisma/client.js';
+import { Prisma, type VipTier, type VipTierPerk } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { GiftArtError, giftArtUrl, uploadGiftArt } from '../gifts/gift-art.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
@@ -13,6 +13,7 @@ import { violatedUniqueIndex } from '../users/users.service.js';
 import {
   VIP_BUILT_PERKS,
   VIP_CODE_PATTERN,
+  VIP_MAX_PERKS,
   VIP_MAX_TIERS,
   VIP_PERK_AMOUNTS,
   VIP_SUGGESTED_PERKS,
@@ -20,7 +21,22 @@ import {
   vipPerkAvailable,
   VIP_RENEWAL_DISCOUNT_DEFAULT,
 } from './vip-rules.js';
-import { vipAnimationFile, vipStillFile, type VipArtFile, type VipUploadKind } from './vip-art.js';
+import {
+  VIP_ART_LIMITS,
+  VIP_PERK_CATALOGUE,
+  vipCatalogueEntry,
+  vipPerkRetired,
+  type VipArtKind,
+  type VipCatalogueEntry,
+  type VipPerkValue,
+} from './vip-catalogue.js';
+import {
+  vipAnimationFile,
+  vipStillFile,
+  vipVideoFile,
+  type VipArtFile,
+  type VipUploadKind,
+} from './vip-art.js';
 import type { CreateVipTierBody, UpdateVipTierBody, VipPerkInput } from './vip.schemas.js';
 
 type Tx = Prisma.TransactionClient;
@@ -42,6 +58,32 @@ export interface AdminVipPerkDto {
   artHeight: number | null;
   /** D258: the perk's number for this tier (bullets / coins a day, level speed-up %); null otherwise. */
   amount: number | null;
+  /** v1.129-social (D374): the perk's value (its catalogue `value` schema), or null. */
+  value: VipPerkValue | null;
+  /** v1.129-social (D374): the perk's MP4 art, or null. */
+  video: string | null;
+  /** v1.129-social (D374): the catalogue category, or null for a code saved before that is not in the catalogue. */
+  category: string | null;
+  /** v1.129-social (D374): the code is in the catalogue (false: saved before D374; the panel only removes it). */
+  catalogued: boolean;
+  /** v1.129-social (D374): a perk the owner removed (DAILY_COINS): ignored; the panel drops it on the next save. */
+  retired: boolean;
+}
+
+/** v1.129-social (D374, §10.166): `VipPerkCatalogueEntry` — one perk of the catalogue. */
+export interface VipPerkCatalogueEntryDto {
+  code: string;
+  category: string;
+  titleAr: string;
+  titleEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  built: boolean;
+  /** The value's shape (`VipPerkValueSchema`); a `VIP_TIER` enum lists the tiers' codes now. */
+  value: unknown;
+  art: { kinds: VipArtKind[]; width: number | null; height: number | null } | null;
+  /** The value is also `amount` (D258's three numbers). */
+  legacyAmount: boolean;
 }
 
 /** v1.83-social (D258): `AdminVipUpload`. */
@@ -83,10 +125,16 @@ export interface AdminVipTierDto {
 /** `AdminVipTierList`. */
 export interface AdminVipTierListDto {
   data: AdminVipTierDto[];
-  /** The perk codes the app really does today (none yet). */
+  /** The perk codes the app really does today. */
   builtPerks: string[];
-  /** The perk codes the panel suggests. */
+  /** The perk codes the panel offers (D374: every catalogue code, in order). */
   suggestedPerks: string[];
+  /** v1.129-social (D374): the perk catalogue, in order (the panel's checkbox grid). */
+  catalogue: VipPerkCatalogueEntryDto[];
+  /** v1.129-social (D374): the most perks a tier holds. */
+  maxPerks: number;
+  /** v1.129-social (D374): the upload limits of each art kind. */
+  artLimits: Record<VipArtKind, { maxBytes: number; maxSeconds: number | null }>;
 }
 
 type TierWithPerks = VipTier & { perks: VipTierPerk[] };
@@ -110,6 +158,34 @@ function perkDto(p: VipTierPerk): AdminVipPerkDto {
     artWidth: p.artWidth,
     artHeight: p.artHeight,
     amount: p.amount,
+    value: (p.value ?? null) as VipPerkValue | null,
+    video: p.video,
+    category: vipCatalogueEntry(p.code)?.category ?? null,
+    catalogued: vipCatalogueEntry(p.code) !== undefined,
+    retired: vipPerkRetired(p.code),
+  };
+}
+
+/** D374: a catalogue entry for the panel; [tierCodes] fill a `VIP_TIER` enum's options. */
+export function catalogueEntryDto(
+  e: VipCatalogueEntry,
+  tierCodes: readonly string[],
+): VipPerkCatalogueEntryDto {
+  const value =
+    e.value.kind === 'enum' && e.value.source === 'VIP_TIER'
+      ? { ...e.value, options: [...tierCodes] }
+      : e.value;
+  return {
+    code: e.code,
+    category: e.category,
+    titleAr: e.titleAr,
+    titleEn: e.titleEn,
+    descriptionAr: e.descriptionAr,
+    descriptionEn: e.descriptionEn,
+    built: e.built,
+    value,
+    art: e.art === null ? null : { kinds: [...e.art.kinds], width: e.art.width, height: e.art.height },
+    legacyAmount: e.legacyAmount === true,
   };
 }
 
@@ -141,6 +217,8 @@ function snapshot(t: TierWithPerks): Prisma.InputJsonObject {
       artWidth: p.artWidth,
       artHeight: p.artHeight,
       amount: p.amount,
+      value: p.value ?? null,
+      video: p.video,
     })),
   };
 }
@@ -177,7 +255,12 @@ export class VipAdminService {
       throw AppException.validation([{ field: 'tier', issue: 'invalid_format' }]);
     let file: VipArtFile;
     try {
-      file = kind === 'animation' ? vipAnimationFile(tier, body) : await vipStillFile(tier, body);
+      file =
+        kind === 'animation'
+          ? vipAnimationFile(tier, body)
+          : kind === 'video'
+            ? await vipVideoFile(tier, body)
+            : await vipStillFile(tier, body);
     } catch (err) {
       if (err instanceof GiftArtError) {
         throw new AppException(ErrorCode.ADMIN_ACTION_REFUSED, err.message, [
@@ -198,8 +281,9 @@ export class VipAdminService {
       url,
       bytes: file.size,
       contentType: file.contentType,
-      width: file.width ?? null,
-      height: file.height ?? null,
+      // D374: a video's size too (the panel shows it); a still's as before; null for an SVGA.
+      width: kind === 'animation' ? null : (file.width ?? null),
+      height: kind === 'animation' ? null : (file.height ?? null),
     };
   }
 
@@ -209,10 +293,19 @@ export class VipAdminService {
       include: { perks: PERKS_IN_ORDER },
     });
     const counts = await this.activeCounts(this.prisma);
+    const tierCodes = rows.map((t) => t.code);
     return {
       data: rows.map((t) => this.dto(t, counts)),
       builtPerks: [...VIP_BUILT_PERKS].sort(),
       suggestedPerks: [...VIP_SUGGESTED_PERKS],
+      catalogue: VIP_PERK_CATALOGUE.map((e) => catalogueEntryDto(e, tierCodes)),
+      maxPerks: VIP_MAX_PERKS,
+      artLimits: Object.fromEntries(
+        Object.entries(VIP_ART_LIMITS).map(([k, v]) => [
+          k,
+          { maxBytes: v.maxBytes, maxSeconds: v.maxSeconds ?? null },
+        ]),
+      ) as AdminVipTierListDto['artLimits'],
     };
   }
 
@@ -243,7 +336,7 @@ export class VipAdminService {
             updatedById: by.actorUserId,
           },
         });
-        await this.writePerks(tx, tier.id, body.perks ?? []);
+        await this.writePerks(tx, tier.id, body.perks ?? [], body.code);
         const after = await this.load(tx, tier.id);
         await tx.auditLog.create({
           data: {
@@ -381,27 +474,90 @@ export class VipAdminService {
     return tx.vipTier.findUniqueOrThrow({ where: { id }, include: { perks: PERKS_IN_ORDER } });
   }
 
+  /**
+   * D374: the values that name rows — EXCLUSIVE_GIFTS' gift codes and VIP_ROOM's tier code — must exist (400
+   * `perks.N.value[.i]` `not_found`). [newTierCode] is the code of a tier being created (it may name itself).
+   */
+  private async checkValueRefs(tx: Tx, perks: readonly VipPerkInput[], newTierCode?: string): Promise<void> {
+    const details: { field: string; issue: string }[] = [];
+    const giftCodes = new Set<string>();
+    const tierCodes = new Set<string>();
+    perks.forEach((p) => {
+      const schema = vipCatalogueEntry(p.code)?.value;
+      if (p.value === null || p.value === undefined || !schema) return;
+      if (schema.kind === 'list' && Array.isArray(p.value)) for (const c of p.value) giftCodes.add(c);
+      if (schema.kind === 'enum' && schema.source === 'VIP_TIER' && typeof p.value === 'string') {
+        tierCodes.add(p.value);
+      }
+    });
+    if (giftCodes.size === 0 && tierCodes.size === 0) return;
+    const gifts = new Set(
+      giftCodes.size === 0
+        ? []
+        : (await tx.gift.findMany({ where: { code: { in: [...giftCodes] } }, select: { code: true } })).map(
+            (g) => g.code,
+          ),
+    );
+    const tiers = new Set(
+      tierCodes.size === 0
+        ? []
+        : (
+            await tx.vipTier.findMany({ where: { code: { in: [...tierCodes] } }, select: { code: true } })
+          ).map((t) => t.code),
+    );
+    if (newTierCode !== undefined) tiers.add(newTierCode);
+    perks.forEach((p, i) => {
+      const schema = vipCatalogueEntry(p.code)?.value;
+      if (p.value === null || p.value === undefined || !schema) return;
+      if (schema.kind === 'list' && Array.isArray(p.value)) {
+        p.value.forEach((c, j) => {
+          if (!gifts.has(c))
+            details.push({ field: `perks.${String(i)}.value.${String(j)}`, issue: 'not_found' });
+        });
+      }
+      if (schema.kind === 'enum' && schema.source === 'VIP_TIER' && typeof p.value === 'string') {
+        if (!tiers.has(p.value)) details.push({ field: `perks.${String(i)}.value`, issue: 'not_found' });
+      }
+    });
+    if (details.length > 0) throw AppException.validation(details);
+  }
+
   /** Replaces the tier's perks with [perks], in that order. */
-  private async writePerks(tx: Tx, tierId: string, perks: readonly VipPerkInput[]): Promise<void> {
+  private async writePerks(
+    tx: Tx,
+    tierId: string,
+    perks: readonly VipPerkInput[],
+    newTierCode?: string,
+  ): Promise<void> {
+    await this.checkValueRefs(tx, perks, newTierCode);
     await tx.vipTierPerk.deleteMany({ where: { tierId } });
     if (perks.length === 0) return;
     await tx.vipTierPerk.createMany({
-      data: perks.map((p, i) => ({
-        tierId,
-        code: p.code,
-        titleAr: p.titleAr,
-        titleEn: p.titleEn,
-        descriptionAr: p.descriptionAr ? p.descriptionAr : null,
-        descriptionEn: p.descriptionEn ? p.descriptionEn : null,
-        sortOrder: i,
-        enabled: p.enabled ?? true,
-        animation: p.animation ?? null,
-        still: p.still ?? null,
-        artWidth: p.artWidth ?? null,
-        artHeight: p.artHeight ?? null,
-        // D258: only the perks that take a number keep one.
-        amount: VIP_PERK_AMOUNTS[p.code] ? (p.amount ?? null) : null,
-      })),
+      data: perks.map((p, i) => {
+        const entry = vipCatalogueEntry(p.code);
+        // D258 / D374: a legacy-amount perk's value is its amount (either may be sent; the schema checked they agree).
+        const legacy = VIP_PERK_AMOUNTS[p.code] !== undefined;
+        const value = legacy ? (p.value ?? p.amount ?? null) : (p.value ?? null);
+        return {
+          tierId,
+          code: p.code,
+          // D374: an absent title is the catalogue's default.
+          titleAr: p.titleAr ?? entry?.titleAr ?? p.code,
+          titleEn: p.titleEn ?? entry?.titleEn ?? p.code,
+          descriptionAr: p.descriptionAr ? p.descriptionAr : null,
+          descriptionEn: p.descriptionEn ? p.descriptionEn : null,
+          sortOrder: i,
+          enabled: p.enabled ?? true,
+          animation: p.animation ?? null,
+          still: p.still ?? null,
+          artWidth: p.artWidth ?? null,
+          artHeight: p.artHeight ?? null,
+          // D258: only the perks that take a number keep one.
+          amount: legacy && typeof value === 'number' ? value : null,
+          value: value === null ? Prisma.DbNull : value,
+          video: p.video ?? null,
+        };
+      }),
     });
   }
 

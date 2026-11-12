@@ -130,13 +130,15 @@ describe('VIP helpers', () => {
       'MIC_WAVE',
       'PROFILE_VISITORS',
       'DAILY_BULLET',
-      'DAILY_COINS',
       'LEVEL_SPEEDUP',
     ]) {
       expect(VIP_BUILT_PERKS.has(code)).toBe(true);
       expect(vipPerkAvailable(code)).toBe(true);
     }
     expect(vipPerkAvailable('MONTHLY_GIFT')).toBe(false);
+    // D374: the owner removed DAILY_COINS («ازلها»): no longer built.
+    expect(vipPerkAvailable('DAILY_COINS')).toBe(false);
+    expect(VIP_BUILT_PERKS.size).toBe(11);
   });
 
   it("D258: a tier holds every lower tier's perks; the highest tier's perk wins for a code", () => {
@@ -211,7 +213,7 @@ describe('VIP panel bodies', () => {
     );
   });
 
-  it('perks: codes unique within the tier, at most 20, with optional art', () => {
+  it('perks: codes unique within the tier, catalogue codes only (D374), at most 64, with optional art', () => {
     const perk = (code: string) => ({ code, titleAr: 'شارة', titleEn: 'Badge' });
     expect(
       createVipTierBody.safeParse({
@@ -227,14 +229,21 @@ describe('VIP panel bodies', () => {
         ],
       }).success,
     ).toBe(true);
+    expect(
+      createVipTierBody.safeParse({ ...base, perks: [perk('BADGE'), perk('AVATAR_FRAME')] }).success,
+    ).toBe(true);
+    // D374: a code outside the catalogue is refused.
     expect(createVipTierBody.safeParse({ ...base, perks: [perk('BADGE'), perk('FRAME')] }).success).toBe(
-      true,
+      false,
     );
     const dup = createVipTierBody.safeParse({ ...base, perks: [perk('BADGE'), perk('BADGE')] });
     expect(dup.success).toBe(false);
     expect(dup.error?.issues[0]).toMatchObject({ code: 'custom', params: { issue: 'duplicate_code' } });
-    const many = Array.from({ length: 21 }, (_, i) => perk(`P${i}`));
-    expect(createVipTierBody.safeParse({ ...base, perks: many }).success).toBe(false);
+    // D374: at most VIP_MAX_PERKS (64; was 20) — 65 rows refused for their count (the codes repeat too).
+    const many = Array.from({ length: 65 }, () => perk('BADGE'));
+    const tooMany = createVipTierBody.safeParse({ ...base, perks: many });
+    expect(tooMany.success).toBe(false);
+    expect(tooMany.error?.issues.some((i) => i.code === 'too_big')).toBe(true);
   });
 
   it('an edit changes something besides the reason; an order needs ids', () => {

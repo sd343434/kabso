@@ -36,9 +36,9 @@ import { pathUuid } from './admin-panel.schemas.js';
 import { AdminSessionGuard, CurrentAdmin, RequireCapability } from './admin-session.guard.js';
 import { viaOf } from './admin-users.service.js';
 
-/** v1.83-social (D258): the upload's kind and the tier's code (the files' folder). */
+/** v1.83-social (D258): the upload's kind and the tier's code (the files' folder). D374: + `video` (MP4). */
 const vipUploadQuery = z.strictObject({
-  kind: z.enum(['animation', 'still']),
+  kind: z.enum(['animation', 'still', 'video']),
   tier: z.string().regex(VIP_CODE_PATTERN),
 });
 
@@ -59,7 +59,8 @@ export class AdminVipController {
 
   /**
    * v1.83-social (D258, §10.94.6): one file of a tier's badge or perk art — an SVGA 2.x animation or a PNG / WebP
-   * still — the raw bytes (`application/octet-stream`, at most 26 MB); the URL goes into the tier's form.
+   * still — the raw bytes (`application/octet-stream`, at most 26 MB); the URL goes into the tier's form. D374: or an
+   * MP4 (`kind=video`, ≤ 8 MB, ≤ 15 s, H.264).
    */
   @Post('uploads')
   @HttpCode(201)

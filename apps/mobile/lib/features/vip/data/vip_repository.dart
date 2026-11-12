@@ -40,6 +40,9 @@ final class VipPerk {
     this.artHeight,
     this.amount,
     this.video,
+    this.value,
+    this.category,
+    this.fromTier,
   });
 
   /// D270 (§10.98.4): a store item worn, as the perk of its kind (the store
@@ -65,6 +68,9 @@ final class VipPerk {
     artWidth: _intOrNull(json['artWidth']),
     artHeight: _intOrNull(json['artHeight']),
     amount: _intOrNull(json['amount']),
+    value: json['value'],
+    category: json['category'] as String?,
+    fromTier: json['fromTier'] as String?,
   );
 
   final String code;
@@ -85,6 +91,22 @@ final class VipPerk {
 
   /// D270: the [animation] is an MP4 (a store item's art), else an SVGA.
   final ArtVideo? video;
+
+  /// v1.129-social (D374, §10.166): the perk's value for the tier, as its
+  /// catalogue says (a number, a text, a list or an object), or null. For
+  /// DAILY_BULLET and LEVEL_SPEEDUP it equals [amount].
+  final Object? value;
+
+  /// D374: the catalogue category (IDENTITY, ENTRANCE, CHAT, …), or null.
+  final String? category;
+
+  /// D374: in [VipTier.effectivePerks] only — the code of the lower tier this
+  /// perk is inherited from; null for the tier's own perk.
+  final String? fromTier;
+
+  /// D374: the number this perk carries — [amount], else a whole-number
+  /// [value] — or null.
+  int? get number => amount ?? (value is num ? (value! as num).toInt() : null);
 }
 
 /// `VipTier`: a tier on sale, in the panel's order ([level] 1 … n).
@@ -99,6 +121,7 @@ final class VipTier {
     required this.priceCoins,
     required this.durationDays,
     required this.perks,
+    List<VipPerk>? effectivePerks,
     this.badgeAnimation,
     this.badgeStill,
     this.nameColor,
@@ -107,7 +130,8 @@ final class VipTier {
     this.pricePoints,
     int? renewPricePoints,
   }) : renewPriceCoins = renewPriceCoins ?? priceCoins,
-       renewPricePoints = renewPricePoints ?? pricePoints;
+       renewPricePoints = renewPricePoints ?? pricePoints,
+       effectivePerks = effectivePerks ?? perks;
 
   factory fromJson(Map<String, dynamic> json) => VipTier(
     renewalDiscountPercent: _int(json['renewalDiscountPercent']),
@@ -129,6 +153,9 @@ final class VipTier {
     priceCoins: _int(json['priceCoins']),
     durationDays: _int(json['durationDays']),
     perks: [for (final p in _list(json['perks'])) VipPerk.fromJson(p)],
+    effectivePerks: json['effectivePerks'] is List
+        ? [for (final p in _list(json['effectivePerks'])) VipPerk.fromJson(p)]
+        : null,
   );
 
   final String id;
@@ -159,7 +186,15 @@ final class VipTier {
   final String? badgeStill;
   final int priceCoins;
   final int durationDays;
+
+  /// The tier's own perks (as set in the panel).
   final List<VipPerk> perks;
+
+  /// v1.129-social (D374, §10.166.5): what a holder of this tier has — its
+  /// own perks and the lower tiers' (inherited, [VipPerk.fromTier]), in the
+  /// catalogue's order; the VIP page lists these. [perks] when the server
+  /// sends none (an older server).
+  final List<VipPerk> effectivePerks;
 }
 
 /// `VipTierList`.
@@ -178,29 +213,6 @@ final class VipTierList {
   final int maxAheadDays;
 }
 
-/// `VipDailyCoins` (v1.83-social, D258 §10.94.5): a member's daily coins.
-@immutable
-final class VipDailyCoins {
-  const new({
-    required this.amount,
-    required this.claimedToday,
-    required this.nextAt,
-  });
-
-  factory fromJson(Map<String, dynamic> json) => VipDailyCoins(
-    amount: _int(json['amount']),
-    claimedToday: json['claimedToday'] == true,
-    nextAt: DateTime.parse(json['nextAt']! as String),
-  );
-
-  /// Coins a day.
-  final int amount;
-  final bool claimedToday;
-
-  /// When the next claim opens (the next day's start).
-  final DateTime nextAt;
-}
-
 /// `MyVip.renewal` (D258 §10.94.12): buying `tierId` again now costs
 /// `priceCoins` (`discountPercent` off) until `until`.
 typedef VipRenewal = ({
@@ -211,10 +223,6 @@ typedef VipRenewal = ({
   // v1.126-social (D370): the renewal's points price, or null.
   int? pricePoints,
 });
-
-/// `VipDailyCoinsClaim`: what a claim credited (0 when already claimed
-/// today), the balance after it and the new state.
-typedef VipDailyCoinsClaim = ({int coins, int balance, VipDailyCoins daily});
 
 /// `ProfileVisitor` (v1.83-social, D258 §10.94.9): one visitor of the
 /// caller's profile.
@@ -256,10 +264,9 @@ final class VipMembership {
     required this.daysLeft,
     this.badgeAnimation,
     this.badgeStill,
-    this.dailyCoins,
   });
 
-  factory fromJson(Map<String, dynamic> json, {VipDailyCoins? dailyCoins}) {
+  factory fromJson(Map<String, dynamic> json) {
     final tier = json['tier']! as Map<String, dynamic>;
     return VipMembership(
       tierId: tier['id']! as String,
@@ -272,12 +279,11 @@ final class VipMembership {
       startedAt: DateTime.parse(json['startedAt']! as String),
       expiresAt: DateTime.parse(json['expiresAt']! as String),
       daysLeft: _int(json['daysLeft']),
-      dailyCoins: dailyCoins,
     );
   }
 
-  /// D258: `MyVip.dailyCoins` (members holding DAILY_COINS), else null.
-  final VipDailyCoins? dailyCoins;
+  // D374 (§10.166.6): the owner removed the daily coins; `MyVip.dailyCoins`
+  // is never sent any more and the app no longer reads it.
 
   final String tierId;
   final String tierCode;
@@ -352,9 +358,6 @@ abstract interface class VipRepository {
   /// now, or null.
   Future<VipRenewal?> renewal();
 
-  /// `POST /me/vip/daily-coins` (D258): today's daily coins (once a day).
-  Future<VipDailyCoinsClaim> claimDailyCoins();
-
   /// `GET /me/profile-visitors` (D258): «من زار ملفي».
   Future<ProfileVisitorList> profileVisitors();
 }
@@ -374,15 +377,7 @@ class VipRepositoryImpl implements VipRepository {
   Future<VipMembership?> mine() => guardApiCall(() async {
     final res = await _dio.get<Map<String, dynamic>>('/me/vip');
     final m = res.data!['membership'];
-    final daily = res.data!['dailyCoins'];
-    return m == null
-        ? null
-        : VipMembership.fromJson(
-            m as Map<String, dynamic>,
-            dailyCoins: daily is Map<String, dynamic>
-                ? VipDailyCoins.fromJson(daily)
-                : null,
-          );
+    return m == null ? null : VipMembership.fromJson(m as Map<String, dynamic>);
   });
 
   @override
@@ -406,19 +401,6 @@ class VipRepositoryImpl implements VipRepository {
     return (
       data: [for (final v in _list(body['data'])) ProfileVisitor.fromJson(v)],
       total: _int(body['total']),
-    );
-  });
-
-  @override
-  Future<VipDailyCoinsClaim> claimDailyCoins() => guardApiCall(() async {
-    final res = await _dio.post<Map<String, dynamic>>('/me/vip/daily-coins');
-    final body = res.data!;
-    return (
-      coins: _int(body['coins']),
-      balance: _int(body['balance']),
-      daily: VipDailyCoins.fromJson(
-        body['dailyCoins']! as Map<String, dynamic>,
-      ),
     );
   });
 

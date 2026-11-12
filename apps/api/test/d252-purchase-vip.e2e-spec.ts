@@ -169,7 +169,7 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
       'MIC_WAVE',
       'DAILY_BULLET',
       'PROFILE_VISITORS',
-      'DAILY_COINS',
+      // D374: the owner removed DAILY_COINS — its seeded row is kept but never listed.
       'LEVEL_SPEEDUP',
     ]);
     expect(vip1!.perks.every((pk) => pk.still === null && pk.animation === null)).toBe(true);
@@ -191,7 +191,6 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
         'CHAT_BUBBLE',
         'CHAT_NAME_COLOR',
         'DAILY_BULLET',
-        'DAILY_COINS',
         'ENTRY_BANNER',
         'ENTRY_EFFECT',
         'LEVEL_SPEEDUP',
@@ -250,7 +249,9 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
         },
       ],
     });
-    await addTier('VIP_2', 3_000, { perks: [perk('BADGE'), perk('ENTRY_BANNER'), perk('HIDDEN', false)] });
+    await addTier('VIP_2', 3_000, {
+      perks: [perk('BADGE'), perk('ENTRY_BANNER'), perk('HIDDEN_VISIT', false)],
+    });
     await addTier('VIP_3', 9_000, { perks: [perk('ENTRY_EFFECT')] });
 
     const dup = await p.send(owner, 'post', '/admin/vip/tiers', {

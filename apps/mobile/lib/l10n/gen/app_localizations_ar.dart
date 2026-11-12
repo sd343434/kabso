@@ -14057,22 +14057,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get walletReasonVipDailyCoins => 'كوينز VIP اليومية';
 
   @override
-  String vipDailyCoins(String amount) {
-    return 'الكوينز اليومية: $amount';
-  }
-
-  @override
-  String get vipDailyCoinsClaim => 'استلام';
-
-  @override
-  String get vipDailyCoinsClaimed => 'تم الاستلام اليوم';
-
-  @override
-  String vipDailyCoinsAdded(String amount) {
-    return 'تمت إضافة $amount كوينز';
-  }
-
-  @override
   String liveBulletSentFree(String count) {
     return 'أُرسلت رسالة عامة مجانية · متبقي $count اليوم';
   }
@@ -14125,18 +14109,11 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String vipDailyCoinsTotal(String total) {
-    return 'إجمالي الكوينز اليومية $total كوينز';
-  }
+  String get vipPerkSoonTag => 'قريباً';
 
   @override
   String vipPricePer(String days) {
     return 'كوينز / $days يوماً';
-  }
-
-  @override
-  String vipCashback(String total, String daily) {
-    return 'إجمالي استرجاع $total كوينز ($daily يومياً)';
   }
 
   @override

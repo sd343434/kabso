@@ -65,12 +65,6 @@ final _list = VipTierList(
         _perk('DAILY_BULLET', '٣ رسائل عامة مجانية'),
         _perk('PROFILE_VISITORS', 'من زار ملفي'),
         const VipPerk(
-          code: 'DAILY_COINS',
-          title: 'كوينز يومية',
-          available: true,
-          amount: 500,
-        ),
-        const VipPerk(
           code: 'LEVEL_SPEEDUP',
           title: 'تسريع المستوى',
           available: true,

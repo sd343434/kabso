@@ -14049,22 +14049,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get walletReasonVipDailyCoins => 'VIP daily coins';
 
   @override
-  String vipDailyCoins(String amount) {
-    return 'Daily coins: $amount';
-  }
-
-  @override
-  String get vipDailyCoinsClaim => 'Claim';
-
-  @override
-  String get vipDailyCoinsClaimed => 'Claimed today';
-
-  @override
-  String vipDailyCoinsAdded(String amount) {
-    return '$amount coins added';
-  }
-
-  @override
   String liveBulletSentFree(String count) {
     return 'Free public message sent · $count left today';
   }
@@ -14119,18 +14103,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String vipDailyCoinsTotal(String total) {
-    return 'Daily coins: $total coins in total';
-  }
+  String get vipPerkSoonTag => 'Soon';
 
   @override
   String vipPricePer(String days) {
     return 'coins / $days days';
-  }
-
-  @override
-  String vipCashback(String total, String daily) {
-    return '$total coins back in total ($daily a day)';
   }
 
   @override

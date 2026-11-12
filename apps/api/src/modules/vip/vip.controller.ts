@@ -47,11 +47,11 @@ export class VipController {
     return this.vip.mine(auth.userId, await this.language(req, auth));
   }
 
-  /** v1.83-social (D258, §10.94.5): today's VIP coins (once a day; a second call credits nothing). */
+  /** v1.83-social (D258, §10.94.5). D374 (§10.166.6): retired — always 409 `VIP_UNAVAILABLE` (`perk` `retired`). */
   @Post('me/vip/daily-coins')
   @HttpCode(200)
-  claimDailyCoins(@CurrentAuth() auth: AuthContext): Promise<VipDailyCoinsClaimDto> {
-    return this.vip.claimDailyCoins(auth.userId);
+  claimDailyCoins(): VipDailyCoinsClaimDto {
+    return this.vip.claimDailyCoins();
   }
 
   /** v1.83-social (D258, §10.94.9): «من زار ملفي» (members holding PROFILE_VISITORS). */

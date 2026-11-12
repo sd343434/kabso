@@ -4294,3 +4294,23 @@ CONVENTIONS §10.163 (owner 2026-11-11). One migration, no new setting, no new s
   possible later if the owner asks).
 - **Order:** deploy the API image (the migration runs first) → the admin panel → ship the APK. An older app never sends
   `payWith` (it buys with coins as before) and ignores the new fields.
+
+### 5.119 The VIP perk catalogue and DAILY_COINS removed (D374; migration `20270503090000_vip_perk_catalogue`) — [IMPLEMENTED, draft contract v1.129-social; not deployed, not device-tested]
+
+CONVENTIONS §10.166 (owner 2026-11-11). One migration, no new setting, no new secret, no new host (MP4 art goes to the
+same object storage as the VIP SVGA / stills, under `media/vip/<tier>/`).
+
+- **Migration** `20270503090000_vip_perk_catalogue` (the usual `migrate` job, as the migration role): adds
+  `vip_tier_perks.value` (JSONB) and `vip_tier_perks.video` (https), copies every existing `amount` into `value`, and adds
+  the CHECKs `vip_tier_perks_value_shape`, `vip_tier_perks_amount_value` and `vip_tier_perks_video_https`. A small table;
+  no long lock. **Nothing is deleted:** every tier and perk row stays (codes, titles, art, order, on / off).
+- **DAILY_COINS removed (owner «ازلها»):** tier rows with `DAILY_COINS` stay in the table but are ignored (never listed to
+  the app, never granted) and are dropped the next time the owner saves that tier's perks in the panel.
+  `POST /me/vip/daily-coins` answers 409 `VIP_UNAVAILABLE` `retired` from the deploy on; the `VIP_DAILY_COINS` ledger
+  rows and `vip_daily_coin_claims` stay (history). Nothing to do on the server.
+- **After deploy (owner / panel):** open each VIP tier and tick its perks in the new grid (a tier also holds the lower
+  tiers' perks); the perks marked «قريباً» are listed in the app as coming and do nothing yet. A perk saved earlier with
+  a free-text code outside the catalogue is shown as «removed on save».
+- **Order:** deploy the API image (the migration runs first) together with the admin panel (the old panel's free-text
+  codes would be refused by the new API), then ship the APK. An older app keeps working: it reads `perks` (not
+  `effectivePerks`) and no longer sees a daily-coins row.

@@ -9,12 +9,11 @@ import type { Prisma, VipTier, VipTierPerk } from '../../generated/prisma/client
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
-import { dateValue, programWindowsIn } from '../programs/programs-time.js';
-import { creditIn, debitIn } from '../wallet/wallet-ledger.js';
+import { debitIn } from '../wallet/wallet-ledger.js';
 import { pointsBalanceIn, spendPointsIn } from '../recharge-points/recharge-points-ledger.js';
 import type { BuyVipBody } from './vip.schemas.js';
 import { wearVipItemsIn } from './vip-bag.js';
-import { vipHoldsPerkIn, vipPerkAmountIn } from './vip-perks.js';
+import { vipHoldsPerkIn } from './vip-perks.js';
 import { PROFILE_VISITORS_DAYS, PROFILE_VISITORS_MAX } from './profile-visits.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
@@ -28,8 +27,10 @@ import {
   vipRenewalApplies,
   vipDaysLeft,
   vipPerkAvailable,
+  vipEffectivePerks,
   type VipPurchaseKind,
 } from './vip-rules.js';
+import { vipCatalogueEntry, vipCatalogueIndex, vipPerkRetired, type VipPerkValue } from './vip-catalogue.js';
 import { refuseLimitedStaff } from '../live/live-staff.js';
 
 type Tx = Prisma.TransactionClient;
@@ -52,6 +53,17 @@ export interface VipPerkDto {
   artHeight: number | null;
   /** D258: the perk's number for this tier (bullets / coins a day, level speed-up %); null otherwise. */
   amount: number | null;
+  /** v1.129-social (D374, §10.166): the perk's value (its catalogue schema), or null. */
+  value: VipPerkValue | null;
+  /** v1.129-social (D374): the perk's MP4 art, or null. */
+  video: string | null;
+  /** v1.129-social (D374): the catalogue category (IDENTITY, ENTRANCE, …), or null outside the catalogue. */
+  category: string | null;
+  /**
+   * v1.129-social (D374): in `VipTier.effectivePerks` only — the code of the lower tier this perk comes from (the
+   * tier itself does not list it); absent for the tier's own perk.
+   */
+  fromTier?: string;
 }
 
 /** `VipTier`: a tier on sale, in the panel's order. */
@@ -79,6 +91,12 @@ export interface VipTierDto {
   renewPricePoints: number | null;
   durationDays: number;
   perks: VipPerkDto[];
+  /**
+   * v1.129-social (D374, §10.166): what a holder of this tier has — every enabled perk of the tiers ranked up to it
+   * (on sale or not), by code, the highest-ranked tier's perk for a code (D258's inheritance, `vipEffectivePerks`), in
+   * the catalogue's order; an inherited one carries `fromTier`.
+   */
+  effectivePerks: VipPerkDto[];
 }
 
 /** `VipTierList`. */
@@ -130,7 +148,7 @@ export interface MyVipDto {
   };
   /** v1.126-social (D370, §10.163): the caller's recharge points now (may be below 0 after a reversal). */
   rechargePoints: number;
-  /** v1.83-social (D258): present while the member holds DAILY_COINS with an amount. */
+  /** v1.83-social (D258): present while the member held DAILY_COINS. D374: never sent (the perk was removed). */
   dailyCoins?: VipDailyCoinsDto;
 }
 
@@ -192,7 +210,38 @@ export function vipPerkDto(lang: ContentLanguage, p: VipTierPerk): VipPerkDto {
     artWidth: p.artWidth,
     artHeight: p.artHeight,
     amount: p.amount,
+    value: (p.value ?? null) as VipPerkValue | null,
+    video: p.video,
+    category: vipCatalogueEntry(p.code)?.category ?? null,
   };
+}
+
+/**
+ * D374: [tier]'s effective perks among [all] tiers (any, on sale or not, with their enabled perks), in the catalogue's
+ * order (a code outside it last, by its tier's order); a retired perk ({@link vipPerkRetired}) is left out.
+ */
+export function vipEffectivePerkDtos(
+  lang: ContentLanguage,
+  all: readonly (VipTier & { perks: VipTierPerk[] })[],
+  tier: VipTier,
+): VipPerkDto[] {
+  const byTier = new Map<string, string>();
+  for (const t of all) for (const p of t.perks) byTier.set(p.id, t.code);
+  const held = vipEffectivePerks(
+    all.map((t) => ({ rank: t.sortOrder, perks: t.perks })),
+    tier.sortOrder,
+  );
+  return [...held.values()]
+    .filter((p) => !vipPerkRetired(p.code))
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => vipCatalogueIndex(a.p.code) - vipCatalogueIndex(b.p.code) || a.i - b.i)
+    .map(({ p }) => {
+      const from = byTier.get(p.id);
+      return {
+        ...vipPerkDto(lang, p),
+        ...(from !== undefined && from !== tier.code ? { fromTier: from } : {}),
+      };
+    });
 }
 
 function membershipDto(
@@ -238,11 +287,12 @@ export class VipService {
 
   /** `GET /vip/tiers`: the tiers switched on, in order, with their perks that are switched on. */
   async tiers(lang: ContentLanguage): Promise<VipTierListDto> {
-    const rows = await this.prisma.vipTier.findMany({
-      where: { enabled: true },
+    // D374: every tier (a tier off sale still passes its perks up, D258), the ones on sale listed.
+    const all = await this.prisma.vipTier.findMany({
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
       include: { perks: { where: { enabled: true }, orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] } },
     });
+    const rows = all.filter((t) => t.enabled);
     return {
       data: rows.map((t, i) => ({
         id: t.id,
@@ -260,7 +310,9 @@ export class VipService {
         renewPricePoints:
           t.pointsPrice === null ? null : Number(vipPointsCharge(t.pointsPrice, t.renewalDiscountPercent)),
         durationDays: t.durationDays,
-        perks: t.perks.map((p) => vipPerkDto(lang, p)),
+        // D374: a retired perk's row (DAILY_COINS) is ignored.
+        perks: t.perks.filter((p) => !vipPerkRetired(p.code)).map((p) => vipPerkDto(lang, p)),
+        effectivePerks: vipEffectivePerkDtos(lang, all, t),
       })),
       maxAheadDays: VIP_MAX_AHEAD_DAYS,
     };
@@ -287,70 +339,23 @@ export class VipService {
     if (!m || !vipActive(m.expiresAt, now)) {
       return { membership: null, ...(renewal ? { renewal } : {}), rechargePoints };
     }
-    const daily = await this.dailyCoinsState(this.prisma, userId, now);
+    // D374: no `dailyCoins` any more (the owner removed the perk); older apps hide the row without it.
     return {
       membership: membershipDto(lang, m, m.tier, now),
       ...(renewal ? { renewal } : {}),
-      ...(daily ? { dailyCoins: daily.dto } : {}),
       rechargePoints,
     };
   }
 
-  /** D258: the member's daily coins today, or null without the perk (or an amount). */
-  private async dailyCoinsState(
-    db: Tx | PrismaService,
-    userId: string,
-    now: Date,
-  ): Promise<{ dto: VipDailyCoinsDto; day: string; tierId: string } | null> {
-    const amount = await vipPerkAmountIn(db, userId, 'DAILY_COINS', now);
-    if (amount === null) return null;
-    const membership = await db.vipMembership.findUnique({ where: { userId }, select: { tierId: true } });
-    if (!membership) return null;
-    const { day } = await programWindowsIn(db, now, this.config.live.rankingsTimeZone);
-    const claimed = await db.vipDailyCoinClaim.findUnique({
-      where: { userId_day: { userId, day: dateValue(day.date) } },
-      select: { id: true },
-    });
-    return {
-      dto: { amount, claimedToday: claimed !== null, nextAt: day.end.toISOString() },
-      day: day.date,
-      tierId: membership.tierId,
-    };
-  }
-
   /**
-   * v1.83-social (D258, §10.94.5) `POST /me/vip/daily-coins`: credits today's coins once (ledger `VIP_DAILY_COINS`,
-   * reference the claim row); a second call the same day credits nothing (`coins` 0). 409 `VIP_UNAVAILABLE`
-   * (`no_perk`) without an active membership holding DAILY_COINS with an amount.
+   * v1.83-social (D258, §10.94.5) `POST /me/vip/daily-coins`. v1.129-social (D374, §10.166.6): the owner removed the
+   * daily coins (2026-11-11) — always 409 `VIP_UNAVAILABLE` (`perk` `retired`); nothing is credited. The
+   * `VIP_DAILY_COINS` ledger reason and the past claims stay (history).
    */
-  async claimDailyCoins(userId: string): Promise<VipDailyCoinsClaimDto> {
-    const now = this.clock.now();
-    return this.prisma.$transaction(async (tx) => {
-      await lockVipUser(tx, userId);
-      const state = await this.dailyCoinsState(tx, userId, now);
-      if (!state) {
-        throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [{ field: 'perk', issue: 'no_perk' }]);
-      }
-      if (state.dto.claimedToday) {
-        const wallet = await tx.wallet.findUnique({ where: { userId }, select: { coins: true } });
-        return { coins: 0, balance: Number(wallet?.coins ?? 0n), dailyCoins: state.dto };
-      }
-      const claim = await tx.vipDailyCoinClaim.create({
-        data: {
-          id: randomUUID(),
-          userId,
-          day: dateValue(state.day),
-          tierId: state.tierId,
-          coins: BigInt(state.dto.amount),
-        },
-      });
-      const credited = await creditIn(tx, userId, BigInt(state.dto.amount), 'VIP_DAILY_COINS', claim.id);
-      return {
-        coins: state.dto.amount,
-        balance: Number(credited.coins),
-        dailyCoins: { ...state.dto, claimedToday: true },
-      };
-    });
+  claimDailyCoins(): never {
+    throw new AppException(ErrorCode.VIP_UNAVAILABLE, 'The VIP daily coins were removed.', [
+      { field: 'perk', issue: 'retired' },
+    ]);
   }
 
   /**

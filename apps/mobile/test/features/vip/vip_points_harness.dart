@@ -110,9 +110,6 @@ class FakePointsVip implements VipRepository {
   }
 
   @override
-  Future<VipDailyCoinsClaim> claimDailyCoins() => throw UnimplementedError();
-
-  @override
   Future<ProfileVisitorList> profileVisitors() => throw UnimplementedError();
 }
 

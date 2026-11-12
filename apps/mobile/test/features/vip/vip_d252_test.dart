@@ -123,11 +123,9 @@ VipMembership _membership(
   VipTier tier, {
   int days = 20,
   bool onSale = true,
-  VipDailyCoins? dailyCoins,
   // Goldens fix the date: the page shows «حتى <expiresAt>».
   DateTime? now,
 }) => VipMembership(
-  dailyCoins: dailyCoins,
   tierId: tier.id,
   tierCode: tier.code,
   tierName: tier.name,
@@ -193,24 +191,6 @@ class _FakeVip implements VipRepository {
 
   @override
   Future<ProfileVisitorList> profileVisitors() async => visitors;
-
-  /// D258: daily coins claims (each answers [dailyAmount] once a day).
-  int claims = 0;
-  int dailyAmount = 500;
-
-  @override
-  Future<VipDailyCoinsClaim> claimDailyCoins() async {
-    claims++;
-    return (
-      coins: claims == 1 ? dailyAmount : 0,
-      balance: 1000,
-      daily: VipDailyCoins(
-        amount: dailyAmount,
-        claimedToday: true,
-        nextAt: DateTime.now().add(const Duration(hours: 5)),
-      ),
-    );
-  }
 }
 
 Future<void> _pump(
@@ -467,57 +447,31 @@ void main() {
       expect(find.byKey(VipScreen.confirmKey), findsNothing);
     });
 
-    testWidgets('D258: «My VIP» claims the daily coins once a day', (
-      tester,
-    ) async {
-      final held = _membership(
-        _tier(1),
-        dailyCoins: VipDailyCoins(
-          amount: 500,
-          claimedToday: false,
-          nextAt: DateTime.now().add(const Duration(hours: 5)),
-        ),
-      );
-      final vip = _FakeVip(membership: held);
-      await _pump(tester, vip: vip);
-      await tester.tap(find.byKey(VipScreen.statusKey));
-      await tester.pumpAndSettle();
-      expect(find.text(_en.vipDailyCoins('500')), findsOneWidget);
-      expect(find.text(_en.vipDailyCoinsClaim), findsOneWidget);
-      await tester.tap(find.byKey(VipDailyCoinsRow.claimKey));
-      await tester.pumpAndSettle();
-      expect(vip.claims, 1);
-      expect(find.text(_en.vipDailyCoinsAdded('500')), findsOneWidget);
-      expect(find.text(_en.vipDailyCoinsClaimed), findsOneWidget);
-      // Claimed: the button is off.
-      await tester.tap(find.byKey(VipDailyCoinsRow.claimKey));
-      await tester.pumpAndSettle();
-      expect(vip.claims, 1);
-    });
-
-    testWidgets('D258: without the perk, no daily coins row', (tester) async {
+    testWidgets('D374: «My VIP» has no daily coins row (the owner removed '
+        'DAILY_COINS)', (tester) async {
       await _pump(tester, vip: _FakeVip(membership: _membership(_tier(2))));
       await tester.tap(find.byKey(VipScreen.statusKey));
       await tester.pumpAndSettle();
-      expect(find.byKey(VipDailyCoinsRow.rowKey), findsNothing);
+      // The sheet is open (its status line), and has no daily coins row.
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.byKey(const Key('vip.dailyCoins')), findsNothing);
+      expect(find.byKey(const Key('vip.dailyCoins.claim')), findsNothing);
     });
 
-    test('D258: MyVip.dailyCoins and the wallet reason are read', () {
-      final daily = VipDailyCoins.fromJson(const {
-        'amount': 500,
-        'claimedToday': true,
-        'nextAt': '2026-11-05T21:00:00.000Z',
-      });
-      expect(daily.amount, 500);
-      expect(daily.claimedToday, isTrue);
-      expect(
-        WalletLedgerReason.fromWire('VIP_DAILY_COINS'),
-        WalletLedgerReason.vipDailyCoins,
-      );
-    });
+    test(
+      'D374: an old VIP_DAILY_COINS ledger row still reads and is named',
+      () {
+        expect(
+          WalletLedgerReason.fromWire('VIP_DAILY_COINS'),
+          WalletLedgerReason.vipDailyCoins,
+        );
+        expect(_en.walletReasonVipDailyCoins, 'VIP daily coins');
+        expect(_ar.walletReasonVipDailyCoins, 'كوينز VIP اليومية');
+      },
+    );
 
-    testWidgets('D258: the bottom bar totals the daily coins over the length '
-        '(only a real amount)', (tester) async {
+    testWidgets('D258: the bottom bar shows the level speed-up (D374: no '
+        'daily coins total any more)', (tester) async {
       const tier = VipTier(
         id: 'id-D',
         code: 'VIP_1',
@@ -528,10 +482,11 @@ void main() {
         durationDays: 30,
         perks: [
           VipPerk(
-            code: 'DAILY_COINS',
-            title: 'Daily coins',
+            code: 'LEVEL_SPEEDUP',
+            title: 'Level speed-up',
             available: true,
-            amount: 500,
+            amount: 2,
+            value: 2,
           ),
         ],
       );
@@ -541,9 +496,9 @@ void main() {
           list: const VipTierList(tiers: [tier], maxAheadDays: 400),
         ),
       );
-      expect(find.text(_en.vipCashback('15,000', '500')), findsOneWidget);
+      expect(find.textContaining(_en.vipSpeedupLine('2')), findsOneWidget);
       // The tile shows its value.
-      expect(find.text(_en.vipPerkPerDay('500')), findsOneWidget);
+      expect(find.text('+2%'), findsOneWidget);
     });
 
     testWidgets('D258: a renewal is charged its discounted price, the list '
@@ -788,31 +743,6 @@ void main() {
         });
       }
     }
-    testWidgets('D258 golden: «My VIP» with the daily coins (ar)', (
-      tester,
-    ) async {
-      final held = _membership(
-        _tier(1),
-        // The day the golden was made: «حتى 24 نوفمبر 2026» whatever today is.
-        now: DateTime(2026, 11, 4, 12),
-        dailyCoins: VipDailyCoins(
-          amount: 500,
-          claimedToday: false,
-          nextAt: DateTime.now().add(const Duration(hours: 5)),
-        ),
-      );
-      await _pump(
-        tester,
-        vip: _FakeVip(membership: held),
-        language: AppLanguage.ar,
-      );
-      await tester.tap(find.byKey(VipScreen.statusKey));
-      await tester.pumpAndSettle();
-      await expectLater(
-        find.byType(MaterialApp),
-        matchesGoldenFile('png/vip.daily_coins.ar.phone.png'),
-      );
-    });
   });
 
   group('D304 the reference layout: top bar, tier cards, hexagon perks', () {

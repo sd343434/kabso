@@ -313,8 +313,35 @@ class VipPrivilegeCard extends StatelessWidget {
     'VISITORS' || 'PROFILE_VISITORS' => Icons.visibility_rounded,
     'PROFILE_CARD' => Icons.badge_rounded,
     'CHAT_NAME_COLOR' => Icons.format_color_text_rounded,
-    'DAILY_COINS' => Icons.monetization_on_rounded,
     'LEVEL_SPEEDUP' => Icons.rocket_launch_rounded,
+    // D374: the catalogue's perks not built yet («قريباً»).
+    'ANIMATED_COVER' => Icons.wallpaper_rounded,
+    'PREMIUM_USERNAME' || 'GOLDEN_ID' => Icons.alternate_email_rounded,
+    'SEAT_EMOJI' => Icons.emoji_emotions_rounded,
+    'PINNED_MESSAGE' => Icons.push_pin_rounded,
+    'EXCLUSIVE_GIFTS' ||
+    'SCHEDULED_GIFT' ||
+    'ANONYMOUS_GIFT' => Icons.card_giftcard_rounded,
+    'HIDDEN_VISIT' ||
+    'RANKING_ANONYMOUS' ||
+    'HIDE_COINS_SENT' => Icons.visibility_off_rounded,
+    'KICK_MUTE_SHIELD' => Icons.shield_rounded,
+    'DM_BUBBLE' => Icons.forum_rounded,
+    'POST_BADGE' => Icons.verified_rounded,
+    'STORY_RING' => Icons.radio_button_checked_rounded,
+    'FREE_CP_REQUEST' => Icons.favorite_rounded,
+    'SEAT_REQUEST_PRIORITY' => Icons.event_seat_rounded,
+    'PRIORITY_SUPPORT' => Icons.support_agent_rounded,
+    'MONTHLY_ROCKETS' => Icons.rocket_rounded,
+    'GLOWING_NAME' || 'ANIMATED_SIGNATURE' => Icons.auto_awesome_rounded,
+    'HOST_GREETING' => Icons.waving_hand_rounded,
+    'SEAT_CROWN' => Icons.emoji_events_rounded,
+    'BIG_GIFT_RAIN' => Icons.celebration_rounded,
+    'TICKER_HOLD' => Icons.timer_rounded,
+    'VIP_ROOM' => Icons.meeting_room_rounded,
+    'SEAT_RESERVE' => Icons.chair_rounded,
+    'HIGHER_GIFT_QUANTITY' => Icons.add_box_rounded,
+    'LONGER_VOICE' => Icons.mic_rounded,
     _ => Icons.auto_awesome_rounded,
   };
 

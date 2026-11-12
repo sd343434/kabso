@@ -650,7 +650,8 @@ class VipPerkCard extends StatelessWidget {
     'CHAT_NAME_COLOR' => Icons.format_color_text_rounded,
     'ENTRY_BANNER' => Icons.flag_rounded,
     'ENTRY_EFFECT' => Icons.auto_awesome_rounded,
-    'MIC_SOUND_WAVE' => Icons.graphic_eq_rounded,
+    // D374: the code is MIC_WAVE (the server's), not MIC_SOUND_WAVE.
+    'MIC_WAVE' => Icons.graphic_eq_rounded,
     'DAILY_BULLET' => Icons.campaign_rounded,
     'VIEWER_LIST_PRIORITY' => Icons.format_list_numbered_rounded,
     'MONTHLY_GIFT' => Icons.redeem_rounded,
