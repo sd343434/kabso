@@ -46,7 +46,6 @@ const NEW = [
   'EXCLUSIVE_GIFTS',
   'HIDDEN_VISIT',
   'RANKING_ANONYMOUS',
-  'HIDE_COINS_SENT',
   'KICK_MUTE_SHIELD',
   'ANONYMOUS_GIFT',
   'DM_BUBBLE',
@@ -74,21 +73,22 @@ const NEW = [
 const issues = (code: string, value: unknown) => vipPerkValueIssues(code, value).map((i) => i.issue);
 
 describe('D374 VIP perk catalogue', () => {
-  it("holds the owner's list: eleven built, thirty new ones not built, MONTHLY_GIFT; codes unique; DAILY_COINS removed", () => {
+  it("holds the owner's list: eleven built, the new ones, MONTHLY_GIFT; codes unique; DAILY_COINS and HIDE_COINS_SENT removed", () => {
     const codes = VIP_PERK_CATALOGUE.map((e) => e.code);
     expect(new Set(codes).size).toBe(codes.length);
     expect([...VIP_CATALOGUE_BUILT].sort()).toEqual([...BUILT].sort());
     expect([...VIP_BUILT_PERKS].sort()).toEqual([...BUILT].sort());
     for (const c of NEW) expect(vipCatalogueEntry(c)?.built, c).toBe(D380.includes(c));
-    // D380: HIDE_COINS_SENT stays «قريباً» (D220's free switch already hides the number).
-    expect(vipCatalogueEntry('HIDE_COINS_SENT')?.built).toBe(false);
+    // D380: the owner removed HIDE_COINS_SENT (2026-11-12): D220's free switch hides the number for everyone.
+    expect(vipCatalogueEntry('HIDE_COINS_SENT')).toBeUndefined();
+    expect(vipPerkRetired('HIDE_COINS_SENT')).toBe(true);
     expect(vipCatalogueEntry('MONTHLY_GIFT')?.built).toBe(false);
     expect(codes).toHaveLength(BUILT.length - D380.length + NEW.length + 1);
     expect(codes.length).toBeLessThanOrEqual(VIP_MAX_PERKS);
     expect(VIP_MAX_PERKS).toBeGreaterThanOrEqual(64);
     // The owner removed DAILY_COINS (2026-11-11): not in the catalogue, retired.
     expect(vipCatalogueEntry('DAILY_COINS')).toBeUndefined();
-    expect(VIP_RETIRED_PERKS).toEqual(['DAILY_COINS']);
+    expect(VIP_RETIRED_PERKS).toEqual(['DAILY_COINS', 'HIDE_COINS_SENT']);
     expect(vipPerkRetired('DAILY_COINS')).toBe(true);
     expect(vipPerkRetired('BADGE')).toBe(false);
     // The code is MIC_WAVE (not MIC_SOUND_WAVE).

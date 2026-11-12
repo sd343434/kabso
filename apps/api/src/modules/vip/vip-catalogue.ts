@@ -8,7 +8,8 @@
  * The owner chose the set (D374): the eleven built perks kept, the thirty new perks registered not built («قريباً») —
  * each built by a later branch, which flips `built` and keeps the value shape (or widens it compatibly) — and
  * MONTHLY_GIFT kept from the earlier suggestions. The owner removed DAILY_COINS (2026-11-11, «ازلها»):
- * {@link VIP_RETIRED_PERKS}.
+ * {@link VIP_RETIRED_PERKS}. D380 (owner 2026-11-12, «مجانية للجميع واخفها من ميزات في اي بي»): HIDE_COINS_SENT
+ * removed too — D220's free switch keeps hiding the coins sent for everyone.
  */
 
 /**
@@ -17,7 +18,7 @@
  * never granted; the panel shows it as retired and drops it on the next save. DAILY_COINS (D258 phase 3): the claim
  * answers 409 `VIP_UNAVAILABLE` (`perk` `retired`); the `VIP_DAILY_COINS` ledger reason and past rows stay (history).
  */
-export const VIP_RETIRED_PERKS: readonly string[] = ['DAILY_COINS'];
+export const VIP_RETIRED_PERKS: readonly string[] = ['DAILY_COINS', 'HIDE_COINS_SENT'];
 
 /** D374: [code] is a retired perk ({@link VIP_RETIRED_PERKS}). */
 export function vipPerkRetired(code: string): boolean {
@@ -512,19 +513,6 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     descriptionAr: 'تظهر «مجهول» في قوائم الترتيب والداعمين.',
     descriptionEn: 'You show as «Anonymous» on the rankings and supporter lists.',
     built: true,
-    value: NONE,
-    art: null,
-  },
-  {
-    code: 'HIDE_COINS_SENT',
-    category: 'PRIVACY',
-    // D380: NOT built — D220's free switch `PrivacySettings.hideCoinsSent` already hides this number for everyone
-    // (§10.74); making it VIP-only would take it from non-members. Kept «قريباً» until the owner decides.
-    titleAr: 'إخفاء الكوينز المرسلة',
-    titleEn: 'Hide coins sent',
-    descriptionAr: 'إخفاء مجموع ما أرسلته من كوينز.',
-    descriptionEn: 'Hide the total coins you sent.',
-    built: false,
     value: NONE,
     art: null,
   },

@@ -628,7 +628,7 @@ info:
     (`PUT` / `DELETE /live/gifts/{giftId}/anonymous-block`) for the recipient, who never learns who it was;
     `Report.liveGift` for the panel). The holder's switches: `PrivacySettings.hiddenVisit` / `rankingAnonymous` /
     `kickMuteShield` (present only while the perk is held; 409 `VIP_UNAVAILABLE` `no_perk` otherwise). HIDE_COINS_SENT
-    stays «قريباً» (D220's free switch already hides the number). Migration `20270512090000_vip_privacy_perks`.
+    is removed from the catalogue (owner 2026-11-12: D220's free switch stays free for everyone). Migration `20270512090000_vip_privacy_perks`.
     Additive (an older app sends no `anonymous`, ignores the new fields and shows «مجهول» as a name).
     **D374 (DRAFT v1.129-social)** the VIP perk catalogue (CONVENTIONS §10.166; owner 2026-11-11: each VIP tier gets
     the perks the admin picks in the panel, with art where needed): `AdminVipTierList.catalogue` (`VipPerkCatalogueEntry`,

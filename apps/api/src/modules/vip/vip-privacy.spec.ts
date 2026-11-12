@@ -52,12 +52,12 @@ describe('D380 VIP privacy helpers', () => {
     expect(ANONYMOUS_GIFT_RATE).toEqual({ max: 60, windowSeconds: 3600 });
   });
 
-  it('the four perks are built; HIDE_COINS_SENT stays «قريباً»', () => {
+  it('the four perks are built; HIDE_COINS_SENT is removed (the owner: free for everyone)', () => {
     for (const code of ['HIDDEN_VISIT', 'RANKING_ANONYMOUS', 'KICK_MUTE_SHIELD', 'ANONYMOUS_GIFT']) {
       expect(vipCatalogueEntry(code)?.built, code).toBe(true);
       expect(vipCatalogueEntry(code)?.value, code).toEqual({ kind: 'none' });
     }
-    expect(vipCatalogueEntry('HIDE_COINS_SENT')?.built).toBe(false);
+    expect(vipCatalogueEntry('HIDE_COINS_SENT')).toBeUndefined();
   });
 
   it('vipPrivacyOnIn asks nothing for no ids, and one query for many', async () => {

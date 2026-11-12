@@ -4328,8 +4328,8 @@ CONVENTIONS §10.170 (owner 2026-11-11). One migration, no new setting, no new s
   under the migration's lock — run it in the usual low-traffic window. **Nothing is deleted**; every existing row keeps
   its values (old gifts are named sends, old reports have no gift context).
 - **After deploy (owner / panel):** tick HIDDEN_VISIT, RANKING_ANONYMOUS, KICK_MUTE_SHIELD and ANONYMOUS_GIFT on the VIP
-  tiers that should have them (a tier also holds the lower tiers' perks). HIDE_COINS_SENT stays «قريباً» (D220's free
-  switch already hides the number) until the owner decides.
+  tiers that should have them (a tier also holds the lower tiers' perks). HIDE_COINS_SENT is removed (owner 2026-11-12:
+  D220's free switch stays free for everyone); a tier row that names it shows as retired and is dropped on the next save.
 - **Order:** deploy the API image (the migration runs first), then ship the APK. The admin panel needs no change (the
   reports list shows the reported sender as for any USER report). An older app keeps working: it never sends
   `anonymous`, ignores the new privacy fields and shows «مجهول» as a plain name; a moderator on an older app gets the
