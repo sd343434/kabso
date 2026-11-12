@@ -227,8 +227,11 @@ void main() {
 
   testWidgets('it does not hide while a reply is being typed', (tester) async {
     await pumpCarousel(tester);
-    await tester.tap(find.byKey(StoryViewerScreen.replyFieldKey));
+    // The reference has no field box: the caption line opens it.
+    expect(find.byKey(StoryViewerScreen.replyFieldKey), findsNothing);
+    await tester.tap(find.byKey(StoryViewerScreen.replyOpenKey));
     await tester.pump();
+    expect(find.byKey(StoryViewerScreen.replyFieldKey), findsOneWidget);
     await tester.enterText(find.byKey(StoryViewerScreen.replyFieldKey), 'hi');
     await tester.pump(KStoryCarousel.autoHide * 2);
     expect(_opacity(tester), 1);
@@ -237,6 +240,14 @@ void main() {
     await tester.pump();
     await _waitHide(tester);
     expect(_opacity(tester), 0);
+    // With text it stays; emptied and left, it closes back to the caption
+    // line.
+    expect(find.byKey(StoryViewerScreen.replyFieldKey), findsOneWidget);
+    await tester.enterText(find.byKey(StoryViewerScreen.replyFieldKey), '');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+    expect(find.byKey(StoryViewerScreen.replyFieldKey), findsNothing);
+    expect(find.byKey(StoryViewerScreen.replyOpenKey), findsOneWidget);
   });
 
   testWidgets('a change of person shows it again', (tester) async {
