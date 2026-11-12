@@ -700,6 +700,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.101-social)* Enum `event_audience` (`events.audience`, was `program_audience`: + AGENCIES, CP); columns `events.status`, `recurrence`, `period`, `period_starts_at`, `period_ends_at`, `scoring`, `counted_gifts`, `banner_media_id`, `start_notified_at`, `published_at` (CHECKs `events_shape` — a draft may have no dates —, `events_v2_shape`, `events_audience_not_creators`, `events_art_keys`); `event_gifts.points_per_coin` NUMERIC(7,2); `event_results.period` (unique keys with the period); tables `event_periods`, `event_milestones`, `event_milestone_grants`; columns `gifts.event_id` (CHECK `gifts_event_plain`), `store_items.event_id` (CHECK `store_items_event_exclusive`); notification `EVENT_STARTED` (unique `notifications_event_started_once`) | Backend — `programs` module (`gift-events.ts` the only writer of the event structure, periods, milestones and payouts; `events.service.ts` the sweeper and the reads); `gifts` / `live` (an event gift's listing and sale), `store` (event items) | CTO; Security (money: automatic prizes and free gift pieces; mass start notification) |
 | *(v1.102-social)* Columns `events.creators_as_hosts` (existing rows false, default true) and `event_boards.shown` (CHECK `event_boards_shown`, 1–100, default 20) | Backend — `programs` module (`event-audience.ts`, `gift-events.ts`, `events.service.ts`), `home` (banners) | CTO |
 | *(v1.115-social)* Column `events.design` (JSONB, nullable; CHECK `events_design_shape`: an object of `v` 1); media asset kind `EVENT_BOARD_BG` (CHECK `media_assets_kind_known`) | Backend — `programs` module (`event-design.ts` — the only shape and rules of a design; `gift-events.ts` writes it; `events.service.ts` reads it; `event-media.ts` stores the background), `admin-panel` (`AdminGiftEventsService`: upload, form, options) | CTO |
+| *(v1.139-social, D387)* Tables `staff_schedule_slots`, `staff_compensation_settings`, `staff_compensations`, `official_social_accounts`; `admin_permission` values `LIVE_OPS`, `TALENT`, `VIP_CARE`, `COMMUNITY`; `wallet_ledger_reason` value `STAFF_COMPENSATION` (a credit) | Backend — `admin-panel` module (`admin-ops-roles.service.ts`, `staff-schedule.ts`, `staff-compensations.ts`) and `site-settings` (the social accounts) | CTO; Security (the compensation ledger path, the roles function) |
 
 ## 9. Contract change log
 
@@ -792,6 +793,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.139-social (draft) | 2026-11-12 | **D387 (owner 2026-11-12: operations staff roles as core roles, a 24/7 shift schedule, VIP_CARE compensations, the official social accounts, earnings and revenue for the OWNER only):** `AdminPanelRole` gains `LIVE_OPS`, `TALENT`, `VIP_CARE`, `COMMUNITY` (MODERATION is shown as TRUST_SAFETY «مراقبة المحتوى والأمان»; the wire value stays MODERATION), `KabsoStaffIdentity.role` the same four; capabilities `revenue.view` (OWNER only), `home.*`, `staff.schedule.view` / `.manage`, `compensation.grant` / `.settings` / `.approve`, `social.accounts`, `gifts.manage`, `banners.manage`, `boosts.manage`, `site.public` (the last four moved out of `catalog.manage` / `site.settings`, which only OWNER held); roles added to existing capabilities (§10.176.1). **Revenue OWNER only:** `getAdminDashboard`, `getAdminStatsOverview`, `getAdminStatsSeries`, `getAdminFinanceReport`, `getAdminStoreSales` need `revenue.view`; agency earnings, top-up totals, `AdminGift.coinsSpent` and the smart targets' `profitUsd` are null without it. Tag `admin-panel`: `getAdminLiveOpsHome`, `getAdminTalentHome`, `getAdminTrustSafetyHome`, `getAdminVipCareHome`, `getAdminCommunityHome`; `getAdminStaffSchedule`, `createAdminStaffScheduleSlot`, `updateAdminStaffScheduleSlot`, `deleteAdminStaffScheduleSlot`; `getAdminCompensationSettings`, `updateAdminCompensationSettings`, `listAdminCompensations`, `createAdminCompensation`, `approveAdminCompensation`, `rejectAdminCompensation`; `listAdminSocialAccounts`, `createAdminSocialAccount`, `updateAdminSocialAccount`, `deleteAdminSocialAccount`, `reorderAdminSocialAccounts`; public `listOfficialSocialAccounts` (`GET /social-accounts`). `StaffStatus.scheduledShift`; `WalletLedgerReason.STAFF_COMPENSATION`; audit `staff.schedule.*`, `staff.compensation.*`, `site.social_account.*`, `onShift` / `scheduled` on the report resolve and action rows. Migrations `20270517090000_ops_roles_enums`, `20270517090100_ops_roles`. §10.176. | **Additive** for the app (new enum values an older app ignores, one optional field, a new public operation). **Behaviour change** for the panel: FINANCE and every non-OWNER role lose the money dashboards, the financial report and the store sales (403), and see `null` for the masked aggregates; the gift / banner / rocket-price / website-settings writes check the new capabilities (OWNER unchanged). |
 | v1.137-social (draft) | 2026-11-12 | **D385 (owner 2026-11-12: «دعم كابسو» in «الرسائل» and «اجعل شات الإدارة مثبت في الاعلى … يمكن للشخص تثبيت ٥ محادثات في الاعلى»):** tag `support` — `getSupportThread` (`GET /support/thread`, `SupportThread`), `listSupportMessages` / `sendSupportMessage` (`GET` / `POST /support/thread/messages`, `SupportMessage`, `SupportMessagePage`, `SupportStaff`, `SupportSendRequest`, `SupportSendResult`), `readSupportThread` (`POST /support/thread/read`); the staff inbox serves the in-app threads beside WhatsApp — `WaChannel`, `WaConversation.channel`, `WaConversation.phone` nullable, `WaSummary.inApp`, the `channel` filter of `getStaffWhatsAppConversations` / `getAdminWhatsAppConversations`; the inbox routes answer for IN_APP threads without the WhatsApp credentials. Pins: `listDmPins` (`GET /dm/pins`), `pinDmConversation` / `unpinDmConversation`, `pinDmGroup` / `unpinDmGroup` (`DmPin`, `DmPinList`); code `DM_PIN_LIMIT` (409). `DmConversation.online` (every partner who shows their activity, owner) and `DmUnread.support` (owner: in the badge); in-app staff replies may carry a picture. Setting `RATE_LIMIT_SUPPORT_SEND_USER` (10 / min). Migration `20270515090000_support_chat_pins`. §7, §10.174. | **Additive** for the user app. **Behaviour change** for the staff inbox: with WhatsApp off the inbox no longer answers 503 — it lists the IN_APP threads (a WhatsApp-only action still 503s); `phone` is null on an IN_APP thread (a staff app or panel older than this release must not read it as a string — none is deployed with D355 yet). |
 | v1.136-social (draft) | 2026-11-12 | **D384 (owner 2026-11-12: «انتبه جيداً لطريقة الصورة شخصية» — a reference recording, look only, kept out of git, D40; then: an animated cut-out clip, and a VIP perk):** the VIP «صورة متحركة» — catalogue code `ANIMATED_AVATAR` (IDENTITY, value none, no art, **built**); `MediaKind` `ANIMATED_AVATAR` (`image/png` ≤ 8 MiB: a strip of 2–36 square frames, 64–512 px, alpha, 12 a second; re-encoded to a looping animated WebP ≤ 1.5 MiB + a still); `setMyAnimatedAvatar` / `removeMyAnimatedAvatar` (`PUT` / `DELETE /me/animated-avatar`, `SetAnimatedAvatarRequest`, `AnimatedAvatar`; 409 `VIP_UNAVAILABLE` `no_perk`); `PublicProfile.animatedAvatar` (optional: only while the perk is held, never across a block); the panel's `removeAdminUserAnimatedAvatar` (`users.avatar`), `AdminUserDetail.user.animatedAvatarUrl`; `NotificationType.ANIMATED_AVATAR_REMOVED`; audit `user.animated_avatar.update`, `admin.animated_avatar.remove`. Migrations `20270514090000_vip_animated_avatar_enums`, `20270514090100_vip_animated_avatar`. §4, §7, §8, §10.94.1, §10.166.1, §10.173. | **Additive** (new operations, an optional response field, enum values; clients ignore unknown notification types; an older app shows the round photo). |
 | v1.135-social (draft) | 2026-11-12 | **D383 (owner 2026-11-12: «اريد الغاء فكرة صندوق او إطار بطاقة الملف التعريفية وعمل فكرة اخرى»; then «لا ستكون موجودة بحيث ستكون مثلاً تغير لون خلفية او تكون خلفية فيها عناصر متحركة»):** no box or frame around the person card in live and party rooms (owner, then: «ارى ان شكل البطاقة السابقة اجمل» — the earlier layout is kept, only the background changes); the VIP perk `PROFILE_CARD` **kept and redefined** as the card's background — catalogue `value` `none` → `color` (`#RRGGBB`, null = none), art SVGA / MP4 / PNG / WebP (hint 1080 × 1440; MP4 is new for this perk), titles «خلفية البطاقة التعريفية» / "Card background". The bag `PROFILE_CARD` header ornaments are hidden in the app pending the owner's decision (one UI flag; items, the free `bunny_royal` and the API kept); store `PROFILE_CARD` items stay on sale as backgrounds. No new operation, field, enum value or error code; no migration. §10.94.1, §10.166.1, §10.172. | **Additive.** A tier saved before is valid (no value) and its art becomes the background; an older app draws the art as before and ignores the colour; the panel's generic perk form already edits a `color` value and MP4 art. |
@@ -13187,3 +13189,163 @@ their counts, the lists hold IN_APP threads only, and a WhatsApp thread or a Wha
 The inbox's retention applies (§10.151.8): a thread with no message for `WHATSAPP_RETENTION_DAYS` (180) is deleted
 with its messages, notes, history and the files of the person's pictures and voice clips; an account purge (§10.56)
 deletes its thread the same way. The data export lists the thread with the WhatsApp conversations (`channel`).
+
+### 10.176 Operations staff roles, the shift schedule, compensations and the official accounts *(v1.139-social, DRAFT — D387)*
+
+Owner (2026-11-12, board D387): «هذه الأدوار تكون أدوار أساسية في التطبيق» — five operations roles, each with its own
+capabilities and a landing page, a 24/7 shift schedule, VIP_CARE compensations within a daily limit, the app's official
+social media accounts, and **earnings and revenue visible to the OWNER only**. The D191 / D197 / D271 / D285 role system is
+**extended, not replaced**: the roles are still values of `admin_permission`, granted only through
+`kabso_admin_panel_role` (§10.60.6) by the CLI or the OWNER's «الموظفون والصلاحيات» (the code again and a reason,
+audited `admin.role.grant|revoke`), checked on every request; a person may hold several.
+
+#### 10.176.1 The roles
+
+| Role (`AdminPanelRole`) | Arabic / English | What it is |
+|---|---|---|
+| `LIVE_OPS` *(new)* | «مدير عمليات البث» / Live operations manager | events and seasons, the PK settings and dares, the smart targets, the rocket prices, the gifts and their prices and categories. **Never a direct money grant.** |
+| `TALENT` *(new; extends BD)* | «مدير الوكالات والمواهب» / Agencies & talent manager | host, creator and agency applications, recruitment («استقطاباتي», a recruiter like BD), the host targets. BD is unchanged and keeps working. |
+| `MODERATION` = **TRUST_SAFETY** | «مراقبة المحتوى والأمان» / Trust & safety | **the existing MODERATION, renamed in the panel and the app only**: the database and wire value stays `MODERATION` (no data migration; every holder keeps exactly their access). The CLI also accepts `TRUST_SAFETY` (and `MODERATOR`) for it. |
+| `VIP_CARE` *(new)* | «دعم كبار الداعمين» / VIP care | the top supporters (levels and VIP tiers, **no coin or revenue amounts**), «دعم كابسو» with the D381 / D385 priority (WhatsApp level REPLY by default, §10.155), level-raise requests (§10.103), **compensations** (§10.176.4). |
+| `COMMUNITY` *(new)* | «المجتمع والفعاليات» / Community & events | the gifts (seasonal gifts and their uploads), events and contests, the banners, the public website's settings and **the official social accounts** (§10.176.5). |
+| `SUPPORT`, `FINANCE`, `BD`, `OWNER` | unchanged | FINANCE keeps the amounts of the individual payout and recharge requests it handles, but no aggregate (§10.176.2). |
+
+Every new role is a **limited staff account** (§10.96.10: the team picture, no live, no levels; `LIMITED_STAFF_ROLES`
+order MODERATION, SUPPORT, FINANCE, BD, LIVE_OPS, TALENT, VIP_CARE, COMMUNITY — the first held names the profile line;
+`KabsoStaffIdentity.role` gains the four values, an older app shows no line for them). None is a watch role (no
+hidden watch, no «بثوثي»). `TALENT` is a recruiter (`RECRUITER_ROLES` MODERATION, BD, TALENT; §10.96.13).
+
+New capabilities (OWNER holds every capability):
+
+| Capability | Roles |
+|---|---|
+| `revenue.view` | **OWNER only** — never in another role's list; nobody can be given it (§10.176.2) |
+| `home.live_ops` · `home.talent` · `home.trust_safety` · `home.vip_care` · `home.community` | OWNER + LIVE_OPS · TALENT · MODERATION · VIP_CARE · COMMUNITY |
+| `staff.schedule.view` | OWNER, MODERATION, SUPPORT, VIP_CARE |
+| `staff.schedule.manage` | OWNER |
+| `compensation.grant` | OWNER, VIP_CARE |
+| `compensation.settings`, `compensation.approve` | OWNER |
+| `social.accounts` | OWNER, COMMUNITY |
+| `gifts.manage` (gift add / edit / prices / switch / delete / restore / uploads — **moved out of `catalog.manage`**) | OWNER, LIVE_OPS, COMMUNITY |
+| `banners.manage` (banner add / uploads / switch / remove — **moved out of `catalog.manage`**) | OWNER, COMMUNITY |
+| `boosts.manage` (the rocket stage prices `PUT /admin/live-boost-prices` — **moved out of `catalog.manage`**) | OWNER, LIVE_OPS |
+| `site.public` (`getAdminSiteSettings` / `updateAdminSiteSettings` — **moved out of `site.settings`**; changing `topupEnabled` still needs `payments.settings`, else 403 `AUTH_FORBIDDEN`) | OWNER, COMMUNITY |
+
+`catalog.manage` (VIP tiers, golden IDs, the store, the medals) and `site.settings` (the camera filters, the level ticker,
+the global strips) stay OWNER only. Before D387 only OWNER held `catalog.manage` and `site.settings`, so the moves take
+nothing from anyone.
+
+Existing capabilities gain roles (none loses one): `dashboard.view` + LIVE_OPS, TALENT, VIP_CARE, COMMUNITY;
+`users.view` + TALENT, VIP_CARE; `lives.view` + LIVE_OPS; `catalog.view`, `events.manage` + LIVE_OPS, COMMUNITY;
+`gifts.categories`, `pk_dares.view`, `pk_dares.edit` + LIVE_OPS; `host_targets.view`, `host_targets.edit` + LIVE_OPS,
+TALENT; `hosts.applications`, `hosts.applications.photos`, `hosts.applications.decide`, `creators.applications`,
+`creators.decide`, `agencies.view`, `agencies.applications`, `recruits.mine` + TALENT; `levels.raise.request`,
+`support.whatsapp.view`, `support.whatsapp` + VIP_CARE (and `defaultWhatsAppLevel`: VIP_CARE → REPLY).
+
+#### 10.176.2 Earnings and revenue: OWNER only
+
+`revenue.view` (OWNER) guards every aggregate of money: coins sold, gift coin value, revenue, earnings, commissions,
+profit and margin. **403 `AUTH_FORBIDDEN` for every other role, FINANCE included:**
+
+- `getAdminDashboard` (D191 home: coins sold, gift coin value), `getAdminStatsOverview` and `getAdminStatsSeries` (the
+  KPI cards and the chart: coins sold, gift coin value) — `getAdminStatsAttention` and `getAdminStatsActivity` stay
+  `dashboard.view`;
+- `getAdminFinanceReport` (the financial report and its CSV; was `finance.view`, so FINANCE loses it);
+- `getAdminStoreSales` (the store's sales and totals; was `catalog.view`);
+- unchanged and already OWNER only: «الربح» and the founder dashboard (§10.112), the fixed costs, `recruits.view`.
+
+**Masked (`null`) unless the caller holds `revenue.view`** (the rest of the response is the same; the CSV leaves the cell
+empty): `AdminAgencyRow.monthHostCherries` / `monthCommission`; `AdminAgencyDetail` `months[].hostCherries` /
+`commission` / `parentCommission`, `lifetime.*`, `hosts[].monthCherries` / `monthCommission`; `listAdminRechargeTopups`
+`totals` (each top-up row keeps its amounts: FINANCE needs them to handle it); `AdminGift.coinsSpent`; the smart targets'
+`profitUsd` (§10.62.2). FINANCE keeps the withdrawals, the agent top-ups, the card orders, the Stripe cases and the
+refunds — the amounts of the request it handles. A person's own balance and ledger (`users.balances`, `users.ledger`) and
+a BD / TALENT recruiter's own commissions («استقطاباتي») are not app revenue and are unchanged.
+
+The panel's home: an OWNER sees the KPI dashboard; anyone else lands on their role's home (§10.176.3) or, with no role
+home (SUPPORT, FINANCE, BD), on the attention list without any money card.
+
+#### 10.176.3 The role homes
+
+Each is one read (`getAdmin<Role>Home`, capability `home.<role>`), no money figure, counts as plain integers, days in
+`ADMIN_DASHBOARD_TIME_ZONE`:
+
+- **LIVE_OPS** `GET /admin/role-homes/live-ops`: `livesNow`, `topLives` (the 10 lives on air with the most viewers: room,
+  title, host, viewers, started), `topHosts` (the 10 hosts with the most live minutes in 7 days), `pk` {`battlesNow`,
+  `battlesToday`}, `events` (running and upcoming events: id, titles, start, end).
+- **TALENT** `GET /admin/role-homes/talent`: `newHosts7d` (agency hosts activated in 7 days), `liveHours7d` (live hours of
+  agency hosts in 7 days, one decimal), `inactiveAgencies` (open agencies with no host live in 14 days, at most 20, with
+  their last live), `queue` {`hostApplications`, `creatorApplications`} (pending).
+- **TRUST_SAFETY** `GET /admin/role-homes/trust-safety`: `openReports`, `avgResolveMinutes` (reports resolved in 7 days;
+  null when none), `livesNow`, `shift` (§10.176.6: who is on shift now, who is next).
+- **VIP_CARE** `GET /admin/role-homes/vip-care`: `topSupporters` (the 20 people with the highest SUPPORT level, then VIP
+  tier: id, username, name, picture, level, VIP tier code and colour, last active — never a coin amount), `stoppedActive`
+  (people of the top-supporter pool — SUPPORT level ≥ `VIP_CARE_MIN_LEVEL` 10 or an active VIP — not seen for 7 days, at
+  most 20: an alert on activity, not money), `pendingCompensations` (the caller's own; all for the OWNER), `shift`.
+- **COMMUNITY** `GET /admin/role-homes/community`: `upcomingEvents` (published events that start later or run now),
+  `participation` (per running event: the entrants on its boards), `bannersLive` (banners on now: id, titles, placement,
+  ends).
+
+#### 10.176.4 Compensations «التعويضات» (VIP_CARE)
+
+A grant to a person (ACTIVE, not a panel staff account, never oneself: 409 `ADMIN_ACTION_REFUSED`
+`compensation_recipient`) of one kind, always with a reason (3–500) and **the authenticator code again** (money, §10.54.3):
+
+- `COINS` {`coins` 1 … 10^9}: value = the coins; credited through the wallet ledger with the new reason
+  **`STAFF_COMPENSATION`** (a credit; reference = the compensation id).
+- `VIP_DAYS` {`days` 1 … 365, `tierCode`}: the tier's membership extended by the days (or started now when none is active;
+  another active tier → 409 `compensation_vip_tier`); value = ⌈tier price × days ÷ tier duration⌉.
+- `ITEM` {`itemCode`, `days` 7 | 14 | 30}: a store item (a gift from the store catalogue) put in the person's bag through
+  the bag-grant path (`grantBagItemByAdminIn`, audited `bag.grant`); value = its coin price for those days (no such price
+  → 409 `compensation_item`).
+
+Limits (`staff_compensation_settings`, one row, set by the OWNER with `updateAdminCompensationSettings` — a reason and the
+code again, audited `staff.compensation.settings`): `dailyLimitCoins` (default 50 000) — the value a VIP_CARE member may
+grant in one day (`ADMIN_DASHBOARD_TIME_ZONE`), counting their GRANTED compensations — and `perGrantMaxCoins` (default
+10 000). Within both → **GRANTED** at once (audited `staff.compensation.grant`). Above either → **PENDING** (nothing
+moves; `overLimit` `per_grant` | `daily`; audited `staff.compensation.request`) until the OWNER approves
+(`approveAdminCompensation`, the code again → the grant runs then, status APPROVED, audited `staff.compensation.approve`)
+or rejects (`rejectAdminCompensation`, a reason → REJECTED, audited `staff.compensation.reject`); a decided one → 409
+`compensation_decided`. The OWNER's own grants are never limited. Counting and granting are serialized per staff member
+(an advisory lock). `listAdminCompensations`: the history (VIP_CARE: their own; OWNER: everyone's), newest first, filter
+`status`. Only GRANTED ones count towards the day; the day resets at midnight in that zone.
+
+#### 10.176.5 The official social accounts «حساباتنا الرسمية»
+
+`official_social_accounts`: `platform` (INSTAGRAM, TIKTOK, X, FACEBOOK, YOUTUBE, SNAPCHAT, TELEGRAM, WHATSAPP, THREADS,
+LINKEDIN, DISCORD, OTHER), `handle` (1–64, no control characters), `url` (**https only**, ≤ 512, a valid URL with no
+user name or password part; anything else 400 `VALIDATION_FAILED` `url` / `invalid_value`), and the order; at most 20
+(409 `social_accounts_full`). **Links only: no password, token or key of those accounts is ever stored** (the
+repository is public, D40; there is no such field). `social.accounts` (OWNER, COMMUNITY): `listAdminSocialAccounts`,
+`createAdminSocialAccount`, `updateAdminSocialAccount`, `deleteAdminSocialAccount`, `reorderAdminSocialAccounts` (the full
+id list), each audited `site.social_account.create|update|delete|reorder`. Public `listOfficialSocialAccounts`
+(`GET /social-accounts`, no token, `Cache-Control: public, max-age=60`): `{data: [{platform, handle, url}]}` in order.
+The app shows them in Settings under «تابعنا» / "Follow us" with generic glyphs of its own icon set (no third-party logo
+art). The website's footer keeps its three fixed links (§10.54.6): its settings have no list yet.
+
+#### 10.176.6 The shift schedule «جدول المناوبات» (24/7)
+
+`staff_schedule_slots`: a weekly slot of one staff member — `weekday` 1 (Monday) … 7 (Sunday), `startMinute` 0 … 1439,
+`endMinute` 1 … 1440 (> start; a night shift is two slots), in the app's time zone `LIVE_RANKINGS_TIME_ZONE` (D99). Only
+a person holding MODERATION, SUPPORT or VIP_CARE now can be scheduled (409 `schedule_role`); one person's slots never
+overlap (409 `schedule_overlap`). `getAdminStaffSchedule` (`staff.schedule.view`): `timeZone`, `now` {weekday, minute},
+`slots` (each with the person: id, staff ID, name, roles, and `onShiftNow`), `onShiftNow` (the people) and `next` (the
+next slots to start after now, at most 5, within 7 days). The OWNER (`staff.schedule.manage`) creates, edits and removes
+slots with a reason (audited `staff.schedule.create|update|delete`). Losing the last schedulable role removes the
+person's slots. The panel shows the times in the zone and, when it differs, in the viewer's own time.
+
+«في المناوبة الآن» = a slot covers the current weekday and minute in that zone. It is shown in the panel (the schedule,
+the role homes, the reports page) and in the app (`StaffStatus.scheduledShift`, the staff page's badge). The D260 shift
+switch («في المناوبة», live assignment) is unchanged; the schedule says who is **expected** on shift.
+
+**Reports (D288 reused, no new queue).** A new report still reaches **everyone** who holds `reports.view`
+(`STAFF_REPORT_NEW`, §10.101.3), on shift or not; whoever resolves it moves it to «تم حلها» for everyone. The panel's
+reports page shows an on-shift person the «في المناوبة الآن» badge and opens on the OPEN queue, oldest first. The audit
+rows `moderation.report.resolve` and `moderation.report.action` gain `onShift` (scheduled now or the D260 switch on) and
+`scheduled` (scheduled now) of the resolver.
+
+#### 10.176.7 Not in this release (owner decision)
+
+The broadcast notification (COMMUNITY) and the training message to every host (TALENT) need a new notification type and
+a fan-out like §10.112.7 in the app; they are not built here. Until then COMMUNITY keeps the banners and events, and the
+OWNER's official announcements (§10.112.7) reach everyone.
