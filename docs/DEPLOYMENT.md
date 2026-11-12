@@ -4314,3 +4314,23 @@ same object storage as the VIP SVGA / stills, under `media/vip/<tier>/`).
 - **Order:** deploy the API image (the migration runs first) together with the admin panel (the old panel's free-text
   codes would be refused by the new API), then ship the APK. An older app keeps working: it reads `perks` (not
   `effectivePerks`) and no longer sees a daily-coins row.
+
+### 5.122 The VIP perks inside live rooms (D379; migration `20270511090000_vip_live_perks`) — [IMPLEMENTED, draft contract v1.132-social; not deployed, not device-tested]
+
+CONVENTIONS §10.169 (owner 2026-11-11). One migration, no new setting, no new secret, no new host. The live capacity guard
+(D351, §10.148) is unchanged; the new data messages use the existing topics (`chat`, `gift`, `seat-emoji`) and D319's
+retry.
+
+- **Migration** `20270511090000_vip_live_perks` (the usual `migrate` job, as the migration role): adds the nullable
+  `live_rooms.vip_min_tier_id` (FK to `vip_tiers`, RESTRICT; CHECK `live_rooms_vip_audio`; a partial index) and two new
+  empty tables `live_chat_pins` and `live_seat_reservations` (runtime grants from the default privileges, KL-013).
+  Nothing existing changes; no back-fill. `live_rooms` is a busy table: the `ADD COLUMN` (nullable, no default) is instant; the new
+  FK and CHECK validate a column that is NULL everywhere (one scan under a short lock).
+- **Redis:** one new key family `live:vip-rain:*` (the 10 s rain gap per room, expires by itself).
+- **Sweeper:** the live sweeper also removes seat reservations whose time is over (no new job).
+- **After deploy (owner / panel):** in each VIP tier tick the ten live-room perks now marked «مبنية» and set their values
+  (SEAT_EMOJI art pack, PINNED_MESSAGE count / seconds, BIG_GIFT_RAIN threshold + art, TICKER_HOLD seconds, VIP_ROOM
+  tier cap, SEAT_RESERVE minutes; SEAT_CROWN art). A perk without its value or art gives nothing that needs it.
+- **Order:** deploy the API image (the migration runs first), then ship the APK. An older app keeps working: it ignores
+  the new fields and data messages, shows a VIP room's refusal (`LIVE_VIP_ONLY`) as its generic error and a reserved
+  seat as a locked one. The admin panel needs no change (D374's grid already edits these values).
