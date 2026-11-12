@@ -57,7 +57,7 @@ export const vipPerkInput = z
     amount: z.number().int().min(1).max(1_000_000_000).nullable().optional(),
     /**
      * v1.128-social (D373, §10.165): the ENTRY_EFFECT perk's display «طريقة العرض» — FULL_SCREEN «شاشة كاملة» or
-     * HALF_SCREEN «نصف الشاشة»; absent: kept as it was (FULL_SCREEN for a new perk). Refused for other codes.
+     * HALF_SCREEN «الجزء السفلي (٧٠٪)» (the screen's bottom 70 %); absent: kept as it was (FULL_SCREEN for a new perk). Refused for other codes.
      */
     entryDisplay: z.enum(ENTRY_DISPLAYS).optional(),
   })

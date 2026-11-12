@@ -41,14 +41,15 @@ export type StoreAlpha = "NONE" | "SIDE_BY_SIDE";
 
 /**
  * v1.128-social (D373, §10.165; owner: «اما بشاشة كاملة او نصف الشاشة»): how an entry car plays — the whole live
- * screen or a band about half the screen high. Set per store entry car and per VIP ENTRY_EFFECT perk.
+ * screen or its bottom 70 % (HALF_SCREEN, labelled «الجزء السفلي (٧٠٪)»). Set per store entry car and per VIP
+ * ENTRY_EFFECT perk.
  */
 export const ENTRY_DISPLAYS = ["FULL_SCREEN", "HALF_SCREEN"] as const;
 export type EntryDisplay = (typeof ENTRY_DISPLAYS)[number];
 /** The store kind / VIP perk code whose art is an entry car (the only one with a display). */
 export const ENTRY_CAR = "ENTRY_EFFECT";
 
-/** «طريقة العرض: شاشة كاملة / نصف الشاشة» (pure: rendered in the tests; reused by the VIP perk form). */
+/** «طريقة العرض: شاشة كاملة / الجزء السفلي (٧٠٪)» (pure: rendered in the tests; reused by the VIP perk form). */
 export function EntryDisplaySelect({
   id,
   value,

@@ -262,17 +262,15 @@ Future<void> _frames(WidgetTester tester, [int n = 3]) async {
   }
 }
 
-/// The band the test expects, worked out apart from the layer: under the
-/// header row (inset + 10 dp gap + 48 dp), over the chat's space (bottom
-/// inset + 48 dp bar + 30 % of the screen), at most half the screen.
-Rect _expectedBand(Size s, double top, double bottom) {
-  final chatTop = s.height - bottom - 48 - s.height * 0.30;
-  final bandTop = [
-    top + 58,
-    chatTop - s.height / 2,
-  ].reduce((a, b) => a > b ? a : b);
-  return Rect.fromLTRB(0, bandTop, s.width, chatTop);
-}
+/// The band the test expects, worked out apart from the layer (owner,
+/// 2026-11-11: «نصف الشاشة من الاسفل وليس بالمنتصف … بل ٧٠٪ من شاشة من
+/// الاسفل للاعلى»): the screen's full width and its bottom 70 %, down to the
+/// physical bottom edge (through the bottom inset).
+Rect _expectedBand(Size s) =>
+    Rect.fromLTRB(0, s.height * 0.3, s.width, s.height);
+
+/// [rect] to 0.01 dp (the band's edges are fractions of the screen).
+Matcher _near(Rect rect) => rectMoreOrLessEquals(rect, epsilon: 0.01);
 
 void main() {
   final cache = GiftArtCache.instance;
@@ -382,28 +380,38 @@ void main() {
       expect(LiveVipEntranceLayer.displayOf(older), EntryDisplay.fullScreen);
     });
 
-    test('the half band: about half the screen, under the header, over the '
-        'chat', () {
-      for (final (size, top, bottom) in [
-        (const Size(360, 800), 24.0, 0.0),
-        (const Size(393, 852), 59.0, 34.0),
-        (const Size(430, 932), 59.0, 34.0),
+    test('the HALF_SCREEN band: the bottom 70 % of the screen, full width, '
+        'down to its bottom edge', () {
+      expect(KEntryCar.bottomBandFraction, 0.70);
+      expect(LiveVipEntranceLayer.halfBandHeightFactor, 0.70);
+      for (final size in [
+        const Size(360, 800),
+        const Size(393, 852),
+        const Size(430, 932),
       ]) {
-        final band = LiveVipEntranceLayer.halfBand(
-          size,
-          EdgeInsets.only(top: top, bottom: bottom),
-        );
-        expect(band, _expectedBand(size, top, bottom), reason: '$size');
+        final band = LiveVipEntranceLayer.halfBand(size);
+        expect(band, _near(_expectedBand(size)), reason: '$size');
         expect(band.width, size.width);
-        expect(band.height / size.height, inInclusiveRange(0.44, 0.5));
+        expect(band.height, closeTo(size.height * 0.7, 1e-9));
+        expect(band.bottom, size.height);
+        expect(
+          LiveVipEntranceLayer.halfBannerTop(size),
+          closeTo(size.height * 0.3, 1e-9),
+        );
       }
       expect(
-        LiveVipEntranceLayer.halfBand(
-          const Size(393, 852),
-          const EdgeInsets.only(top: 59, bottom: 34),
-        ).height.round(),
-        397,
+        LiveVipEntranceLayer.halfBand(const Size(360, 800)).top,
+        closeTo(240, 1e-9),
       );
+      expect(
+        LiveVipEntranceLayer.halfBand(const Size(393, 852)).top,
+        closeTo(255.6, 1e-9),
+      );
+      expect(
+        LiveVipEntranceLayer.halfBand(const Size(430, 932)).top,
+        closeTo(279.6, 1e-9),
+      );
+      expect(LiveVipEntranceLayer.halfAlignment, Alignment.bottomCenter);
     });
   });
 
@@ -427,28 +435,33 @@ void main() {
           expect(_car, findsOneWidget);
           final rect = tester.getRect(_car);
           if (display == EntryDisplay.halfScreen) {
-            final band = _expectedBand(size, top, bottom);
-            expect(rect, band);
-            // Under the header row, over the chat, full width.
-            expect(rect.top, greaterThanOrEqualTo(top + 58));
-            expect(
-              rect.bottom,
-              lessThanOrEqualTo(size.height - bottom - 48 - size.height * 0.3),
-            );
+            final band = _expectedBand(size);
+            expect(rect, _near(band));
+            // The bottom 70 %, full width, its bottom on the screen's
+            // physical bottom edge (through the bottom inset).
+            expect(rect.top, closeTo(size.height * 0.3, 0.01));
+            expect(rect.bottom, size.height);
             expect(rect.left, 0);
             expect(rect.right, size.width);
-            // The car is drawn whole in it: a wide car fills its width.
+            // The car is drawn whole in it, anchored to its bottom: a wide
+            // car fills its width.
             final still = tester.getRect(
               find.descendant(of: _car, matching: find.byType(RawImage)),
             );
             expect(still.left, closeTo(0, 0.01));
             expect(still.right, closeTo(size.width, 0.01));
             expect(still.top, greaterThanOrEqualTo(rect.top - 0.01));
-            expect(still.bottom, lessThanOrEqualTo(rect.bottom + 0.01));
-            // The entrant's banner is over the car, inside its band.
+            expect(still.bottom, closeTo(rect.bottom, 0.01));
+            final image = tester.widget<RawImage>(
+              find.descendant(of: _car, matching: find.byType(RawImage)),
+            );
+            expect(image.alignment, Alignment.bottomCenter);
+            expect(image.fit, BoxFit.contain);
+            // The entrant's banner stays readable at the band's top, above
+            // the car, inside the screen.
             final banner = tester.getRect(_banner);
-            expect(banner.top, greaterThanOrEqualTo(rect.top));
-            expect(banner.bottom, lessThanOrEqualTo(rect.bottom));
+            expect(banner.top, closeTo(rect.top, 0.01));
+            expect(banner.bottom, lessThan(rect.bottom));
           } else {
             // Full screen (an older server's car too): the whole screen.
             expect(rect, Offset.zero & size);
@@ -495,7 +508,7 @@ void main() {
       });
       engine.chat.add(LiveChatJoined(_member('u-store', 'Store', vip: store)));
       await _frames(tester);
-      expect(tester.getRect(_car), _expectedBand(const Size(393, 852), 59, 34));
+      expect(tester.getRect(_car), _near(_expectedBand(const Size(393, 852))));
       await tester.pump(LiveVipEntranceLayer.carWait);
       await tester.pump(const Duration(seconds: 10));
     });
@@ -610,7 +623,7 @@ void main() {
       await _frames(tester);
       await tester.pump(const Duration(milliseconds: 300));
       expect(_car, findsOneWidget);
-      expect(tester.getRect(_car), _expectedBand(const Size(393, 852), 59, 34));
+      expect(tester.getRect(_car), _near(_expectedBand(const Size(393, 852))));
       await tester.pump(LiveVipEntranceLayer.carWait);
       await tester.pump(const Duration(seconds: 3));
       expect(_car, findsNothing);

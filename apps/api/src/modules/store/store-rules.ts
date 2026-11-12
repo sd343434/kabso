@@ -107,8 +107,8 @@ export function storeExpiryAfter(owned: Date | null, days: number, now: Date): D
 
 /**
  * v1.128-social (D373, §10.165; owner: «اما بشاشة كاملة او نصف الشاشة»): how an entry car plays — the whole live screen
- * (D331; the default, and every car before D373) or a band about half the screen high above the chat. Set in the panel
- * per store entry car and per VIP ENTRY_EFFECT perk; read for an entry car only.
+ * (D331; the default, and every car before D373) or (HALF_SCREEN, labelled «الجزء السفلي (٧٠٪)») the screen's bottom
+ * 70 % (owner: «بل ٧٠٪ من شاشة من الاسفل للاعلى»). Set in the panel per store entry car and per VIP ENTRY_EFFECT perk; read for an entry car only.
  */
 export const ENTRY_DISPLAYS = ['FULL_SCREEN', 'HALF_SCREEN'] as const;
 export type EntryDisplay = (typeof ENTRY_DISPLAYS)[number];

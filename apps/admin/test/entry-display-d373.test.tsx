@@ -1,6 +1,6 @@
 /**
  * D373 (v1.128-social, CONVENTIONS §10.165; owner: «سيارات الدخول ستكون اما بشاشة كاملة او نصف الشاشة … من لوحة الادمن
- * انت تحدد كيف ستكون الدخلة»): «طريقة العرض: شاشة كاملة / نصف الشاشة» on the store's entry car form and items table and
+ * انت تحدد كيف ستكون الدخلة»): «طريقة العرض: شاشة كاملة / الجزء السفلي (٧٠٪)» on the store's entry car form and items table and
  * on the VIP ENTRY_EFFECT perk — only for an entry car, sent only when it changes, in both languages.
  */
 import { renderToStaticMarkup } from "react-dom/server";
@@ -102,7 +102,7 @@ const tier = (perks: AdminVipPerk[]): AdminVipTier => ({
 });
 
 describe("D373 an entry car's display in the panel", () => {
-  it("has every string in both languages: «طريقة العرض: شاشة كاملة / نصف الشاشة»", () => {
+  it("has every string in both languages: «طريقة العرض: شاشة كاملة / الجزء السفلي (٧٠٪)»", () => {
     expect(Object.keys(EN_D373).sort()).toEqual(Object.keys(AR_D373).sort());
     for (const k of Object.keys(AR_D373)) {
       expect(DICTIONARIES.ar[k as keyof typeof AR_D373]).toBe(AR_D373[k as keyof typeof AR_D373]);
@@ -110,7 +110,8 @@ describe("D373 an entry car's display in the panel", () => {
     }
     expect(AR_D373.entryDisplay).toBe("طريقة العرض");
     expect(AR_D373.entryDisplayFULL_SCREEN).toBe("شاشة كاملة");
-    expect(AR_D373.entryDisplayHALF_SCREEN).toBe("نصف الشاشة");
+    expect(AR_D373.entryDisplayHALF_SCREEN).toBe("الجزء السفلي (٧٠٪)");
+    expect(EN_D373.entryDisplayHALF_SCREEN).toBe("Bottom (70%)");
     expect(ENTRY_DISPLAYS).toEqual(["FULL_SCREEN", "HALF_SCREEN"]);
   });
 
@@ -118,10 +119,10 @@ describe("D373 an entry car's display in the panel", () => {
     const ar = render("ar", <EntryDisplaySelect id="x" value="HALF_SCREEN" onChange={noop} />);
     expect(ar).toContain("طريقة العرض");
     expect(ar).toContain('<option value="FULL_SCREEN">شاشة كاملة</option>');
-    expect(ar).toContain('<option value="HALF_SCREEN" selected="">نصف الشاشة</option>');
+    expect(ar).toContain('<option value="HALF_SCREEN" selected="">الجزء السفلي (٧٠٪)</option>');
     const en = render("en", <EntryDisplaySelect id="x" value="FULL_SCREEN" onChange={noop} />);
     expect(en).toContain('<option value="FULL_SCREEN" selected="">Full screen</option>');
-    expect(en).toContain("Half screen");
+    expect(en).toContain("Bottom (70%)");
   });
 
   it("the items table shows an entry car's display; other kinds show none", () => {
@@ -137,7 +138,7 @@ describe("D373 an entry car's display in the panel", () => {
         onToggle={noop}
       />,
     );
-    expect(html).toMatch(/data-store-entry-display="store_0123456789ab">نصف الشاشة</);
+    expect(html).toMatch(/data-store-entry-display="store_0123456789ab">الجزء السفلي \(٧٠٪\)</);
     expect(html).toMatch(/data-store-entry-display="store_0123456789ac">شاشة كاملة</);
     expect(html).not.toContain('data-store-entry-display="store_0123456789ad"');
     // An item from an older server (no field) reads as full screen.
@@ -173,7 +174,7 @@ describe("D373 an entry car's display in the panel", () => {
     );
     expect(editor).toContain('data-entry-display="vp-entry-display-1"');
     expect(editor).not.toContain('data-entry-display="vp-entry-display-0"');
-    expect(editor).toContain('<option value="HALF_SCREEN" selected="">نصف الشاشة</option>');
+    expect(editor).toContain('<option value="HALF_SCREEN" selected="">الجزء السفلي (٧٠٪)</option>');
     const table = render(
       "en",
       <VipTiersTable
@@ -183,7 +184,7 @@ describe("D373 an entry car's display in the panel", () => {
         onMove={noop}
       />,
     );
-    expect(table).toMatch(/data-vip-entry-display="VIP_1"> · Half screen</);
+    expect(table).toMatch(/data-vip-entry-display="VIP_1"> · Bottom \(70%\)</);
 
     // Unchanged: nothing sent. Changed: the perks with the display on the entry car only.
     expect(tierBody(tierDraftOf(t), t)).toEqual({});

@@ -617,7 +617,8 @@ info:
     `20270430090000_recharge_points`. Additive (an older app sends no `payWith` and buys with coins as before).
     **D373 (DRAFT v1.128-social)** an entry car plays full screen or half screen «شاشة كاملة / نصف الشاشة»
     (CONVENTIONS §10.165; owner 2026-11-11 «سيارات الدخول ستكون اما بشاشة كاملة او نصف الشاشة … من لوحة الادمن انت
-    تحدد كيف ستكون الدخلة»): `EntryDisplay` FULL_SCREEN | HALF_SCREEN, set in the panel per entry car —
+    تحدد كيف ستكون الدخلة»; corrected the same day to «٧٠٪ من شاشة من الاسفل للاعلى»): `EntryDisplay` FULL_SCREEN |
+    HALF_SCREEN (labelled «الجزء السفلي (٧٠٪)»: the screen's bottom 70 %), set in the panel per entry car —
     `AdminStoreItem.entryDisplay` (create / update of a store item of kind ENTRY_EFFECT; null for other kinds, sending it
     for another kind → 400 `entryDisplay` / `not_allowed`; audited in `store.item.*` before / after) and
     `AdminVipPerk.entryDisplay` / `AdminVipPerkInput.entryDisplay` (the ENTRY_EFFECT perk only; absent keeps the stored
@@ -37330,7 +37331,7 @@ components:
     EntryDisplay:
       type: string
       enum: [FULL_SCREEN, HALF_SCREEN]
-      description: "(v1.128-social, D373, §10.165; owner: «اما بشاشة كاملة او نصف الشاشة») How an entry car plays when its wearer joins a live: FULL_SCREEN «شاشة كاملة» — over the whole live screen like a full-screen gift (D331; every car before D373); HALF_SCREEN «نصف الشاشة» — in a full-width band about half the screen high, below the room's top bar and above the chat, the entry banner still readable. Never takes taps either way. Clients treat an unknown value as FULL_SCREEN."
+      description: "(v1.128-social, D373, §10.165; owner: «اما بشاشة كاملة او نصف الشاشة») How an entry car plays when its wearer joins a live: FULL_SCREEN «شاشة كاملة» — over the whole live screen like a full-screen gift (D331; every car before D373); HALF_SCREEN «الجزء السفلي (٧٠٪)» (the wire name is kept) — in the screen's bottom 70 %, measured up from its bottom edge (owner: «من الاسفل وليس بالمنتصف … بل ٧٠٪ من شاشة من الاسفل للاعلى»), full width, the car whole and on the screen's bottom edge, the entry banner at the top of that band, above the car. Never takes taps either way. Clients treat an unknown value as FULL_SCREEN."
     StoreWear:
       type: object
       additionalProperties: false

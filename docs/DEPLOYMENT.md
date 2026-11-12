@@ -4303,9 +4303,9 @@ CONVENTIONS §10.165 (owner 2026-11-11). One migration, no new setting, no new s
   `store_items.entry_display` and `vip_tier_perks.entry_display`, `NOT NULL DEFAULT 'FULL_SCREEN'`. A constant default
   is a catalogue-only change (no table rewrite, a short lock). No new table, so no grant: the columns follow their
   tables' runtime grants.
-- **Nothing changes on deploy:** every existing car is FULL_SCREEN, today's look (D331). The owner chooses «نصف الشاشة»
-  per car afterwards — in «المتجر» (an entry car's form) and in «VIP» (the ENTRY_EFFECT perk row of each tier). A
-  half-screen car looks best with wide art (about 4 : 3 or wider); a tall one is drawn whole, smaller, in the band.
+- **Nothing changes on deploy:** every existing car is FULL_SCREEN, today's look (D331). The owner chooses «الجزء السفلي (٧٠٪)»
+  (HALF_SCREEN: the screen's bottom 70 %) per car afterwards — in «المتجر» (an entry car's form) and in «VIP» (the ENTRY_EFFECT perk row of each tier). A
+  half-screen car looks best with wide art (about 4 : 3 or wider); a tall one is drawn whole, smaller, in the screen's bottom 70 %.
 - **Order:** deploy the API image (the migration runs first) → the admin panel → ship the APK. An older app ignores the
   field and keeps playing every car full screen; an older panel never sends it (a VIP perk list resent without it keeps
   each perk's display).
