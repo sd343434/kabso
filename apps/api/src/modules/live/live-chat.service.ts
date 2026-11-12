@@ -761,8 +761,7 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     const { day } = await programWindowsIn(this.prisma, now, this.config.live.rankingsTimeZone);
     const created = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM live_rooms WHERE id = ${row.id}::uuid FOR UPDATE`;
-      const userLock = `kabso:live-pin:${callerId}`;
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${userLock}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:live-pin'), hashtext(${callerId}))`;
       const showing = await tx.liveChatPin.findFirst({
         where: { roomId: row.id, removedAt: null, until: { gt: now }, message: { deletedAt: null } },
         orderBy: { until: 'desc' },
