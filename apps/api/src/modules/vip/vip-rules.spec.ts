@@ -140,7 +140,13 @@ describe('VIP helpers', () => {
     expect(vipPerkAvailable('DAILY_COINS')).toBe(false);
     // D381 (v1.134-social) built seven more (gifts, CP, support, rockets, voice); sibling branches build others.
     expect(VIP_BUILT_PERKS.size).toBeGreaterThanOrEqual(18);
-    for (const c of ['EXCLUSIVE_GIFTS', 'FREE_CP_REQUEST', 'PRIORITY_SUPPORT', 'MONTHLY_ROCKETS', 'SCHEDULED_GIFT'])
+    for (const c of [
+      'EXCLUSIVE_GIFTS',
+      'FREE_CP_REQUEST',
+      'PRIORITY_SUPPORT',
+      'MONTHLY_ROCKETS',
+      'SCHEDULED_GIFT',
+    ])
       expect(vipPerkAvailable(c), c).toBe(true);
   });
 

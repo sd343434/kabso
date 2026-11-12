@@ -44,7 +44,7 @@ describe('D381 HIGHER_GIFT_QUANTITY', () => {
 });
 
 describe('D381 MONTHLY_ROCKETS', () => {
-  it("reads the stage STAGE_1…STAGE_4 (D233) as 1–4; anything else is no stage", () => {
+  it('reads the stage STAGE_1…STAGE_4 (D233) as 1–4; anything else is no stage', () => {
     expect(rocketStageNumber('STAGE_1')).toBe(1);
     expect(rocketStageNumber('STAGE_4')).toBe(4);
     expect(rocketStageNumber('STAGE_5')).toBeNull();

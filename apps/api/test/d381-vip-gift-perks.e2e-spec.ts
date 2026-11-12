@@ -16,7 +16,12 @@ import { panel, type Admin } from './helpers/admin-panel.js';
 import { m4a } from './helpers/m4a.js';
 import { MemoryObjectStorage } from './helpers/memory-storage.js';
 import { expectContract, operations } from './helpers/openapi.js';
-import { createTestApp, registerVerified, withMigrationClient, type TestContext } from './helpers/test-app.js';
+import {
+  createTestApp,
+  registerVerified,
+  withMigrationClient,
+  type TestContext,
+} from './helpers/test-app.js';
 
 const ADMIN_KEY = 'admin-totp-test-key-0123456789-abcdefghijklmnop';
 const VIP1 = '01a25200-0000-7000-8000-000000000001';
@@ -117,7 +122,11 @@ describe('D381 VIP gift, CP, support, rocket and voice perks', { timeout: 300_00
           startedAt: new Date(Date.now() - DAY),
           expiresAt: new Date(Date.now() + days * DAY),
         },
-        update: { tierId, startedAt: new Date(Date.now() - DAY), expiresAt: new Date(Date.now() + days * DAY) },
+        update: {
+          tierId,
+          startedAt: new Date(Date.now() - DAY),
+          expiresAt: new Date(Date.now() + days * DAY),
+        },
       }),
     );
   const endVip = (u: User) =>
@@ -162,7 +171,10 @@ describe('D381 VIP gift, CP, support, rocket and voice perks', { timeout: 300_00
         ...body,
       });
   const ledger = (u: User, reason: string) =>
-    ctx.prisma.walletLedger.findMany({ where: { userId: u.id, reason: reason as never }, orderBy: { id: 'asc' } });
+    ctx.prisma.walletLedgerEntry.findMany({
+      where: { userId: u.id, reason: reason as never },
+      orderBy: { id: 'asc' },
+    });
 
   beforeAll(async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: p.start() });
@@ -298,10 +310,16 @@ describe('D381 VIP gift, CP, support, rocket and voice perks', { timeout: 300_00
       const res = await ctx.http.get('/api/v1/cp/config').set(auth(u));
       expect(res.status).toBe(200);
       expectContract(res, 'getCpConfig');
-      return res.body as { requestCost: number; vipFreeRequests?: { perMonth: number; used: number; left: number } };
+      return res.body as {
+        requestCost: number;
+        vipFreeRequests?: { perMonth: number; used: number; left: number };
+      };
     };
     const request = (by: User, to: User) =>
-      ctx.http.post('/api/v1/cp/requests').set(auth(by)).send({ username: to.username, clientId: randomUUID() });
+      ctx.http
+        .post('/api/v1/cp/requests')
+        .set(auth(by))
+        .send({ username: to.username, clientId: randomUUID() });
 
     it('a holder sends N free requests a month (nothing charged, nothing refunded), then 99 coins', async () => {
       expect((await cpConfig(n)).vipFreeRequests).toBeUndefined();
@@ -314,13 +332,22 @@ describe('D381 VIP gift, CP, support, rocket and voice perks', { timeout: 300_00
       expect(r1.status, JSON.stringify(r1.body)).toBe(201);
       expect(await wallet(member)).toBe(1000);
       // Declined: the free slot stays used and no coins come back.
-      expect((await ctx.http.post(`/api/v1/cp/requests/${r1.body.id as string}/decline`).set(auth(a))).status).toBe(
-        200,
-      );
+      const declined = await ctx.http
+        .post(`/api/v1/cp/requests/${r1.body.request.id as string}/decline`)
+        .set(auth(a));
+      expect(declined.status).toBe(204);
+      expect(r1.body.request.cost).toBe(0);
       expect(await wallet(member)).toBe(1000);
       expect((await ledger(member, 'CP_REFUND')).length).toBe(0);
-      expect((await request(member, b)).status).toBe(201);
+      const r2 = await request(member, b);
+      expect(r2.status).toBe(201);
       expect((await cpConfig(member)).vipFreeRequests).toMatchObject({ used: 2, left: 0 });
+      // Cancelled by the sender (one pending request at a time): nothing comes back either.
+      const cancelled = await ctx.http
+        .delete(`/api/v1/cp/requests/${r2.body.request.id as string}`)
+        .set(auth(member));
+      expect(cancelled.status).toBeLessThan(300);
+      expect(await wallet(member)).toBe(1000);
       expect((await request(member, c)).status).toBe(201);
       expect(await wallet(member)).toBe(1000 - 99);
       expect((await ledger(member, 'CP_REQUEST')).map((r) => Number(r.delta))).toEqual([-99]);
@@ -380,10 +407,13 @@ describe('D381 VIP gift, CP, support, rocket and voice perks', { timeout: 300_00
   describe('MONTHLY_ROCKETS', () => {
     it("a holder's traffic cards come once a month (idempotent, audited), shown in «الخاص بي VIP»", async () => {
       const member = await signup();
-      await giveVip(member, vip2Id);
+      await giveVip(member, vip2Id, 90);
       const cards = async () =>
-        (await ctx.prisma.liveBoostCard.findUnique({ where: { userId_minutes: { userId: member.id, minutes: 20 } } }))
-          ?.quantity ?? 0;
+        (
+          await ctx.prisma.liveBoostCard.findUnique({
+            where: { userId_minutes: { userId: member.id, minutes: 20 } },
+          })
+        )?.quantity ?? 0;
       const mine = await myVip(member);
       expect(mine.perksNow?.monthlyRockets).toMatchObject({ stage: 2, minutes: 20, count: 2 });
       expect(await cards()).toBe(2);
@@ -411,7 +441,7 @@ describe('D381 VIP gift, CP, support, rocket and voice perks', { timeout: 300_00
       expect(await ctx.prisma.liveBoostCard.count({ where: { userId: n.id } })).toBe(0);
     });
 
-    it("«الخاص بي VIP» shows what each held perk gives now", async () => {
+    it('«الخاص بي VIP» shows what each held perk gives now', async () => {
       const now = (await myVip(m2)).perksNow!;
       expect(now).toMatchObject({
         freeCpRequests: { perMonth: 2 },
@@ -433,28 +463,43 @@ describe('D381 VIP gift, CP, support, rocket and voice perks', { timeout: 300_00
       await friends(m1, to);
       const no = await schedule(n, { to: to.username, giftCode: rose });
       expect(no.status).toBe(409);
-      expect(no.body.error).toMatchObject({ code: 'VIP_UNAVAILABLE', details: [{ field: 'perk', issue: 'no_perk' }] });
+      expect(no.body.error).toMatchObject({
+        code: 'VIP_UNAVAILABLE',
+        details: [{ field: 'perk', issue: 'no_perk' }],
+      });
       expect(
-        (await schedule(m1, { to: to.username, giftCode: rose, deliverAt: new Date(Date.now() + 60_000).toISOString() }))
-          .status,
+        (
+          await schedule(m1, {
+            to: to.username,
+            giftCode: rose,
+            deliverAt: new Date(Date.now() + 60_000).toISOString(),
+          })
+        ).status,
       ).toBe(400);
       expect((await schedule(m1, { to: m1.username, giftCode: rose })).status).toBe(400);
       const lucky = await gift({ category: 'LUCKY', priceCoins: 3 });
       expect((await schedule(m1, { to: to.username, giftCode: lucky })).status).toBe(409);
       // An exclusive gift the caller's VIP may not send.
-      expect((await schedule(m1, { to: to.username, giftCode: crown })).body.error.code).toBe('GIFT_UNAVAILABLE');
+      expect((await schedule(m1, { to: to.username, giftCode: crown })).body.error.code).toBe(
+        'GIFT_UNAVAILABLE',
+      );
 
       const before = await wallet(m1);
       const clientId = randomUUID();
-      const ok = await schedule(m1, { to: to.username, giftCode: castle, quantity: 9, clientId });
+      const ok = await schedule(m1, { to: to.username, giftCode: castle, quantity: 10, clientId });
       expect(ok.status, JSON.stringify(ok.body)).toBe(201);
       expectContract(ok, 'scheduleVipGift');
-      expect(ok.body.scheduledGift).toMatchObject({ status: 'PENDING', coins: 45, quantity: 9, giftCode: castle });
-      expect(ok.body.coins).toBe(before - 45);
-      const again = await schedule(m1, { to: to.username, giftCode: castle, quantity: 9, clientId });
+      expect(ok.body.scheduledGift).toMatchObject({
+        status: 'PENDING',
+        coins: 50,
+        quantity: 10,
+        giftCode: castle,
+      });
+      expect(ok.body.coins).toBe(before - 50);
+      const again = await schedule(m1, { to: to.username, giftCode: castle, quantity: 10, clientId });
       expect(again.status).toBe(200);
       expect(again.body.scheduledGift.id).toBe(ok.body.scheduledGift.id);
-      expect(await wallet(m1)).toBe(before - 45);
+      expect(await wallet(m1)).toBe(before - 50);
       const list = await ctx.http.get('/api/v1/me/vip/scheduled-gifts').set(auth(m1));
       expect(list.status).toBe(200);
       expectContract(list, 'listVipScheduledGifts');
@@ -477,7 +522,7 @@ describe('D381 VIP gift, CP, support, rocket and voice perks', { timeout: 300_00
       const to = await signup();
       await friends(m1, to);
       const before = await wallet(m1);
-      const res = await schedule(m1, { to: to.username, giftCode: castle, quantity: 9 });
+      const res = await schedule(m1, { to: to.username, giftCode: castle, quantity: 10 });
       expect(res.status).toBe(201);
       const id = res.body.scheduledGift.id as string;
       // Not due yet: nothing happens.
@@ -490,16 +535,16 @@ describe('D381 VIP gift, CP, support, rocket and voice perks', { timeout: 300_00
       expect(row.dmMessageId).not.toBeNull();
       const msg = await ctx.prisma.dmMessage.findUniqueOrThrow({ where: { id: row.dmMessageId! } });
       expect(msg.senderId).toBe(m1.id);
-      expect(await wallet(m1)).toBe(before - 45);
-      const refs = await ctx.prisma.walletLedger.findMany({
+      expect(await wallet(m1)).toBe(before - 50);
+      const refs = await ctx.prisma.walletLedgerEntry.findMany({
         where: { userId: m1.id, referenceId: id },
         orderBy: { id: 'asc' },
       });
       expect(refs.map((r) => [r.reason, Number(r.delta)])).toEqual([
-        ['VIP_SCHEDULED_GIFT', -45],
-        ['VIP_SCHEDULED_GIFT_RELEASE', 45],
+        ['VIP_SCHEDULED_GIFT', -50],
+        ['VIP_SCHEDULED_GIFT_RELEASE', 50],
       ]);
-      expect((await ledger(m1, 'DM_GIFT')).some((r) => Number(r.delta) === -45)).toBe(true);
+      expect((await ledger(m1, 'DM_GIFT')).some((r) => Number(r.delta) === -50)).toBe(true);
     });
 
     it('a delivery the rules of that moment refuse (a block) fails and gives the coins back', async () => {
@@ -508,9 +553,13 @@ describe('D381 VIP gift, CP, support, rocket and voice perks', { timeout: 300_00
       const before = await wallet(m1);
       const res = await schedule(m1, { to: to.username, giftCode: rose, quantity: 9999 });
       expect(res.status, JSON.stringify(res.body)).toBe(201);
-      expect((await ctx.http.put(`/api/v1/users/${m1.username}/block`).set(auth(to))).status).toBeLessThan(300);
+      expect((await ctx.http.put(`/api/v1/users/${m1.username}/block`).set(auth(to))).status).toBeLessThan(
+        300,
+      );
       await service().deliverDue(new Date(Date.now() + 2 * 3_600_000));
-      const row = await ctx.prisma.vipScheduledGift.findUniqueOrThrow({ where: { id: res.body.scheduledGift.id } });
+      const row = await ctx.prisma.vipScheduledGift.findUniqueOrThrow({
+        where: { id: res.body.scheduledGift.id },
+      });
       expect(row.status).toBe('FAILED');
       expect(row.failure).toBeTruthy();
       expect(await wallet(m1)).toBe(before);
