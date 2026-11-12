@@ -30,6 +30,7 @@ import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_stickers.dart';
 import 'package:kabso_live/features/live/application/live_top_viewers.dart';
 import 'package:kabso_live/features/live/application/live_viewer_prefs.dart';
+import 'package:kabso_live/features/live/application/live_vip_room.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -85,6 +86,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_sticker_layer
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_vip_perks.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
 import 'package:kabso_live/features/live/tools/live_tools_stage.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
@@ -594,6 +596,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ref
           .read(liveGlobalStripsProvider(room.id).notifier)
           .attach(_session.engine);
+      // v1.132-social (D379): the VIP pin, greeting card and coin rain.
+      ref.read(liveVipRoomProvider(room.id).notifier).attach(_session.engine);
       // D254: the level banner (a high level reached in any live).
       ref
           .read(liveLevelTickersProvider(room.id).notifier)
@@ -1314,6 +1318,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                           LiveRoomPromoBox.shows(ref, room.id)),
                 ),
               ),
+            // v1.132-social (D379): a VIP member's big gift rains coins.
+            if (room.status == LiveRoomStatus.live)
+              Positioned.fill(child: LiveVipGiftRainLayer(roomId: room.id)),
             // D154i: the video the live watches together. D225 (owner):
             // the audio room only.
             if (room.status == LiveRoomStatus.live &&

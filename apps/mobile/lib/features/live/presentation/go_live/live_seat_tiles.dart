@@ -11,6 +11,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_cp_mic_effect
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seat_fx.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_vip_perks.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
@@ -860,6 +861,11 @@ class AudioSeatRing extends StatelessWidget {
         onTap: onTap,
         cpMic: cpMicTiles.contains(i),
         overlay: overlay?.call(i),
+        crown: LiveVipSeatCrown(
+          key: LiveVipSeatCrown.keyFor(i),
+          vip: user.vip,
+          picture: _Seat.avatar * 0.8,
+        ),
         child: KAvatar(
           name: user.displayName,
           imageUrl: user.avatarUrl,
@@ -869,10 +875,12 @@ class AudioSeatRing extends StatelessWidget {
     }
     if (ghost) return const SizedBox.shrink();
     final locked = seat.state == LiveSeatState.locked;
+    final kept = seat.reservation?.user.displayName;
     return _Seat(
       key: seatKey(i),
       label: KFormat.grouped(i),
-      semantics: KFormat.grouped(i),
+      reservedFor: kept,
+      semantics: kept ?? KFormat.grouped(i),
       onTap: onTap,
       child: _Chair(locked: locked),
     );
@@ -952,7 +960,16 @@ class _Seat extends StatelessWidget {
     this.frame,
     this.vip,
     this.rechargeBadge,
+    this.crown,
+    this.reservedFor,
   });
+
+  /// v1.132-social (D379, §10.169.4): SEAT_CROWN over the picture.
+  final Widget? crown;
+
+  /// v1.132-social (D379, §10.169.10): the host keeps this seat for this
+  /// person — the label says so.
+  final String? reservedFor;
 
   /// v1.54-social (D185): the seated person's recharge-agent code.
   final String? agentCode;
@@ -1030,6 +1047,13 @@ class _Seat extends StatelessWidget {
                     ),
                   if (overlay case final overlay?)
                     Positioned.fill(child: overlay),
+                  if (crown case final crown?)
+                    Positioned(
+                      top: -avatar * 0.42,
+                      left: 0,
+                      right: 0,
+                      child: Center(child: crown),
+                    ),
                 ],
               ),
             ),
@@ -1037,7 +1061,10 @@ class _Seat extends StatelessWidget {
           // The label's centre 39 pt below the seat's (ref 83).
           const SizedBox(height: 2),
           _SeatLabel(
-            label,
+            switch (reservedFor) {
+              final name? => context.l10n.liveVipReservedFor(name),
+              null => label,
+            },
             agentCode: agentCode,
             hostAgentCode: hostAgentCode,
             rechargeBadge: rechargeBadge,
@@ -1148,6 +1175,20 @@ class _HostSeat extends StatelessWidget {
                       ),
                     if (overlay case final overlay?)
                       Positioned.fill(child: overlay),
+                    // v1.132-social (D379): SEAT_CROWN over the host's tile.
+                    if (vip != null)
+                      Positioned(
+                        top: -_Seat.avatar * 0.5,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: LiveVipSeatCrown(
+                            key: LiveVipSeatCrown.keyFor(0),
+                            vip: vip,
+                            picture: _Seat.avatar * 0.9,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

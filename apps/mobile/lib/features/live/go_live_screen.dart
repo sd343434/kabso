@@ -35,6 +35,7 @@ import 'package:kabso_live/features/live/application/live_stickers.dart';
 import 'package:kabso_live/features/live/application/live_streamer_host.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/application/live_top_viewers.dart';
+import 'package:kabso_live/features/live/application/live_vip_room.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
@@ -112,6 +113,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_sticker_layer
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_vip_perks.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
 import 'package:kabso_live/features/live/tools/live_tools_stage.dart';
 import 'package:kabso_live/features/live/tools/music/live_music_sheet.dart';
@@ -675,6 +677,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         'lucky',
         () =>
             ref.read(liveLuckyTickersProvider(room.id).notifier).attach(engine),
+      );
+      // v1.132-social (D379): the VIP pin, greeting card and coin rain.
+      _optional(
+        'vipLive',
+        () => ref.read(liveVipRoomProvider(room.id).notifier).attach(engine),
       );
       // D178 / D305: the global strips (gifts and games).
       _optional(
@@ -2075,6 +2082,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                           (room.wishGifts.isNotEmpty ||
                               LiveRoomPromoBox.shows(ref, room.id)),
                     ),
+                  ),
+                // v1.132-social (D379): a VIP member's big gift rains coins
+                // over the room; the host's greeting card for a VIP joiner.
+                if (onAir && room != null)
+                  Positioned.fill(child: LiveVipGiftRainLayer(roomId: room.id)),
+                if (onAir && room != null)
+                  PositionedDirectional(
+                    start: KSpacing.sm,
+                    end: KSpacing.sm,
+                    top: MediaQuery.paddingOf(context).top + 120,
+                    child: _VipGreeting(room: room),
                   ),
                 // D145: the lucky combo button after a lucky gift is sent.
                 if (onAir && room != null)
@@ -4180,6 +4198,40 @@ class _Ended extends ConsumerWidget {
         charm: charm,
         onDone: onDone,
         doneKey: GoLiveScreen.doneKey,
+      ),
+    );
+  }
+}
+
+/// v1.132-social (D379, §10.169.3): the host's card «VIP n دخل البث» for a
+/// member holding HOST_GREETING; «رحّب» sends an ordinary chat line from
+/// the host (the chat's own checks and limits).
+class _VipGreeting extends ConsumerWidget {
+  const new({required this.room});
+
+  final LiveRoom room;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(
+      liveVipRoomProvider(room.id).select((s) => s.greeting),
+    );
+    if (user == null) return const SizedBox.shrink();
+    final vip = ref.read(liveVipRoomProvider(room.id).notifier);
+    return Align(
+      alignment: AlignmentDirectional.topStart,
+      child: LiveVipGreetingCard(
+        key: ValueKey('vipGreeting.${user.id}'),
+        user: user,
+        onClose: vip.dismissGreeting,
+        onGreet: () {
+          vip.dismissGreeting();
+          unawaited(
+            ref
+                .read(liveChatProvider(room.id).notifier)
+                .send(context.l10n.liveVipGreetingLine(user.username)),
+          );
+        },
       ),
     );
   }

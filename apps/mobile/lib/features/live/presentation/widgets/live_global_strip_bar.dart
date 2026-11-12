@@ -92,9 +92,11 @@ class LiveGlobalStripBar extends ConsumerStatefulWidget {
     Duration t, {
     required bool rtl,
     required bool still,
+    Duration hold = Duration.zero,
   }) {
     final enter = LiveGlobalStrips.enterTime.inMicroseconds;
-    final holdEnd = enter + LiveGlobalStrips.holdTime.inMicroseconds;
+    // D379 (TICKER_HOLD): a held strip stays [hold] longer in the middle.
+    final holdEnd = enter + (LiveGlobalStrips.holdTime + hold).inMicroseconds;
     final exit = LiveGlobalStrips.exitTime.inMicroseconds;
     final us = t.inMicroseconds;
     final from = rtl ? 1.0 : -1.0;
@@ -139,7 +141,10 @@ class _LiveGlobalStripBarState extends ConsumerState<LiveGlobalStripBar>
         _playing = null;
       } else if (strip.key != _playing) {
         _playing = strip.key;
-        _clock.forward(from: 0);
+        // D379 (TICKER_HOLD): the timeline is longer by the strip's hold.
+        _clock
+          ..duration = LiveGlobalStrips.showTime + strip.hold
+          ..forward(from: 0);
       }
     }, fireImmediately: true);
   }
@@ -185,6 +190,7 @@ class _LiveGlobalStripBarState extends ConsumerState<LiveGlobalStripBar>
           _clock.duration! * _clock.value,
           rtl: rtl,
           still: still,
+          hold: strip.hold,
         );
         // Off-screen: half the screen and half the strip away.
         final away = screen / 2 + width / 2;
