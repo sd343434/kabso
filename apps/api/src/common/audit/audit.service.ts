@@ -383,6 +383,14 @@ export enum AuditAction {
   WHATSAPP_DEPARTMENTS = 'admin.team.whatsapp_departments',
   /** v1.137-social (D385, §10.174.3): a person opened a «دعم كابسو» ticket {department, reopened}. */
   SUPPORT_TICKET_OPEN = 'support.ticket.open',
+  /** v1.138-social (D386, §10.175.5): the team verified / unverified / cleared / locked / unlocked a category. */
+  ADMIN_USER_CATEGORY = 'admin.user.category',
+  /** v1.138-social (D386, §10.175.5): a «طلب توثيق الفئة» approved / rejected by the team. */
+  CATEGORY_REQUEST_APPROVE = 'category.request.approve',
+  CATEGORY_REQUEST_REJECT = 'category.request.reject',
+  /** v1.138-social (D386, §10.175.4): a person asked for / cancelled a category verification {category}. */
+  CATEGORY_VERIFICATION_REQUEST = 'user.category_verification.request',
+  CATEGORY_VERIFICATION_CANCEL = 'user.category_verification.cancel',
   TOPUP_EVENT_UNMATCHED = 'topup.event.unmatched',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',

@@ -49,6 +49,12 @@ export interface MeDto {
   showGender: boolean;
   /** v1.47-social (D175): the account category shown under the name, or null. */
   category: AccountCategory | null;
+  /**
+   * v1.138-social (D386, §10.175): the Kabso Team verified the current category (the profile's own look); false with
+   * no category and for a Kabso Team account. `categoryLocked`: the team locked it.
+   */
+  categoryVerified: boolean;
+  categoryLocked: boolean;
   /** v1.47-social (D175): the profile links, in order (0–3). */
   links: ProfileLinkDto[];
   /** v1.85-social (D278b, §10.99): the profile tags «منشنات», in order (0–10). */
@@ -81,6 +87,8 @@ export interface PublicUser {
   /** v1.47-social (D175): the gender others see (only when shown), the category and the links. */
   gender: 'MALE' | 'FEMALE' | null;
   category: AccountCategory | null;
+  /** v1.138-social (D386, §10.175): the Kabso Team verified the category (the caller hides it for a staff account). */
+  categoryVerified: boolean;
   links: ProfileLinkDto[];
   /** v1.85-social (D278b, §10.99): the profile tags, in order (also on a private account's profile). */
   tags: string[];
@@ -154,6 +162,9 @@ export interface UserWithProfile {
     gender?: Gender | null;
     showGender?: boolean;
     category?: AccountCategory | null;
+    /** v1.138-social (D386). Absent in older selects: not verified, not locked. */
+    categoryVerifiedAt?: Date | null;
+    categoryLockedAt?: Date | null;
     /** v1.76-social (D218). Absent in older selects: null. */
     coverUrl?: string | null;
     /** v1.85-social (D278b). Absent in older selects: none. */
@@ -202,6 +213,9 @@ export function toMeDto(user: UserWithProfile): MeDto {
     gender: user.profile.gender ?? null,
     showGender: user.profile.showGender ?? false,
     category: user.profile.category ?? null,
+    categoryVerified:
+      (user.profile.category ?? null) !== null && (user.profile.categoryVerifiedAt ?? null) !== null,
+    categoryLocked: (user.profile.categoryLockedAt ?? null) !== null,
     links: (user.profileLinks ?? []).map(profileLinkDto),
     tags: profileTagsOf(user.profile.tags),
     tagIcons: profileTagIconsOf(user.profile.tags, user.profile.tagIcons),
@@ -293,7 +307,10 @@ export class UsersService {
     const me = toMeDto(user);
     // v1.124-social (D367, §10.160): a Kabso Team account (any panel role, the founder too) shows no account category;
     // the stored value is kept (it shows again if the role ends).
-    return me.category !== null && (await isPanelStaff(this.prisma, userId)) ? { ...me, category: null } : me;
+    // v1.138-social (D386): so is its verification (the default look).
+    return me.category !== null && (await isPanelStaff(this.prisma, userId))
+      ? { ...me, category: null, categoryVerified: false }
+      : me;
   }
 
   /**
@@ -475,6 +492,7 @@ export class UsersService {
         gender: true,
         showGender: true,
         category: true,
+        categoryVerifiedAt: true,
         tags: true,
         tagIcons: true,
         coverUrl: true,
@@ -499,6 +517,7 @@ export class UsersService {
       premiumTier: profile.premiumTier,
       gender: publicGender(profile.gender, profile.showGender),
       category: profile.category,
+      categoryVerified: profile.category !== null && profile.categoryVerifiedAt !== null,
       links: profile.user.profileLinks.map(profileLinkDto),
       tags: profileTagsOf(profile.tags),
       tagIcons: profileTagIconsOf(profile.tags, profile.tagIcons),

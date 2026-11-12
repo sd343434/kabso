@@ -638,6 +638,9 @@ export const envSchema = z
     RATE_LIMIT_DM_GROUP_CREATE_USER: rateLimit('2/86400'),
     // v1.137-social (D385, CONVENTIONS §7, §10.174.3): messages to «دعم كابسو», per user.
     RATE_LIMIT_SUPPORT_SEND_USER: rateLimit('10/60'),
+    // v1.138-social (D386, CONVENTIONS §7, §10.175): featured-pin writes and «طلب توثيق الفئة», per user.
+    RATE_LIMIT_FEATURED_PINS_USER: rateLimit('60/3600'),
+    RATE_LIMIT_CATEGORY_REQUEST_USER: rateLimit('5/86400'),
     // v1.48-social (D171, CONVENTIONS §7, §10.45): bag item sends, per user.
     RATE_LIMIT_BAG_SEND_USER: rateLimit('30/3600'),
     /** v1.54-social (D185, §10.48): coin sales by a recharge agent or employee, and the other recharge writes. */
