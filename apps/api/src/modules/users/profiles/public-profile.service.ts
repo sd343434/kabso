@@ -286,6 +286,7 @@ export class PublicProfileService {
           where: { holderId: user.id },
           select: { number: true, class: true, state: true, heldUntil: true },
         }),
+        vipMembership: membership,
       },
       new Date(),
     );

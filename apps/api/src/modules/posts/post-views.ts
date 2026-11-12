@@ -153,17 +153,20 @@ export function userSummary(
 
 /**
  * v1.131-social (D378, §10.168.4): the golden ID to show — HELD with its end in the future (the sweeper and a VIP
- * purchase keep the end in step with the membership) and an active account; or null.
+ * purchase keep the end in step with the membership), the membership active and an active account; or null.
  */
 export function heldGoldenIdOf(
   user: {
     status?: string;
     vipGoldenId?: { number: string; class: string; state: string; heldUntil: Date | null } | null;
+    vipMembership?: { expiresAt: Date } | null;
   },
   now: Date,
 ): { number: string; class: string } | null {
   const g = user.vipGoldenId;
   if (!g || g.state !== 'HELD' || g.heldUntil === null || g.heldUntil.getTime() <= now.getTime()) return null;
+  // The membership ended before the sweeper ran (or was cut short): hidden at once.
+  if (!user.vipMembership || user.vipMembership.expiresAt.getTime() <= now.getTime()) return null;
   if (user.status !== undefined && user.status !== 'ACTIVE') return null;
   return { number: g.number, class: g.class };
 }

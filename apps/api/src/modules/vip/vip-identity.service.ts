@@ -94,7 +94,6 @@ export class VipIdentityService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(VipIdentityService.name);
   private sweepTimer: NodeJS.Timeout | undefined;
   private sweepInFlight: Promise<unknown> | null = null;
-  private serverWords: { at: number; words: string[] } | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -114,14 +113,9 @@ export class VipIdentityService implements OnModuleInit, OnModuleDestroy {
 
   // ---- ANIMATED_SIGNATURE -----------------------------------------------------------------------
 
-  /** The server's blocked words (§11.11), re-read at most once a minute. */
+  /** The server's blocked words (§11.11), read on each save (a signature is set rarely; a new word applies at once). */
   private async blockedWords(): Promise<string[]> {
-    const nowMs = Date.now();
-    if (this.serverWords === null || nowMs - this.serverWords.at > 60_000) {
-      const rows = await this.prisma.searchBlockedWord.findMany({ select: { word: true } });
-      this.serverWords = { at: nowMs, words: rows.map((r) => r.word) };
-    }
-    return this.serverWords.words;
+    return (await this.prisma.searchBlockedWord.findMany({ select: { word: true } })).map((r) => r.word);
   }
 
   /**
@@ -141,9 +135,13 @@ export class VipIdentityService implements OnModuleInit, OnModuleDestroy {
     }
     return this.prisma.$transaction(async (tx) => {
       const now = this.clock.now();
-      const membership = await tx.vipMembership.findUnique({ where: { userId }, select: { signature: true } });
+      const membership = await tx.vipMembership.findUnique({
+        where: { userId },
+        select: { signature: true },
+      });
       if (!membership) throw perkNotHeld();
-      if (text !== null && !(await vipHoldsPerkIn(tx, userId, 'ANIMATED_SIGNATURE', now))) throw perkNotHeld();
+      if (text !== null && !(await vipHoldsPerkIn(tx, userId, 'ANIMATED_SIGNATURE', now)))
+        throw perkNotHeld();
       if (membership.signature !== text) {
         await tx.vipMembership.update({ where: { userId }, data: { signature: text } });
         await tx.auditLog.create({
@@ -261,7 +259,10 @@ export class VipIdentityService implements OnModuleInit, OnModuleDestroy {
       const row = await tx.vipGoldenId.findUnique({ where: { holderId: userId } });
       if (!row) return;
       await freeGoldenIdIn(tx, row.number, userId, 'released');
-      await goldenAuditIn(tx, AuditAction.VIP_GOLDEN_ID_RELEASE, userId, { number: row.number, class: row.class });
+      await goldenAuditIn(tx, AuditAction.VIP_GOLDEN_ID_RELEASE, userId, {
+        number: row.number,
+        class: row.class,
+      });
     });
   }
 
@@ -294,12 +295,16 @@ export class VipIdentityService implements OnModuleInit, OnModuleDestroy {
    * ({@link vipGoldenIdClassOf}). 400 `numbers.N` `invalid_format` (not a golden ID), `duplicate_value`, `taken`
    * (already in the stock). Audited (one row, the numbers and their classes).
    */
-  async adminAdd(body: z.output<typeof adminGoldenIdsAddBody>, by: AdminVia): Promise<AdminVipGoldenIdListDto> {
+  async adminAdd(
+    body: z.output<typeof adminGoldenIdsAddBody>,
+    by: AdminVia,
+  ): Promise<AdminVipGoldenIdListDto> {
     const numbers = body.numbers.map((n) => n.trim());
     const issues: { field: string; issue: string }[] = [];
     const seen = new Set<string>();
     numbers.forEach((n, i) => {
-      if (vipGoldenIdClassOf(n) === null) issues.push({ field: `numbers.${String(i)}`, issue: 'invalid_format' });
+      if (vipGoldenIdClassOf(n) === null)
+        issues.push({ field: `numbers.${String(i)}`, issue: 'invalid_format' });
       else if (seen.has(n)) issues.push({ field: `numbers.${String(i)}`, issue: 'duplicate_value' });
       seen.add(n);
     });
@@ -310,7 +315,9 @@ export class VipIdentityService implements OnModuleInit, OnModuleDestroy {
           (r) => r.number,
         ),
       );
-      const taken = numbers.flatMap((n, i) => (existing.has(n) ? [{ field: `numbers.${String(i)}`, issue: 'taken' }] : []));
+      const taken = numbers.flatMap((n, i) =>
+        existing.has(n) ? [{ field: `numbers.${String(i)}`, issue: 'taken' }] : [],
+      );
       if (taken.length > 0) throw AppException.validation(taken);
       const rows = numbers.map((n) => ({ number: n, class: vipGoldenIdClassOf(n)! }));
       await tx.vipGoldenId.createMany({ data: rows });

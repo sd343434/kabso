@@ -615,6 +615,16 @@ info:
     (`POST /admin/users/{userId}/recharge-points/adjustments`, audited `recharge_points.adjust`). A reversed top-up or
     a refunded store purchase takes its points back (the balance may go below 0). Migration
     `20270430090000_recharge_points`. Additive (an older app sends no `payWith` and buys with coins as before).
+    **D378 (DRAFT v1.131-social)** the VIP identity perks (CONVENTIONS §10.168; owner 2026-11-11): ANIMATED_COVER,
+    PREMIUM_USERNAME, GOLDEN_ID, ANIMATED_SIGNATURE, POST_BADGE, STORY_RING, GLOWING_NAME and DM_BUBBLE built
+    (`VipPerk.available` true). `UserVip.signature`; `UserSummary.goldenId` / `PublicProfile.goldenId` (`UserGoldenId`);
+    `setMyVipSignature` (`PUT /me/vip/signature`), `getMyVipGoldenIds`, `claimMyVipGoldenId`, `releaseMyVipGoldenId`
+    (`/me/vip/golden-ids`, `/me/vip/golden-id`); `claimVipPremiumUsername` (`POST /me/premium-username/vip-claim`),
+    `PremiumUsernameStore.vipTier`, `MyPremiumUsername.source` `VIP`; the panel's golden ID stock
+    `listAdminVipGoldenIds`, `addAdminVipGoldenIds`, `removeAdminVipGoldenId`; `VipPerkValueSchema.source`
+    `GOLDEN_ID_CLASS` (GOLDEN_ID's value: REPEATED · THREE_DIGIT · FOUR_DIGIT · FIVE_DIGIT). Migration
+    `20270510090000_vip_identity_perks`. Additive (an older app ignores the new fields; a `VIP` source is shown as a
+    rental by an app that does not know it).
     **D374 (DRAFT v1.129-social)** the VIP perk catalogue (CONVENTIONS §10.166; owner 2026-11-11: each VIP tier gets
     the perks the admin picks in the panel, with art where needed): `AdminVipTierList.catalogue` (`VipPerkCatalogueEntry`,
     `VipPerkValueSchema`), `maxPerks` (64; was 20), `artLimits` (`VipArtLimit`); `AdminVipPerk` / `VipPerk` gain `value`
@@ -1941,6 +1951,35 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/me/premium-username/vip-claim:
+    post:
+      tags: [premium-usernames]
+      operationId: claimVipPremiumUsername
+      summary: "Claims a premium username free with VIP «يوزر مميز طوال الاشتراك» (v1.131-social, D378)"
+      description: |
+        CONVENTIONS §10.168.3. The VIP perk PREMIUM_USERNAME lets its holder take, without coins, a premium username of
+        the medal set on the perk or a lower one (LEGEND > RUBY > GOLD > SILVER): an AVAILABLE or NOT_FOR_SALE name, or
+        their own in its grace. The lease (`source` VIP) lasts as long as the membership (a renewal moves its end); when
+        the membership or the class ends it expires as a rented one does — back to the regular username, D146's grace
+        period (the caller may rent it then), then the name returns to the pool. Order: 400 body → 409 `USERNAME_LOCKED`
+        → 409 `VIP_UNAVAILABLE` `{field: perk, issue: not_held}` → 409 `PREMIUM_USERNAME_UNAVAILABLE` → 409
+        `VIP_UNAVAILABLE` `{field: username, issue: class}` → 409 `PREMIUM_USERNAME_ACTIVE`. Rate limit as rentals.
+        Audited `premium_username.vip_claim`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClaimVipPremiumUsernameRequest' }
+      responses:
+        '201':
+          description: The username is the caller's now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyPremiumUsernameEnvelope' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/premium-username/rentals:
     post:
       tags: [premium-usernames]
@@ -11826,6 +11865,84 @@ paths:
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/me/vip/signature:
+    put:
+      tags: [vip]
+      operationId: setMyVipSignature
+      summary: "Sets or clears the caller's animated signature «توقيع متحرك» (v1.131-social, D378)"
+      description: |
+        CONVENTIONS §10.168.5. ANIMATED_SIGNATURE: 1–24 characters on one line (trimmed, inner spaces collapsed, NFC),
+        shown with the tier's art under the member's posts and public bullet messages (`UserVip.signature`) while the
+        perk is held. Checks in order: 400 body; 409 `VIP_UNAVAILABLE` `{field: perk, issue: not_held}` without the
+        perk (clearing needs only a membership); 400 `signature` `too_short` / `too_long` / `invalid_format` (a line
+        break, a control or invisible character) / `blocked_word` (the server's blocked words). Audited
+        `vip.signature.set`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetVipSignatureRequest' }
+      responses:
+        '200':
+          description: The signature now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VipSignature' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/vip/golden-ids:
+    get:
+      tags: [vip]
+      operationId: getMyVipGoldenIds
+      summary: "The golden IDs «آيدي ذهبي» the caller may pick, and their own (v1.131-social, D378)"
+      description: |
+        CONVENTIONS §10.168.4. `class`: the class the caller's GOLDEN_ID perk sets (null without the perk or a class);
+        `mine`: their number (HELD, or GRACE — kept for them 7 days after the membership or the class ended); `available`:
+        up to 60 FREE numbers of the class from the owner's stock, shortest first.
+      responses:
+        '200':
+          description: The choice.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VipGoldenIdChoice' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/vip/golden-id:
+    post:
+      tags: [vip]
+      operationId: claimMyVipGoldenId
+      summary: "Takes a golden ID of the caller's class (v1.131-social, D378)"
+      description: |
+        CONVENTIONS §10.168.4. A FREE number of the caller's class, or their own in its grace; a number the caller holds
+        is given back to the stock first (one at a time). Held until the membership ends (a renewal moves the end). 409
+        `VIP_UNAVAILABLE`: `{field: perk, issue: not_held}`; `{field: number, issue: not_found | class | taken}`.
+        Audited `vip.golden_id.claim`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClaimVipGoldenIdRequest' }
+      responses:
+        '200':
+          description: The number now the caller's.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VipGoldenIdHolding' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [vip]
+      operationId: releaseMyVipGoldenId
+      summary: "Gives the caller's golden ID back to the stock now (v1.131-social, D378)"
+      description: "CONVENTIONS §10.168.4. Idempotent (204 with none). Audited `vip.golden_id.release`."
+      responses:
+        '204': { description: Released (or nothing held). }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/recharge-points:
     get:
       tags: [wallet]
@@ -17430,6 +17547,76 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/vip/golden-ids:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminVipGoldenIds
+      summary: "The golden ID stock «آيدي ذهبي» (catalog.view; v1.131-social, D378)"
+      description: "(v1.131-social, D378, §10.168.4) At most 1 000 numbers, shortest first, with their class, state and holder."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: class, in: query, required: false, schema: { $ref: '#/components/schemas/VipGoldenIdClass' } }
+        - { name: state, in: query, required: false, schema: { type: string, enum: [FREE, HELD, GRACE] } }
+      responses:
+        '200':
+          description: The stock.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVipGoldenIdList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: addAdminVipGoldenIds
+      summary: "Adds numbers to the golden ID stock (catalog.manage: OWNER; reason; audited)"
+      description: "(v1.131-social, D378, §10.168.4) 1–100 numbers; each takes the class its digits give (REPEATED: one digit repeated, 2–8 long; THREE_DIGIT, FOUR_DIGIT, FIVE_DIGIT by length). 400 `numbers.N` `invalid_format` / `duplicate_value` / `taken`. Audited `vip.golden_id.stock_add`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddAdminVipGoldenIdsRequest' }
+      responses:
+        '201':
+          description: The stock after.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVipGoldenIdList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/vip/golden-ids/{number}/remove:
+    post:
+      tags: [admin-panel]
+      operationId: removeAdminVipGoldenId
+      summary: "Takes a free number out of the golden ID stock (catalog.manage: OWNER; reason; audited)"
+      description: "(v1.131-social, D378, §10.168.4) 404 when not in the stock; 409 `ADMIN_ACTION_REFUSED` `{field: rule, issue: golden_id_held}` while it is held or kept in a grace. Audited `vip.golden_id.stock_remove`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: number, in: path, required: true, schema: { type: string, pattern: '^[1-9][0-9]{1,7}$' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminVipReasonOnly' }
+      responses:
+        '200':
+          description: The stock after.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVipGoldenIdList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/referral-settings:
     get:
@@ -25579,7 +25766,7 @@ components:
         min: { type: integer }
         max: { type: integer }
         unit: { type: string, enum: [per_day, per_month, seconds, minutes, percent, coins, count] }
-        source: { type: string, enum: [PREMIUM_USERNAME_TIER, ROCKET_STAGE, VIP_TIER] }
+        source: { type: string, enum: [PREMIUM_USERNAME_TIER, ROCKET_STAGE, VIP_TIER, GOLDEN_ID_CLASS], description: "v1.131-social (D378): GOLDEN_ID_CLASS — the golden ID classes." }
         options:
           type: array
           items: { type: string }
@@ -32202,7 +32389,11 @@ components:
         suggestions:
           type: array
           maxItems: 30
+          description: "AVAILABLE names; v1.131-social (D378): also NOT_FOR_SALE names the caller's VIP can claim (`vipTier`)."
           items: { $ref: '#/components/schemas/PremiumUsernameStatus' }
+        vipTier:
+          oneOf: [{ $ref: '#/components/schemas/PremiumUsernameTier' }, { type: 'null' }]
+          description: "v1.131-social (D378, §10.168.3): the highest medal the caller's VIP (PREMIUM_USERNAME) claims free — it and every lower one (`claimVipPremiumUsername`); null without the perk or a class. Absent from an older server."
     MyPremiumUsername:
       type: object
       required: [username, tier, status, source, startedAt, expiresAt, graceUntil, regularUsername, renewPriceCoins, canRenew, periodDays]
@@ -32210,7 +32401,7 @@ components:
         username: { $ref: '#/components/schemas/Username' }
         tier: { $ref: '#/components/schemas/PremiumUsernameTier' }
         status: { type: string, enum: [ACTIVE, GRACE] }
-        source: { type: string, enum: [RENT, GRANT], description: GRANT — given by the team (`premium-admin grant`). }
+        source: { type: string, enum: [RENT, GRANT, VIP], description: "GRANT — given by the team (`premium-admin grant`). v1.131-social (D378): VIP — claimed free with the VIP perk PREMIUM_USERNAME; ends with the membership." }
         startedAt: { type: string, format: date-time }
         expiresAt: { type: [string, 'null'], format: date-time, description: The end of the paid period; null for a grant without an end. }
         graceUntil: { type: [string, 'null'], format: date-time, description: GRACE only. }
@@ -32618,6 +32809,9 @@ components:
         staffId:
           $ref: '#/components/schemas/StaffId'
           description: "(v1.73-live, D283c, §10.96.12) — present only while the user holds a panel role (the OWNER too) with an active account: the apps show it where they show the @username (live viewers and chat, the person card, search results, lists). Absent otherwise."
+        goldenId:
+          $ref: '#/components/schemas/UserGoldenId'
+          description: "(v1.131-social, D378, §10.168.4) — present only while the user holds a golden ID (HELD, within their membership) with an active account (never a Kabso Team account): the apps show the gold ID chip «ID 8888» on the profile and the person card. Absent otherwise."
         verification:
           $ref: '#/components/schemas/VerificationBadge'
           description: "(v1.90-social, D293, §10.105.5; owner «نعم»: beside the name everywhere) — present only while the user holds an automatic verification badge with an active account; only its type, never an amount. Read with the summary's own query (no per-row query). The apps draw the seal right after the name wherever a summary's name is shown: live chat lines and join lines, the viewers list, seats, the person card, follow lists, search results, post / reel and comment authors, DM lists and headers, live cards. Absent otherwise."
@@ -32629,12 +32823,118 @@ components:
         tier: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$', description: "`VipTier.code`." }
         rank: { type: integer, minimum: 1, description: "The tier's place in the panel's order (higher = higher tier)." }
         color: { type: string, pattern: '^#[0-9A-F]{6}$', description: "The tier's colour (the name colour of CHAT_NAME_COLOR)." }
+        signature: { type: string, minLength: 1, maxLength: 96, description: "(v1.131-social, D378, §10.168.5) The member's ANIMATED_SIGNATURE text (1–24 characters); the apps draw it under the member's posts and public bullet messages while the tier holds the perk. Absent when none." }
         off:
           type: array
           minItems: 1
           uniqueItems: true
           items: { type: string, enum: [AVATAR_FRAME, PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT, MIC_WAVE] }
           description: "(v1.65-live, D264, §10.97) The tier items the member does not wear: taken off in the bag, or a frame / profile card worn from the bag instead (one worn item per kind). The apps leave these perks out of the look. Absent when none."
+    # ---- v1.131-social (DRAFT, D378, CONVENTIONS §10.168): the VIP identity perks ---------------------------------
+    VipGoldenIdClass:
+      type: string
+      enum: [REPEATED, THREE_DIGIT, FOUR_DIGIT, FIVE_DIGIT]
+      description: "(D378) REPEATED — one digit repeated, 2–8 long (`88`, `8888`); otherwise by length (3, 4, 5 digits)."
+    UserGoldenId:
+      type: object
+      additionalProperties: false
+      required: [number, class]
+      properties:
+        number: { type: string, pattern: '^[1-9][0-9]{1,7}$' }
+        class: { $ref: '#/components/schemas/VipGoldenIdClass' }
+    SetVipSignatureRequest:
+      type: object
+      additionalProperties: false
+      required: [signature]
+      properties:
+        signature: { type: [string, 'null'], maxLength: 200, description: "1–24 characters after trimming; null clears it." }
+    VipSignature:
+      type: object
+      required: [signature]
+      properties:
+        signature: { type: [string, 'null'], maxLength: 96 }
+    VipGoldenIdHolding:
+      type: object
+      required: [number, class, state, heldUntil, graceUntil]
+      properties:
+        number: { type: string, pattern: '^[1-9][0-9]{1,7}$' }
+        class: { $ref: '#/components/schemas/VipGoldenIdClass' }
+        state: { type: string, enum: [HELD, GRACE], description: "GRACE: kept for the caller (not shown) until `graceUntil`; taking it again (with the class) makes it HELD." }
+        heldUntil: { type: [string, 'null'], format: date-time, description: "HELD: the membership's end." }
+        graceUntil: { type: [string, 'null'], format: date-time, description: "GRACE: when it returns to the stock." }
+    VipGoldenIdChoice:
+      type: object
+      required: [class, mine, available]
+      properties:
+        class: { oneOf: [{ $ref: '#/components/schemas/VipGoldenIdClass' }, { type: 'null' }] }
+        mine: { oneOf: [{ $ref: '#/components/schemas/VipGoldenIdHolding' }, { type: 'null' }] }
+        available:
+          type: array
+          maxItems: 60
+          items: { type: string, pattern: '^[1-9][0-9]{1,7}$' }
+    ClaimVipGoldenIdRequest:
+      type: object
+      additionalProperties: false
+      required: [number]
+      properties:
+        number: { type: string, minLength: 1, maxLength: 16 }
+    ClaimVipPremiumUsernameRequest:
+      type: object
+      additionalProperties: false
+      required: [username]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+    MyPremiumUsernameEnvelope:
+      type: object
+      required: [premium]
+      properties:
+        premium: { $ref: '#/components/schemas/MyPremiumUsername' }
+    AdminVipGoldenId:
+      type: object
+      required: [number, class, state, holder, heldUntil, graceUntil, claimedAt]
+      properties:
+        number: { type: string, pattern: '^[1-9][0-9]{1,7}$' }
+        class: { $ref: '#/components/schemas/VipGoldenIdClass' }
+        state: { type: string, enum: [FREE, HELD, GRACE] }
+        holder:
+          oneOf:
+            - type: object
+              required: [id, username]
+              properties:
+                id: { type: string, format: uuid }
+                username: { type: string }
+            - type: 'null'
+        heldUntil: { type: [string, 'null'], format: date-time }
+        graceUntil: { type: [string, 'null'], format: date-time }
+        claimedAt: { type: [string, 'null'], format: date-time }
+    AdminVipGoldenIdList:
+      type: object
+      required: [data, classes]
+      properties:
+        data:
+          type: array
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/AdminVipGoldenId' }
+        classes:
+          type: array
+          items: { $ref: '#/components/schemas/VipGoldenIdClass' }
+    AddAdminVipGoldenIdsRequest:
+      type: object
+      additionalProperties: false
+      required: [numbers, reason]
+      properties:
+        numbers:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { type: string, minLength: 1, maxLength: 16 }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+    AdminVipReasonOnly:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 500 }
     ProfileLive:
       type: object
       description: v1.70-live (D279, CONVENTIONS §10.5.1). The profile's «في بث الآن» card.
@@ -33166,6 +33466,9 @@ components:
           description: |
             (v1.73-live, D283c, §10.96.12) The official staff ID while the account holds a panel role (the OWNER too): the
             profile and the person card show «ID: Kabso01» instead of the @username. Absent for everyone else.
+        goldenId:
+          $ref: '#/components/schemas/UserGoldenId'
+          description: "(v1.131-social, D378, §10.168.4) The golden ID held now (as `UserSummary.goldenId`); absent otherwise."
         family:
           description: "(v1.21-live, CP-018) The user's family and role, or null."
           oneOf:

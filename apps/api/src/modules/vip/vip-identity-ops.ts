@@ -118,7 +118,12 @@ export async function syncGoldenIdIn(tx: Tx, userId: string, now: Date): Promise
 }
 
 /** Returns [number] to the stock (no holder), audited `vip.golden_id.free`. */
-export async function freeGoldenIdIn(tx: Tx, number: string, holderId: string | null, why: string): Promise<void> {
+export async function freeGoldenIdIn(
+  tx: Tx,
+  number: string,
+  holderId: string | null,
+  why: string,
+): Promise<void> {
   await tx.vipGoldenId.update({
     where: { number },
     data: { state: 'FREE', holderId: null, heldUntil: null, graceUntil: null, claimedAt: null },

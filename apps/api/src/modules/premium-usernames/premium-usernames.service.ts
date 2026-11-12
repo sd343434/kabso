@@ -176,7 +176,9 @@ export class PremiumUsernamesService implements OnModuleInit, OnModuleDestroy {
     const named = await this.prisma.premiumUsernameNamePrice.findMany({ select: { username: true } });
     const now = this.clock.now();
     // v1.131-social (D378): a VIP's claimable medals are suggested even when not on sale.
-    const vipTier = vipPremiumClassValue((await vipPerkHoldIn(this.prisma, callerId, 'PREMIUM_USERNAME', now))?.value);
+    const vipTier = vipPremiumClassValue(
+      (await vipPerkHoldIn(this.prisma, callerId, 'PREMIUM_USERNAME', now))?.value,
+    );
     const claimable = (t: PremiumTier | null): boolean =>
       t !== null && vipTier !== null && vipPremiumClaimAllows(vipTier, t);
     const candidates = [
@@ -222,7 +224,13 @@ export class PremiumUsernamesService implements OnModuleInit, OnModuleDestroy {
         suggestions.push(this.toStatus(info));
       }
     }
-    return { periodDays: this.rules.periodDays, graceDays: this.rules.graceDays, tiers, suggestions, vipTier };
+    return {
+      periodDays: this.rules.periodDays,
+      graceDays: this.rules.graceDays,
+      tiers,
+      suggestions,
+      vipTier,
+    };
   }
 
   private async toMine(db: Tx, lease: LeaseRow, now: Date): Promise<MyPremiumUsernameDto> {
@@ -534,7 +542,7 @@ export class PremiumUsernamesService implements OnModuleInit, OnModuleDestroy {
         let lease: LeaseRow;
         if (ownVip) {
           lease = await tx.premiumUsernameLease.update({
-            where: { id: info.lease!.id },
+            where: { id: info.lease.id },
             data: { expiresAt: hold.expiresAt, remindedDays: null, updatedAt: now },
           });
           return { premium: await this.toMine(tx, lease, now) };
