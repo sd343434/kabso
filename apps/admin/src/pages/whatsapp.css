@@ -1,7 +1,10 @@
 /* D355 «واتساب»: list + chat + customer panel. Kabso tokens from styles.css only; logical properties (RTL first). */
 .wa-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(240px, 300px);
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(
+      240px,
+      300px
+    );
   gap: 12px;
   align-items: start;
 }
@@ -87,6 +90,12 @@
 .wa-row-tags .tag.mine {
   border-color: var(--info);
   color: var(--info);
+}
+/* D385: an in-app «دعم كابسو» thread «داخل التطبيق». */
+.wa-row-tags .tag.info {
+  border-color: var(--info);
+  color: var(--info);
+  background: color-mix(in srgb, var(--info) 10%, transparent);
 }
 .wa-row-tags .tag.vip {
   border-color: var(--warn, #b7791f);
@@ -354,8 +363,8 @@
   background: var(--success);
 }
 /* The picked chip: the inbox tabs and the transfer's department. */
-.wa-col-list .chip[aria-selected='true'],
-.wa-transfer .chip[aria-checked='true'] {
+.wa-col-list .chip[aria-selected="true"],
+.wa-transfer .chip[aria-checked="true"] {
   background: var(--primary);
   border-color: var(--primary);
   color: var(--on-primary);

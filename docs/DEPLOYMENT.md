@@ -1226,6 +1226,7 @@ hard-deleted 24 hours after it was sent** (owner).
   | `DM_DELETE_FOR_EVERYONE_SECONDS` | `3600` | "Delete for everyone" window of one's own message |
   | `GIFT_DM_RECIPIENT_SHARE_PERCENT` | `50` | Share of a (non-lucky) gift's value counted for the recipient's charm in a conversation (owner: 50 %). **Lucky gifts keep `LUCKY_GIFT_HOST_SHARE_PERCENT` (10 %)** — RTP 85 % + 50 % would exceed 100 % |
   | `RATE_LIMIT_DM_SEND_USER` | `30/60` | `POST /dm/messages` per user |
+  | `RATE_LIMIT_SUPPORT_SEND_USER` | `10/60` | `POST /support/thread/messages` per user (D385, §5.127) |
   | `RATE_LIMIT_DM_REQUEST_USER` | `20/3600` | Message-request messages (to strangers) per user |
   | `RATE_LIMIT_DM_WRITE_USER` | `300/3600` | read / accept / delete / mute per user |
 
@@ -4457,3 +4458,25 @@ worker runs inside the API on the DM sweeper's cadence (`DM_SWEEP_INTERVAL_SECON
   scheduled gifts pending at a rollback keep their coins held until a D381 API delivers or the sender cancels them.
 - **Order:** deploy the API image (the migration runs first), then ship the APK. The admin panel needs no change (the
   D374 grid edits the values). An older app keeps working (new fields ignored).
+
+### 5.127 «دعم كابسو» and the pinned chats (D385; migration `20270515090000_support_chat_pins`) — [IMPLEMENTED, draft contract v1.137-social; not deployed, not device-tested]
+
+CONVENTIONS §10.174 (owner 2026-11-12). One migration and one optional setting; no new secret, no new host.
+
+- **Migration** `20270515090000_support_chat_pins` (the usual `migrate` job, as the migration role): enum `wa_channel`;
+  `wa_conversations.channel` (default WHATSAPP, so every existing row stays WhatsApp), `user_read_at`, `staff_read_at`;
+  `phone_e164` and `wa_id` become nullable with CHECK `wa_conversations_channel_shape` (validated against the existing
+  rows, which all have both); the partial unique index `wa_conversations_in_app_user_key` and
+  `wa_conversations_channel_idx`; `wa_messages.media_asset_id` (FK to `media_assets`, SET NULL) and `client_id` with
+  `wa_messages_client_once`; the new table `dm_pins` (CHECK `dm_pins_target`; runtime grants from the default
+  privileges, KL-013; full DML). Small tables; indexes built without `CONCURRENTLY` (short write locks on `wa_*`).
+- **Setting:** `RATE_LIMIT_SUPPORT_SEND_USER` (default `10/60`) — messages to «دعم كابسو» per user.
+- **Behaviour change for the staff:** the inbox (`/staff/whatsapp/*`, `/admin/whatsapp/*`) now answers without the
+  WhatsApp credentials for the in-app threads (`summary.enabled` false, `inApp` true); WhatsApp-only requests still
+  503 `WHATSAPP_UNAVAILABLE`. Staff with the WhatsApp level REPLY or MANAGE receive the in-app pushes (channel `staff`).
+- **Rollback note:** an older API image cannot read rows with a null phone: before rolling back, close or delete the
+  IN_APP threads (`DELETE FROM wa_conversations WHERE channel = 'IN_APP'`, after an export if needed). The enum and the
+  table can stay.
+- **Order:** deploy the API image (the migration runs first), then the panel, then ship the APK. An older app shows no
+  row and no support chat; an older staff app or panel must not open the inbox while in-app threads exist (their phone
+  is null) — none is deployed with D355 yet.

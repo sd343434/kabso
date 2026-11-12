@@ -1,130 +1,137 @@
 /** The shapes of openapi.yaml's `admin-panel` schemas the panel reads (contract v1.60-social, D191). */
-export type PanelRole = 'OWNER' | 'MODERATION' | 'SUPPORT' | 'FINANCE' | 'BD';
+export type PanelRole = "OWNER" | "MODERATION" | "SUPPORT" | "FINANCE" | "BD";
 
 export type Capability =
-  | 'dashboard.view'
-  | 'users.view'
-  | 'users.balances'
-  | 'users.ledger'
-  | 'users.ban'
-  | 'users.avatar'
-  | 'users.special_username'
-  | 'recharge.applications'
-  | 'recharge.decide'
-  | 'recharge.agents'
-  | 'recharge.topup'
-  | 'recharge.status'
-  | 'recharge.cap'
-  | 'withdrawals.view'
-  | 'withdrawals.decide'
-  | 'reports.view'
-  | 'reports.act'
+  | "dashboard.view"
+  | "users.view"
+  | "users.balances"
+  | "users.ledger"
+  | "users.ban"
+  | "users.avatar"
+  | "users.special_username"
+  | "recharge.applications"
+  | "recharge.decide"
+  | "recharge.agents"
+  | "recharge.topup"
+  | "recharge.status"
+  | "recharge.cap"
+  | "withdrawals.view"
+  | "withdrawals.decide"
+  | "reports.view"
+  | "reports.act"
   // v1.78-live (D288): the shared queue's «تم حله» and the OWNER's reopen
-  | 'reports.resolve'
-  | 'reports.reopen'
-  | 'site.settings'
-  | 'payments.settings'
+  | "reports.resolve"
+  | "reports.reopen"
+  | "site.settings"
+  | "payments.settings"
   // v1.75-social (D222)
-  | 'storage.settings'
+  | "storage.settings"
   // v1.80-kyc (D227)
-  | 'kyc.settings'
-  | 'kyc.view'
+  | "kyc.settings"
+  | "kyc.view"
   // v1.81-social (D245)
-  | 'fx.settings'
+  | "fx.settings"
   // v1.65-social (D197)
-  | 'users.list'
-  | 'users.export'
-  | 'users.sessions'
-  | 'agencies.view'
-  | 'agencies.manage'
+  | "users.list"
+  | "users.export"
+  | "users.sessions"
+  | "agencies.view"
+  | "agencies.manage"
   // v1.70-social (D206)
-  | 'agencies.applications'
-  | 'agencies.probation'
+  | "agencies.applications"
+  | "agencies.probation"
   /** v1.82-live (D295): «حظر الوكالة» (OWNER). */
-  | 'agencies.ban'
+  | "agencies.ban"
   // v1.73-social (D209)
-  | 'hosts.applications'
-  | 'hosts.applications.photos'
-  | 'hosts.applications.decide'
+  | "hosts.applications"
+  | "hosts.applications.photos"
+  | "hosts.applications.decide"
   // v1.74-social (D217)
-  | 'referrals.view'
-  | 'referrals.decide'
-  | 'referrals.settings'
-  | 'pk_dares.view'
-  | 'pk_dares.edit'
+  | "referrals.view"
+  | "referrals.decide"
+  | "referrals.settings"
+  | "pk_dares.view"
+  | "pk_dares.edit"
   // v1.71-live (D281): «الأهداف الذكية» (OWNER only).
-  | 'host_targets.view'
-  | 'host_targets.edit'
+  | "host_targets.view"
+  | "host_targets.edit"
   // v1.60-live (D250): live moderation «مراقبة البث».
-  | 'lives.watch'
-  | 'lives.reports'
-  | 'lives.moderate'
-  | 'devices.ban'
+  | "lives.watch"
+  | "lives.reports"
+  | "lives.moderate"
+  | "devices.ban"
   // v1.64-live (D260): the hidden watch, and who is on shift (OWNER).
-  | 'lives.watch.hidden'
-  | 'staff.shifts'
-  | 'lives.view'
-  | 'lives.manage'
-  | 'catalog.view'
-  | 'catalog.manage'
-  | 'items.grant'
-  | 'finance.view'
-  | 'finance.refund'
-  | 'audit.view'
-  | 'team.manage'
-  | 'programs.view'
-  | 'waitlist.view'
+  | "lives.watch.hidden"
+  | "staff.shifts"
+  | "lives.view"
+  | "lives.manage"
+  | "catalog.view"
+  | "catalog.manage"
+  | "items.grant"
+  | "finance.view"
+  | "finance.refund"
+  | "audit.view"
+  | "team.manage"
+  | "programs.view"
+  | "waitlist.view"
   // v1.69-social (D204).
-  | 'recharge.disputes'
-  | 'recharge.disputes.resolve'
-  | 'recharge.rates'
+  | "recharge.disputes"
+  | "recharge.disputes.resolve"
+  | "recharge.rates"
   // D275: the top-up records, read-only (agents' top-ups, users' card orders).
-  | 'recharge.topups.view'
+  | "recharge.topups.view"
   // v1.71-social (D207)
-  | 'gifts.categories'
+  | "gifts.categories"
   // v1.72-social (D208)
-  | 'users.control_view'
-  | 'users.lock'
-  | 'users.restrict'
-  | 'users.password'
-  | 'users.email'
-  | 'users.profile_edit'
-  | 'users.content'
-  | 'users.balance_adjust'
-  | 'users.delete'
+  | "users.control_view"
+  | "users.lock"
+  | "users.restrict"
+  | "users.password"
+  | "users.email"
+  | "users.profile_edit"
+  | "users.content"
+  | "users.balance_adjust"
+  | "users.delete"
   // v1.78-social (D223)
-  | 'users.device_view'
-  | 'users.device_exception'
+  | "users.device_view"
+  | "users.device_exception"
   // v1.75-live (D285): recruitment by staff «الاستقطاب» and the creator programme.
-  | 'recruits.mine'
-  | 'recruits.view'
-  | 'recruits.manage'
-  | 'creators.applications'
-  | 'creators.decide'
+  | "recruits.mine"
+  | "recruits.view"
+  | "recruits.manage"
+  | "creators.applications"
+  | "creators.decide"
   // v1.89-social (D290): level-raise requests «طلب رفع ليفيل».
-  | 'levels.raise.request'
-  | 'levels.raise.decide'
+  | "levels.raise.request"
+  | "levels.raise.decide"
   // v1.90-social (D293): automatic verification badges «شارة التوثيق».
-  | 'verification.view'
-  | 'verification.settings'
+  | "verification.view"
+  | "verification.settings"
   // v1.95-social (D301): «صندوق المؤسس» (OWNER only).
-  | 'owner.inbox'
+  | "owner.inbox"
   // D301 follow-up (§10.112.10): the fixed monthly costs of «الربح» (OWNER only).
-  | 'owner.costs'
+  | "owner.costs"
   // v1.97-social (D303): gift events «فعاليات الهدايا» (create / edit / hold), OWNER.
-  | 'events.manage'
+  | "events.manage"
   // v1.110-social (D345): «مشتريات المتجر».
-  | 'store_iap.view'
-  | 'store_iap.manage'
-  | 'store_iap.unban'
+  | "store_iap.view"
+  | "store_iap.manage"
+  | "store_iap.unban"
   // v1.116-social (D355): «واتساب».
-  | 'support.whatsapp'
-  | 'support.whatsapp.manage'
+  | "support.whatsapp"
+  | "support.whatsapp.manage"
   // v1.120-social (D360): «مشاهدة فقط» — the WhatsApp level VIEW (the three come from the staff member's level).
-  | 'support.whatsapp.view';
+  | "support.whatsapp.view";
 
 /** v1.90-social (D293, §10.105): the automatic verification badge, highest first. */
-export const VERIFICATION_BADGES = ['OWNER', 'STAFF', 'RECHARGE_AGENT', 'HOST_AGENT', 'CREATOR', 'VERIFIED_HOST'] as const;
+export const VERIFICATION_BADGES = [
+  "OWNER",
+  "STAFF",
+  "RECHARGE_AGENT",
+  "HOST_AGENT",
+  "CREATOR",
+  "VERIFIED_HOST",
+] as const;
 export type VerificationBadge = (typeof VERIFICATION_BADGES)[number];
 
 export interface AdminSessionInfo {
@@ -137,7 +144,7 @@ export interface AdminSessionInfo {
 }
 
 export interface AdminLoginResponse {
-  next: 'TOTP_ENROL' | 'TOTP_VERIFY';
+  next: "TOTP_ENROL" | "TOTP_VERIFY";
   csrfToken: string;
   expiresAt: string;
 }
@@ -154,13 +161,27 @@ export interface Page<T> {
 
 export interface Dashboard {
   since: string;
-  today: { newUsers: number; agentCoinsSold: number; agentSales: number; giftsSent: number; giftCoins: number };
+  today: {
+    newUsers: number;
+    agentCoinsSold: number;
+    agentSales: number;
+    giftsSent: number;
+    giftCoins: number;
+  };
   livesNow: number;
-  pending: { rechargeApplications: number; withdrawals: number; reports: number };
+  pending: {
+    rechargeApplications: number;
+    withdrawals: number;
+    reports: number;
+  };
 }
 
 /** v1.62-social (D193): PENDING_DELETION during the deletion grace period (shown by D208's account group). */
-export type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING_DELETION' | 'DELETED';
+export type UserStatus =
+  | "ACTIVE"
+  | "SUSPENDED"
+  | "PENDING_DELETION"
+  | "DELETED";
 
 export interface UserRow {
   id: string;
@@ -182,13 +203,17 @@ export interface LedgerRow {
 
 export interface UserDetail {
   user: UserRow & {
-    role: 'USER' | 'ADMIN';
+    role: "USER" | "ADMIN";
     lastActiveAt: string | null;
     countryCode: string | null;
     bio: string | null;
     baseUsername: string;
   };
-  specialUsername: { username: string; source: string; expiresAt: string | null } | null;
+  specialUsername: {
+    username: string;
+    source: string;
+    expiresAt: string | null;
+  } | null;
   adminRoles: PanelRole[];
   /** D220: `cherriesReceived` / `coinsSent` are the person card's lifetime totals (also when hidden in the app). */
   balances: {
@@ -200,7 +225,11 @@ export interface UserDetail {
     /** v1.126-social (D370): «نقاط الشحن» (may be below 0); absent from an older server. */
     rechargePoints?: number;
   } | null;
-  ledger: { coins: LedgerRow[]; cherries: LedgerRow[]; rechargePoints?: LedgerRow[] } | null;
+  ledger: {
+    coins: LedgerRow[];
+    cherries: LedgerRow[];
+    rechargePoints?: LedgerRow[];
+  } | null;
   rechargeAgent: {
     status: string;
     code: string | null;
@@ -208,13 +237,28 @@ export interface UserDetail {
     dailyCherryCap: number | null;
     suspendReason: string | null;
   } | null;
-  hostAgent: { inviteCode: string; hostCode: string | null; rank: string; suspended: boolean } | null;
+  hostAgent: {
+    inviteCode: string;
+    hostCode: string | null;
+    rank: string;
+    suspended: boolean;
+  } | null;
   agencyHost: { agencyInviteCode: string; status: string } | null;
   /** v1.90-social (D293): the automatic verification badge, when it was granted and last confirmed; null when none. */
-  verification: { badge: VerificationBadge; since: string; computedAt: string } | null;
+  verification: {
+    badge: VerificationBadge;
+    since: string;
+    computedAt: string;
+  } | null;
   reports: {
     open: number;
-    recent: { id: string; reason: string; status: string; targetType: string; createdAt: string }[];
+    recent: {
+      id: string;
+      reason: string;
+      status: string;
+      targetType: string;
+      createdAt: string;
+    }[];
   };
 }
 
@@ -226,7 +270,7 @@ export interface UserRef {
 
 export interface ApplicationRow {
   id: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
   decidedAt: string | null;
   purged: boolean;
@@ -237,7 +281,7 @@ export interface Application {
   /** v1.80-kyc (D227): the applicant's identity check (needed before the first top-up). */
   kyc?: AdminKycSummary;
   id: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
   decidedAt: string | null;
   purgedAt: string | null;
@@ -253,13 +297,13 @@ export interface Application {
 export interface Pricing {
   activationMinCoins: number;
   priceTiers: { minCoins: number; minorPerMillion: number }[];
-  currency: 'USD';
+  currency: "USD";
 }
 
 export interface AgentRow {
   userId: string;
   code: string | null;
-  status: 'APPROVED' | 'ACTIVE' | 'SUSPENDED';
+  status: "APPROVED" | "ACTIVE" | "SUSPENDED";
   stockCoins: number;
   dailyCherryCap: number | null;
   countries: string[];
@@ -311,7 +355,7 @@ export interface TopUpResult {
 
 export interface WithdrawalRow {
   id: string;
-  status: 'PENDING' | 'PAID' | 'REJECTED';
+  status: "PENDING" | "PAID" | "REJECTED";
   cherries: number;
   amountMinor: number;
   currency: string;
@@ -328,7 +372,7 @@ export interface PanelReport {
   targetId: string;
   reason: string;
   note: string | null;
-  status: 'OPEN' | 'ACTIONED' | 'DISMISSED';
+  status: "OPEN" | "ACTIONED" | "DISMISSED";
   createdAt: string;
   resolvedAt: string | null;
   /** v1.78-live (D288): who resolved it and their note (null while OPEN). */
@@ -336,32 +380,57 @@ export interface PanelReport {
   resolutionNote: string | null;
   /** v1.134-social (D381, §10.171.3): 2 a safety reason, 1 a PRIORITY_SUPPORT holder's report, 0 otherwise. */
   priority?: number;
-  reporter?: { id: string; username: string; displayName: string; avatarUrl: string | null };
-  dmSnapshot?: { text: string | null; sender: string | null; mediaUrl: string | null };
+  reporter?: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+  dmSnapshot?: {
+    text: string | null;
+    sender: string | null;
+    mediaUrl: string | null;
+  };
   linkSnapshot?: { username: string; url: string; label: string | null };
   /** v1.104-social (D339): a DM_GROUP report — the group as it was when reported. */
   dmGroupSnapshot?: {
     name: string | null;
     memberCount: number;
     members: string[];
-    thread: { messages: { id: string; sender: string | null; kind: string; text: string | null }[] } | null;
+    thread: {
+      messages: {
+        id: string;
+        sender: string | null;
+        kind: string;
+        text: string | null;
+      }[];
+    } | null;
     purged: boolean;
   };
   preview: {
     text: string | null;
     mediaUrl: string | null;
-    author: { id: string; username: string; displayName: string; status: string } | null;
+    author: {
+      id: string;
+      username: string;
+      displayName: string;
+      status: string;
+    } | null;
     gone: boolean;
   };
 }
 
 export interface SiteSettings {
-  socials: { instagram: string | null; tiktok: string | null; whatsapp: string | null };
+  socials: {
+    instagram: string | null;
+    tiktok: string | null;
+    whatsapp: string | null;
+  };
   topupEnabled: boolean;
 }
 
 /** v1.49-live (D228): `CameraFxSettings` — the app's camera effects engine. */
-export type CameraFxEngine = 'DEEPAR' | 'FREE';
+export type CameraFxEngine = "DEEPAR" | "FREE";
 export interface CameraFxSettings {
   cameraFxEngine: CameraFxEngine;
 }
@@ -389,10 +458,10 @@ export interface GlobalStripsSettings {
 
 /** v1.64-social (D196): `PaymentKeyInfo` — all the panel ever sees of a Stripe secret. */
 export interface PaymentKeyInfo {
-  kind: 'secret' | 'restricted' | 'webhook';
-  mode: 'live' | 'test' | null;
+  kind: "secret" | "restricted" | "webhook";
+  mode: "live" | "test" | null;
   last4: string;
-  source: 'panel' | 'env';
+  source: "panel" | "env";
   setBy: { id: string; displayName: string } | null;
   setAt: string | null;
 }
@@ -410,15 +479,18 @@ export interface PaymentOptions {
 
 /** v1.64-social (D196): `AdminPaymentSettings` «الدفع (Stripe)». */
 export interface PaymentSettings {
-  source: 'panel' | 'env' | 'none';
+  source: "panel" | "env" | "none";
   configured: boolean;
-  mode: 'live' | 'test' | null;
+  mode: "live" | "test" | null;
   secretKey: PaymentKeyInfo | null;
   webhookSecret: PaymentKeyInfo | null;
   previousWebhookSecretValidUntil: string | null;
-  panelKeys: { secretKey: PaymentKeyInfo; webhookSecret: PaymentKeyInfo } | null;
+  panelKeys: {
+    secretKey: PaymentKeyInfo;
+    webhookSecret: PaymentKeyInfo;
+  } | null;
   envKeys: { secretKey: PaymentKeyInfo; webhookSecret: PaymentKeyInfo } | null;
-  panelKeysIgnored: 'unreadable' | 'test_key_in_production' | null;
+  panelKeysIgnored: "unreadable" | "test_key_in_production" | null;
   publishableKey: string | null;
   options: PaymentOptions;
   effective: {
@@ -442,8 +514,8 @@ export interface PaymentSettings {
 /** `PaymentKeyCheck` («اختبار الاتصال»). */
 export interface PaymentKeyCheck {
   ok: true;
-  kind: 'secret' | 'restricted' | 'webhook';
-  mode: 'live' | 'test' | null;
+  kind: "secret" | "restricted" | "webhook";
+  mode: "live" | "test" | null;
   last4: string;
   restricted: boolean;
 }
@@ -488,7 +560,12 @@ export interface StatsDay {
   newPending: number;
 }
 
-export type AttentionKind = 'RECHARGE_APPLICATIONS' | 'WITHDRAWALS' | 'REPORTS' | 'AGENCY_COMPLAINTS' | 'TOPUP_CASES';
+export type AttentionKind =
+  | "RECHARGE_APPLICATIONS"
+  | "WITHDRAWALS"
+  | "REPORTS"
+  | "AGENCY_COMPLAINTS"
+  | "TOPUP_CASES";
 
 export interface Attention {
   total: number;
@@ -511,8 +588,22 @@ export interface AuditRow extends ActivityRow {
 
 export interface SearchResult {
   users: UserRow[];
-  agents: { userId: string; code: string | null; status: string; username: string; displayName: string }[];
-  agencies: { id: string; inviteCode: string; hostCode: string | null; rank: string; suspended: boolean; ownerUsername: string; ownerDisplayName: string }[];
+  agents: {
+    userId: string;
+    code: string | null;
+    status: string;
+    username: string;
+    displayName: string;
+  }[];
+  agencies: {
+    id: string;
+    inviteCode: string;
+    hostCode: string | null;
+    rank: string;
+    suspended: boolean;
+    ownerUsername: string;
+    ownerDisplayName: string;
+  }[];
 }
 
 // ---- v1.69-social (D204): «نزاعات الشحن» and «أسعار الصرف» ----
@@ -520,7 +611,13 @@ export interface SearchResult {
 export interface RechargePrice {
   usdMinor: number;
   usd: string;
-  local: { currency: string; minor: number; digits: number; amount: string; rate: string } | null;
+  local: {
+    currency: string;
+    minor: number;
+    digits: number;
+    amount: string;
+    rate: string;
+  } | null;
 }
 
 export interface OrderPerson {
@@ -547,8 +644,8 @@ export interface DisputeRow {
 
 export interface OrderMessage {
   id: string;
-  kind: 'TEXT' | 'IMAGE' | 'PAYMENT_DETAILS' | 'TRANSFER_PROOF' | 'SYSTEM';
-  role: 'BUYER' | 'AGENT' | 'EMPLOYEE' | 'ADMIN' | 'SYSTEM';
+  kind: "TEXT" | "IMAGE" | "PAYMENT_DETAILS" | "TRANSFER_PROOF" | "SYSTEM";
+  role: "BUYER" | "AGENT" | "EMPLOYEE" | "ADMIN" | "SYSTEM";
   author: { id: string; username: string; displayName: string } | null;
   text: string | null;
   method: string | null;
@@ -580,8 +677,8 @@ export interface AdminOrder {
 }
 
 /** v1.81-social (D245): where an automatic rate came from. */
-export type FxSource = 'OPEN_ER_API' | 'CURRENCYAPI' | 'EXCHANGERATE_API';
-export type FxPaidProvider = 'CURRENCYAPI' | 'EXCHANGERATE_API';
+export type FxSource = "OPEN_ER_API" | "CURRENCYAPI" | "EXCHANGERATE_API";
+export type FxPaidProvider = "CURRENCYAPI" | "EXCHANGERATE_API";
 
 /** `AdminFxRateRow` (D204; D245): a country's effective rate (manual «يدوي» over automatic «تلقائي») and both sources. */
 export interface ExchangeRateRow {
@@ -590,9 +687,14 @@ export interface ExchangeRateRow {
   digits: number;
   unitsPerUsd: string | null;
   updatedAt: string | null;
-  source: 'MANUAL' | 'AUTO' | 'USD' | 'NONE';
+  source: "MANUAL" | "AUTO" | "USD" | "NONE";
   stale: boolean;
-  manual: { currency: string; digits: number; unitsPerUsd: string; updatedAt: string } | null;
+  manual: {
+    currency: string;
+    digits: number;
+    unitsPerUsd: string;
+    updatedAt: string;
+  } | null;
   auto: {
     currency: string;
     unitsPerUsd: string;
@@ -600,7 +702,12 @@ export interface ExchangeRateRow {
     fetchedAt: string;
     providerUpdatedAt: string | null;
     stale: boolean;
-    held: { unitsPerUsd: string; source: FxSource; at: string; jumpPercent: number } | null;
+    held: {
+      unitsPerUsd: string;
+      source: FxSource;
+      at: string;
+      jumpPercent: number;
+    } | null;
   } | null;
 }
 
@@ -609,7 +716,7 @@ export interface FxStatus {
   source: FxSource;
   sourceName: string;
   paidActive: boolean;
-  paidIgnored: 'unreadable' | null;
+  paidIgnored: "unreadable" | null;
   intervalSeconds: number;
   polling: boolean;
   lastAttemptAt: string | null;
@@ -619,7 +726,13 @@ export interface FxStatus {
   nextFetchAt: string | null;
   lastError: { at: string; issue: string; detail: string | null } | null;
   failures: number;
-  lastReport: { accepted?: number; held?: number; rejected?: number; heldCurrencies?: string[]; rejectedCurrencies?: string[] } | null;
+  lastReport: {
+    accepted?: number;
+    held?: number;
+    rejected?: number;
+    heldCurrencies?: string[];
+    rejectedCurrencies?: string[];
+  } | null;
   currencies: number;
   held: number;
   staleAfterHours: number;
@@ -649,21 +762,36 @@ export interface FxTestReport {
 
 /** `AdminFxSettings` (D245): the OWNER's paid provider «مزوّد أسعار الصرف». */
 export interface FxSettings {
-  status: 'active' | 'off' | 'not_configured';
+  status: "active" | "off" | "not_configured";
   provider: FxPaidProvider;
   enabled: boolean;
-  apiKey: { last4: string; setBy: { id: string; displayName: string } | null; setAt: string | null } | null;
+  apiKey: {
+    last4: string;
+    setBy: { id: string; displayName: string } | null;
+    setAt: string | null;
+  } | null;
   updatedAt: string | null;
-  panelIgnored: 'unreadable' | null;
+  panelIgnored: "unreadable" | null;
   lastTest: FxTestReport | null;
   paidIntervalSeconds: number;
   freeIntervalSeconds: number;
-  providers: { code: FxPaidProvider; name: string; site: string; signupUrl: string | null; docsUrl: string }[];
+  providers: {
+    code: FxPaidProvider;
+    name: string;
+    site: string;
+    signupUrl: string | null;
+    docsUrl: string;
+  }[];
   connectionTestSkippable: boolean;
 }
 
 // ---- v1.72-social (D208, CONVENTIONS §10.67): the account controls -------------------------------------------------
-export type RestrictionKind = 'LOCK' | 'CHAT_MUTE' | 'NO_LIVE' | 'NO_GIFTS' | 'NO_POSTING';
+export type RestrictionKind =
+  | "LOCK"
+  | "CHAT_MUTE"
+  | "NO_LIVE"
+  | "NO_GIFTS"
+  | "NO_POSTING";
 
 export interface Restriction {
   id: string;
@@ -671,7 +799,7 @@ export interface Restriction {
   reason: string;
   startsAt: string;
   endsAt: string;
-  via: 'panel' | 'cli';
+  via: "panel" | "cli";
   active: boolean;
   liftedAt: string | null;
   liftReason: string | null;
@@ -679,19 +807,28 @@ export interface Restriction {
 }
 
 export interface UserControl {
-  status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_DELETION' | 'DELETED';
+  status: "ACTIVE" | "SUSPENDED" | "PENDING_DELETION" | "DELETED";
   lock: Restriction | null;
   restrictions: Restriction[];
   history: Restriction[];
   password: { changeRequired: boolean };
   email: { address: string; verified: boolean };
-  gender: 'MALE' | 'FEMALE' | 'UNDISCLOSED' | null;
+  gender: "MALE" | "FEMALE" | "UNDISCLOSED" | null;
   cover: null;
-  deletion: { requestedAt: string; purgeAfter: string; requestedVia: 'APP' | 'ADMIN' } | null;
-  adjustToday: { coins: number; cherries: number; capCoins: number; capCherries: number };
+  deletion: {
+    requestedAt: string;
+    purgeAfter: string;
+    requestedVia: "APP" | "ADMIN";
+  } | null;
+  adjustToday: {
+    coins: number;
+    cherries: number;
+    capCoins: number;
+    capCherries: number;
+  };
   adjustments: {
     id: string;
-    currency: 'COINS' | 'CHERRIES';
+    currency: "COINS" | "CHERRIES";
     delta: number;
     before: number;
     after: number;
@@ -704,7 +841,7 @@ export interface UserControl {
 /** v1.73-social (D209): `AdminHostApplicationRow` — a row of «طلبات المضيفين» (no private field). */
 export interface HostApplicationRow {
   id: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
   displayName: string;
   country: string;
   user: PersonRef;
@@ -719,19 +856,22 @@ export interface HostApplicationDetail {
   /** v1.80-kyc (D227): the applicant's identity check. */
   kyc?: AdminKycSummary;
   id: string;
-  status: HostApplicationRow['status'];
+  status: HostApplicationRow["status"];
   createdAt: string;
   decidedAt: string | null;
   decidedBy: PersonRef | null;
   rejectReason: string | null;
-  cancelReason: 'USER' | 'AGENCY' | 'ACCOUNT' | null;
+  cancelReason: "USER" | "AGENCY" | "ACCOUNT" | null;
   purgedAt: string | null;
   reapplyAt: string | null;
   displayName: string;
   country: string;
   dateOfBirth: string | null;
   age: number | null;
-  contact: { type: 'WHATSAPP' | 'TELEGRAM' | 'PHONE' | 'EMAIL' | 'OTHER'; value: string | null };
+  contact: {
+    type: "WHATSAPP" | "TELEGRAM" | "PHONE" | "EMAIL" | "OTHER";
+    value: string | null;
+  };
   bio: string | null;
   links: string[];
   rulesAcceptedAt: string;
@@ -750,10 +890,19 @@ export interface HostApplicationDetail {
     totalReports: number;
     bans: number;
     warnings: number;
-    host: { source: 'ADMIN' | 'AGENCY' | 'IDENTITY' | 'CREATOR'; grantedAt: string } | null;
-    agency: { role: 'HOST' | 'OWNER'; inviteCode: string } | null;
+    host: {
+      source: "ADMIN" | "AGENCY" | "IDENTITY" | "CREATOR";
+      grantedAt: string;
+    } | null;
+    agency: { role: "HOST" | "OWNER"; inviteCode: string } | null;
   };
-  history: { id: string; status: HostApplicationRow['status']; createdAt: string; decidedAt: string | null; rejectReason: string | null }[];
+  history: {
+    id: string;
+    status: HostApplicationRow["status"];
+    createdAt: string;
+    decidedAt: string | null;
+    rejectReason: string | null;
+  }[];
 }
 
 // ---- v1.75-social (D222): «التخزين (R2 / S3)» ---------------------------------------------------------------
@@ -764,7 +913,7 @@ export interface StorageKeyInfo {
   setAt: string | null;
 }
 
-export type StorageProvider = 'R2' | 'S3';
+export type StorageProvider = "R2" | "S3";
 
 export interface StorageTarget {
   provider: StorageProvider;
@@ -777,20 +926,26 @@ export interface StorageTarget {
   privateBucket: string | null;
 }
 
-export type StorageStepName = 'put' | 'head' | 'get' | 'public_read' | 'not_public' | 'delete';
+export type StorageStepName =
+  | "put"
+  | "head"
+  | "get"
+  | "public_read"
+  | "not_public"
+  | "delete";
 export type StorageIssue =
-  | 'bad_credentials'
-  | 'access_denied'
-  | 'no_such_bucket'
-  | 'unreachable'
-  | 'mismatch'
-  | 'not_public'
-  | 'publicly_readable'
-  | 'http_status'
-  | 'error';
+  | "bad_credentials"
+  | "access_denied"
+  | "no_such_bucket"
+  | "unreachable"
+  | "mismatch"
+  | "not_public"
+  | "publicly_readable"
+  | "http_status"
+  | "error";
 
 export interface StorageTestStep {
-  bucket: 'public' | 'private';
+  bucket: "public" | "private";
   step: StorageStepName;
   ok: boolean;
   ms: number;
@@ -808,8 +963,8 @@ export interface StorageTestReport {
 
 /** `AdminStorageSettings`. */
 export interface StorageSettings {
-  status: 'active' | 'env' | 'off' | 'not_configured';
-  source: 'panel' | 'env' | 'none';
+  status: "active" | "env" | "off" | "not_configured";
+  source: "panel" | "env" | "none";
   uploadsEnabled: boolean;
   publicBaseUrl: string | null;
   enabled: boolean;
@@ -836,16 +991,22 @@ export interface StorageSettings {
     publicBaseUrl: string | null;
     accessKeyIdLast4: string | null;
   };
-  panelIgnored: 'unreadable' | null;
-  lastTest: (StorageTestReport & { by: { id: string; displayName: string } | null }) | null;
+  panelIgnored: "unreadable" | null;
+  lastTest:
+    | (StorageTestReport & { by: { id: string; displayName: string } | null })
+    | null;
   publicPrefix: string;
   healthcheckPrefix: string;
   connectionTestSkippable: boolean;
 }
 
 // ---- v1.74-social (D217, CONVENTIONS §10.71): «الدعوات» ---------------------------------------------------------
-export type ReferralStatus = 'PENDING' | 'QUALIFIED' | 'REJECTED' | 'VOID';
-export type ReferralRewardKind = 'SIGNUP_INVITER' | 'SIGNUP_INVITEE' | 'FIRST_RECHARGE' | 'MILESTONE';
+export type ReferralStatus = "PENDING" | "QUALIFIED" | "REJECTED" | "VOID";
+export type ReferralRewardKind =
+  | "SIGNUP_INVITER"
+  | "SIGNUP_INVITEE"
+  | "FIRST_RECHARGE"
+  | "MILESTONE";
 
 export interface ReferralPerson {
   id: string;
@@ -859,7 +1020,7 @@ export interface ReferralPerson {
 export interface ReferralRow {
   id: string;
   status: ReferralStatus;
-  source: 'SIGNUP' | 'LATER';
+  source: "SIGNUP" | "LATER";
   code: string;
   rejectReason: string | null;
   voidReason: string | null;
@@ -877,7 +1038,7 @@ export interface ReferralReward {
   id: string;
   userId: string;
   kind: ReferralRewardKind;
-  status: 'PENDING' | 'CREDITED' | 'VOID' | 'REVERSED';
+  status: "PENDING" | "CREDITED" | "VOID" | "REVERSED";
   cherries: number;
   holdUntil: string;
   baseCoins: number | null;
@@ -896,14 +1057,19 @@ export interface ReferralClawback {
   cherries: number;
   shortfall: number;
   rewards: number;
-  people: { userId: string; cherries: number; balance: number; shortfall: number }[];
+  people: {
+    userId: string;
+    cherries: number;
+    balance: number;
+    shortfall: number;
+  }[];
 }
 
 /** `AdminReferral` */
 export interface ReferralDetail {
   id: string;
   status: ReferralStatus;
-  source: 'SIGNUP' | 'LATER';
+  source: "SIGNUP" | "LATER";
   code: string;
   rejectReason: string | null;
   voidReason: string | null;
@@ -915,7 +1081,12 @@ export interface ReferralDetail {
   qualifiedAt: string | null;
   voidedAt: string | null;
   createdAt: string;
-  signals: { installId: boolean; ip: string | null; sameDeviceReferrals: number; sameEmailReferrals: number };
+  signals: {
+    installId: boolean;
+    ip: string | null;
+    sameDeviceReferrals: number;
+    sameEmailReferrals: number;
+  };
   rewards: ReferralReward[];
   voidClawback: ReferralClawback;
 }
@@ -936,24 +1107,27 @@ export interface AdminLiveBoostPrices {
 }
 
 /** `MedalCategory` (v1.81-live, D291): the app's medals page tabs. */
-export type MedalCategory = 'ACHIEVEMENT' | 'ACTIVITY';
+export type MedalCategory = "ACHIEVEMENT" | "ACTIVITY";
 
 /** `MedalMetric` (v1.81-live, D291): what a medal's levels count. */
 export type MedalMetric =
-  | 'LIVES_HOSTED'
-  | 'LIVE_HOURS'
-  | 'CHARM_LEVEL'
-  | 'FAMILY_JOINED'
-  | 'CP_FORMED'
-  | 'BULLETS_SENT'
-  | 'GIFTS_SENT_COINS'
-  | 'LUCKY_GIFTS_SENT_COINS'
-  | 'ALL_REQUIREMENTS'
+  | "LIVES_HOSTED"
+  | "LIVE_HOURS"
+  | "CHARM_LEVEL"
+  | "FAMILY_JOINED"
+  | "CP_FORMED"
+  | "BULLETS_SENT"
+  | "GIFTS_SENT_COINS"
+  | "LUCKY_GIFTS_SENT_COINS"
+  | "ALL_REQUIREMENTS"
   | MedalRequirementMetric
-  | 'PK_DARES_POINTS';
+  | "PK_DARES_POINTS";
 
 /** D300 (v1.83-live): a requirement metric of a multi-requirement medal («مدرسة المحتوى»). */
-export type MedalRequirementMetric = 'CREATOR_FOLLOWERS' | 'CREATOR_LIKES' | 'CREATOR_VIEWS';
+export type MedalRequirementMetric =
+  | "CREATOR_FOLLOWERS"
+  | "CREATOR_LIKES"
+  | "CREATOR_VIEWS";
 
 /** `MedalLevelRequirement` (v1.83-live, D300): one threshold of a multi-requirement level. */
 export interface AdminMedalRequirement {
@@ -1024,13 +1198,27 @@ export interface DeviceSignups {
     grantedBy: { id: string; username: string } | null;
     grantedAt: string;
   } | null;
-  accounts: { id: string; username: string; displayName: string; status: UserStatus; createdAt: string; self: boolean }[];
+  accounts: {
+    id: string;
+    username: string;
+    displayName: string;
+    status: UserStatus;
+    createdAt: string;
+    self: boolean;
+  }[];
 }
 
 // ---- v1.80-kyc (D227): identity verification with Didit ----------------------------------------------------------
 
-export type KycPurpose = 'HOST_APPLICATION' | 'AGENCY_OPEN' | 'RECHARGE_AGENT';
-export type KycStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'IN_REVIEW' | 'APPROVED' | 'DECLINED' | 'EXPIRED' | 'ABANDONED';
+export type KycPurpose = "HOST_APPLICATION" | "AGENCY_OPEN" | "RECHARGE_AGENT";
+export type KycStatus =
+  | "NOT_STARTED"
+  | "IN_PROGRESS"
+  | "IN_REVIEW"
+  | "APPROVED"
+  | "DECLINED"
+  | "EXPIRED"
+  | "ABANDONED";
 
 /** `AdminKycCheck`. */
 export interface AdminKycCheck {
@@ -1078,19 +1266,30 @@ export interface KycKeyInfo {
   setAt: string | null;
 }
 
-export type KycWorkflowField = 'workflowId' | 'workflowIdHost' | 'workflowIdAgency' | 'workflowIdRecharge';
+export type KycWorkflowField =
+  | "workflowId"
+  | "workflowIdHost"
+  | "workflowIdAgency"
+  | "workflowIdRecharge";
 
 export interface KycTestReport {
   ok: boolean;
   at: string;
   apiKeyLast4: string | null;
   apiKey: { ok: boolean; issue: string | null; ms: number };
-  workflows: { field: KycWorkflowField; workflowId: string; ok: boolean; label: string | null; features: string | null; issue: string | null }[];
+  workflows: {
+    field: KycWorkflowField;
+    workflowId: string;
+    ok: boolean;
+    label: string | null;
+    features: string | null;
+    issue: string | null;
+  }[];
 }
 
 /** `AdminKycSettings`. */
 export interface KycSettings {
-  status: 'active' | 'off' | 'not_configured';
+  status: "active" | "off" | "not_configured";
   enabled: boolean;
   apiKey: KycKeyInfo | null;
   webhookSecret: KycKeyInfo | null;
@@ -1099,10 +1298,12 @@ export interface KycSettings {
   workflowIdAgency: string | null;
   workflowIdRecharge: string | null;
   maxSessionsPerDay: number;
-  missing: ('apiKey' | 'webhookSecret' | 'workflowId')[];
+  missing: ("apiKey" | "webhookSecret" | "workflowId")[];
   updatedAt: string | null;
-  panelIgnored: 'unreadable' | null;
-  lastTest: (KycTestReport & { by: { id: string; displayName: string } | null }) | null;
+  panelIgnored: "unreadable" | null;
+  lastTest:
+    | (KycTestReport & { by: { id: string; displayName: string } | null })
+    | null;
   webhookUrl: string;
   callbackUrl: string;
   consoleUrl: string;
@@ -1110,8 +1311,17 @@ export interface KycSettings {
 }
 
 // ---- v1.50-live (D229, CONVENTIONS §10.80): «أحكام PK» --------------------------------------------------------------
-export type PkDareLevel = 'EASY' | 'MEDIUM' | 'HARD';
-export type PkDareCategory = 'FUNNY' | 'SINGING' | 'ACTING' | 'TALK' | 'TRUTH' | 'DANCE_LIGHT' | 'IMITATION' | 'QUIZ' | 'DRAWING';
+export type PkDareLevel = "EASY" | "MEDIUM" | "HARD";
+export type PkDareCategory =
+  | "FUNNY"
+  | "SINGING"
+  | "ACTING"
+  | "TALK"
+  | "TRUTH"
+  | "DANCE_LIGHT"
+  | "IMITATION"
+  | "QUIZ"
+  | "DRAWING";
 export interface AdminPkDare {
   id: string;
   seqNo: number;
@@ -1122,10 +1332,10 @@ export interface AdminPkDare {
   level: PkDareLevel;
   requiresCamera: boolean;
   active: boolean;
-  disabledReason: 'ADMIN' | 'REPORTS' | null;
+  disabledReason: "ADMIN" | "REPORTS" | null;
   reportCount: number;
   reportsClearedAt: string | null;
-  createdBy: 'SEED' | 'ADMIN';
+  createdBy: "SEED" | "ADMIN";
   createdAt: string;
   updatedAt: string;
 }
@@ -1168,13 +1378,17 @@ export interface AdminTargetCatalogue {
     byKind: Record<string, number>;
     byTrack: Record<string, number>;
   };
-  tasks: { total: number; templates: number; byTemplate: Record<string, number> };
+  tasks: {
+    total: number;
+    templates: number;
+    byTemplate: Record<string, number>;
+  };
 }
 /** v1.71-live (D281) `AdminHostTarget`. */
 export interface AdminHostTarget {
   /** D281b: «الهدايا» or «هدايا الحظ». */
-  track: 'GIFTS' | 'LUCKY';
-  level: 'EASY' | 'MEDIUM' | 'HARD';
+  track: "GIFTS" | "LUCKY";
+  level: "EASY" | "MEDIUM" | "HARD";
   code: string;
   kind: string;
   subject: string | null;
@@ -1190,7 +1404,12 @@ export interface AdminHostTarget {
   paidAt: string | null;
   profitUsd: number | null;
   catalogueVersion: string;
-  reason: { newHost?: boolean; why?: string; whyAr?: string; [key: string]: unknown };
+  reason: {
+    newHost?: boolean;
+    why?: string;
+    whyAr?: string;
+    [key: string]: unknown;
+  };
 }
 /** v1.71-live (D281) `AdminHostTargetDay`. */
 export interface AdminHostTargetDay {
@@ -1219,18 +1438,26 @@ export interface AdminPkDareImportResult {
 
 // ---- v1.110-social (D345, CONVENTIONS §10.144): «مشتريات المتجر» ------------------------------------------------------
 
-export type IapPlatform = 'GOOGLE_PLAY' | 'APP_STORE';
+export type IapPlatform = "GOOGLE_PLAY" | "APP_STORE";
 
 /** `AdminStoreIapOverview`. */
 export interface StoreIapOverview {
-  googlePlay: { configured: boolean; packageName: string | null; rtdnEnabled: boolean };
+  googlePlay: {
+    configured: boolean;
+    packageName: string | null;
+    rtdnEnabled: boolean;
+  };
   appStore: { configured: boolean; bundleId: string | null; roots: number };
   acceptSandbox: boolean;
   voidedPollHours: number;
   consentVersion: string;
   endpoints: { appleNotifications: string; googleRtdn: string };
   settings: { oncePerAccountDevice: boolean; updatedAt: string };
-  voided: { lastRunAt: string | null; polledUntil: string | null; lastError: string | null };
+  voided: {
+    lastRunAt: string | null;
+    polledUntil: string | null;
+    lastError: string | null;
+  };
   counts: { purchases: number; refunds: number; activeBans: number };
 }
 
@@ -1260,8 +1487,8 @@ export interface StoreIapPurchaseRow {
   productId: string;
   coins: number;
   transactionId: string;
-  environment: 'PRODUCTION' | 'SANDBOX';
-  status: 'CREDITED' | 'REJECTED' | 'REFUNDED';
+  environment: "PRODUCTION" | "SANDBOX";
+  status: "CREDITED" | "REJECTED" | "REFUNDED";
   rejectReason: string | null;
   deviceRecorded: boolean;
   consentVersion: string;
@@ -1315,6 +1542,8 @@ export interface WaAccountCard {
 }
 export interface WaSummary {
   enabled: boolean;
+  /** v1.137-social (D385, §10.174.6): the in-app «دعم كابسو» threads are served (also with WhatsApp off). */
+  inApp?: boolean;
   badge: number;
   mine: number;
   unassigned: number;
@@ -1322,15 +1551,16 @@ export interface WaSummary {
 }
 export interface WaConversation {
   id: string;
-  phone: string;
+  /** v1.137-social (D385): null for an in-app thread. */
+  phone: string | null;
   name: string | null;
-  status: 'OPEN' | 'CLOSED';
+  status: "OPEN" | "CLOSED";
   assignedTo: WaStaffRef | null;
   assignedToMe: boolean;
   unreadCount: number;
   lastMessageAt: string;
   lastPreview: string | null;
-  lastDirection: 'INBOUND' | 'OUTBOUND' | null;
+  lastDirection: "INBOUND" | "OUTBOUND" | null;
   window: { open: boolean; closesAt: string | null };
   linkedAccount: WaAccountCard | null;
   closedAt: string | null;
@@ -1339,20 +1569,39 @@ export interface WaConversation {
   department?: WaDepartment;
   /** v1.134-social (D381, §10.171.3): a PRIORITY_SUPPORT holder's conversation (listed first by the API). */
   priority?: boolean;
+  /** v1.137-social (D385, §10.174.6): WHATSAPP, or IN_APP «دعم كابسو» «داخل التطبيق» (absent from an older API). */
+  channel?: "WHATSAPP" | "IN_APP";
 }
 /** D366 (v1.123-social, §10.159): the WhatsApp departments, catalogue order. */
-export type WaDepartment = 'PAYMENTS' | 'AGENCIES' | 'TECHNICAL' | 'REPORTS' | 'GENERAL';
-export const WA_DEPARTMENTS: WaDepartment[] = ['PAYMENTS', 'AGENCIES', 'TECHNICAL', 'REPORTS', 'GENERAL'];
+export type WaDepartment =
+  | "PAYMENTS"
+  | "AGENCIES"
+  | "TECHNICAL"
+  | "REPORTS"
+  | "GENERAL";
+export const WA_DEPARTMENTS: WaDepartment[] = [
+  "PAYMENTS",
+  "AGENCIES",
+  "TECHNICAL",
+  "REPORTS",
+  "GENERAL",
+];
 export interface WaMessage {
   id: string;
-  direction: 'INBOUND' | 'OUTBOUND';
+  direction: "INBOUND" | "OUTBOUND";
   type: string;
   text: string | null;
-  media: { state: 'STORED' | 'TOO_LARGE' | 'TYPE_REFUSED' | 'FAILED'; mime: string | null; size: number | null; filename: string | null; voice: boolean } | null;
+  media: {
+    state: "STORED" | "TOO_LARGE" | "TYPE_REFUSED" | "FAILED";
+    mime: string | null;
+    size: number | null;
+    filename: string | null;
+    voice: boolean;
+  } | null;
   location: { latitude: number; longitude: number; name: string | null } | null;
   reaction: string | null;
   template: { name: string; language: string } | null;
-  status: 'RECEIVED' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
+  status: "RECEIVED" | "SENT" | "DELIVERED" | "READ" | "FAILED";
   error: { code: number | null; title: string | null } | null;
   sentBy: WaStaffRef | null;
   at: string;
@@ -1366,7 +1615,7 @@ export interface WaNote {
 }
 export interface WaAssignment {
   id: string;
-  action: 'CLAIM' | 'RELEASE' | 'TRANSFER' | 'CLOSE' | 'REOPEN';
+  action: "CLAIM" | "RELEASE" | "TRANSFER" | "CLOSE" | "REOPEN";
   from: WaStaffRef | null;
   to: WaStaffRef | null;
   by: WaStaffRef | null;
