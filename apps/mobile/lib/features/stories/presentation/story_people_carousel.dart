@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
@@ -6,27 +7,38 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// D375 (owner 2026-11-11): geometry and timing of the story viewer's
-/// people carousel (a layout idea from a reference; Kabso's own tokens).
+/// D375 (owner 2026-11-11, «طبق التصميم ١٠٠٪» 2026-11-12): geometry and
+/// timing of the story viewer's people carousel, measured on the owner's
+/// reference (its phone ≈ 216 px for 393 dp: 0.552 px/dp). The layout is
+/// the reference's; colours, fonts and icons are Kabso's.
 abstract final class KStoryCarousel {
-  /// The centred person's ring, outside diameter.
-  static const double centre = 68;
+  /// The centred person's ring, outside diameter (reference ≈ 113 dp).
+  static const double centre = 112;
 
-  /// A neighbour's ring, outside diameter.
-  static const double side = 44;
+  /// A neighbour's photo, outside diameter (reference ≈ 68 dp), at full
+  /// opacity.
+  static const double side = 68;
 
-  /// A neighbour's opacity (the centred person is opaque).
-  static const double sideOpacity = 0.55;
+  /// The space between two circles' edges (reference 17–18 dp): centre to
+  /// neighbour ≈ 108 dp, neighbour to neighbour 86 dp, so at 393 dp the
+  /// second neighbour on each side is cut in half by the screen's edge.
+  static const double gap = 18;
 
-  /// Each person's slot as a share of the carousel's width: at 393 dp the
-  /// second neighbour on each side is cut by the screen's edge.
-  static const double slotFraction = 0.235;
+  /// A thin ring (reference ≈ 2.5 dp) with a ≈ 3 dp gap before the photo;
+  /// a neighbour's ring scales down with it.
+  static const double ringStroke = 2.5;
+  static const double seenStroke = 1.5;
+  static const double ringGap = 3;
 
-  /// Ring strokes: the coloured ring and the thinner seen ring, with a
-  /// dark gap between the ring and the photo.
-  static const double ringStroke = KMetrics.strokeLarge;
-  static const double seenStroke = KMetrics.stroke;
-  static const double ringGap = KMetrics.ringGap;
+  /// Names: the centred one 14 dp white, ≈ 12 dp under its ring; the
+  /// neighbours' 11 dp, faded, ≈ 13 dp under theirs.
+  static const double centreName = 14;
+  static const double sideName = 11;
+  static const double nameGap = 12;
+  static const Color sideNameColor = Color(0x99FFFFFF);
+
+  /// A swipe of this many dp moves one person.
+  static const double dragPerPerson = 97;
 
   /// The recommended behaviour: the carousel shows when the viewer opens
   /// and on every change of person, then fades out after this long so the
@@ -34,20 +46,43 @@ abstract final class KStoryCarousel {
   /// or typing a reply brings it back and keeps it up.
   static const Duration autoHide = Duration(seconds: 2);
 
-  /// A soft dark fade over the bottom of the photo behind the carousel.
-  static const double scrimHeight = 300;
-  static const Color scrimBottom = Color(0x99000000);
-  static const Color scrimClear = Color(0x00000000);
+  /// The frosted fade behind the carousel and the caption: from this far
+  /// above the screen's bottom (reference: it starts ≈ 480 dp down a
+  /// 852 dp screen), the photo blurs more and more under a light tint.
+  static const double frostHeight = 372;
+  static const List<double> frostBands = [
+    0,
+    0.08,
+    0.16,
+    0.24,
+    0.32,
+    0.4,
+    0.48,
+    0.56,
+  ];
+  static const List<double> frostSigmas = [0.5, 1, 1.5, 2, 3, 4, 5, 6];
+  static const Color frostClear = Color(0x00FFFFFF);
+  static const Color frostMid = Color(0x24FFFFFF);
+  static const Color frostBottom = Color(0x4DFFFFFF);
 
   /// The seen ring (`color.dark.textTertiary`: the viewer is always dark).
   static const Color seenRing = Color(0xFF92929E);
+
+  /// Horizontal centre offset of a person [d] places from the centre.
+  static double offsetOf(double d) {
+    final a = d.abs();
+    const first = centre / 2 + gap + side / 2;
+    final x = a <= 1 ? a * first : first + (a - 1) * (side + gap);
+    return d.isNegative ? -x : x;
+  }
 }
 
 /// How a story ring is drawn: a gradient along the ring (one colour is a
 /// plain ring) and its stroke.
 ///
 /// D374 hook: the VIP «STORY_RING» perk (not built yet) will pass its own
-/// style through [StoryPeopleCarousel.ringStyleOf]; nothing here grants it.
+/// style through [StoryPeopleCarousel.ringStyleOf] (and the tray's
+/// `FeedStoriesTray.ringStyleOf`); nothing here grants it.
 @immutable
 class StoryRingStyle {
   const new({required this.colors, this.stroke = KStoryCarousel.ringStroke});
@@ -78,7 +113,7 @@ class StoryRingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final stroke = style.stroke * scale;
+    final stroke = math.max(1, style.stroke * scale).toDouble();
     final rect = Offset.zero & size;
     final paint = Paint()
       ..style = PaintingStyle.stroke
@@ -140,89 +175,121 @@ class StoryPeopleCarousel extends StatefulWidget {
 
   static bool _noneSeen(FeedStoryData _) => false;
 
+  /// The carousel's height at [textScaler].
+  static double heightFor(TextScaler textScaler) =>
+      KStoryCarousel.centre +
+      KStoryCarousel.nameGap +
+      textScaler.scale(KStoryCarousel.centreName) * 1.3;
+
   @override
   State<StoryPeopleCarousel> createState() => _StoryPeopleCarouselState();
 }
 
-class _StoryPeopleCarouselState extends State<StoryPeopleCarousel> {
-  late final PageController _pages = PageController(
-    initialPage: widget.current,
-    viewportFraction: KStoryCarousel.slotFraction,
+class _StoryPeopleCarouselState extends State<StoryPeopleCarousel>
+    with SingleTickerProviderStateMixin {
+  /// The person at the centre, fractional while moving.
+  late final AnimationController _position = AnimationController.unbounded(
+    vsync: this,
+    value: widget.current.toDouble(),
   );
-
-  /// Set while a finger drives the scroll; its end selects the person.
-  bool _dragging = false;
 
   @override
   void didUpdateWidget(StoryPeopleCarousel old) {
     super.didUpdateWidget(old);
-    if (old.current != widget.current) _centre(widget.current);
+    if (old.current != widget.current) unawaited(_glide(widget.current));
   }
 
   @override
   void dispose() {
-    _pages.dispose();
+    _position.dispose();
     super.dispose();
   }
 
-  void _centre(int index) {
-    if (!_pages.hasClients) return;
+  Future<void> _glide(int index) async {
     final duration = KMotion.of(context, KMotion.slow);
     if (duration == Duration.zero) {
-      _pages.jumpToPage(index);
+      _position.value = index.toDouble();
+      return;
+    }
+    await _position.animateTo(
+      index.toDouble(),
+      duration: duration,
+      curve: KMotion.standard,
+    );
+  }
+
+  double get _sign => Directionality.of(context) == TextDirection.rtl ? -1 : 1;
+
+  void _drag(DragUpdateDetails d) {
+    _position.stop();
+    final max = (widget.people.length - 1).toDouble();
+    _position.value =
+        (_position.value - _sign * d.delta.dx / KStoryCarousel.dragPerPerson)
+            .clamp(-0.4, max + 0.4);
+  }
+
+  void _release(DragEndDetails d) {
+    final fling = -_sign * (d.primaryVelocity ?? 0) / 1000;
+    final target = (_position.value + fling.clamp(-1.0, 1.0)).round().clamp(
+      0,
+      widget.people.length - 1,
+    );
+    if (target != widget.current) {
+      widget.onSelect(target);
     } else {
-      _pages.animateToPage(index, duration: duration, curve: KMotion.standard);
+      unawaited(_glide(target));
     }
   }
-
-  bool _onScroll(ScrollNotification n) {
-    if (n.depth != 0) return false;
-    if (n is ScrollStartNotification && n.dragDetails != null) {
-      _dragging = true;
-    } else if (n is ScrollEndNotification && _dragging) {
-      _dragging = false;
-      final page = (_pages.page ?? widget.current.toDouble()).round();
-      if (page != widget.current) {
-        widget.onSelect(page);
-      }
-    }
-    return false;
-  }
-
-  double _name(BuildContext context) =>
-      MediaQuery.textScalerOf(context).scale(KTypography.label.size) *
-      KTypography.label.height;
 
   @override
   Widget build(BuildContext context) {
-    final height = KStoryCarousel.centre + KSpacing.xs + _name(context) + 2;
-    return SizedBox(
+    final scaler = MediaQuery.textScalerOf(context);
+    final height = StoryPeopleCarousel.heightFor(scaler);
+    return GestureDetector(
       key: StoryPeopleCarousel.carouselKey,
-      height: height,
-      child: NotificationListener<ScrollNotification>(
-        onNotification: _onScroll,
-        child: PageView.builder(
-          controller: _pages,
-          itemCount: widget.people.length,
-          clipBehavior: Clip.none,
-          itemBuilder: (context, i) => AnimatedBuilder(
-            animation: _pages,
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragUpdate: _drag,
+      onHorizontalDragEnd: _release,
+      child: SizedBox(
+        height: height,
+        width: double.infinity,
+        child: LayoutBuilder(
+          builder: (context, box) => AnimatedBuilder(
+            animation: _position,
             builder: (context, _) {
-              final page = _pages.hasClients && _pages.position.haveDimensions
-                  ? _pages.page ?? widget.current.toDouble()
-                  : widget.current.toDouble();
-              final focus = 1 - (page - i).abs().clamp(0.0, 1.0);
-              return _Person(
-                person: widget.people[i],
-                focus: focus,
-                selected: i == widget.current,
-                seen: widget.seen(widget.people[i]),
-                style: widget.ringStyleOf?.call(widget.people[i]),
-                onTap: () {
-                  if (i != widget.current) {
-                    widget.onSelect(i);
-                  }
-                },
+              final mid = box.maxWidth / 2;
+              final children = <(double, Widget)>[];
+              for (final (i, person) in widget.people.indexed) {
+                final d = i - _position.value;
+                final x = mid + _sign * KStoryCarousel.offsetOf(d);
+                const slot = KStoryCarousel.centre + KStoryCarousel.gap;
+                if (x < -slot || x > box.maxWidth + slot) continue;
+                final focus = 1 - d.abs().clamp(0.0, 1.0);
+                children.add((
+                  focus,
+                  Positioned(
+                    left: x - slot / 2,
+                    top: 0,
+                    width: slot,
+                    height: height,
+                    child: _Person(
+                      person: person,
+                      focus: focus,
+                      selected: i == widget.current,
+                      seen: widget.seen(person),
+                      style: widget.ringStyleOf?.call(person),
+                      onTap: () {
+                        if (i != widget.current) widget.onSelect(i);
+                      },
+                    ),
+                  ),
+                ));
+              }
+              // The centred person on top.
+              children.sort((a, b) => a.$1.compareTo(b.$1));
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [for (final (_, w) in children) w],
               );
             },
           ),
@@ -244,7 +311,7 @@ class _Person extends StatelessWidget {
 
   final FeedStoryData person;
 
-  /// 1 when centred, 0 one slot or more away.
+  /// 1 when centred, 0 one place or more away.
   final double focus;
   final bool selected;
   final bool seen;
@@ -269,65 +336,88 @@ class _Person extends StatelessWidget {
     final label = person.isSelf
         ? l10n.storyOpenOwn
         : l10n.storyPeopleOf(person.authorName);
+    final nameSize = lerpDouble(
+      KStoryCarousel.sideName,
+      KStoryCarousel.centreName,
+      focus,
+    )!;
+    final nameColor = Color.lerp(
+      KStoryCarousel.sideNameColor,
+      const Color(0xFFFFFFFF),
+      focus,
+    )!;
+    // Circle centres line up; each name sits under its own circle.
+    const top = 0.0;
+    final circleTop = top + (KStoryCarousel.centre - outer) / 2;
+    final nameTop =
+        circleTop +
+        outer +
+        lerpDouble(KStoryCarousel.nameGap + 1, KStoryCarousel.nameGap, focus)!;
+    // A neighbour's name keeps to its own place.
+    final inset =
+        (KStoryCarousel.centre - KStoryCarousel.side) / 2 * (1 - focus);
     return Semantics(
       button: true,
       selected: selected,
       label: label,
       excludeSemantics: true,
       onTap: onTap,
-      child: GestureDetector(
-        key: StoryPeopleCarousel.personKey(person.username ?? ''),
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Opacity(
-          opacity: lerpDouble(KStoryCarousel.sideOpacity, 1, focus)!,
-          child: Column(
-            children: [
-              SizedBox(
-                height: KStoryCarousel.centre,
-                child: Center(
-                  child: CustomPaint(
-                    painter: StoryRingPainter(
-                      style: ring,
-                      scale: scale,
-                      textDirection: Directionality.of(context),
-                    ),
-                    child: SizedBox.square(
-                      dimension: outer,
-                      child: Center(
-                        child: KAvatar(
-                          name: person.authorName,
-                          image: person.authorAvatar,
-                          size: image,
-                        ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          PositionedDirectional(
+            top: circleTop,
+            start: 0,
+            end: 0,
+            height: outer,
+            child: Center(
+              child: GestureDetector(
+                key: StoryPeopleCarousel.personKey(person.username ?? ''),
+                behavior: HitTestBehavior.opaque,
+                onTap: onTap,
+                child: CustomPaint(
+                  painter: StoryRingPainter(
+                    style: ring,
+                    scale: scale,
+                    textDirection: Directionality.of(context),
+                  ),
+                  child: SizedBox.square(
+                    dimension: outer,
+                    child: Center(
+                      child: KAvatar(
+                        name: person.authorName,
+                        image: person.authorAvatar,
+                        size: image,
                       ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: KSpacing.xs),
-              if (focus > 0)
-                Opacity(
-                  opacity: focus,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: KSpacing.xxs,
-                    ),
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: t.label.copyWith(
-                        color: const Color(0xFFFFFFFF),
-                        shadows: KLiveColors.glassShadow,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+            ),
           ),
-        ),
+          PositionedDirectional(
+            top: nameTop,
+            start: inset,
+            end: inset,
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: t.label.copyWith(
+                fontSize: nameSize,
+                fontWeight: FontWeight.lerp(
+                  FontWeight.w400,
+                  FontWeight.w500,
+                  focus,
+                ),
+                height: 1.3,
+                color: nameColor,
+                shadows: KLiveColors.glassShadow,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

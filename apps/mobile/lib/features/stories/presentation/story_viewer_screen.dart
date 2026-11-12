@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,14 +35,40 @@ abstract final class KStoryViewer {
   /// The share of the width, on the reading-start side, that goes back.
   static const double backZone = 0.3;
 
-  /// D218 (the owner's reference, E at ≈0.81 px/dp, 393 dp wide assumed):
-  /// 3 dp bars 4 dp apart, a 38 dp avatar with the name over the time (no
-  /// line under it: owner «وازل الخط اسفل الايقونات»), and at the bottom a
-  /// 44 dp «اكتب رسالة» pill with a heart and send (28 dp glyphs in 48 dp
-  /// targets).
-  static const double barHeight = 3;
+  /// D375 (owner «طبق التصميم ١٠٠٪», measured on the reference at
+  /// 0.552 px/dp): the story fills the screen; thin 2 dp bars at the very
+  /// top (4 dp under the status bar, 12 dp from the sides, 4 dp apart),
+  /// then a 30 dp avatar centred ≈ 25 dp under them, the name (13 dp) and
+  /// the time, ⋯ and ✕ (22 dp glyphs in 48 dp targets). No line under the
+  /// header (owner «وازل الخط اسفل الايقونات»).
+  static const double barTop = 4;
+  static const double barInset = 12;
+  static const double barHeight = 2;
   static const double barGap = 4;
-  static const double avatar = 38;
+  static const double headerTop = 1;
+  static const double headerStart = 24;
+  static const double headerEnd = 4;
+  static const double avatar = 30;
+  static const double nameSize = 13;
+  static const double icon = 22;
+  static const double iconTarget = KSizes.minTouchTarget;
+
+  /// The blur of the photo's copy that fills the screen behind it.
+  static const double backdropBlur = 30;
+
+  /// D375: under the carousel (23 dp), one 14 dp line — the caption — at
+  /// 28 dp from the start, then (your own story) who saw it in 11 dp; the
+  /// ⋯ at the end. Its centre lands ≈ 30 dp above the home indicator, the
+  /// carousel's centre ≈ 157 dp above it, as on the reference.
+  static const double captionTop = 23;
+  static const double captionStart = 28;
+  static const double captionEnd = 2;
+  static const double captionSize = 14;
+  static const double metaHeight = 16;
+  static const double metaIcon = 14;
+  static const double metaSize = 11;
+
+  /// The reply field (opened from the caption line).
   static const double replyHeight = 44;
   static const double replyBorder = 1.2;
   static const double replyIcon = 28;
@@ -71,7 +98,8 @@ abstract final class KStoryViewer {
 ///   to their stories. It shows on opening and on every change of person,
 ///   then fades out after [KStoryCarousel.autoHide]; touching the lower
 ///   area, a long press or typing a reply brings it back and keeps it up.
-///   Under it: the reply field (or who saw it) and a second ⋯.
+///   The story fills the screen; under the carousel, the caption line
+///   (a tap opens the reply field), who saw it on your own, and a second ⋯.
 class StoryViewerScreen extends ConsumerStatefulWidget {
   const new({required String this.username, super.key})
     : stories = null,
@@ -89,6 +117,9 @@ class StoryViewerScreen extends ConsumerStatefulWidget {
   static const closeKey = Key('story.close');
   static const moreKey = Key('story.more');
   static const moreBottomKey = Key('story.more.bottom');
+
+  /// D375: the caption line under the carousel; a tap opens the reply.
+  static const replyOpenKey = Key('story.reply.open');
 
   /// D375: the carousel's fade (an [AnimatedOpacity]).
   static const carouselVisibilityKey = Key('story.carousel.visibility');
@@ -137,6 +168,9 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
 
   /// A finger is down on the lower area.
   bool _touching = false;
+
+  /// D375: the story whose reply field is open (from its caption line).
+  String? _replyStory;
 
   /// -1 until an account's stories arrive: it then opens at its first
   /// unseen story. The archive opens at [StoryViewerScreen.start].
@@ -538,6 +572,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
     }
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final people = widget.stories == null ? _people : null;
+    if (story?.id != _replyStory) _replyStory = null;
     final page = switch (story) {
       final s? => _StoryPage(
         key: StoryViewerScreen.storyKey(s.id),
@@ -548,16 +583,20 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
         onClose: _close,
         onMore: () => _more(s),
       ),
-      null => switch (source) {
-        AsyncError(:final error) when stories == null => _Failure(
-          message: failureMessage(l10n, toAppFailure(error)),
-          onRetry: () => ref.invalidate(userStoriesProvider(_queue[_account])),
-          onClose: _close,
-        ),
-        _ => const Center(
-          child: CircularProgressIndicator(color: Color(0xFFFFFFFF)),
-        ),
-      },
+      null => KTopSafeArea(
+        bottom: true,
+        child: switch (source) {
+          AsyncError(:final error) when stories == null => _Failure(
+            message: failureMessage(l10n, toAppFailure(error)),
+            onRetry: () =>
+                ref.invalidate(userStoriesProvider(_queue[_account])),
+            onClose: _close,
+          ),
+          _ => const Center(
+            child: CircularProgressIndicator(color: Color(0xFFFFFFFF)),
+          ),
+        },
+      ),
     };
     // D375: the carousel fades in and out (with a slight rise); with
     // reduced motion it shows and hides at once, without the slide.
@@ -579,44 +618,31 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
         onVerticalDragEnd: (d) {
           if ((d.primaryVelocity ?? 0) > KStoryViewer.closeVelocity) _close();
         },
-        child: KTopSafeArea(
-          bottom: true,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              page,
-              // D375: a soft fade over the bottom of the photo behind the
-              // carousel (no hard panel); it comes and goes with it.
-              if (people != null)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: KStoryCarousel.scrimHeight,
-                  child: IgnorePointer(
-                    child: AnimatedOpacity(
-                      opacity: shown ? 1 : 0,
-                      duration: fade,
-                      curve: KMotion.standard,
-                      child: const DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              KStoryCarousel.scrimBottom,
-                              KStoryCarousel.scrimClear,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // D375: the story fills the screen edge to edge.
+            page,
+            // D375: a frosted fade rising from the bottom behind the
+            // carousel and the caption; it comes and goes with them.
+            if (people != null)
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: KSpacing.sm,
+                bottom: 0,
+                height: KStoryCarousel.frostHeight,
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    opacity: shown ? 1 : 0,
+                    duration: fade,
+                    curve: KMotion.standard,
+                    child: const _Frost(),
+                  ),
+                ),
+              ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomCenter,
                 // Touching the lower area brings the carousel back and
                 // keeps it up while the finger is down.
                 child: Listener(
@@ -626,43 +652,32 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (story case final s? when s.text.isNotEmpty)
-                        Padding(
-                          key: const ValueKey('story.bottom.text'),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: KSpacing.md,
-                          ),
-                          child: _StoryText(story: s),
-                        ),
                       if (people != null)
-                        Padding(
+                        // A tap on the lower area only brings the carousel
+                        // back: it never turns the story.
+                        GestureDetector(
                           key: const ValueKey('story.bottom.carousel'),
-                          padding: const EdgeInsets.only(top: KSpacing.md),
-                          // A tap on the lower area only brings the
-                          // carousel back: it never turns the story.
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: _revealCarousel,
-                            child: AnimatedSlide(
-                              offset: shown || still
-                                  ? Offset.zero
-                                  : const Offset(0, 0.15),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _revealCarousel,
+                          child: AnimatedSlide(
+                            offset: shown || still
+                                ? Offset.zero
+                                : const Offset(0, 0.15),
+                            duration: fade,
+                            curve: KMotion.standard,
+                            child: AnimatedOpacity(
+                              key: StoryViewerScreen.carouselVisibilityKey,
+                              opacity: shown ? 1 : 0,
                               duration: fade,
                               curve: KMotion.standard,
-                              child: AnimatedOpacity(
-                                key: StoryViewerScreen.carouselVisibilityKey,
-                                opacity: shown ? 1 : 0,
-                                duration: fade,
-                                curve: KMotion.standard,
-                                child: IgnorePointer(
-                                  ignoring: !shown,
-                                  child: StoryPeopleCarousel(
-                                    people: people,
-                                    current: _account,
-                                    onSelect: _jumpTo,
-                                    seen: (p) =>
-                                        p.seen || _allSeen.contains(p.username),
-                                  ),
+                              child: IgnorePointer(
+                                ignoring: !shown,
+                                child: StoryPeopleCarousel(
+                                  people: people,
+                                  current: _account,
+                                  onSelect: _jumpTo,
+                                  seen: (p) =>
+                                      p.seen || _allSeen.contains(p.username),
                                 ),
                               ),
                             ),
@@ -670,90 +685,226 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                         ),
                       if (story case final s?)
                         Padding(
-                          key: ValueKey('story.bottom.actions.${s.id}'),
-                          padding: const EdgeInsetsDirectional.only(
-                            start: KSpacing.md,
-                            end: KSpacing.xs,
-                            top: KSpacing.sm,
+                          key: ValueKey('story.bottom.${s.id}'),
+                          padding: const EdgeInsets.only(
+                            top: KStoryViewer.captionTop,
                           ),
-                          child: Row(
-                            children: [
-                              if (s.isSelf) ...[
-                                Flexible(
-                                  child: TextButton.icon(
-                                    key: StoryViewerScreen.viewersKey,
-                                    onPressed: () => _viewers(s),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: const Color(0xFFFFFFFF),
-                                    ),
-                                    icon: const Icon(Icons.visibility_outlined),
-                                    label: Text(
-                                      l10n.storyViewCount(s.viewCount ?? 0),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                          child: _replyStory == s.id
+                              ? Padding(
+                                  padding: const EdgeInsetsDirectional.only(
+                                    start: KSpacing.md,
+                                    end: KSpacing.xs,
                                   ),
-                                ),
-                                const Spacer(),
-                              ] else
-                                Expanded(
                                   child: _StoryReplyBar(
                                     key: ValueKey(
                                       'story.reply.${s.author.username}',
                                     ),
                                     story: s,
                                     onActive: _hold,
+                                    onDone: () =>
+                                        setState(() => _replyStory = null),
                                   ),
+                                )
+                              : _StoryBottom(
+                                  story: s,
+                                  onReply: () =>
+                                      setState(() => _replyStory = s.id),
+                                  onViewers: () => _viewers(s),
+                                  onMore: () => _more(s),
                                 ),
-                              // D375: the ⋯ menu (mute, report… or archive,
-                              // delete) beside the reply.
-                              IconButton(
-                                key: StoryViewerScreen.moreBottomKey,
-                                tooltip: l10n.storyMore,
-                                onPressed: () => _more(s),
-                                icon: const Icon(
-                                  Icons.more_horiz_rounded,
-                                  color: Color(0xFFFFFFFF),
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                     ],
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// The story's own text, centred on a dark pill over the photo.
-class _StoryText extends StatelessWidget {
-  const new({required this.story});
-
-  final Story story;
+/// D375: the reference's frosted fade — the photo blurs more and more
+/// towards the bottom under a light tint (no hard panel).
+class _Frost extends StatelessWidget {
+  const new();
 
   @override
-  Widget build(BuildContext context) => Container(
-    key: StoryViewerScreen.textKey,
-    padding: const EdgeInsets.symmetric(
-      horizontal: KSpacing.md,
-      vertical: KSpacing.sm,
-    ),
-    decoration: BoxDecoration(
-      color: const Color(0x99000000),
-      borderRadius: BorderRadius.circular(KRadius.md),
-    ),
-    child: Text(
-      isolateHandles(story.text, mentions: story.mentions),
-      textAlign: TextAlign.center,
-      style: context.textStyles.body.copyWith(color: const Color(0xFFFFFFFF)),
-    ),
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: [
+      for (final (i, band) in KStoryCarousel.frostBands.indexed)
+        Positioned(
+          top: KStoryCarousel.frostHeight * band,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(
+                sigmaX: KStoryCarousel.frostSigmas[i],
+                sigmaY: KStoryCarousel.frostSigmas[i],
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      const DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: [0, 0.45, 1],
+            colors: [
+              KStoryCarousel.frostClear,
+              KStoryCarousel.frostMid,
+              KStoryCarousel.frostBottom,
+            ],
+          ),
+        ),
+      ),
+    ],
   );
+}
+
+/// D375 (the reference): under the carousel, one line — the story's text
+/// (or, on someone else's story without text, «اكتب رسالة…») — then, on
+/// your own story, who saw it; ⋯ at the end. A tap on someone else's line
+/// opens the reply field (the reference has no field box).
+class _StoryBottom extends StatelessWidget {
+  const new({
+    required this.story,
+    required this.onReply,
+    required this.onViewers,
+    required this.onMore,
+  });
+
+  final Story story;
+  final VoidCallback onReply;
+  final VoidCallback onViewers;
+  final VoidCallback onMore;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final t = context.textStyles;
+    const white = Color(0xFFFFFFFF);
+    final text = story.text.isEmpty
+        ? null
+        : isolateHandles(story.text, mentions: story.mentions);
+    final Widget? line = switch ((text, story.isSelf)) {
+      (final text?, _) => Text(
+        text,
+        key: StoryViewerScreen.textKey,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: t.body.copyWith(
+          fontSize: KStoryViewer.captionSize,
+          height: 1.4,
+          color: white,
+          shadows: KLiveColors.glassShadow,
+        ),
+      ),
+      (null, false) => Text(
+        l10n.storyReplyHint,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: t.body.copyWith(
+          fontSize: KStoryViewer.captionSize,
+          height: 1.4,
+          color: const Color(0xB3FFFFFF),
+          shadows: KLiveColors.glassShadow,
+        ),
+      ),
+      (null, true) => null,
+    };
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(
+        start: KStoryViewer.captionStart,
+        end: KStoryViewer.captionEnd,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (line != null)
+                  if (story.isSelf)
+                    line
+                  else
+                    Semantics(
+                      button: true,
+                      label: l10n.storyReplyHint,
+                      excludeSemantics: text == null,
+                      child: GestureDetector(
+                        key: StoryViewerScreen.replyOpenKey,
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onReply,
+                        child: line,
+                      ),
+                    ),
+                const SizedBox(height: KSpacing.xxs),
+                SizedBox(
+                  height: KStoryViewer.metaHeight,
+                  child: story.isSelf
+                      ? Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Semantics(
+                            button: true,
+                            child: GestureDetector(
+                              key: StoryViewerScreen.viewersKey,
+                              behavior: HitTestBehavior.opaque,
+                              onTap: onViewers,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.visibility_outlined,
+                                    size: KStoryViewer.metaIcon,
+                                    color: Color(0xCCFFFFFF),
+                                  ),
+                                  const SizedBox(width: KSpacing.xs),
+                                  Text(
+                                    l10n.storyViewCount(story.viewCount ?? 0),
+                                    style: t.caption.copyWith(
+                                      fontSize: KStoryViewer.metaSize,
+                                      color: const Color(0xCCFFFFFF),
+                                      shadows: KLiveColors.glassShadow,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          // D375: the ⋯ menu (mute, report… or archive, delete).
+          IconButton(
+            key: StoryViewerScreen.moreBottomKey,
+            tooltip: l10n.storyMore,
+            onPressed: onMore,
+            constraints: const BoxConstraints.tightFor(
+              width: KStoryViewer.iconTarget,
+              height: KStoryViewer.iconTarget,
+            ),
+            padding: EdgeInsets.zero,
+            icon: const Icon(
+              Icons.more_horiz_rounded,
+              size: KStoryViewer.icon,
+              color: white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _StoryPage extends StatelessWidget {
@@ -793,9 +944,24 @@ class _StoryPage extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
+        // D375: edge to edge — the same photo, blurred, fills the screen
+        // behind the whole photo, so there is no black frame.
+        ExcludeSemantics(
+          child: ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(
+              sigmaX: KStoryViewer.backdropBlur,
+              sigmaY: KStoryViewer.backdropBlur,
+            ),
+            child: Image.network(
+              story.media.url,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
         // Owner (D218): «اجعل الصورة كاملة ولا تقص منها» — the whole photo,
-        // never cropped (contain); the header and the bottom only lie over
-        // it on soft scrims.
+        // never cropped (contain).
         Center(
           child: Image.network(
             story.media.url,
@@ -815,98 +981,128 @@ class _StoryPage extends StatelessWidget {
           top: 0,
           left: 0,
           right: 0,
-          height: 120,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0x80000000), Color(0x00000000)],
+          height: 140,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x66000000), Color(0x00000000)],
+                ),
               ),
             ),
           ),
         ),
-        // Keeps the reply bar readable over a bright photo (a scrim, never
-        // a band that hides the photo) while the carousel is hidden.
+        // Keeps the caption readable while the carousel is hidden.
         const Positioned(
           left: 0,
           right: 0,
           bottom: 0,
-          height: 140,
+          height: 160,
           child: IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
-                  colors: [Color(0x80000000), Color(0x00000000)],
+                  colors: [Color(0x59000000), Color(0x00000000)],
                 ),
               ),
             ),
           ),
         ),
-        Positioned(
-          top: KSpacing.sm,
-          left: KSpacing.sm + 2,
-          right: KSpacing.sm + 2,
-          child: Column(
-            children: [
-              _Bars(count: count, index: index, progress: progress),
-              const SizedBox(height: KSpacing.md),
-              Row(
-                children: [
-                  ExcludeSemantics(
-                    child: KAvatar(
-                      name: name,
-                      imageUrl: story.author.avatarUrl,
-                      size: KStoryViewer.avatar - 2 * (KMetrics.stroke + 1),
-                      ring: KAvatarRing.storyUnseen,
-                    ),
+        // D375 (the reference): thin bars at the very top, then a small
+        // avatar, the name and the time, ⋯ and ✕, over the photo.
+        SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.only(top: KStoryViewer.barTop),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: KStoryViewer.barInset,
                   ),
-                  const SizedBox(width: KSpacing.sm),
-                  // D218: the name over the time (D167: either may be long).
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
+                  child: _Bars(count: count, index: index, progress: progress),
+                ),
+                const SizedBox(height: KStoryViewer.headerTop),
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: KStoryViewer.headerStart,
+                    end: KStoryViewer.headerEnd,
+                  ),
+                  child: Row(
+                    children: [
+                      ExcludeSemantics(
+                        child: KAvatar(
+                          name: name,
+                          imageUrl: story.author.avatarUrl,
+                          size: KStoryViewer.avatar,
+                        ),
+                      ),
+                      const SizedBox(width: KSpacing.sm),
+                      // The name, then the time (D167: either may be long).
+                      Flexible(
+                        child: Text(
                           name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: t.bodyStrong.copyWith(
+                            fontSize: KStoryViewer.nameSize,
                             color: white,
-                            fontWeight: FontWeight.w700,
                             shadows: KLiveColors.glassShadow,
                           ),
                         ),
-                        Text(
+                      ),
+                      const SizedBox(width: KSpacing.sm),
+                      Flexible(
+                        child: Text(
                           when,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: t.caption.copyWith(
-                            color: const Color(0xCCFFFFFF),
+                            color: const Color(0xB3FFFFFF),
                             shadows: KLiveColors.glassShadow,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        key: StoryViewerScreen.moreKey,
+                        tooltip: l10n.storyMore,
+                        onPressed: onMore,
+                        constraints: const BoxConstraints.tightFor(
+                          width: KStoryViewer.iconTarget,
+                          height: KStoryViewer.iconTarget,
+                        ),
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(
+                          Icons.more_horiz_rounded,
+                          size: KStoryViewer.icon,
+                          color: white,
+                        ),
+                      ),
+                      IconButton(
+                        key: StoryViewerScreen.closeKey,
+                        tooltip: l10n.storyClose,
+                        onPressed: onClose,
+                        constraints: const BoxConstraints.tightFor(
+                          width: KStoryViewer.iconTarget,
+                          height: KStoryViewer.iconTarget,
+                        ),
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: KStoryViewer.icon,
+                          color: white,
+                        ),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    key: StoryViewerScreen.moreKey,
-                    tooltip: l10n.storyMore,
-                    onPressed: onMore,
-                    icon: const Icon(Icons.more_vert_rounded, color: white),
-                  ),
-                  IconButton(
-                    key: StoryViewerScreen.closeKey,
-                    tooltip: l10n.storyClose,
-                    onPressed: onClose,
-                    icon: const Icon(Icons.close_rounded, color: white),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -918,10 +1114,19 @@ class _StoryPage extends StatelessWidget {
 /// text and the heart («❤️») go to the author as direct messages (§11.13);
 /// the story is paused ([onActive]) while the field has focus.
 class _StoryReplyBar extends ConsumerStatefulWidget {
-  const new({required this.story, required this.onActive, super.key});
+  const new({
+    required this.story,
+    required this.onActive,
+    required this.onDone,
+    super.key,
+  });
 
   final Story story;
   final ValueChanged<bool> onActive;
+
+  /// D375: the field closes (back to the caption line) once it loses focus
+  /// empty or the reply is sent.
+  final VoidCallback onDone;
 
   @override
   ConsumerState<_StoryReplyBar> createState() => _StoryReplyBarState();
@@ -936,7 +1141,12 @@ class _StoryReplyBarState extends ConsumerState<_StoryReplyBar> {
   @override
   void initState() {
     super.initState();
-    _focus.addListener(() => widget.onActive(_focus.hasFocus));
+    _focus.addListener(() {
+      widget.onActive(_focus.hasFocus);
+      if (!_focus.hasFocus && _text.text.trim().isEmpty && !_sending) {
+        widget.onDone();
+      }
+    });
     _text.addListener(() => setState(() {}));
   }
 
@@ -1008,6 +1218,7 @@ class _StoryReplyBarState extends ConsumerState<_StoryReplyBar> {
               key: StoryViewerScreen.replyFieldKey,
               controller: _text,
               focusNode: _focus,
+              autofocus: true,
               enabled: !_sending,
               maxLength: 1000,
               textInputAction: TextInputAction.send,

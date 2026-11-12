@@ -92,8 +92,8 @@ MemoryImage d375Photo(String url) {
       return fixtureImage(
         top: p.top,
         bottom: p.bottom,
-        width: 360,
-        height: 640,
+        width: 540,
+        height: 960,
       );
     }
   }
