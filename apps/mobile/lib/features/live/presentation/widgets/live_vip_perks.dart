@@ -1,8 +1,8 @@
 // v1.132-social (D379, CONVENTIONS §10.169): the VIP perks inside live
 // rooms, as the room draws them — the pin bar (PINNED_MESSAGE), the host's
 // greeting card (HOST_GREETING), the crown over a seat (SEAT_CROWN), the
-// uploaded rain effect (BIG_GIFT_RAIN), the VIP room's lock (VIP_ROOM) and a kept seat
-// (SEAT_RESERVE).
+// uploaded rain effect (BIG_GIFT_RAIN), the VIP room's lock (VIP_ROOM) and
+// a kept seat (SEAT_RESERVE).
 
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

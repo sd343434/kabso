@@ -2088,7 +2088,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                               LiveRoomPromoBox.shows(ref, room.id)),
                     ),
                   ),
-                // v1.132-social (D379): a VIP member's big gift plays the uploaded rain
+                // v1.132-social (D379): a VIP big gift plays the uploaded rain
                 // over the room; the host's greeting card for a VIP joiner.
                 if (onAir && room != null)
                   Positioned.fill(child: LiveVipGiftRainLayer(roomId: room.id)),

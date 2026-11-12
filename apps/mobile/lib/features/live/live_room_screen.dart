@@ -1340,7 +1340,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                           LiveRoomPromoBox.shows(ref, room.id)),
                 ),
               ),
-            // v1.132-social (D379): a VIP member's big gift plays the uploaded rain.
+            // v1.132-social (D379): a VIP big gift plays the uploaded rain.
             if (room.status == LiveRoomStatus.live)
               Positioned.fill(child: LiveVipGiftRainLayer(roomId: room.id)),
             // D154i: the video the live watches together. D225 (owner):
