@@ -535,23 +535,6 @@ class _Picture {
     const avatar = LivePersonCardMetrics.avatar;
     final name = profile?.displayName ?? username;
     final image = _networkImage(profile?.avatarUrl);
-    // D384: the photo in its circle of [size] — or, for a clip, the cut-out
-    // in the same circle (the photo while it loads or if it fails).
-    Widget photo(double size, _Look look) {
-      final round = ClipOval(
-        child: KAvatar(name: name, image: image, size: size),
-      );
-      if (cutout == null) return round;
-      return VipCutout(
-        key: LivePersonSheet.cutoutKey,
-        avatar: cutout,
-        size: size,
-        playing: playing,
-        background: look.fill,
-        fallback: round,
-      );
-    }
-
     final kind = agentFrameKindFor(
       rechargeCode: profile?.rechargeAgentCode,
       hostCode: profile?.hostAgentCode,
@@ -584,6 +567,32 @@ class _Picture {
         ),
       );
     }
+    // D384 (owner: «أريد صورة الملف الشخصي كأنها بدون خلفية»): a clip is the
+    // free-floating cut-out in the plain ring's box and place — no circle,
+    // fill, ring or worn frame (VIP or bag) around it; the card shows
+    // through. The agent frames and the couple's Special Frame keep the
+    // photo. The ringed photo while it loads or if it fails.
+    if (cutout != null && !cpWearsSpecialFrame(profile?.cp)) {
+      const side = avatar + 2 * LivePersonCardMetrics.ring;
+      return _Picture(
+        width: side,
+        height: side,
+        centreY: side / 2,
+        build: (look) => VipCutout(
+          key: LivePersonSheet.cutoutKey,
+          avatar: cutout,
+          size: side,
+          playing: playing,
+          fallback: Container(
+            padding: const EdgeInsets.all(LivePersonCardMetrics.ring),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: look.ring),
+            child: ClipOval(
+              child: KAvatar(name: name, image: image, size: avatar),
+            ),
+          ),
+        ),
+      );
+    }
     if (art != null) {
       final side = box.square;
       final inner = art.pictureForWidth(side);
@@ -597,9 +606,7 @@ class _Picture {
             art: art,
             picture: inner,
             layout: true,
-            child: cutout == null
-                ? KAvatar(name: name, image: image, size: inner)
-                : photo(inner, look),
+            child: KAvatar(name: name, image: image, size: inner),
           ),
         ),
       );
@@ -641,7 +648,9 @@ class _Picture {
         child: VipAvatarFrame(
           vip: profile?.vip,
           size: avatar,
-          child: photo(avatar, look),
+          child: ClipOval(
+            child: KAvatar(name: name, image: image, size: avatar),
+          ),
         ),
       ),
     );

@@ -12416,13 +12416,17 @@ it comes back without a new upload); is not a limited Kabso Team account (§10.9
 **neither the caller nor the person has blocked the other**. The caller always sees their own while they hold the perk.
 Nothing else carries the clip (no `UserSummary`, chat line or seat field).
 
-The app (person card in live and party rooms, D383): the cut-out loops **in the round photo's circle** — the same
-diameter and position, inside the same ring and the VIP frame or bag frame the person wears, on the circle's own fill —
-clipped to the circle at the bottom and the sides, the head popping up to 16 % of the diameter over the circle's top edge
-(a 3D look). The name and the rest of the card do not move. The recharge-agent, host-agent and couple frames are drawn
-around a photo, so they keep the photo. Under reduced motion or «إخفاء مؤثرات الهدايا» it shows the still. While it loads or if it
-fails, and for everyone without one, the round photo with its frame shows as before. It sits over the D383 VIP
-background like the round photo. The member's own profile header is unchanged (the person card only).
+The app (person card in live and party rooms, D383): the cut-out loops **free-floating, without a background** (owner
+2026-11-12: «أريد صورة الملف الشخصي كأنها بدون خلفية») — in the round photo's box and place (the circle and its 3 px
+ring, sitting mostly inside the card as D383 places it), but with **no circle, fill or ring** behind it: the card, or
+the D383 VIP background, shows around the person. Nothing clips it: the head pops up to 16 % of the box over its top
+(and over the card's top edge) and may be up to 12 % wider than the box; the **lower 20 % fades softly to transparent**
+(a gradient mask, no hard edge), so the shoulders melt into the card. The name and the rest of the card do not move.
+**Worn avatar frames (the VIP frame or a bag frame) are not drawn around the cut-out** — a frame around a free-floating
+person looks wrong (CTO choice, owner's request); the recharge-agent, host-agent and couple frames are drawn around a
+photo, so those keep the photo. Under reduced motion or «إخفاء مؤثرات الهدايا» the still shows the same way, without a
+background. While it loads or if it fails the round photo in its ring shows in its place; everyone without a clip keeps
+the round photo with its ring and frames, unchanged. The member's own profile header is unchanged (the person card only).
 
 The app's VIP page shows the entry «صورة متحركة» to a holder (record, preview the cut-out over a checkerboard, save,
 re-record, remove). A recording where no person is found in most frames is refused on the phone.

@@ -1,10 +1,10 @@
 // v1.136-social (D384, owner 2026-11-12: «انتبه جيداً لطريقة الصورة شخصية»;
 // CONVENTIONS §10.173.4): the VIP animated picture «صورة متحركة» on the
 // person card — the member's own clip with its background removed. Owner
-// (2026-11-12): «والصورة الشخصية الجديدة اجعلها كأنها بإطار دائري بنفس حجم
-// الإطار السابق»: it replaces the round photo in place — the same circle, the
-// same size and position, inside the same ring and frames — with the head
-// popping a little over the circle's top edge.
+// (2026-11-12): it takes the round photo's place and size; then «أريد صورة
+// الملف الشخصي كأنها بدون خلفية»: no circle, no fill, no ring behind it —
+// the card (or the D383 VIP background) shows around the person, the head
+// pops a little over the box's top and the shoulders fade into the card.
 
 import 'package:kabso_live/features/vip/domain/animated_avatar.dart';
 import 'package:material_ui/material_ui.dart';
@@ -17,23 +17,27 @@ ImageProvider Function(String src) animatedAvatarImageFor = NetworkImage.new;
 /// [animatedAvatarImageFor] for the app's other files.
 ImageProvider animatedAvatarImage(String src) => animatedAvatarImageFor(src);
 
-/// D384 geometry, as shares of the circle's diameter.
+/// D384 geometry, as shares of the photo's box side.
 abstract final class VipCutoutMetrics {
-  /// How far the head may pop over the circle's top edge (the 3D look).
+  /// How far the head pops over the box's top edge.
   static const double pop = 0.16;
 
-  /// The width of the band above the circle where the head may show (the
-  /// shoulders and sides stay clipped to the circle).
-  static const double head = 0.66;
+  /// How much wider than the box the picture may be drawn (the head can be
+  /// slightly wider than the old circle; nothing clips the sides).
+  static const double spread = 0.12;
+
+  /// The lower share of the picture that fades to transparent (the
+  /// shoulders melt into the card).
+  static const double fade = 0.2;
 }
 
-/// The member's cut-out [avatar] inside a circle of [size] — the round
-/// photo's place: the looping animated WebP, or its still when [playing] is
-/// false (reduced motion, «إخفاء المؤثرات»), on [background] (the circle's
-/// own fill), clipped to the circle at the bottom and sides; the head pops up
-/// to [VipCutoutMetrics.pop] × [size] over the top edge. While the picture
-/// loads, or when it cannot be loaded, [fallback] shows instead (the round
-/// photo).
+/// The member's cut-out [avatar] free-floating in a [size] square — the round
+/// photo's place, without its circle, fill or ring: the looping animated
+/// WebP, or its still when [playing] is false (reduced motion, «إخفاء
+/// المؤثرات»), drawn up to [VipCutoutMetrics.pop] × [size] over the box's top
+/// and a little wider than it, its lower [VipCutoutMetrics.fade] fading to
+/// transparent. While the picture loads, or when it cannot be loaded,
+/// [fallback] shows instead (the round photo).
 class VipCutout extends StatelessWidget {
   const new({
     required this.avatar,
@@ -41,7 +45,6 @@ class VipCutout extends StatelessWidget {
     required this.playing,
     required this.fallback,
     super.key,
-    this.background,
   });
 
   final AnimatedAvatar avatar;
@@ -49,15 +52,12 @@ class VipCutout extends StatelessWidget {
   final bool playing;
   final Widget fallback;
 
-  /// The circle's fill behind the cut-out (it has no background of its own).
-  final Color? background;
-
   static const playingKey = Key('vip.cutout.playing');
   static const stillKey = Key('vip.cutout.still');
   static const fallbackKey = Key('vip.cutout.fallback');
 
-  /// The circle behind the cut-out.
-  static const circleKey = Key('vip.cutout.circle');
+  /// The soft fade at the bottom (a gradient mask, no hard edge).
+  static const fadeKey = Key('vip.cutout.fade');
 
   @override
   Widget build(BuildContext context) {
@@ -65,38 +65,45 @@ class VipCutout extends StatelessWidget {
       playing ? avatar.url : avatar.stillUrl,
     );
     final pop = size * VipCutoutMetrics.pop;
+    final spread = size * VipCutoutMetrics.spread;
     return SizedBox.square(
       dimension: size,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              key: circleKey,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: background,
-              ),
-            ),
-          ),
           Positioned(
             top: -pop,
-            left: 0,
-            width: size,
+            left: -spread / 2,
+            width: size + spread,
             height: size + pop,
-            child: ClipPath(
-              clipper: _CircleWithHead(pop: pop),
-              child: Image(
-                key: playing ? playingKey : stillKey,
-                image: image,
-                fit: BoxFit.cover,
-                alignment: Alignment.bottomCenter,
-                gaplessPlayback: true,
-                excludeFromSemantics: true,
-                frameBuilder: (context, child, frame, sync) =>
-                    frame == null && !sync ? _fallback(pop) : child,
-                errorBuilder: (_, _, _) => _fallback(pop),
-              ),
+            child: Image(
+              key: playing ? playingKey : stillKey,
+              image: image,
+              fit: BoxFit.contain,
+              alignment: Alignment.bottomCenter,
+              gaplessPlayback: true,
+              excludeFromSemantics: true,
+              // The fade is on the picture only (the fallback photo stays
+              // whole).
+              frameBuilder: (context, child, frame, sync) =>
+                  frame == null && !sync
+                  ? _fallback(pop, spread)
+                  : ShaderMask(
+                      key: fadeKey,
+                      blendMode: BlendMode.dstIn,
+                      shaderCallback: (rect) => const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0xFFFFFFFF),
+                          Color(0xFFFFFFFF),
+                          Color(0x00FFFFFF),
+                        ],
+                        stops: [0, 1 - VipCutoutMetrics.fade, 1],
+                      ).createShader(rect),
+                      child: child,
+                    ),
+              errorBuilder: (_, _, _) => _fallback(pop, spread),
             ),
           ),
         ],
@@ -104,41 +111,12 @@ class VipCutout extends StatelessWidget {
     );
   }
 
-  /// The round photo, in the circle (below the head band).
-  Widget _fallback(double pop) => KeyedSubtree(
+  /// The round photo, in the box (below the pop, inside the spread).
+  Widget _fallback(double pop, double spread) => KeyedSubtree(
     key: fallbackKey,
     child: Padding(
-      padding: EdgeInsets.only(top: pop),
+      padding: EdgeInsets.fromLTRB(spread / 2, pop, spread / 2, 0),
       child: fallback,
     ),
   );
-}
-
-/// The circle (the lower [Size.width] square of the box) and, above its
-/// centre, a band [VipCutoutMetrics.head] wide reaching [pop] over its top
-/// edge, its upper corners rounded: the head pops out, the bottom and the
-/// sides stay in the circle.
-class _CircleWithHead extends CustomClipper<Path> {
-  const new({required this.pop});
-
-  final double pop;
-
-  @override
-  Path getClip(Size size) {
-    final d = size.width;
-    final circle = Path()..addOval(Rect.fromLTWH(0, pop, d, d));
-    final w = d * VipCutoutMetrics.head;
-    final band = Path()
-      ..addRRect(
-        RRect.fromRectAndCorners(
-          Rect.fromLTWH((d - w) / 2, 0, w, pop + d / 2),
-          topLeft: Radius.circular(w / 2),
-          topRight: Radius.circular(w / 2),
-        ),
-      );
-    return Path.combine(PathOperation.union, circle, band);
-  }
-
-  @override
-  bool shouldReclip(_CircleWithHead old) => old.pop != pop;
 }
