@@ -439,6 +439,18 @@ describe('D380 VIP privacy perks', { timeout: 300_000 }, () => {
           .set(auth(host))
       ).status,
     ).toBe(404);
+    // v1.134-social (D381, §10.171.3): a report filed from a gift gets the shared queue's order too — the HARASSMENT
+    // one 0 (the host holds no PRIORITY_SUPPORT), a safety reason 2.
+    expect(stored.priority).toBe(0);
+    const nudity = await ctx.http
+      .post(`/api/v1/live/gifts/${named.body.gift.id as string}/reports`)
+      .set(auth(host))
+      .send({ reason: 'NUDITY' });
+    expect(nudity.status, JSON.stringify(nudity.body)).toBe(201);
+    const safetyRow = await withMigrationClient((db) =>
+      db.report.findFirstOrThrow({ where: { reporterId: host.id, targetUserId: plain.id } }),
+    );
+    expect(safetyRow.priority).toBe(2);
 
     // A block by a recipient (a seated guest) refuses an anonymous send like any send.
     await ctx.prisma.liveRoomSeat.create({ data: { roomId, seatIndex: 3, userId: other.id } });

@@ -1036,6 +1036,8 @@ export class SafetyService {
           note: parsed.data.note ?? null,
           contextLiveGiftId: gift.id,
           ...(gift.roomId !== null ? { contextLiveRoomId: gift.roomId } : {}),
+          // v1.134-social (D381, §10.171.3): every report gets the shared queue's order when it is made.
+          priority: await reportPriorityOf(this.prisma, reporterId, parsed.data.reason),
         },
         select: { id: true, createdAt: true },
       });
