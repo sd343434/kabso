@@ -366,7 +366,9 @@ export class LiveGiftsService {
   ): Promise<{ created: boolean; result: LiveGiftResultDto }> {
     const row = await this.rooms.visibleRow(roomId, callerId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    const parsed = liveGiftSendSchema(this.gifts.quantities).safeParse(body ?? {}, { reportInput: true });
+    // v1.134-social (D381, §10.171.6): a HIGHER_GIFT_QUANTITY holder's larger quantities too.
+    const quantities = await this.gifts.quantitiesFor(callerId, body);
+    const parsed = liveGiftSendSchema(quantities).safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;
     const clientId = input.clientId.toLowerCase();
@@ -394,6 +396,10 @@ export class LiveGiftsService {
     // §10.131): an archived gift's pieces still in bags are sent until they run out (never bought again).
     if (!gift || !sendableNow(gift, input.source) || !gift.categoryRef.enabled)
       throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+    // v1.134-social (D381, §10.171.1): an exclusive gift only from a VIP that may send it.
+    await this.gifts.assertVipMaySend(callerId, gift.code);
+    // v1.134-social (D381, §10.171.6): a lucky gift or a quip keeps the configured quantities.
+    if (gift.category === 'LUCKY' || gift.category === 'QUIPS') this.gifts.assertBaseQuantity(input.quantity);
     // v1.101-social (D325, §10.127): an event's own gift is bought only while its event runs; afterwards only the
     // pieces held in the bag are sent.
     if (
@@ -1009,6 +1015,10 @@ export class LiveGiftsService {
     // §10.131): an archived gift's pieces still in bags are sent until they run out (never bought again).
     if (!gift || !sendableNow(gift, input.source) || !gift.categoryRef.enabled)
       throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+    // v1.134-social (D381, §10.171.1): an exclusive gift only from a VIP that may send it.
+    await this.gifts.assertVipMaySend(callerId, gift.code);
+    // v1.134-social (D381, §10.171.6): a lucky gift or a quip keeps the configured quantities.
+    if (gift.category === 'LUCKY' || gift.category === 'QUIPS') this.gifts.assertBaseQuantity(input.quantity);
     // v1.101-social (D325, §10.127): an event's own gift is bought only while its event runs; afterwards only the
     // pieces held in the bag are sent.
     if (

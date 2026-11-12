@@ -39,7 +39,7 @@ export class CouplesController {
 
   @Get('config')
   async config(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest): Promise<CpConfigDto> {
-    return this.couples.configDto(await this.language(req, auth));
+    return this.couples.configDto(auth.userId, await this.language(req, auth));
   }
 
   /** 201 new, 200 a retry with the same `clientId`. */

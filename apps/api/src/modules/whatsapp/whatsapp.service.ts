@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { vipPerkHeldIn } from '../vip/vip-gift-perks.js';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -94,6 +95,11 @@ export interface WaConversationDto {
   createdAt: string;
   /** D366 (§10.159): the department «القسم». */
   department: WaDepartment;
+  /**
+   * v1.134-social (D381, §10.171.3): the linked account held PRIORITY_SUPPORT when it was linked or last wrote — the
+   * inbox lists it first.
+   */
+  priority: boolean;
 }
 
 export interface WaMessageDto {
@@ -226,15 +232,27 @@ export class WhatsAppService {
       if (!pos) {
         throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
       }
+      // v1.134-social (D381, §10.171.3): the order is priority first; the cursor keeps {at, id} and the priority is
+      // the cursor row's now.
+      const at = await this.prisma.waConversation.findUnique({
+        where: { id: pos.id },
+        select: { priority: true },
+      });
+      const p = at?.priority ?? false;
       where.AND = [
         {
-          OR: [{ lastMessageAt: { lt: pos.at } }, { lastMessageAt: pos.at, id: { lt: pos.id } }],
+          OR: [
+            ...(p ? [{ priority: false }] : []),
+            { priority: p, lastMessageAt: { lt: pos.at } },
+            { priority: p, lastMessageAt: pos.at, id: { lt: pos.id } },
+          ],
         },
       ];
     }
     const rows = await this.prisma.waConversation.findMany({
       where,
-      orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
+      // v1.134-social (D381, §10.171.3): PRIORITY_SUPPORT holders' conversations first, each newest first.
+      orderBy: [{ priority: 'desc' }, { lastMessageAt: 'desc' }, { id: 'desc' }],
       take: q.limit + 1,
     });
     const more = rows.length > q.limit;
@@ -389,6 +407,7 @@ export class WhatsAppService {
         closedAt: iso(r.closedAt),
         createdAt: r.createdAt.toISOString(),
         department: r.department,
+        priority: r.priority,
       };
     });
   }
@@ -1205,7 +1224,14 @@ export class WhatsAppService {
     await this.prisma.$transaction(async (tx) => {
       await tx.waConversation.update({
         where: { id },
-        data: { linkedUserId: profile.userId, linkedById: ctx.userId, linkedAt: now, updatedAt: now },
+        data: {
+          linkedUserId: profile.userId,
+          linkedById: ctx.userId,
+          linkedAt: now,
+          updatedAt: now,
+          // v1.134-social (D381, §10.171.3): a PRIORITY_SUPPORT holder's conversation is listed first.
+          priority: (await vipPerkHeldIn(tx, profile.userId, 'PRIORITY_SUPPORT', now)) !== null,
+        },
       });
       await this.audit.recordIn(tx, {
         ...this.audited(ctx),
@@ -1225,7 +1251,7 @@ export class WhatsAppService {
       await this.prisma.$transaction(async (tx) => {
         await tx.waConversation.update({
           where: { id },
-          data: { linkedUserId: null, linkedById: null, linkedAt: null },
+          data: { linkedUserId: null, linkedById: null, linkedAt: null, priority: false },
         });
         await this.audit.recordIn(tx, {
           ...this.audited(ctx),

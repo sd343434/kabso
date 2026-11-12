@@ -132,6 +132,8 @@ export enum AuditAction {
   VIP_TIER_REORDER = 'vip.tier.reorder',
   /** v1.82-social (D252): a person bought, renewed or upgraded a VIP tier with coins. */
   VIP_PURCHASE = 'vip.purchase',
+  /** v1.134-social (D381, §10.171.4): a member's MONTHLY_ROCKETS of a month added to their traffic cards. */
+  VIP_MONTHLY_ROCKETS_GRANT = 'vip.monthly_rockets.grant',
   /** D270 (§10.98): «المتجر» — an item added, changed or switched on / off in the panel. */
   STORE_ITEM_ADD = 'store.item.add',
   STORE_ITEM_UPDATE = 'store.item.update',

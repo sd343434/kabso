@@ -22,7 +22,16 @@ import {
   type ImageContentType,
   type ImageShape,
 } from './media-image.js';
-import { AUDIO_CONTENT_TYPES, InvalidAudioError, MAX_VOICE_BYTES, verifyVoiceClip } from './media-audio.js';
+import {
+  AUDIO_CONTENT_TYPES,
+  InvalidAudioError,
+  MAX_ANY_VOICE_BYTES,
+  MAX_VOICE_BYTES,
+  verifyVoiceClip,
+  voiceLimitsFor,
+  type VoiceLimits,
+} from './media-audio.js';
+import { vipPerkIntIn } from '../vip/vip-gift-perks.js';
 import {
   InvalidVideoError,
   MAX_VIDEO_BYTES,
@@ -163,7 +172,10 @@ export const createMediaUploadSchema = z
     const wanted = isVoiceKind(value.kind) ? 'audio' : isVideoKind(value.kind) ? 'video' : 'image';
     if (family(value.contentType) !== wanted) {
       ctx.addIssue({ code: 'custom', path: ['contentType'], params: { issue: 'invalid_value' } });
-    } else if (value.byteSize > maxUploadBytes(value.kind)) {
+    } else if (
+      value.byteSize > (isVoiceKind(value.kind) ? MAX_ANY_VOICE_BYTES : maxUploadBytes(value.kind))
+    ) {
+      // v1.134-social (D381): a voice clip's own bound is the uploader's (LONGER_VOICE), checked next.
       ctx.addIssue({ code: 'custom', path: ['byteSize'], params: { issue: 'too_big' } });
     }
   });
@@ -337,12 +349,24 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     return deleted.count;
   }
 
+  /**
+   * v1.134-social (D381, §10.171.8) LONGER_VOICE: [userId]'s voice clip limits now — the perk's seconds (and the size
+   * scaled with them) while held, else 30 s and 1 MiB. Checked when the upload is requested and again when completed.
+   */
+  async voiceLimits(userId: string): Promise<VoiceLimits> {
+    return voiceLimitsFor(await vipPerkIntIn(this.prisma, userId, 'LONGER_VOICE', new Date()));
+  }
+
   /** `POST /media/uploads` (the rate limit was counted by the guard, before this check). */
   async createUpload(userId: string, body: unknown): Promise<MediaUploadDto> {
     await this.assertEnabled();
     const parsed = createMediaUploadSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const { kind, contentType, byteSize } = parsed.data;
+    // v1.134-social (D381, §10.171.8): a voice clip up to the uploader's limit (1 MiB, LONGER_VOICE's more).
+    if (isVoiceKind(kind) && byteSize > (await this.voiceLimits(userId)).maxBytes) {
+      throw AppException.validation([{ field: 'byteSize', issue: 'too_big' }]);
+    }
     // v1.95-social (D301, §10.112.1): only the app owner uploads a cover video.
     if (kind === 'PROFILE_COVER_VIDEO') await assertKabsoOwner(this.prisma, userId);
     const id = uuidv7();
@@ -426,7 +450,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     if (isVoiceKind(kind)) {
       let clip: { durationMs: number };
       try {
-        clip = verifyVoiceClip(bytes);
+        clip = verifyVoiceClip(bytes, await this.voiceLimits(userId));
       } catch (err) {
         if (err instanceof InvalidAudioError) return fail(err.message);
         throw err;

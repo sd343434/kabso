@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { forgetVipExclusiveGifts } from './vip-gift-perks.js';
 import { auditBy, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -311,44 +312,46 @@ export class VipAdminService {
 
   async create(body: CreateVipTierBody, by: AdminVia): Promise<AdminVipTierDto> {
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        // One panel change of the tier list at a time (the order and the cap).
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:vip-tiers'))`;
-        const count = await tx.vipTier.count();
-        if (count >= VIP_MAX_TIERS) throw refused(`At most ${VIP_MAX_TIERS} VIP tiers.`);
-        const last = await tx.vipTier.aggregate({ _max: { sortOrder: true } });
-        const tier = await tx.vipTier.create({
-          data: {
-            code: body.code,
-            nameAr: body.nameAr,
-            nameEn: body.nameEn,
-            sortOrder: (last._max.sortOrder ?? 0) + 1,
-            color: body.color,
-            nameColor: body.nameColor ?? null,
-            renewalDiscountPercent: body.renewalDiscountPercent ?? VIP_RENEWAL_DISCOUNT_DEFAULT,
-            badgeAnimation: body.badgeAnimation ?? null,
-            badgeStill: body.badgeStill ?? null,
-            priceCoins: BigInt(body.priceCoins),
-            pointsPrice:
-              body.pointsPrice === undefined || body.pointsPrice === null ? null : BigInt(body.pointsPrice),
-            durationDays: body.durationDays,
-            enabled: body.enabled ?? false,
-            updatedById: by.actorUserId,
-          },
-        });
-        await this.writePerks(tx, tier.id, body.perks ?? [], body.code);
-        const after = await this.load(tx, tier.id);
-        await tx.auditLog.create({
-          data: {
-            ...auditBy(by),
-            action: AuditAction.VIP_TIER_ADD,
-            targetType: 'vip_tier',
-            targetId: tier.id,
-            metadata: { after: snapshot(after), reason: body.reason, via: by.via },
-          },
-        });
-        return this.dto(after, await this.activeCounts(tx));
-      });
+      return await this.prisma
+        .$transaction(async (tx) => {
+          // One panel change of the tier list at a time (the order and the cap).
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:vip-tiers'))`;
+          const count = await tx.vipTier.count();
+          if (count >= VIP_MAX_TIERS) throw refused(`At most ${VIP_MAX_TIERS} VIP tiers.`);
+          const last = await tx.vipTier.aggregate({ _max: { sortOrder: true } });
+          const tier = await tx.vipTier.create({
+            data: {
+              code: body.code,
+              nameAr: body.nameAr,
+              nameEn: body.nameEn,
+              sortOrder: (last._max.sortOrder ?? 0) + 1,
+              color: body.color,
+              nameColor: body.nameColor ?? null,
+              renewalDiscountPercent: body.renewalDiscountPercent ?? VIP_RENEWAL_DISCOUNT_DEFAULT,
+              badgeAnimation: body.badgeAnimation ?? null,
+              badgeStill: body.badgeStill ?? null,
+              priceCoins: BigInt(body.priceCoins),
+              pointsPrice:
+                body.pointsPrice === undefined || body.pointsPrice === null ? null : BigInt(body.pointsPrice),
+              durationDays: body.durationDays,
+              enabled: body.enabled ?? false,
+              updatedById: by.actorUserId,
+            },
+          });
+          await this.writePerks(tx, tier.id, body.perks ?? [], body.code);
+          const after = await this.load(tx, tier.id);
+          await tx.auditLog.create({
+            data: {
+              ...auditBy(by),
+              action: AuditAction.VIP_TIER_ADD,
+              targetType: 'vip_tier',
+              targetId: tier.id,
+              metadata: { after: snapshot(after), reason: body.reason, via: by.via },
+            },
+          });
+          return this.dto(after, await this.activeCounts(tx));
+        })
+        .finally(forgetVipExclusiveGifts);
     } catch (err) {
       if (violatedUniqueIndex(err) !== null) throw refused(`A VIP tier ${body.code} exists already.`);
       throw err;
@@ -356,6 +359,11 @@ export class VipAdminService {
   }
 
   async update(id: string, body: UpdateVipTierBody, by: AdminVia): Promise<AdminVipTierDto> {
+    // v1.134-social (D381): a saved EXCLUSIVE_GIFTS list (or rank) applies to this process's next send at once.
+    return this.updateIn(id, body, by).finally(forgetVipExclusiveGifts);
+  }
+
+  private async updateIn(id: string, body: UpdateVipTierBody, by: AdminVia): Promise<AdminVipTierDto> {
     return this.prisma.$transaction(async (tx) => {
       const before = await this.lockTier(tx, id);
       await tx.vipTier.update({
@@ -426,6 +434,7 @@ export class VipAdminService {
 
   /** The new order: every tier's id exactly once, lowest first (else 400 `tierIds` `invalid_value`). */
   async reorder(ids: string[], reason: string, by: AdminVia): Promise<AdminVipTierListDto> {
+    forgetVipExclusiveGifts();
     await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:vip-tiers'))`;
       const rows = await tx.vipTier.findMany({
@@ -458,6 +467,7 @@ export class VipAdminService {
         },
       });
     });
+    forgetVipExclusiveGifts();
     return this.list();
   }
 

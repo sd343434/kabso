@@ -57,7 +57,13 @@ export type WalletLedgerReason =
    * store refunded the purchase (reference: the purchase; the balance may go below 0).
    */
   | 'STORE_IAP'
-  | 'STORE_IAP_REVERSAL';
+  | 'STORE_IAP_REVERSAL'
+  /**
+   * v1.134-social (D381, §10.171.5): a scheduled gift's coins held (reference: the `vip_scheduled_gifts` row), and
+   * given back on delivery (then charged as its DM_GIFT), cancellation or failure (reference: the same row).
+   */
+  | 'VIP_SCHEDULED_GIFT'
+  | 'VIP_SCHEDULED_GIFT_RELEASE';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

@@ -46,7 +46,7 @@ export class GiftsController {
   /** Per-user default rate limit (§7). */
   @Get('gifts/catalogue')
   async catalogue(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest): Promise<GiftCatalogueDto> {
-    return this.gifts.catalogue(await this.language(req, auth));
+    return this.gifts.catalogue(auth.userId, await this.language(req, auth));
   }
 
   /** Per-user default rate limit (§7). */

@@ -11,6 +11,8 @@ import { DmGroupsService } from './dm-groups.service.js';
 import { DmPush } from './dm-push.js';
 import { DmService } from './dm.service.js';
 import { DmSweeper } from './dm-sweeper.js';
+import { DmScheduledGiftsController } from './dm-scheduled-gifts.controller.js';
+import { DmScheduledGiftsService } from './dm-scheduled-gifts.service.js';
 
 /**
  * v1.40-social (DRAFT, D155, CONVENTIONS §11.13): direct messages. Owns `dm_conversations`,
@@ -22,7 +24,9 @@ import { DmSweeper } from './dm-sweeper.js';
  */
 @Module({
   imports: [GiftsModule, LiveModule, MediaModule, PushModule, UsersModule, WalletModule],
-  controllers: [DmController, DmGroupsController],
-  providers: [DmService, DmGroupsService, DmPush, DmSweeper],
+  // v1.134-social (D381, §10.171.5): SCHEDULED_GIFT «هدية مؤجلة» — delivered as conversation gifts.
+  controllers: [DmController, DmGroupsController, DmScheduledGiftsController],
+  providers: [DmService, DmGroupsService, DmPush, DmSweeper, DmScheduledGiftsService],
+  exports: [DmScheduledGiftsService],
 })
 export class DmModule {}

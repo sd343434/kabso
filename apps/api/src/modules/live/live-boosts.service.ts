@@ -16,6 +16,7 @@ import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
 import { creditIn, debitIn } from '../wallet/wallet-ledger.js';
 import { WalletService } from '../wallet/wallet.service.js';
+import { grantVipMonthlyRocketsIn } from '../vip/vip-monthly-rockets.js';
 import {
   addBoostCardsIn,
   BOOST_TOPIC,
@@ -362,6 +363,13 @@ export class LiveBoostsService implements OnModuleInit, OnModuleDestroy {
     if (roomId !== undefined) await this.rooms.visibleRow(roomId, callerId);
     const now = this.clock.now();
     const at = now.toISOString();
+    // v1.134-social (D381, §10.171.4): a MONTHLY_ROCKETS holder's cards of this month, on the first read.
+    await this.prisma.$transaction((tx) =>
+      grantVipMonthlyRocketsIn(tx, callerId, now, {
+        timeZone: this.config.live.rankingsTimeZone,
+        stageMinutes: this.config.boosts.prices.map((p) => p.minutes),
+      }),
+    );
     const planned = await this.prisma.liveBoost.findMany({
       where: { cancelledAt: null, endsAt: { gt: now } },
       select: { id: true, slot: true, startsAt: true, endsAt: true, roomId: true },
