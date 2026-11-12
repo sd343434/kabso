@@ -18169,4 +18169,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletReasonVipScheduledGiftRelease => 'Scheduled gift (released)';
+
+  @override
+  String vipScheduledMeta(String when, String status) {
+    return '$when · $status';
+  }
+
+  @override
+  String vipScheduledGiftOption(String name, String coins) {
+    return '$name · $coins';
+  }
 }

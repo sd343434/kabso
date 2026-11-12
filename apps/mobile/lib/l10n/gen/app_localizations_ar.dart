@@ -18184,4 +18184,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get walletReasonVipScheduledGiftRelease => 'هدية مؤجلة (أُرجعت)';
+
+  @override
+  String vipScheduledMeta(String when, String status) {
+    return '$when · $status';
+  }
+
+  @override
+  String vipScheduledGiftOption(String name, String coins) {
+    return '$name · $coins';
+  }
 }

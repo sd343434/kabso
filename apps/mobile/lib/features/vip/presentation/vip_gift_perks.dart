@@ -211,7 +211,7 @@ class _Row extends ConsumerWidget {
           name,
         ),
       ),
-      subtitle: Text('${_when(at, localeTag)} · $status'),
+      subtitle: Text(l10n.vipScheduledMeta(_when(at, localeTag), status)),
       trailing: gift.status == VipScheduledGiftStatus.pending
           ? TextButton(
               key: VipScheduledGiftsScreen.cancelKey(gift.id),
@@ -419,7 +419,12 @@ class _VipScheduleFormState extends ConsumerState<VipScheduleForm> {
                 for (final g in gifts)
                   DropdownMenuItem(
                     value: g.code,
-                    child: Text('${g.name} · ${KFormat.grouped(g.priceCoins)}'),
+                    child: Text(
+                      l10n.vipScheduledGiftOption(
+                        g.name,
+                        KFormat.grouped(g.priceCoins),
+                      ),
+                    ),
                   ),
               ],
               onChanged: (v) => setState(() => _gift = v),

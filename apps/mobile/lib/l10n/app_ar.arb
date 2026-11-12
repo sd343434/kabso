@@ -15387,5 +15387,9 @@
   "walletReasonVipScheduledGift": "هدية مؤجلة (محجوزة)",
   "@walletReasonVipScheduledGift": {"description": "D381 ledger VIP_SCHEDULED_GIFT."},
   "walletReasonVipScheduledGiftRelease": "هدية مؤجلة (أُرجعت)",
-  "@walletReasonVipScheduledGiftRelease": {"description": "D381 ledger VIP_SCHEDULED_GIFT_RELEASE."}
+  "@walletReasonVipScheduledGiftRelease": {"description": "D381 ledger VIP_SCHEDULED_GIFT_RELEASE."},
+  "vipScheduledMeta": "{when} · {status}",
+  "@vipScheduledMeta": {"description": "D381: a scheduled gift's time and status.", "placeholders": {"when": {"type": "String"}, "status": {"type": "String"}}},
+  "vipScheduledGiftOption": "{name} · {coins}",
+  "@vipScheduledGiftOption": {"description": "D381: a gift in the form's list with its price.", "placeholders": {"name": {"type": "String"}, "coins": {"type": "String"}}}
 }

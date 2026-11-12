@@ -20,7 +20,6 @@ library;
 import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
-import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/vip/data/vip_gift_perks_repository.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';

@@ -151,7 +151,7 @@ class _MineVip implements VipRepository {
 
 /// The catalogue with the caller's VIP gifts and quantities.
 class _VipGiftsRepo extends FakeLiveGiftRepository {
-  _VipGiftsRepo({required super.ar}) : super(coins: 100000);
+  new({required super.ar}) : super(coins: 100000);
 
   @override
   Future<GiftCatalogue> catalogue() async {

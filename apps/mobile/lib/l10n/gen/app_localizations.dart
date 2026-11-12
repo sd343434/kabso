@@ -30603,6 +30603,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'هدية مؤجلة (أُرجعت)'**
   String get walletReasonVipScheduledGiftRelease;
+
+  /// D381: a scheduled gift's time and status.
+  ///
+  /// In ar, this message translates to:
+  /// **'{when} · {status}'**
+  String vipScheduledMeta(String when, String status);
+
+  /// D381: a gift in the form's list with its price.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} · {coins}'**
+  String vipScheduledGiftOption(String name, String coins);
 }
 
 class _AppLocalizationsDelegate

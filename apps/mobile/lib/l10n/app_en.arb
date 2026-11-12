@@ -5621,5 +5621,7 @@
   "vipScheduledBadTime": "Pick a time at least 5 minutes ahead and within a year",
   "cpSendBodyFree": "Free with your VIP — {left} free requests left this month. Nothing is charged, so nothing comes back.",
   "walletReasonVipScheduledGift": "Scheduled gift (held)",
-  "walletReasonVipScheduledGiftRelease": "Scheduled gift (released)"
+  "walletReasonVipScheduledGiftRelease": "Scheduled gift (released)",
+  "vipScheduledMeta": "{when} · {status}",
+  "vipScheduledGiftOption": "{name} · {coins}"
 }
