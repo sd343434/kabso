@@ -42,7 +42,7 @@ export interface StaffRecruiterLookupDto {
     username: string;
     displayName: string;
     avatarUrl: string | null;
-    role: 'MODERATION' | 'BD';
+    role: 'MODERATION' | 'BD' | 'TALENT';
   } | null;
 }
 

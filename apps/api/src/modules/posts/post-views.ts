@@ -326,7 +326,22 @@ export const USER_SUMMARY_SELECT = {
   role: true,
   staffNumber: { select: { number: true } },
   adminPermissions: {
-    where: { permission: { in: ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE', 'BD'] as AdminPermission[] } },
+    where: {
+      permission: {
+        // v1.139-social (D387): the operations roles hold a staff ID too.
+        in: [
+          'OWNER',
+          'MODERATION',
+          'SUPPORT',
+          'FINANCE',
+          'BD',
+          'LIVE_OPS',
+          'TALENT',
+          'VIP_CARE',
+          'COMMUNITY',
+        ] as AdminPermission[],
+      },
+    },
     select: { permission: true },
     take: 1,
   },

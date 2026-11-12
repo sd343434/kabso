@@ -27336,7 +27336,7 @@ components:
                 username: { type: string }
                 displayName: { type: string }
                 avatarUrl: { type: [string, 'null'] }
-                role: { type: string, enum: [MODERATION, BD] }
+                role: { type: string, enum: [MODERATION, BD, TALENT], description: "(v1.139-social, D387) TALENT recruits like BD." }
             - type: 'null'
     StaffRecruitCounts:
       type: object

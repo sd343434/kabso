@@ -627,6 +627,24 @@ export enum AuditAction {
    * reason, via}.
    */
   RECHARGE_POINTS_ADJUST = 'recharge_points.adjust',
+  // ---- v1.139-social (D387, CONVENTIONS §10.176): operations staff roles ---------------------------------------------
+  /** A slot of the shift schedule added / changed / removed {slotId, userId, weekday, startMinute, endMinute, reason}. */
+  STAFF_SCHEDULE_CREATE = 'staff.schedule.create',
+  STAFF_SCHEDULE_UPDATE = 'staff.schedule.update',
+  STAFF_SCHEDULE_DELETE = 'staff.schedule.delete',
+  /** A compensation granted within the limits {compensationId, kind, valueCoins, …, reason}. */
+  STAFF_COMPENSATION_GRANT = 'staff.compensation.grant',
+  /** A compensation over a limit, waiting for the OWNER {compensationId, overLimit, …}. */
+  STAFF_COMPENSATION_REQUEST = 'staff.compensation.request',
+  STAFF_COMPENSATION_APPROVE = 'staff.compensation.approve',
+  STAFF_COMPENSATION_REJECT = 'staff.compensation.reject',
+  /** The compensation limits {before, after, reason}. */
+  STAFF_COMPENSATION_SETTINGS = 'staff.compensation.settings',
+  /** The official social accounts {accountId, before, after} / {ids}. */
+  SOCIAL_ACCOUNT_CREATE = 'site.social_account.create',
+  SOCIAL_ACCOUNT_UPDATE = 'site.social_account.update',
+  SOCIAL_ACCOUNT_DELETE = 'site.social_account.delete',
+  SOCIAL_ACCOUNT_REORDER = 'site.social_account.reorder',
 }
 
 export interface AuditEntry {

@@ -182,7 +182,7 @@ export class AdminUsersController {
   constructor(private readonly users: AdminUsersService) {}
 
   @Get('dashboard')
-  @RequireCapability('dashboard.view')
+  @RequireCapability('revenue.view')
   dashboard() {
     return this.users.dashboard();
   }

@@ -26,6 +26,11 @@ export const PANEL_STAFF_ROLES = [
   'FINANCE',
   // v1.75-live (D285, §10.96.13): «تطوير الأعمال» — recruitment only (never watch staff).
   'BD',
+  // v1.139-social (D387, §10.176.1): the operations roles (never watch staff).
+  'LIVE_OPS',
+  'TALENT',
+  'VIP_CARE',
+  'COMMUNITY',
 ] as const satisfies readonly AdminPermission[];
 
 type Db = Pick<PrismaService, '$queryRaw'> | Prisma.TransactionClient;
@@ -147,6 +152,11 @@ export const LIMITED_STAFF_ROLES = [
   'FINANCE',
   // v1.75-live (D285, §10.96.13): BD is a limited staff account too (no live, no levels, the team picture).
   'BD',
+  // v1.139-social (D387, §10.176.1): so are the operations roles (after the others: the first held names the line).
+  'LIVE_OPS',
+  'TALENT',
+  'VIP_CARE',
+  'COMMUNITY',
 ] as const satisfies readonly AdminPermission[];
 export type LimitedStaffRole = (typeof LIMITED_STAFF_ROLES)[number];
 

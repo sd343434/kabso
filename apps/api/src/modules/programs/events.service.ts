@@ -328,7 +328,7 @@ interface RankRow {
  * popularity board, the data center and the creator center already read — no new counting path.
  * Counterparts (gift senders, followers) must be ACTIVE.
  */
-function scoresSql(metric: EventMetric, from: Date, to: Date): Prisma.Sql {
+export function scoresSql(metric: EventMetric, from: Date, to: Date): Prisma.Sql {
   switch (metric) {
     case 'GIFT_COINS_RECEIVED':
       return Prisma.sql`

@@ -104,6 +104,7 @@ export class AdminAgenciesService {
   }
 
   async table(q: AgenciesQuery, ctx: AdminContext) {
+    const revenue = ctx.capabilities.includes('revenue.view');
     const text = q.q?.trim().toLowerCase().replace(/^@/, '');
     const where: Prisma.AgencyWhereInput = {
       ...(q.rank ? { rank: q.rank } : {}),
@@ -179,8 +180,9 @@ export class AdminAgenciesService {
       parentInviteCode: a.parent?.inviteCode ?? null,
       activeHosts: a._count.hosts,
       subAgencies: a._count.subAgencies,
-      monthHostCherries: Number(a.months[0]?.hostCherries ?? 0n),
-      monthCommission: Number(a.months[0]?.commission ?? 0n),
+      // v1.139-social (D387, §10.176.2): agency earnings are the OWNER's (`revenue.view`); null for anyone else.
+      monthHostCherries: revenue ? Number(a.months[0]?.hostCherries ?? 0n) : null,
+      monthCommission: revenue ? Number(a.months[0]?.commission ?? 0n) : null,
       createdAt: a.createdAt.toISOString(),
     }));
     return tableResult(
@@ -211,7 +213,8 @@ export class AdminAgenciesService {
     );
   }
 
-  async detail(id: string, now = new Date()) {
+  /** v1.139-social (D387, §10.176.2): `revenue` false → every cherry and commission figure is null. */
+  async detail(id: string, revenue = true, now = new Date()) {
     const month = this.month(now);
     const since = dateValue(addMonths(monthKey(now, this.zone), -5));
     const a = await this.prisma.agency.findUnique({
@@ -349,19 +352,19 @@ export class AdminAgenciesService {
         activatedAt: h.activatedAt.toISOString(),
         endedAt: h.endedAt?.toISOString() ?? null,
         user: personDto(h.host),
-        monthCherries: Number(hostMonth.get(h.host.id)?._sum.hostCherries ?? 0n),
-        monthCommission: Number(hostMonth.get(h.host.id)?._sum.commission ?? 0n),
+        monthCherries: revenue ? Number(hostMonth.get(h.host.id)?._sum.hostCherries ?? 0n) : null,
+        monthCommission: revenue ? Number(hostMonth.get(h.host.id)?._sum.commission ?? 0n) : null,
       })),
       months: a.months.map((m) => ({
         month: m.month.toISOString().slice(0, 7),
-        hostCherries: Number(m.hostCherries),
-        commission: Number(m.commission),
-        parentCommission: Number(m.parentCommission),
+        hostCherries: revenue ? Number(m.hostCherries) : null,
+        commission: revenue ? Number(m.commission) : null,
+        parentCommission: revenue ? Number(m.parentCommission) : null,
       })),
       lifetime: {
-        hostCherries: Number(lifetime._sum.hostCherries ?? 0n),
-        commission: Number(lifetime._sum.commission ?? 0n),
-        parentCommission: Number(lifetime._sum.parentCommission ?? 0n),
+        hostCherries: revenue ? Number(lifetime._sum.hostCherries ?? 0n) : null,
+        commission: revenue ? Number(lifetime._sum.commission ?? 0n) : null,
+        parentCommission: revenue ? Number(lifetime._sum.parentCommission ?? 0n) : null,
       },
       openComplaints,
     };

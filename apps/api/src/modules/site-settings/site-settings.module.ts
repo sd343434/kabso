@@ -8,6 +8,8 @@ import {
   SiteSettingsController,
 } from './site-settings.controller.js';
 import { SiteSettingsService } from './site-settings.service.js';
+import { AdminSocialAccountsController, OfficialSocialAccountsController } from './social-accounts.controller.js';
+import { SocialAccountsService } from './social-accounts.service.js';
 
 /**
  * v1.60-social (D191/D192, CONVENTIONS §10.54.6): the public website's settings — owns `site_settings`. Public read
@@ -24,8 +26,11 @@ import { SiteSettingsService } from './site-settings.service.js';
     AdminCameraFxController,
     AdminLevelTickerController,
     AdminGlobalStripsController,
+    // v1.139-social (D387, §10.176.5): the official social accounts.
+    OfficialSocialAccountsController,
+    AdminSocialAccountsController,
   ],
-  providers: [SiteSettingsService],
+  providers: [SiteSettingsService, SocialAccountsService],
   exports: [SiteSettingsService],
 })
 export class SiteSettingsModule {}

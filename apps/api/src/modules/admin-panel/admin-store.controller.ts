@@ -148,7 +148,7 @@ export class AdminStoreController {
 
   /** The latest sales (≤ `limit`, 50 by default) and the totals, of one item or all. */
   @Get('sales')
-  @RequireCapability('catalog.view')
+  @RequireCapability('revenue.view')
   sales(
     @Query(new ZodValidationPipe(storeSalesQuery)) q: z.output<typeof storeSalesQuery>,
   ): Promise<AdminStoreSalesDto> {
