@@ -18,6 +18,16 @@ import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+/// v1.128-social (D373, §10.165): the entry car's bottom band. Owner,
+/// 2026-11-11: «نصف الشاشة من الاسفل وليس بالمنتصف» and then «وليس حجم
+/// بنصف شاشة بل ٧٠٪ من شاشة من الاسفل للاعلى» — a HALF_SCREEN car (the
+/// wire name is kept) plays in the screen's bottom 70 %, measured up from
+/// its physical bottom edge.
+abstract final class KEntryCar {
+  /// The band's height as a part of the screen's height.
+  static const double bottomBandFraction = 0.70;
+}
+
 /// D258 (§10.94): a VIP's entrance. When a `join` data message's `user`
 /// carries `vip`, the room shows the member's ENTRY_BANNER (the owner's
 /// banner art with «دخل سارة البث» on a dark plate, sliding in like the
@@ -31,7 +41,8 @@ import 'package:material_ui/material_ui.dart';
 /// isolate); the car starts only when it can play ([carWait] to get
 /// there, else it is skipped — its file stays read for the next time) and
 /// then has its own length (D331: the whole file, at most [carLimit], an
-/// MP4 too; full screen, [carFitFor]); its SVGA's own sound
+/// MP4 too; full screen, [carFitFor] — or, D373, in the screen's bottom 70 %
+/// [halfBand] when the panel set the car HALF_SCREEN); its SVGA's own sound
 /// plays with it while «المؤثرات الصوتية» is on (the banner's, when there
 /// is no car); one entrance's sound at a time, none with reduced motion.
 class LiveVipEntranceLayer extends ConsumerStatefulWidget {
@@ -107,6 +118,43 @@ class LiveVipEntranceLayer extends ConsumerStatefulWidget {
       canvas.isEmpty || canvas.width <= canvas.height
       ? carFit
       : BoxFit.fitWidth;
+
+  /// v1.128-social (D373, §10.165; owner: «سيارات الدخول ستكون اما بشاشة
+  /// كاملة او نصف الشاشة … من لوحة الادمن انت تحدد»): how a car plays is
+  /// the server's value for that car ([VipPerk.entryDisplay]: the VIP
+  /// ENTRY_EFFECT perk's, or the worn store car's); none (an older server)
+  /// is [EntryDisplay.fullScreen], today's look (D331).
+  static EntryDisplay displayOf(VipPerk car) =>
+      car.entryDisplay ?? EntryDisplay.fullScreen;
+
+  /// D373: a HALF_SCREEN car's band is this part of the screen's height,
+  /// measured up from its bottom edge ([KEntryCar.bottomBandFraction]).
+  static const double halfBandHeightFactor = KEntryCar.bottomBandFraction;
+
+  /// D373: in its band the car is drawn whole (its aspect kept): the band's
+  /// full width for a car wider than the band, its full height for a taller
+  /// one, its drawn bottom on the band's bottom (the screen's bottom edge,
+  /// [VipAnimatedArt.trimBottom] as a full-screen car). Nothing it draws
+  /// leaves the band.
+  static const BoxFit halfFit = BoxFit.contain;
+  static const Alignment halfAlignment = Alignment.bottomCenter;
+
+  /// D373: the bottom band on a [screen] (the layer's box: the whole live
+  /// screen, like the full-screen car's) — its full width and its lower
+  /// [halfBandHeightFactor] (70 %), the band's bottom on the screen's
+  /// physical bottom edge (through the bottom inset, as the full-screen
+  /// car). 596.4 of 852 dp at 393 × 852. The banner, if any, sits at the
+  /// band's top, above the car ([halfBannerTop]).
+  static Rect halfBand(Size screen) => Rect.fromLTRB(
+    0,
+    screen.height * (1 - halfBandHeightFactor),
+    screen.width,
+    screen.height,
+  );
+
+  /// D373: with a HALF_SCREEN car, the banner's top is the band's top (it
+  /// stays readable, above the car anchored to the bottom).
+  static double halfBannerTop(Size screen) => halfBand(screen).top;
 
   /// D331: how long after it starts the layer lets a car of [length] play
   /// (its length and [carGrace], at most [carLimit]).
@@ -322,10 +370,46 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     final car = current.car;
     // D272: the SVGA's own sound, while the app's sound effects are on.
     final soundOn = ref.watch(soundEffectsProvider);
+    final half =
+        car != null &&
+        LiveVipEntranceLayer.displayOf(car) == EntryDisplay.halfScreen;
     return IgnorePointer(
       child: Stack(
         children: [
-          if (car != null && !_carDone)
+          if (car != null && !_carDone && half)
+            // D373 (owner: «نصف الشاشة من الاسفل وليس بالمنتصف … بل ٧٠٪ من
+            // شاشة من الاسفل للاعلى»): the car whole in the screen's bottom
+            // 70 %, its drawn bottom on the screen's bottom edge. Never
+            // takes taps (the layer ignores them), and plays once like a
+            // full-screen car.
+            LayoutBuilder(
+              builder: (context, box) => Stack(
+                children: [
+                  Positioned.fromRect(
+                    key: LiveVipEntranceLayer.carKey,
+                    rect: LiveVipEntranceLayer.halfBand(box.biggest),
+                    child: ClipRect(
+                      child: VipAnimatedArt(
+                        key: ValueKey('vipCar.${identityHashCode(current)}'),
+                        animation: car.animation,
+                        still: car.still,
+                        video: car.video,
+                        // The still's fit is the art's default, contain
+                        // ([LiveVipEntranceLayer.halfFit]).
+                        fitFor: (_) => LiveVipEntranceLayer.halfFit,
+                        alignment: LiveVipEntranceLayer.halfAlignment,
+                        trimBottom: true,
+                        once: true,
+                        onDone: _onCarDone,
+                        onStarted: _onCarStarted,
+                        sound: soundOn,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (car != null && !_carDone && !half)
             // D280 (owner: «تبدأ من اسفل الشاشة بحيث لا يظهر فراغ من
             // اسفل»): its art's bottom (the rows it never draws left out)
             // on the screen's bottom edge. D331 (owner: «لا تُعرض بشاشة
@@ -355,14 +439,9 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
               ),
             ),
           if (banner != null && !_bannerDone)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: VipEntranceBanner.sideMargin,
-              ),
-              child: Align(
-                // The agents' bar place (D185), above the chat.
-                alignment: const AlignmentDirectional(-1, 0.08),
-                child: _slide(
+            LayoutBuilder(
+              builder: (context, box) {
+                final bar = _slide(
                   VipEntranceBanner(
                     key: ValueKey('vipBanner.${identityHashCode(current)}'),
                     name: name,
@@ -371,8 +450,35 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
                     // The car's sound wins over the banner's.
                     sound: soundOn && car == null,
                   ),
-                ),
-              ),
+                );
+                // D373: with a half-screen car, at the top of its band,
+                // above the car.
+                if (half && !_carDone) {
+                  return Stack(
+                    children: [
+                      PositionedDirectional(
+                        top: LiveVipEntranceLayer.halfBannerTop(box.biggest),
+                        start: VipEntranceBanner.sideMargin,
+                        end: VipEntranceBanner.sideMargin,
+                        child: Align(
+                          alignment: AlignmentDirectional.topStart,
+                          child: bar,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: VipEntranceBanner.sideMargin,
+                  ),
+                  child: Align(
+                    // The agents' bar place (D185), above the chat.
+                    alignment: const AlignmentDirectional(-1, 0.08),
+                    child: bar,
+                  ),
+                );
+              },
             ),
         ],
       ),

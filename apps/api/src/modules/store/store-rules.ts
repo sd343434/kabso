@@ -105,6 +105,17 @@ export function storeExpiryAfter(owned: Date | null, days: number, now: Date): D
 
 // ---- The item's art on the wire ----------------------------------------------------------------------------------
 
+/**
+ * v1.128-social (D373, §10.165; owner: «اما بشاشة كاملة او نصف الشاشة»): how an entry car plays — the whole live screen
+ * (D331; the default, and every car before D373) or (HALF_SCREEN, labelled «الجزء السفلي (٧٠٪)») the screen's bottom
+ * 70 % (owner: «بل ٧٠٪ من شاشة من الاسفل للاعلى»). Set in the panel per store entry car and per VIP ENTRY_EFFECT perk; read for an entry car only.
+ */
+export const ENTRY_DISPLAYS = ['FULL_SCREEN', 'HALF_SCREEN'] as const;
+export type EntryDisplay = (typeof ENTRY_DISPLAYS)[number];
+
+/** The kind (a store item) or perk code (a VIP perk) whose art is an entry car, the only one with a display. */
+export const ENTRY_CAR_KIND = 'ENTRY_EFFECT';
+
 /** The columns of a store item's art. */
 export const STORE_ART_SELECT = {
   still: true,
@@ -113,6 +124,8 @@ export const STORE_ART_SELECT = {
   animationAlpha: true,
   artWidth: true,
   artHeight: true,
+  /** v1.128-social (D373): read for an entry car only (`StoreWornItem.entryDisplay`). */
+  entryDisplay: true,
 } as const;
 
 export interface StoreArtRow {
@@ -122,6 +135,8 @@ export interface StoreArtRow {
   readonly animationAlpha: 'NONE' | 'SIDE_BY_SIDE' | null;
   readonly artWidth: number | null;
   readonly artHeight: number | null;
+  /** v1.128-social (D373): the entry car's display (absent in older selects: FULL_SCREEN). */
+  readonly entryDisplay?: EntryDisplay;
 }
 
 /** `StoreArt`: the still, the animation (SVGA or MP4 — `alpha` set for MP4) and the art's size. */
@@ -148,6 +163,8 @@ export function storeArtDto(row: StoreArtRow): StoreArtDto {
 /** `StoreWornItem`: a store item worn now (its bag code and art). */
 export interface StoreWornItemDto extends StoreArtDto {
   code: string;
+  /** v1.128-social (D373, §10.165): the entry car only (`wear.entryEffect`) — how it plays; absent for other kinds. */
+  entryDisplay?: EntryDisplay;
 }
 
 /**
@@ -187,7 +204,12 @@ export function storeWearOf(rows: readonly WornStoreRow[] | undefined, now: Date
     if (!art || (r.expiresAt !== null && r.expiresAt <= now)) continue;
     const key = WEAR_KEY[(r.category ?? 'AVATAR_FRAME') as StoreKind] as keyof StoreWearDto | undefined;
     if (!key) continue;
-    wear[key] = { code: r.itemCode, ...storeArtDto(art) };
+    wear[key] = {
+      code: r.itemCode,
+      ...storeArtDto(art),
+      // v1.128-social (D373): the car's display, from the server — never guessed by the app.
+      ...(key === 'entryEffect' ? { entryDisplay: art.entryDisplay ?? 'FULL_SCREEN' } : {}),
+    };
     any = true;
   }
   return any ? wear : null;

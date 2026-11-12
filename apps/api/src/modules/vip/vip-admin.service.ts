@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { GiftArtError, giftArtUrl, uploadGiftArt } from '../gifts/gift-art.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
+import { ENTRY_CAR_KIND, type EntryDisplay } from '../store/store-rules.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
 import {
   VIP_BUILT_PERKS,
@@ -42,6 +43,8 @@ export interface AdminVipPerkDto {
   artHeight: number | null;
   /** D258: the perk's number for this tier (bullets / coins a day, level speed-up %); null otherwise. */
   amount: number | null;
+  /** v1.128-social (D373, §10.165): the ENTRY_EFFECT perk's display «طريقة العرض»; null for every other perk. */
+  entryDisplay: EntryDisplay | null;
 }
 
 /** v1.83-social (D258): `AdminVipUpload`. */
@@ -110,6 +113,7 @@ function perkDto(p: VipTierPerk): AdminVipPerkDto {
     artWidth: p.artWidth,
     artHeight: p.artHeight,
     amount: p.amount,
+    entryDisplay: p.code === ENTRY_CAR_KIND ? p.entryDisplay : null,
   };
 }
 
@@ -141,6 +145,8 @@ function snapshot(t: TierWithPerks): Prisma.InputJsonObject {
       artWidth: p.artWidth,
       artHeight: p.artHeight,
       amount: p.amount,
+      // v1.128-social (D373): the entry car's display, audited before / after.
+      ...(p.code === ENTRY_CAR_KIND ? { entryDisplay: p.entryDisplay } : {}),
     })),
   };
 }
@@ -383,6 +389,15 @@ export class VipAdminService {
 
   /** Replaces the tier's perks with [perks], in that order. */
   private async writePerks(tx: Tx, tierId: string, perks: readonly VipPerkInput[]): Promise<void> {
+    // v1.128-social (D373): a perk sent without `entryDisplay` (an older panel) keeps the one it had.
+    const kept = new Map(
+      (
+        await tx.vipTierPerk.findMany({
+          where: { tierId, code: ENTRY_CAR_KIND },
+          select: { code: true, entryDisplay: true },
+        })
+      ).map((p) => [p.code, p.entryDisplay]),
+    );
     await tx.vipTierPerk.deleteMany({ where: { tierId } });
     if (perks.length === 0) return;
     await tx.vipTierPerk.createMany({
@@ -401,6 +416,7 @@ export class VipAdminService {
         artHeight: p.artHeight ?? null,
         // D258: only the perks that take a number keep one.
         amount: VIP_PERK_AMOUNTS[p.code] ? (p.amount ?? null) : null,
+        entryDisplay: p.entryDisplay ?? kept.get(p.code) ?? 'FULL_SCREEN',
       })),
     });
   }

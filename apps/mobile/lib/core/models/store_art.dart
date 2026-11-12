@@ -18,12 +18,38 @@ enum ArtVideo {
       values.where((v) => v.wire == wire).firstOrNull;
 }
 
+/// v1.128-social (D373, §10.165; owner: «سيارات الدخول ستكون اما بشاشة كاملة
+/// او نصف الشاشة»): how an entry car plays, set in the admin panel per car —
+/// over the whole live screen ([fullScreen], D331: every car before D373) or
+/// in a band about half the screen high above the chat ([halfScreen]). The
+/// server's value; an app that reads none (an older server) or an unknown
+/// one plays the car full screen.
+enum EntryDisplay {
+  fullScreen('FULL_SCREEN'),
+  halfScreen('HALF_SCREEN');
+
+  new(this.wire);
+
+  final String wire;
+
+  /// Null for anything else (the car then plays full screen).
+  static EntryDisplay? fromWire(Object? wire) =>
+      values.where((v) => v.wire == wire).firstOrNull;
+}
+
 /// `StoreArt`: the still (PNG / WebP) and the animation — an SVGA, or an MP4
 /// ([video] set) — and the picture's size. The still shows while the
 /// animation loads, with reduced motion and in tests.
 @immutable
 final class StoreArt {
-  const new({this.still, this.animation, this.video, this.width, this.height});
+  const new({
+    this.still,
+    this.animation,
+    this.video,
+    this.width,
+    this.height,
+    this.entryDisplay,
+  });
 
   /// Reads `StoreArt` (also the art fields of `StoreWornItem`); anything
   /// that is not a map is null.
@@ -41,6 +67,7 @@ final class StoreArt {
           : (ArtVideo.fromWire(json['alpha']) ?? ArtVideo.plain),
       width: size(json['width']),
       height: size(json['height']),
+      entryDisplay: EntryDisplay.fromWire(json['entryDisplay']),
     );
   }
 
@@ -51,6 +78,10 @@ final class StoreArt {
   final ArtVideo? video;
   final int? width;
   final int? height;
+
+  /// v1.128-social (D373): a worn entry car's display
+  /// (`StoreWornItem.entryDisplay`); null for every other kind.
+  final EntryDisplay? entryDisplay;
 
   bool get isEmpty => still == null && animation == null;
 
@@ -68,6 +99,7 @@ final class StoreArt {
     'alpha': video?.wire,
     'width': width,
     'height': height,
+    if (entryDisplay case final d?) 'entryDisplay': d.wire,
   };
 
   @override
@@ -77,10 +109,12 @@ final class StoreArt {
       other.animation == animation &&
       other.video == video &&
       other.width == width &&
-      other.height == height;
+      other.height == height &&
+      other.entryDisplay == entryDisplay;
 
   @override
-  int get hashCode => Object.hash(still, animation, video, width, height);
+  int get hashCode =>
+      Object.hash(still, animation, video, width, height, entryDisplay);
 
   @override
   String toString() => 'StoreArt($still, $animation, $video)';

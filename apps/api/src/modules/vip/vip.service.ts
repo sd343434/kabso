@@ -31,6 +31,7 @@ import {
   type VipPurchaseKind,
 } from './vip-rules.js';
 import { refuseLimitedStaff } from '../live/live-staff.js';
+import { ENTRY_CAR_KIND, type EntryDisplay } from '../store/store-rules.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -52,6 +53,10 @@ export interface VipPerkDto {
   artHeight: number | null;
   /** D258: the perk's number for this tier (bullets / coins a day, level speed-up %); null otherwise. */
   amount: number | null;
+  /**
+   * v1.128-social (D373, §10.165): how the ENTRY_EFFECT perk's car plays (set in the panel); null for every other perk.
+   */
+  entryDisplay: EntryDisplay | null;
 }
 
 /** `VipTier`: a tier on sale, in the panel's order. */
@@ -192,6 +197,7 @@ export function vipPerkDto(lang: ContentLanguage, p: VipTierPerk): VipPerkDto {
     artWidth: p.artWidth,
     artHeight: p.artHeight,
     amount: p.amount,
+    entryDisplay: p.code === ENTRY_CAR_KIND ? p.entryDisplay : null,
   };
 }
 

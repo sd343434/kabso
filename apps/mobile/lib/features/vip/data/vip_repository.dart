@@ -40,6 +40,7 @@ final class VipPerk {
     this.artHeight,
     this.amount,
     this.video,
+    this.entryDisplay,
   });
 
   /// D270 (§10.98.4): a store item worn, as the perk of its kind (the store
@@ -53,6 +54,7 @@ final class VipPerk {
     artWidth: art.width,
     artHeight: art.height,
     video: art.video,
+    entryDisplay: art.entryDisplay,
   );
 
   factory fromJson(Map<String, dynamic> json) => VipPerk(
@@ -65,6 +67,7 @@ final class VipPerk {
     artWidth: _intOrNull(json['artWidth']),
     artHeight: _intOrNull(json['artHeight']),
     amount: _intOrNull(json['amount']),
+    entryDisplay: EntryDisplay.fromWire(json['entryDisplay']),
   );
 
   final String code;
@@ -85,6 +88,10 @@ final class VipPerk {
 
   /// D270: the [animation] is an MP4 (a store item's art), else an SVGA.
   final ArtVideo? video;
+
+  /// v1.128-social (D373, §10.165): the ENTRY_EFFECT perk's (or worn store
+  /// car's) display, set in the panel; null: full screen (today's look).
+  final EntryDisplay? entryDisplay;
 }
 
 /// `VipTier`: a tier on sale, in the panel's order ([level] 1 … n).

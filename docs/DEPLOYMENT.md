@@ -4317,3 +4317,21 @@ CONVENTIONS §10.164 (owner 2026-11-11). Two migrations, no new setting, no new 
   comment by its sender and has no gift button; it ignores the new fields, the notification type and the ledger reason.
 - **Panel:** nothing to deploy; the user page's coin ledger lists the reason `CONTENT_GIFT` and the cherry ledger the
   author's `GIFT_RECEIVED`, as for live gifts.
+
+### 5.118 An entry car plays full screen or half screen «شاشة كاملة / نصف الشاشة» (D373; migration `20270502090000_entry_car_display`) — [IMPLEMENTED, draft contract v1.128-social; not deployed, not device-tested]
+
+CONVENTIONS §10.165 (owner 2026-11-11). One migration, no new setting, no new secret, no new host.
+
+- **Migration** `20270502090000_entry_car_display` (the usual `migrate` job, as the migration role; it refuses a
+  superuser like every recent migration): enum `entry_display` (FULL_SCREEN, HALF_SCREEN) and the columns
+  `store_items.entry_display` and `vip_tier_perks.entry_display`, `NOT NULL DEFAULT 'FULL_SCREEN'`. A constant default
+  is a catalogue-only change (no table rewrite, a short lock). No new table, so no grant: the columns follow their
+  tables' runtime grants.
+- **Nothing changes on deploy:** every existing car is FULL_SCREEN, today's look (D331). The owner chooses «الجزء السفلي (٧٠٪)»
+  (HALF_SCREEN: the screen's bottom 70 %) per car afterwards — in «المتجر» (an entry car's form) and in «VIP» (the ENTRY_EFFECT perk row of each tier). A
+  half-screen car looks best with wide art (about 4 : 3 or wider); a tall one is drawn whole, smaller, in the screen's bottom 70 %.
+- **Order:** deploy the API image (the migration runs first) → the admin panel → ship the APK. An older app ignores the
+  field and keeps playing every car full screen; an older panel never sends it (a VIP perk list resent without it keeps
+  each perk's display).
+- **Rollback:** the previous API image ignores the columns (they stay, harmless); the previous panel and app ignore the
+  field. Dropping the columns is not needed.
