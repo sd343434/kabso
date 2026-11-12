@@ -123,6 +123,10 @@ class PushPayload {
     }
     // D227: the identity check's result.
     if (type is String && type.startsWith('KYC_')) return AppRoutes.agency;
+    // D386: the account category's verification → Edit profile.
+    if (type == 'CATEGORY_VERIFIED' || type == 'CATEGORY_REVIEWED') {
+      return AppRoutes.editProfile;
+    }
     // D217: a referral's cherries taken back.
     if (type == 'REFERRAL_REWARD_REVERSED') return AppRoutes.walletCherries;
     // D290: a level-raise request's result (the supporter: their levels).

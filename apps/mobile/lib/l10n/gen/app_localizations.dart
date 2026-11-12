@@ -31881,6 +31881,378 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.'**
   String get waInAppHint;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'قارئ قرآن'**
+  String get categoryQuranReciter;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'راوٍ'**
+  String get categoryStoryteller;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'كاتب'**
+  String get categoryWriter;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'صحفي'**
+  String get categoryJournalist;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'مصوّر'**
+  String get categoryPhotographer;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'ممثل'**
+  String get categoryActor;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'كوميدي'**
+  String get categoryComedian;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'خطّاط'**
+  String get categoryCalligrapher;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'مصمّم'**
+  String get categoryDesigner;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'طاهٍ'**
+  String get categoryChef;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'معلّم / مدرّب'**
+  String get categoryTeacher;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'دي جي'**
+  String get categoryDj;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'رحّالة'**
+  String get categoryTraveler;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الموسيقى'**
+  String get categoryFamilyMusic;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'التلاوة والرواية'**
+  String get categoryFamilyReciter;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكلمة'**
+  String get categoryFamilyWord;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الفنون البصرية'**
+  String get categoryFamilyVisual;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأداء والمحتوى'**
+  String get categoryFamilyPerformer;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرياضة والألعاب'**
+  String get categoryFamilySportsGames;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'أسلوب الحياة'**
+  String get categoryFamilyLifestyle;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'عام'**
+  String get categoryFamilyPublic;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'أعمالي'**
+  String get featuredWorks;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'تلاواتي'**
+  String get featuredRecitations;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'حكاياتي'**
+  String get featuredStories;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'قصائدي'**
+  String get featuredPoems;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'مقالاتي'**
+  String get featuredArticles;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'تقاريري'**
+  String get featuredReports;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'برنامجي'**
+  String get featuredProgram;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'ألعابي'**
+  String get featuredGames;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'إنجازاتي'**
+  String get featuredAchievements;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'معرضي'**
+  String get featuredGallery;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأكثر مشاهدة'**
+  String get featuredMostViewed;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'المميز'**
+  String get featuredHighlights;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'تثبيت في «{section}»'**
+  String featuredPinIn(String section);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء التثبيت من «{section}»'**
+  String featuredUnpinFrom(String section);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'ثُبّت في «{section}»'**
+  String featuredPinned(String section);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغي التثبيت'**
+  String get featuredUnpinned;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب'**
+  String get featuredReorder;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب لتغيير الترتيب. حتى ٦ منشورات.'**
+  String get featuredReorderHint;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ الترتيب'**
+  String get featuredReorderSave;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'ثبّت حتى ٦ من منشوراتك هنا من قائمة «⋯» في المنشور.'**
+  String get featuredEmptyOwn;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'أحدث منشوراتك — ثبّت ما تريد إظهاره هنا'**
+  String get featuredAutoNote;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'قادم'**
+  String get featuredUpcoming;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'بودكاست'**
+  String get featuredPodcast;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} مشاهدة'**
+  String featuredViews(String count);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل'**
+  String get featuredPlay;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'اقرأ المزيد'**
+  String get featuredReadMore;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'فئة موثّقة: {category}'**
+  String categoryBadgeVerified(String category);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب توثيق الفئة'**
+  String get categoryVerifyRequest;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'بعد أن يوثّق فريق كابسو فئتك تأخذ صفحتك شكلها الخاص: لون وشارة وقسم مميّز في الأعلى.'**
+  String get categoryVerifyHint;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب التوثيق قيد المراجعة'**
+  String get categoryVerifyPending;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الطلب'**
+  String get categoryVerifyCancel;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'فئتك موثّقة'**
+  String get categoryVerifyVerified;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُقبل طلبك: {reason}'**
+  String categoryVerifyRejected(String reason);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسل طلب التوثيق إلى فريق كابسو'**
+  String get categoryVerifySent;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الفئة يزيل التوثيق.'**
+  String get categoryVerifyChangeWarning;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'قفل فريق كابسو فئة حسابك، فلا يمكن تغييرها الآن.'**
+  String get categoryLockedNote;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك تثبيت ٦ منشورات فقط هنا. ألغِ تثبيت واحد أولاً.'**
+  String get errorFeaturedPinLimit;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب توثيق قيد المراجعة.'**
+  String get errorCategoryVerificationPending;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'قفل فريق كابسو فئة حسابك.'**
+  String get errorAccountCategoryLocked;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'وثّق فريق كابسو فئة حسابك — صفحتك الآن بشكلها الخاص'**
+  String get notifCategoryVerified;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'راجع فريق كابسو فئة حسابك. افتح «تعديل الملف» لمعرفة التفاصيل'**
+  String get notifCategoryReviewed;
 }
 
 class _AppLocalizationsDelegate

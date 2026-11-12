@@ -893,7 +893,7 @@ describe('D386 category profiles (profile_featured_pins, category_verification_r
         `UPDATE user_profiles SET account_category = 'QURAN_RECITER', category_verified_at = now(), category_locked_at = now() WHERE user_id = '${user}'`,
       ),
     ).toBe(1);
-    await runtimeExec(`INSERT INTO posts (id, author_id, updated_at) VALUES ('${post}', '${user}', now())`);
+    await runtimeExec(`INSERT INTO posts (id, author_id, published_at, updated_at) VALUES ('${post}', '${user}', now(), now())`);
     await runtimeExec(
       `INSERT INTO profile_featured_pins (user_id, post_id, position) VALUES ('${user}', '${post}', 0)`,
     );

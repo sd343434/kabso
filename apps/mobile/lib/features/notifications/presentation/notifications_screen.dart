@@ -334,7 +334,10 @@ class NotificationRow extends StatelessWidget {
     // D175: a removed photo leads to Edit profile (to choose another); a
     // follow request to the list of requests.
     if (item.type == NotificationType.avatarRemoved ||
-        item.type == NotificationType.coverRemoved) {
+        item.type == NotificationType.coverRemoved ||
+        // D386: the category's verification → Edit profile.
+        item.type == NotificationType.categoryVerified ||
+        item.type == NotificationType.categoryReviewed) {
       return AppRoutes.editProfile;
     }
     // D384: a removed animated picture leads to «صورة متحركة».
@@ -508,6 +511,8 @@ class NotificationRow extends StatelessWidget {
       NotificationType.avatarRemoved => l10n.notifAvatarRemoved,
       NotificationType.coverRemoved => l10n.notifCoverRemoved,
       NotificationType.animatedAvatarRemoved => l10n.notifAnimatedAvatarRemoved,
+      NotificationType.categoryVerified => l10n.notifCategoryVerified,
+      NotificationType.categoryReviewed => l10n.notifCategoryReviewed,
       NotificationType.dataExportReady => l10n.notifDataExportReady,
       NotificationType.rechargeCoinsReceived => l10n.notifRechargeCoins(
         who,
@@ -877,6 +882,7 @@ NotificationKind notificationKind(
   NotificationType.familyJoinAccepted ||
   NotificationType.agencyProbationPassed ||
   NotificationType.hostApplicationApproved ||
+  NotificationType.categoryVerified ||
   NotificationType.kycApproved ||
   NotificationType.levelRaiseApproved => (
     color: p.success,
@@ -888,6 +894,11 @@ NotificationKind notificationKind(
   NotificationType.premiumUsernameExpiring => (
     color: p.warning,
     icon: Icons.schedule_rounded,
+  ),
+  // D386: the team reviewed the category (the details are in Edit profile).
+  NotificationType.categoryReviewed => (
+    color: p.info,
+    icon: Icons.verified_outlined,
   ),
   NotificationType.contentRemoved ||
   NotificationType.avatarRemoved ||

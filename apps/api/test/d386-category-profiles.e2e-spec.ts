@@ -177,6 +177,8 @@ describe('D386 category profiles', { timeout: 600_000 }, () => {
       ADMIN_TOTP_KEY: ADMIN_KEY,
       JWT_ACCESS_TTL_SECONDS: String(60 * 86_400),
       ADMIN_SESSION_IDLE_SECONDS: '86400',
+      // The posts' media URLs (the rows are stored directly; nothing is uploaded).
+      MEDIA_PUBLIC_BASE_URL: 'https://media.example.test',
     });
     owner = await p.makeAdmin(['OWNER']);
     mod = await p.makeAdmin(['MODERATION']);
@@ -603,8 +605,9 @@ describe('D386 category profiles', { timeout: 600_000 }, () => {
     expect((await ctx.http.delete(`/api/v1/posts/${ids[5]}`).set(auth(u))).status).toBe(204);
     expect((await featured(viewer, u)).body.items.map((i: { id: string }) => i.id)).toEqual([ids[3]]);
     await ctx.prisma.post.update({ where: { id: ids[3]! }, data: { moderation: 'REMOVED' } });
+    // No pin left, and a DJ's automatic pick takes videos only: nothing to show.
     const gone = await featured(viewer, u);
-    expect(gone.body.source).toBe('AUTO');
+    expect(gone.body).toMatchObject({ section: 'WORKS', source: 'NONE', items: [] });
     expect((await ctx.http.get('/api/v1/me/featured-pins').set(auth(u))).body.postIds).toEqual([]);
     expect(await ctx.prisma.profileFeaturedPin.count({ where: { userId: u.id } })).toBe(0);
 
