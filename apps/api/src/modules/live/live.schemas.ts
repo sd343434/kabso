@@ -354,9 +354,20 @@ export const startLiveRoomSchema = z
     theme: themeSchema.optional(),
     /** v1.27.3-live (D136): the wish list; absent → the host's last live's list. */
     wishGifts: wishGiftsSchema.optional(),
+    /**
+     * v1.132-social (D379, §10.169): a VIP room «غرفة VIP خاصة» (AUDIO only) — the lowest VIP tier let in (its code);
+     * the host's VIP_ROOM perk caps it (checked by the service).
+     */
+    vipMinTier: z
+      .string()
+      .regex(/^[A-Z][A-Z0-9_]{0,39}$/)
+      .optional(),
   })
   .superRefine((input, ctx) => {
     const mode = input.mode ?? 'SOLO';
+    if (input.vipMinTier !== undefined && mode !== 'AUDIO') {
+      ctx.addIssue({ code: 'custom', path: ['vipMinTier'], params: { issue: 'invalid_value' } });
+    }
     // A count outside the enum is already reported by the field itself.
     if (mode !== 'PODCAST' && input.podcast !== undefined) {
       ctx.addIssue({ code: 'custom', path: ['podcast'], params: { issue: 'invalid_value' } });
@@ -705,6 +716,14 @@ export const liveSeatEmojiSchema = z.strictObject({
     .refine((t) => isSeatEmojiToken(t), { message: 'not a known emoji', params: { issue: 'invalid_value' } }),
 });
 export type LiveSeatEmojiInput = z.output<typeof liveSeatEmojiSchema>;
+
+/** v1.132-social (D379, §10.169): `LiveChatPinRequest` — the caller's own chat message to pin (PINNED_MESSAGE). */
+export const liveChatPinSchema = z.strictObject({ messageId: z.uuid() });
+
+/** v1.132-social (D379, §10.169): `LiveSeatReserveRequest` — whom the host keeps the seat for (SEAT_RESERVE). */
+export const liveSeatReserveSchema = z.strictObject({
+  username: z.string().min(1).max(40),
+});
 
 // ---- v1.32-live (D154): the soundboard of the host and moderators --------------------------
 

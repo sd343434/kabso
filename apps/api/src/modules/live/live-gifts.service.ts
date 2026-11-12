@@ -54,6 +54,7 @@ import {
 } from './live-rooms.service.js';
 import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
 import { vipPerkAmountIn } from '../vip/vip-perks.js';
+import { vipIntValue, vipLivePerkIn } from '../vip/vip-live-perks.js';
 import { vipSpedUp } from '../vip/vip-rules.js';
 import { liveGiftSendSchema } from './live.schemas.js';
 import { quipSlot } from '../gifts/quips.js';
@@ -125,6 +126,36 @@ export interface LiveGiftData {
   readonly type: 'gift';
   readonly gift: LiveGiftDto;
 }
+
+/**
+ * v1.132-social (D379, §10.169): `VipGiftRain` — BIG_GIFT_RAIN «مطر عند الهدية الكبيرة»: a VIP member's send worth at
+ * least their perk's threshold rains coins over the whole room for `durationMs` (the perk's art — MP4, SVGA or a still
+ * — or the app's own coins without art). Apps skip it under reduced motion or the viewer's «إخفاء المؤثرات».
+ */
+export interface VipGiftRainDto {
+  readonly giftId: string;
+  readonly roomId: string;
+  readonly sender: UserSummaryDto;
+  readonly totalCoins: number;
+  readonly animation: string | null;
+  readonly still: string | null;
+  readonly video: string | null;
+  readonly artWidth: number | null;
+  readonly artHeight: number | null;
+  readonly durationMs: number;
+  readonly createdAt: string;
+}
+
+/** v1.132-social (D379): the data message `vip-rain` of topic `gift`. */
+export interface VipGiftRainData {
+  readonly type: 'vip-rain';
+  readonly rain: VipGiftRainDto;
+}
+
+/** v1.132-social (D379): a rain lasts this long in the apps. */
+export const VIP_GIFT_RAIN_MS = 4_000;
+/** v1.132-social (D379): at most one rain per room per this many milliseconds (later ones are dropped). */
+export const VIP_GIFT_RAIN_GAP_MS = 10_000;
 
 /** What the first statement of a send reads under the sender's lock (D148). */
 interface SendState {
@@ -906,6 +937,10 @@ export class LiveGiftsService {
         await this.giftTicker.offer(dto as unknown as GiftTickerGiftDto);
       });
     }
+    // v1.132-social (D379, §10.169): a VIP member's big send rains coins over the room (BIG_GIFT_RAIN).
+    this.background.run('vip gift rain', async () => {
+      await this.offerRain(callerId, dto);
+    });
     // v1.62-live (D254): a support or charm level reaching the panel's threshold is a banner in every live.
     const levelUps = created.levelUps;
     if (levelUps.length > 0) {
@@ -1539,6 +1574,46 @@ export class LiveGiftsService {
           }
         : {}),
     };
+  }
+
+  /**
+   * v1.132-social (D379, §10.169): BIG_GIFT_RAIN — the sender holds the perk (inherited too) with a threshold, and the
+   * send's coin value (`totalCoins`) reaches it: one `vip-rain` message to the room, at most one per room every
+   * {@link VIP_GIFT_RAIN_GAP_MS} (Redis; extras dropped). Best effort; never a failed send.
+   */
+  private async offerRain(senderId: string, gift: LiveGiftDto): Promise<void> {
+    const now = this.clock.now();
+    const perk = await vipLivePerkIn(this.prisma, senderId, 'BIG_GIFT_RAIN', now);
+    const threshold = perk ? vipIntValue(perk.value) : null;
+    if (!perk || threshold === null || gift.totalCoins < threshold) return;
+    const waitMs = await this.limiter.interval(
+      'live:vip-rain',
+      gift.roomId,
+      now.getTime(),
+      VIP_GIFT_RAIN_GAP_MS,
+    );
+    if (waitMs > 0) return;
+    const data: VipGiftRainData = {
+      type: 'vip-rain',
+      rain: {
+        giftId: gift.id,
+        roomId: gift.roomId,
+        sender: gift.sender,
+        totalCoins: gift.totalCoins,
+        animation: perk.animation,
+        still: perk.still,
+        video: perk.video,
+        artWidth: perk.artWidth,
+        artHeight: perk.artHeight,
+        durationMs: VIP_GIFT_RAIN_MS,
+        createdAt: now.toISOString(),
+      },
+    };
+    try {
+      await this.media.broadcastData(gift.roomId, LIVE_GIFT_TOPIC, JSON.stringify(data));
+    } catch (err) {
+      this.logger.warn({ error: safeErrorLog(err) }, 'Could not send a VIP gift rain to the media room');
+    }
   }
 
   /** Sends the gift to everyone in the media room (best effort, like every data message). */

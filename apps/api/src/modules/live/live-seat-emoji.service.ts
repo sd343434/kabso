@@ -9,7 +9,13 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { LiveRoomsService, type UserSummaryDto } from './live-rooms.service.js';
-import { SEAT_EMOJI_INTERVAL_MS, SEAT_EMOJI_MODES, SEAT_EMOJI_TOPIC } from './live-seat-emoji.js';
+import {
+  SEAT_EMOJI_INTERVAL_MS,
+  SEAT_EMOJI_MODES,
+  SEAT_EMOJI_TOPIC,
+  vipSeatEmojiIndex,
+} from './live-seat-emoji.js';
+import { vipArtPackValue, vipLivePerkIn } from '../vip/vip-live-perks.js';
 import { liveSeatEmojiSchema } from './live.schemas.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 
@@ -20,6 +26,11 @@ export interface LiveSeatEmojiDto {
   seat: number;
   user: UserSummaryDto;
   token: string;
+  /**
+   * v1.132-social (D379, §10.169): for a VIP pack token (`:vip_<n>:`), the file it plays (https; SVGA, PNG or WebP);
+   * null for the owner's packs.
+   */
+  vipArt: string | null;
   createdAt: string;
 }
 
@@ -73,6 +84,18 @@ export class LiveSeatEmojiService {
     }
 
     const now = this.clock.now();
+    // v1.132-social (D379): a VIP pack token plays the n-th file of the caller's SEAT_EMOJI pack (inherited too); no
+    // perk → 409 VIP_UNAVAILABLE `no_perk`; no such file in the pack → 400 `token`.
+    let vipArt: string | null = null;
+    const vipIndex = vipSeatEmojiIndex(parsed.data.token);
+    if (vipIndex !== null) {
+      const perk = await vipLivePerkIn(this.prisma, callerId, 'SEAT_EMOJI', now);
+      if (!perk) {
+        throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [{ field: 'perk', issue: 'no_perk' }]);
+      }
+      vipArt = vipArtPackValue(perk.value)[vipIndex - 1] ?? null;
+      if (vipArt === null) throw AppException.validation([{ field: 'token', issue: 'invalid_value' }]);
+    }
     const waitMs = await this.limiter.interval(
       'live:seat-emoji:interval',
       callerId,
@@ -94,6 +117,7 @@ export class LiveSeatEmojiService {
       seat,
       user: userSummary(user),
       token: parsed.data.token,
+      vipArt,
       createdAt: now.toISOString(),
     };
     const data: LiveSeatEmojiData = { type: 'seat-emoji', ...dto };

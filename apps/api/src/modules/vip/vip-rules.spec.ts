@@ -138,7 +138,8 @@ describe('VIP helpers', () => {
     expect(vipPerkAvailable('MONTHLY_GIFT')).toBe(false);
     // D374: the owner removed DAILY_COINS («ازلها»): no longer built.
     expect(vipPerkAvailable('DAILY_COINS')).toBe(false);
-    expect(VIP_BUILT_PERKS.size).toBe(11);
+    // D379 (§10.169): the ten live-room perks built since.
+    expect(VIP_BUILT_PERKS.size).toBe(21);
   });
 
   it("D258: a tier holds every lower tier's perks; the highest tier's perk wins for a code", () => {

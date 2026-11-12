@@ -363,6 +363,8 @@ export async function purgeAccountIn(
   await tx.$executeRaw`DELETE FROM dm_messages WHERE sender_id = ${u} AND kind <> 'GIFT'::dm_message_kind`;
   await tx.$executeRaw`DELETE FROM dm_message_hides WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM live_chat_messages WHERE user_id = ${u}`;
+  // v1.132-social (D379): seats a host kept for them, or they kept (their pins go with their messages).
+  await tx.$executeRaw`DELETE FROM live_seat_reservations WHERE user_id = ${u} OR reserved_by_id = ${u}`;
   await tx.$executeRaw`DELETE FROM family_chat_messages WHERE author_id = ${u}`;
   await tx.$executeRaw`DELETE FROM cp_confessions WHERE author_id = ${u}`;
   await tx.$executeRaw`UPDATE live_bullets SET text = '·' WHERE user_id = ${u}`;

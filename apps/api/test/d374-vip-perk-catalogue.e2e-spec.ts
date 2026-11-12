@@ -288,7 +288,9 @@ describe('D374 VIP perk catalogue', { timeout: 180_000 }, () => {
       ['VIP_ROOM', null, 'VIP_2'],
     ]);
     expect(t2.effectivePerks.find((pk) => pk.code === 'BADGE')!.available).toBe(true);
-    expect(t2.effectivePerks.find((pk) => pk.code === 'SEAT_RESERVE')!.available).toBe(false);
+    // D379 (§10.169): SEAT_RESERVE is built since; LONGER_VOICE is not.
+    expect(t2.effectivePerks.find((pk) => pk.code === 'SEAT_RESERVE')!.available).toBe(true);
+    expect(t2.effectivePerks.find((pk) => pk.code === 'LONGER_VOICE')!.available).toBe(false);
     expect((await p.send(owner, 'post', `/admin/vip/tiers/${VIP1}/enable`, { reason: 'D374' })).status).toBe(
       200,
     );

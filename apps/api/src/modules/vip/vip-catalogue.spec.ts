@@ -64,15 +64,29 @@ const NEW = [
   'LONGER_VOICE',
 ];
 
+/** v1.132-social (D379, §10.169): the live-room perks built since (from NEW). */
+const D379 = [
+  'SEAT_EMOJI',
+  'PINNED_MESSAGE',
+  'HOST_GREETING',
+  'SEAT_CROWN',
+  'BIG_GIFT_RAIN',
+  'TICKER_HOLD',
+  'VIEWER_LIST_PRIORITY',
+  'SEAT_REQUEST_PRIORITY',
+  'VIP_ROOM',
+  'SEAT_RESERVE',
+];
+
 const issues = (code: string, value: unknown) => vipPerkValueIssues(code, value).map((i) => i.issue);
 
 describe('D374 VIP perk catalogue', () => {
   it("holds the owner's list: eleven built, thirty new ones not built, MONTHLY_GIFT; codes unique; DAILY_COINS removed", () => {
     const codes = VIP_PERK_CATALOGUE.map((e) => e.code);
     expect(new Set(codes).size).toBe(codes.length);
-    expect([...VIP_CATALOGUE_BUILT].sort()).toEqual([...BUILT].sort());
-    expect([...VIP_BUILT_PERKS].sort()).toEqual([...BUILT].sort());
-    for (const c of NEW) expect(vipCatalogueEntry(c)?.built, c).toBe(false);
+    expect([...VIP_CATALOGUE_BUILT].sort()).toEqual([...BUILT, ...D379].sort());
+    expect([...VIP_BUILT_PERKS].sort()).toEqual([...BUILT, ...D379].sort());
+    for (const c of NEW) expect(vipCatalogueEntry(c)?.built, c).toBe(D379.includes(c));
     expect(vipCatalogueEntry('MONTHLY_GIFT')?.built).toBe(false);
     expect(codes).toHaveLength(BUILT.length + NEW.length + 1);
     expect(codes.length).toBeLessThanOrEqual(VIP_MAX_PERKS);

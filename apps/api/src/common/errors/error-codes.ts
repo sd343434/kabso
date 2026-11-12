@@ -381,6 +381,16 @@ export enum ErrorCode {
    * use LIVE_CAPACITY_MAX_ROOMS; `Retry-After` (LIVE_CAPACITY_RETRY_AFTER_SECONDS). Nothing was created.
    */
   LIVE_CAPACITY_FULL = 'LIVE_CAPACITY_FULL',
+  /**
+   * v1.132-social (DRAFT, D379, §10.169): a VIP room «غرفة VIP خاصة» — only VIP members of the room's tier or a higher
+   * one enter — `details: [{field: 'vipMinTier', issue: <tier code>}]`. The app shows the lock.
+   */
+  LIVE_VIP_ONLY = 'LIVE_VIP_ONLY',
+  /**
+   * v1.132-social (DRAFT, D379, §10.169): another pinned message «رسالة مثبتة» shows in this live's chat now (one at a
+   * time) — `Retry-After` is the seconds it has left. Nothing was pinned or counted.
+   */
+  LIVE_PIN_BUSY = 'LIVE_PIN_BUSY',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -556,6 +566,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.STAFF_ACCOUNT_LIMITED]: 403,
   [ErrorCode.ITEM_BADGES_INVALID]: 400,
   [ErrorCode.LIVE_CAPACITY_FULL]: 503,
+  [ErrorCode.LIVE_VIP_ONLY]: 403,
+  [ErrorCode.LIVE_PIN_BUSY]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -733,6 +745,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.STAFF_ACCOUNT_LIMITED]: 'A Kabso Team account cannot do this.',
   [ErrorCode.ITEM_BADGES_INVALID]: 'These badges cannot be set together.',
   [ErrorCode.LIVE_CAPACITY_FULL]: 'Live is busy right now, please try again shortly.',
+  [ErrorCode.LIVE_VIP_ONLY]: 'Only VIP members of this tier and above can enter this room.',
+  [ErrorCode.LIVE_PIN_BUSY]: 'Another message is pinned right now.',
 };
 
 export interface ErrorDetail {

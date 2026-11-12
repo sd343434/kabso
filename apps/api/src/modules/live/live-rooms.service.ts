@@ -55,6 +55,7 @@ import { refuseLimitedStaff, watchStaffSql } from './live-staff.js';
 import { founderSql } from '../owner-profile/founder-levels.js';
 import { LiveCapacityGuard } from './live-capacity.js';
 import type { VerificationBadgeValue } from '../verification/verification-rules.js';
+import { vipLivePerkIn } from '../vip/vip-live-perks.js';
 
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
 
@@ -221,6 +222,18 @@ export interface LiveRoomSummaryDto {
    * badge on the card and in the room. Public (the programme membership is public, like the D293 seal).
    */
   hostIsCreator: boolean;
+  /**
+   * v1.132-social (D379, §10.169): a VIP room «غرفة VIP خاصة» — only VIP members of this tier or a higher one enter
+   * (the cards and the room show the lock); null: open to all.
+   */
+  vipMinTier: LiveVipMinTierDto | null;
+}
+
+/** v1.132-social (D379): `LiveVipMinTier`. */
+export interface LiveVipMinTierDto {
+  code: string;
+  name: string;
+  color: string;
 }
 
 /** v1.56-live (D213, §10.86): `LiveStreamer`. */
@@ -401,6 +414,8 @@ export interface RoomRow {
   } | null;
   /** D265 (D264's `off`): the categories of the bag items the host wears now. */
   host_worn: string[] | null;
+  /** v1.132-social (D379): a VIP room's lowest tier let in (its rank), else null. */
+  vip_min_tier: { code: string; sortOrder: number; color: string; nameAr: string; nameEn: string } | null;
   /** D270 (§10.98): the store items the host wears now (category, code, end and art), else null. */
   host_wear:
     | {
@@ -519,6 +534,9 @@ const ROOM_COLUMNS = Prisma.sql`
          (SELECT array_agg(b.category::text) FROM user_bag_items b
            WHERE b.user_id = r.host_user_id AND b.equipped
              AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_worn,
+         (SELECT json_build_object('code', vmt.code, 'sortOrder', vmt.sort_order, 'color', vmt.color,
+                                   'nameAr', vmt.name_ar, 'nameEn', vmt.name_en)
+            FROM vip_tiers vmt WHERE vmt.id = r.vip_min_tier_id) AS vip_min_tier,
          c.slug AS category_slug, c.name_ar AS category_name_ar,
          c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
          r.wish_gifts, r.episode_number, r.podcast_topic, r.questions_open,
@@ -1188,8 +1206,59 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       roomLevel: row.room_level,
       popular: row.popular,
       hostIsCreator: row.host_is_creator === true,
+      vipMinTier: row.vip_min_tier
+        ? {
+            code: row.vip_min_tier.code,
+            name: lang === 'ar' ? row.vip_min_tier.nameAr : row.vip_min_tier.nameEn,
+            color: row.vip_min_tier.color,
+          }
+        : null,
       ...(row.host_country ? { hostCountry: row.host_country } : {}),
     };
+  }
+
+  /**
+   * v1.132-social (D379, §10.169): entering a VIP room «غرفة VIP خاصة» — the host, and a member whose active VIP tier
+   * ranks at or above the room's; every one else (guests too) → 403 LIVE_VIP_ONLY `vipMinTier` (its code). The staff's
+   * watch (moderation) never comes here (the callers let it in first). Open rooms: nothing.
+   */
+  async assertVipEntry(row: RoomRow, callerId: string | null): Promise<void> {
+    const min = row.vip_min_tier;
+    if (!min || callerId === row.host_user_id) return;
+    if (callerId !== null) {
+      const m = await this.prisma.vipMembership.findUnique({
+        where: { userId: callerId },
+        select: { expiresAt: true, tier: { select: { sortOrder: true } } },
+      });
+      if (m && m.expiresAt.getTime() > this.clock.now().getTime() && m.tier.sortOrder >= min.sortOrder)
+        return;
+    }
+    throw new AppException(ErrorCode.LIVE_VIP_ONLY, undefined, [{ field: 'vipMinTier', issue: min.code }]);
+  }
+
+  /**
+   * v1.132-social (D379): the tier a VIP room created by [callerId] lets in from — [code] must name a tier, and rank at
+   * or below the cap of the caller's VIP_ROOM perk (its value, a tier code; not set: the caller's own tier). No perk →
+   * 409 VIP_UNAVAILABLE `perk` `no_perk`; an unknown tier → 400 `vipMinTier` `not_found`; above the cap → 400
+   * `vipMinTier` `out_of_range`.
+   */
+  private async vipRoomTierId(callerId: string, code: string, now: Date): Promise<string> {
+    const perk = await vipLivePerkIn(this.prisma, callerId, 'VIP_ROOM', now);
+    if (!perk)
+      throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [{ field: 'perk', issue: 'no_perk' }]);
+    const tier = await this.prisma.vipTier.findUnique({
+      where: { code },
+      select: { id: true, sortOrder: true },
+    });
+    if (!tier) throw AppException.validation([{ field: 'vipMinTier', issue: 'not_found' }]);
+    const capCode = typeof perk.value === 'string' ? perk.value : perk.tierCode;
+    const cap =
+      capCode === perk.tierCode
+        ? perk.rank
+        : ((await this.prisma.vipTier.findUnique({ where: { code: capCode }, select: { sortOrder: true } }))
+            ?.sortOrder ?? perk.rank);
+    if (tier.sortOrder > cap) throw AppException.validation([{ field: 'vipMinTier', issue: 'out_of_range' }]);
+    return tier.id;
   }
 
   private async toRoom(row: RoomRow, lang: ContentLanguage): Promise<LiveRoomDto> {
@@ -1600,6 +1669,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     const input = parsed.data;
 
     if (!(await this.users.isEmailVerified(callerId))) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+    // v1.132-social (D379, §10.169): a VIP room's lowest tier, within the host's VIP_ROOM perk.
+    const vipMinTierId =
+      input.vipMinTier === undefined
+        ? null
+        : await this.vipRoomTierId(callerId, input.vipMinTier, this.clock.now());
 
     let categoryId: string | null = null;
     if (input.categorySlug !== undefined) {
@@ -1671,7 +1745,9 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             categoryId,
             startedAt: now,
             lastHeartbeatAt: now,
-            allowGuests: input.allowGuests ?? true,
+            // v1.132-social (D379): a VIP room never lets guests in (they hold no VIP).
+            allowGuests: vipMinTierId !== null ? false : (input.allowGuests ?? true),
+            vipMinTierId,
             // CP-011: the mode, its seat count (validated with the mode) and the theme.
             mode,
             seatCount: mode === 'PODCAST' ? PODCAST_SEAT_COUNT : (input.seatCount ?? null),
@@ -1712,6 +1788,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             categorySlug: input.categorySlug ?? null,
             mode,
             seatCount: input.seatCount ?? null,
+            ...(input.vipMinTier !== undefined ? { vipMinTier: input.vipMinTier } : {}),
             ...(podcast
               ? {
                   episodeNumber: podcast.episodeNumber,

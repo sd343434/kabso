@@ -57,7 +57,12 @@ import {
   type LiveStickersDto,
 } from './live-stickers.service.js';
 import { LiveGiftsService, type LiveGiftResultDto } from './live-gifts.service.js';
-import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
+import {
+  LiveChatService,
+  type LiveChatMessageDto,
+  type LiveChatMuteDto,
+  type LiveChatPinDto,
+} from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
 import { LiveCoverService, type LiveCoverDto } from './live-cover.service.js';
 import { LiveKicksService, type LiveKickDto } from './live-kicks.service.js';
@@ -623,6 +628,33 @@ export class LiveController {
     return this.seats.lock(requireCaller(req), roomId, seatIndex, body, await this.language(req));
   }
 
+  /**
+   * v1.132-social (D379, §10.169): SEAT_RESERVE «قفل المقعد لصديق» — the host keeps an empty seat of an AUDIO live for
+   * one person for the perk's minutes (PUT), or frees it (DELETE, idempotent).
+   */
+  @Put('rooms/:roomId/seats/:seatIndex/reservation')
+  @HttpCode(200)
+  @RateLimit(SEAT_ACTION)
+  async reserveSeat(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('seatIndex') seatIndex: string,
+    @Body() body: unknown,
+  ): Promise<LiveSeatsDto> {
+    return this.seats.reserve(requireCaller(req), roomId, seatIndex, body, await this.language(req));
+  }
+
+  @Delete('rooms/:roomId/seats/:seatIndex/reservation')
+  @HttpCode(200)
+  @RateLimit(SEAT_ACTION)
+  async releaseSeat(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('seatIndex') seatIndex: string,
+  ): Promise<LiveSeatsDto> {
+    return this.seats.release(requireCaller(req), roomId, seatIndex, await this.language(req));
+  }
+
   @Put('rooms/:roomId/moderators/:username')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
@@ -705,8 +737,34 @@ export class LiveController {
   @Get('rooms/:roomId/chat')
   @OptionalAuth()
   @RateLimit(GUEST_READ)
-  listChat(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<{ data: LiveChatMessageDto[] }> {
+  listChat(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+  ): Promise<{ data: LiveChatMessageDto[]; pin: LiveChatPinDto | null }> {
     return this.chat.list(callerOf(req), roomId);
+  }
+
+  /**
+   * v1.132-social (D379, §10.169): a VIP member pins their own message at the top of the chat (PINNED_MESSAGE). The
+   * seat actions' rate limit (§7); one pin per room at a time and the perk's pins a day are checked by the service.
+   */
+  @Post('rooms/:roomId/chat-pin')
+  @HttpCode(201)
+  @RateLimit(SEAT_ACTION)
+  pinChatMessage(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveChatPinDto> {
+    return this.chat.pin(requireCaller(req), roomId, body);
+  }
+
+  /** v1.132-social (D379): the pin showing taken down early — its author, the host or a moderator (idempotent). */
+  @Delete('rooms/:roomId/chat-pin')
+  @HttpCode(204)
+  @RateLimit(SEAT_ACTION)
+  async unpinChatMessage(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<void> {
+    await this.chat.unpin(requireCaller(req), roomId);
   }
 
   /**

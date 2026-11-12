@@ -229,7 +229,7 @@ All non-2xx responses use one envelope:
 | 409 | `WHATSAPP_CONVERSATION_ASSIGNED` | *(v1.116-social, DRAFT, D355)* The conversation belongs to another staff member: reply, claim, release or close needs it to be the caller's or unassigned (a transfer, release or close by `support.whatsapp.manage` is allowed). §10.151.4. |
 | 409 | `WHATSAPP_CONVERSATION_CLOSED` | *(v1.116-social, DRAFT, D355)* The conversation is closed: reopen it first (a new customer message reopens it by itself). §10.151.4. |
 | 502 | `WHATSAPP_SEND_FAILED` | *(v1.116-social, DRAFT, D355)* Meta refused or did not answer: `details: [{field: whatsapp \| templates, issue: meta_<code> \| http_<status>}]`. Nothing was stored; the staff member may retry. Meta's throughput codes (130429, 131056, 80007, 4) answer 429 `RATE_LIMITED` with `Retry-After: 60` instead. §10.151.4. |
-| 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). *(v1.129-social, D374)* `claimVipDailyCoins`: always `{field: "perk", issue: "retired"}` (the owner removed the daily coins). |
+| 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). *(v1.129-social, D374)* `claimVipDailyCoins`: always `{field: "perk", issue: "retired"}` (the owner removed the daily coins). *(v1.132-social, D379)* the live-room perks (§10.169): `{field: "perk", issue: "no_perk"}` — the caller holds the perk (or its value) not now (`sendLiveSeatEmoji` with a VIP token, `pinLiveChatMessage`, `startLiveRoom` with `vipMinTier`, `reserveLiveSeat`); `{field: "perk", issue: "used_up"}` — `pinLiveChatMessage`: the day's pins are used. |
 | 409 | `VIP_PRICE_CHANGED` | *(v1.82-social, DRAFT, D252)* `buyVip`: `priceCoins` differs from the tier's price now (the owner changed it in the panel). Nothing was charged; the app reloads the tiers and shows the new price. §10.93. |
 | 409 | `INSUFFICIENT_RECHARGE_POINTS` | *(v1.126-social, DRAFT, D370)* `buyVip` with `payWith: POINTS`: the caller's recharge points «نقاط الشحن» do not cover the tier's points price (also while the balance is below 0 after a reversal). Nothing was charged; the app shows the balance and how points are earned. `VIP_PRICE_CHANGED` and `VIP_UNAVAILABLE` (new issue `no_points_price`: the tier has no points price) apply to a points purchase as to a coin one. §10.163. |
 | 409 | `STORE_UNAVAILABLE` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: the item cannot be bought now — `details: [{field: "item", issue: "item_off" \| "owned_permanent"}]` (switched off in the panel; the recipient holds it with no end) or `[{field: "days", issue: "not_priced" \| "too_far"}]` (no price for that currency and duration; the end would pass 3 650 days from now). Nothing was charged. §10.98. |
@@ -241,6 +241,8 @@ All non-2xx responses use one envelope:
 | 403 | `STAFF_ACCOUNT_LIMITED` | *(v1.72-live, DRAFT, D283)* a Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) cannot do this: `details[0] = {field: staff, issue}` with `live` (go live, schedule a live, apply to host), `post_kind` (a post or reel that is not an announcement), `story`, `repost`, `family`, `vip`, `tasks`, `avatar`, `cover`, `bio` (`updateMe` with `bio`, D283b), `frame` (wear another avatar frame), `store`, `recharge_employee` (*v1.87-social, D287*: an employee of a recharge agent who became a Kabso Team account sells, buys cherries or acts on an order — §10.100); or `{field: announcement, issue: announcement}` — an account outside the team asked for an announcement. Nothing changed. §10.96.10. |
 | 400 | `ITEM_BADGES_INVALID` | *(v1.79-live, DRAFT, D289)* The panel's badges for a gift or a store item break a rule: `details: [{field: badges, issue: sound_exclusive \| duplicate_value}]` («بمؤثرات صوتية» with «بدون مؤثرات صوتية», a badge twice) or `[{field: "badges[i].until", issue: until_required \| until_not_allowed \| until_past \| until_too_far \| invalid_format}]`. Nothing changed. §10.102. |
 | 503 | `LIVE_CAPACITY_FULL` | *(v1.113-live, DRAFT, D351)* «حد الامتلاء»: `startLiveRoom` (every mode — solo, multi-guest, audio, podcast, streamer, the web studio) while the lives running now already use the server's capacity `LIVE_CAPACITY_MAX_ROOMS` (counted in video-room units; audio and podcast rooms lighter). **Transient: `Retry-After`** (seconds, `LIVE_CAPACITY_RETRY_AFTER_SECONDS`, default 60). Nothing was created. Never returned to viewers, guests, seats, PK or media tokens of existing lives. The app shows «البث مزدحم الآن، حاول بعد قليل» / "Live is busy right now, please try again shortly" with a retry button that waits out `Retry-After`. §10.148. |
+| 403 | `LIVE_VIP_ONLY` | *(v1.132-social, DRAFT, D379)* A VIP room «غرفة VIP خاصة»: `createLiveMediaToken` / `requestLiveSeat` by anyone whose active VIP tier ranks below the room's (guests too); `details: [{field: "vipMinTier", issue: <tier code>}]`. The host and the staff's watch always enter. The app shows the lock «هذه الغرفة لأعضاء VIP فما فوق». §10.169.9. |
+| 409 | `LIVE_PIN_BUSY` | *(v1.132-social, DRAFT, D379)* `pinLiveChatMessage`: another VIP pin «رسالة مثبتة» shows in this live's chat now (one at a time; refused, not queued). **`Retry-After`**: the seconds it has left. Nothing was pinned or counted. §10.169.2. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -781,6 +783,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
 | v1.126-social (draft) | 2026-11-11 | **D370 (owner 2026-11-11: «نقاط الشحن» — every recharged coin is one point, the points accumulate and never expire «النقاط لا تصفر كل شهر بل تبقى مجموع», and buy VIP «استبدل بالنقاط» beside «ادفع بالعملات الذهبية»; owner-approved points prices VIP1 2 000 000 … VIP12 400 000 000):** `getMyRechargePoints` (`GET /me/recharge-points`; `RechargePoints`, `RechargePointsEntry`, `RechargePointsReason`); `BuyVipRequest.payWith` (`VipPayWith` COINS default \| POINTS) and `pricePoints` (`priceCoins` required only with COINS); `VipTier.pricePoints` / `renewPricePoints`; `MyVip.rechargePoints`, `MyVip.renewal.pricePoints`; `VipPurchaseResult.payWith` / `pricePoints` / `listPricePoints` / `rechargePoints` (`priceCoins` 0 with POINTS); code `INSUFFICIENT_RECHARGE_POINTS` (409), `VIP_UNAVAILABLE` issue `no_points_price`; the panel's `AdminVipTier.pointsPrice` (+ create / update), `listAdminUserLedger?kind=recharge_points`, `AdminUserDetail.balances.rechargePoints` / `ledger.rechargePoints`, `adjustAdminUserRechargePoints` (`AdminRechargePointsAdjustRequest` / `Result`; audit `recharge_points.adjust`). Migration `20270430090000_recharge_points`. §4, §8, §10.163. | **Additive.** An older app sends no `payWith` and buys with coins exactly as before (the coin purchase's idempotency hash is unchanged); new response fields are ignored by older clients. No back-fill: points start with the recharges after the deploy. |
 | v1.129-social (draft) | 2026-11-11 | **D374 (owner 2026-11-11: each VIP tier gets the perks the admin PICKS in the panel, with art uploads where needed — the owner's list: the eleven built perks kept, thirty new ones registered «قريباً»; and «ازلها»: DAILY_COINS removed):** the VIP perk catalogue — `AdminVipTierList.catalogue` (`VipPerkCatalogueEntry`: code, category, ar / en title and description, `built`, `value` (`VipPerkValueSchema`: none \| int \| enum \| color \| list \| art_list \| composite), `art` (kinds SVGA / PNG / WEBP / MP4 and a size hint), `legacyAmount`), `maxPerks` (64; was 20), `artLimits` (`VipArtLimit`); `suggestedPerks` = every catalogue code; `AdminVipPerk` / `VipPerk` gain `value` (`VipPerkValue`), `video`, `category`; `AdminVipPerk.catalogued` / `retired`; `AdminVipPerkInput` gains `value` and `video`, its titles become optional (the catalogue's by default) and its `code` must be a catalogue code (400 `unknown_perk`; value issues at `perks.N.value[.…]`); `VipTier.effectivePerks` (with `VipPerk.fromTier`); `uploadAdminVipArt` `kind=video` (MP4, `contentType: video/mp4`); `claimVipDailyCoins` **deprecated** — always 409 `VIP_UNAVAILABLE` `perk` `retired`; `MyVip.dailyCoins` never sent. Migration `20270503090000_vip_perk_catalogue`. §10.93.1, §10.94.5, §10.166. | **Additive for the app** (new fields ignored by older clients; an older app hides the daily-coins row because `dailyCoins` is absent). **Stricter for the panel** (a save naming a code outside the catalogue — any free-text code, or DAILY_COINS — is refused; the new panel ships with the API). |
+| v1.132-social (draft) | 2026-11-12 | **D379 (owner 2026-11-11: the VIP perks inside live rooms):** ten D374 perks built (`built: true`) — SEAT_EMOJI (`sendLiveSeatEmoji` token `:vip_<n>:`, `LiveSeatEmoji.vipArt`), PINNED_MESSAGE (`pinLiveChatMessage` / `unpinLiveChatMessage` `POST` / `DELETE /live/rooms/{roomId}/chat-pin`, `LiveChatPinRequest`, `LiveChatPin`, `LiveChatMessageList.pin`, data `chat-pin` / `chat-unpin`), HOST_GREETING (`join` data `hostGreeting`), SEAT_CROWN (app only), BIG_GIFT_RAIN (data `vip-rain` `VipGiftRain` on topic `gift`), TICKER_HOLD (`gift-ticker` data `holdSeconds`), VIEWER_LIST_PRIORITY (`listLiveRoomViewers` order), SEAT_REQUEST_PRIORITY (`listLiveSeatRequests` order), VIP_ROOM (`StartLiveRoomRequest.vipMinTier`, `LiveRoomSummary.vipMinTier` `LiveVipMinTier`), SEAT_RESERVE (`reserveLiveSeat` / `releaseLiveSeat` `PUT` / `DELETE /live/rooms/{roomId}/seats/{seatIndex}/reservation`, `LiveSeatReserveRequest`, `LiveSeat.reservation` `LiveSeatReservation`, data `seat-reserved`); codes `LIVE_VIP_ONLY` (403), `LIVE_PIN_BUSY` (409); `VIP_UNAVAILABLE` `perk` `used_up`. Migration `20270511090000_vip_live_perks`. §4, §10.169. | **Additive** (new operations, optional fields and data message types; older apps ignore them; a VIP room's refusal is a new code an older app shows as its generic error; a reserved seat reads LOCKED to an older app). |
 | v1.117-live (draft) | 2026-11-11 | **D371 (owner: «اريد جعل سعر الرسائل العامة ب ١٠ الاف كوينز»):** a bullet message «رسالة عامة» (`sendLiveBullet`) costs **10 000 coins** instead of 15 (`LIVE_BULLET_COST_COINS`); a balance under 10 000 → 409 `INSUFFICIENT_COINS`. VIP free public messages (D258) unchanged (still free); a paid bullet still counts its coins as family points (now 10 000). §4 (409 row), §10.19. | **Behaviour change, shapes unchanged.** An older app's hint and «not enough coins» text still say 15 coins; the server charges 10 000. |
 | v1.116-live (draft) | 2026-11-11 | **D369 (owner: «الغي البث المتعدد لا اريده»): the multi-guest live is retired.** `startLiveRoom` `mode` MULTI → 400 `VALIDATION_FAILED` `mode` / `invalid_value` (as PK); `StartLiveRoomRequest.mode` enum SOLO, AUDIO, PODCAST, STREAMER. No list returns a MULTI room (`listLiveRooms` every `kind` and no kind, `listActiveLiveBoosts`); `kind=multi` stays valid and answers an empty page; `kind=party` = AUDIO; `party_all` loses MULTI. A MULTI room started before the deploy runs on until it ends (no migration, no job); `LiveRoomMode.MULTI`, the rows, `LiveConfig.seatCounts.MULTI`, the capacity weights and the panel's mode filter are kept. §10.4, §10.141, §10.162. | **Behaviour change** (a request enum value removed; lists no longer return MULTI rooms). Older apps: their multi-guest go-live is refused with 400 (the app shows its validation error); their hub and party lists simply contain no MULTI room. |
 | v1.115-live (draft) | 2026-11-11 | **D368 (owner: «بودكاست الحي يظهر في صفحة البث وليس الحفلة لكن الصوتي يظهر في صفحة الحفلة»; «ازل من بودكاست زر الكاميرة التي خلف التصنيف»):** a live VIDEO podcast (PODCAST with `LivePodcast.video`, §10.157) is listed by `listLiveRooms` `kind=solo` and `kind=video` under every hub filter, not by `kind=party_all` (audio podcasts only); `kind=podcast` keeps every podcast; «رائج» (§10.89) counts a video podcast in the video lives' top. App: the hub's camera card with the «Podcast» tag and no camera icon after the tag; a «مميز» slot pinned only where its kind lists the room. No migration, no shape change. §10.4, §10.89, §10.141, §10.161. | **Behaviour change** in list membership only (shapes unchanged). An older app sees a video podcast on its hub (`solo`) and no longer on its party page. |
@@ -12301,3 +12304,121 @@ the tier's next perk save. `claimVipDailyCoins` (`POST /me/vip/daily-coins`) sta
 app hides its claim row. The wallet ledger reason `VIP_DAILY_COINS`, the past ledger rows and `vip_daily_coin_claims`
 stay (history); the wallet keeps naming the reason «كوينز VIP اليومية». The app drops the «الخاص بي VIP» daily-coins row
 and its strings, and the purchase panel's daily-coins total line.
+
+### 10.169 The VIP perks inside live rooms *(v1.132-social, DRAFT — D379)*
+
+Owner (2026-11-11, via the coordinator): ten perks of the D374 catalogue (§10.166) are built, all inside live rooms. Each
+works for a member whose **effective** perks hold it (D258's inheritance: their tier or a lower one lists it, enabled —
+`vipLivePerkIn` / `vipPerkRankSql` in `apps/api/src/modules/vip/vip-live-perks.ts`), only while the membership is
+active, and changes nothing for anyone else. Blocks, kicks, mutes, the chat switch, the team's restrictions and the
+staff's powers always win. The catalogue flips `built: true` for the ten (titles and descriptions take the owner's
+words); their value shapes are D374's, unchanged. A perk whose value is not set gives nothing that needs it (no
+threshold → no rain; no minutes → no reservation; no `{count, seconds}` → no pin). Data messages use the existing
+topics (`chat`, `gift`, `seat-emoji`, the seat effects) and D319's retry (`LiveKitMediaProvider.broadcastData`); the live
+capacity guard (D351, §10.148) is untouched — a VIP room goes live through `startLiveRoom` like any audio room.
+
+#### 10.169.1 SEAT_EMOJI «إيموجي VIP على المقعد» (ROOM; value: art pack, ≤ 24 https files — SVGA / PNG / WebP)
+
+`sendLiveSeatEmoji` also takes the token `:vip_<n>:` (n = 1 …): the n-th file of the caller's SEAT_EMOJI pack. Without the
+perk → 409 `VIP_UNAVAILABLE` `{field: "perk", issue: "no_perk"}`; no n-th file → 400 `token` `invalid_value`. Every other
+check is D138's (seated or the host, one every 2 s). `LiveSeatEmoji.vipArt` names the file played (null for the owner's
+packs), so everyone in the room sees it whatever their own VIP. The app adds a «VIP» page to the seat-emoji picker only
+for a holder (the files of their effective perk) and plays `vipArt` for everyone (SVGA by its extension, else the
+picture).
+
+#### 10.169.2 PINNED_MESSAGE «تثبيت رسالتك أعلى الدردشة لثوانٍ» (CHAT; value `{count: 1–20 a day, seconds: 10–600}`)
+
+`POST /live/rooms/{roomId}/chat-pin` (`pinLiveChatMessage`, `LiveChatPinRequest {messageId}` → 201 `LiveChatPin`): a
+member pins **their own** TEXT message of this live for `seconds`, at most `count` pins a day (every live together; the
+day of `LIVE_RANKINGS_TIME_ZONE`, as D258's free public messages). Checks in order: visible room (404), LIVE (409
+`LIVE_ROOM_ENDED`), the body (400), a message of this live by the caller, TEXT, not deleted (404), kicked out (403
+`LIVE_KICKED`), in the room (403 `LIVE_CHAT_NOT_IN_ROOM`), muted (403 `LIVE_CHAT_MUTED`), the chat off (409
+`LIVE_CHAT_CLOSED`; not for the host), the team's chat restriction (403 `ACCOUNT_RESTRICTED`), the perk with its value
+(409 `VIP_UNAVAILABLE` `perk` `no_perk`); then under the room row's lock: **one pin per room at a time — refused, not
+queued** (CTO choice): another pin showing → 409 **`LIVE_PIN_BUSY`** with `Retry-After` (its seconds left); the day's
+pins used up → 409 `VIP_UNAVAILABLE` `perk` `used_up`. The text is masked with the host's blocked words again (the
+words may have changed since it was sent). Data message `{"type":"chat-pin","pin":LiveChatPin}` on topic `chat`.
+`DELETE /live/rooms/{roomId}/chat-pin` (`unpinLiveChatMessage`, 204, idempotent): the author, the host or a moderator
+(a moderator never takes down the host's or another moderator's pin → 403; anyone else 403) → `{"type":"chat-unpin",
+"id"}`. Deleting the message (the author, the host, a moderator, the team's tools, a report action) takes its pin down
+with it; apps drop the pin on that message's `chat-delete`. `listLiveChatMessages` gains `pin` (the one showing, or null;
+none for a reader with a block either way). Table `live_chat_pins` (deleted with the message). The app: «تثبيت» in the
+long-press menu of one's own message (holders only), the pin bar at the top of the chat with its countdown, and «إزالة»
+for the host and moderators.
+
+#### 10.169.3 HOST_GREETING «تحية المضيف الآلية» (ENTRANCE; no value)
+
+The `join` data message (topic `chat`, §10.11) gains `hostGreeting` (boolean, always sent): the joiner holds the perk
+(never for the host's own join). Only the **host's** app shows the card «VIP n دخل البث» with «رحّب»; one tap sends an
+ordinary chat line from the host («أهلاً وسهلاً بـ @name 👑», the host's language) through `sendLiveChatMessage` (the
+chat's own checks and limits). A VIP member's join line is never dropped (D265), so the card always comes.
+
+#### 10.169.4 SEAT_CROWN «تاج على المقعد» (ROOM; art: SVGA / PNG / WebP, 300 × 200)
+
+Drawn by the app from the catalogue (`VipTier.effectivePerks`, the member's `UserSummary.vip`): an animated crown above
+the avatar of a seated member (and the host's tile) while they sit; no API change. The still is used under reduced
+motion; without art nothing is drawn.
+
+#### 10.169.5 BIG_GIFT_RAIN «مطر عند الهدية الكبيرة» (GIFTS; value: threshold 1–10⁹ coins; art SVGA / MP4 / PNG / WebP)
+
+After a send commits, when the sender holds the perk with a threshold and the send's coin value (`LiveGift.totalCoins`)
+reaches it, the room gets `{"type":"vip-rain","rain":VipGiftRain}` on topic `gift`: the sender, the perk's art
+(`animation`, `still`, `video`, size) and `durationMs` (4 000). **At most one rain per room every 10 s**
+(`VIP_GIFT_RAIN_GAP_MS`, Redis; extras dropped). Best effort, never a failed send. Every viewer's app plays it over the
+room (the video, else the SVGA, else the still falling, else the app's own coins) — **skipped** under the system's
+reduced motion or the viewer's «إخفاء المؤثرات».
+
+#### 10.169.6 TICKER_HOLD «إيقاف الشريط العام مؤقتاً» (CHAT; value 1–60 s)
+
+A sender holding the perk: their gift strip (`gift-ticker`, §10.41 / D305) carries `holdSeconds` (0 otherwise) and stays
+that much longer in the apps; **within the global pacing**: the gift lane's gate (`GIFT_TICKER_GAP_MS`, one strip at a
+time across all API instances) is longer by the same time, so the next strip waits for it (a waiting strip is still one
+deep and dropped after 12 s, D178).
+
+#### 10.169.7 VIEWER_LIST_PRIORITY «اسمك أعلى قائمة المشاهدين» (ROOM; no value)
+
+`listLiveRoomViewers`: the first page starts with the holders watching now (ACTIVE, no block with the reader either way), the
+higher tier first, then the latest joined, at most 50 (`VIEWER_PRIORITY_MAX`); every page then lists the others as
+before (the holders skipped). `staff`, guests and the host are unchanged.
+
+#### 10.169.8 SEAT_REQUEST_PRIORITY «أولوية طلب المقعد عند المضيف» (ROOM; no value)
+
+`listLiveSeatRequests` (and a podcast's `handsUp`): a holder's pending request comes first, the higher tier first, then
+the queue order — unless the host said «لاحقاً» on it (a deferred hand keeps the host's choice). The host still decides;
+nothing is accepted for them. The cursor carries the priority.
+
+#### 10.169.9 VIP_ROOM «غرفة VIP خاصة» (ROOM; value: a tier code — the highest minimum the holder may set)
+
+`StartLiveRoomRequest.vipMinTier` (a tier code; **AUDIO only**, else 400 `invalid_value`): only members whose active tier
+ranks at or above it enter. The holder's perk caps it: the value's tier (not set: the holder's own tier); above → 400
+`vipMinTier` `out_of_range`; no such tier → 400 `not_found`; no perk → 409 `VIP_UNAVAILABLE` `perk` `no_perk`. A VIP room
+never lets guests in (`allowGuests` false). `LiveRoomSummary.vipMinTier` (`LiveVipMinTier {code, name, color}` or null)
+— the cards show the VIP lock. Entering: `createLiveMediaToken` (and `requestLiveSeat`) → 403 **`LIVE_VIP_ONLY`**
+`{field: "vipMinTier", issue: <tier code>}` for anyone else (guests too); the host always; the staff's watch (D273,
+moderation) always (it is let in before the check). Who is inside when their membership ends stays until they leave.
+Column `live_rooms.vip_min_tier_id` (CHECK AUDIO). The app: «غرفة VIP» in the audio go-live setup for holders (a tier
+picker up to the cap), the lock badge on the cards, and a clear lock sheet «هذه الغرفة لأعضاء VIP n فما فوق» on
+`LIVE_VIP_ONLY`.
+
+#### 10.169.10 SEAT_RESERVE «قفل المقعد لصديق» (ROOM; value 1–60 minutes)
+
+`PUT /live/rooms/{roomId}/seats/{seatIndex}/reservation` (`reserveLiveSeat`, `LiveSeatReserveRequest {username}` →
+`LiveSeats`): the **host** of an **AUDIO** live holding the perk keeps an EMPTY seat for one person for the perk's minutes
+(a seat kept before on that index, or for that person elsewhere, is replaced). 403 not the host; 409
+`LIVE_SEAT_UNAVAILABLE` not AUDIO, out of range, taken or locked, the person seated or the host; 409 `VIP_UNAVAILABLE`
+`no_perk`; 404 the person (not ACTIVE, or a block with the host); 403 `STAFF_PROTECTED` («فريق كابسو»). The seat reads
+`LOCKED` with `LiveSeat.reservation {user, until}` (an older app shows a lock); nobody else takes it (requests,
+invitations and accepts pick other seats); the person takes it like any seat (their request or an invitation the host
+accepts lands there). Released when they are seated, when the host locks / unlocks it or calls `DELETE …/reservation`
+(`releaseLiveSeat`, idempotent), or at `until` (read as free from then on; the sweeper removes it and moves the seats'
+version). The person gets a `seat-reserved` data message. Table `live_seat_reservations` (deleted with the room; account
+deletion removes theirs).
+
+#### 10.169.11 Codes, catalogue, migration
+
+New codes: 403 `LIVE_VIP_ONLY`, 409 `LIVE_PIN_BUSY` (§4). `VIP_UNAVAILABLE` gains `perk` `used_up` (and `no_perk` on the
+new operations). Migration `20270511090000_vip_live_perks` (`live_rooms.vip_min_tier_id`, `live_chat_pins`,
+`live_seat_reservations`; nothing existing changes). Rate limits: the pin, unpin, reserve and release operations use the
+seat actions' rule (§7). Not done: a VIP room cannot be opened or changed from `PATCH` after going live (the host goes live
+again); the host's greeting line is the app's text, not a stored template.
+

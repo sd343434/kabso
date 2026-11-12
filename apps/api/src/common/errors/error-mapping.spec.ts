@@ -77,6 +77,9 @@ describe('ErrorCode', () => {
         'ITEM_BADGES_INVALID',
         // v1.113-live (D351).
         'LIVE_CAPACITY_FULL',
+        // v1.132-social (D379).
+        'LIVE_VIP_ONLY',
+        'LIVE_PIN_BUSY',
         // v1.47-live (D212).
         'LIVE_QUESTIONS_CLOSED',
         // v1.56-live (D213).
@@ -371,6 +374,8 @@ describe('ErrorCode', () => {
       STAFF_ACCOUNT_LIMITED: 403,
       ITEM_BADGES_INVALID: 400,
       LIVE_CAPACITY_FULL: 503,
+      LIVE_VIP_ONLY: 403,
+      LIVE_PIN_BUSY: 409,
       LIVE_QUESTIONS_CLOSED: 409,
       LIVE_NOT_STREAMER: 409,
     });
