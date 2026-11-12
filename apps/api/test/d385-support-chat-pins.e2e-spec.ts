@@ -376,6 +376,11 @@ describe('D385 «دعم كابسو» without the WhatsApp credentials', { timeou
     expect(toAlice[0]!.body).toMatch(/^Sara · (فريق كابسو|Kabso Team): أهلًا/);
     const t = await thread(alice);
     expect(t.unreadCount).toBe(1);
+    // Owner (2026-11-12): the unread reply counts in the Messages tab badge.
+    const badge = await ctx.http.get('/api/v1/dm/unread').set(auth(alice));
+    expect(badge.status).toBe(200);
+    expectContract(badge, 'getDmUnread');
+    expect(badge.body.support).toBe(1);
     const page = await messagesOf(alice);
     const last = page.data[0]!;
     expect(last).toEqual({
@@ -393,9 +398,11 @@ describe('D385 «دعم كابسو» without the WhatsApp credentials', { timeou
     const r = await ctx.http.post('/api/v1/support/thread/read').set(auth(alice));
     expect(r.status).toBe(204);
     expect((await thread(alice)).unreadCount).toBe(0);
+    // Reading the thread clears the badge.
+    expect((await ctx.http.get('/api/v1/dm/unread').set(auth(alice))).body.support).toBe(0);
   });
 
-  it('in-app refusals: no templates, text-only staff replies, never linked or unlinked', async () => {
+  it('in-app: no templates, never linked or unlinked; a staff picture goes through the image pipeline', async () => {
     const id = (await ctx.prisma.waConversation.findFirstOrThrow({ where: { linkedUserId: alice.id } })).id;
     const tpl = await staff(support, 'post', `/conversations/${id}/messages`).send({
       type: 'TEMPLATE',
@@ -403,11 +410,62 @@ describe('D385 «دعم كابسو» without the WhatsApp credentials', { timeou
     });
     expect(tpl.status).toBe(400);
     expect(tpl.body.error.details).toEqual([{ field: 'template', issue: 'in_app' }]);
-    const media = await staff(support, 'post', `/conversations/${id}/media?mime=image/png`)
+    // Only pictures (the direct-message image rules); a broken one is refused by the pipeline.
+    const pdf = await staff(support, 'post', `/conversations/${id}/media?mime=application/pdf`)
+      .set('Content-Type', 'application/octet-stream')
+      .send(Buffer.from('%PDF-1.4'));
+    expect(pdf.status).toBe(400);
+    expect(pdf.body.error.details).toEqual([{ field: 'mime', issue: 'not_allowed' }]);
+    const broken = await staff(support, 'post', `/conversations/${id}/media?mime=image/png`)
       .set('Content-Type', 'application/octet-stream')
       .send(Buffer.from([1, 2, 3]));
-    expect(media.status).toBe(400);
-    expect(media.body.error.details).toEqual([{ field: 'channel', issue: 'in_app_text_only' }]);
+    expect(broken.status).toBeGreaterThanOrEqual(400);
+    expect(broken.status).toBeLessThan(500);
+    // VIEW cannot send one.
+    const png = await sharp({
+      create: { width: 300, height: 200, channels: 3, background: { r: 20, g: 120, b: 200 } },
+    })
+      .png()
+      .toBuffer();
+    const viewOnly = await staff(viewer, 'post', `/conversations/${id}/media?mime=image/png`)
+      .set('Content-Type', 'application/octet-stream')
+      .send(png);
+    expect(viewOnly.status).toBe(403);
+    const before = push.sent.length;
+    const audits = await ctx.prisma.auditLog.count({ where: { action: 'whatsapp.message.send' } });
+    const pic = await staff(
+      support,
+      'post',
+      `/conversations/${id}/media?mime=image/png&caption=${encodeURIComponent('الإيصال المطلوب')}`,
+    )
+      .set('Content-Type', 'application/octet-stream')
+      .send(png);
+    expect(pic.status, JSON.stringify(pic.body)).toBe(201);
+    expectContract(pic, 'sendStaffWhatsAppMedia');
+    expect(pic.body).toMatchObject({ type: 'IMAGE', media: { state: 'STORED' } });
+    expect(await ctx.prisma.auditLog.count({ where: { action: 'whatsapp.message.send' } })).toBe(audits + 1);
+    // The person sees a picture (a re-encoded asset), with the first name only.
+    const page = await messagesOf(alice);
+    expect(page.data[0]).toMatchObject({
+      id: pic.body.id,
+      mine: false,
+      kind: 'IMAGE',
+      text: 'الإيصال المطلوب',
+      staff: { firstName: 'Sara' },
+      media: { type: 'IMAGE' },
+    });
+    const asset = await ctx.prisma.mediaAsset.findUniqueOrThrow({
+      where: { id: (page.data[0]!.media as { id: string }).id },
+    });
+    expect(asset).toMatchObject({ kind: 'DM_IMAGE', ownerId: support.id });
+    expect(asset.attachedAt).not.toBeNull();
+    expect(asset.largeKey).toMatch(/\.webp$/);
+    // The team's own view of it.
+    const bytes = await staff(support, 'get', `/messages/${pic.body.id}/media`).buffer(true);
+    expect(bytes.status).toBe(200);
+    await settle(ctx);
+    expect(pushesTo(alice, before, 'support')).toHaveLength(1);
+    expect(await ctx.http.post('/api/v1/support/thread/read').set(auth(alice))).toHaveProperty('status', 204);
     const link = await staff(support, 'post', `/conversations/${id}/link`).send({ username: 'someone' });
     expect(link.status).toBe(400);
     expect((await staff(support, 'delete', `/conversations/${id}/link`)).status).toBe(400);
@@ -483,7 +541,8 @@ describe('D385 «دعم كابسو» without the WhatsApp credentials', { timeou
       where: { conversationId: conv.id, mediaAssetId: { not: null } },
       select: { mediaAssetId: true },
     });
-    expect(assets).toHaveLength(2);
+    // Alice's picture and voice clip, and the team's picture.
+    expect(assets).toHaveLength(3);
     await withMigrationClient((db) =>
       db.waConversation.update({
         where: { id: conv.id },
@@ -785,38 +844,58 @@ describe('D385 pinned chats', { timeout: 300_000 }, () => {
     expect(await ctx.prisma.dmPin.count({ where: { userId: me.id } })).toBe(0);
   });
 
-  it('presence only as §10.25 allows: same family with the activity switch on, else null', async () => {
+  it('presence for every partner (owner): online, offline, hidden by the switch, never with a block', async () => {
     const me = await signup();
-    const fam = await friendsWith(me);
-    const other = await friendsWith(me);
+    const live = await friendsWith(me);
+    const away = await friendsWith(me);
     const hidden = await friendsWith(me);
-    for (const c of [fam.conversationId, other.conversationId, hidden.conversationId]) {
-      expect((await ctx.http.put(`/api/v1/dm/conversations/${c}/pin`).set(auth(me))).status).toBe(200);
+    const blocker = await friendsWith(me);
+    for (const c of [live, away, hidden, blocker]) {
+      expect(
+        (await ctx.http.put(`/api/v1/dm/conversations/${c.conversationId}/pin`).set(auth(me))).status,
+      ).toBe(200);
     }
+    await settle(ctx);
+    // None of them shares a family with me (no family at all): presence is not family-only any more.
+    expect(await ctx.prisma.familyMember.count({ where: { userId: me.id } })).toBe(0);
     await withMigrationClient(async (db) => {
-      const f = await db.family.create({
-        data: {
-          name: 'D385 Family',
-          nameKey: `d385-${randomUUID()}`,
-          createClientId: randomUUID(),
-          memberCount: 3,
-        },
+      await db.user.update({
+        where: { id: away.peer.id },
+        data: { lastActiveAt: new Date(Date.now() - 3_600_000) },
       });
-      for (const u of [me, fam.peer, hidden.peer]) {
-        await db.familyMember.create({ data: { userId: u.id, familyId: f.id } });
-      }
       await db.privacySettings.upsert({
         where: { userId: hidden.peer.id },
         create: { userId: hidden.peer.id, showActivityStatus: false },
         update: { showActivityStatus: false },
       });
     });
-    await settle(ctx);
     const list = await pins(me);
     const onlineOf = (id: string) => list.data.find((x) => x.id === id)!.online;
-    // The family peer wrote just now (an authenticated request): online.
-    expect(onlineOf(fam.conversationId)).toBe(true);
-    expect(onlineOf(other.conversationId)).toBeNull();
+    expect(onlineOf(live.conversationId)).toBe(true);
+    expect(onlineOf(away.conversationId)).toBe(false);
     expect(onlineOf(hidden.conversationId)).toBeNull();
+    // The same on the conversation rows.
+    const chats = await ctx.http.get('/api/v1/dm/chats').set(auth(me));
+    expect(chats.status).toBe(200);
+    expectContract(chats, 'listDmChats');
+    const rowOf = (id: string) =>
+      (chats.body.data as { id: string; conversation: { online: boolean | null } | null }[]).find(
+        (c) => c.id === id,
+      )!.conversation!.online;
+    expect(rowOf(live.conversationId)).toBe(true);
+    expect(rowOf(away.conversationId)).toBe(false);
+    expect(rowOf(hidden.conversationId)).toBeNull();
+    // And for the other side: I show my activity, so they see me.
+    const theirs = await ctx.http.get('/api/v1/dm/conversations').set(auth(live.peer));
+    expect(theirs.body.data.find((c: { id: string }) => c.id === live.conversationId).online).toBe(true);
+    // A block (either way): no dot anywhere — the pin is dropped and the row leaves the lists.
+    const b = await ctx.http.put(`/api/v1/users/${me.username}/block`).set(auth(blocker.peer));
+    expect(b.status).toBeLessThan(300);
+    const after = await pins(me);
+    expect(after.data.map((x) => x.id)).not.toContain(blocker.conversationId);
+    const chats2 = await ctx.http.get('/api/v1/dm/chats').set(auth(me));
+    expect(chats2.body.data.map((c: { id: string }) => c.id)).not.toContain(blocker.conversationId);
+    const fromThem = await ctx.http.get('/api/v1/dm/conversations').set(auth(blocker.peer));
+    expect(fromThem.body.data.map((c: { id: string }) => c.id)).not.toContain(blocker.conversationId);
   });
 });

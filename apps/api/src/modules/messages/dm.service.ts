@@ -85,6 +85,11 @@ export interface DmConversationDto {
   peerReadAt: string | null;
   canSend: boolean;
   requestMessagesLeft: number | null;
+  /**
+   * v1.137-social (D385, §10.174.5; owner 2026-11-12): the peer's presence when their `showActivityStatus` is on and
+   * there is no block either way; null otherwise (no dot).
+   */
+  online: boolean | null;
 }
 
 export interface DmMessagePageDto extends PageDto<DmMessageDto> {
@@ -97,6 +102,8 @@ export interface DmUnreadDto {
   requests: number;
   /** v1.104-social (D339): unread messages in the caller's groups that are not muted or archived (≤ 99). */
   groups: number;
+  /** v1.137-social (D385, §10.174.1; owner 2026-11-12): the team's unread «دعم كابسو» replies (≤ 99). */
+  support: number;
 }
 
 /** v1.137-social (D385, CONVENTIONS §10.174.4): the most chats a person may pin («دعم كابسو» is not one). */
@@ -318,11 +325,16 @@ export class DmService {
     const now = this.clock.now();
     const ids = mine.map((p) => p.conversationId);
     const peerIds = [...new Set(mine.map((p) => p.peerId))];
-    const [theirs, people, stats, privacy, follows] = await Promise.all([
+    const [theirs, people, stats, privacy, follows, blocks] = await Promise.all([
       this.prisma.dmParticipant.findMany({ where: { conversationId: { in: ids }, userId: { in: peerIds } } }),
       this.prisma.user.findMany({
         where: { id: { in: peerIds }, status: 'ACTIVE' },
-        select: USER_SUMMARY_SELECT,
+        // v1.137-social (D385, §10.174.5): the presence of every partner, in the same query.
+        select: {
+          ...USER_SUMMARY_SELECT,
+          lastActiveAt: true,
+          privacySettings: { select: { showActivityStatus: true } },
+        },
       }),
       this.prisma.$queryRaw<{ cid: string; last_id: string | null; unread: number }[]>`
         SELECT p.conversation_id::text AS cid,
@@ -349,7 +361,25 @@ export class DmService {
         where: { followerId: { in: peerIds }, followeeId: callerId },
         select: { followerId: true },
       }),
+      this.prisma.userBlock.findMany({
+        where: {
+          OR: [
+            { blockerId: callerId, blockedId: { in: peerIds } },
+            { blockedId: callerId, blockerId: { in: peerIds } },
+          ],
+        },
+        select: { blockerId: true, blockedId: true },
+      }),
     ]);
+    const blocked = new Set(blocks.map((b) => (b.blockerId === callerId ? b.blockedId : b.blockerId)));
+    const presenceOf = new Map(
+      people.map((u) => [
+        u.id,
+        (u.privacySettings?.showActivityStatus ?? true) && !blocked.has(u.id)
+          ? isOnline(u.lastActiveAt, now)
+          : null,
+      ]),
+    );
     const lastIds = stats.map((s) => s.last_id).filter((id): id is string => id !== null);
     const lastRows =
       lastIds.length === 0
@@ -396,6 +426,7 @@ export class DmService {
         canSend: decision.allowed,
         requestMessagesLeft:
           status === 'REQUEST_SENT' ? Math.max(0, this.config.dm.requestMaxMessages - p.requestSent) : null,
+        online: presenceOf.get(p.peerId) ?? null,
       });
     }
     return out;
@@ -529,7 +560,23 @@ export class DmService {
       conversations: Math.min(UNREAD_CAP, row?.conversations ?? 0),
       requests: Math.min(UNREAD_CAP, row?.requests ?? 0),
       groups: Math.min(UNREAD_CAP, groups?.n ?? 0),
+      support: await this.supportUnread(callerId),
     };
+  }
+
+  /**
+   * v1.137-social (D385, §10.174.1; owner 2026-11-12): the team's «دعم كابسو» replies after the caller last read the
+   * thread (`readSupportThread`), for the Messages tab badge.
+   */
+  private async supportUnread(callerId: string): Promise<number> {
+    const [row] = await this.prisma.$queryRaw<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM (
+        SELECT 1 FROM wa_conversations c
+          JOIN wa_messages m ON m.conversation_id = c.id AND m.direction = 'OUTBOUND'::wa_direction
+         WHERE c.linked_user_id = ${callerId}::uuid AND c.channel = 'IN_APP'::wa_channel AND c.purge_after IS NULL
+           AND (c.user_read_at IS NULL OR m.created_at > c.user_read_at)
+         LIMIT ${UNREAD_CAP}) x`;
+    return Math.min(UNREAD_CAP, row?.n ?? 0);
   }
 
   /**
@@ -661,10 +708,6 @@ export class DmService {
     ]);
     const conversationOf = new Map(conversations.map((c) => [c.id, c]));
     const groupOf = new Map(groups.map((g) => [g.id, g]));
-    const online = await this.pinPresence(
-      callerId,
-      parts.map((p) => p.peerId),
-    );
     const data: DmPinDto[] = [];
     for (const r of rows) {
       const conversation = r.conversationId ? (conversationOf.get(r.conversationId) ?? null) : null;
@@ -682,34 +725,10 @@ export class DmService {
           conversation,
           group,
         },
-        online: conversation ? (online.get(conversation.peer.id) ?? null) : null,
+        online: conversation?.online ?? null,
       });
     }
     return { data, max: DM_PIN_MAX };
-  }
-
-  /**
-   * §10.174.5: each peer's presence only where §10.25 already shows it — the caller and the peer in the same family,
-   * the peer's `showActivityStatus` on (blocks are excluded by the pins themselves); absent otherwise.
-   */
-  private async pinPresence(callerId: string, peerIds: readonly string[]): Promise<Map<string, boolean>> {
-    const out = new Map<string, boolean>();
-    if (peerIds.length === 0) return out;
-    const mine = await this.prisma.familyMember.findUnique({
-      where: { userId: callerId },
-      select: { familyId: true },
-    });
-    if (!mine) return out;
-    const now = this.clock.now();
-    const peers = await this.prisma.user.findMany({
-      where: { id: { in: [...peerIds] }, familyMember: { familyId: mine.familyId } },
-      select: { id: true, lastActiveAt: true, privacySettings: { select: { showActivityStatus: true } } },
-    });
-    for (const p of peers) {
-      if (!(p.privacySettings?.showActivityStatus ?? true)) continue;
-      out.set(p.id, isOnline(p.lastActiveAt, now));
-    }
-    return out;
   }
 
   /** `pinDmConversation` / `pinDmGroup`: under the caller's lock — idempotent, 409 `DM_PIN_LIMIT` past 5. */

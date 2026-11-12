@@ -4474,6 +4474,9 @@ CONVENTIONS §10.174 (owner 2026-11-12). One migration and one optional setting;
 - **Behaviour change for the staff:** the inbox (`/staff/whatsapp/*`, `/admin/whatsapp/*`) now answers without the
   WhatsApp credentials for the in-app threads (`summary.enabled` false, `inApp` true); WhatsApp-only requests still
   503 `WHATSAPP_UNAVAILABLE`. Staff with the WhatsApp level REPLY or MANAGE receive the in-app pushes (channel `staff`).
+- **Owner follow-ups (2026-11-12):** the green dot now shows for every DM partner who keeps the activity switch on (no
+  block either way) — no new setting; staff in-app picture replies need `MEDIA_UPLOADS_ENABLED` and the media storage
+  (the same as the person's pictures); `GET /dm/unread` gains `support` (the badge).
 - **Rollback note:** an older API image cannot read rows with a null phone: before rolling back, close or delete the
   IN_APP threads (`DELETE FROM wa_conversations WHERE channel = 'IN_APP'`, after an export if needed). The enum and the
   table can stay.

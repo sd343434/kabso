@@ -556,30 +556,33 @@ export function WaComposer({
             <button className="btn small" onClick={() => setQuickOpen(true)}>
               {t("waQuickReplies")}
             </button>
-            {/* D385: in-app replies are text (no attachments, no templates). */}
+            <button
+              className="btn small"
+              onClick={() => file.current?.click()}
+              disabled={busy}
+            >
+              {t("waAttach")}
+            </button>
+            {/* D385 (owner 2026-11-12): an in-app thread takes a picture only (the direct-message image rules). */}
+            <input
+              ref={file}
+              type="file"
+              hidden
+              accept={
+                inApp(c)
+                  ? "image/jpeg,image/png,image/webp"
+                  : "image/jpeg,image/png,audio/*,video/mp4,video/3gpp,application/pdf,text/plain,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              }
+              onChange={(e) => void attach(e.target.files?.[0])}
+            />
+            {/* D385: no templates in the app. */}
             {!inApp(c) && (
-              <>
-                <button
-                  className="btn small"
-                  onClick={() => file.current?.click()}
-                  disabled={busy}
-                >
-                  {t("waAttach")}
-                </button>
-                <input
-                  ref={file}
-                  type="file"
-                  hidden
-                  accept="image/jpeg,image/png,audio/*,video/mp4,video/3gpp,application/pdf,text/plain,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                  onChange={(e) => void attach(e.target.files?.[0])}
-                />
-                <button
-                  className="btn small ghost"
-                  onClick={() => setTemplateOpen(true)}
-                >
-                  {t("waSendTemplate")}
-                </button>
-              </>
+              <button
+                className="btn small ghost"
+                onClick={() => setTemplateOpen(true)}
+              >
+                {t("waSendTemplate")}
+              </button>
             )}
             <button
               className="btn primary"

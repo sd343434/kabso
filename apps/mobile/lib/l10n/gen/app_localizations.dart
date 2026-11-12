@@ -31735,7 +31735,7 @@ abstract class AppLocalizations {
   /// D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174).
   ///
   /// In ar, this message translates to:
-  /// **'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب، والرد نصّي.'**
+  /// **'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.'**
   String get waInAppHint;
 }
 

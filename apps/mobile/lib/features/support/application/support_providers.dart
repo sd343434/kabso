@@ -259,6 +259,10 @@ class SupportChatController extends AsyncNotifier<SupportChatState> {
     if (ref.exists(supportThreadProvider)) {
       ref.read(supportThreadProvider.notifier).put(read);
     }
+    // D385 (owner): the replies leave the Messages tab badge at once.
+    if (ref.exists(dmUnreadProvider)) {
+      unawaited(ref.read(dmUnreadProvider.notifier).refresh());
+    }
   }
 }
 

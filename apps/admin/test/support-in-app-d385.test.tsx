@@ -1,6 +1,6 @@
 /**
  * D385 (v1.137-social, CONVENTIONS §10.174.6): the in-app «دعم كابسو» threads in the panel's WhatsApp inbox — the
- * «داخل التطبيق» tag in the list, no 24-hour window, a text-only composer (no attachment, no template) and no unlink.
+ * «داخل التطبيق» tag in the list, no 24-hour window, a composer without templates (pictures only, owner) and no unlink.
  * WhatsApp threads are unchanged. Both languages.
  */
 import type { ReactNode } from "react";
@@ -102,7 +102,7 @@ describe("D385 the in-app threads in the inbox", () => {
     ).toContain("In app");
   });
 
-  it("no window, no attachment or template for an in-app thread; WhatsApp unchanged", () => {
+  it("no window or template for an in-app thread, pictures only; WhatsApp unchanged", () => {
     expect(wrap("ar", <WindowBanner c={APP} />)).toContain(
       "data-wa-in-app-banner",
     );
@@ -110,7 +110,9 @@ describe("D385 the in-app threads in the inbox", () => {
       "data-wa-in-app-banner",
     );
     const app = wrap("en", <WaComposer c={APP} onSent={noop} />);
-    expect(app).not.toContain('type="file"');
+    // Owner (2026-11-12): a picture yes (images only), a template never.
+    expect(app).toContain('type="file"');
+    expect(app).toContain('accept="image/jpeg,image/png,image/webp"');
     expect(app).not.toContain(translate("en", "waSendTemplate"));
     const wa = wrap("en", <WaComposer c={WA} onSent={noop} />);
     expect(wa).toContain('type="file"');

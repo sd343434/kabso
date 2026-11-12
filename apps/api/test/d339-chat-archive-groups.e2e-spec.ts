@@ -293,7 +293,7 @@ describe('D339 archived chats and group messages', { timeout: 300_000 }, () => {
           conversation: expect.objectContaining({ archived: true }),
         }),
       ]);
-      expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 0, groups: 0 });
+      expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 0, groups: 0, support: 0 });
       expect((await chats(peer)).data).toEqual([
         expect.objectContaining({ id, conversation: expect.objectContaining({ archived: false }) }),
       ]);

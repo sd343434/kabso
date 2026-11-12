@@ -5813,5 +5813,5 @@
   "dmPinActions": "Pin options",
   "errorDmPinLimit": "You can pin up to 5 chats. Unpin one first.",
   "waInApp": "In app",
-  "waInAppHint": "A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text."
+  "waInAppHint": "A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text or a picture."
 }

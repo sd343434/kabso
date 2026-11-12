@@ -1,7 +1,7 @@
 // D385 (CONVENTIONS §10.174.6): the staff inbox lists the in-app «دعم كابسو»
 // threads beside the WhatsApp ones, marked «داخل التطبيق»; it stays on while
 // WhatsApp itself is off; an in-app thread has no 24-hour window, no
-// templates, no attachments and no account link.
+// templates and no account link; the team may send a photo (owner).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -80,33 +80,41 @@ void main() {
     await _end(tester);
   });
 
-  testWidgets('an in-app thread: no window, no attachments or templates', (
-    tester,
-  ) async {
-    final repo = FakeWaRepository(
-      enabled: false,
-      inApp: true,
-      conversation: waConversation(
-        id: 'a1',
-        name: 'ليلى',
-        channel: WaChannel.inApp,
-        assignedTo: waMe,
-        assignedToMe: true,
-      ),
-    );
-    await _pump(tester, const WaChatScreen(conversationId: 'a1'), repo);
-    expect(find.text(ar.waInApp), findsWidgets);
-    expect(find.byKey(WaComposer.attachKey), findsNothing);
-    expect(find.byKey(WaChatScreen.templateKey), findsNothing);
-    expect(find.byKey(WaChatScreen.windowClosedKey), findsNothing);
-    expect(find.byKey(WaChatScreen.composerKey), findsOneWidget);
-    await tester.enterText(find.byKey(WaChatScreen.composerKey), 'أهلًا');
-    await tester.pump();
-    await tester.tap(find.byKey(WaChatScreen.sendKey));
-    await tester.pumpAndSettle();
-    expect(repo.sentTexts, ['أهلًا']);
-    await _end(tester);
-  });
+  testWidgets(
+    'an in-app thread: no window or templates; a photo may be attached',
+    (tester) async {
+      final repo = FakeWaRepository(
+        enabled: false,
+        inApp: true,
+        conversation: waConversation(
+          id: 'a1',
+          name: 'ليلى',
+          channel: WaChannel.inApp,
+          assignedTo: waMe,
+          assignedToMe: true,
+        ),
+      );
+      await _pump(tester, const WaChatScreen(conversationId: 'a1'), repo);
+      expect(find.text(ar.waInApp), findsWidgets);
+      // Owner (2026-11-12): a photo yes, a template never.
+      expect(find.byKey(WaComposer.attachKey), findsOneWidget);
+      await tester.tap(find.byKey(WaComposer.attachKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(WaComposer.attachPhotoKey), findsOneWidget);
+      expect(find.byKey(WaComposer.attachTemplateKey), findsNothing);
+      Navigator.of(tester.element(find.byKey(WaComposer.attachPhotoKey))).pop();
+      await tester.pumpAndSettle();
+      expect(find.byKey(WaChatScreen.templateKey), findsNothing);
+      expect(find.byKey(WaChatScreen.windowClosedKey), findsNothing);
+      expect(find.byKey(WaChatScreen.composerKey), findsOneWidget);
+      await tester.enterText(find.byKey(WaChatScreen.composerKey), 'أهلًا');
+      await tester.pump();
+      await tester.tap(find.byKey(WaChatScreen.sendKey));
+      await tester.pumpAndSettle();
+      expect(repo.sentTexts, ['أهلًا']);
+      await _end(tester);
+    },
+  );
 
   test('a «دعم كابسو» push opens the support chat', () {
     const push = PushPayload({

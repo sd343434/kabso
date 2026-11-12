@@ -10,6 +10,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AdminContext } from '../admin-panel/admin-auth.service.js';
+import { MediaService } from '../media/media.service.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { PushService } from '../push/push.service.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
@@ -168,6 +169,7 @@ export class WhatsAppService {
     private readonly push: PushService,
     private readonly background: BackgroundTasks,
     private readonly supportPush: SupportPush,
+    private readonly mediaPipeline: MediaService,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
   }
@@ -667,11 +669,8 @@ export class WhatsAppService {
     bytes: unknown,
     q: { mime: string; filename?: string; caption?: string },
   ): Promise<WaMessageDto> {
-    // v1.137-social (D385, §10.174.6): the team's in-app replies are text (an owner decision may add pictures).
     const target = await this.servedRow(id);
-    if (target.channel === 'IN_APP') {
-      throw AppException.validation([{ field: 'channel', issue: 'in_app_text_only' }]);
-    }
+    if (target.channel === 'IN_APP') return this.sendInAppPicture(ctx, id, bytes, q);
     const graph = this.requireGraph();
     const mime = baseMime(q.mime);
     const kind = MEDIA_MIME_ALLOWLIST[mime];
@@ -726,6 +725,61 @@ export class WhatsAppService {
       await this.prisma.waMessage.update({ where: { id: sent.id }, data: { mediaState: 'FAILED' } });
       return { ...sent, media: { state: 'FAILED', mime, size: bytes.length, filename, voice: false } };
     }
+  }
+
+  /**
+   * v1.137-social (D385, §10.174.6; owner 2026-11-12): a picture in an in-app thread — the direct-message image rules
+   * and pipeline ({@link MediaService.storeRawImage}: an asset of the sender), the send rules of a text (open, the
+   * caller's or unassigned), audited and pushed like a text. Nothing goes to Meta.
+   */
+  private async sendInAppPicture(
+    ctx: AdminContext,
+    id: string,
+    bytes: unknown,
+    q: { mime: string; caption?: string },
+  ): Promise<WaMessageDto> {
+    const mime = baseMime(q.mime);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) {
+      throw AppException.validation([{ field: 'mime', issue: 'not_allowed' }]);
+    }
+    if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
+      throw AppException.validation([{ field: 'body', issue: 'required' }]);
+    }
+    if (bytes.length > this.config.whatsapp.mediaMaxBytes) {
+      throw AppException.validation([{ field: 'body', issue: 'too_large' }]);
+    }
+    const conv = await this.sendable(ctx, id, true);
+    const asset = await this.mediaPipeline.storeRawImage(ctx.userId, bytes, mime);
+    const caption = q.caption?.trim() || null;
+    let sent: WaMessageDto;
+    try {
+      sent = await this.recordSent(
+        ctx,
+        conv,
+        {
+          type: 'IMAGE',
+          body: caption,
+          mediaState: 'STORED',
+          mediaAssetId: asset.id,
+          mediaMime: 'image/webp',
+          mediaSize: asset.byteSize,
+        },
+        previewOf('IMAGE', caption),
+      );
+    } catch (err) {
+      await this.mediaPipeline.purgeAssets([asset]).catch(() => 0);
+      throw err;
+    }
+    const userId = conv.linkedUserId!;
+    this.background.run('support.reply.push', async () => {
+      await this.supportPush.reply({
+        userId,
+        conversationId: conv.id,
+        staffId: ctx.userId,
+        text: caption ?? '📷',
+      });
+    });
+    return sent;
   }
 
   /** The approved templates (cached `WHATSAPP_TEMPLATE_CACHE_SECONDS`; `refresh` reads Meta now). */

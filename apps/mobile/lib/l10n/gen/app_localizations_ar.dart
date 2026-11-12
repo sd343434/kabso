@@ -18832,5 +18832,5 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get waInAppHint =>
-      'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب، والرد نصّي.';
+      'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.';
 }

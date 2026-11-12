@@ -5,11 +5,11 @@
 export const AR_D385 = {
   waInApp: "داخل التطبيق",
   waInAppHint:
-    "محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب، والرد نصّي.",
+    "محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.",
 };
 
 export const EN_D385: Record<keyof typeof AR_D385, string> = {
   waInApp: "In app",
   waInAppHint:
-    "A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text.",
+    "A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text or a picture.",
 };

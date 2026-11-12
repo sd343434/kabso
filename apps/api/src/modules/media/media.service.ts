@@ -685,6 +685,54 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * v1.137-social (D385, §10.174.6; owner 2026-11-12): a picture the team sends in «دعم كابسو» — the bytes go through
+   * the same validation and re-encoding as a `DM_IMAGE` upload (allowed types, ≤ 15 MiB, decoded and written as WebP
+   * at the post-image size) and become an asset of [userId], attached at once (never swept as unattached). Throws 400
+   * `MEDIA_INVALID` for a file the pipeline refuses.
+   */
+  async storeRawImage(userId: string, bytes: Buffer, contentType: string): Promise<MediaAsset> {
+    await this.assertEnabled();
+    if (!(IMAGE_CONTENT_TYPES as readonly string[]).includes(contentType)) {
+      throw AppException.validation([{ field: 'mime', issue: 'not_allowed' }]);
+    }
+    if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES) throw new AppException(ErrorCode.MEDIA_INVALID);
+    let image;
+    try {
+      image = await processImage(bytes, contentType as ImageContentType, LARGE_SIDE, 'inside');
+    } catch (err) {
+      if (err instanceof InvalidImageError) {
+        this.logger.warn({ reason: err.message }, 'Raw image rejected');
+        throw new AppException(ErrorCode.MEDIA_INVALID);
+      }
+      throw err;
+    }
+    const id = uuidv7();
+    const largeKey = `media/${id}/${LARGE_SIDE}.webp`;
+    const thumbKey = `media/${id}/320.webp`;
+    await this.storage.put(largeKey, image.large, 'image/webp', IMMUTABLE_CACHE);
+    await this.storage.put(thumbKey, image.thumb, 'image/webp', IMMUTABLE_CACHE);
+    try {
+      return await this.prisma.mediaAsset.create({
+        data: {
+          id,
+          ownerId: userId,
+          kind: 'DM_IMAGE',
+          width: image.width,
+          height: image.height,
+          blurhash: image.blurhash,
+          largeKey,
+          thumbKey,
+          byteSize: image.large.length,
+          attachedAt: new Date(),
+        },
+      });
+    } catch (err) {
+      await this.storage.delete([largeKey, thumbKey]).catch(() => undefined);
+      throw err;
+    }
+  }
+
   /** v1.89-social (D290): the size and type of a stored object (the panel's video proxy), or null. */
   headObject(key: string) {
     return this.storage.head(key);

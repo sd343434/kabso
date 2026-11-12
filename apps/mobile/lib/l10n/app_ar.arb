@@ -15771,6 +15771,6 @@
   "@errorDmPinLimit": {"description": "D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174)."},
   "waInApp": "داخل التطبيق",
   "@waInApp": {"description": "D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174)."},
-  "waInAppHint": "محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب، والرد نصّي.",
+  "waInAppHint": "محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.",
   "@waInAppHint": {"description": "D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174)."}
 }

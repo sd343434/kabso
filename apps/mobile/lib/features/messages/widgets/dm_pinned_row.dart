@@ -106,14 +106,14 @@ class DmPinnedRow extends ConsumerWidget {
       label: name,
       semantics: [
         if (unread > 0) l10n.conversationsUnread(name) else name,
-        if (pin.online ?? false) l10n.dmPinOnline,
+        if (pin.online ?? conversation?.online ?? false) l10n.dmPinOnline,
         l10n.dmPinnedLabel,
       ].join(', '),
       unread: unread,
       marked: marked,
       muted: muted,
       badgeKey: badgeKey(chat.id),
-      online: pin.online ?? false,
+      online: pin.online ?? conversation?.online ?? false,
       dotKey: dotKey(chat.id),
       ring: unread > 0 || marked ? _Ring.unread : _Ring.none,
       picture: group != null

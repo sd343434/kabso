@@ -1941,12 +1941,14 @@ class _WaComposerState extends ConsumerState<WaComposer> {
               title: Text(l10n.waAttachPhoto),
               onTap: () => Navigator.of(sheet).pop('photo'),
             ),
-            ListTile(
-              key: WaComposer.attachTemplateKey,
-              leading: const Icon(Icons.description_outlined),
-              title: Text(l10n.waSendTemplate),
-              onTap: () => Navigator.of(sheet).pop('template'),
-            ),
+            // D385: no templates in the app (a photo only, owner).
+            if (!widget.c.inApp)
+              ListTile(
+                key: WaComposer.attachTemplateKey,
+                leading: const Icon(Icons.description_outlined),
+                title: Text(l10n.waSendTemplate),
+                onTap: () => Navigator.of(sheet).pop('template'),
+              ),
           ],
         ),
       ),
@@ -2015,27 +2017,26 @@ class _WaComposerState extends ConsumerState<WaComposer> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // D385: in-app replies are text (no photos, no templates).
-            if (!widget.c.inApp) ...[
-              SizedBox.square(
-                dimension: KChatComposer.button,
-                child: IconButton(
-                  key: WaComposer.attachKey,
-                  tooltip: l10n.waAttach,
-                  padding: EdgeInsets.zero,
-                  onPressed: _busy ? null : () => unawaited(_attach()),
-                  style: IconButton.styleFrom(
-                    shape: CircleBorder(side: BorderSide(color: p.border)),
-                  ),
-                  icon: Icon(
-                    Icons.add_rounded,
-                    size: KChatComposer.icon + 4,
-                    color: p.textPrimary,
-                  ),
+            // D385 (owner 2026-11-12): in-app replies take a photo too (the
+            // attach sheet leaves templates out).
+            SizedBox.square(
+              dimension: KChatComposer.button,
+              child: IconButton(
+                key: WaComposer.attachKey,
+                tooltip: l10n.waAttach,
+                padding: EdgeInsets.zero,
+                onPressed: _busy ? null : () => unawaited(_attach()),
+                style: IconButton.styleFrom(
+                  shape: CircleBorder(side: BorderSide(color: p.border)),
+                ),
+                icon: Icon(
+                  Icons.add_rounded,
+                  size: KChatComposer.icon + 4,
+                  color: p.textPrimary,
                 ),
               ),
-              const SizedBox(width: KSpacing.xs),
-            ],
+            ),
+            const SizedBox(width: KSpacing.xs),
             Expanded(
               child: TextField(
                 key: WaChatScreen.composerKey,

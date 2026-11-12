@@ -176,6 +176,7 @@ class DmConversation {
     this.peerReadAt,
     this.canSend = true,
     this.requestMessagesLeft,
+    this.online,
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -194,6 +195,7 @@ class DmConversation {
       peerReadAt: read == null ? null : DateTime.parse(read),
       canSend: json['canSend'] as bool? ?? true,
       requestMessagesLeft: json['requestMessagesLeft'] as int?,
+      online: json['online'] as bool?,
     );
   }
 
@@ -223,6 +225,10 @@ class DmConversation {
   /// `REQUEST_SENT` only: messages the caller may still send.
   final int? requestMessagesLeft;
 
+  /// v1.137-social (D385, owner 2026-11-12): the peer's presence — null when
+  /// they hid it or there is a block (no dot).
+  final bool? online;
+
   DmConversation copyWith({
     bool? muted,
     DmConversationStatus? status,
@@ -242,6 +248,7 @@ class DmConversation {
     peerReadAt: peerReadAt,
     canSend: canSend,
     requestMessagesLeft: requestMessagesLeft,
+    online: online,
   );
 }
 
@@ -289,6 +296,7 @@ class DmUnread {
     this.conversations = 0,
     this.requests = 0,
     this.groups = 0,
+    this.support = 0,
   });
 
   factory fromJson(Map<String, dynamic> json) => DmUnread(
@@ -296,6 +304,7 @@ class DmUnread {
     conversations: json['conversations'] as int? ?? 0,
     requests: json['requests'] as int? ?? 0,
     groups: json['groups'] as int? ?? 0,
+    support: json['support'] as int? ?? 0,
   );
 
   final int messages;
@@ -305,8 +314,13 @@ class DmUnread {
   /// v1.104-social (D339): unread group messages (not muted or archived).
   final int groups;
 
-  /// The tab badge: direct and group messages, capped at 99.
-  int get badge => (messages + groups).clamp(0, 99);
+  /// v1.137-social (D385, owner 2026-11-12): the team's unread «دعم كابسو»
+  /// replies (reading the thread clears them).
+  final int support;
+
+  /// The tab badge: direct and group messages and (D385) the unread
+  /// «دعم كابسو» replies, capped at 99.
+  int get badge => (messages + groups + support).clamp(0, 99);
 
   @override
   bool operator ==(Object other) =>
@@ -314,10 +328,12 @@ class DmUnread {
       other.messages == messages &&
       other.conversations == conversations &&
       other.requests == requests &&
-      other.groups == groups;
+      other.groups == groups &&
+      other.support == support;
 
   @override
-  int get hashCode => Object.hash(messages, conversations, requests, groups);
+  int get hashCode =>
+      Object.hash(messages, conversations, requests, groups, support);
 }
 
 /// `DmPeer`: the person, the conversation if any, and whether the caller

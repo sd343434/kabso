@@ -18825,5 +18825,5 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get waInAppHint =>
-      'A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text.';
+      'A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text or a picture.';
 }

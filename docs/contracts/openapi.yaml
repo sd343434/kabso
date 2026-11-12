@@ -727,7 +727,9 @@ info:
     `readSupportThread`; the thread is a `WaConversation` of `channel: IN_APP` in the staff inbox beside WhatsApp
     (`WaChannel`, `WaConversation.channel`, `WaConversation.phone` null for IN_APP, `WaSummary.inApp`, a `channel` filter
     on both list operations; no 24-hour window and no templates in-app); the inbox works without the WhatsApp
-    credentials for IN_APP threads. Pins: `listDmPins` (`GET /dm/pins`), `pinDmConversation` / `unpinDmConversation`,
+    credentials for IN_APP threads; the team may reply in-app with a picture (`sendStaffWhatsAppMedia`, an image
+    through the direct-message image pipeline). `DmConversation.online` (every partner who shows their activity) and
+    `DmUnread.support` (unread «دعم كابسو» replies in the badge). Pins: `listDmPins` (`GET /dm/pins`), `pinDmConversation` / `unpinDmConversation`,
     `pinDmGroup` / `unpinDmGroup` (`PUT` / `DELETE …/pin`; `DmPin`, `DmPinList`; at most 5, more → 409 `DM_PIN_LIMIT`).
     Server config `RATE_LIMIT_SUPPORT_SEND_USER`. Migration `20270515090000_support_chat_pins`. Additive for the app; the
     staff inbox's `phone` may now be null (an IN_APP thread).
@@ -12299,8 +12301,8 @@ paths:
         `getSupportThread`). At most `max` (5) direct conversations and groups, first pinned first; a pin is kept on the
         server, so every device of the account shows the same row. A pin whose chat the caller can no longer open (a
         group left or removed, a conversation deleted, a block either way, a peer gone) is dropped here. `online`: the
-        peer's presence only as CONVENTIONS §10.25 allows (the same family, `showActivityStatus` on, no block either way),
-        else null — never for a group (CONVENTIONS §10.174.5).
+        peer's presence (owner 2026-11-12: every partner whose `showActivityStatus` is on, no block either way), else
+        null — never for a group (CONVENTIONS §10.174.5).
       responses:
         '200':
           description: OK.
@@ -12406,7 +12408,8 @@ paths:
       description: |
         The caller's messages (`mine`) and the team's replies — a reply names only the staff member's first name
         (`staff.firstName`) under the «فريق كابسو» badge, never their account. Internal notes and the assignment history
-        are never here. Before the first message: an empty page. CONVENTIONS §10.174.2.
+        are never here. A reply may carry a picture (`media`, the team's DM_IMAGE, owner 2026-11-12). Before the first
+        message: an empty page. CONVENTIONS §10.174.2.
       parameters:
         - name: cursor
           in: query
@@ -22916,7 +22919,7 @@ paths:
       tags: [staff]
       operationId: sendStaffWhatsAppMedia
       summary: "Reply with an image, voice / audio, video or document (raw bytes; inside the 24-hour window; WHATSAPP_MEDIA_MAX_BYTES)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). Staff work (§10.96.14). (v1.137-social, D385, §10.174.6) An IN_APP thread takes a picture only (`image/jpeg`, `image/png` or `image/webp`, ≤ 15 MiB — the direct-message image rules; it is re-encoded by the media pipeline into the person's `SupportMessage.media`); anything else → 400 `mime` / `not_allowed`."
       parameters:
         - name: id
           in: path
@@ -23566,7 +23569,7 @@ paths:
       tags: [admin-panel]
       operationId: sendAdminWhatsAppMedia
       summary: "Reply with an image, voice / audio, video or document (raw bytes; inside the 24-hour window; WHATSAPP_MEDIA_MAX_BYTES)"
-      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request)."
+      description: "(v1.116-social, DRAFT, D355) CONVENTIONS §10.151. Capability `support.whatsapp` (v1.120-social, D360, §10.155: the WhatsApp level REPLY or above — never VIEW; checked on every request). (v1.137-social, D385, §10.174.6) An IN_APP thread takes a picture only (`image/jpeg`, `image/png` or `image/webp`, ≤ 15 MiB — the direct-message image rules; it is re-encoded by the media pipeline into the person's `SupportMessage.media`); anything else → 400 `mime` / `not_allowed`."
       security: [{ adminSession: [] }]
       parameters:
         - name: id
@@ -24725,7 +24728,7 @@ components:
         id: { type: string, format: uuid, description: The conversation's or the group's id. }
         pinnedAt: { type: string, format: date-time }
         chat: { $ref: '#/components/schemas/DmChat' }
-        online: { type: [boolean, 'null'], description: "The peer's presence only as CONVENTIONS §10.25 allows (same family, `showActivityStatus`, no block either way); otherwise null (no dot). Always null for a group." }
+        online: { type: [boolean, 'null'], description: "The peer's presence as `DmConversation.online` (§10.174.5: every partner whose `showActivityStatus` is on, no block either way); otherwise null (no dot). Always null for a group." }
     DmPinList:
       type: object
       required: [data, max]
@@ -40108,7 +40111,7 @@ components:
         expiresAt: { type: string, format: date-time, description: "createdAt + DM_RETENTION_HOURS (24 h); the message is deleted then." }
     DmConversation:
       type: object
-      required: [id, peer, status, muted, markedUnread, archived, unreadCount, lastMessage, lastActivityAt, peerReadAt, canSend, requestMessagesLeft]
+      required: [id, peer, status, muted, markedUnread, archived, unreadCount, lastMessage, lastActivityAt, peerReadAt, canSend, requestMessagesLeft, online]
       properties:
         id: { type: string, format: uuid }
         peer: { $ref: '#/components/schemas/UserSummary' }
@@ -40126,6 +40129,7 @@ components:
         peerReadAt: { type: [string, 'null'], format: date-time, description: Up to when the peer has read the caller's messages. }
         canSend: { type: boolean, description: "The caller may send now (privacy and request rules); false → the app explains." }
         requestMessagesLeft: { type: [integer, 'null'], minimum: 0, description: "`REQUEST_SENT` only: messages the caller may still send before the peer accepts." }
+        online: { type: [boolean, 'null'], description: "(v1.137-social, D385, §10.174.5; owner 2026-11-12) The peer's presence (a request in the last 5 minutes): shown for every conversation partner whose `showActivityStatus` is on and with no block either way; null otherwise (the app draws no dot)." }
     DmConversationPage:
       type: object
       required: [data, page]
@@ -40146,8 +40150,9 @@ components:
     DmUnread:
       type: object
       description: "(v1.43.1-social, D165) A conversation marked unread with no unread message counts as one in `messages` and `conversations` (accepted, not muted) or in `requests`."
-      required: [messages, conversations, requests, groups]
+      required: [messages, conversations, requests, groups, support]
       properties:
+        support: { type: integer, minimum: 0, maximum: 99, description: "(v1.137-social, D385, §10.174.1; owner 2026-11-12) The Kabso Team's «دعم كابسو» replies the caller has not read (`readSupportThread` clears them); the app adds them to the badge." }
         messages: { type: integer, minimum: 0, maximum: 99, description: "(v1.104-social, D339) Archived conversations are not counted." }
         conversations: { type: integer, minimum: 0, maximum: 99 }
         requests: { type: integer, minimum: 0, maximum: 99 }
