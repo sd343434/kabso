@@ -680,7 +680,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         () =>
             ref.read(liveLuckyTickersProvider(room.id).notifier).attach(engine),
       );
-      // v1.132-social (D379): the VIP pin, greeting card and coin rain.
+      // v1.132-social (D379): the VIP pin, greeting card and rain effect.
       _optional(
         'vipLive',
         () => ref.read(liveVipRoomProvider(room.id).notifier).attach(engine),
@@ -2088,7 +2088,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                               LiveRoomPromoBox.shows(ref, room.id)),
                     ),
                   ),
-                // v1.132-social (D379): a VIP member's big gift rains coins
+                // v1.132-social (D379): a VIP member's big gift plays the uploaded rain
                 // over the room; the host's greeting card for a VIP joiner.
                 if (onAir && room != null)
                   Positioned.fill(child: LiveVipGiftRainLayer(roomId: room.id)),

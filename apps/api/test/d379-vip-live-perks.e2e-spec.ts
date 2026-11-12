@@ -404,6 +404,14 @@ describe('D379 VIP perks in live rooms', { timeout: 240_000 }, () => {
     clock.advance(11);
     await sendGift(roomId, holder, h, small, 10);
     expect(rains()).toHaveLength(2);
+    // Owner 2026-11-12: no default effect — a perk without uploaded art sends nothing.
+    await ctx.prisma.vipTierPerk.updateMany({
+      where: { tierId: VIP1, code: 'BIG_GIFT_RAIN' },
+      data: { still: null, animation: null, video: null, artWidth: null, artHeight: null },
+    });
+    clock.advance(11);
+    await sendGift(roomId, holder, h, small, 10);
+    expect(rains()).toHaveLength(2);
     await end(roomId, h);
   });
 

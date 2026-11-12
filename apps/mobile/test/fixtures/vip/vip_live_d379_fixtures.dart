@@ -13,13 +13,15 @@ import 'package:kabso_live/features/vip/data/vip_repository.dart';
 final DateTime d379Now = DateTime.utc(2026, 11, 12, 9, 30);
 
 const d379CrownUrl = 'https://cdn.k.test/vip/d379_crown.png';
-const d379CoinUrl = 'https://cdn.k.test/vip/d379_coin.png';
+const d379RainUrl = 'https://cdn.k.test/vip/d379_rain.png';
+const d379RainSvgaUrl = 'https://cdn.k.test/vip/d379_rain.svga';
+const d379RainMp4Url = 'https://cdn.k.test/vip/d379_rain.mp4';
 const d379EmojiUrl = 'https://cdn.k.test/vip/d379_emoji.png';
 
 final Uint8List d379CrownBytes = File(
   'test/fixtures/vip/d379_crown_standin.png',
 ).readAsBytesSync();
-final Uint8List d379CoinBytes = File('test/fixtures/vip/d379_coin_standin.png')
+final Uint8List d379RainBytes = File('test/fixtures/vip/d379_rain_standin.png')
     .readAsBytesSync();
 final Uint8List d379EmojiBytes = File(
   'test/fixtures/vip/d379_emoji_standin.png',
@@ -28,7 +30,7 @@ final Uint8List d379EmojiBytes = File(
 /// The stand-in art for a URL of these fixtures.
 Uint8List d379ArtFor(String src) => switch (src) {
   d379CrownUrl => d379CrownBytes,
-  d379CoinUrl => d379CoinBytes,
+  d379RainUrl => d379RainBytes,
   _ => d379EmojiBytes,
 };
 
@@ -130,14 +132,19 @@ Map<String, Object?> d379PinJson({
   'until': '2026-11-12T09:30:30.000Z',
 };
 
-Map<String, Object?> d379RainJson({String gift = 'g-1', String? still}) => {
+Map<String, Object?> d379RainJson({
+  String gift = 'g-1',
+  String? still,
+  String? animation,
+  String? video,
+}) => {
   'giftId': gift,
   'roomId': 'room-a',
   'sender': d379UserJson('u-sara', 'Sara'),
   'totalCoins': 5000,
-  'animation': null,
+  'animation': animation,
   'still': still,
-  'video': null,
+  'video': video,
   'artWidth': null,
   'artHeight': null,
   'durationMs': 4000,

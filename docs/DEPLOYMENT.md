@@ -4329,7 +4329,7 @@ retry.
 - **Redis:** one new key family `live:vip-rain:*` (the 10 s rain gap per room, expires by itself).
 - **Sweeper:** the live sweeper also removes seat reservations whose time is over (no new job).
 - **After deploy (owner / panel):** in each VIP tier tick the ten live-room perks now marked «مبنية» and set their values
-  (SEAT_EMOJI art pack, PINNED_MESSAGE count / seconds, BIG_GIFT_RAIN threshold + art, TICKER_HOLD seconds, VIP_ROOM
+  (SEAT_EMOJI art pack, PINNED_MESSAGE count / seconds, BIG_GIFT_RAIN threshold + **its effect file — there is no default effect: without an uploaded SVGA / MP4 / still the rain shows nothing**, TICKER_HOLD seconds, VIP_ROOM
   tier cap, SEAT_RESERVE minutes; SEAT_CROWN art). A perk without its value or art gives nothing that needs it.
 - **Order:** deploy the API image (the migration runs first), then ship the APK. An older app keeps working: it ignores
   the new fields and data messages, shows a VIP room's refusal (`LIVE_VIP_ONLY`) as its generic error and a reserved

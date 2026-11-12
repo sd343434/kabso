@@ -1,11 +1,12 @@
 // D379 (v1.132-social, CONVENTIONS §10.169): the VIP perks inside live rooms.
 //
 //   room.vip_live.<ar|en>     the room's VIP perks on the dark background:
-//                             the VIP room lock on a card, the
-//                             host's greeting card «VIP n دخل البث» with «رحّب»,
+//                             the VIP room lock on a card, the host's
+//                             greeting card «VIP n دخل البث» with «رحّب»,
 //                             seats with the crown, a VIP seat emoji and a seat
 //                             kept for a friend, the pinned message with its
-//                             time bar, the coin rain (one frame) and the lock
+//                             time bar, the uploaded BIG_GIFT_RAIN effect (its
+//                             still, one full-screen frame) and the lock
 //                             sheet
 //   setup.vip_live.<ar|en>.<light|dark>   the holder's own controls: «غرفة VIP»
 //                             with its tiers, the VIP seat-emoji row and the
@@ -114,7 +115,7 @@ class _Seat extends StatelessWidget {
             clipBehavior: Clip.none,
             alignment: Alignment.bottomCenter,
             children: [
-              KAvatar(name: name, imageUrl: null),
+              KAvatar(name: name),
               Positioned(
                 top: 0,
                 child: LiveVipSeatCrown(vip: vip, picture: 42),
@@ -245,17 +246,12 @@ class _Room extends StatelessWidget {
               ),
             ),
           ),
-          // The rain's frame in the empty band (so the perks above stay
-          // legible in the golden; in a room it covers the whole screen).
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 420,
-            height: 300,
+          // BIG_GIFT_RAIN: the effect the owner uploaded (here a test-only
+          // still), full screen over the room.
+          Positioned.fill(
             child: IgnorePointer(
-              child: LiveVipCoinRain(
-                rain: VipGiftRain.fromJson(d379RainJson(still: d379CoinUrl)),
-                progress: 0.45,
+              child: LiveVipRainArt(
+                rain: VipGiftRain.fromJson(d379RainJson(still: d379RainUrl)),
               ),
             ),
           ),

@@ -1,5 +1,5 @@
 // v1.132-social (D379, CONVENTIONS §10.169): the VIP perks inside live
-// rooms — the shapes the app reads (pins, the coin rain, the VIP room's
+// rooms — the shapes the app reads (pins, the rain effect, the VIP room's
 // tier, a kept seat) and the perk codes it acts on.
 
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -79,9 +79,10 @@ final class LiveChatPin {
 }
 
 /// The `vip-rain` data message's `rain` (topic `gift`, §10.169.5):
-/// BIG_GIFT_RAIN «مطر عند الهدية الكبيرة» — coins rain over the whole room
-/// for [duration] (the perk's art: [video], else [animation], else [still]
-/// falling, else the app's own coins).
+/// BIG_GIFT_RAIN «مطر عند الهدية الكبيرة» — the effect the owner uploaded
+/// for the tier plays over the whole room for [duration] ([animation] SVGA,
+/// else [video] MP4, else [still]); without art nothing plays (owner
+/// 2026-11-12: no built-in effect).
 @immutable
 final class VipGiftRain {
   const new({

@@ -479,10 +479,11 @@ void main() {
       );
     });
 
-    for (final (name, reduced, hidden, shows) in [
-      ('plays', false, false, true),
-      ('not under reduced motion', true, false, false),
-      ('not with the effects hidden', false, true, false),
+    for (final (name, reduced, hidden, art, shows) in [
+      ('the uploaded still plays as one frame', false, false, true, true),
+      ('no art: nothing (no built-in effect)', false, false, false, false),
+      ('not under reduced motion', true, false, true, false),
+      ('not with the effects hidden', false, true, true, false),
     ]) {
       testWidgets('the rain: $name', (tester) async {
         final prefs = await testPrefs();
@@ -499,9 +500,13 @@ void main() {
         addTearDown(room.dispose);
         room
           ..listen(liveVipRoomProvider('room-a'), (_, _) {})
-          ..read(
-            liveVipRoomProvider('room-a').notifier,
-          ).onEvent(VipGiftRainReceived(VipGiftRain.fromJson(d379RainJson())));
+          ..read(liveVipRoomProvider('room-a').notifier).onEvent(
+            VipGiftRainReceived(
+              VipGiftRain.fromJson(
+                d379RainJson(still: art ? d379RainUrl : null),
+              ),
+            ),
+          );
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: room,
@@ -516,11 +521,43 @@ void main() {
           ),
         );
         expect(
-          find.byType(LiveVipCoinRain),
+          find.byType(LiveVipRainArt),
           shows ? findsOneWidget : findsNothing,
         );
+        // One full-screen frame, never falling copies.
+        expect(find.byType(Image), shows ? findsOneWidget : findsNothing);
         await tester.pump(const Duration(seconds: 5));
-        expect(find.byType(LiveVipCoinRain), findsNothing);
+        expect(find.byType(LiveVipRainArt), findsNothing);
+      });
+    }
+
+    for (final (name, json, animation) in [
+      (
+        'SVGA first',
+        d379RainJson(
+          animation: d379RainSvgaUrl,
+          video: d379RainMp4Url,
+          still: d379RainUrl,
+        ),
+        d379RainSvgaUrl,
+      ),
+      (
+        'then MP4',
+        d379RainJson(video: d379RainMp4Url, still: d379RainUrl),
+        d379RainMp4Url,
+      ),
+    ]) {
+      testWidgets('the rain art plays once on the VIP art player: $name', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(home: LiveVipRainArt(rain: VipGiftRain.fromJson(json))),
+        );
+        final art = tester.widget<VipAnimatedArt>(find.byType(VipAnimatedArt));
+        expect(art.animation, animation);
+        expect(art.once, isTrue);
+        expect(art.fit, BoxFit.cover);
+        expect(art.video != null, animation == d379RainMp4Url);
       });
     }
 

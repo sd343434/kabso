@@ -15,7 +15,7 @@ import 'package:kabso_live/features/live/domain/live_vip.dart';
 
 /// v1.132-social (D379, CONVENTIONS §10.169): what the VIP perks put on a
 /// live's screen — the pinned message (PINNED_MESSAGE), the host's greeting
-/// card (HOST_GREETING) and the coin rain (BIG_GIFT_RAIN).
+/// card (HOST_GREETING) and the uploaded rain effect (BIG_GIFT_RAIN).
 @immutable
 class LiveVipRoomState {
   const new({this.pin, this.pinLeft, this.greeting, this.rain});
@@ -44,7 +44,7 @@ class LiveVipRoomState {
   );
 }
 
-/// D379: one live's VIP pin, greeting card and coin rain, from the room's
+/// D379: one live's VIP pin, greeting card and rain effect, from the room's
 /// data messages (`chat-pin`, `chat-unpin`, `chat-delete`, `join` with
 /// `hostGreeting`, `vip-rain`). A pin or rain by someone this person blocked
 /// is not shown.

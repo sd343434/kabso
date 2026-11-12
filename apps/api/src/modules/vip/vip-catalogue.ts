@@ -551,8 +551,8 @@ export const VIP_PERK_CATALOGUE: readonly VipCatalogueEntry[] = [
     category: 'GIFTS',
     titleAr: 'مطر عند الهدية الكبيرة',
     titleEn: 'Big gift rain',
-    descriptionAr: 'مطر عملات يراه الجميع عند إرسالك هدية تبلغ الحد.',
-    descriptionEn: 'A coin rain everyone sees when you send a gift at or above the threshold.',
+    descriptionAr: 'يرى الجميع مؤثر المطر المرفوع عند إرسالك هدية تبلغ الحد.',
+    descriptionEn: 'Everyone sees the uploaded rain effect when you send a gift at or above the threshold.',
     built: true, // D379 (§10.169)
     value: int(1, 1_000_000_000, 'coins'),
     art: art(['SVGA', 'MP4', 'PNG', 'WEBP'], 750, 1334),

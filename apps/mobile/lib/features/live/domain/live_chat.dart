@@ -211,7 +211,7 @@ sealed class LiveChatEvent {
           LiveChatPin.fromJson(json['pin']! as Map<String, dynamic>),
         ),
         'chat-unpin' => LiveChatUnpinned(json['id']! as String),
-        // v1.132-social (D379): a VIP member's big gift rains coins.
+        // v1.132-social (D379): a VIP member's big gift plays the rain effect.
         'vip-rain' => VipGiftRainReceived(
           VipGiftRain.fromJson(json['rain']! as Map<String, dynamic>),
         ),

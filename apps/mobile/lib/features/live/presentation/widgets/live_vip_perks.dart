@@ -1,10 +1,8 @@
 // v1.132-social (D379, CONVENTIONS §10.169): the VIP perks inside live
 // rooms, as the room draws them — the pin bar (PINNED_MESSAGE), the host's
 // greeting card (HOST_GREETING), the crown over a seat (SEAT_CROWN), the
-// coin rain (BIG_GIFT_RAIN), the VIP room's lock (VIP_ROOM) and a kept seat
+// uploaded rain effect (BIG_GIFT_RAIN), the VIP room's lock (VIP_ROOM) and a kept seat
 // (SEAT_RESERVE).
-
-import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -308,15 +306,14 @@ class LiveVipSeatCrown extends ConsumerWidget {
   }
 }
 
-/// D379 (§10.169.5): the coin rain over the whole room while one plays —
-/// skipped under reduced motion or «إخفاء المؤثرات». The perk's still falls
-/// (or the app's own coins without one).
+/// D379 (§10.169.5): BIG_GIFT_RAIN over the whole room while one plays —
+/// only the effect the owner uploaded for the tier (no art: nothing; owner
+/// 2026-11-12 «الكوينز المتطاير ازله»), skipped under reduced motion or
+/// «إخفاء المؤثرات».
 class LiveVipGiftRainLayer extends ConsumerWidget {
   const new({required this.roomId, super.key});
 
   final String roomId;
-
-  static const rainKey = Key('vipRain');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -324,12 +321,15 @@ class LiveVipGiftRainLayer extends ConsumerWidget {
     final hidden = ref.watch(
       liveViewerPrefsProvider.select((p) => p.giftEffectsHidden),
     );
-    if (rain == null || hidden || MediaQuery.disableAnimationsOf(context)) {
+    if (rain == null ||
+        !LiveVipRainArt.hasArt(rain) ||
+        hidden ||
+        MediaQuery.disableAnimationsOf(context)) {
       return const SizedBox.shrink();
     }
     return IgnorePointer(
       child: ExcludeSemantics(
-        child: LiveVipCoinRain(
+        child: LiveVipRainArt(
           key: ValueKey('vipRain.${rain.giftId}'),
           rain: rain,
         ),
@@ -338,107 +338,49 @@ class LiveVipGiftRainLayer extends ConsumerWidget {
   }
 }
 
-/// D379: [rain] falling over its box for its duration ([progress] pins a
-/// frame: goldens and tests).
-class LiveVipCoinRain extends StatefulWidget {
-  const new({required this.rain, super.key, this.progress});
+/// D379: [rain]'s uploaded effect, full screen, played once (the room's VIP
+/// state takes it off after its duration) on the app's VIP art players —
+/// the SVGA, else the MP4, else the still as one frame. Nothing without art.
+class LiveVipRainArt extends StatelessWidget {
+  const new({required this.rain, super.key});
 
   final VipGiftRain rain;
-  final double? progress;
 
-  /// Pieces falling at once.
-  static const pieces = 28;
-
-  @override
-  State<LiveVipCoinRain> createState() => _LiveVipCoinRainState();
-}
-
-class _LiveVipCoinRainState extends State<LiveVipCoinRain>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _fall = AnimationController(
-    vsync: this,
-    duration: widget.rain.duration,
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.progress == null) _fall.forward();
-  }
-
-  @override
-  void dispose() {
-    _fall.dispose();
-    super.dispose();
-  }
+  /// Whether the tier uploaded anything to play.
+  static bool hasArt(VipGiftRain rain) =>
+      rain.animation != null || rain.video != null || rain.still != null;
 
   @override
   Widget build(BuildContext context) {
-    final still = widget.rain.still;
-    return LayoutBuilder(
-      builder: (context, box) => AnimatedBuilder(
-        animation: _fall,
-        builder: (_, _) {
-          final p = widget.progress ?? _fall.value;
-          final seed = widget.rain.giftId.hashCode;
-          final random = math.Random(seed);
-          final size = math.min(box.maxWidth, 400) / 9;
-          return Stack(
-            children: [
-              for (var i = 0; i < LiveVipCoinRain.pieces; i++)
-                () {
-                  final x = random.nextDouble();
-                  final delay = random.nextDouble() * 0.5;
-                  final speed = 0.6 + random.nextDouble() * 0.6;
-                  final local = ((p - delay) / (1 - delay)).clamp(0.0, 1.0);
-                  final y = -size + local * speed * (box.maxHeight + size);
-                  final turn = random.nextDouble() * math.pi;
-                  return Positioned(
-                    left: x * (box.maxWidth - size),
-                    top: y,
-                    child: Opacity(
-                      opacity: local <= 0 || local >= 1 ? 0 : 1,
-                      child: Transform.rotate(
-                        angle: turn + local * math.pi,
-                        child: SizedBox.square(
-                          dimension: size,
-                          child: still != null
-                              ? Image(
-                                  image: vipArtImage(still),
-                                  errorBuilder: (_, _, _) => const _Coin(),
-                                )
-                              : const _Coin(),
-                        ),
-                      ),
-                    ),
-                  );
-                }(),
-            ],
-          );
-        },
+    final svga = rain.animation;
+    final mp4 = rain.video;
+    if (svga != null) {
+      return VipAnimatedArt(
+        animation: svga,
+        still: null,
+        fit: BoxFit.cover,
+        once: true,
+      );
+    }
+    if (mp4 != null) {
+      return VipAnimatedArt(
+        animation: mp4,
+        video: ArtVideo.plain,
+        still: null,
+        fit: BoxFit.cover,
+        once: true,
+      );
+    }
+    final still = rain.still;
+    if (still == null) return const SizedBox.shrink();
+    return SizedBox.expand(
+      child: Image(
+        image: vipArtImage(still),
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
       ),
     );
   }
-}
-
-/// The app's own coin (no art).
-class _Coin extends StatelessWidget {
-  const new();
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      gradient: const RadialGradient(
-        colors: [Color(0xFFFFE89A), kVipGold, Color(0xFFB8860B)],
-        stops: [0, 0.6, 1],
-      ),
-      border: Border.all(color: const Color(0xFF8A6508)),
-    ),
-    child: const Center(
-      child: Icon(Icons.star_rounded, size: 14, color: Color(0xFF8A6508)),
-    ),
-  );
 }
 
 /// D379 (§10.169.9): the VIP lock on a room card — «VIP» with the lock, in

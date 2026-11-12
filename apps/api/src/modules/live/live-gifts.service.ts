@@ -129,8 +129,9 @@ export interface LiveGiftData {
 
 /**
  * v1.132-social (D379, §10.169): `VipGiftRain` — BIG_GIFT_RAIN «مطر عند الهدية الكبيرة»: a VIP member's send worth at
- * least their perk's threshold rains coins over the whole room for `durationMs` (the perk's art — MP4, SVGA or a still
- * — or the app's own coins without art). Apps skip it under reduced motion or the viewer's «إخفاء المؤثرات».
+ * least their perk's threshold plays the effect the owner uploaded for the perk (SVGA, MP4 or a still) over the whole
+ * room for `durationMs`. No art → no message (owner 2026-11-12: no built-in effect). Apps skip it under reduced
+ * motion or the viewer's «إخفاء المؤثرات».
  */
 export interface VipGiftRainDto {
   readonly giftId: string;
@@ -937,7 +938,7 @@ export class LiveGiftsService {
         await this.giftTicker.offer(dto as unknown as GiftTickerGiftDto);
       });
     }
-    // v1.132-social (D379, §10.169): a VIP member's big send rains coins over the room (BIG_GIFT_RAIN).
+    // v1.132-social (D379, §10.169): a VIP member's big send plays the uploaded rain effect (BIG_GIFT_RAIN).
     this.background.run('vip gift rain', async () => {
       await this.offerRain(callerId, dto);
     });
@@ -1586,6 +1587,8 @@ export class LiveGiftsService {
     const perk = await vipLivePerkIn(this.prisma, senderId, 'BIG_GIFT_RAIN', now);
     const threshold = perk ? vipIntValue(perk.value) : null;
     if (!perk || threshold === null || gift.totalCoins < threshold) return;
+    // Owner 2026-11-12 («الكوينز المتطاير ازله»): only the uploaded art plays — none, nothing to send.
+    if (perk.animation === null && perk.still === null && perk.video === null) return;
     const waitMs = await this.limiter.interval(
       'live:vip-rain',
       gift.roomId,

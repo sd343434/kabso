@@ -12361,13 +12361,16 @@ motion; without art nothing is drawn.
 
 #### 10.169.5 BIG_GIFT_RAIN «مطر عند الهدية الكبيرة» (GIFTS; value: threshold 1–10⁹ coins; art SVGA / MP4 / PNG / WebP)
 
-After a send commits, when the sender holds the perk with a threshold and the send's coin value (`LiveGift.totalCoins`)
-reaches it, the room gets `{"type":"vip-rain","rain":{…}}` on topic `gift` — `rain` (a data message only, no
+**There is no default effect** (owner 2026-11-12, «الكوينز المتطاير ازله»): the room shows only the file the owner uploads
+for the perk in the panel; a tier with no rain art shows nothing and the server sends no message. After a send commits,
+when the sender holds the perk with a threshold and art, and the send's coin value (`LiveGift.totalCoins`) reaches it,
+the room gets `{"type":"vip-rain","rain":{…}}` on topic `gift` — `rain` (a data message only, no
 OpenAPI schema): `giftId`, `roomId`, `sender` (UserSummary), `totalCoins`, the perk's art `animation` (SVGA) / `still`
 (PNG / WebP) / `video` (MP4) / `artWidth` / `artHeight` (each null when not set), `durationMs` (4 000), `createdAt`. **At most one rain per room every 10 s**
 (`VIP_GIFT_RAIN_GAP_MS`, Redis; extras dropped). Best effort, never a failed send. Every viewer's app plays it over the
-room (the video, else the SVGA, else the still falling, else the app's own coins) — **skipped** under the system's
-reduced motion or the viewer's «إخفاء المؤثرات».
+room, full screen, once for `durationMs`, on the app's VIP art players (the entry effects' SVGA / MP4 players): the
+SVGA, else the MP4, else the still as one full-screen frame — **skipped** under the system's reduced motion or the
+viewer's «إخفاء المؤثرات».
 
 #### 10.169.6 TICKER_HOLD «إيقاف الشريط العام مؤقتاً» (CHAT; value 1–60 s)
 
