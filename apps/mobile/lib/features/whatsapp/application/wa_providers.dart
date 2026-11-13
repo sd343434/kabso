@@ -43,6 +43,7 @@ final Provider<WaAccess?> waAccessProvider = Provider<WaAccess?>((ref) {
 /// in «الرسائل» after «دعم كابسو» (it was a row of the Me tab). The same
 /// rule as the Me tab row had: the founder always; a staff member by their
 /// WhatsApp level (VIEW and above), the D355 roles (MODERATION, SUPPORT)
+/// and D387's VIP_CARE
 /// while the level is unknown; nobody else. Only a Kabso Team account reads
 /// the founder check, so other people never fetch anything for it.
 final Provider<bool> waEntryProvider = Provider.autoDispose<bool>((ref) {
@@ -54,7 +55,9 @@ final Provider<bool> waEntryProvider = Provider.autoDispose<bool>((ref) {
   return switch (ref.watch(waAccessProvider)) {
     null =>
       staff.role == StaffLineRole.moderation ||
-          staff.role == StaffLineRole.support,
+          staff.role == StaffLineRole.support ||
+          // v1.139-social (D387): VIP_CARE («دعم كابسو», default REPLY).
+          staff.role == StaffLineRole.vipCare,
     final WaAccess a => a != WaAccess.none,
   };
 });
