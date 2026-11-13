@@ -272,6 +272,10 @@ export enum ErrorCode {
   PK_REMATCH_UNAVAILABLE = 'PK_REMATCH_UNAVAILABLE',
   /** v1.55-live (DRAFT, D242): no open rematch offer to answer or withdraw (answered, withdrawn or lapsed). */
   PK_REMATCH_CLOSED = 'PK_REMATCH_CLOSED',
+  /** v1.118-live (DRAFT, D391): «PK رباعي» — no OPEN 4-way lobby for this step (started, cancelled, ran out, or none). */
+  PK_LOBBY_CLOSED = 'PK_LOBBY_CLOSED',
+  /** v1.118-live (DRAFT, D391): that place of the 4-way lobby already has an open or accepted invitation. */
+  PK_SEAT_TAKEN = 'PK_SEAT_TAKEN',
   /** v1.45-live (DRAFT, D201): the pairing code is unknown, expired, used, revoked or of another account (one answer for all). */
   SECOND_CAMERA_CODE_INVALID = 'SECOND_CAMERA_CODE_INVALID',
   /** v1.45-live (DRAFT, D201): the live cannot take a second camera now (not the caller's LIVE SOLO video live, or in a PK). */
@@ -550,6 +554,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.PK_DARE_FORBIDDEN]: 403,
   [ErrorCode.PK_REMATCH_UNAVAILABLE]: 409,
   [ErrorCode.PK_REMATCH_CLOSED]: 409,
+  [ErrorCode.PK_LOBBY_CLOSED]: 409,
+  [ErrorCode.PK_SEAT_TAKEN]: 409,
   [ErrorCode.SECOND_CAMERA_CODE_INVALID]: 422,
   [ErrorCode.SECOND_CAMERA_UNAVAILABLE]: 409,
   [ErrorCode.SECOND_CAMERA_BUSY]: 409,
@@ -731,6 +737,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.PK_DARE_FORBIDDEN]: 'Only the other host can do that.',
   [ErrorCode.PK_REMATCH_UNAVAILABLE]: 'Another round is not possible now.',
   [ErrorCode.PK_REMATCH_CLOSED]: 'This offer of another round is no longer open.',
+  [ErrorCode.PK_LOBBY_CLOSED]: 'This 4-way PK lobby is no longer open.',
+  [ErrorCode.PK_SEAT_TAKEN]: 'That place already has an invitation.',
   [ErrorCode.SECOND_CAMERA_CODE_INVALID]: 'That pairing code is not valid.',
   [ErrorCode.SECOND_CAMERA_UNAVAILABLE]: 'This live cannot take a second camera now.',
   [ErrorCode.SECOND_CAMERA_BUSY]: 'This live already has a second camera.',

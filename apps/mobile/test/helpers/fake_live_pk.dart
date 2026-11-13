@@ -1,11 +1,15 @@
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/features/live/data/live_pk4_media.dart';
+import 'package:kabso_live/features/live/data/live_pk4_repository.dart';
 import 'package:kabso_live/features/live/data/live_pk_media.dart';
 import 'package:kabso_live/features/live/data/live_pk_repository.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:material_ui/material_ui.dart';
+
+import 'fake_live_pk4.dart';
 
 /// v1.43-live (D195): a [LivePkRepository] for tests — a settable snapshot,
 /// candidates, and every call recorded.
@@ -459,11 +463,15 @@ PkMatch pkMatchFixture({
 List<Override> pkOverrides(
   FakeLivePkRepository repo, [
   FakePkOpponentMedia? opponent,
+  FakeLivePk4Repository? pk4,
 ]) {
   final media = opponent ?? FakePkOpponentMedia();
   return [
     livePkRepositoryProvider.overrideWithValue(repo),
     livePkOpponentMediaFactoryProvider.overrideWithValue(() => media),
+    // v1.118-live (D391): never the network for the 4-way PK either.
+    livePk4RepositoryProvider.overrideWithValue(pk4 ?? FakeLivePk4Repository()),
+    livePk4RoomMediaFactoryProvider.overrideWithValue(FakePk4RoomMedia.new),
     // D253: the host's «Host Tasks» card never reaches the network (no
     // weekly tasks: no card).
     myTasksProvider.overrideWith(

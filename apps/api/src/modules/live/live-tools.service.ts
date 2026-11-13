@@ -157,7 +157,9 @@ export class LiveToolsService {
   private async inPk(db: Prisma.TransactionClient | PrismaService, roomId: string): Promise<boolean> {
     const [row] = await db.$queryRaw<{ pk: boolean }[]>`
       SELECT EXISTS (SELECT 1 FROM pk_matches
-                      WHERE status <> 'CLOSED' AND (room_a_id = ${roomId}::uuid OR room_b_id = ${roomId}::uuid)) AS pk`;
+                      WHERE status <> 'CLOSED' AND (room_a_id = ${roomId}::uuid OR room_b_id = ${roomId}::uuid))
+          -- v1.118-live (D391): an open 4-way place is a PK too.
+          OR EXISTS (SELECT 1 FROM pk4_seats WHERE active AND room_id = ${roomId}::uuid) AS pk`;
     return row?.pk === true;
   }
 

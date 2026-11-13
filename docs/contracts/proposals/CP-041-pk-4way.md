@@ -1,6 +1,6 @@
 # CP-041 — PK with four hosts «PK رباعي»: 2 v 2 and every host for themselves
 
-**Status: APPROVED by the owner (2026-11-13, answers in §9) — phase 2 next.** No code yet. Owner (2026-11-13): «الان هناك pk رباعي لم
+**Status: APPROVED by the owner (2026-11-13, answers in §9) — phase 2 implemented (D391, v1.118-live, CONVENTIONS §10.180; branch `claude/pk-4way`, not merged); phases 3–4 not started.** Owner (2026-11-13): «الان هناك pk رباعي لم
 نقم بتفعيله»; answers the same day: **both formats** (2 v 2 teams *and* all four against each other), started **by
 invitation and by random matching**, built in phases (this document first). Builds on CP-038 / §10.58 (PK 1 v 1),
 §10.62 (settings, best of three, auto-start), §10.70 (random friends), §10.80 (PK أحكام), §10.85 (rematch) and D71
@@ -116,7 +116,7 @@ The same four boosters, gifts, windows and multipliers (§10.58).
   (`pk4-match`, `pk4-lobby`, `pk4-queue` on the `pk` topic).
 - **Panel:** 4-way matches in the live monitor and the moderator's end.
 
-## 9. The owner's answers (2026-11-13)
+## 9. The owner's answers (2026-11-13; rows 9–13 after the phase 2 review)
 
 | # | Question | Answer |
 |---|---|---|
@@ -128,6 +128,11 @@ The same four boosters, gifts, windows and multipliers (§10.58).
 | 6 | A host who leaves | «نعم» — and in a DARES FFA the dare goes to the 3rd when the 4th left («ان كان حكم ينفذ الثالث الحكم») |
 | 7 | Guests hidden during a 4-way PK | «نعم» |
 | 8 | Media cost about 3× per viewer | «نعم قللها» — accepted, reduced as in §8 |
+| 9 | All four hosts gone → a draw that is void for records (1 v 1 counts both-absent as a draw) | «موافق» — kept void |
+| 10 | A host who left still gets the team's result | «موافق» |
+| 11 | 4-way matches in the PK history list and the PK_BATTLES / PK_WINS tasks | «موافق» — later, with phase 4 |
+| 12 | Ending a 1 v 1 PK from the panel (today CLI only) | «موافق» — later |
+| 13 | The panel's «watch» view showing the other three rooms | «موافق» — later |
 
 ## 10. Phases
 

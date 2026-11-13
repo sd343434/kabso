@@ -4562,3 +4562,32 @@ CONVENTIONS §10.177 (owner 2026-11-13). One migration and one optional setting;
   `WHATSAPP_ASK_LANGUAGE=false` instead to stop only the question.
 - **Order:** the API image (the migration runs first), then the panel, then the APK. An older app or panel just shows
   no language.
+
+### 5.131 «PK رباعي» — PK 2 v 2 by invitation (D391; migration `20270518090200_pk4_teams`) — [IMPLEMENTED, draft contract v1.118-live; not deployed, not device-tested]
+
+CONVENTIONS §10.180, CP-041 phase 2 (approved by the owner 2026-11-13). One migration, four optional settings; no new
+secret, no new host, no new LiveKit room.
+
+- **Migration** `20270518090200_pk4_teams` (the usual `migrate` job, as the migration role): three new enum types and
+  eight new tables (`pk4_lobbies`, `pk4_invites`, `pk4_matches`, `pk4_seats`, `pk4_boosts`, `pk4_gift_points`,
+  `pk4_supporters`, `pk4_point_events`); runtime grants from the default privileges (KL-013). PK 1 v 1's tables are not
+  touched; nothing to backfill.
+- **Settings** (all optional; the defaults are the owner's): `PK4_ENABLED` (`true`; `false` — or `PK_ENABLED=false` —
+  refuses new lobbies, invitations and acceptances, running matches end as usual), `PK4_LOBBY_SECONDS` (120),
+  `PK4_INVITE_TTL_SECONDS` (30), `PK4_MAX_WATCHERS_PER_ROOM` (0 = no cap; a positive number stops new viewers from
+  opening another room's video once that room has that many `pk4:` watchers). Out-of-range values stop the API at boot.
+- **LiveKit cost.** During a 4-way PK each viewer opens three more subscribe-only connections (one per other room):
+  about **three extra participants per viewer** (1 v 1: one). The app subscribes viewers to the lowest simulcast layer
+  and pauses hidden panes, so the bandwidth is about a quarter-screen each. Watch the LiveKit node's participant count
+  and CPU after deploy; lower `PK4_MAX_WATCHERS_PER_ROOM` (or switch `PK4_ENABLED` off) if the node runs hot.
+- **Moderation.** `pk-admin list|show|end <matchId> --reason …` lists, shows and ends 4-way matches too (the same
+  `docker compose --profile jobs run --rm migrate node dist/cli/pk-admin.js …`); the panel's live monitor shows the four
+  hosts of a 4-way PK and «إنهاء PK الرباعي» (`lives.moderate`).
+- **Check after deploy (staging, four hosts on four phones):** open «PK رباعي» on host 1, invite a teammate and two
+  opponents, accept on the three phones: the 2 × 2 grid opens in the four rooms with the team bar; a viewer of each room
+  sees the four hosts; a booster gift in the teammate's room shows the chip on both team rooms; host 1 ends: the
+  teammate carries on; the result card shows; `pk-admin list` is empty after the result closes.
+- **Rollback:** deploy the previous API image; it ignores the new tables (leave them). Set `PK4_ENABLED=false` instead
+  to stop only the 4-way PK.
+- **Order:** the API image (the migration runs first), then the panel, then the APK. An older app never sees a lobby
+  or invitation and shows a 4-way room as a solo live.

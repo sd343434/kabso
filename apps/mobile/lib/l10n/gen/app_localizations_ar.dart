@@ -11363,7 +11363,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get pkModeOneVsOne => 'PK ثنائي';
 
   @override
-  String get pkModeTeam => 'PK الفرق';
+  String get pkModeTeam => 'PK رباعي';
 
   @override
   String get pkModeMulti => 'PK متعدد';
@@ -18922,4 +18922,125 @@ class AppLocalizationsAr extends AppLocalizations {
   String waLangLabel(String language) {
     return 'لغة العميل: $language';
   }
+
+  @override
+  String get pk4Title => 'PK رباعي';
+
+  @override
+  String get pk4Subtitle => '٢ ضد ٢ — فريقان من مضيفَين';
+
+  @override
+  String get pk4LobbyHint =>
+      'ادعُ زميلاً ومنافسَين. تبدأ المعركة حين يقبل الأربعة.';
+
+  @override
+  String get pk4OpenLobby => 'افتح PK رباعي';
+
+  @override
+  String pk4LobbyEndsIn(String time) {
+    return 'يُغلق خلال $time';
+  }
+
+  @override
+  String get pk4SeatOrganiser => 'المنظِّم';
+
+  @override
+  String get pk4SeatTeammate => 'زميلك';
+
+  @override
+  String get pk4SeatOpponent => 'منافس';
+
+  @override
+  String get pk4SeatInvite => 'ادعُ مضيفاً';
+
+  @override
+  String pk4SeatWaiting(String seconds) {
+    return 'بانتظار… $seconds';
+  }
+
+  @override
+  String get pk4SeatReady => 'جاهز';
+
+  @override
+  String pk4InviteTo(String place) {
+    return 'ادعُ إلى مكان: $place';
+  }
+
+  @override
+  String get pk4PickPlace => 'اختر مكاناً فارغاً لتدعو إليه';
+
+  @override
+  String get pk4CancelLobby => 'إلغاء PK الرباعي';
+
+  @override
+  String get pk4LeaveLobby => 'مغادرة';
+
+  @override
+  String get pk4CancelInvite => 'سحب الدعوة';
+
+  @override
+  String get pk4IncomingTitle => 'دعوة PK رباعي';
+
+  @override
+  String pk4IncomingBody(String name, String place) {
+    return '$name يدعوك إلى PK رباعي — $place';
+  }
+
+  @override
+  String get pk4NoticeExpired => 'لم يكتمل العدد';
+
+  @override
+  String get pk4NoticeCancelled => 'ألغى المنظِّم PK الرباعي';
+
+  @override
+  String get pk4NoticeDeclined => 'اعتذر المضيف — ادعُ غيره';
+
+  @override
+  String get pk4NoticeInviteExpired => 'لم يرد المضيف — ادعُ غيره';
+
+  @override
+  String get pk4NoticeLeft => 'غادر مضيف مكانه';
+
+  @override
+  String get pk4Out => 'غادر';
+
+  @override
+  String pk4MuteHost(String name) {
+    return 'كتم صوت $name';
+  }
+
+  @override
+  String pk4UnmuteHost(String name) {
+    return 'إلغاء كتم $name';
+  }
+
+  @override
+  String get pk4ResultWin => 'فاز فريقكم';
+
+  @override
+  String get pk4ResultLoss => 'خسر فريقكم';
+
+  @override
+  String pk4ScoreSemantics(String own, String other) {
+    return 'فريقكم $own، المنافسون $other';
+  }
+
+  @override
+  String pk4PaneSemantics(String name, String score) {
+    return '$name، $score نقطة';
+  }
+
+  @override
+  String get pk4ConnectedHint =>
+      'تم ربط المضيفين الأربعة — تبدأ المعركة حين يضغط أحدهم ابدأ';
+
+  @override
+  String get pk4EndConfirmBody =>
+      'ستغادر المعركة ويكمل زميلك وحده؛ تبقى نقاطك لفريقك.';
+
+  @override
+  String get pk4ErrorLobbyClosed => 'لم تعد غرفة PK الرباعي مفتوحة';
+
+  @override
+  String get pk4ErrorSeatTaken => 'هذا المكان فيه دعوة بالفعل';
 }

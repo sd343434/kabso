@@ -13,6 +13,9 @@
  * characters) is stored with the match and in the audit row `live.pk.admin_end`, written in the same
  * transaction. The API's PK tick tells both rooms within a second (`pending_notice`). An unknown or
  * already closed match exits 1.
+ *
+ * v1.118-live (D391, §10.180): `list`, `show` and `end` take 4-way matches «PK رباعي» too (their own table; the same
+ * rule: `adminEndPk4In`, audited `live.pk.admin_end` with `format`).
  */
 import 'dotenv/config';
 import { parseArgs } from 'node:util';
@@ -20,6 +23,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
 import { adminEndPkIn } from '../modules/live/live-pk.js';
+import { adminEndPk4In } from '../modules/live/live-pk4.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -56,11 +60,31 @@ async function list(): Promise<void> {
     where: { status: { not: 'CLOSED' } },
     orderBy: { startedAt: 'asc' },
   });
-  if (rows.length === 0) {
+  // v1.118-live (D391): the 4-way matches.
+  const four = await prisma.pk4Match.findMany({
+    where: { status: { not: 'CLOSED' } },
+    orderBy: { startedAt: 'asc' },
+    include: { seats: { orderBy: { seat: 'asc' } } },
+  });
+  if (rows.length === 0 && four.length === 0) {
     process.stdout.write('No PK running.\n');
     return;
   }
-  const names = await usernames(rows.flatMap((r) => [r.hostAId, r.hostBId]));
+  const names = await usernames([
+    ...rows.flatMap((r) => [r.hostAId, r.hostBId]),
+    ...four.flatMap((m) => m.seats.map((x) => x.hostId)),
+  ]);
+  for (const m of four) {
+    const team = (t: 'A' | 'B') =>
+      m.seats
+        .filter((x) => x.team === t)
+        .map((x) => `@${names.get(x.hostId) ?? '?'}`)
+        .join('+');
+    process.stdout.write(
+      `${m.id} ${m.status} PK4/${m.format} ${team('A')} ${String(m.scoreA)} – ${String(m.scoreB)} ${team('B')} ` +
+        `started=${m.startedAt.toISOString()} battleEnds=${m.battleEndsAt.toISOString()}\n`,
+    );
+  }
   for (const r of rows) {
     process.stdout.write(
       `${r.id} ${r.status} ${r.source} @${names.get(r.hostAId) ?? '?'} ${String(r.scoreA)} – ` +
@@ -75,7 +99,10 @@ async function show(id: string): Promise<void> {
     where: { id },
     include: { boosts: { orderBy: { startsAt: 'asc' } } },
   });
-  if (!r) fail(`No PK match ${id}.`);
+  if (!r) {
+    await show4(id);
+    return;
+  }
   const names = await usernames([r.hostAId, r.hostBId]);
   process.stdout.write(
     `${r.id} ${r.status} ${r.source} reason=${r.endReason ?? '-'} winner=${r.winner ?? '-'}\n` +
@@ -89,6 +116,38 @@ async function show(id: string): Promise<void> {
   for (const b of r.boosts) {
     process.stdout.write(
       `  boost ${b.side} ${b.kind} ×${String(b.multiplier)} ${b.startsAt.toISOString()}–${b.endsAt.toISOString()}` +
+        `${b.replaced ? ' (replaced)' : ''}\n`,
+    );
+  }
+}
+
+/** v1.118-live (D391): a 4-way match (places, teams, scores, boosters). */
+async function show4(id: string): Promise<void> {
+  const m = await prisma.pk4Match.findUnique({
+    where: { id },
+    include: { seats: { orderBy: { seat: 'asc' } }, boosts: { orderBy: { startsAt: 'asc' } } },
+  });
+  if (!m) fail(`No PK match ${id}.`);
+  const names = await usernames(m.seats.map((x) => x.hostId));
+  process.stdout.write(
+    `${m.id} ${m.status} PK4/${m.format} reason=${m.endReason ?? '-'} winner=${m.winnerTeam ?? '-'} ` +
+      `A=${String(m.scoreA)} B=${String(m.scoreB)}\n`,
+  );
+  for (const x of m.seats) {
+    process.stdout.write(
+      `  ${String(x.seat)} ${x.team} @${names.get(x.hostId) ?? '?'} room=${x.roomId} score=${String(x.score)}` +
+        `${x.outAt ? ` out=${x.outReason ?? '?'}` : ''}\n`,
+    );
+  }
+  process.stdout.write(
+    `  started=${m.startedAt.toISOString()} battleEnds=${m.battleEndsAt.toISOString()} ` +
+      `ended=${m.endedAt?.toISOString() ?? '-'} closed=${m.closedAt?.toISOString() ?? '-'}` +
+      (m.adminReason ? ` admin="${m.adminReason}"` : '') +
+      '\n',
+  );
+  for (const b of m.boosts) {
+    process.stdout.write(
+      `  boost ${b.team} ${b.kind} ×${String(b.multiplier)} ${b.startsAt.toISOString()}–${b.endsAt.toISOString()}` +
         `${b.replaced ? ' (replaced)' : ''}\n`,
     );
   }
@@ -110,16 +169,29 @@ async function end(id: string, args: readonly string[]): Promise<void> {
   if (reason.length === 0 || reason.length > 200) fail(`--reason is 1–200 characters.\n${USAGE}`);
   const before = await prisma.$transaction(async (tx) => {
     const status = await adminEndPkIn(tx, id, reason, new Date());
-    if (status === null) return null;
+    if (status !== null) {
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.LIVE_PK_ADMIN_END,
+          targetType: 'pk_match',
+          targetId: id,
+          metadata: { reason, previousStatus: status, via: 'cli' },
+        },
+      });
+      return status;
+    }
+    // v1.118-live (D391): a 4-way match id.
+    const four = await adminEndPk4In(tx, id, reason, new Date());
+    if (four === null) return null;
     await tx.auditLog.create({
       data: {
         action: AuditAction.LIVE_PK_ADMIN_END,
-        targetType: 'pk_match',
+        targetType: 'pk4_match',
         targetId: id,
-        metadata: { reason, previousStatus: status, via: 'cli' },
+        metadata: { reason, previousStatus: four, format: 'PK4', via: 'cli' },
       },
     });
-    return status;
+    return four;
   });
   if (before === null) fail(`No running PK match ${id}.`);
   process.stdout.write(

@@ -61,6 +61,13 @@ export interface PkConfig {
   /** v1.55-live (D242) «جولة أخرى»: the offer's answer time and the rematches in a row (0 = unlimited). */
   readonly rematchAcceptSeconds: number;
   readonly rematchMax: number;
+  /** v1.118-live (D391, §10.180) «PK رباعي»: on, the lobby's time, an invitation's time, the watchers' cap (0: none). */
+  readonly pk4: {
+    readonly enabled: boolean;
+    readonly lobbySeconds: number;
+    readonly inviteTtlSeconds: number;
+    readonly maxWatchersPerRoom: number;
+  };
 }
 
 export interface AppConfig {
@@ -1184,6 +1191,12 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       dareOutcomeSeconds: e.PK_DARE_OUTCOME_SECONDS,
       rematchAcceptSeconds: e.PK_REMATCH_ACCEPT_SECONDS,
       rematchMax: e.PK_REMATCH_MAX,
+      pk4: {
+        enabled: e.PK4_ENABLED,
+        lobbySeconds: e.PK4_LOBBY_SECONDS,
+        inviteTtlSeconds: e.PK4_INVITE_TTL_SECONDS,
+        maxWatchersPerRoom: e.PK4_MAX_WATCHERS_PER_ROOM,
+      },
     },
     live: {
       hostingEnabled: e.LIVE_HOSTING_ENABLED,

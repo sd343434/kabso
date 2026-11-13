@@ -19299,7 +19299,7 @@ abstract class AppLocalizations {
   /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
   ///
   /// In ar, this message translates to:
-  /// **'PK الفرق'**
+  /// **'PK رباعي'**
   String get pkModeTeam;
 
   /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
@@ -31899,6 +31899,210 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لغة العميل: {language}'**
   String waLangLabel(String language);
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the 4-way PK's name (the PK sheet card and the lobby sheet).
+  ///
+  /// In ar, this message translates to:
+  /// **'PK رباعي'**
+  String get pk4Title;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the lobby sheet's subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'٢ ضد ٢ — فريقان من مضيفَين'**
+  String get pk4Subtitle;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the lobby sheet's explanation before a lobby is open.
+  ///
+  /// In ar, this message translates to:
+  /// **'ادعُ زميلاً ومنافسَين. تبدأ المعركة حين يقبل الأربعة.'**
+  String get pk4LobbyHint;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the button that opens a lobby (the host becomes the organiser).
+  ///
+  /// In ar, this message translates to:
+  /// **'افتح PK رباعي'**
+  String get pk4OpenLobby;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the lobby's countdown (PK4_LOBBY_SECONDS).
+  ///
+  /// In ar, this message translates to:
+  /// **'يُغلق خلال {time}'**
+  String pk4LobbyEndsIn(String time);
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: place 1 (team A).
+  ///
+  /// In ar, this message translates to:
+  /// **'المنظِّم'**
+  String get pk4SeatOrganiser;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: place 2 (team A).
+  ///
+  /// In ar, this message translates to:
+  /// **'زميلك'**
+  String get pk4SeatTeammate;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: places 3 and 4 (team B).
+  ///
+  /// In ar, this message translates to:
+  /// **'منافس'**
+  String get pk4SeatOpponent;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: an empty place.
+  ///
+  /// In ar, this message translates to:
+  /// **'ادعُ مضيفاً'**
+  String get pk4SeatInvite;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: a place with an open invitation and its seconds left.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار… {seconds}'**
+  String pk4SeatWaiting(String seconds);
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: a place whose host accepted.
+  ///
+  /// In ar, this message translates to:
+  /// **'جاهز'**
+  String get pk4SeatReady;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the candidate list's title once a place is picked.
+  ///
+  /// In ar, this message translates to:
+  /// **'ادعُ إلى مكان: {place}'**
+  String pk4InviteTo(String place);
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the hint before a place is picked.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر مكاناً فارغاً لتدعو إليه'**
+  String get pk4PickPlace;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the organiser cancels the lobby.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء PK الرباعي'**
+  String get pk4CancelLobby;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: an accepted host leaves the lobby before the start.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة'**
+  String get pk4LeaveLobby;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the organiser takes an open invitation back.
+  ///
+  /// In ar, this message translates to:
+  /// **'سحب الدعوة'**
+  String get pk4CancelInvite;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the incoming invitation's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'دعوة PK رباعي'**
+  String get pk4IncomingTitle;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the incoming invitation's line.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} يدعوك إلى PK رباعي — {place}'**
+  String pk4IncomingBody(String name, String place);
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the lobby ran out before all four accepted.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يكتمل العدد'**
+  String get pk4NoticeExpired;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: an accepted host is told the lobby was cancelled.
+  ///
+  /// In ar, this message translates to:
+  /// **'ألغى المنظِّم PK الرباعي'**
+  String get pk4NoticeCancelled;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the organiser is told an invitation was declined.
+  ///
+  /// In ar, this message translates to:
+  /// **'اعتذر المضيف — ادعُ غيره'**
+  String get pk4NoticeDeclined;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the organiser is told an invitation ran out.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يرد المضيف — ادعُ غيره'**
+  String get pk4NoticeInviteExpired;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the organiser is told an accepted host left.
+  ///
+  /// In ar, this message translates to:
+  /// **'غادر مضيف مكانه'**
+  String get pk4NoticeLeft;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: over the pane of a host who left the battle (their points stay).
+  ///
+  /// In ar, this message translates to:
+  /// **'غادر'**
+  String get pk4Out;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the host's per-pane mute switch (their own room only).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم صوت {name}'**
+  String pk4MuteHost(String name);
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the host's per-pane mute switch, muted.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء كتم {name}'**
+  String pk4UnmuteHost(String name);
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the result chip of the winning team's rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'فاز فريقكم'**
+  String get pk4ResultWin;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the result chip of the losing team's rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'خسر فريقكم'**
+  String get pk4ResultLoss;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the team bar for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'فريقكم {own}، المنافسون {other}'**
+  String pk4ScoreSemantics(String own, String other);
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: a host's pane for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}، {score} نقطة'**
+  String pk4PaneSemantics(String name, String score);
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: a CONNECTED match (the organiser's auto-start off).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم ربط المضيفين الأربعة — تبدأ المعركة حين يضغط أحدهم ابدأ'**
+  String get pk4ConnectedHint;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: the End confirmation in a 4-way battle.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستغادر المعركة ويكمل زميلك وحده؛ تبقى نقاطك لفريقك.'**
+  String get pk4EndConfirmBody;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: 409 PK_LOBBY_CLOSED.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تعد غرفة PK الرباعي مفتوحة'**
+  String get pk4ErrorLobbyClosed;
+
+  /// v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: 409 PK_SEAT_TAKEN.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا المكان فيه دعوة بالفعل'**
+  String get pk4ErrorSeatTaken;
 }
 
 class _AppLocalizationsDelegate

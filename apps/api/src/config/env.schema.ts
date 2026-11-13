@@ -800,6 +800,18 @@ export const envSchema = z
     /** v1.55-live (D242): rematches in a row with the same opponent (0 = unlimited). */
     PK_REMATCH_MAX: intSetting(5, 0, 100),
     /**
+     * v1.118-live (D391, CONVENTIONS §10.180, CP-041 phase 2) «PK رباعي»: PK 2 v 2 by invitation. Off (or PK_ENABLED off)
+     * refuses new 4-way lobbies, invitations and acceptances (running matches end as usual). The organiser's lobby time,
+     * each invitation's time to answer, and a cap of other-room watchers per room (0 = none: no cap).
+     */
+    PK4_ENABLED: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('true')
+      .transform((v) => v === 'true'),
+    PK4_LOBBY_SECONDS: intSetting(120, 30, 600),
+    PK4_INVITE_TTL_SECONDS: intSetting(30, 5, 120),
+    PK4_MAX_WATCHERS_PER_ROOM: intSetting(0, 0, 100_000),
+    /**
      * CP-016 A (D99): the one region's time zone (IANA name). The popularity boards' day starts at
      * midnight and the week on Monday there; the hour is the same everywhere.
      */

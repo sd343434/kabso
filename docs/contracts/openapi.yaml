@@ -663,6 +663,18 @@ info:
     owner 2026-11-11 «اريد جعل سعر الرسائل العامة ب ١٠ الاف كوينز»): `sendLiveBullet` charges 10 000, a balance under
     10 000 → 409 `INSUFFICIENT_COINS`; VIP free public messages (D258) unchanged. Shapes unchanged; behaviour change
     (an older app's hint still says 15).
+    **D391 (DRAFT v1.118-live, CP-041 phase 2)** «PK رباعي» 2 v 2 (`format` TEAMS) by invitation (CONVENTIONS §10.180):
+    a host opens a lobby as organiser (`openLivePk4Lobby`, `PK4_LOBBY_SECONDS` 120) and invites a teammate and two
+    opponents by place (`inviteLivePk4`, `PK4_INVITE_TTL_SECONDS` 30 each; `listLivePk4Candidates`,
+    `cancelLivePk4Invite`, `acceptLivePk4Invite`, `declineLivePk4Invite`, `closeLivePk4Lobby`); the fourth acceptance
+    starts one round (BATTLE, or CONNECTED with the organiser's auto-start off: `startLivePk4`); the team score is the sum
+    of its two hosts' PK points; boosters are the team's (either room activates it for both, limits per team); a host
+    who leaves (`endLivePk4`, the live ended, absent or away 30 s) is out and the teammate carries on, both of a team
+    out → the other team wins, all four → a void draw; `muteLivePk4Host`; `getLivePk4`; three watch-only tokens
+    (`createLivePk4MediaToken`, identities `pk4:`, lowest simulcast layer for viewers, `PK4_MAX_WATCHERS_PER_ROOM`);
+    records per host as in 1 v 1; data messages `pk4-match`, `pk4-lobby`, `pk4-invite` on topic `pk`; the panel's
+    `AdminLive.pk4` and `endAdminLivePk4`; codes `PK_LOBBY_CLOSED`, `PK_SEAT_TAKEN` (409); `PK4_ENABLED` (true).
+    A host in either PK is busy for the other. PK 1 v 1 is unchanged. Additive; migration `20270518090200_pk4_teams`.
     **D376 (DRAFT v1.130-social)** «الحالة» status emoji (CONVENTIONS §10.167; the owner sent the pack 2026-11-12):
     an animated emoji the person wears over their picture, rising like bubbles. `UserSummary.statusEmojiId` (present
     only while worn), `Me.statusEmojiId` and `PublicProfile.statusEmojiId` (null when none) — `<pack>.<emoji>` ids
@@ -5532,6 +5544,327 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4:
+    get:
+      tags: [live]
+      operationId: getLivePk4
+      security: [{}, {bearerAuth: []}]
+      summary: "The room's PK with four hosts «PK رباعي» now (snapshot) (v1.118-live, D391)"
+      description: |
+        v1.118-live (DRAFT, CONVENTIONS §10.180, CP-041 phase 2). Who may read it is as `getLivePk`: the visible room (404;
+        a block with the host too), guests while the room allows them (403 `LIVE_GUESTS_NOT_ALLOWED`), not kicked out
+        (403 `LIVE_KICKED`). `match` is the open 4-way match that has this room in one of its four places (CONNECTED,
+        BATTLE or RESULT), else null. The room's **host** also gets the lobby they organise or have accepted a place in
+        (`lobby`, while it is OPEN) and an open invitation to this room (`invite`); for everyone else both are null.
+        Live updates come as data messages on the media topic `pk` (`pk4-match`, `pk4-lobby`, `pk4-invite`, §10.180).
+        Per user `live:list`; guests per IP.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The room's 4-way PK state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4State' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/candidates:
+    get:
+      tags: [live]
+      operationId: listLivePk4Candidates
+      summary: "Hosts live now whom the organiser may invite to the 4-way lobby (D391)"
+      description: |
+        v1.118-live, §10.180. The room's host only (404 otherwise; 503 hosting off; 409 `PK_UNAVAILABLE` while PK or
+        `PK4_ENABLED` is off). The same list as `listLivePkCandidates` (eligible SOLO video lives, invitations on,
+        `q`, `friends`, `limit`, `recommendable`) with the 4-way rules: never a host who is busy for either PK (an
+        open 1 v 1 match or invitation, an open 4-way lobby, invitation or match; a host waiting in the random queue
+        is listed, §10.70), never a host already in the caller's lobby, and **no block either way with any host of
+        the caller's open lobby** (the organiser, the accepted and the invited hosts).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - { name: q, in: query, required: false, schema: { type: string, maxLength: 30 } }
+        - { name: friends, in: query, required: false, schema: { type: string, enum: ['true', 'false'], default: 'false' } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Hosts to invite.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PkCandidate' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/lobby:
+    post:
+      tags: [live]
+      operationId: openLivePk4Lobby
+      summary: "Open a 4-way lobby as its organiser «PK رباعي» (D391)"
+      description: |
+        v1.118-live, §10.180. The room's host becomes the **organiser** (place 1, team A). Checks: hosting off → 503;
+        PK or `PK4_ENABLED` off → 409 `PK_UNAVAILABLE`; the body → 400 (`format` TEAMS; FREE_FOR_ALL is phase 3 →
+        409 `PK_UNAVAILABLE`); the caller's own room (404), LIVE (409 `LIVE_ROOM_ENDED`), eligible as for a 1 v 1 PK
+        (409 `PK_UNAVAILABLE`); not busy for either PK — a 1 v 1 match, an open 1 v 1 invitation either way, the
+        caller's random-queue wait, an open 4-way lobby, invitation or match (409 `PK_HOST_BUSY`). The lobby is open
+        for `PK4_LOBBY_SECONDS` (120). Rate limit as `inviteLivePk` (bucket `live:pk:invite`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Pk4LobbyRequest' }
+      responses:
+        '201':
+          description: The new lobby.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4Lobby' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: closeLivePk4Lobby
+      summary: "Cancel the 4-way lobby (organiser) or leave it (an accepted host) (D391)"
+      description: |
+        v1.118-live, §10.180. The organiser cancels the lobby: it is CANCELLED, every open invitation is CANCELLED and
+        every host of the lobby gets a `pk4-lobby` message (`cancelled`). A host who accepted a place leaves it before
+        the start: their invitation becomes LEFT and the place is free again (`left`). No open lobby of this room →
+        409 `PK_LOBBY_CLOSED`. Bucket `live:pk:action`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '204': { description: Cancelled or left. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/lobby/invites:
+    post:
+      tags: [live]
+      operationId: inviteLivePk4
+      summary: "Invite a host to a place of the 4-way lobby (D391)"
+      description: |
+        v1.118-live, §10.180. The organiser (their room in the path, 404 otherwise). `seat` 2 is the **teammate**
+        (team A), 3 and 4 the **opponents** (team B). Checks after the auth guard and the rate limit (bucket
+        `live:pk:invite`): hosting off → 503; PK or `PK4_ENABLED` off → 409 `PK_UNAVAILABLE`; the body → 400; no OPEN
+        lobby of this room → 409 `PK_LOBBY_CLOSED`; the place has an open or accepted invitation → 409
+        `PK_SEAT_TAKEN`; the other room visible to the caller (404) and not one already in the lobby (400 `toRoomId`
+        / `invalid_value`), eligible (409 `PK_UNAVAILABLE`), its host takes invitations (409 `PK_INVITES_OFF`), **no
+        block either way between that host and any host of the lobby** (404), not busy for either PK (409
+        `PK_HOST_BUSY`; a random-queue wait is not busy, §10.70). The invitation is open for `PK4_INVITE_TTL_SECONDS`
+        (30), never past the lobby's end; the invited host gets a `pk4-invite` message, the lobby's hosts `pk4-lobby`
+        (`invited`). A declined, expired or cancelled place may be offered again while the lobby is open.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Pk4InviteRequest' }
+      responses:
+        '201':
+          description: The lobby with the new invitation in its place.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4Lobby' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/lobby/invites/{inviteId}:
+    delete:
+      tags: [live]
+      operationId: cancelLivePk4Invite
+      summary: "Take back an open 4-way invitation (D391)"
+      description: |
+        v1.118-live, §10.180. The organiser (their room in the path; anyone else 404). 409 `PK_INVITE_CLOSED` when it
+        was answered, cancelled or has expired. The invited host gets `pk4-invite` (CANCELLED), the lobby's hosts
+        `pk4-lobby` (`invite-cancelled`). Bucket `live:pk:action`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/PkInviteIdPath'
+      responses:
+        '204': { description: Cancelled. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/invites/{inviteId}/accept:
+    post:
+      tags: [live]
+      operationId: acceptLivePk4Invite
+      summary: "Accept a place in a 4-way lobby; the fourth acceptance starts the match (D391)"
+      description: |
+        v1.118-live, §10.180. The invited host (their room in the path; anyone else 404). PK or `PK4_ENABLED` off →
+        409 `PK_UNAVAILABLE`. The invitation open (409 `PK_INVITE_CLOSED`), its lobby OPEN (409 `PK_LOBBY_CLOSED`),
+        both this room and the organiser's still eligible and no block with any host of the lobby (409
+        `PK_UNAVAILABLE`; the invitation is cancelled), this host not busy for either PK (409 `PK_HOST_BUSY`; the
+        caller's random-queue wait ends here). The place becomes ACCEPTED (`pk4-lobby` `accepted`). When **all three
+        places** are accepted the match is created under the four rooms' PK locks with the organiser's round time and
+        auto-start (§10.62): BATTLE at once, or CONNECTED when the organiser's auto-start is off; the lobby becomes
+        STARTED and the four rooms get `pk4-match` (`started` / `connected`). The answer is the caller's `Pk4State`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/PkInviteIdPath'
+      responses:
+        '200':
+          description: The caller's state after accepting (the lobby, or the match when it started).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4State' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/invites/{inviteId}/decline:
+    post:
+      tags: [live]
+      operationId: declineLivePk4Invite
+      summary: "Decline a 4-way invitation (D391)"
+      description: |
+        v1.118-live, §10.180. The invited host; 409 `PK_INVITE_CLOSED` when it is no longer open. The place is free
+        again; the lobby's hosts get `pk4-lobby` (`declined`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/PkInviteIdPath'
+      responses:
+        '204': { description: Declined. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/start:
+    post:
+      tags: [live]
+      operationId: startLivePk4
+      summary: "Start a CONNECTED 4-way match (D391)"
+      description: |
+        v1.118-live, §10.180 (§10.62's auto-start off). Any of the four hosts. CONNECTED → BATTLE for the round time;
+        already running: the match as it is (idempotent). No open match or one in its result → 409 `PK_NOT_ACTIVE`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4Match' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/end:
+    post:
+      tags: [live]
+      operationId: endLivePk4
+      summary: "Leave the 4-way battle (the teammate carries on) (D391)"
+      description: |
+        v1.118-live, §10.180. A host of the match (404 otherwise). During the battle the caller is **out**
+        (`outReason` FORFEIT): their points stay in the team's score and the teammate carries on alone; when both
+        hosts of a team are out the other team wins at once. CONNECTED → CANCELLED at once (void). During the result
+        phase it closes the match for the four rooms. No open match → 409 `PK_NOT_ACTIVE`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match after the caller left.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4Match' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/mute:
+    post:
+      tags: [live]
+      operationId: muteLivePk4Host
+      summary: "Turn one of the other three hosts' sound off or on in the own room (D391)"
+      description: |
+        v1.118-live, §10.180. A host of the match (404 otherwise) mutes (or unmutes) the host of `roomId` — one of the
+        other three rooms of the match (400 `roomId` / `invalid_value` otherwise) — for themselves and their viewers
+        (`Pk4SeatState.mutedRoomIds` of the caller's place); the other rooms are unchanged. No open match → 409
+        `PK_NOT_ACTIVE`. The four rooms get `pk4-match` (`mute`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Pk4MuteRequest' }
+      responses:
+        '200':
+          description: The match.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4Match' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/media-token:
+    post:
+      tags: [live]
+      operationId: createLivePk4MediaToken
+      security: [{}, {bearerAuth: []}]
+      summary: "Watch-only tokens for the three other rooms of this room's 4-way PK (D391)"
+      description: |
+        v1.118-live, §10.180 (CP-041 §8). No new media room: the viewers, guests and the host of this room open a
+        subscribe-only, hidden connection to **each of the three other rooms** (identity `pk4:<matchId>:<userId |
+        guest:<guestId>>`, never listed or counted as a viewer there, disconnected when the match closes). The caller
+        must be allowed to watch this room (as `createLivePkMediaToken`: 404, 409 `LIVE_ROOM_ENDED`, 403
+        `LIVE_KICKED`, guests 403 `LIVE_GUESTS_NOT_ALLOWED` and `guestId` required); a room the caller may not watch
+        (a block with its host; guests: it does not allow guests) is left out of `rooms`. No open match → 409
+        `PK_NOT_ACTIVE`. `layer`: the simulcast layer the app subscribes to (LOW for viewers and guests — a quarter
+        screen — MEDIUM for the room's host). `capped`: `PK4_MAX_WATCHERS_PER_ROOM` (0 = no cap) reached in a room —
+        that room is left out and the app shows the host's name and score without video. Media-token rate limits.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveMediaTokenRequest' }
+      responses:
+        '200':
+          description: Access to the other rooms' media sessions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4MediaAccess' }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
 
   /api/v1/live/pk/hosts/{username}:
     get:
@@ -17542,6 +17875,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminLiveEnded'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/lives/{roomId}/pk4/end:
+    post:
+      tags:
+      - admin-panel
+      operationId: endAdminLivePk4
+      summary: A moderator ends the room's 4-way PK (void; reason; audited `live.pk.admin_end`) (lives.moderate)
+      description: (v1.118-live, D391, §10.180) The rule of `pk-admin end` for a 4-way match (`adminEndPk4In`) — a CONNECTED or running battle becomes void (end reason ADMIN, no winner, not counted) and is CLOSED at once; a match in its result phase is CLOSED (its result stands). The API's PK tick tells the four rooms. 404 unknown room; 409 `PK_NOT_ACTIVE` when the room has no open 4-way PK. Audited `live.pk.admin_end` {reason, previousStatus, format, via panel}.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminRoomIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPk4Ended'
         '400':
           $ref: '#/components/responses/Error'
         '401':
@@ -29646,6 +30016,11 @@ components:
           oneOf:
           - $ref: '#/components/schemas/AdminLivePk'
           - type: 'null'
+        pk4:
+          description: (v1.118-live, D391) the room's open 4-way PK «PK رباعي» (then `pk` is null); null or absent when not in one.
+          oneOf:
+          - $ref: '#/components/schemas/AdminLivePk4'
+          - type: 'null'
         assignedTo:
           description: (v1.64-live, D260) the staff member on shift this live is assigned to; null while nobody is on shift.
           oneOf:
@@ -30026,6 +30401,11 @@ components:
           description: (v1.54-live, D241) the room's PK, null when not in one.
           oneOf:
           - $ref: '#/components/schemas/AdminLivePk'
+          - type: 'null'
+        pk4:
+          description: (v1.118-live, D391) the room's open 4-way PK, null or absent when not in one.
+          oneOf:
+          - $ref: '#/components/schemas/AdminLivePk4'
           - type: 'null'
     AdminLiveEnded:
       type: object
@@ -35595,6 +35975,255 @@ components:
         roomId: { type: string, format: uuid, description: The other room (its media session). }
         identity: { type: string, maxLength: 128, description: "pk:<matchId>:<userId | guest:<guestId>>" }
         hostIdentity: { type: string, description: "The other host's identity in that session (their user id)." }
+    Pk4Format:
+      type: string
+      enum: [TEAMS, FREE_FOR_ALL]
+      description: "v1.118-live (D391, §10.180) «2 ضد 2» TEAMS (two teams of two) / «الكل ضد الكل» FREE_FOR_ALL (CP-041 phase 3: refused until then). Unknown future values: show a generic 4-way PK."
+    Pk4Team:
+      type: string
+      enum: [A, B]
+      description: "Team A is the organiser's (places 1 and 2), team B the opponents (places 3 and 4). Each app draws its own room's team on the reading start."
+    Pk4LobbyRequest:
+      type: object
+      additionalProperties: false
+      required: [format]
+      properties:
+        format: { $ref: '#/components/schemas/Pk4Format' }
+    Pk4InviteRequest:
+      type: object
+      additionalProperties: false
+      required: [toRoomId, seat]
+      properties:
+        toRoomId: { type: string, format: uuid }
+        seat: { type: integer, minimum: 2, maximum: 4, description: "2: the teammate (team A); 3 and 4: the opponents (team B)." }
+    Pk4MuteRequest:
+      type: object
+      additionalProperties: false
+      required: [roomId, muted]
+      properties:
+        roomId: { type: string, format: uuid, description: One of the other three rooms of the match. }
+        muted: { type: boolean }
+    Pk4Invite:
+      type: object
+      required: [id, lobbyId, format, seat, team, status, fromRoomId, toRoomId, from, to, createdAt, expiresAt, lobbyExpiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        lobbyId: { type: string, format: uuid }
+        format: { $ref: '#/components/schemas/Pk4Format' }
+        seat: { type: integer, minimum: 2, maximum: 4 }
+        team: { $ref: '#/components/schemas/Pk4Team' }
+        status:
+          type: string
+          enum: [PENDING, ACCEPTED, DECLINED, CANCELLED, EXPIRED, LEFT]
+          description: "LEFT: the host accepted, then left the lobby before the start (or their live ended). Unknown future values: treat as closed."
+        fromRoomId: { type: string, format: uuid, description: The organiser's room. }
+        toRoomId: { type: string, format: uuid }
+        from: { $ref: '#/components/schemas/UserSummary' }
+        to: { $ref: '#/components/schemas/UserSummary' }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: "PK4_INVITE_TTL_SECONDS (30) after it was sent, never past the lobby's end." }
+        lobbyExpiresAt: { type: string, format: date-time }
+    Pk4LobbySeat:
+      type: object
+      required: [seat, team, role, state, roomId, host, invite]
+      properties:
+        seat: { type: integer, minimum: 1, maximum: 4 }
+        team: { $ref: '#/components/schemas/Pk4Team' }
+        role: { type: string, enum: [ORGANISER, TEAMMATE, OPPONENT] }
+        state:
+          type: string
+          enum: [EMPTY, INVITED, ACCEPTED]
+          description: "EMPTY: nobody (or the last invitation was declined, cancelled, expired or left); INVITED: an open invitation; ACCEPTED: the host is in (the organiser always)."
+        roomId: { type: [string, 'null'], format: uuid }
+        host:
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        invite:
+          description: The place's open or accepted invitation (null for the organiser and an empty place).
+          oneOf:
+            - $ref: '#/components/schemas/Pk4Invite'
+            - type: 'null'
+    Pk4Lobby:
+      type: object
+      required: [id, format, status, organiserRoomId, createdAt, expiresAt, matchId, serverTime, seats]
+      properties:
+        id: { type: string, format: uuid }
+        format: { $ref: '#/components/schemas/Pk4Format' }
+        status:
+          type: string
+          enum: [OPEN, STARTED, CANCELLED, EXPIRED]
+          description: "EXPIRED: PK4_LOBBY_SECONDS (120) ran out before all four accepted («لم يكتمل العدد»)."
+        organiserRoomId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        matchId: { type: [string, 'null'], format: uuid, description: The match once STARTED. }
+        serverTime: { type: string, format: date-time }
+        seats:
+          type: array
+          minItems: 4
+          maxItems: 4
+          description: Places 1 (the organiser) to 4 in order.
+          items: { $ref: '#/components/schemas/Pk4LobbySeat' }
+    Pk4TeamState:
+      type: object
+      required: [team, score, result, boost, boosterUses, supporters]
+      properties:
+        team: { $ref: '#/components/schemas/Pk4Team' }
+        score: { type: integer, minimum: 0, description: "The team's PK points: the sum of its two hosts' points (a host who left keeps theirs)." }
+        result:
+          type: [string, 'null']
+          enum: [WIN, LOSS, DRAW, null]
+          description: Null while the battle runs and for a void match.
+        boost:
+          description: "The team's booster active now (a booster gift in either teammate's room activates it for both rooms of the team), or null."
+          oneOf:
+            - $ref: '#/components/schemas/PkActiveBoost'
+            - type: 'null'
+        boosterUses:
+          allOf:
+            - $ref: '#/components/schemas/PkBoosterUses'
+          description: The team's uses of each booster in the match (the limits are per team).
+        supporters:
+          type: array
+          maxItems: 3
+          description: The team's top three supporters from both of its rooms (frozen when the battle ends).
+          items: { $ref: '#/components/schemas/PkSupporter' }
+    Pk4SeatState:
+      type: object
+      required: [seat, team, roomId, host, score, out, outReason, mutedRoomIds, pkPoints]
+      properties:
+        seat: { type: integer, minimum: 1, maximum: 4 }
+        team: { $ref: '#/components/schemas/Pk4Team' }
+        roomId: { type: string, format: uuid }
+        host: { $ref: '#/components/schemas/UserSummary' }
+        score: { type: integer, minimum: 0, description: "This host's own PK points (the gifts sent in their room during the battle × the team's booster), shown under their pane." }
+        out: { type: boolean, description: "The host left the battle (ended it, ended the live, or was absent / away for PK_ABSENCE_GRACE_SECONDS); their points stay in the team's score, their room's gifts no longer count." }
+        outReason:
+          type: [string, 'null']
+          enum: [FORFEIT, DISCONNECT, AWAY, null]
+        mutedRoomIds:
+          type: array
+          maxItems: 3
+          description: The other rooms whose host's sound this host turned off in their own room.
+          items: { type: string, format: uuid }
+        pkPoints: { type: integer, description: "«نقاط PK»: this host's `PkHostRecord.points` (may be below 0)." }
+    Pk4Match:
+      type: object
+      required: [id, format, status, startedAt, battleEndsAt, endedAt, resultEndsAt, endReason, winnerTeam, seq, serverTime, roundSeconds, connectedAt, effective, organiserRoomId, teams, seats, boosters]
+      properties:
+        id: { type: string, format: uuid }
+        format: { $ref: '#/components/schemas/Pk4Format' }
+        status:
+          type: string
+          enum: [CONNECTED, BATTLE, RESULT, CLOSED]
+          description: As `PkMatch.status`. A single round only.
+        startedAt: { type: string, format: date-time }
+        battleEndsAt: { type: string, format: date-time, description: "BATTLE: the round's end. CONNECTED: the time by which a host must start it (PK_CONNECT_SECONDS), else it is CANCELLED." }
+        endedAt: { type: [string, 'null'], format: date-time }
+        resultEndsAt: { type: [string, 'null'], format: date-time }
+        endReason:
+          type: [string, 'null']
+          enum: [TIME, FORFEIT, DISCONNECT, AWAY, ADMIN, CANCELLED, null]
+          description: "TIME: the round ran out (the higher team sum wins; equal: a draw). FORFEIT / DISCONNECT / AWAY: both hosts of a team were out (the other team won), or all four (a void draw). ADMIN: a moderator (void). CANCELLED: a CONNECTED match that never started (void)."
+        winnerTeam:
+          description: Null for a draw, a void match or while the battle runs.
+          oneOf:
+            - $ref: '#/components/schemas/Pk4Team'
+            - type: 'null'
+        seq: { type: integer, minimum: 0, description: Increases on every change; apps keep the highest and re-read on a gap. }
+        serverTime: { type: string, format: date-time }
+        roundSeconds: { type: integer, minimum: 1, description: "The organiser's round time (§10.62), or PK_BATTLE_SECONDS." }
+        connectedAt: { type: [string, 'null'], format: date-time }
+        effective: { type: [boolean, 'null'], description: "Whether the finished match counts in the records (the four hosts' PK points together ≥ PK_EFFECTIVE_MIN_POINTS; never ADMIN, CANCELLED or everyone gone); null until it ends." }
+        organiserRoomId: { type: string, format: uuid }
+        teams:
+          type: array
+          minItems: 2
+          maxItems: 2
+          description: Team A then team B.
+          items: { $ref: '#/components/schemas/Pk4TeamState' }
+        seats:
+          type: array
+          minItems: 4
+          maxItems: 4
+          description: Places 1–4 in order (1, 2 team A; 3, 4 team B).
+          items: { $ref: '#/components/schemas/Pk4SeatState' }
+        boosters:
+          type: array
+          items: { $ref: '#/components/schemas/PkBoosterRule' }
+    Pk4State:
+      type: object
+      required: [match, lobby, invite]
+      properties:
+        match:
+          oneOf:
+            - $ref: '#/components/schemas/Pk4Match'
+            - type: 'null'
+        lobby:
+          description: The room's host only — the OPEN lobby they organise or accepted a place in; null for everyone else.
+          oneOf:
+            - $ref: '#/components/schemas/Pk4Lobby'
+            - type: 'null'
+        invite:
+          description: The room's host only — an open invitation to this room; null for everyone else.
+          oneOf:
+            - $ref: '#/components/schemas/Pk4Invite'
+            - type: 'null'
+    Pk4MediaRoom:
+      type: object
+      required: [roomId, token, identity, hostIdentity]
+      properties:
+        roomId: { type: string, format: uuid }
+        token: { type: string, description: "Subscribe-only, hidden; that room only; valid 10 minutes to join." }
+        identity: { type: string, maxLength: 128, description: "pk4:<matchId>:<userId | guest:<guestId>>" }
+        hostIdentity: { type: string, description: "That room's host identity (their user id)." }
+    Pk4MediaAccess:
+      type: object
+      required: [url, expiresAt, layer, capped, rooms]
+      properties:
+        url: { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
+        layer:
+          type: string
+          enum: [LOW, MEDIUM]
+          description: "The simulcast layer to subscribe to: LOW (about 180p, 15 fps) for viewers and guests, MEDIUM for the room's host."
+        capped: { type: boolean, description: "PK4_MAX_WATCHERS_PER_ROOM was reached in at least one room (left out of `rooms`)." }
+        rooms:
+          type: array
+          maxItems: 3
+          items: { $ref: '#/components/schemas/Pk4MediaRoom' }
+    AdminLivePk4:
+      type: object
+      description: (v1.118-live, D391) the room's open 4-way PK.
+      required: [matchId, status, format, team, hosts]
+      properties:
+        matchId: { type: string, format: uuid }
+        status: { type: string, enum: [CONNECTED, BATTLE, RESULT] }
+        format: { $ref: '#/components/schemas/Pk4Format' }
+        team: { $ref: '#/components/schemas/Pk4Team' }
+        hosts:
+          type: array
+          minItems: 4
+          maxItems: 4
+          description: The four places in order.
+          items:
+            type: object
+            required: [seat, team, roomId, username, displayName, score, out]
+            properties:
+              seat: { type: integer, minimum: 1, maximum: 4 }
+              team: { $ref: '#/components/schemas/Pk4Team' }
+              roomId: { type: string, format: uuid }
+              username: { type: [string, 'null'] }
+              displayName: { type: [string, 'null'] }
+              score: { type: integer, minimum: 0 }
+              out: { type: boolean }
+    AdminPk4Ended:
+      type: object
+      required: [matchId, previousStatus]
+      properties:
+        matchId: { type: string, format: uuid }
+        previousStatus: { type: string, enum: [CONNECTED, BATTLE, RESULT] }
     PkHostRecord:
       type: object
       required: [wins, losses, draws, points, daresDone, daresRefused]
