@@ -13221,7 +13221,7 @@ tooltips are replaced by the bubble.
 
 | Badge | Bubble (ar / en) |
 | ----- | ---------------- |
-| Kabso Team (`KabsoTeamBadge`, the chat's team tag) | «شارة فريق كابسو — هذا الحساب من فريق كابسو الرسمي» / "Kabso Team badge — this account is part of Kabso's official team" |
+| Kabso Team (`KabsoTeamBadge`, the chat's team tag) | «شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي» / "Kabso Team badge — this account is part of Kabso's official team" |
 | Level (`KLevelBadge`): SUPPORT, ATTRACTIVENESS, WIZARD, GAMING | «مستوى الثروة 25» / "Wealth level 25"; «مستوى الجاذبية N» / "Charm level N"; «مستوى الساحر N»; «مستوى اللعب N» |
 | Charm creature (`CharmLevelBadge`): a person's / a room's | «مستوى الجاذبية N» / "Charm level N"; beside a room's name «مستوى الغرفة N — مستوى جاذبية المضيف» / "Room level N — the host's charm level" |
 | VIP (`VipNameBadge`, art or «VIPn» pill) | «عضوية VIP 3» / "VIP 3 membership" |

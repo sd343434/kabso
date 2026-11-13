@@ -18914,7 +18914,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get badgeExplainKabsoTeam =>
-      'شارة فريق كابسو — هذا الحساب من فريق كابسو الرسمي';
+      'شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي';
 
   @override
   String badgeExplainWealthLevel(int level) {

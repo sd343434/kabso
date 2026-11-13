@@ -14,7 +14,7 @@ The D282c art replaced the first D282 art (a green crest and banner, owner-suppl
 
 D389: nothing is written on the badge any more. Until D389 `KabsoTeamBadge` wrote the team's name in the banner; now the
 name is the badge's spoken label («فريق كابسو» / "Kabso Team"), and a tap shows the explainer bubble (`KBadgeExplainer`,
-«شارة فريق كابسو — هذا الحساب من فريق كابسو الرسمي»).
+«شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي»).
 
 The art is never mirrored in right-to-left layouts (a mirrored crown and laurels would read as a different emblem). The
 largest drawn size is 40 pt tall (the shift page), so 328 px covers @3x (≈ 8×).
