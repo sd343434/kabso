@@ -75,6 +75,15 @@ enum NotificationType {
   /// picture «صورة متحركة» (no target; opens it to record another).
   animatedAvatarRemoved('ANIMATED_AVATAR_REMOVED'),
 
+  /// v1.138-social (D386, system): the Kabso Team verified your account
+  /// category (no target; opens Edit profile).
+  categoryVerified('CATEGORY_VERIFIED'),
+
+  /// v1.138-social (D386, system): the team rejected your request, removed
+  /// the verification, cleared, locked or unlocked your category (no target;
+  /// opens Edit profile, where the details are).
+  categoryReviewed('CATEGORY_REVIEWED'),
+
   /// v1.66-social (D198, system): the data export «تنزيل بياناتي» is ready
   /// (no target; opens the export screen).
   dataExportReady('DATA_EXPORT_READY'),

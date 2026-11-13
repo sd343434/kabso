@@ -75,6 +75,11 @@ abstract class PublicProfile with _$PublicProfile {
     @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)
     AccountCategory? category,
 
+    /// v1.138-social (D386, §10.175): the Kabso Team verified [category] —
+    /// only then the page takes the category's look and featured section
+    /// (absent from an older server: false, the default look).
+    @Default(false) bool categoryVerified,
+
     /// v1.47-social (D175): the profile links (also on a private profile).
     @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)
     @Default(<ProfileLink>[])

@@ -7,6 +7,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_edit_controller.dart';
+import 'package:kabso_live/features/profile/category/category_picker.dart';
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/profile/profile_tag_icons.dart';
@@ -22,9 +23,8 @@ abstract final class EditProfileFieldsKeys {
   static Key gender(Gender g) => Key('profile.edit.gender.${g.wire}');
   static const genderShow = Key('profile.edit.gender.show');
   static const genderSave = Key('profile.edit.gender.save');
-  static Key category(AccountCategory c) =>
-      Key('profile.edit.category.${c.wire}');
-  static const categoryNone = Key('profile.edit.category.none');
+  static Key category(AccountCategory c) => CategoryPickerSheet.option(c);
+  static const Key categoryNone = CategoryPickerSheet.none;
   static Key linkUrl(int i) => Key('profile.edit.link.$i.url');
   static Key linkLabel(int i) => Key('profile.edit.link.$i.label');
   static Key linkRemove(int i) => Key('profile.edit.link.$i.remove');
@@ -147,63 +147,28 @@ class _GenderSheetState extends State<_GenderSheet> {
   }
 }
 
-/// The category sheet: the owner's eleven categories and "No category".
-/// A choice saves at once.
+/// The category sheet: D386 — the 24 categories grouped by family, «بدون
+/// فئة» and the verification on top ([CategoryPickerSheet]). A choice
+/// saves at once; changing the category clears its verification (server).
 Future<void> editCategory(
   BuildContext context,
   WidgetRef ref,
   User user,
 ) async {
-  final l10n = context.l10n;
   // `(null)` is "No category"; closing the sheet is no record at all.
   final picked = await showModalBottomSheet<(AccountCategory?,)>(
     context: context,
     isScrollControlled: true,
     builder: (sheet) => DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.75,
+      initialChildSize: 0.85,
       maxChildSize: 0.95,
       builder: (sheet, scroll) => SafeArea(
-        child: RadioGroup<AccountCategory?>(
-          groupValue: user.category,
-          onChanged: (c) => Navigator.of(sheet).pop((c,)),
-          child: ListView(
-            controller: scroll,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  KSpacing.lg,
-                  KSpacing.lg,
-                  KSpacing.lg,
-                  KSpacing.xs,
-                ),
-                child: Text(
-                  l10n.profileEditCategory,
-                  style: sheet.textStyles.title,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
-                child: Text(
-                  l10n.profileEditCategoryHint,
-                  style: sheet.textStyles.caption.copyWith(
-                    color: sheet.palette.textSecondary,
-                  ),
-                ),
-              ),
-              for (final c in AccountCategory.values)
-                RadioListTile<AccountCategory?>(
-                  key: EditProfileFieldsKeys.category(c),
-                  value: c,
-                  title: Text(categoryLabel(l10n, c)),
-                ),
-              RadioListTile<AccountCategory?>(
-                key: EditProfileFieldsKeys.categoryNone,
-                value: null,
-                title: Text(l10n.profileEditCategoryNone),
-              ),
-            ],
-          ),
+        child: CategoryPickerSheet(
+          current: user.category,
+          verified: user.categoryVerified,
+          locked: user.categoryLocked,
+          scroll: scroll,
         ),
       ),
     ),

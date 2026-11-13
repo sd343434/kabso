@@ -80,6 +80,10 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.dmNotArchivable => l10n.errorDmNotArchivable,
     ErrorCode.dmGroupFull => l10n.errorDmGroupFull,
     ErrorCode.dmPinLimit => l10n.errorDmPinLimit,
+    ErrorCode.featuredPinLimit => l10n.errorFeaturedPinLimit,
+    ErrorCode.categoryVerificationPending =>
+      l10n.errorCategoryVerificationPending,
+    ErrorCode.accountCategoryLocked => l10n.errorAccountCategoryLocked,
     ErrorCode.dmGroupMemberNotAllowed => l10n.errorDmGroupMemberNotAllowed,
     ErrorCode.quipFreeUsed => l10n.errorQuipFreeUsed,
     ErrorCode.quipQueueFull => l10n.errorQuipQueueFull,

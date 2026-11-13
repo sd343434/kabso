@@ -200,6 +200,9 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
           gender: true,
           showGender: true,
           category: true,
+          // v1.138-social (D386, §10.175): the team's verification and lock of the category.
+          categoryVerifiedAt: true,
+          categoryLockedAt: true,
           premiumTier: true,
           createdAt: true,
           updatedAt: true,
@@ -249,6 +252,35 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     where: { userId: u, status: 'ACTIVE' },
     select: { baseUsername: true },
   });
+  // v1.138-social (D386, §10.175.3–4): the featured pins and the «طلب توثيق الفئة» requests.
+  const featuredPins = (
+    await db.profileFeaturedPin.findMany({
+      where: { userId: u },
+      orderBy: { position: 'asc' },
+      select: { postId: true, position: true },
+    })
+  ).map((p) => p.postId);
+  const categoryRequests = (
+    await db.categoryRequest.findMany({
+      where: { userId: u },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        category: true,
+        status: true,
+        note: true,
+        rejectReason: true,
+        createdAt: true,
+        decidedAt: true,
+      },
+    })
+  ).map((r) => ({
+    category: r.category,
+    status: r.status,
+    note: r.note,
+    rejectReason: r.rejectReason,
+    createdAt: iso(r.createdAt),
+    decidedAt: iso(r.decidedAt),
+  }));
 
   const profile = {
     id: user.id,
@@ -267,6 +299,10 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     gender: user.profile?.gender ?? null,
     showGender: user.profile?.showGender ?? null,
     category: user.profile?.category ?? null,
+    categoryVerifiedAt: iso(user.profile?.categoryVerifiedAt ?? null),
+    categoryLockedAt: iso(user.profile?.categoryLockedAt ?? null),
+    categoryRequests,
+    featuredPins,
     premiumTier: user.profile?.premiumTier ?? null,
     links,
   };

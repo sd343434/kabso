@@ -49,6 +49,20 @@ String categoryLabel(AppLocalizations l10n, AccountCategory category) =>
       AccountCategory.blogger => l10n.categoryBlogger,
       AccountCategory.publicFigure => l10n.categoryPublicFigure,
       AccountCategory.other => l10n.categoryOther,
+      // D386 (v1.138-social, §10.175.1).
+      AccountCategory.quranReciter => l10n.categoryQuranReciter,
+      AccountCategory.storyteller => l10n.categoryStoryteller,
+      AccountCategory.writer => l10n.categoryWriter,
+      AccountCategory.journalist => l10n.categoryJournalist,
+      AccountCategory.photographer => l10n.categoryPhotographer,
+      AccountCategory.actor => l10n.categoryActor,
+      AccountCategory.comedian => l10n.categoryComedian,
+      AccountCategory.calligrapher => l10n.categoryCalligrapher,
+      AccountCategory.designer => l10n.categoryDesigner,
+      AccountCategory.chef => l10n.categoryChef,
+      AccountCategory.traveler => l10n.categoryTraveler,
+      AccountCategory.teacher => l10n.categoryTeacher,
+      AccountCategory.dj => l10n.categoryDj,
     };
 
 /// The three gender choices as chips (one selectable), with a label, a
@@ -106,14 +120,19 @@ class GenderChoice extends StatelessWidget {
 }
 
 /// The line under the name: the account category (and the gender when the
-/// user shows it), e.g. «شاعر · أنثى».
+/// user shows it), e.g. «شاعر · أنثى». D386: a category the team verified
+/// reads in the page's accent ([categoryColor]); an unverified one stays
+/// the plain word.
 class ProfileFieldsLine extends StatelessWidget {
-  const new({super.key, this.category, this.gender});
+  const new({super.key, this.category, this.gender, this.categoryColor});
 
   final AccountCategory? category;
 
   /// Already filtered: only a gender the user shows (MALE / FEMALE).
   final Gender? gender;
+
+  /// D386: the verified category's accent, or null.
+  final Color? categoryColor;
 
   static const lineKey = Key('profile.fieldsLine');
 
@@ -127,13 +146,29 @@ class ProfileFieldsLine extends StatelessWidget {
         genderLabel(l10n, g),
     ];
     if (parts.isEmpty) return const SizedBox.shrink();
+    final style = context.textStyles.body.copyWith(color: p.textSecondary);
+    final accent = categoryColor;
     return Padding(
       padding: const EdgeInsets.only(top: KSpacing.xxs),
-      child: Text(
-        parts.join(' · '),
-        key: lineKey,
-        style: context.textStyles.body.copyWith(color: p.textSecondary),
-      ),
+      child: accent == null || category == null
+          ? Text(parts.join(' · '), key: lineKey, style: style)
+          : Text.rich(
+              key: lineKey,
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: parts.first,
+                    style: style.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (parts.length > 1)
+                    TextSpan(text: ' · ${parts.skip(1).join(' · ')}'),
+                ],
+              ),
+              style: style,
+            ),
     );
   }
 }

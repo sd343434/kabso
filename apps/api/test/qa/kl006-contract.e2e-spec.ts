@@ -48,6 +48,9 @@ const ME_REQUIRED = [
   'gender',
   'showGender',
   'category',
+  // D386 (v1.138-social): the team's verification and lock of the category.
+  'categoryVerified',
+  'categoryLocked',
   'links',
   // D278b (v1.85-social): the profile tags «منشنات».
   'tags',

@@ -352,6 +352,9 @@ class EditProfileScreen extends ConsumerWidget {
                     key: categoryKey,
                     label: l10n.profileEditCategory,
                     value: switch (user.category) {
+                      // D386: a verified category carries a check.
+                      final c? when user.categoryVerified =>
+                        '${categoryLabel(l10n, c)} ✓',
                       final c? => categoryLabel(l10n, c),
                       null => '',
                     },

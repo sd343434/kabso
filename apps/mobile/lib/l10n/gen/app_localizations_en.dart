@@ -18906,4 +18906,213 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get waInAppHint =>
       'A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text or a picture.';
+
+  @override
+  String get categoryQuranReciter => 'Quran reciter';
+
+  @override
+  String get categoryStoryteller => 'Storyteller';
+
+  @override
+  String get categoryWriter => 'Writer';
+
+  @override
+  String get categoryJournalist => 'Journalist';
+
+  @override
+  String get categoryPhotographer => 'Photographer';
+
+  @override
+  String get categoryActor => 'Actor';
+
+  @override
+  String get categoryComedian => 'Comedian';
+
+  @override
+  String get categoryCalligrapher => 'Calligrapher';
+
+  @override
+  String get categoryDesigner => 'Designer';
+
+  @override
+  String get categoryChef => 'Chef';
+
+  @override
+  String get categoryTeacher => 'Teacher / coach';
+
+  @override
+  String get categoryDj => 'DJ';
+
+  @override
+  String get categoryTraveler => 'Traveler';
+
+  @override
+  String get categoryFamilyMusic => 'Music';
+
+  @override
+  String get categoryFamilyReciter => 'Recitation and stories';
+
+  @override
+  String get categoryFamilyWord => 'Words';
+
+  @override
+  String get categoryFamilyVisual => 'Visual arts';
+
+  @override
+  String get categoryFamilyPerformer => 'Performance and content';
+
+  @override
+  String get categoryFamilySportsGames => 'Sports and games';
+
+  @override
+  String get categoryFamilyLifestyle => 'Lifestyle';
+
+  @override
+  String get categoryFamilyPublic => 'General';
+
+  @override
+  String get featuredWorks => 'My works';
+
+  @override
+  String get featuredRecitations => 'My recitations';
+
+  @override
+  String get featuredStories => 'My stories';
+
+  @override
+  String get featuredPoems => 'My poems';
+
+  @override
+  String get featuredArticles => 'My articles';
+
+  @override
+  String get featuredReports => 'My reports';
+
+  @override
+  String get featuredProgram => 'My show';
+
+  @override
+  String get featuredGames => 'My games';
+
+  @override
+  String get featuredAchievements => 'My achievements';
+
+  @override
+  String get featuredGallery => 'My gallery';
+
+  @override
+  String get featuredMostViewed => 'Most viewed';
+
+  @override
+  String get featuredHighlights => 'Highlights';
+
+  @override
+  String featuredPinIn(String section) {
+    return 'Pin to “$section”';
+  }
+
+  @override
+  String featuredUnpinFrom(String section) {
+    return 'Unpin from “$section”';
+  }
+
+  @override
+  String featuredPinned(String section) {
+    return 'Pinned to “$section”';
+  }
+
+  @override
+  String get featuredUnpinned => 'Unpinned';
+
+  @override
+  String get featuredReorder => 'Reorder';
+
+  @override
+  String get featuredReorderHint => 'Drag to change the order. Up to 6 posts.';
+
+  @override
+  String get featuredReorderSave => 'Save order';
+
+  @override
+  String get featuredEmptyOwn =>
+      'Pin up to 6 of your posts here from a post’s “⋯” menu.';
+
+  @override
+  String get featuredAutoNote =>
+      'Your newest posts — pin the ones you want here';
+
+  @override
+  String get featuredUpcoming => 'Upcoming';
+
+  @override
+  String get featuredPodcast => 'Podcast';
+
+  @override
+  String featuredViews(String count) {
+    return '$count views';
+  }
+
+  @override
+  String get featuredPlay => 'Play';
+
+  @override
+  String get featuredReadMore => 'Read more';
+
+  @override
+  String categoryBadgeVerified(String category) {
+    return 'Verified category: $category';
+  }
+
+  @override
+  String get categoryVerifyRequest => 'Request category verification';
+
+  @override
+  String get categoryVerifyHint =>
+      'Once the Kabso Team verifies your category, your page takes its own look: a colour, a badge and a featured section at the top.';
+
+  @override
+  String get categoryVerifyPending => 'Verification request under review';
+
+  @override
+  String get categoryVerifyCancel => 'Cancel request';
+
+  @override
+  String get categoryVerifyVerified => 'Your category is verified';
+
+  @override
+  String categoryVerifyRejected(String reason) {
+    return 'Your request was not accepted: $reason';
+  }
+
+  @override
+  String get categoryVerifySent =>
+      'Your verification request was sent to the Kabso Team';
+
+  @override
+  String get categoryVerifyChangeWarning =>
+      'Changing the category removes the verification.';
+
+  @override
+  String get categoryLockedNote =>
+      'The Kabso Team locked your account category; it cannot be changed now.';
+
+  @override
+  String get errorFeaturedPinLimit =>
+      'You can feature up to 6 posts. Unpin one first.';
+
+  @override
+  String get errorCategoryVerificationPending =>
+      'You already have a verification request under review.';
+
+  @override
+  String get errorAccountCategoryLocked =>
+      'The Kabso Team locked your account category.';
+
+  @override
+  String get notifCategoryVerified =>
+      'The Kabso Team verified your account category — your page now has its own look';
+
+  @override
+  String get notifCategoryReviewed =>
+      'The Kabso Team reviewed your account category. Open Edit profile for the details';
 }
