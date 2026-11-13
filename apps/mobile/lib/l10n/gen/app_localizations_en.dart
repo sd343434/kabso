@@ -19115,4 +19115,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notifCategoryReviewed =>
       'The Kabso Team reviewed your account category. Open Edit profile for the details';
+
+  @override
+  String get waLangAR => 'Arabic';
+
+  @override
+  String get waLangEN => 'English';
+
+  @override
+  String waLangLabel(String language) {
+    return 'Customer language: $language';
+  }
 }

@@ -1790,7 +1790,7 @@ unused.
 
 ### 11.13 «واتساب» — the official Kabso WhatsApp number (D355) — [IMPLEMENTED, draft contract v1.116-social; off until the owner configures it, never run against Meta]
 
-The staff answer one official Kabso WhatsApp number from the app («أنا» → «واتساب») and the panel («واتساب»)
+The staff answer one official Kabso WhatsApp number from the app («الرسائل» → the pinned «واتساب» circle after «دعم كابسو»; it was «أنا» → «واتساب» until 2026-11-13) and the panel («واتساب»)
 (CONVENTIONS §10.151). It stays **off** until the five settings below are on the server; nothing else needs a deploy.
 Meta's screens and names change often — follow Meta's current wording; the links are Meta's official pages.
 
@@ -1824,15 +1824,20 @@ Meta's screens and names change often — follow Meta's current wording; the lin
    e.g. `kabso_followup` (Utility, Arabic): «مرحباً {{1}}، هل ما زلت تحتاج المساعدة في طلبك {{2}}؟», plus an English one.
    Only **APPROVED** templates appear in «إرسال قالب» (the inbox re-reads Meta's list every 10 minutes, or at once
    with «اختبار الاتصال»). Marketing templates need the customer's opt-in.
-7. **Files on the server** (as root; readable by the API container's user only — the same pattern as §5.108):
+7. **Files on the server** (as root; the API runs as uid/gid 1000, so the folder and files belong to root:1000 and
+   are readable by that group only; never paste a secret into a chat or a command line — `read -rs` keeps it off
+   the screen and out of the shell history):
    ```sh
-   install -d -m 700 /opt/kabso/secrets/whatsapp
-   umask 077
-   printf '%s' '<the System User token>'        > /opt/kabso/secrets/whatsapp/access_token
-   printf '%s' '<the App secret>'               > /opt/kabso/secrets/whatsapp/app_secret
-   openssl rand -hex 32                         > /opt/kabso/secrets/whatsapp/verify_token   # any random string
+   install -d -m 750 -o root -g 1000 /opt/kabso/secrets/whatsapp
+   cd /opt/kabso/secrets/whatsapp
+   read -rsp 'System User token: ' T; printf '%s' "$T" > access_token; unset T; echo
+   read -rsp 'App secret: ' S; printf '%s' "$S" > app_secret; unset S; echo
+   openssl rand -hex 32 > verify_token          # any random string
+   chown root:1000 access_token app_secret verify_token
+   chmod 640 access_token app_secret verify_token
    ```
-   Mount the folder read-only into the API container and set in the server's env file:
+   `infra/deploy/docker-compose.yml` mounts this folder read-only at `/run/secrets/whatsapp` (another folder:
+   `KABSO_WHATSAPP_SECRETS_DIR` in `kabso.env`). Then set in `/etc/kabso/api.env`:
    ```
    WHATSAPP_PHONE_NUMBER_ID=<Phone number ID>
    WHATSAPP_BUSINESS_ACCOUNT_ID=<WhatsApp Business Account ID>
@@ -4558,3 +4563,26 @@ CONVENTIONS §10.175 (owner 2026-11-12). Two migrations and two optional setting
   ('QURAN_RECITER', …, 'TRAVELER')` (after an export if needed). The enum values, columns and tables can stay.
 - **Order:** deploy the API image (the migrations run first), then the panel, then ship the APK. An older app shows a
   new category as nothing and keeps the default page.
+
+### 5.130 «سؤال اللغة» — the WhatsApp language question (D388; migration `20270518090000_whatsapp_language`) — [IMPLEMENTED, draft contract v1.140-social; not deployed, not tested against Meta]
+
+CONVENTIONS §10.177 (owner 2026-11-13). One migration and one optional setting; no new secret, no new host.
+
+- **Migration** `20270518090000_whatsapp_language` (the usual `migrate` job, as the migration role): enum `wa_language`;
+  `wa_conversations.language` and `language_asked_at` (nullable, no default: metadata-only, no table rewrite); the new
+  table `wa_staff_languages` (runtime grants from the default privileges, KL-013). Nothing to backfill: every existing
+  conversation has no language and is asked once, on its next message.
+- **Setting:** `WHATSAPP_ASK_LANGUAGE` (default `true`) — the reply-buttons question «العربية / English» on a
+  conversation's first message. Set `false` to stop asking (languages already chosen stay shown); anything but
+  `true` / `false` stops the API at boot.
+- **Meta:** nothing to configure. The question is an interactive reply-buttons message inside the 24-hour window (the
+  customer just wrote), so no template is needed; the answer arrives on the `messages` webhook field already
+  subscribed (§11.13). The confirmation is a plain text in the chosen language.
+- **Panel:** «الموظفون والصلاحيات» → each REPLY / MANAGE staff card has «لغات واتساب» (none set = both). Set them so the
+  new-message pushes of an Arabic or English conversation reach the right staff.
+- **Check after deploy:** from a phone that never wrote to the number, send «مرحبا»: the buttons arrive; tap «English»:
+  the English confirmation arrives and the inbox shows «English» on the conversation.
+- **Rollback:** deploy the previous API image; it ignores the columns and the table (leave them). Set
+  `WHATSAPP_ASK_LANGUAGE=false` instead to stop only the question.
+- **Order:** the API image (the migration runs first), then the panel, then the APK. An older app or panel just shows
+  no language.

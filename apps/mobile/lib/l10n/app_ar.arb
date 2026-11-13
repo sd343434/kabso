@@ -15944,5 +15944,11 @@
   "notifCategoryVerified": "وثّق فريق كابسو فئة حسابك — صفحتك الآن بشكلها الخاص",
   "@notifCategoryVerified": {"description": "D386: a profile page per account category (CONVENTIONS §10.175)."},
   "notifCategoryReviewed": "راجع فريق كابسو فئة حسابك. افتح «تعديل الملف» لمعرفة التفاصيل",
-  "@notifCategoryReviewed": {"description": "D386: a profile page per account category (CONVENTIONS §10.175)."}
+  "@notifCategoryReviewed": {"description": "D386: a profile page per account category (CONVENTIONS §10.175)."},
+  "waLangAR": "عربي",
+  "@waLangAR": {"description": "D388 (§10.177): a WhatsApp conversation's customer language AR, shown as a small tag on the inbox row and the chat's status strip."},
+  "waLangEN": "English",
+  "@waLangEN": {"description": "D388 (§10.177): a WhatsApp conversation's customer language EN, shown as a small tag on the inbox row and the chat's status strip."},
+  "waLangLabel": "لغة العميل: {language}",
+  "@waLangLabel": {"description": "D388 (§10.177): the semantics of the customer-language tag.", "placeholders": {"language": {"type": "String"}}}
 }

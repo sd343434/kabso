@@ -19115,4 +19115,15 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get notifCategoryReviewed =>
       'راجع فريق كابسو فئة حسابك. افتح «تعديل الملف» لمعرفة التفاصيل';
+
+  @override
+  String get waLangAR => 'عربي';
+
+  @override
+  String get waLangEN => 'English';
+
+  @override
+  String waLangLabel(String language) {
+    return 'لغة العميل: $language';
+  }
 }

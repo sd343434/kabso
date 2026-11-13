@@ -160,6 +160,11 @@ export interface InboundMessage {
     readonly name: string | null;
   } | null;
   readonly reaction: { readonly emoji: string | null; readonly toWaMessageId: string } | null;
+  /**
+   * v1.140-social (D388, §10.177.2): the id of the reply button or list row the customer tapped (the language question's
+   * `kabso_lang_ar` / `kabso_lang_en`), or a quick-reply button's payload; null otherwise.
+   */
+  readonly replyId: string | null;
 }
 
 export interface StatusUpdate {
@@ -220,6 +225,7 @@ function messageOf(
   let media: InboundMessage['media'] = null;
   let location: InboundMessage['location'] = null;
   let reaction: InboundMessage['reaction'] = null;
+  let replyId: string | null = null;
   if (rawType === 'text') {
     type = 'TEXT';
     body = str(obj(m.text)?.body);
@@ -257,9 +263,11 @@ function messageOf(
     type = 'INTERACTIVE';
     const o = obj(m.interactive);
     body = str(obj(o?.button_reply)?.title, 200) ?? str(obj(o?.list_reply)?.title, 200);
+    replyId = str(obj(o?.button_reply)?.id, 256) ?? str(obj(o?.list_reply)?.id, 256);
   } else if (rawType === 'button') {
     type = 'INTERACTIVE';
     body = str(obj(m.button)?.text, 200);
+    replyId = str(obj(m.button)?.payload, 256);
   }
   return {
     kind: 'message',
@@ -274,6 +282,7 @@ function messageOf(
     media,
     location,
     reaction,
+    replyId,
   } satisfies InboundMessage;
 }
 

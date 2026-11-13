@@ -5899,5 +5899,11 @@
   "errorCategoryVerificationPending": "You already have a verification request under review.",
   "errorAccountCategoryLocked": "The Kabso Team locked your account category.",
   "notifCategoryVerified": "The Kabso Team verified your account category — your page now has its own look",
-  "notifCategoryReviewed": "The Kabso Team reviewed your account category. Open Edit profile for the details"
+  "notifCategoryReviewed": "The Kabso Team reviewed your account category. Open Edit profile for the details",
+  "waLangAR": "Arabic",
+  "@waLangAR": {"description": "D388 (§10.177): a WhatsApp conversation's customer language AR, shown as a small tag on the inbox row and the chat's status strip."},
+  "waLangEN": "English",
+  "@waLangEN": {"description": "D388 (§10.177): a WhatsApp conversation's customer language EN, shown as a small tag on the inbox row and the chat's status strip."},
+  "waLangLabel": "Customer language: {language}",
+  "@waLangLabel": {"description": "D388 (§10.177): the semantics of the customer-language tag.", "placeholders": {"language": {"type": "String"}}}
 }
