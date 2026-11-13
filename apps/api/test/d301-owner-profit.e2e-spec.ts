@@ -279,6 +279,8 @@ describe('D301 «الربح» — before and after every share', { timeout: 900_
     // Free coins (for information): an event prize and task coins.
     await coins('EVENT_PRIZE', 200_000n);
     await coins('TASK_REWARD', 50_000n);
+    // v1.139-social (D387, §10.176.4; owner: «نعم ينقص تقرير الربح قيمة هذه العملات»): a VIP care compensation in coins.
+    await coins('STAFF_COMPENSATION', 100_000n);
     // The fixed costs: servers $300 a month (always), LiveKit $93 a month for 10 days, an ended one.
     await ctx.prisma.ownerFixedCost.createMany({
       data: [
@@ -341,6 +343,7 @@ describe('D301 «الربح» — before and after every share', { timeout: 900_
       'STAFF_COMMISSIONS',
       'TEAM_ADJUSTMENTS',
       'COIN_REWARDS',
+      'STAFF_COMPENSATIONS',
       'CARD_FEES',
     ]);
     expect(lines.GIFTS).toMatchObject({ cherries: 9_000_000, amountMinor: 990 });
@@ -351,6 +354,8 @@ describe('D301 «الربح» — before and after every share', { timeout: 900_
     expect(lines.TEAM_ADJUSTMENTS).toMatchObject({ cherries: -1_000_000, amountMinor: -110 });
     // Owner: given-away coins at the lowest agent price, $12 a million: 250 000 coins = $3.
     expect(lines.COIN_REWARDS).toMatchObject({ coins: 250_000, cherries: null, amountMinor: 300 });
+    // D387: the compensations, their own line at the same value: 100 000 coins = $1.20.
+    expect(lines.STAFF_COMPENSATIONS).toMatchObject({ coins: 100_000, cherries: null, amountMinor: 120 });
     // 2.9 % of $150 = $4.35, + 2 orders × $0.30.
     expect(lines.CARD_FEES).toMatchObject({ orders: 2, cherries: null, amountMinor: 495 });
     // $300 ÷ 30 = $10; $93 ÷ 30 = $3.10; the ended cost is not there.
@@ -361,7 +366,7 @@ describe('D301 «الربح» — before and after every share', { timeout: 900_
         expect.objectContaining({ name: 'Servers', monthlyMinor: 30_000, days: 1, shareMinor: 1_000 }),
       ],
     });
-    expect(day.after.amountMinor).toBe(15_000 - 2_280 - 1_310);
+    expect(day.after.amountMinor).toBe(15_000 - 2_280 - 120 - 1_310);
     expect(day.otherCurrencies).toEqual([
       {
         currency: 'EUR',
@@ -398,7 +403,8 @@ describe('D301 «الربح» — before and after every share', { timeout: 900_
     expect(mLines.CARD_FEES).toBe(583);
     expect(month.fixedCosts.amountMinor).toBe(33_100);
     const deducted = Object.values(mLines).reduce((s, n) => s + n, 0);
-    expect(deducted).toBe(1_100 + 275 + 110 + 110 + 110 - 110 + 300 + 583);
+    // D387: + the compensations' $1.20.
+    expect(deducted).toBe(1_100 + 275 + 110 + 110 + 110 - 110 + 300 + 120 + 583);
     expect(month.after.amountMinor).toBe(17_000 - deducted - 33_100);
     expect(month.after.amountMinor).toBeLessThan(0);
 

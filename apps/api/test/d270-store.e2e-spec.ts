@@ -500,7 +500,9 @@ describe('D270 the store', { timeout: 180_000 }, () => {
   });
 
   it('the panel sees the sales and their totals', async () => {
-    const res = await p.send(support, 'get', '/admin/store/sales?limit=5');
+    // v1.139-social (D387, §10.176.2): the store's sales are `revenue.view` (OWNER only).
+    expect((await p.send(support, 'get', '/admin/store/sales?limit=5')).status).toBe(403);
+    const res = await p.send(owner, 'get', '/admin/store/sales?limit=5');
     expect(res.status).toBe(200);
     expectContract(res, 'listAdminStoreSales');
     expect(res.body.data).toHaveLength(5);
@@ -508,7 +510,7 @@ describe('D270 the store', { timeout: 180_000 }, () => {
     expect(res.body.totals.purchases).toBe(7);
     expect(res.body.totals.gifts).toBe(1);
     expect(res.body.totals.cherries).toBe(800_000);
-    const one = await p.send(support, 'get', `/admin/store/sales?itemId=${bubble.id}`);
+    const one = await p.send(owner, 'get', `/admin/store/sales?itemId=${bubble.id}`);
     expect(one.body.totals).toMatchObject({ purchases: 1, coins: 20_000 });
   });
 });

@@ -253,6 +253,11 @@ describe('D208 admin account controls', { timeout: 900_000 }, () => {
       SUPPORT: support,
       FINANCE: finance,
       BD: bd,
+      // v1.139-social (D387, §10.176.1): the operations roles.
+      LIVE_OPS: await makeAdmin(['LIVE_OPS']),
+      TALENT: await makeAdmin(['TALENT']),
+      VIP_CARE: await makeAdmin(['VIP_CARE']),
+      COMMUNITY: await makeAdmin(['COMMUNITY']),
     };
     for (const role of PANEL_ROLES) {
       const a = byRole[role]!;

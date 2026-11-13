@@ -21,6 +21,7 @@ import { SocialCursorCodec, type SocialPosition } from '../posts/social-cursor.j
 import { holdCherriesIn, taskCherryLockIn } from './cherry-ledger.js';
 import { anonymousUserSummary } from '../vip/vip-privacy.js';
 import { cherriesValueMinor, withdrawableCherries, withdrawalCherries } from './economy-math.js';
+import { isStaffAccount } from '../live/live-staff.js';
 
 /** `CherryPayoutRules` (openapi v1.52-social, D179). */
 export interface CherryPayoutRulesDto {
@@ -328,6 +329,8 @@ export class CherriesService {
           select: { id: true },
         });
         if (pending) throw new AppException(ErrorCode.WITHDRAWAL_PENDING);
+        // v1.139-social (D387, §10.176.9): a staff account's request — the company route; the OWNER alone handles it.
+        const staffRequest = await isStaffAccount(tx, me);
         const id = uuidv7();
         const created = await tx.cherryWithdrawal.create({
           data: {
@@ -340,6 +343,7 @@ export class CherriesService {
             rateCherries: BigInt(e.rateCherries),
             rateMinor: e.rateMinor,
             payoutDetails,
+            staffRequest,
             createdAt: now,
           },
         });
@@ -358,6 +362,7 @@ export class CherriesService {
               amountMinor,
               currency: e.currency,
               balance: Number(balance),
+              ...(staffRequest ? { staffRequest } : {}),
             },
           },
         });

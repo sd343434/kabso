@@ -101,9 +101,9 @@ describe('D281 the knobs', () => {
     );
     expect(html).not.toContain('data-host-target-knobs-save');
     expect(html).toContain('readOnly');
-    // The capabilities: OWNER only.
-    expect(CAPABILITY_ROLES['host_targets.view']).toEqual(['OWNER']);
-    expect(CAPABILITY_ROLES['host_targets.edit']).toEqual(['OWNER']);
+    // The capabilities: OWNER, and since v1.139-social (D387, §10.176.1) LIVE_OPS and TALENT; never the others.
+    expect(CAPABILITY_ROLES['host_targets.view']).toEqual(['OWNER', 'LIVE_OPS', 'TALENT']);
+    expect(CAPABILITY_ROLES['host_targets.edit']).toEqual(['OWNER', 'LIVE_OPS', 'TALENT']);
     const items = NAV.flatMap((g) => g.items).filter((i) => i.to === '/programs/host-targets');
     expect(items.map((i) => i.cap)).toEqual(['host_targets.view']);
   });

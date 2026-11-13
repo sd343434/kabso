@@ -19115,4 +19115,90 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get notifCategoryReviewed =>
       'راجع فريق كابسو فئة حسابك. افتح «تعديل الملف» لمعرفة التفاصيل';
+
+  @override
+  String get staffRoleTrustSafety => 'مراقبة المحتوى والأمان';
+
+  @override
+  String get staffRoleLiveOps => 'مدير عمليات البث';
+
+  @override
+  String get staffRoleTalent => 'مدير الوكالات والمواهب';
+
+  @override
+  String get staffRoleVipCare => 'دعم كبار الداعمين';
+
+  @override
+  String get staffRoleCommunity => 'المجتمع والفعاليات';
+
+  @override
+  String get staffOnShiftNow => 'في المناوبة الآن';
+
+  @override
+  String get staffScheduledHint => 'حسب جدول المناوبات في لوحة الإدارة.';
+
+  @override
+  String get staffMyRoles => 'أدواري';
+
+  @override
+  String get staffRolesAndShift => 'أدواري والمناوبة';
+
+  @override
+  String get staffOpsPanelHint => 'أدوات دورك في لوحة الإدارة.';
+
+  @override
+  String get settingsFollowUs => 'تابعنا';
+
+  @override
+  String get socialPlatformInstagram => 'إنستغرام';
+
+  @override
+  String get socialPlatformTiktok => 'تيك توك';
+
+  @override
+  String get socialPlatformX => 'إكس';
+
+  @override
+  String get socialPlatformFacebook => 'فيسبوك';
+
+  @override
+  String get socialPlatformYoutube => 'يوتيوب';
+
+  @override
+  String get socialPlatformSnapchat => 'سناب شات';
+
+  @override
+  String get socialPlatformTelegram => 'تيليجرام';
+
+  @override
+  String get socialPlatformWhatsapp => 'واتساب';
+
+  @override
+  String get socialPlatformThreads => 'ثريدز';
+
+  @override
+  String get socialPlatformLinkedin => 'لينكدإن';
+
+  @override
+  String get socialPlatformDiscord => 'ديسكورد';
+
+  @override
+  String get socialPlatformOther => 'موقع آخر';
+
+  @override
+  String get giftStaffRefused => 'حسابات فريق كابسو لا ترسل الهدايا.';
+
+  @override
+  String get errorStaffGiftRefused => 'حسابات فريق كابسو لا ترسل الهدايا.';
+
+  @override
+  String get staffCherriesCompanyOnly =>
+      'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.';
+
+  @override
+  String get errorStaffWithdrawalCompanyOnly =>
+      'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط.';
+
+  @override
+  String get ownerProfitCompensations => 'تعويضات دعم كبار الداعمين (عملات)';
 }

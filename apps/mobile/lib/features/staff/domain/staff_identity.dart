@@ -54,7 +54,14 @@ enum StaffLineRole {
   finance('FINANCE'),
 
   /// v1.75-live (D285): «تطوير الأعمال» — recruitment only.
-  bd('BD');
+  bd('BD'),
+
+  /// v1.139-social (D387, §10.176.1): the operations roles (limited staff
+  /// accounts; their tools are in the admin panel).
+  liveOps('LIVE_OPS'),
+  talent('TALENT'),
+  vipCare('VIP_CARE'),
+  community('COMMUNITY');
 
   new(this.wire);
 
@@ -88,6 +95,18 @@ class KabsoStaffIdentity {
   /// regions; FINANCE «المالية».
   String line(AppLocalizations l10n) {
     if (role == StaffLineRole.finance) return l10n.staffLineFinance;
+    // v1.139-social (D387): an operations role's line is its name alone.
+    final ops = switch (role) {
+      StaffLineRole.liveOps => l10n.staffRoleLiveOps,
+      StaffLineRole.talent => l10n.staffRoleTalent,
+      StaffLineRole.vipCare => l10n.staffRoleVipCare,
+      StaffLineRole.community => l10n.staffRoleCommunity,
+      StaffLineRole.moderation ||
+      StaffLineRole.support ||
+      StaffLineRole.finance ||
+      StaffLineRole.bd => null,
+    };
+    if (ops != null) return ops;
     final names = [for (final r in regions) r.nameIn(l10n)];
     final ar = l10n.localeName.startsWith('ar');
     final String places;

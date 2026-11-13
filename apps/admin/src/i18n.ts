@@ -33,6 +33,7 @@ import { AR_D381, EN_D381 } from './i18n-d381';
 import { AR_D384, EN_D384 } from './i18n-d384';
 import { AR_D386, EN_D386 } from './i18n-d386';
 import { AR_D385, EN_D385 } from './i18n-d385';
+import { AR_D387, EN_D387 } from './i18n-d387';
 import { AR_D260, EN_D260 } from './i18n-d260';
 import { AR_D252, EN_D252 } from './i18n-d252';
 import { AR_D268, EN_D268 } from './i18n-d268';
@@ -131,7 +132,8 @@ const ar = {
   navReports: 'البلاغات',
   navSite: 'إعدادات الموقع',
   roleOWNER: 'مالك',
-  roleMODERATION: 'مشرف',
+  // v1.139-social (D387, §10.176.1): MODERATION is shown as TRUST_SAFETY.
+  roleMODERATION: 'مراقبة المحتوى والأمان',
   roleSUPPORT: 'دعم',
   roleFINANCE: 'مالية',
   // dashboard
@@ -500,6 +502,8 @@ const ar = {
   ...AR_D345,
   ...AR_D355,
   ...AR_D356,
+  // v1.139-social (D387): last, so `roleMODERATION` reads TRUST_SAFETY's name.
+  ...AR_D387,
 };
 
 export type Key = keyof typeof ar;
@@ -567,7 +571,7 @@ const en: Record<Key, string> = {
   navReports: 'Reports',
   navSite: 'Website settings',
   roleOWNER: 'Owner',
-  roleMODERATION: 'Moderator',
+  roleMODERATION: 'Trust & safety',
   roleSUPPORT: 'Support',
   roleFINANCE: 'Finance',
   dashTitle: 'Home',
@@ -925,6 +929,7 @@ const en: Record<Key, string> = {
   ...EN_D345,
   ...EN_D355,
   ...EN_D356,
+  ...EN_D387,
 };
 
 export const DICTIONARIES: Record<Lang, Record<Key, string>> = { ar, en };

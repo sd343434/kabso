@@ -26,6 +26,11 @@ export const PANEL_STAFF_ROLES = [
   'FINANCE',
   // v1.75-live (D285, §10.96.13): «تطوير الأعمال» — recruitment only (never watch staff).
   'BD',
+  // v1.139-social (D387, §10.176.1): the operations roles (never watch staff).
+  'LIVE_OPS',
+  'TALENT',
+  'VIP_CARE',
+  'COMMUNITY',
 ] as const satisfies readonly AdminPermission[];
 
 type Db = Pick<PrismaService, '$queryRaw'> | Prisma.TransactionClient;
@@ -69,6 +74,43 @@ export async function isWatchStaff(db: Db, userId: string): Promise<boolean> {
 export async function isPanelStaff(db: Db, userId: string): Promise<boolean> {
   const [row] = await db.$queryRaw<{ ok: boolean }[]>`SELECT ${panelStaffSql(userId)} AS ok`;
   return row?.ok === true;
+}
+
+/**
+ * v1.139-social (D387, CONVENTIONS §10.176.8–9): «staff» for the withdrawal rule (§10.176.9) is
+ * **any panel role held now** ({@link PANEL_STAFF_ROLES}: OWNER, MODERATION / TRUST_SAFETY, SUPPORT, FINANCE, BD,
+ * LIVE_OPS, TALENT, VIP_CARE, COMMUNITY — an ACTIVE ADMIN account), the same set as `STAFF_PROTECTED`. One helper so
+ * every path asks the same question.
+ */
+export const isStaffAccount = isPanelStaff;
+
+/**
+ * The gift rule's staff (§10.176.8; owner 2026-11-12: «لا غير ممنوع» — the OWNER is not blocked): an **employee** —
+ * a staff account that does not hold OWNER (an OWNER who also holds another role is still the owner). The same set as
+ * the limited staff account ({@link isLimitedStaff}).
+ */
+export async function isGiftBlockedStaff(db: Db, userId: string): Promise<boolean> {
+  return isLimitedStaff(db, userId);
+}
+
+/** 403 STAFF_GIFT_REFUSED when the caller is an employee (every gift-send path; §10.176.8). */
+export async function refuseStaffGift(db: Db, callerId: string): Promise<void> {
+  if (await isGiftBlockedStaff(db, callerId)) {
+    throw new AppException(ErrorCode.STAFF_GIFT_REFUSED, undefined, [{ field: 'staff', issue: 'gifts' }]);
+  }
+}
+
+/**
+ * 403 STAFF_WITHDRAWAL_COMPANY_ONLY when `userId` (whose cherries would leave) is a staff account: a staff member's
+ * cherries leave only through `requestCherryWithdrawal` (to the company; the OWNER handles it), never through a
+ * recharge agent or any third party (§10.176.9).
+ */
+export async function refuseStaffCherryRoute(db: Db, userId: string): Promise<void> {
+  if (await isStaffAccount(db, userId)) {
+    throw new AppException(ErrorCode.STAFF_WITHDRAWAL_COMPANY_ONLY, undefined, [
+      { field: 'staff', issue: 'company_only' },
+    ]);
+  }
 }
 
 /** 403 STAFF_PROTECTED when `targetId` holds a panel role (§10.96.7). */
@@ -147,6 +189,11 @@ export const LIMITED_STAFF_ROLES = [
   'FINANCE',
   // v1.75-live (D285, §10.96.13): BD is a limited staff account too (no live, no levels, the team picture).
   'BD',
+  // v1.139-social (D387, §10.176.1): so are the operations roles (after the others: the first held names the line).
+  'LIVE_OPS',
+  'TALENT',
+  'VIP_CARE',
+  'COMMUNITY',
 ] as const satisfies readonly AdminPermission[];
 export type LimitedStaffRole = (typeof LIMITED_STAFF_ROLES)[number];
 

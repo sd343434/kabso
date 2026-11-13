@@ -26,8 +26,9 @@ interface AgencyRow {
   parentInviteCode: string | null;
   activeHosts: number;
   subAgencies: number;
-  monthHostCherries: number;
-  monthCommission: number;
+  /** v1.139-social (D387, §10.176.2): null without `revenue.view` (OWNER only). */
+  monthHostCherries: number | null;
+  monthCommission: number | null;
   createdAt: string;
 }
 
@@ -67,11 +68,12 @@ interface AgencyDetailDto {
     activatedAt: string;
     endedAt: string | null;
     user: PersonRef;
-    monthCherries: number;
-    monthCommission: number;
+    monthCherries: number | null;
+    monthCommission: number | null;
   }[];
-  months: { month: string; hostCherries: number; commission: number; parentCommission: number }[];
-  lifetime: { hostCherries: number; commission: number; parentCommission: number };
+  /** v1.139-social (D387, §10.176.2): every cherry and commission figure is null without `revenue.view`. */
+  months: { month: string; hostCherries: number | null; commission: number | null; parentCommission: number | null }[];
+  lifetime: { hostCherries: number | null; commission: number | null; parentCommission: number | null };
   openComplaints: number;
 }
 
@@ -99,7 +101,8 @@ export function Agencies() {
   const { t, lang, can, toast } = useApp();
   const [dialog, setDialog] = useState<'create' | 'evaluate' | null>(null);
   const [bump, setBump] = useState(0);
-  const n = (v: number) => formatNumber(v, lang);
+  // v1.139-social (D387): a masked figure (null) shows as «—».
+  const n = (v: number | null) => (v === null ? '—' : formatNumber(v, lang));
   return (
     <>
       <div className="page-head">
@@ -224,12 +227,13 @@ export function AgencyDetail({ id }: { id: string }) {
   const [probationDialog, setProbationDialog] = useState<'extend' | 'close' | 'reopen' | null>(null);
   // v1.82-live (D295): «حظر الوكالة — تفعيل صانع محتوى وهمي» (OWNER).
   const [banning, setBanning] = useState(false);
-  const n = (v: number) => formatNumber(v, lang);
+  // v1.139-social (D387): a masked figure (null) shows as «—».
+  const n = (v: number | null) => (v === null ? '—' : formatNumber(v, lang));
   if (loading && !data) return <Loading />;
   if (!data) return <ErrorAlert error={error} />;
   const closed = data.status === 'CLOSED';
   const running = data.probation?.state === 'RUNNING';
-  const maxMonth = Math.max(1, ...data.months.map((m) => m.hostCherries));
+  const maxMonth = Math.max(1, ...data.months.map((m) => m.hostCherries ?? 0));
   return (
     <>
       <div className="profile-head card">
@@ -314,7 +318,7 @@ export function AgencyDetail({ id }: { id: string }) {
         </div>
         <div className="mini-stat">
           <span className="muted small">{t('agencyLifetimeCommission')}</span>
-          <strong className="num">{n(data.lifetime.commission + data.lifetime.parentCommission)}</strong>
+          <strong className="num">{n(data.lifetime.commission === null ? null : data.lifetime.commission + (data.lifetime.parentCommission ?? 0))}</strong>
         </div>
         <div className="mini-stat">
           <span className="muted small">{t('agencyOpenComplaints')}</span>
@@ -342,7 +346,7 @@ export function AgencyDetail({ id }: { id: string }) {
                 <li key={m.month}>
                   <span className="mono small">{m.month}</span>
                   <span className="bar">
-                    <span style={{ width: `${(m.hostCherries / maxMonth) * 100}%` }} />
+                    <span style={{ width: `${((m.hostCherries ?? 0) / maxMonth) * 100}%` }} />
                   </span>
                   <span className="num small">{n(m.hostCherries)}</span>
                   <span className="num small muted">{n(m.commission)}</span>

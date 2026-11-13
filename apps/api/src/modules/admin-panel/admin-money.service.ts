@@ -175,11 +175,14 @@ export class AdminMoneyService {
       kind: 'json' as const,
       body: {
         ...result.body,
-        totals: {
-          coins: Number(sum._sum.coins ?? 0n),
-          paidMinor: Number(sum._sum.paidMinor ?? 0n),
-          expectedMinor: Number(sum._sum.expectedMinor ?? 0n),
-        },
+        // v1.139-social (D387, §10.176.2): the filter's sums are revenue — the OWNER's only (each row keeps its amounts).
+        totals: ctx.capabilities.includes('revenue.view')
+          ? {
+              coins: Number(sum._sum.coins ?? 0n),
+              paidMinor: Number(sum._sum.paidMinor ?? 0n),
+              expectedMinor: Number(sum._sum.expectedMinor ?? 0n),
+            }
+          : null,
       },
     };
   }

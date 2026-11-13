@@ -12,6 +12,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/debug/demo_entry.dart';
 import 'package:kabso_live/features/referrals/presentation/referral_code_sheet.dart';
 import 'package:kabso_live/features/settings/sessions/sessions_screen.dart';
+import 'package:kabso_live/features/settings/social/official_accounts.dart';
 import 'package:kabso_live/features/status/status_catalogue.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -231,6 +232,9 @@ class SettingsScreen extends ConsumerWidget {
                 GoRouter.maybeOf(context)?.push(AppRoutes.storyArchive),
           ),
           const SizedBox(height: KSpacing.xl),
+          // v1.139-social (D387, §10.176.5): «تابعنا» — the app's official
+          // accounts from the panel (nothing when there is none).
+          const FollowUsSection(),
           _SectionHeader(l10n.settingsAccount),
           // D146: the username (with its premium badge) and the store.
           Builder(

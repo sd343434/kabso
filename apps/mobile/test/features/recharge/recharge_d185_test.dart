@@ -21,6 +21,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/kyc/data/kyc_repository.dart';
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
@@ -103,6 +104,7 @@ Future<void> _pump(
   _Opener? opener,
   FakeProfileRepository? profiles,
   Brightness brightness = Brightness.light,
+  User? user,
 }) async {
   final router = GoRouter(
     initialLocation: location,
@@ -139,7 +141,7 @@ Future<void> _pump(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
-        currentUserProvider.overrideWithValue(testUser()),
+        currentUserProvider.overrideWithValue(user ?? testUser()),
         // D227: Didit off (the manual ID pictures, as before).
         kycRepositoryProvider.overrideWithValue(FakeKycRepository()),
         rechargeRepositoryProvider.overrideWithValue(repo),
@@ -192,6 +194,34 @@ abstract final class UserSummaryFixtures {
 }
 
 void main() {
+  testWidgets('D387: a staff account cannot offer its cherries to an agent '
+      '(the company route only)', (tester) async {
+    final repo = FakeRechargeRepository();
+    await _pump(
+      tester,
+      AppRoutes.rechargeCherries,
+      repo: repo,
+      user: testUser().copyWith(staffId: 'Kabso11'),
+    );
+    expect(find.byKey(RechargeCherryScreen.staffKey), findsOneWidget);
+    expect(find.text(_en.staffCherriesCompanyOnly), findsOneWidget);
+    final button = tester.widget<KButton>(
+      find.byKey(RechargeCherryScreen.newKey),
+    );
+    expect(button.onPressed, isNull);
+  });
+
+  testWidgets('D387: a normal account still offers its cherries', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      AppRoutes.rechargeCherries,
+      repo: FakeRechargeRepository(),
+    );
+    expect(find.byKey(RechargeCherryScreen.staffKey), findsNothing);
+  });
+
   group('the page by status', () {
     for (final language in AppLanguage.values) {
       final l10n = language == AppLanguage.ar ? _ar : _en;

@@ -99,6 +99,8 @@ export const PROFIT_DEDUCTIONS = [
   'STAFF_COMMISSIONS',
   'TEAM_ADJUSTMENTS',
   'COIN_REWARDS',
+  // v1.139-social (D387, §10.176.4; owner: «نعم ينقص تقرير الربح قيمة هذه العملات»): the VIP_CARE compensations in coins.
+  'STAFF_COMPENSATIONS',
   'CARD_FEES',
 ] as const;
 export type ProfitDeduction = (typeof PROFIT_DEDUCTIONS)[number];
@@ -110,7 +112,7 @@ export type ProfitDeduction = (typeof PROFIT_DEDUCTIONS)[number];
  * and `STORE_PURCHASE` (cherries handed back).
  */
 export const CHERRY_LINES: Readonly<
-  Record<Exclude<ProfitDeduction, 'CARD_FEES' | 'COIN_REWARDS'>, readonly string[]>
+  Record<Exclude<ProfitDeduction, 'CARD_FEES' | 'COIN_REWARDS' | 'STAFF_COMPENSATIONS'>, readonly string[]>
 > = {
   GIFTS: ['GIFT_RECEIVED', 'GIFT_REVERSAL'],
   AGENCY_COMMISSIONS: [
@@ -141,6 +143,13 @@ export const FREE_COIN_REASONS = ['EVENT_PRIZE', 'TASK_REWARD', 'CHECK_IN_REWARD
  * `GIFT_OWNER_ROYALTY_REVERSAL` is negative), at the same conservative coin value.
  */
 export const GIFT_OWNER_COIN_REASONS = ['GIFT_OWNER_ROYALTY', 'GIFT_OWNER_ROYALTY_REVERSAL'] as const;
+
+/**
+ * v1.139-social (D387, §10.176.4; owner: «نعم ينقص تقرير الربح قيمة هذه العملات»): STAFF_COMPENSATIONS — the coins the
+ * VIP care team (or the OWNER) gave as compensation, its own line, valued like COIN_REWARDS (the lowest agent price).
+ * Only the coin kind moves coins; VIP days and store items are not coins and are not counted here.
+ */
+export const STAFF_COMPENSATION_COIN_REASONS = ['STAFF_COMPENSATION'] as const;
 
 /** Coins' value in US cents at `minorPerMillion` cents per 1 000 000 coins, rounded half up. */
 export function coinMoney(coins: bigint, minorPerMillion: number): bigint {

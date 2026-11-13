@@ -3,6 +3,7 @@ import { AuditAction } from '../../common/audit/audit.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { activeRestrictionOf } from '../users/account-control.js';
 import { CAPABILITIES, PANEL_ROLES, type PanelRole } from './admin-permissions.js';
+import { SCHEDULE_ROLES } from './staff-schedule.js';
 import { revokeStaffGrantsIn } from '../live/live-staff.js';
 import { syncTeamAvatarsIn } from '../live/staff-avatar.js';
 import { formatStaffId, keptStaffIdOf, parseStaffId } from '../users/staff-ids.js';
@@ -41,9 +42,12 @@ const SHIFT_ROLES: readonly string[] = CAPABILITIES['lives.watch'];
 
 export function parseRole(raw: string): PanelRole {
   const v = raw.trim().toUpperCase();
-  const role = v === 'MODERATOR' ? 'MODERATION' : v;
+  // v1.139-social (D387): TRUST_SAFETY «مراقبة المحتوى والأمان» is MODERATION itself (the panel's name for it).
+  const role = v === 'MODERATOR' || v === 'TRUST_SAFETY' ? 'MODERATION' : v;
   if (!(PANEL_ROLES as readonly string[]).includes(role)) {
-    throw new AdminRoleError(`Unknown role ${raw}: one of OWNER, MODERATOR, SUPPORT, FINANCE, BD.`);
+    throw new AdminRoleError(
+      `Unknown role ${raw}: one of OWNER, MODERATOR (TRUST_SAFETY), SUPPORT, FINANCE, BD, LIVE_OPS, TALENT, VIP_CARE, COMMUNITY.`,
+    );
   }
   return role as PanelRole;
 }
@@ -185,6 +189,10 @@ export async function revokeRoleIn(
         data: { onShift: false, since: new Date() },
       })
     ).count > 0;
+  // v1.139-social (D387, §10.176.6): no schedulable role left → the person's slots of the shift schedule go.
+  const scheduleCleared = !left.some((r) => (SCHEDULE_ROLES as readonly string[]).includes(r))
+    ? (await tx.staffScheduleSlot.deleteMany({ where: { userId: user.id } })).count
+    : 0;
   // v1.68-live (D273, §10.96.6): any revoked role ends the staff tools' step-up in the app (a new code is needed).
   const appGrantsEnded = await revokeStaffGrantsIn(tx, user.id, 'ROLE_REVOKED');
   await tx.auditLog.create({
@@ -199,6 +207,7 @@ export async function revokeRoleIn(
         before,
         ...(shiftEnded ? { shiftEnded } : {}),
         ...(appGrantsEnded > 0 ? { appGrantsEnded } : {}),
+        ...(scheduleCleared > 0 ? { scheduleCleared } : {}),
         ...extra,
         via: by.via,
       },

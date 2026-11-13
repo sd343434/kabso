@@ -83,6 +83,14 @@ model User {
   staffRegions           AdminStaffRegion[]
   /// v1.73-live (D283c): the official staff ID «Kabso01» given on the first panel role (kept, never reused).
   staffNumber            StaffId?
+  /// v1.139-social (D387): the shift schedule's slots, the compensations granted / received / decided.
+  staffScheduleSlots     StaffScheduleSlot[]        @relation("StaffScheduleSlotPerson")
+  staffScheduleSlotsMade StaffScheduleSlot[]        @relation("StaffScheduleSlotCreator")
+  compensationsGiven     StaffCompensation[]        @relation("StaffCompensationStaff")
+  compensationsReceived  StaffCompensation[]        @relation("StaffCompensationUser")
+  compensationsDecided   StaffCompensation[]        @relation("StaffCompensationDecider")
+  compensationSettings   StaffCompensationSettings[]
+  socialAccountsUpdated  OfficialSocialAccount[]
   liveAssignments        LiveRoomAssignment[]
   liveStaffWatches       LiveRoomStaffWatcher[]
   /// v1.27.6-live (D140): the lives this user watched (statistics only).
@@ -1452,6 +1460,9 @@ enum WalletLedgerReason {
   /// transaction), cancelled or could not be delivered.
   VIP_SCHEDULED_GIFT
   VIP_SCHEDULED_GIFT_RELEASE
+  /// v1.139-social (D387, §10.176.4): a compensation from the VIP care staff (a credit; reference: the
+  /// `staff_compensations` row).
+  STAFF_COMPENSATION
 
   @@map("wallet_ledger_reason")
 }
@@ -1488,6 +1499,8 @@ model WalletLedgerEntry {
   @@index([userId, createdAt(sort: Desc)], map: "wallet_ledger_user_created_idx")
   /// D301 follow-up (§10.112.10): «الربح» sums the free coins given in a period (migration 20270402090400_owner_profit).
   @@index([createdAt], map: "wallet_ledger_free_coins_idx", where: raw("reason IN ('EVENT_PRIZE'::wallet_ledger_reason, 'TASK_REWARD'::wallet_ledger_reason, 'CHECK_IN_REWARD'::wallet_ledger_reason)"))
+  /// v1.139-social (D387, §10.176.4): «الربح» reads the coin compensations (migration 20270517090300_staff_compensation_profit).
+  @@index([createdAt], map: "wallet_ledger_staff_compensation_idx", where: raw("(reason = 'STAFF_COMPENSATION'::wallet_ledger_reason)"))
   /// v1.100-social (D312): «الربح» reads the custom gift owners' coin shares per day.
   @@index([createdAt], map: "wallet_ledger_gift_owner_idx", where: raw("reason IN ('GIFT_OWNER_ROYALTY'::wallet_ledger_reason, 'GIFT_OWNER_ROYALTY_REVERSAL'::wallet_ledger_reason)"))
   @@map("wallet_ledger")
@@ -1899,6 +1912,12 @@ enum AdminPermission {
   FINANCE
   /// v1.75-live (D285, §10.96.13): «تطوير الأعمال» — recruitment only (a limited staff account, no moderation).
   BD
+  /// v1.139-social (D387, §10.176): the operations roles — «مدير عمليات البث», «مدير الوكالات والمواهب» (extends BD),
+  /// «دعم كبار الداعمين», «المجتمع والفعاليات». TRUST_SAFETY «مراقبة المحتوى والأمان» is `MODERATION` above.
+  LIVE_OPS
+  TALENT
+  VIP_CARE
+  COMMUNITY
 
   @@map("admin_permission")
 }
@@ -5333,6 +5352,9 @@ model CherryWithdrawal {
   createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
   decidedAt     DateTime?              @map("decided_at") @db.Timestamptz(3)
   decisionNote  String?                @map("decision_note") @db.VarChar(500)
+  /// v1.139-social (D387, §10.176.9): made by a staff account (any panel role at the time) — the company route only;
+  /// the OWNER alone sees and decides it (`withdrawals.staff`).
+  staffRequest  Boolean                @default(false) @map("staff_request")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -7516,6 +7538,8 @@ model VipTier {
   memberships     VipMembership[]
   purchases       VipPurchase[]
   dailyCoinClaims VipDailyCoinClaim[]
+  /// v1.139-social (D387): VIP days given as compensations.
+  compensations   StaffCompensation[]
   /// v1.132-social (D379): the VIP rooms that let in this tier and the ones above it.
   vipRooms        LiveRoom[]
 
@@ -9112,4 +9136,94 @@ model VipScheduledGift {
   @@index([senderId, createdAt(sort: Desc)], map: "vip_scheduled_gifts_sender_idx")
   @@index([recipientId], map: "vip_scheduled_gifts_recipient_idx")
   @@map("vip_scheduled_gifts")
+}
+
+// ---------------------------------------------------------------------------------------------
+// v1.139-social (DRAFT, D387, CONVENTIONS §10.176) — operations staff roles. Owner: `admin-panel` module
+// (schedule, compensations) and `site-settings` (the official social accounts).
+// ---------------------------------------------------------------------------------------------
+
+/// D387 (§10.176.6): one weekly slot of the shift schedule «جدول المناوبات» — weekday 1 (Monday) … 7 (Sunday), minutes of
+/// the day in LIVE_RANKINGS_TIME_ZONE (D99). CHECK `staff_schedule_slots_shape` (end > start). The API refuses overlaps
+/// per person and people without MODERATION / SUPPORT / VIP_CARE.
+model StaffScheduleSlot {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  weekday     Int      @db.SmallInt
+  startMinute Int      @map("start_minute") @db.SmallInt
+  endMinute   Int      @map("end_minute") @db.SmallInt
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user      User  @relation("StaffScheduleSlotPerson", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("StaffScheduleSlotCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([weekday, startMinute], map: "staff_schedule_slots_day_idx")
+  @@index([userId, weekday, startMinute], map: "staff_schedule_slots_user_idx")
+  @@map("staff_schedule_slots")
+}
+
+/// D387 (§10.176.4): the compensation limits (one row, id 1; CHECK `staff_compensation_settings_one`), in coins.
+model StaffCompensationSettings {
+  id               Int       @id @default(1) @db.SmallInt
+  dailyLimitCoins  BigInt    @default(50000) @map("daily_limit_coins")
+  perGrantMaxCoins BigInt    @default(10000) @map("per_grant_max_coins")
+  updatedAt        DateTime? @map("updated_at") @db.Timestamptz(3)
+  updatedById      String?   @map("updated_by_id") @db.Uuid
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("staff_compensation_settings")
+}
+
+/// D387 (§10.176.4): a compensation by the VIP care staff — COINS (ledger STAFF_COMPENSATION, reference this row),
+/// VIP_DAYS or a store ITEM; `valueCoins` is what the limits count. GRANTED within the limits, else PENDING until the
+/// OWNER approves (APPROVED: granted then) or rejects. CHECKs `staff_compensations_kind_shape`,
+/// `staff_compensations_status_values`, `staff_compensations_decision`.
+model StaffCompensation {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  staffId      String?   @map("staff_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  kind         String    @db.VarChar(10)
+  coins        BigInt?
+  days         Int?
+  vipTierId    String?   @map("vip_tier_id") @db.Uuid
+  itemCode     String?   @map("item_code") @db.VarChar(40)
+  valueCoins   BigInt    @map("value_coins")
+  reason       String    @db.VarChar(500)
+  status       String    @db.VarChar(10)
+  overLimit    String?   @map("over_limit") @db.VarChar(10)
+  decidedById  String?   @map("decided_by_id") @db.Uuid
+  decidedAt    DateTime? @map("decided_at") @db.Timestamptz(3)
+  decisionNote String?   @map("decision_note") @db.VarChar(500)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  staff     User?    @relation("StaffCompensationStaff", fields: [staffId], references: [id], onDelete: SetNull)
+  user      User     @relation("StaffCompensationUser", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User?    @relation("StaffCompensationDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  vipTier   VipTier? @relation(fields: [vipTierId], references: [id], onDelete: Restrict)
+
+  @@index([staffId, createdAt(sort: Desc)], map: "staff_compensations_staff_idx")
+  @@index([status, createdAt(sort: Desc)], map: "staff_compensations_status_idx")
+  @@index([userId], map: "staff_compensations_user_idx")
+  @@map("staff_compensations")
+}
+
+/// D387 (§10.176.5): the app's official social media accounts — links only (https; CHECK
+/// `official_social_accounts_url_https`). Never a password, token or key (D40).
+model OfficialSocialAccount {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  platform    String   @db.VarChar(16)
+  handle      String   @db.VarChar(64)
+  url         String   @db.VarChar(512)
+  sortOrder   Int      @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  updatedById String?  @map("updated_by_id") @db.Uuid
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([sortOrder, id], map: "official_social_accounts_order_idx")
+  @@map("official_social_accounts")
 }

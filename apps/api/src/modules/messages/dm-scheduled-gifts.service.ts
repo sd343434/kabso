@@ -20,6 +20,7 @@ import { violatedUniqueIndex } from '../users/users.service.js';
 import { VIP_SCHEDULED_GIFT_MAX_PENDING, vipPerkHeldIn } from '../vip/vip-gift-perks.js';
 import { creditIn, debitIn, inCoinDebtIn } from '../wallet/wallet-ledger.js';
 import { DmService } from './dm.service.js';
+import { refuseStaffGift } from '../live/live-staff.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -248,6 +249,8 @@ export class DmScheduledGiftsService implements OnModuleInit, OnModuleDestroy {
           ]);
         }
         await assertNotRestricted(tx, callerId, 'NO_GIFTS');
+        // v1.139-social (D387, §10.176.8): a staff account sends no gift (owner: «اي موظف لدينا لا يمكنه ارسال الهدايا»).
+        await refuseStaffGift(tx, callerId);
         if (await inCoinDebtIn(tx, callerId)) throw new AppException(ErrorCode.TOPUP_ACCOUNT_FROZEN);
         await tx.vipScheduledGift.create({
           data: {

@@ -18,12 +18,34 @@ export const PANEL_ROLES = [
    * («استقطاباتي»). No moderation power at all: no live tools, no shift, no reports, no hidden watch.
    */
   'BD',
+  /**
+   * v1.139-social (D387, CONVENTIONS §10.176; owner: «هذه الأدوار تكون أدوار أساسية في التطبيق»): the operations roles.
+   * LIVE_OPS «مدير عمليات البث» (events, PK, smart targets, rockets, gifts and prices — never a direct money grant),
+   * TALENT «مدير الوكالات والمواهب» (extends BD: applications, recruitment, host targets), VIP_CARE «دعم كبار الداعمين»
+   * (top supporters without amounts, «دعم كابسو», level raises, compensations within a daily limit), COMMUNITY
+   * «المجتمع والفعاليات» (gifts, events, banners, the website and the official accounts). TRUST_SAFETY «مراقبة المحتوى
+   * والأمان» is MODERATION itself (renamed in the panel and the app only; the value stays, so every holder keeps their
+   * access).
+   */
+  'LIVE_OPS',
+  'TALENT',
+  'VIP_CARE',
+  'COMMUNITY',
 ] as const satisfies readonly AdminPermission[];
 export type PanelRole = (typeof PANEL_ROLES)[number];
 
 export const CAPABILITIES = {
-  'dashboard.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
-  'users.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
+  'dashboard.view': [
+    'OWNER',
+    'MODERATION',
+    'SUPPORT',
+    'FINANCE',
+    'LIVE_OPS',
+    'TALENT',
+    'VIP_CARE',
+    'COMMUNITY',
+  ],
+  'users.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE', 'TALENT', 'VIP_CARE'],
   /** A user's balances, read-only (owner 2026-10-31: the moderator «مشرف» sees them too). */
   'users.balances': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
   /** The recent coin and cherry ledger rows of a user (D275: the moderator «مشرف» reads them too, read-only). */
@@ -89,11 +111,11 @@ export const CAPABILITIES = {
   /** A user's app sessions (devices) and signing them out. */
   'users.sessions': ['OWNER', 'MODERATION', 'SUPPORT'],
   /** Host agencies: the list, an agency's page and the complaints queue. */
-  'agencies.view': ['OWNER', 'SUPPORT', 'FINANCE'],
+  'agencies.view': ['OWNER', 'SUPPORT', 'FINANCE', 'TALENT'],
   /** Create, suspend / reinstate, resolve a complaint, run the rank evaluation. */
   'agencies.manage': ['OWNER', 'SUPPORT'],
   /** v1.70-social (D206): a self-opened agency's application (private fields + pictures, every view audited). */
-  'agencies.applications': ['OWNER', 'SUPPORT'],
+  'agencies.applications': ['OWNER', 'SUPPORT', 'TALENT'],
   /** v1.70-social (D206): extend a probation, close or reopen an agency (with the authenticator code again). */
   'agencies.probation': ['OWNER'],
   /**
@@ -106,19 +128,19 @@ export const CAPABILITIES = {
    * (every view audited). MODERATION may look; the ID pictures and the decision are OWNER + SUPPORT (no
    * authenticator code again: it moves no money).
    */
-  'hosts.applications': ['OWNER', 'SUPPORT', 'MODERATION'],
-  'hosts.applications.photos': ['OWNER', 'SUPPORT'],
-  'hosts.applications.decide': ['OWNER', 'SUPPORT'],
+  'hosts.applications': ['OWNER', 'SUPPORT', 'MODERATION', 'TALENT'],
+  'hosts.applications.photos': ['OWNER', 'SUPPORT', 'TALENT'],
+  'hosts.applications.decide': ['OWNER', 'SUPPORT', 'TALENT'],
   /** Lives now, a live's details, the hosting permissions. */
-  'lives.view': ['OWNER', 'MODERATION', 'SUPPORT'],
+  'lives.view': ['OWNER', 'MODERATION', 'SUPPORT', 'LIVE_OPS'],
   /** End a live with a reason; give / take back the hosting permission. */
   'lives.manage': ['OWNER', 'MODERATION'],
   /** The gift catalogue, bag items, banners and events (read). */
-  'catalog.view': ['OWNER', 'SUPPORT', 'FINANCE'],
+  'catalog.view': ['OWNER', 'SUPPORT', 'FINANCE', 'LIVE_OPS', 'COMMUNITY'],
   /** Gift CRUD (v1.71-social, D207: with uploading the gift's image / effect / sound), banners, events. */
   'catalog.manage': ['OWNER'],
   /** v1.71-social (D207, §10.66): the gift categories — add, rename / reorder / icon, on / off, delete (move). */
-  'gifts.categories': ['OWNER'],
+  'gifts.categories': ['OWNER', 'LIVE_OPS'],
   /** Give / take back a bag item (frames, profile cards) to a user. */
   'items.grant': ['OWNER', 'SUPPORT'],
   /**
@@ -169,14 +191,14 @@ export const CAPABILITIES = {
   'users.device_exception': ['OWNER'],
   // ---- v1.50-live (D229, CONVENTIONS §10.80): «أحكام PK» ---------------------------------------------------------------
   /** The dare library, the reported queue and the PK points settings (read). D274 (owner): OWNER only. */
-  'pk_dares.view': ['OWNER'],
+  'pk_dares.view': ['OWNER', 'LIVE_OPS'],
   /** Add, edit, disable / enable, import, clear reports; the PK points and dare settings. D274: OWNER only. */
-  'pk_dares.edit': ['OWNER'],
+  'pk_dares.edit': ['OWNER', 'LIVE_OPS'],
   // ---- v1.71-live (D281, CONVENTIONS §10.62.2): «الأهداف الذكية» -----------------------------------------------------
   /** The smart targets' knobs, the catalogues' size and a host's targets with the reasons (read; the host read audited). */
-  'host_targets.view': ['OWNER'],
+  'host_targets.view': ['OWNER', 'LIVE_OPS', 'TALENT'],
   /** Change the knobs (the percentiles, the reward shares, the no-repeat days…); audited with a reason. */
-  'host_targets.edit': ['OWNER'],
+  'host_targets.edit': ['OWNER', 'LIVE_OPS', 'TALENT'],
   // ---- v1.60-live (D250, CONVENTIONS §10.91): live moderation «مراقبة البث» ---------------------------------------------
   /** Watch a live as a hidden observer (muted card previews and the watch view); every token audited. */
   'lives.watch': ['OWNER', 'MODERATION', 'SUPPORT'],
@@ -197,21 +219,21 @@ export const CAPABILITIES = {
   'staff.shifts': ['OWNER'],
   // ---- v1.75-live (D285, CONVENTIONS §10.96.13): recruitment by staff «الاستقطاب» --------------------------------------
   /** «استقطاباتي»: the caller's own recruits and commissions (the recruiters: MODERATION and BD; OWNER holds every capability). */
-  'recruits.mine': ['OWNER', 'MODERATION', 'BD'],
+  'recruits.mine': ['OWNER', 'MODERATION', 'BD', 'TALENT'],
   /** Every staff member's recruits, each recruit's profit and the commissions paid; the shares (read). */
   'recruits.view': ['OWNER'],
   /** Reassign a recruit to another recruiter, change the shares per type (the code again and a reason). */
   'recruits.manage': ['OWNER'],
   /** The creator programme's applications «صناع المحتوى» (the list and an application's fields). */
-  'creators.applications': ['OWNER', 'SUPPORT'],
+  'creators.applications': ['OWNER', 'SUPPORT', 'TALENT'],
   /** Approve or reject a creator application (approving activates the creator and attributes a named recruiter). */
-  'creators.decide': ['OWNER', 'SUPPORT'],
+  'creators.decide': ['OWNER', 'SUPPORT', 'TALENT'],
   // ---- v1.89-social (D290, CONVENTIONS §10.103): level-raise requests «طلب رفع ليفيل» ---------------------------------
   /**
    * Make a request for a supporter recruited from another app (app «أنا» and the panel), see one's own requests and
    * the source-app list. The staff who handle supporters: MODERATION and SUPPORT (OWNER holds every capability).
    */
-  'levels.raise.request': ['OWNER', 'MODERATION', 'SUPPORT'],
+  'levels.raise.request': ['OWNER', 'MODERATION', 'SUPPORT', 'VIP_CARE'],
   /**
    * Every request with the proposal and its reasoning; approve (≤ the proposal, ≤ 40, ≥ the current level) or reject;
    * the source-app data and the weights. OWNER only («الإدارة العليا»).
@@ -235,7 +257,7 @@ export const CAPABILITIES = {
    * Create and edit events (gifts, boards, prizes), end one, hold / release its automatic payout — from the panel and
    * from the app. OWNER only by default (owner to widen; PP-60).
    */
-  'events.manage': ['OWNER'],
+  'events.manage': ['OWNER', 'LIVE_OPS', 'COMMUNITY'],
   // ---- v1.110-social (D345, CONVENTIONS §10.144.6): coins from the stores «مشتريات المتجر» ----------------------------
   /** The stores' status, the store purchases and the refund bans (read). */
   'store_iap.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
@@ -249,7 +271,7 @@ export const CAPABILITIES = {
    * reopen, internal notes, link a conversation to a Kabso account — from the panel and from the app. Owner: «كل مشرف
    * أو موظف دعم» — the moderators «مشرف» and the support «دعم» (OWNER holds every capability).
    */
-  'support.whatsapp': ['OWNER', 'MODERATION', 'SUPPORT'],
+  'support.whatsapp': ['OWNER', 'MODERATION', 'SUPPORT', 'VIP_CARE'],
   /** The quick replies «ردود سريعة» (create / edit / delete) and the connection status + «اختبار الاتصال». */
   'support.whatsapp.manage': ['OWNER', 'MODERATION'],
   /**
@@ -258,7 +280,45 @@ export const CAPABILITIES = {
    * reopen, note, link or read receipt. The three WhatsApp capabilities are the staff member's WhatsApp LEVEL
    * (`whatsappCapabilitiesOf`): these role lists are only the default when no level is set for the person.
    */
-  'support.whatsapp.view': ['OWNER', 'MODERATION', 'SUPPORT'],
+  'support.whatsapp.view': ['OWNER', 'MODERATION', 'SUPPORT', 'VIP_CARE'],
+  // ---- v1.139-social (D387, CONVENTIONS §10.176): the operations roles ---------------------------------------------
+  /**
+   * Earnings and revenue (§10.176.2; owner: «الأرباح والإيرادات يراها المالك فقط»): the money dashboards, the financial
+   * report, the store's sales, and the aggregates masked elsewhere (agency earnings, top-up totals, gift coins spent,
+   * the smart targets' profit). OWNER ONLY — never add another role here (admin-panel.spec checks it).
+   */
+  'revenue.view': ['OWNER'],
+  /** The role homes «الرئيسية» (§10.176.3): no money figure in any of them. */
+  'home.live_ops': ['OWNER', 'LIVE_OPS'],
+  'home.talent': ['OWNER', 'TALENT'],
+  'home.trust_safety': ['OWNER', 'MODERATION'],
+  'home.vip_care': ['OWNER', 'VIP_CARE'],
+  'home.community': ['OWNER', 'COMMUNITY'],
+  /** The 24/7 shift schedule «جدول المناوبات» (§10.176.6): read by the people it schedules, set by the OWNER. */
+  'staff.schedule.view': ['OWNER', 'MODERATION', 'SUPPORT', 'VIP_CARE'],
+  'staff.schedule.manage': ['OWNER'],
+  /** Compensations «التعويضات» (§10.176.4): grant within the limits (the code again); the limits and approvals: OWNER. */
+  'compensation.grant': ['OWNER', 'VIP_CARE'],
+  'compensation.settings': ['OWNER'],
+  'compensation.approve': ['OWNER'],
+  /** The app's official social media accounts «حساباتنا الرسمية» (§10.176.5): links only. */
+  'social.accounts': ['OWNER', 'COMMUNITY'],
+  /** The gift writes, moved out of `catalog.manage` (which only OWNER held): add, edit, prices, switch, delete, uploads. */
+  'gifts.manage': ['OWNER', 'LIVE_OPS', 'COMMUNITY'],
+  /** The banner writes, moved out of `catalog.manage`. */
+  'banners.manage': ['OWNER', 'COMMUNITY'],
+  /** The rocket stage prices (`PUT /admin/live-boost-prices`), moved out of `catalog.manage`. */
+  'boosts.manage': ['OWNER', 'LIVE_OPS'],
+  /**
+   * The public website's settings (`/admin/site-settings`), moved out of `site.settings` (OWNER only before). Turning the
+   * website top-up on or off still needs `payments.settings`.
+   */
+  'site.public': ['OWNER', 'COMMUNITY'],
+  /**
+   * §10.176.9 (owner: «الموظفين الذين لديهم كرز يسحب من خلالنا فقط»): a staff member's withdrawal request — the only way
+   * their cherries leave — is seen and decided by the OWNER alone (FINANCE never sees it).
+   */
+  'withdrawals.staff': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;
@@ -309,11 +369,12 @@ export function whatsAppLevelRank(level: WhatsAppLevel): number {
 
 /**
  * The level of a staff member with no level set — exactly the D355 roles: OWNER and MODERATION → MANAGE, SUPPORT →
- * REPLY, anyone else (FINANCE, BD, no role) → NONE.
+ * REPLY, anyone else (FINANCE, BD, no role) → NONE. v1.139-social (D387): VIP_CARE → REPLY («دعم كابسو» with the D381
+ * priority); LIVE_OPS, TALENT, COMMUNITY → NONE.
  */
 export function defaultWhatsAppLevel(roles: readonly string[]): WhatsAppLevel {
   if (roles.includes('OWNER') || roles.includes('MODERATION')) return 'MANAGE';
-  if (roles.includes('SUPPORT')) return 'REPLY';
+  if (roles.includes('SUPPORT') || roles.includes('VIP_CARE')) return 'REPLY';
   return 'NONE';
 }
 

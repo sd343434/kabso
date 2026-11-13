@@ -43,8 +43,9 @@ describe('D229 «أحكام PK»', () => {
   });
 
   it('capabilities (D274): OWNER only; moderation, support and finance see nothing', () => {
-    expect(CAPABILITY_ROLES['pk_dares.view']).toEqual(['OWNER']);
-    expect(CAPABILITY_ROLES['pk_dares.edit']).toEqual(['OWNER']);
+    // v1.139-social (D387, §10.176.1): + LIVE_OPS «مدير عمليات البث»; never moderation, support or finance.
+    expect(CAPABILITY_ROLES['pk_dares.view']).toEqual(['OWNER', 'LIVE_OPS']);
+    expect(CAPABILITY_ROLES['pk_dares.edit']).toEqual(['OWNER', 'LIVE_OPS']);
     for (const role of ['MODERATION', 'SUPPORT', 'FINANCE'] as const) {
       expect(capsOf(role)).not.toContain('pk_dares.view');
     }

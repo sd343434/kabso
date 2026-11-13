@@ -227,7 +227,9 @@ export class AdminRecruitsController {
           staffId: p.staffNumber ? formatStaffId(p.staffNumber.number) : null,
           status: p.status,
           roles: roles.filter((r) => (PANEL_ROLES as readonly string[]).includes(r)),
-          canRecruit: p.status === 'ACTIVE' && (roles.includes('MODERATION') || roles.includes('BD')),
+          canRecruit:
+            p.status === 'ACTIVE' &&
+            (roles.includes('MODERATION') || roles.includes('BD') || roles.includes('TALENT')),
           recruits: counts.get(p.id) ?? emptyRecruitCounts(),
           commissionCherries: Number(s?.cherries ?? 0n),
           profitUsd: unitsToUsd(BigInt(s ? s.profit.toFixed(0) : '0'), e),

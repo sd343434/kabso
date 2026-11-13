@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -16,6 +16,8 @@ import {
 } from '../safety/safety.service.js';
 import { markReportAlertsReadIn } from '../safety/report-staff-alerts.service.js';
 import { AccountLifecycleService } from '../users/profiles/account-lifecycle.service.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
+import { resolverShiftIn } from './staff-schedule.js';
 import type { AdminContext } from './admin-auth.service.js';
 import { refused } from './admin-users.service.js';
 
@@ -90,6 +92,7 @@ export class AdminModerationService {
     private readonly media: MediaService,
     private readonly lifecycle: AccountLifecycleService,
     private readonly audit: AuditService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   /**
@@ -166,12 +169,14 @@ export class AdminModerationService {
         where: { type: 'STAFF_REPORT_NEW', reportId, readAt: null },
         data: { readAt: new Date() },
       });
+      // v1.139-social (D387, §10.176.6): whether the resolver was on shift (the schedule or the D260 switch).
+      const shift = await resolverShiftIn(tx, ctx.userId, this.config.live.rankingsTimeZone, new Date());
       await this.audit.recordIn(tx, {
         action: AuditAction.MODERATION_REPORT_RESOLVE,
         actorUserId: ctx.userId,
         targetType: report.targetType.toLowerCase(),
         targetId: reportTargetId(report),
-        metadata: { reportId, note: note ?? null, via: ctx.via ?? 'panel' },
+        metadata: { reportId, note: note ?? null, ...shift, via: ctx.via ?? 'panel' },
         ip: ctx.ip,
         requestId: ctx.requestId,
       });

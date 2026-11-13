@@ -376,6 +376,10 @@ export enum ErrorCode {
    * bullets or take a seat — `details: [{field: 'staff', issue: 'gifts' | 'taps' | 'bullets' | 'seat' | 'hidden_chat'}]`.
    */
   LIVE_STAFF_REFUSED = 'LIVE_STAFF_REFUSED',
+  /** v1.139-social (D387, §10.176.8): a staff account (any panel role) sends no gift on any path. */
+  STAFF_GIFT_REFUSED = 'STAFF_GIFT_REFUSED',
+  /** v1.139-social (D387, §10.176.9): a staff account's cherries leave only through a withdrawal request to the company. */
+  STAFF_WITHDRAWAL_COMPANY_ONLY = 'STAFF_WITHDRAWAL_COMPANY_ONLY',
   /**
    * v1.68-live (DRAFT, D273, §10.96.6): a staff tool needs the step-up — the panel authenticator code in the app
    * (`createStaffStepUp`); none, expired or ended (sign-out, a role revoked, a lockout, a reset authenticator).
@@ -587,6 +591,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.STAFF_PROTECTED]: 403,
   [ErrorCode.VIP_PROTECTED]: 403,
   [ErrorCode.LIVE_STAFF_REFUSED]: 403,
+  [ErrorCode.STAFF_GIFT_REFUSED]: 403,
+  [ErrorCode.STAFF_WITHDRAWAL_COMPANY_ONLY]: 403,
   [ErrorCode.STAFF_STEP_UP_REQUIRED]: 403,
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 409,
   [ErrorCode.STAFF_ACCOUNT_LIMITED]: 403,
@@ -773,6 +779,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.VIP_PROTECTED]:
     "This member's VIP protects them from moderators; only the host or the Kabso Team can.",
   [ErrorCode.LIVE_STAFF_REFUSED]: 'The Kabso Team does not do this in a live.',
+  [ErrorCode.STAFF_GIFT_REFUSED]: 'Kabso Team accounts cannot send gifts.',
+  [ErrorCode.STAFF_WITHDRAWAL_COMPANY_ONLY]:
+    'A Kabso Team account withdraws its cherries only through a withdrawal request to Kabso.',
   [ErrorCode.STAFF_STEP_UP_REQUIRED]: 'Enter your authenticator code to use the staff tools.',
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 'Set up the authenticator in the admin panel first.',
   [ErrorCode.STAFF_ACCOUNT_LIMITED]: 'A Kabso Team account cannot do this.',

@@ -19115,4 +19115,91 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notifCategoryReviewed =>
       'The Kabso Team reviewed your account category. Open Edit profile for the details';
+
+  @override
+  String get staffRoleTrustSafety => 'Trust & safety';
+
+  @override
+  String get staffRoleLiveOps => 'Live operations manager';
+
+  @override
+  String get staffRoleTalent => 'Agencies & talent manager';
+
+  @override
+  String get staffRoleVipCare => 'VIP care';
+
+  @override
+  String get staffRoleCommunity => 'Community & events';
+
+  @override
+  String get staffOnShiftNow => 'On shift now';
+
+  @override
+  String get staffScheduledHint =>
+      'From the shift schedule in the admin panel.';
+
+  @override
+  String get staffMyRoles => 'My roles';
+
+  @override
+  String get staffRolesAndShift => 'My roles and shift';
+
+  @override
+  String get staffOpsPanelHint => 'Your role\'s tools are in the admin panel.';
+
+  @override
+  String get settingsFollowUs => 'Follow us';
+
+  @override
+  String get socialPlatformInstagram => 'Instagram';
+
+  @override
+  String get socialPlatformTiktok => 'TikTok';
+
+  @override
+  String get socialPlatformX => 'X';
+
+  @override
+  String get socialPlatformFacebook => 'Facebook';
+
+  @override
+  String get socialPlatformYoutube => 'YouTube';
+
+  @override
+  String get socialPlatformSnapchat => 'Snapchat';
+
+  @override
+  String get socialPlatformTelegram => 'Telegram';
+
+  @override
+  String get socialPlatformWhatsapp => 'WhatsApp';
+
+  @override
+  String get socialPlatformThreads => 'Threads';
+
+  @override
+  String get socialPlatformLinkedin => 'LinkedIn';
+
+  @override
+  String get socialPlatformDiscord => 'Discord';
+
+  @override
+  String get socialPlatformOther => 'Other';
+
+  @override
+  String get giftStaffRefused => 'Kabso Team accounts cannot send gifts.';
+
+  @override
+  String get errorStaffGiftRefused => 'Kabso Team accounts cannot send gifts.';
+
+  @override
+  String get staffCherriesCompanyOnly =>
+      'A Kabso Team account withdraws its cherries only through Kabso: request a withdrawal from the cherry wallet. Cherries cannot be sold to an agent.';
+
+  @override
+  String get errorStaffWithdrawalCompanyOnly =>
+      'A Kabso Team account withdraws its cherries only through Kabso.';
+
+  @override
+  String get ownerProfitCompensations => 'VIP care compensations (coins)';
 }

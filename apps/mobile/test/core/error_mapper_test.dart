@@ -172,6 +172,9 @@ const Map<ErrorCode, int> _statusFor = {
   // v1.133-social (D380).
   ErrorCode.vipProtected: 403,
   ErrorCode.liveStaffRefused: 403,
+  // v1.139-social (D387).
+  ErrorCode.staffGiftRefused: 403,
+  ErrorCode.staffWithdrawalCompanyOnly: 403,
   ErrorCode.staffStepUpRequired: 403,
   ErrorCode.staffTotpNotEnrolled: 409,
   ErrorCode.adminTotpInvalid: 403,
@@ -385,6 +388,9 @@ void main() {
           // v1.133-social (D380): KICK_MUTE_SHIELD.
           'VIP_PROTECTED',
           'LIVE_STAFF_REFUSED',
+          // v1.139-social (D387).
+          'STAFF_GIFT_REFUSED',
+          'STAFF_WITHDRAWAL_COMPANY_ONLY',
           'STAFF_STEP_UP_REQUIRED',
           'STAFF_TOTP_NOT_ENROLLED',
           'ADMIN_TOTP_INVALID',

@@ -74,6 +74,9 @@ describe('ErrorCode', () => {
         // v1.133-social (D380).
         'VIP_PROTECTED',
         'LIVE_STAFF_REFUSED',
+        // v1.139-social (D387): no gift from staff; staff cherries only through the company.
+        'STAFF_GIFT_REFUSED',
+        'STAFF_WITHDRAWAL_COMPANY_ONLY',
         'STAFF_STEP_UP_REQUIRED',
         'STAFF_TOTP_NOT_ENROLLED',
         'STAFF_ACCOUNT_LIMITED',
@@ -380,6 +383,8 @@ describe('ErrorCode', () => {
       STAFF_PROTECTED: 403,
       VIP_PROTECTED: 403,
       LIVE_STAFF_REFUSED: 403,
+      STAFF_GIFT_REFUSED: 403,
+      STAFF_WITHDRAWAL_COMPANY_ONLY: 403,
       STAFF_STEP_UP_REQUIRED: 403,
       STAFF_TOTP_NOT_ENROLLED: 409,
       STAFF_ACCOUNT_LIMITED: 403,

@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
+import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -209,6 +210,33 @@ String? _reason(WidgetTester tester) {
 
 void main() {
   final ar = l10nFor(AppLanguage.ar);
+
+  testWidgets('D387: the OWNER (a staff ID, not an employee) is not '
+      'blocked: Send lights up', (tester) async {
+    await _pump(tester, user: testUser().copyWith(staffId: 'Kabso01'));
+    await _tap(tester, _cell('rose'));
+    expect(_sendEnabled(tester), isTrue);
+    expect(_sendHint(tester), isNot(en.giftStaffRefused));
+  });
+
+  testWidgets('D387: an employee sees the gifts but Send stays off with '
+      'the reason, and nothing is sent', (tester) async {
+    final h = await _pump(
+      tester,
+      user: testUser().copyWith(
+        staffId: 'Kabso04',
+        staff: const KabsoStaffIdentity(role: StaffLineRole.vipCare),
+      ),
+    );
+    await _tap(tester, _cell('rose'));
+    expect(_sendEnabled(tester), isFalse);
+    expect(_sendHint(tester), en.giftStaffRefused);
+    await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+    expect(_toast(tester), en.giftStaffRefused);
+    await tester.pump(KLiveGiftSheet.toastTime);
+    await tester.pumpAndSettle();
+    expect(h.gifts.sends, isEmpty);
+  });
 
   testWidgets('tabs from the catalogue plus the bag; 4-column grid with '
       'names, prices and badges', (tester) async {
