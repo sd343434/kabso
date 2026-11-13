@@ -31951,13 +31951,13 @@ abstract class AppLocalizations {
   /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
-  /// **'وكيل شحن معتمد في كابسو — {code}'**
+  /// **'وكيل شحن معتمد في Kabso Live — {code}'**
   String badgeExplainRechargeAgent(String code);
 
   /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
-  /// **'وكيل مضيفين في كابسو — {code}'**
+  /// **'وكيل مضيفين في Kabso Live — {code}'**
   String badgeExplainHostAgent(String code);
 
   /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
@@ -31969,7 +31969,7 @@ abstract class AppLocalizations {
   /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
-  /// **'صانع محتوى — المضيف صانع محتوى في كابسو'**
+  /// **'صانع محتوى — المضيف صانع محتوى في Kabso Live'**
   String get badgeExplainCreatorLive;
 
   /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
@@ -31999,7 +31999,7 @@ abstract class AppLocalizations {
   /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
-  /// **'جديد — انضم إلى كابسو مؤخراً'**
+  /// **'جديد — انضم إلى Kabso Live مؤخراً'**
   String get badgeExplainNewcomer;
 
   /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it

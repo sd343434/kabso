@@ -5849,14 +5849,14 @@
   "badgeExplainVerification": "Verified: {kind} — granted automatically when the conditions are met",
   "badgeExplainFounder": "Founder badge — the founder of Kabso Live",
   "badgeExplainRechargeTier": "Daily recharge badge — tier {tier}, shown for 24 hours after a recharge",
-  "badgeExplainRechargeAgent": "Official Kabso recharge agent — {code}",
-  "badgeExplainHostAgent": "Kabso host agent — {code}",
+  "badgeExplainRechargeAgent": "Official Kabso Live recharge agent — {code}",
+  "badgeExplainHostAgent": "Kabso Live host agent — {code}",
   "badgeExplainItem": "Item badge: {name}",
-  "badgeExplainCreatorLive": "Creator — the host is a Kabso content creator",
+  "badgeExplainCreatorLive": "Creator — the host is a Kabso Live content creator",
   "badgeExplainHostTargetGifts": "The host's daily gifts target",
   "badgeExplainHostTargetLucky": "The host's daily lucky-gifts target",
   "badgeExplainHost": "Host — the owner of this live",
   "badgeExplainModerator": "Moderator — helps the host run this live",
-  "badgeExplainNewcomer": "New — recently joined Kabso",
+  "badgeExplainNewcomer": "New — recently joined Kabso Live",
   "badgeExplainFamily": "Family {name} — level {level}"
 }

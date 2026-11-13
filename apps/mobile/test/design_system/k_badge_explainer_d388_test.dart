@@ -14,7 +14,6 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
-import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/host_target_badge.dart';
@@ -111,12 +110,14 @@ List<_Case> _cases() => [
   (
     name: 'recharge agent',
     badge: const RechargeAgentBadge(code: 'coin0001', height: 20),
-    message: (AppLocalizations l) => l.badgeExplainRechargeAgent('⁨coin0001⁩'),
+    message: (AppLocalizations l) =>
+        l.badgeExplainRechargeAgent('\u2068coin0001\u2069'),
   ),
   (
     name: 'host agent',
     badge: const HostAgentBadge(code: 'host03', height: 20),
-    message: (AppLocalizations l) => l.badgeExplainHostAgent('⁨host03⁩'),
+    message: (AppLocalizations l) =>
+        l.badgeExplainHostAgent('\u2068host03\u2069'),
   ),
   (
     name: 'item badge',
@@ -151,7 +152,8 @@ List<_Case> _cases() => [
   (
     name: 'family',
     badge: const LiveChatFamilyChip(name: 'Falcons', level: 7),
-    message: (AppLocalizations l) => l.badgeExplainFamily('⁨Falcons⁩', 7),
+    message: (AppLocalizations l) =>
+        l.badgeExplainFamily('\u2068Falcons\u2069', 7),
   ),
 ];
 
@@ -214,7 +216,7 @@ void main() {
     });
   }
 
-  test('the owner\'s examples, word for word', () {
+  test("the owner's examples, word for word", () {
     final ar = l10nFor(AppLanguage.ar);
     expect(
       ar.badgeExplainKabsoTeam,
@@ -266,6 +268,8 @@ void main() {
         mainAxisSize: MainAxisSize.min,
         children: [
           KabsoTeamBadge(height: 24),
+          // Far enough apart that the first bubble does not cover the
+          // second badge (a tap on a bubble only closes it).
           SizedBox(height: 160),
           KLevelBadge(
             category: LevelCategory.support,
@@ -421,7 +425,8 @@ void main() {
         await tester.tap(find.byKey(KabsoTeamBadge.badgeKey));
         await tester.pumpAndSettle(const Duration(milliseconds: 50));
         await expectLater(
-          find.byType(MaterialApp),
+          // The whole screen at @3x (pumpGolden's boundary).
+          find.byKey(const ValueKey('golden-boundary')),
           matchesGoldenFile(
             '../goldens/png/badge_explainer_d388.${language.name}.phone.png',
           ),

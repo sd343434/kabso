@@ -18966,12 +18966,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String badgeExplainRechargeAgent(String code) {
-    return 'وكيل شحن معتمد في كابسو — $code';
+    return 'وكيل شحن معتمد في Kabso Live — $code';
   }
 
   @override
   String badgeExplainHostAgent(String code) {
-    return 'وكيل مضيفين في كابسو — $code';
+    return 'وكيل مضيفين في Kabso Live — $code';
   }
 
   @override
@@ -18981,7 +18981,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get badgeExplainCreatorLive =>
-      'صانع محتوى — المضيف صانع محتوى في كابسو';
+      'صانع محتوى — المضيف صانع محتوى في Kabso Live';
 
   @override
   String get badgeExplainHostTargetGifts => 'هدف الهدايا اليومي للمضيف';
@@ -18996,7 +18996,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get badgeExplainModerator => 'مشرف — يساعد المضيف في إدارة هذا البث';
 
   @override
-  String get badgeExplainNewcomer => 'جديد — انضم إلى كابسو مؤخراً';
+  String get badgeExplainNewcomer => 'جديد — انضم إلى Kabso Live مؤخراً';
 
   @override
   String badgeExplainFamily(String name, int level) {

@@ -47,8 +47,14 @@ void main() {
       // staff strings too — only that phrase, never the brand alone.
       // D385 (owner, 2026-11-12, approved «نعم»): the support chat is
       // «دعم كابسو», by the owner's own wording — only that phrase too.
+      // D388 (owner, 2026-11-13): the team badge's explainer is the owner's
+      // own sentence «… هذا الحساب من فريق عمل كابسو الرسمي» — only the
+      // phrase «فريق عمل كابسو» (the team's name again), never the brand.
       expect(
-        value.replaceAll('فريق كابسو', '').replaceAll('دعم كابسو', ''),
+        value
+            .replaceAll('فريق كابسو', '')
+            .replaceAll('دعم كابسو', '')
+            .replaceAll('فريق عمل كابسو', ''),
         isNot(contains('كابسو')),
         reason: key,
       );

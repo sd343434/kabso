@@ -62,8 +62,12 @@ class VipNameBadge extends ConsumerWidget {
         (look.tier != null && !look.has(perk))) {
       return const SizedBox.shrink();
     }
+    // Drawn outside the app's localizations (a bare preview), it is a
+    // picture only.
+    final l10n = Localizations.of<AppLocalizations>(context, AppLocalizations);
+    if (l10n == null) return _art(look);
     return KBadgeExplainer(
-      message: context.l10n.badgeExplainVip(look.level),
+      message: l10n.badgeExplainVip(look.level),
       enabled: explain,
       child: _art(look),
     );

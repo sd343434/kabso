@@ -18961,12 +18961,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String badgeExplainRechargeAgent(String code) {
-    return 'Official Kabso recharge agent — $code';
+    return 'Official Kabso Live recharge agent — $code';
   }
 
   @override
   String badgeExplainHostAgent(String code) {
-    return 'Kabso host agent — $code';
+    return 'Kabso Live host agent — $code';
   }
 
   @override
@@ -18976,7 +18976,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get badgeExplainCreatorLive =>
-      'Creator — the host is a Kabso content creator';
+      'Creator — the host is a Kabso Live content creator';
 
   @override
   String get badgeExplainHostTargetGifts => 'The host\'s daily gifts target';
@@ -18993,7 +18993,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Moderator — helps the host run this live';
 
   @override
-  String get badgeExplainNewcomer => 'New — recently joined Kabso';
+  String get badgeExplainNewcomer => 'New — recently joined Kabso Live';
 
   @override
   String badgeExplainFamily(String name, int level) {
