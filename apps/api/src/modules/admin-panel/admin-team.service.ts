@@ -24,6 +24,12 @@ import {
   teamDepartmentsOf,
   type WaDepartment,
 } from '../whatsapp/whatsapp-departments.js';
+import {
+  setLanguagesOf,
+  sortLanguages,
+  teamLanguagesOf,
+  type WaLanguage,
+} from '../whatsapp/whatsapp-language.js';
 import { AdminRoleError, grantRoleIn, resetSecondFactorIn, revokeRoleIn } from './admin-roles.js';
 import { AUDIT_ROW, auditRowDto } from './admin-people.service.js';
 import { dayBound, tableResult, window, type TableQuery } from './admin-tables.js';
@@ -63,6 +69,13 @@ export interface TeamWhatsAppBody {
 /** `setAdminTeamWhatsAppDepartments` (v1.123-social, D366): the departments, [] to go back to the default (GENERAL). */
 export interface TeamWaDepartmentsBody {
   readonly departments: readonly WaDepartment[];
+  readonly reason: string;
+  readonly totpCode: string;
+}
+
+/** `setAdminTeamWhatsAppLanguages` (v1.140-social, D388): the languages spoken, [] to go back to the default (both). */
+export interface TeamWaLanguagesBody {
+  readonly languages: readonly WaLanguage[];
   readonly reason: string;
   readonly totpCode: string;
 }
@@ -220,7 +233,7 @@ export class AdminTeamService {
         staffNumber: { select: { number: true } },
       },
     });
-    const [recruitCounts, waLevels, waDepartments] = await Promise.all([
+    const [recruitCounts, waLevels, waDepartments, waLanguages] = await Promise.all([
       recruitCountsOf(
         this.prisma,
         rows.map((u) => u.id),
@@ -230,6 +243,10 @@ export class AdminTeamService {
         select: { userId: true, level: true },
       }),
       setDepartmentsOf(
+        this.prisma,
+        rows.map((u) => u.id),
+      ),
+      setLanguagesOf(
         this.prisma,
         rows.map((u) => u.id),
       ),
@@ -267,6 +284,8 @@ export class AdminTeamService {
         ),
         // v1.123-social (D366, §10.159.1): the person's WhatsApp departments «الأقسام» (GENERAL when none is set).
         whatsappDepartments: teamDepartmentsOf(waDepartments.get(u.id)),
+        // v1.140-social (D388, §10.177.3): the languages the person speaks «اللغات» (both when none is set).
+        whatsappLanguages: teamLanguagesOf(waLanguages.get(u.id)),
       })),
     };
   }
@@ -432,6 +451,62 @@ export class AdminTeamService {
     });
   }
 
+  /**
+   * v1.140-social (D388, CONVENTIONS §10.177.3) `setAdminTeamWhatsAppLanguages`: `team.manage` sets the languages a
+   * staff member speaks (AR, EN or both; [] = back to the default, both) — the code again and a reason, like the
+   * departments, with the same refusals (`team_not_member`; `team_languages_level` below REPLY). The languages route
+   * the pushes of a conversation in a language (§10.177.4); conversations already assigned stay. Audited
+   * `admin.team.whatsapp_languages` {before, after, setBefore, setAfter, reason, via}.
+   */
+  async setWaLanguages(userId: string, body: TeamWaLanguagesBody, ctx: AdminContext) {
+    await this.auth.reauthenticate(ctx, body.totpCode);
+    const now = new Date();
+    const wanted = sortLanguages(body.languages);
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM users WHERE id = ${userId}::uuid FOR NO KEY UPDATE`;
+      const roles = (
+        await tx.userAdminPermission.findMany({ where: { userId }, select: { permission: true } })
+      )
+        .map((p) => p.permission as string)
+        .filter(isPanelRole);
+      if (roles.length === 0) throw refused('The account is not on the team.', 'team_not_member', 'rule');
+      const level = effectiveWhatsAppLevel(roles, await setWhatsAppLevelOf(tx, userId));
+      if (whatsAppLevelRank(level) < whatsAppLevelRank('REPLY')) {
+        throw refused(
+          'Languages are for staff at the REPLY WhatsApp level or above.',
+          'team_languages_level',
+          'rule',
+        );
+      }
+      const setBefore = (await setLanguagesOf(tx, [userId])).get(userId) ?? [];
+      await tx.waStaffLanguage.deleteMany({ where: { userId } });
+      if (wanted.length > 0) {
+        await tx.waStaffLanguage.createMany({
+          data: wanted.map((language) => ({ userId, language, setById: ctx.userId, createdAt: now })),
+        });
+      }
+      const before = teamLanguagesOf(setBefore);
+      const after = teamLanguagesOf(wanted);
+      await this.audit.recordIn(tx, {
+        action: AuditAction.WHATSAPP_LANGUAGES,
+        actorUserId: ctx.userId,
+        targetType: 'user',
+        targetId: userId,
+        metadata: {
+          before: before.languages,
+          after: after.languages,
+          setBefore,
+          setAfter: wanted,
+          reason: body.reason,
+          via: ctx.via ?? 'panel',
+        },
+        ip: ctx.ip,
+        requestId: ctx.requestId,
+      });
+      return { userId, before: before.languages, whatsappLanguages: after };
+    });
+  }
+
   async grant(body: TeamGrantBody, ctx: AdminContext) {
     await this.auth.reauthenticate(ctx, body.totpCode);
     const who = body.account ?? body.email ?? '';
@@ -492,7 +567,10 @@ export class AdminTeamService {
         // v1.123-social (D366): off the team, the departments go too (a later grant starts from GENERAL).
         const departmentsDropped =
           out.left.length === 0 ? (await tx.waStaffDepartment.deleteMany({ where: { userId } })).count : 0;
-        if (released.length > 0 || dropped || departmentsDropped > 0) {
+        // v1.140-social (D388): the languages go too.
+        const languagesDropped =
+          out.left.length === 0 ? (await tx.waStaffLanguage.deleteMany({ where: { userId } })).count : 0;
+        if (released.length > 0 || dropped || departmentsDropped > 0 || languagesDropped > 0) {
           await this.audit.recordIn(tx, {
             action: AuditAction.WHATSAPP_LEVEL,
             actorUserId: ctx.userId,
@@ -508,6 +586,7 @@ export class AdminTeamService {
               reason: body.reason,
               cause: 'role_revoked',
               departmentsDropped,
+              languagesDropped,
               via: ctx.via ?? 'panel',
             },
             ip: ctx.ip,

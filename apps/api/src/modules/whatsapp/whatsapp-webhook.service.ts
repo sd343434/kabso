@@ -29,6 +29,7 @@ import {
   type InboundMessage,
   type StatusUpdate,
 } from './whatsapp-core.js';
+import { languageOfAnswer, type WaLanguage } from './whatsapp-language.js';
 import { WhatsAppService } from './whatsapp.service.js';
 
 export const WA_PUSH_TITLE = { ar: 'واتساب Kabso', en: 'Kabso WhatsApp' } as const;
@@ -197,6 +198,14 @@ export class WhatsAppWebhookService {
         });
         return null;
       }
+      // v1.140-social (D388, §10.177): «سؤال اللغة». A conversation with no language yet: the answer to the question
+      // (asked before) sets it and is confirmed; otherwise, never asked → asked now (once, whatever happens next).
+      let language: { ask: true } | { ask: false; chosen: WaLanguage } | null = null;
+      if (conv.channel === 'WHATSAPP' && conv.language === null) {
+        const chosen = conv.languageAskedAt !== null ? languageOfAnswer(m.replyId, m.body) : null;
+        if (chosen) language = { ask: false, chosen };
+        else if (conv.languageAskedAt === null && this.config.whatsapp.askLanguage) language = { ask: true };
+      }
       const reopened = conv.status === 'CLOSED';
       const lastInbound =
         conv.lastInboundAt && conv.lastInboundAt.getTime() > m.timestamp.getTime()
@@ -214,6 +223,8 @@ export class WhatsAppWebhookService {
           lastDirection: 'INBOUND',
           updatedAt: now,
           ...(reopened ? { status: 'OPEN', closedAt: null, closedById: null } : {}),
+          ...(language?.ask === true ? { languageAskedAt: now } : {}),
+          ...(language?.ask === false ? { language: language.chosen } : {}),
           // v1.134-social (D381, §10.171.3): refreshed on every message of a linked account.
           ...(conv.linkedUserId
             ? { priority: (await vipPerkHeldIn(tx, conv.linkedUserId, 'PRIORITY_SUPPORT', now)) !== null }
@@ -230,9 +241,16 @@ export class WhatsAppWebhookService {
           },
         });
       }
-      return { conv: updated, messageId: msg.id };
+      return { conv: updated, messageId: msg.id, language };
     });
     if (!stored) return;
+    const language = stored.language;
+    if (language) {
+      const conv = stored.conv;
+      this.background.run('whatsapp.language', () =>
+        language.ask ? this.inbox.askLanguage(conv) : this.inbox.confirmLanguage(conv, language.chosen),
+      );
+    }
     if (m.media) {
       const media = m.media;
       this.background.run('whatsapp.media', () => this.fetchMedia(stored.conv.id, stored.messageId, media));
@@ -278,6 +296,7 @@ export class WhatsAppWebhookService {
   private async alert(conv: {
     id: string;
     assignedToId: string | null;
+    language: WaLanguage | null;
     profileName: string | null;
     phoneE164: string | null;
   }) {

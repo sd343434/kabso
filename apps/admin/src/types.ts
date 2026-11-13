@@ -1573,7 +1573,12 @@ export interface WaConversation {
   priority?: boolean;
   /** v1.137-social (D385, §10.174.6): WHATSAPP, or IN_APP «دعم كابسو» «داخل التطبيق» (absent from an older API). */
   channel?: "WHATSAPP" | "IN_APP";
+  /** v1.140-social (D388, §10.177): the customer's language (null until they answer; absent from an older API). */
+  language?: WaLanguage | null;
 }
+/** D388 (v1.140-social, §10.177): the WhatsApp languages. */
+export type WaLanguage = "AR" | "EN";
+export const WA_LANGUAGES: WaLanguage[] = ["AR", "EN"];
 /** D366 (v1.123-social, §10.159): the WhatsApp departments, catalogue order. */
 export type WaDepartment =
   | "PAYMENTS"

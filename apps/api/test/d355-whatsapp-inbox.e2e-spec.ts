@@ -177,6 +177,9 @@ describe('D355 WhatsApp inbox', { timeout: 600_000 }, () => {
         WHATSAPP_MEDIA_MAX_BYTES: '200000',
         // Every message pushes (the 30 s collapse would hide the later pushes of this fast test).
         WHATSAPP_PUSH_GAP_SECONDS: '0',
+        // D388 (§10.177): the language question is covered by d388-whatsapp-language; here the inbox's messages are
+        // exactly the ones each test sends.
+        WHATSAPP_ASK_LANGUAGE: 'false',
         API_PUBLIC_URL: 'https://api.kabso.example',
       },
       [
