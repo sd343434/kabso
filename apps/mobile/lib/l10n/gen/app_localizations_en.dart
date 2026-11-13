@@ -19300,4 +19300,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String badgeExplainFamily(String name, int level) {
     return 'Family $name — level $level';
   }
+
+  @override
+  String get waLangAR => 'Arabic';
+
+  @override
+  String get waLangEN => 'English';
+
+  @override
+  String waLangLabel(String language) {
+    return 'Customer language: $language';
+  }
 }

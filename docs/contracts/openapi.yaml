@@ -781,6 +781,15 @@ info:
     (`revenue.view`): the dashboards, the financial report and the store sales answer 403 to everyone else, and the
     agency earnings, top-up totals, `AdminGift.coinsSpent` and `profitUsd` are null. Migrations
     `20270517090000_ops_roles_enums`, `20270517090100_ops_roles`.
+    **D388 (DRAFT v1.140-social)** «سؤال اللغة» — the WhatsApp language question and language routing (CONVENTIONS
+    §10.177; owner 2026-11-13): on a conversation's first message (once ever, `WHATSAPP_ASK_LANGUAGE`) the server sends
+    reply buttons «العربية» / «English»; the answer sets `WaConversation.language` (`WaLanguage` AR / EN, null until
+    answered) and is confirmed in that language. Both automatic messages are stored as OUTBOUND messages with `sentBy`
+    null. `language` filter on both conversation lists. A REPLY+ staff member speaks one or both languages (none set =
+    both), set by `team.manage` with `setAdminTeamWhatsAppLanguages` (`PUT /admin/team/{userId}/whatsapp/languages`,
+    code + reason, audited `admin.team.whatsapp_languages`; refusals `team_not_member`, `team_languages_level`);
+    `AdminTeam.data[].whatsappLanguages`. The new-message push of an unassigned conversation in a language goes to the
+    staff who speak it (everyone when none of them can answer). Migration `20270518090000_whatsapp_language`. Additive.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -21065,6 +21074,46 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
+  /api/v1/admin/team/{userId}/whatsapp/languages:
+    put:
+      tags:
+      - admin-panel
+      operationId: setAdminTeamWhatsAppLanguages
+      summary: Sets the languages a staff member speaks on WhatsApp «اللغات» (code again; reason; audited) (team.manage)
+      description: >-
+        (v1.140-social, DRAFT, D388, §10.177.3) AR, EN or both, or [] to go back to the default (both). Only for a staff
+        member at the WhatsApp level REPLY or above (409 `ADMIN_ACTION_REFUSED` `team_languages_level`;
+        `team_not_member` without a panel role). The languages route the new-message pushes of a conversation in a
+        language (§10.177.4); conversations already assigned stay. Audited `admin.team.whatsapp_languages` {before,
+        after, setBefore, setAfter, reason}. 429 past `RATE_LIMIT_ADMIN_TEAM_IP`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminTeamWhatsAppLanguagesRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTeamWhatsAppLanguagesResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
   /api/v1/staff/team-avatar.png:
     get:
       tags: [staff]
@@ -23233,6 +23282,11 @@ paths:
           required: false
           description: "(v1.137-social, D385, §10.174.6) Only WhatsApp or only in-app «دعم كابسو» threads (both when absent)."
           schema: { $ref: '#/components/schemas/WaChannel' }
+        - name: language
+          in: query
+          required: false
+          description: "(v1.140-social, D388, §10.177.4) Only the conversations whose customer chose this language (one with no language yet is in neither)."
+          schema: { $ref: '#/components/schemas/WaLanguage' }
         - name: q
           in: query
           required: false
@@ -23880,6 +23934,11 @@ paths:
           required: false
           description: "(v1.137-social, D385, §10.174.6) Only WhatsApp or only in-app «دعم كابسو» threads (both when absent)."
           schema: { $ref: '#/components/schemas/WaChannel' }
+        - name: language
+          in: query
+          required: false
+          description: "(v1.140-social, D388, §10.177.4) Only the conversations whose customer chose this language (one with no language yet is in neither)."
+          schema: { $ref: '#/components/schemas/WaLanguage' }
         - name: q
           in: query
           required: false
@@ -25484,7 +25543,7 @@ components:
         closesAt: { type: [string, 'null'], format: date-time }
     WaConversation:
       type: object
-      required: [id, phone, name, status, assignedTo, assignedToMe, unreadCount, lastMessageAt, lastPreview, lastDirection, window, linkedAccount, closedAt, createdAt, department, priority, channel]
+      required: [id, phone, name, status, assignedTo, assignedToMe, unreadCount, lastMessageAt, lastPreview, lastDirection, window, linkedAccount, closedAt, createdAt, department, priority, channel, language]
       properties:
         id: { type: string, format: uuid }
         phone: { type: [string, 'null'], pattern: '^\+[1-9][0-9]{6,14}$', description: "E.164. (v1.137-social, D385) null for an IN_APP thread (the account is `linkedAccount`)." }
@@ -25509,6 +25568,11 @@ components:
         department: { $ref: '#/components/schemas/WaDepartment' }
         priority: { type: boolean, description: "v1.134-social (D381, §10.171.3): the linked account held PRIORITY_SUPPORT when it was linked or last wrote — the inbox lists these first (each newest first)." }
         channel: { $ref: '#/components/schemas/WaChannel' }
+        language:
+          description: "(v1.140-social, D388, §10.177) The customer's language «اللغة», chosen with the automatic question; null until they answer it (and always for an IN_APP thread)."
+          oneOf:
+            - { $ref: '#/components/schemas/WaLanguage' }
+            - { type: 'null' }
     WaConversationPage:
       type: object
       required: [data, page]
@@ -25675,6 +25739,10 @@ components:
       properties:
         message: { $ref: '#/components/schemas/SupportMessage' }
         thread: { $ref: '#/components/schemas/SupportThread' }
+    WaLanguage:
+      type: string
+      enum: [AR, EN]
+      description: "(v1.140-social, D388, §10.177) A WhatsApp language: AR «العربية», EN «English»."
     WaDepartment:
       type: string
       enum: [PAYMENTS, AGENCIES, TECHNICAL, REPORTS, GENERAL]
@@ -28126,6 +28194,39 @@ components:
           type: array
           items: { $ref: '#/components/schemas/WaDepartment' }
         whatsappDepartments: { $ref: '#/components/schemas/AdminTeamWhatsAppDepartments' }
+    AdminTeamWhatsAppLanguages:
+      type: object
+      required: [languages, isDefault]
+      description: (v1.140-social, D388, §10.177.3) The languages a staff member speaks.
+      properties:
+        languages:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/WaLanguage' }
+          description: The languages that apply (AR first); both when none is set.
+        isDefault: { type: boolean, description: "None set: both languages by default." }
+    AdminTeamWhatsAppLanguagesRequest:
+      type: object
+      additionalProperties: false
+      required: [languages, reason, totpCode]
+      properties:
+        languages:
+          type: array
+          maxItems: 2
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/WaLanguage' }
+          description: Empty — back to the default (both).
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminTeamWhatsAppLanguagesResult:
+      type: object
+      required: [userId, before, whatsappLanguages]
+      properties:
+        userId: { type: string, format: uuid }
+        before:
+          type: array
+          items: { $ref: '#/components/schemas/WaLanguage' }
+        whatsappLanguages: { $ref: '#/components/schemas/AdminTeamWhatsAppLanguages' }
     AdminTeamRegionsResult:
       type: object
       required: [userId, regions, before]
@@ -32928,6 +33029,9 @@ components:
               whatsappDepartments:
                 $ref: '#/components/schemas/AdminTeamWhatsAppDepartments'
                 description: (v1.123-social, D366, §10.159.1) The person's WhatsApp departments «الأقسام»; set with `setAdminTeamWhatsAppDepartments`.
+              whatsappLanguages:
+                $ref: '#/components/schemas/AdminTeamWhatsAppLanguages'
+                description: (v1.140-social, D388, §10.177.3) The languages the person speaks «اللغات»; set with `setAdminTeamWhatsAppLanguages`.
     AdminTeamGrantRequest:
       type: object
       description: (v1.66-live, D271) Exactly one of `account` and `email` (400 `VALIDATION_FAILED` otherwise).

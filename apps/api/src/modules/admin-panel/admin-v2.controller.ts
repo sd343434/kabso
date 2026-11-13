@@ -92,8 +92,10 @@ import {
   teamRegionsBody,
   teamWhatsAppBody,
   teamWaDepartmentsBody,
+  teamWaLanguagesBody,
   type TeamRegionsBody,
   type TeamWaDepartmentsBody,
+  type TeamWaLanguagesBody,
   teamRevokeBody,
   updateGiftBody,
   usersTableQuery,
@@ -1020,6 +1022,19 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
   ) {
     return this.team.setWaDepartments(pathUuid(id), body, admin);
+  }
+
+  /** v1.140-social (D388, §10.177.3): the languages a staff member speaks (team.manage, code + reason, audited). */
+  @Put('team/:userId/whatsapp/languages')
+  @HttpCode(200)
+  @TEAM_LIMIT
+  @RequireCapability('team.manage')
+  teamWaLanguages(
+    @Param('userId') id: string,
+    @Body(new ZodValidationPipe(teamWaLanguagesBody)) body: TeamWaLanguagesBody,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.team.setWaLanguages(pathUuid(id), body, admin);
   }
 
   @Post('team/:userId/reset-2fa')

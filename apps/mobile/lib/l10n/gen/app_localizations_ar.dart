@@ -19297,4 +19297,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String badgeExplainFamily(String name, int level) {
     return 'عائلة $name — المستوى $level';
   }
+
+  @override
+  String get waLangAR => 'عربي';
+
+  @override
+  String get waLangEN => 'English';
+
+  @override
+  String waLangLabel(String language) {
+    return 'لغة العميل: $language';
+  }
 }

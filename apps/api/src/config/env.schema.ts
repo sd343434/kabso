@@ -1768,6 +1768,15 @@ export const envSchema = z
     /** At most one push per staff member and conversation in this many seconds (a burst is one push); 0 = every message. */
     WHATSAPP_PUSH_GAP_SECONDS: intSetting(30, 0, 3600),
     /**
+     * v1.140-social (D388, §10.177.1): ask a customer their language (العربية / English reply buttons) on the first
+     * message of a conversation never asked; `false` turns the question off (the staff can still see a language a
+     * customer already chose).
+     */
+    WHATSAPP_ASK_LANGUAGE: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('true')
+      .transform((v) => v === 'true'),
+    /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
      */

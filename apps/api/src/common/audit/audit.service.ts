@@ -381,6 +381,10 @@ export enum AuditAction {
   WHATSAPP_LEVEL = 'admin.team.whatsapp',
   /** v1.123-social (D366, §10.159.1): a staff member's WhatsApp departments set or reset {before, after, reason}. */
   WHATSAPP_DEPARTMENTS = 'admin.team.whatsapp_departments',
+  /** v1.140-social (D388, §10.177.3): a staff member's WhatsApp languages set or reset {before, after, reason}. */
+  WHATSAPP_LANGUAGES = 'admin.team.whatsapp_languages',
+  /** v1.140-social (D388, §10.177.1-2): the automatic language question or confirmation was sent {kind, language}. */
+  WHATSAPP_LANGUAGE_AUTO = 'whatsapp.language.auto',
   /** v1.137-social (D385, §10.174.3): a person opened a «دعم كابسو» ticket {department, reopened}. */
   SUPPORT_TICKET_OPEN = 'support.ticket.open',
   /** v1.138-social (D386, §10.175.5): the team verified / unverified / cleared / locked / unlocked a category. */

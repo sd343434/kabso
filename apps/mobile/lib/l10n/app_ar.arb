@@ -16044,5 +16044,11 @@
   "badgeExplainNewcomer": "جديد — انضم إلى Kabso Live مؤخراً",
   "@badgeExplainNewcomer": {"description": "D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it"},
   "badgeExplainFamily": "عائلة {name} — المستوى {level}",
-  "@badgeExplainFamily": {"description": "D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it", "placeholders": {"name": {"type": "String"}, "level": {"type": "int"}}}
+  "@badgeExplainFamily": {"description": "D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it", "placeholders": {"name": {"type": "String"}, "level": {"type": "int"}}},
+  "waLangAR": "عربي",
+  "@waLangAR": {"description": "D388 (§10.177): a WhatsApp conversation's customer language AR, shown as a small tag on the inbox row and the chat's status strip."},
+  "waLangEN": "English",
+  "@waLangEN": {"description": "D388 (§10.177): a WhatsApp conversation's customer language EN, shown as a small tag on the inbox row and the chat's status strip."},
+  "waLangLabel": "لغة العميل: {language}",
+  "@waLangLabel": {"description": "D388 (§10.177): the semantics of the customer-language tag.", "placeholders": {"language": {"type": "String"}}}
 }

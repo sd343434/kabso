@@ -5949,5 +5949,11 @@
   "badgeExplainHost": "Host — the owner of this live",
   "badgeExplainModerator": "Moderator — helps the host run this live",
   "badgeExplainNewcomer": "New — recently joined Kabso Live",
-  "badgeExplainFamily": "Family {name} — level {level}"
+  "badgeExplainFamily": "Family {name} — level {level}",
+  "waLangAR": "Arabic",
+  "@waLangAR": {"description": "D388 (§10.177): a WhatsApp conversation's customer language AR, shown as a small tag on the inbox row and the chat's status strip."},
+  "waLangEN": "English",
+  "@waLangEN": {"description": "D388 (§10.177): a WhatsApp conversation's customer language EN, shown as a small tag on the inbox row and the chat's status strip."},
+  "waLangLabel": "Customer language: {language}",
+  "@waLangLabel": {"description": "D388 (§10.177): the semantics of the customer-language tag.", "placeholders": {"language": {"type": "String"}}}
 }

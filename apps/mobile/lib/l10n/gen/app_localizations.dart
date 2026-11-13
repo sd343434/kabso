@@ -32553,6 +32553,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عائلة {name} — المستوى {level}'**
   String badgeExplainFamily(String name, int level);
+
+  /// D388 (§10.177): a WhatsApp conversation's customer language AR, shown as a small tag on the inbox row and the chat's status strip.
+  ///
+  /// In ar, this message translates to:
+  /// **'عربي'**
+  String get waLangAR;
+
+  /// D388 (§10.177): a WhatsApp conversation's customer language EN, shown as a small tag on the inbox row and the chat's status strip.
+  ///
+  /// In ar, this message translates to:
+  /// **'English'**
+  String get waLangEN;
+
+  /// D388 (§10.177): the semantics of the customer-language tag.
+  ///
+  /// In ar, this message translates to:
+  /// **'لغة العميل: {language}'**
+  String waLangLabel(String language);
 }
 
 class _AppLocalizationsDelegate

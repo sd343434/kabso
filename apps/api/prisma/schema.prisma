@@ -8776,40 +8776,44 @@ enum WaAssignmentAction {
 /// D355: one conversation per customer phone (E.164). `unread_count` counts the customer's messages since the team last
 /// read it; `last_inbound_at` opens Meta's 24-hour customer-service window.
 model WaConversation {
-  id            String               @id @default(uuid(7)) @db.Uuid
+  id              String               @id @default(uuid(7)) @db.Uuid
   /// v1.137-social (D385): null for an IN_APP thread (CHECK `wa_conversations_channel_shape`).
-  phoneE164     String?              @unique(map: "wa_conversations_phone_key") @map("phone_e164") @db.VarChar(16)
-  waId          String?              @map("wa_id") @db.VarChar(32)
-  profileName   String?              @map("profile_name") @db.VarChar(200)
-  status        WaConversationStatus @default(OPEN)
-  assignedToId  String?              @map("assigned_to_id") @db.Uuid
-  assignedAt    DateTime?            @map("assigned_at") @db.Timestamptz(3)
-  unreadCount   Int                  @default(0) @map("unread_count")
-  lastInboundAt DateTime?            @map("last_inbound_at") @db.Timestamptz(3)
-  lastMessageAt DateTime             @default(now()) @map("last_message_at") @db.Timestamptz(3)
-  lastPreview   String?              @map("last_preview") @db.VarChar(120)
-  lastDirection WaDirection?         @map("last_direction")
-  linkedUserId  String?              @map("linked_user_id") @db.Uuid
-  linkedById    String?              @map("linked_by_id") @db.Uuid
-  linkedAt      DateTime?            @map("linked_at") @db.Timestamptz(3)
-  closedAt      DateTime?            @map("closed_at") @db.Timestamptz(3)
-  closedById    String?              @map("closed_by_id") @db.Uuid
+  phoneE164       String?              @unique(map: "wa_conversations_phone_key") @map("phone_e164") @db.VarChar(16)
+  waId            String?              @map("wa_id") @db.VarChar(32)
+  profileName     String?              @map("profile_name") @db.VarChar(200)
+  status          WaConversationStatus @default(OPEN)
+  assignedToId    String?              @map("assigned_to_id") @db.Uuid
+  assignedAt      DateTime?            @map("assigned_at") @db.Timestamptz(3)
+  unreadCount     Int                  @default(0) @map("unread_count")
+  lastInboundAt   DateTime?            @map("last_inbound_at") @db.Timestamptz(3)
+  lastMessageAt   DateTime             @default(now()) @map("last_message_at") @db.Timestamptz(3)
+  lastPreview     String?              @map("last_preview") @db.VarChar(120)
+  lastDirection   WaDirection?         @map("last_direction")
+  linkedUserId    String?              @map("linked_user_id") @db.Uuid
+  linkedById      String?              @map("linked_by_id") @db.Uuid
+  linkedAt        DateTime?            @map("linked_at") @db.Timestamptz(3)
+  closedAt        DateTime?            @map("closed_at") @db.Timestamptz(3)
+  closedById      String?              @map("closed_by_id") @db.Uuid
   /// Set when the linked account was purged (§10.56): the sweeper deletes the conversation and its media.
-  purgeAfter    DateTime?            @map("purge_after") @db.Timestamptz(3)
+  purgeAfter      DateTime?            @map("purge_after") @db.Timestamptz(3)
   /// D366 (v1.123-social, §10.159): the department «القسم» (GENERAL until a transfer moves it; only a transfer does).
-  department    WaDepartment         @default(GENERAL)
+  department      WaDepartment         @default(GENERAL)
   /// v1.134-social (D381, §10.171.3): the linked account held PRIORITY_SUPPORT when it was linked or last wrote —
   /// listed first in the staff inbox.
-  priority      Boolean              @default(false)
+  priority        Boolean              @default(false)
   /// v1.137-social (D385, §10.174): WHATSAPP, or IN_APP «دعم كابسو» (`linked_user_id` is then the account, one thread
   /// per account: `wa_conversations_in_app_user_key`).
-  channel       WaChannel            @default(WHATSAPP)
+  channel         WaChannel            @default(WHATSAPP)
   /// D385: an IN_APP thread — the account read the team's replies up to then (`readSupportThread`).
-  userReadAt    DateTime?            @map("user_read_at") @db.Timestamptz(3)
+  userReadAt      DateTime?            @map("user_read_at") @db.Timestamptz(3)
   /// D385: the team last opened the thread (`markRead`) — the person's «تم الاستلام» becomes read.
-  staffReadAt   DateTime?            @map("staff_read_at") @db.Timestamptz(3)
-  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
+  staffReadAt     DateTime?            @map("staff_read_at") @db.Timestamptz(3)
+  /// v1.140-social (D388, §10.177): the customer's language «اللغة» — null until they answer the language question.
+  language        WaLanguage?
+  /// D388: when the language question was sent (null: never asked; set once — the customer is asked only once).
+  languageAskedAt DateTime?            @map("language_asked_at") @db.Timestamptz(3)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
 
   messages    WaMessage[]
   notes       WaNote[]
@@ -8957,6 +8961,25 @@ enum WaDepartment {
 
 /// D366: one department a staff member belongs to (no row at all: GENERAL). Counts only while the person is at REPLY or
 /// above. Set by `team.manage` only; no foreign key, like every staff id of the module.
+/// v1.140-social (D388, CONVENTIONS §10.177): the WhatsApp languages «اللغة». AR or EN.
+enum WaLanguage {
+  AR
+  EN
+
+  @@map("wa_language")
+}
+
+/// D388: the languages a staff member at REPLY or above speaks (no row: both). Written by `team.manage` only.
+model WaStaffLanguage {
+  userId    String     @map("user_id") @db.Uuid
+  language  WaLanguage
+  setById   String?    @map("set_by_id") @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@id([userId, language], map: "wa_staff_languages_pkey")
+  @@map("wa_staff_languages")
+}
+
 model WaStaffDepartment {
   userId     String       @map("user_id") @db.Uuid
   department WaDepartment

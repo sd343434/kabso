@@ -432,6 +432,8 @@ export interface AppConfig {
     readonly sweepIntervalSeconds: number;
     readonly templateCacheSeconds: number;
     readonly pushGapSeconds: number;
+    /** v1.140-social (D388, §10.177.1): the language question on a conversation's first message. */
+    readonly askLanguage: boolean;
   };
   /** v1.81-social (D245, §10.87): automatic exchange rates (the paid key is in the panel, never here). */
   readonly fx: {
@@ -1075,6 +1077,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       sweepIntervalSeconds: e.WHATSAPP_SWEEP_INTERVAL_SECONDS,
       templateCacheSeconds: e.WHATSAPP_TEMPLATE_CACHE_SECONDS,
       pushGapSeconds: e.WHATSAPP_PUSH_GAP_SECONDS,
+      askLanguage: e.WHATSAPP_ASK_LANGUAGE,
     },
     adminPanel: {
       totpKey: e.ADMIN_TOTP_KEY ?? null,
