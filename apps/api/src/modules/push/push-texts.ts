@@ -199,7 +199,9 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
         ? 'لم تتم الموافقة على طلبك في برنامج سفراء Kabso. افتح البرنامج لمعرفة السبب'
         : 'Your Kabso ambassadors application was not approved. Open the programme to see why';
     case 'AMBASSADOR_LEVEL_UP':
-      return ar ? 'ارتفع مستواك في برنامج سفراء Kabso' : 'You moved up a level in the Kabso ambassadors programme';
+      return ar
+        ? 'ارتفع مستواك في برنامج سفراء Kabso'
+        : 'You moved up a level in the Kabso ambassadors programme';
     case 'AMBASSADOR_REWARD_GRANTED':
       return ar
         ? 'حققت أهداف الشهر وحصلت على مكافأة السفير'

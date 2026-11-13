@@ -342,6 +342,8 @@ export async function resetDatabase(): Promise<void> {
     await client.$executeRawUnsafe(SEED_GIFT_CATEGORIES_SQL);
     // v1.74-social (D217): the referral settings' one row (its defaults), inserted by its migration.
     await client.$executeRawUnsafe(`INSERT INTO referral_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
+    // v1.140-social (D390): the ambassadors programme's one row (OFF, the proposed defaults), inserted by its migration.
+    await client.$executeRawUnsafe(`INSERT INTO ambassador_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
     // v1.75-live (D285): the recruit shares' one row (the owner's defaults), inserted by its migration.
     await client.$executeRawUnsafe(
       `INSERT INTO staff_recruit_settings (id) VALUES (1) ON CONFLICT DO NOTHING`,

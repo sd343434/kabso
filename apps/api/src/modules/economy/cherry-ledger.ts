@@ -616,7 +616,12 @@ export async function creditAmbassadorCommissionIn(
   commissionId: string,
   now: Date,
 ): Promise<void> {
-  await applyMovementsIn(tx, [{ userId, reason: 'AMBASSADOR_COMMISSION', delta: cherries }], commissionId, now);
+  await applyMovementsIn(
+    tx,
+    [{ userId, reason: 'AMBASSADOR_COMMISSION', delta: cherries }],
+    commissionId,
+    now,
+  );
 }
 
 /**

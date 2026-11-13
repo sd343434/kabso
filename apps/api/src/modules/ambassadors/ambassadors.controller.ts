@@ -66,7 +66,11 @@ const listQuery = z.strictObject({
 const applicationsQuery = z.strictObject({
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']).optional(),
 });
-const appointBody = z.strictObject({ username: z.string().trim().min(1).max(64), reason, country: country.optional() });
+const appointBody = z.strictObject({
+  username: z.string().trim().min(1).max(64),
+  reason,
+  country: country.optional(),
+});
 const reasonBody = z.strictObject({ reason });
 const codeBody = z.strictObject({ reason, totpCode });
 const count = z.number().int().min(0);
@@ -481,7 +485,10 @@ export class AdminAmbassadorsController {
   // ---- campaigns and events --------------------------------------------------------------------------------------
 
   private async campaignDto(id: string) {
-    const c = await this.prisma.ambassadorCampaign.findUniqueOrThrow({ where: { id }, include: { members: true } });
+    const c = await this.prisma.ambassadorCampaign.findUniqueOrThrow({
+      where: { id },
+      include: { members: true },
+    });
     const people = await this.prisma.userProfile.findMany({
       where: { userId: { in: c.members.map((m) => m.userId) } },
       select: { userId: true, username: true, displayName: true },
@@ -515,7 +522,8 @@ export class AdminAmbassadorsController {
   private async checkMembers(ids: readonly string[]): Promise<void> {
     if (ids.length === 0) return;
     const n = await this.prisma.ambassador.count({ where: { userId: { in: [...new Set(ids)] } } });
-    if (n !== new Set(ids).size) throw AppException.validation([{ field: 'ambassadors', issue: 'invalid_value' }]);
+    if (n !== new Set(ids).size)
+      throw AppException.validation([{ field: 'ambassadors', issue: 'invalid_value' }]);
   }
 
   @Post('ambassador-campaigns')

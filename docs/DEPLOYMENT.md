@@ -4539,3 +4539,36 @@ CONVENTIONS §10.174 (owner 2026-11-12). One migration and one optional setting;
 - **Order:** deploy the API image (the migration runs first), then the panel, then ship the APK. An older app shows no
   row and no support chat; an older staff app or panel must not open the inbox while in-app threads exist (their phone
   is null) — none is deployed with D355 yet.
+
+### 5.130 «برنامج سفراء Kabso» — the ambassadors programme (D390; migrations `20270518090000`, `20270518090100`) — [IMPLEMENTED, draft contract v1.140-social; not deployed, not device-tested]
+
+CONVENTIONS §10.179 (owner's brief via the coordinator, 2026-11-13). Two migrations and one setting; no new secret, no new
+host. **The programme ships OFF**: nothing changes for anyone until the OWNER reviews the proposed defaults and switches
+it on in the panel «السفراء › الإعدادات» (PP-95).
+
+- **Migrations** (the usual `migrate` job, as the migration role, in this order):
+  - `20270518090000_ambassadors_enums` — `cherry_ledger_reason` + `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`;
+    `wallet_ledger_reason` + `AMBASSADOR_REWARD`; `notification_type` + `AMBASSADOR_APPLICATION_APPROVED`,
+    `AMBASSADOR_APPLICATION_REJECTED`, `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED` (its own transaction: an added
+    enum value cannot be used in the transaction that adds it).
+  - `20270518090100_ambassadors` — four enums; nine new tables (`ambassador_settings` with its one row, OFF and the
+    proposed defaults; `ambassadors`, `ambassador_applications`, `ambassador_referrals`, `ambassador_commissions`,
+    `ambassador_months`, `ambassador_flags`, `ambassador_campaigns`, `ambassador_campaign_members`) with their CHECKs and
+    indexes; the ledgers' sign rules extended in place (`cherry_ledger_reason_sign`, `wallet_ledger_reason_sign`, read
+    from the catalogue as `20270319090100` did). Runtime grants from the default privileges (KL-013; full DML). Empty
+    tables: no backfill, no long lock (the two sign-rule CHECKs are re-validated over `cherry_ledger` / `wallet_ledger`
+    — a full scan of each, done by every migration that extended them before).
+- **Setting:** `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (default `300`; `0` is refused in production) — the sweeper that
+  activates referrals, credits or voids held commissions, evaluates the finished month and grants held rewards. Every
+  amount and rule is in the panel (`ambassador_settings`), never in the environment. The months follow
+  `LIVE_RANKINGS_TIME_ZONE` (as the boards and D285).
+- **Behaviour change when switched ON (D217):** a referral whose inviter is an ambassador takes the ambassador track —
+  the inviter gets no «دعوة الأصدقاء» sign-up / first-recharge reward and the friend does not count for the milestones;
+  the commission replaces them (§10.179.3). Referrals made before the switch keep their track.
+- **Money report:** «الربح» counts the commissions under REFERRAL_REWARDS and the coin rewards under COIN_REWARDS
+  (§10.179.10) — no new line; with D387 (`claude/ops-roles`) the report stays OWNER-only.
+- **Rollback note:** an older API image ignores the new tables; with the programme ON it would pay D217 inviter rewards
+  again for new friends of ambassadors. Switch the programme OFF in the panel before rolling back. The enum values and
+  tables can stay.
+- **Order:** deploy the API image (the migrations run first), then the panel, then ship the APK. An older app shows no
+  programme entry and ignores the four notification types.

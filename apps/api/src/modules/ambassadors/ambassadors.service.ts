@@ -161,7 +161,9 @@ export class AmbassadorsService {
     const input = parsed.data;
     const now = this.clock.now();
     const refused = (issue: string) =>
-      new AppException(ErrorCode.AMBASSADOR_APPLICATION_NOT_ALLOWED, undefined, [{ field: 'application', issue }]);
+      new AppException(ErrorCode.AMBASSADOR_APPLICATION_NOT_ALLOWED, undefined, [
+        { field: 'application', issue },
+      ]);
     const refusal = await eligibilityIn(this.prisma, me, now);
     if (refusal) throw refused(refusal);
     const id = uuidv7(now.getTime());
@@ -198,7 +200,9 @@ export class AmbassadorsService {
   /** Commission totals of one ambassador (pending in hold, held after the hold, paid, reversed). */
   async commissionSums(userId: string, amb: Ambassador): Promise<CommissionSums> {
     const now = this.clock.now();
-    const [row] = await this.prisma.$queryRaw<{ pending: bigint; held: bigint; paid: bigint; reversed: bigint }[]>`
+    const [row] = await this.prisma.$queryRaw<
+      { pending: bigint; held: bigint; paid: bigint; reversed: bigint }[]
+    >`
       SELECT COALESCE(sum(cherries) FILTER (WHERE status = 'PENDING' AND hold_until > ${now}), 0)::bigint AS pending,
              COALESCE(sum(cherries) FILTER (WHERE status = 'PENDING' AND hold_until <= ${now}), 0)::bigint AS held,
              COALESCE(sum(cherries) FILTER (WHERE status = 'CREDITED'), 0)::bigint AS paid,
@@ -235,7 +239,12 @@ export class AmbassadorsService {
       _count: { _all: true },
     });
     const of = (s: string) => groups.find((g) => g.status === s)?._count._all ?? 0;
-    return { total: of('PENDING') + of('ACTIVE'), active: of('ACTIVE'), pending: of('PENDING'), void: of('VOID') };
+    return {
+      total: of('PENDING') + of('ACTIVE'),
+      active: of('ACTIVE'),
+      pending: of('PENDING'),
+      void: of('VOID'),
+    };
   }
 
   /** `GET /ambassadors/me`: the ambassador's dashboard (404 for anyone else). */

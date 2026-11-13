@@ -757,6 +757,19 @@ info:
     `pinDmGroup` / `unpinDmGroup` (`PUT` / `DELETE …/pin`; `DmPin`, `DmPinList`; at most 5, more → 409 `DM_PIN_LIMIT`).
     Server config `RATE_LIMIT_SUPPORT_SEND_USER`. Migration `20270515090000_support_chat_pins`. Additive for the app; the
     staff inbox's `phone` may now be null (an IN_APP thread).
+    **D390 (DRAFT v1.140-social)** «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179; coordinator
+    brief from the owner, 2026-11-13): tag `ambassadors` — `getAmbassadorProgramme`, `applyForAmbassadorProgramme`
+    (`AmbassadorApplicationRequest`; code `AMBASSADOR_APPLICATION_NOT_ALLOWED`, 409), `getMyAmbassadorDashboard`; the
+    panel's `listAdminAmbassadors`, `appointAdminAmbassador`, `getAdminAmbassador`, `freezeAdminAmbassador`,
+    `unfreezeAdminAmbassador`, `clearAdminAmbassadorReview`, `listAdminAmbassadorApplications`,
+    `approveAdminAmbassadorApplication`, `rejectAdminAmbassadorApplication`, `getAdminAmbassadorSettings` /
+    `updateAdminAmbassadorSettings`, `listAdminAmbassadorCampaigns`, `createAdminAmbassadorCampaign`,
+    `updateAdminAmbassadorCampaign`; capabilities `ambassadors.view` / `ambassadors.manage` / `ambassadors.settings`.
+    `CherryLedgerReason` `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`; `WalletLedgerReason`
+    `AMBASSADOR_REWARD`; `NotificationType` `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`,
+    `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`. Server config `AMBASSADOR_SWEEP_INTERVAL_SECONDS`. Migrations
+    `20270518090000_ambassadors_enums`, `20270518090100_ambassadors`. The programme is OFF until the OWNER turns it on.
+    Additive; a referral whose inviter is an ambassador no longer earns the D217 inviter rewards (§10.179.3).
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -1423,6 +1436,8 @@ tags:
     description: "(v1.110-social DRAFT, D345) Coins from the stores «الشراء من المتجر»: Google Play Billing and App Store In-App Purchase consumables, verified by the server; refunds claw back and ban (CONVENTIONS §10.144)."
   - name: support
     description: "(v1.137-social DRAFT, D385) «دعم كابسو» — the caller's in-app support chat with the Kabso Team (CONVENTIONS §10.174). The staff answer it in the WhatsApp inbox (`channel: IN_APP`)."
+  - name: ambassadors
+    description: "(v1.140-social DRAFT, D390) «برنامج سفراء Kabso» — the ambassadors programme: the explanation and the application, the ambassador's dashboard (CONVENTIONS §10.179). The panel's side is under admin-panel."
   - name: whatsapp
     description: "(v1.116-social DRAFT, D355) Meta's WhatsApp Business Platform webhook for the official Kabso number «واتساب» (public, signed). The staff's inbox is under the tags staff and admin-panel (CONVENTIONS §10.151)."
 paths:
@@ -24267,6 +24282,398 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+  /api/v1/ambassadors/programme:
+    get:
+      tags: [ambassadors]
+      operationId: getAmbassadorProgramme
+      summary: "«برنامج سفراء Kabso»: the programme's rules and levels, the caller's status and latest application (v1.140-social, D390)"
+      description: |
+        CONVENTIONS §10.179.2. `levels` is empty while the programme is switched off (`enabled: false`; the app then
+        shows «قريباً» and no form). `refusal` in this order: `DISABLED`, `ACCOUNT_NOT_ACTIVE`, `STAFF` (any panel role,
+        the OWNER included — a staff member's own recruitment is D285), `AMBASSADOR`, `PENDING`.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AmbassadorProgramme' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/ambassadors/applications:
+    post:
+      tags: [ambassadors]
+      operationId: applyForAmbassadorProgramme
+      summary: "«انضم إلى برنامج السفراء»: apply (v1.140-social, D390)"
+      description: |
+        CONVENTIONS §10.179.2. Order: 503 `SERVICE_UNAVAILABLE` (switched off) → 400 body (`links`: 1–5 plain `https://`
+        URLs) → 409 `AMBASSADOR_APPLICATION_NOT_ALLOWED` (`details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`,
+        `STAFF`, `AMBASSADOR`, `PENDING`) → 201. The team approves or rejects with a reason in the panel; the person is
+        notified (`AMBASSADOR_APPLICATION_APPROVED` / `_REJECTED`). Rate limit `ambassador:apply` (5 / 24 h per user).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AmbassadorApplicationRequest' }
+      responses:
+        '201':
+          description: Submitted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AmbassadorProgramme' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/ambassadors/me:
+    get:
+      tags: [ambassadors]
+      operationId: getMyAmbassadorDashboard
+      summary: "The ambassador's dashboard: code and link, level and progress, this month's targets, referrals, commissions, history (v1.140-social, D390)"
+      description: "CONVENTIONS §10.179.6. 404 `NOT_FOUND` for anyone who is not an ambassador. The code is the person's D217 invite code (one code per person)."
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AmbassadorDashboard' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassadors:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminAmbassadors
+      summary: "«السفراء»: the ambassadors with their performance (ambassadors.view; money totals only with ambassadors.settings)"
+      description: "(v1.140-social, D390, §10.179.8) Newest first, at most 200. `status` REVIEW = under review. `commissions` is null without `ambassadors.settings` (OWNER): revenue and payouts are the OWNER's."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [ACTIVE, FROZEN, REVIEW] } }
+        - { name: q, in: query, required: false, schema: { type: string, maxLength: 64 } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAmbassadorList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: appointAdminAmbassador
+      summary: "Appoints an ambassador directly (ambassadors.manage; v1.140-social, D390)"
+      description: "(§10.179.2) Refusals under 409 `ADMIN_ACTION_REFUSED` (`details[0] = {field: ambassador, issue}`): `user_not_found`, `account_not_active`, `staff`, `already_ambassador`. A pending application of the person is closed as CANCELLED. The person is notified (`AMBASSADOR_APPLICATION_APPROVED`). Audited `ambassador.appoint`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [username, reason]
+              properties:
+                username: { type: string, minLength: 1, maxLength: 64 }
+                reason: { type: string, minLength: 1, maxLength: 500 }
+                country: { type: string, pattern: '^[A-Z]{2}$' }
+      responses:
+        '201':
+          description: Appointed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAmbassadorRow' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassadors/{userId}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminAmbassador
+      summary: "One ambassador's performance: referrals, active referrals, qualifying top-ups, commissions, level, flags, months (ambassadors.view)"
+      description: "(v1.140-social, D390, §10.179.8) Every money field is null without `ambassadors.settings`. Audited `ambassador.view`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAmbassadorDetail' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassadors/{userId}/freeze:
+    post:
+      tags: [admin-panel]
+      operationId: freezeAdminAmbassador
+      summary: "Freezes an ambassador's pending rewards: no commission is credited and no monthly reward granted until unfrozen (ambassadors.settings: OWNER)"
+      description: "(v1.140-social, D390, §10.179.7) Already frozen: `changed` false. Audited `ambassador.freeze` with the pending amount."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAmbassadorChange' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassadors/{userId}/unfreeze:
+    post:
+      tags: [admin-panel]
+      operationId: unfreezeAdminAmbassador
+      summary: "Unfreezes: the held commissions and rewards are paid at the next sweep (ambassadors.settings: OWNER; the code again)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAmbassadorChange' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassadors/{userId}/clear-review:
+    post:
+      tags: [admin-panel]
+      operationId: clearAdminAmbassadorReview
+      summary: "Ends a review put by a velocity / IP-cluster / self-payment flag; held payouts resume (ambassadors.settings: OWNER; the code again)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAmbassadorChange' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassador-applications:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminAmbassadorApplications
+      summary: "«طلبات السفراء»: the applications (ambassadors.view; v1.140-social, D390)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELLED] } }
+      responses:
+        '200':
+          description: OK (newest first, at most 200).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAmbassadorApplicationList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassador-applications/{applicationId}/approve:
+    post:
+      tags: [admin-panel]
+      operationId: approveAdminAmbassadorApplication
+      summary: "Approves: the person becomes an ambassador at the first level (ambassadors.manage)"
+      description: "(§10.179.2) Refusals under 409 `ADMIN_ACTION_REFUSED` (`field: ambassador`): `not_pending`, `account_not_active`, `staff`, `already_ambassador`; 404 unknown id. Audited `ambassador.application.approve`; notification `AMBASSADOR_APPLICATION_APPROVED`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Approved.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, userId]
+                properties:
+                  status: { type: string, enum: [APPROVED] }
+                  userId: { type: string, format: uuid }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassador-applications/{applicationId}/reject:
+    post:
+      tags: [admin-panel]
+      operationId: rejectAdminAmbassadorApplication
+      summary: "Rejects with a reason the person sees (ambassadors.manage)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '200':
+          description: Rejected.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, userId]
+                properties:
+                  status: { type: string, enum: [REJECTED] }
+                  userId: { type: string, format: uuid }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassador-settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminAmbassadorSettings
+      summary: "The programme's switch and every number (ambassadors.settings: OWNER; v1.140-social, D390)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AmbassadorSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminAmbassadorSettings
+      summary: "Changes the switch, the numbers and the levels (ambassadors.settings: OWNER; the code again and a reason; audited)"
+      description: "(§10.179.7) Only the fields sent change. `levels` (1–10) must start open to everyone (0 / 0), ask more at each next level and never lower the commission (400 `levels` / `invalid_value`). Audited `ambassador.settings.update` with before / after."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAmbassadorSettingsRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AmbassadorSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassador-campaigns:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminAmbassadorCampaigns
+      summary: "Campaigns and events coordinated with the ambassadors (ambassadors.view; v1.140-social, D390)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK (newest start first, at most 200).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAmbassadorCampaignList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminAmbassadorCampaign
+      summary: "Creates a campaign or event (ambassadors.manage)"
+      description: "`ambassadors` must all be ambassadors (400 `ambassadors` / `invalid_value`). Audited `ambassador.campaign.create`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AmbassadorCampaignRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAmbassadorCampaign' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassador-campaigns/{campaignId}:
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminAmbassadorCampaign
+      summary: "Replaces a campaign's fields and ambassadors (ambassadors.manage)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: campaignId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AmbassadorCampaignRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAmbassadorCampaign' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -37812,8 +38219,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». (v1.127-social, D372) `CONTENT_GIFT_RECEIVED` (actor the sender, target POST: the post or reel; one unread row per post that new senders join, always on, pushed «أرسل لك فلان هدية»): someone sent a gift on your post or reel «هدية الدعم». (v1.136-social, D384) `ANIMATED_AVATAR_REMOVED` (system, no target): a moderator removed your VIP animated picture «صورة متحركة» (§10.173.5); the app opens the VIP page. Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED, CONTENT_GIFT_RECEIVED, ANIMATED_AVATAR_REMOVED]
+      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». (v1.127-social, D372) `CONTENT_GIFT_RECEIVED` (actor the sender, target POST: the post or reel; one unread row per post that new senders join, always on, pushed «أرسل لك فلان هدية»): someone sent a gift on your post or reel «هدية الدعم». (v1.136-social, D384) `ANIMATED_AVATAR_REMOVED` (system, no target): a moderator removed your VIP animated picture «صورة متحركة» (§10.173.5); the app opens the VIP page. (v1.140-social, D390) system, no target: `AMBASSADOR_APPLICATION_APPROVED` (the person is now an ambassador — also when the team appointed them), `AMBASSADOR_APPLICATION_REJECTED` (the reason is in `getAmbassadorProgramme`), `AMBASSADOR_LEVEL_UP` (the monthly evaluation moved them up), `AMBASSADOR_REWARD_GRANTED` (a monthly target reward was given); the app opens the programme or the dashboard. Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED, CONTENT_GIFT_RECEIVED, ANIMATED_AVATAR_REMOVED, AMBASSADOR_APPLICATION_APPROVED, AMBASSADOR_APPLICATION_REJECTED, AMBASSADOR_LEVEL_UP, AMBASSADOR_REWARD_GRANTED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
@@ -40372,6 +40779,8 @@ components:
         # charged as its DM_GIFT), cancellation or failure.
         - VIP_SCHEDULED_GIFT
         - VIP_SCHEDULED_GIFT_RELEASE
+        # v1.140-social (D390, CONVENTIONS §10.179.6): an ambassador's monthly target reward in coins.
+        - AMBASSADOR_REWARD
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]
@@ -41596,12 +42005,15 @@ components:
         daily share of a recruit's platform profit (reference `SR:<recruitment>@<day>`; withdrawable, §10.96.13).
         *(v1.82-live, D295)* `AGENCY_FORFEIT` (debit): «حظر الوكالة» — the owner's unwithdrawn agency commission
         forfeited (reference: the agency; §10.108). *(v1.97-social, D303)* `EVENT_PRIZE` (credit): a gift event's
-        cherry prize (reference `EVP:<payout>`; locked like `TASK_REWARD`, §10.114.4).
+        cherry prize (reference `EVP:<payout>`; locked like `TASK_REWARD`, §10.114.4). *(v1.140-social, D390)*
+        `AMBASSADOR_COMMISSION` (credit): an ambassador's commission on a referred person's qualifying top-up, after
+        its hold (reference: the commission; withdrawable, §10.179.5); `AMBASSADOR_COMMISSION_REVERSAL` (debit): that
+        commission taken back after a refund or a chargeback (reference: the same commission; the balance may go below 0).
         New values may appear later.
       enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
              PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD, RECHARGE_SALE,
              REFERRAL_REWARD, REFERRAL_REVERSAL, STORE_PURCHASE, HOST_TARGET_REWARD, STAFF_RECRUIT_COMMISSION,
-             AGENCY_FORFEIT, EVENT_PRIZE]
+             AGENCY_FORFEIT, EVENT_PRIZE, AMBASSADOR_COMMISSION, AMBASSADOR_COMMISSION_REVERSAL]
     CherryPayoutRules:
       type: object
       description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (owner: 1 000 000 = 110, $1.10)."
@@ -43039,5 +43451,389 @@ components:
         total: { type: integer }
         page: { type: integer }
         pageSize: { type: integer }
+    AmbassadorReward:
+      type: object
+      description: "(v1.140-social, D390, §10.179.6) A level's monthly target reward: NONE; COINS (`amount` coins, ledger `AMBASSADOR_REWARD`); VIP_DAYS (`amount` days of `vipTier`); BAG_ITEM (`itemCode` for `amount` days)."
+      additionalProperties: false
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [NONE, COINS, VIP_DAYS, BAG_ITEM] }
+        amount: { type: integer, minimum: 1 }
+        vipTier: { type: string, minLength: 1, maxLength: 32 }
+        itemCode: { type: string, minLength: 1, maxLength: 64 }
+    AmbassadorLevel:
+      type: object
+      description: "(v1.140-social, D390, §10.179.6) A level: the month's requirements (referrals that became active, qualifying top-up coins), the commission on qualifying top-ups (basis points) and the monthly target reward. OWNER-edited."
+      additionalProperties: false
+      required: [code, minActiveReferrals, minTopupCoins, commissionBps, reward]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,15}$', description: "BRONZE, SILVER, GOLD, DIAMOND by default; the apps name the four defaults and show any other code as is." }
+        minActiveReferrals: { type: integer, minimum: 0 }
+        minTopupCoins: { type: integer, minimum: 0 }
+        commissionBps: { type: integer, minimum: 0, maximum: 5000 }
+        reward: { $ref: '#/components/schemas/AmbassadorReward' }
+    AmbassadorApplication:
+      type: object
+      required: [id, status, country, links, audienceSize, motivation, createdAt, decidedAt, rejectReason]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELLED] }
+        country: { type: string, pattern: '^[A-Z]{2}$' }
+        links: { type: array, items: { type: string }, minItems: 1, maxItems: 5 }
+        audienceSize: { type: integer, minimum: 0 }
+        motivation: { type: string }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        rejectReason: { type: [string, 'null'] }
+    AmbassadorApplicationRequest:
+      type: object
+      additionalProperties: false
+      required: [country, links, audienceSize, motivation]
+      properties:
+        country: { type: string, pattern: '^[A-Z]{2}$' }
+        links:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: { type: string, maxLength: 200, pattern: '^https://\S+$', description: "A plain https link to one of the person's social accounts." }
+        audienceSize: { type: integer, minimum: 0, maximum: 1000000000, description: "The person's audience (followers), as they state it." }
+        motivation: { type: string, minLength: 1, maxLength: 1000 }
+    AmbassadorProgramme:
+      type: object
+      description: "(v1.140-social, D390, §10.179.2) `getAmbassadorProgramme`."
+      additionalProperties: false
+      required: [enabled, status, canApply, refusal, application, levels, rules]
+      properties:
+        enabled: { type: boolean, description: The OWNER's master switch (off by default). }
+        status: { type: string, enum: [NONE, PENDING, REJECTED, AMBASSADOR] }
+        canApply: { type: boolean }
+        refusal: { type: [string, 'null'], enum: [DISABLED, ACCOUNT_NOT_ACTIVE, STAFF, AMBASSADOR, PENDING, null] }
+        application:
+          oneOf:
+            - { $ref: '#/components/schemas/AmbassadorApplication' }
+            - { type: 'null' }
+        levels: { type: array, items: { $ref: '#/components/schemas/AmbassadorLevel' } }
+        rules:
+          type: object
+          additionalProperties: false
+          required: [attributionWindowDays, holdDays, minActiveDays, minActiveTopupCoins]
+          properties:
+            attributionWindowDays: { type: integer, minimum: 1 }
+            holdDays: { type: integer, minimum: 0 }
+            minActiveDays: { type: integer, minimum: 0 }
+            minActiveTopupCoins: { type: integer, minimum: 0 }
+    AmbassadorDashboard:
+      type: object
+      description: "(v1.140-social, D390, §10.179.6) `getMyAmbassadorDashboard`. `payoutsHeld`: the OWNER froze the pending rewards or a review is open — nothing is credited until it ends (the reason is never sent). Pending = in their hold; held = past the hold but waiting (frozen, review, the friend not active yet); paid = credited (withdrawable cherries); reversed = taken back after a refund."
+      additionalProperties: false
+      required: [enabled, payoutsHeld, since, code, link, level, nextLevel, month, referrals, commissions, history, recent]
+      properties:
+        enabled: { type: boolean }
+        payoutsHeld: { type: boolean }
+        since: { type: string, format: date-time }
+        code: { type: string, description: The person's invite code (D217). }
+        link: { type: string }
+        level:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [code, commissionBps]
+              properties:
+                code: { type: string }
+                commissionBps: { type: integer, minimum: 0 }
+            - { type: 'null' }
+        nextLevel:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [code, activeReferrals, topupCoins]
+              description: What is still missing this month to reach it.
+              properties:
+                code: { type: string }
+                activeReferrals: { type: integer, minimum: 0 }
+                topupCoins: { type: integer, minimum: 0 }
+            - { type: 'null' }
+        month:
+          type: object
+          additionalProperties: false
+          required: [month, activeReferrals, topupCoins, target]
+          properties:
+            month: { type: string, pattern: '^[0-9]{4}-[0-9]{2}$' }
+            activeReferrals: { type: integer, minimum: 0 }
+            topupCoins: { type: integer, minimum: 0 }
+            target:
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required: [code, minActiveReferrals, minTopupCoins, reward]
+                  properties:
+                    code: { type: string }
+                    minActiveReferrals: { type: integer, minimum: 0 }
+                    minTopupCoins: { type: integer, minimum: 0 }
+                    reward: { $ref: '#/components/schemas/AmbassadorReward' }
+                - { type: 'null' }
+        referrals: { $ref: '#/components/schemas/AmbassadorReferralCounts' }
+        commissions: { $ref: '#/components/schemas/AmbassadorCommissionTotals' }
+        history:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            required: [month, activeReferrals, topupCoins, commissionCherries, levelAfter, rewardStatus]
+            properties:
+              month: { type: string }
+              activeReferrals: { type: integer, minimum: 0 }
+              topupCoins: { type: integer, minimum: 0 }
+              commissionCherries: { type: integer, minimum: 0 }
+              levelAfter: { type: string }
+              rewardStatus: { type: string, enum: [NONE, GRANTED, HELD] }
+        recent:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, at, friend, coins, cherries, status]
+            properties:
+              id: { type: string, format: uuid }
+              at: { type: string, format: date-time }
+              friend: { type: string, description: The friend's masked name (first and last grapheme). }
+              coins: { type: integer, minimum: 1 }
+              cherries: { type: integer, minimum: 0 }
+              status: { type: string, enum: [PENDING, CREDITED, VOID, REVERSED] }
+    AmbassadorReferralCounts:
+      type: object
+      additionalProperties: false
+      required: [total, active, pending, void]
+      properties:
+        total: { type: integer, minimum: 0, description: Pending + active. }
+        active: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        void: { type: integer, minimum: 0 }
+    AmbassadorCommissionTotals:
+      type: object
+      additionalProperties: false
+      required: [pendingCherries, heldCherries, paidCherries, reversedCherries]
+      properties:
+        pendingCherries: { type: integer, minimum: 0 }
+        heldCherries: { type: integer, minimum: 0 }
+        paidCherries: { type: integer, minimum: 0 }
+        reversedCherries: { type: integer, minimum: 0 }
+    AmbassadorSettings:
+      type: object
+      description: "(v1.140-social, D390, §10.179.7) Every number of the programme; OWNER only."
+      additionalProperties: false
+      required: [enabled, attributionWindowDays, holdDays, minActiveDays, minActiveTopupCoins, monthlyCapCherries, velocityMaxPerDay, ipClusterMax, ipClusterWindowDays, levels, updatedAt]
+      properties:
+        enabled: { type: boolean }
+        attributionWindowDays: { type: integer, minimum: 1, maximum: 3650 }
+        holdDays: { type: integer, minimum: 0, maximum: 365 }
+        minActiveDays: { type: integer, minimum: 0, maximum: 365 }
+        minActiveTopupCoins: { type: integer, minimum: 0 }
+        monthlyCapCherries: { type: integer, minimum: 0, description: 0 = no cap. }
+        velocityMaxPerDay: { type: integer, minimum: 0, description: 0 = off. }
+        ipClusterMax: { type: integer, minimum: 0, description: 0 = off. }
+        ipClusterWindowDays: { type: integer, minimum: 1, maximum: 365 }
+        levels: { type: array, items: { $ref: '#/components/schemas/AmbassadorLevel' } }
+        updatedAt: { type: string, format: date-time }
+    UpdateAmbassadorSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [reason, totpCode]
+      properties:
+        enabled: { type: boolean }
+        attributionWindowDays: { type: integer, minimum: 1, maximum: 3650 }
+        holdDays: { type: integer, minimum: 0, maximum: 365 }
+        minActiveDays: { type: integer, minimum: 0, maximum: 365 }
+        minActiveTopupCoins: { type: integer, minimum: 0 }
+        monthlyCapCherries: { type: integer, minimum: 0 }
+        velocityMaxPerDay: { type: integer, minimum: 0, maximum: 100000 }
+        ipClusterMax: { type: integer, minimum: 0, maximum: 100000 }
+        ipClusterWindowDays: { type: integer, minimum: 1, maximum: 365 }
+        levels: { type: array, minItems: 1, maxItems: 10, items: { $ref: '#/components/schemas/AmbassadorLevel' } }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminAmbassadorPerson:
+      type: object
+      additionalProperties: false
+      required: [id, username, displayName, avatarUrl]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        avatarUrl: { type: [string, 'null'] }
+    AdminAmbassadorRow:
+      type: object
+      required: [user, status, level, source, country, activatedAt, underReview, reviewReason, frozenReason, referrals, month, commissions]
+      properties:
+        user: { $ref: '#/components/schemas/AdminAmbassadorPerson' }
+        status: { type: string, enum: [ACTIVE, FROZEN] }
+        level: { type: string }
+        source: { type: string, enum: [APPLICATION, APPOINTED] }
+        country: { type: [string, 'null'] }
+        activatedAt: { type: string, format: date-time }
+        underReview: { type: boolean }
+        reviewReason: { type: [string, 'null'], enum: [VELOCITY, IP_CLUSTER, SELF_PAYMENT, null] }
+        frozenReason: { type: [string, 'null'] }
+        referrals: { $ref: '#/components/schemas/AmbassadorReferralCounts' }
+        month:
+          type: object
+          additionalProperties: false
+          required: [month, activeReferrals, topupCoins]
+          properties:
+            month: { type: string }
+            activeReferrals: { type: integer, minimum: 0 }
+            topupCoins: { type: integer, minimum: 0 }
+        commissions:
+          description: Null without `ambassadors.settings` (the OWNER's money).
+          oneOf:
+            - { $ref: '#/components/schemas/AmbassadorCommissionTotals' }
+            - { type: 'null' }
+    AdminAmbassadorList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminAmbassadorRow' } }
+    AdminAmbassadorChange:
+      type: object
+      additionalProperties: false
+      required: [changed, ambassador]
+      properties:
+        changed: { type: boolean }
+        ambassador: { $ref: '#/components/schemas/AdminAmbassadorRow' }
+    AdminAmbassadorDetail:
+      allOf:
+        - { $ref: '#/components/schemas/AdminAmbassadorRow' }
+        - type: object
+          required: [flags, months, referralList, commissionList, campaigns]
+          properties:
+            flags:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [id, kind, createdAt, clearedAt]
+                properties:
+                  id: { type: string, format: uuid }
+                  kind: { type: string, enum: [VELOCITY, IP_CLUSTER, SELF_PAYMENT] }
+                  createdAt: { type: string, format: date-time }
+                  clearedAt: { type: [string, 'null'], format: date-time }
+            months:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [month, activeReferrals, topupCoins, commissionCherries, levelBefore, levelAfter, metLevel, rewardStatus]
+                properties:
+                  month: { type: string }
+                  activeReferrals: { type: integer, minimum: 0 }
+                  topupCoins: { type: integer, minimum: 0 }
+                  commissionCherries: { type: [integer, 'null'], minimum: 0 }
+                  levelBefore: { type: string }
+                  levelAfter: { type: string }
+                  metLevel: { type: [string, 'null'] }
+                  rewardStatus: { type: string, enum: [NONE, GRANTED, HELD] }
+            referralList:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [invitee, status, voidReason, createdAt, activeAt]
+                properties:
+                  invitee:
+                    type: object
+                    additionalProperties: false
+                    required: [id, username, displayName]
+                    properties:
+                      id: { type: string, format: uuid }
+                      username: { type: string }
+                      displayName: { type: string }
+                  status: { type: string, enum: [PENDING, ACTIVE, VOID] }
+                  voidReason: { type: [string, 'null'] }
+                  createdAt: { type: string, format: date-time }
+                  activeAt: { type: [string, 'null'], format: date-time }
+            commissionList:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [id, createdAt, recharge, coins, level, rateBps, cherries, status, voidReason, holdUntil]
+                properties:
+                  id: { type: string, format: uuid }
+                  createdAt: { type: string, format: date-time }
+                  recharge: { type: string, enum: [CARD_TOPUP, RECHARGE_PURCHASE, RECHARGE_ORDER, STORE_IAP] }
+                  coins: { type: integer, minimum: 1 }
+                  level: { type: string }
+                  rateBps: { type: integer, minimum: 0 }
+                  cherries: { type: [integer, 'null'], minimum: 0 }
+                  status: { type: string, enum: [PENDING, CREDITED, VOID, REVERSED] }
+                  voidReason: { type: [string, 'null'] }
+                  holdUntil: { type: string, format: date-time }
+            campaigns:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [id, title]
+                properties:
+                  id: { type: string, format: uuid }
+                  title: { type: string }
+    AdminAmbassadorApplicationList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            allOf:
+              - { $ref: '#/components/schemas/AmbassadorApplication' }
+              - type: object
+                required: [user, creator]
+                properties:
+                  user: { $ref: '#/components/schemas/AdminAmbassadorPerson' }
+                  creator: { type: boolean, description: "A content creator (D285 / D295) — they may also be an ambassador." }
+    AmbassadorCampaignRequest:
+      type: object
+      additionalProperties: false
+      required: [title, startsOn, endsOn]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        country: { type: [string, 'null'], pattern: '^[A-Z]{2}$' }
+        startsOn: { type: string, format: date }
+        endsOn: { type: string, format: date, description: On or after `startsOn`. }
+        notes: { type: string, maxLength: 2000 }
+        ambassadors: { type: array, maxItems: 200, items: { type: string, format: uuid } }
+    AdminAmbassadorCampaign:
+      type: object
+      additionalProperties: false
+      required: [id, title, country, startsOn, endsOn, notes, ambassadors, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        country: { type: [string, 'null'] }
+        startsOn: { type: string, format: date }
+        endsOn: { type: string, format: date }
+        notes: { type: string }
+        ambassadors:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, username, displayName]
+            properties:
+              id: { type: string, format: uuid }
+              username: { type: string }
+              displayName: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AdminAmbassadorCampaignList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminAmbassadorCampaign' } }
 security:
   - bearerAuth: []

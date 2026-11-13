@@ -57,8 +57,10 @@ export function levelsProblem(levels: readonly AmbassadorLevel[]): string | null
   for (let i = 1; i < levels.length; i++) {
     const a = levels[i - 1]!;
     const b = levels[i]!;
-    if (b.minActiveReferrals < a.minActiveReferrals || b.minTopupCoins < a.minTopupCoins) return 'not_increasing';
-    if (b.minActiveReferrals === a.minActiveReferrals && b.minTopupCoins === a.minTopupCoins) return 'not_increasing';
+    if (b.minActiveReferrals < a.minActiveReferrals || b.minTopupCoins < a.minTopupCoins)
+      return 'not_increasing';
+    if (b.minActiveReferrals === a.minActiveReferrals && b.minTopupCoins === a.minTopupCoins)
+      return 'not_increasing';
     if (b.commissionBps < a.commissionBps) return 'commission_decreasing';
   }
   return null;
@@ -167,7 +169,13 @@ export function commissionEconomics(input: {
   rateCherries: number;
   rateMinor: number;
   hostShareBps: number;
-}): { revenueMinor: number; commissionCherries: bigint; commissionMinor: number; hostMinor: number; profitMinor: number } {
+}): {
+  revenueMinor: number;
+  commissionCherries: bigint;
+  commissionMinor: number;
+  hostMinor: number;
+  profitMinor: number;
+} {
   const toMinor = (cherries: bigint) => (Number(cherries) * input.rateMinor) / input.rateCherries;
   const revenueMinor = (Number(input.coins) * input.retailMinorPerMillion) / 1_000_000;
   const cherries = commissionCherries(input.coins, input.cherriesPerCoin, input.bps);

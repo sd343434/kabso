@@ -1,6 +1,11 @@
 import { auditBy, SYSTEM_VIA, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
-import type { Ambassador, AmbassadorCommission, Prisma, PrismaClient } from '../../generated/prisma/client.js';
+import type {
+  Ambassador,
+  AmbassadorCommission,
+  Prisma,
+  PrismaClient,
+} from '../../generated/prisma/client.js';
 import { PANEL_ROLES } from '../admin-panel/admin-permissions.js';
 import { grantBagItemByAdminIn } from '../bag/bag-admin-rules.js';
 import { creditAmbassadorCommissionIn, reverseAmbassadorCommissionIn } from '../economy/cherry-ledger.js';
@@ -112,7 +117,7 @@ export function ambassadorSettingsJson(s: AmbassadorSettingsValue): Prisma.Input
     velocityMaxPerDay: s.velocityMaxPerDay,
     ipClusterMax: s.ipClusterMax,
     ipClusterWindowDays: s.ipClusterWindowDays,
-    levels: s.levels as unknown as Prisma.InputJsonArray,
+    levels: s.levels,
   };
 }
 
@@ -129,7 +134,7 @@ export async function updateAmbassadorSettingsIn(
   const { levels, ...rest } = patch;
   const data: Prisma.AmbassadorSettingsUncheckedUpdateInput = {
     ...rest,
-    ...(levels !== undefined ? { levels: levels as unknown as Prisma.InputJsonArray } : {}),
+    ...(levels !== undefined ? { levels: levels } : {}),
     updatedAt: now,
     updatedById: by.actorUserId,
   };
@@ -167,7 +172,11 @@ export async function isPanelStaffIn(db: Db, userId: string): Promise<boolean> {
 }
 
 /** Banned, deleted (or being deleted) or locked by the team (D208 LOCK) — as D217's `accountHealthIn`. */
-export async function healthIn(db: Db, userId: string, now: Date): Promise<'OK' | 'BANNED' | 'DELETED' | 'FLAGGED'> {
+export async function healthIn(
+  db: Db,
+  userId: string,
+  now: Date,
+): Promise<'OK' | 'BANNED' | 'DELETED' | 'FLAGGED'> {
   const user = await db.user.findUnique({ where: { id: userId }, select: { status: true } });
   if (!user || user.status === 'DELETED' || user.status === 'PENDING_DELETION') return 'DELETED';
   if (user.status !== 'ACTIVE') return 'BANNED';
@@ -231,7 +240,10 @@ export async function ambassadorTrackIn(
   if (!amb) return false;
   if (await isPanelStaffIn(tx, input.inviterId)) return false;
   const now = input.now;
-  const invitee = await tx.user.findUniqueOrThrow({ where: { id: input.inviteeId }, select: { createdAt: true } });
+  const invitee = await tx.user.findUniqueOrThrow({
+    where: { id: input.inviteeId },
+    select: { createdAt: true },
+  });
   const windowUntil = new Date(invitee.createdAt.getTime() + settings.attributionWindowDays * DAY_MS);
   let voidReason: string | null = null;
   if (input.ip !== null && settings.ipClusterMax > 0) {
@@ -270,7 +282,13 @@ export async function ambassadorTrackIn(
     },
   });
   if (voidReason) {
-    await flagIn(tx, input.inviterId, 'IP_CLUSTER', { referral: input.referralId, max: settings.ipClusterMax }, now);
+    await flagIn(
+      tx,
+      input.inviterId,
+      'IP_CLUSTER',
+      { referral: input.referralId, max: settings.ipClusterMax },
+      now,
+    );
   }
   if (settings.velocityMaxPerDay > 0) {
     const day = await tx.ambassadorReferral.count({
@@ -307,11 +325,17 @@ async function selfPaymentIn(
     return sale !== null && (sale.agentUserId === ambassadorId || sale.sellerUserId === ambassadorId);
   }
   if (reason === 'RECHARGE_ORDER') {
-    const order = await tx.rechargeOrder.findUnique({ where: { id: reference }, select: { agentUserId: true } });
+    const order = await tx.rechargeOrder.findUnique({
+      where: { id: reference },
+      select: { agentUserId: true },
+    });
     return order !== null && order.agentUserId === ambassadorId;
   }
   if (reason === 'STORE_IAP') {
-    const purchase = await tx.iapPurchase.findUnique({ where: { id: reference }, select: { deviceHash: true } });
+    const purchase = await tx.iapPurchase.findUnique({
+      where: { id: reference },
+      select: { deviceHash: true },
+    });
     if (!purchase?.deviceHash) return false;
     return (await tx.session.count({ where: { userId: ambassadorId, deviceHash: purchase.deviceHash } })) > 0;
   }
@@ -468,7 +492,10 @@ async function topupReversedIn(tx: Tx, c: AmbassadorCommission): Promise<boolean
     return !order || order.coinsReversed > 0n;
   }
   if (c.rechargeReason === 'STORE_IAP') {
-    const p = await tx.iapPurchase.findUnique({ where: { id: c.rechargeReference }, select: { status: true } });
+    const p = await tx.iapPurchase.findUnique({
+      where: { id: c.rechargeReference },
+      select: { status: true },
+    });
     return !p || p.status === 'REFUNDED';
   }
   return false;
@@ -499,7 +526,10 @@ async function settleReferralIn(
   const health = await healthIn(tx, ref.inviteeUserId, now);
   let voidReason: string | null = health !== 'OK' ? `INVITEE_${health}` : null;
   if (voidReason === null) {
-    const invitee = await tx.user.findUniqueOrThrow({ where: { id: ref.inviteeUserId }, select: { createdAt: true } });
+    const invitee = await tx.user.findUniqueOrThrow({
+      where: { id: ref.inviteeUserId },
+      select: { createdAt: true },
+    });
     const oldEnough = now.getTime() - invitee.createdAt.getTime() >= settings.minActiveDays * DAY_MS;
     const coins = await qualifyingCoinsIn(tx, referralId);
     if (oldEnough && coins >= settings.minActiveTopupCoins && coins > 0n) {
@@ -596,7 +626,15 @@ async function grantRewardIn(
       await grantVipIn(tx, userId, reward.vipTier, reward.amount, now);
       break;
     case 'BAG_ITEM':
-      await grantBagItemByAdminIn(tx, userId, reward.itemCode, reward.amount, SYSTEM_VIA, `ambassador ${month}`, now);
+      await grantBagItemByAdminIn(
+        tx,
+        userId,
+        reward.itemCode,
+        reward.amount,
+        SYSTEM_VIA,
+        `ambassador ${month}`,
+        now,
+      );
       break;
   }
   await tx.ambassadorMonth.update({
@@ -608,7 +646,7 @@ async function grantRewardIn(
       action: AuditAction.AMBASSADOR_REWARD_GRANT,
       targetType: 'ambassador',
       targetId: userId,
-      metadata: { via: 'system', month, reward: reward as unknown as Prisma.InputJsonObject },
+      metadata: { via: 'system', month, reward: reward },
     },
   });
   await new Notifier().system(tx, { type: 'AMBASSADOR_REWARD_GRANTED', recipientId: userId });
@@ -675,7 +713,10 @@ async function evaluateMonthIn(
     },
   });
   if (after !== before || levels[before]!.code !== row.level) {
-    await tx.ambassador.update({ where: { userId }, data: { level: levels[after]!.code, levelChangedAt: now } });
+    await tx.ambassador.update({
+      where: { userId },
+      data: { level: levels[after]!.code, levelChangedAt: now },
+    });
     await tx.auditLog.create({
       data: {
         action: AuditAction.AMBASSADOR_LEVEL_CHANGE,
@@ -711,7 +752,14 @@ export async function sweepAmbassadors(
   timeZone: string,
   batch = 200,
 ): Promise<AmbassadorSweep> {
-  const out = { activated: 0, referralsVoided: 0, credited: 0, commissionsVoided: 0, monthsEvaluated: 0, rewardsGranted: 0 };
+  const out = {
+    activated: 0,
+    referralsVoided: 0,
+    credited: 0,
+    commissionsVoided: 0,
+    monthsEvaluated: 0,
+    rewardsGranted: 0,
+  };
   const settings = await ambassadorSettingsIn(prisma);
   if (!settings.enabled || settings.levels.length === 0) return out;
   const pending = await prisma.ambassadorReferral.findMany({
@@ -721,7 +769,9 @@ export async function sweepAmbassadors(
     select: { referralId: true },
   });
   for (const r of pending) {
-    const res = await prisma.$transaction((tx) => settleReferralIn(tx, r.referralId, settings, now, timeZone));
+    const res = await prisma.$transaction((tx) =>
+      settleReferralIn(tx, r.referralId, settings, now, timeZone),
+    );
     if (res === 'ACTIVE') out.activated++;
     else if (res === 'VOID') out.referralsVoided++;
   }
@@ -786,7 +836,12 @@ async function audit(
 
 async function makeAmbassadorIn(
   tx: Tx,
-  input: { userId: string; source: 'APPLICATION' | 'APPOINTED'; applicationId: string | null; country: string | null },
+  input: {
+    userId: string;
+    source: 'APPLICATION' | 'APPOINTED';
+    applicationId: string | null;
+    country: string | null;
+  },
   now: Date,
   by: AdminVia,
 ): Promise<void> {
@@ -810,12 +865,18 @@ async function lockPendingApplication(tx: Tx, id: string) {
   const [app] = await tx.$queryRaw<{ id: string; status: string }[]>`
     SELECT id::text AS id, status::text AS status FROM ambassador_applications WHERE id = ${id}::uuid FOR UPDATE`;
   if (!app) throw new AmbassadorAdminError(`No application ${id}.`, 'not_found');
-  if (app.status !== 'PENDING') throw new AmbassadorAdminError(`The application is ${app.status}.`, 'not_pending');
+  if (app.status !== 'PENDING')
+    throw new AmbassadorAdminError(`The application is ${app.status}.`, 'not_pending');
   return tx.ambassadorApplication.findUniqueOrThrow({ where: { id } });
 }
 
 /** Approve: the person becomes an ambassador at the first level (notified, audited). */
-export async function approveAmbassadorApplicationIn(tx: Tx, id: string, now: Date, by: AdminVia): Promise<string> {
+export async function approveAmbassadorApplicationIn(
+  tx: Tx,
+  id: string,
+  now: Date,
+  by: AdminVia,
+): Promise<string> {
   const app = await lockPendingApplication(tx, id);
   if ((await healthIn(tx, app.userId, now)) !== 'OK')
     throw new AmbassadorAdminError('The account is not ACTIVE.', 'account_not_active');
@@ -826,8 +887,20 @@ export async function approveAmbassadorApplicationIn(tx: Tx, id: string, now: Da
     where: { id },
     data: { status: 'APPROVED', decidedAt: now, decidedById: by.actorUserId },
   });
-  await makeAmbassadorIn(tx, { userId: app.userId, source: 'APPLICATION', applicationId: id, country: app.country }, now, by);
-  await audit(tx, AuditAction.AMBASSADOR_APPLICATION_APPROVE, 'ambassador_application', id, { user: app.userId }, by);
+  await makeAmbassadorIn(
+    tx,
+    { userId: app.userId, source: 'APPLICATION', applicationId: id, country: app.country },
+    now,
+    by,
+  );
+  await audit(
+    tx,
+    AuditAction.AMBASSADOR_APPLICATION_APPROVE,
+    'ambassador_application',
+    id,
+    { user: app.userId },
+    by,
+  );
   return app.userId;
 }
 
@@ -844,7 +917,14 @@ export async function rejectAmbassadorApplicationIn(
     data: { status: 'REJECTED', decidedAt: now, decidedById: by.actorUserId, rejectReason: reason },
   });
   await new Notifier().system(tx, { type: 'AMBASSADOR_APPLICATION_REJECTED', recipientId: app.userId });
-  await audit(tx, AuditAction.AMBASSADOR_APPLICATION_REJECT, 'ambassador_application', id, { user: app.userId, reason }, by);
+  await audit(
+    tx,
+    AuditAction.AMBASSADOR_APPLICATION_REJECT,
+    'ambassador_application',
+    id,
+    { user: app.userId, reason },
+    by,
+  );
   return app.userId;
 }
 
@@ -858,15 +938,29 @@ export async function appointAmbassadorIn(
 ): Promise<void> {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:ambassador'), hashtext(${userId}))`;
   const refusal = await eligibilityIn(tx, userId, now);
-  if (refusal === 'ACCOUNT_NOT_ACTIVE') throw new AmbassadorAdminError('The account is not ACTIVE.', 'account_not_active');
+  if (refusal === 'ACCOUNT_NOT_ACTIVE')
+    throw new AmbassadorAdminError('The account is not ACTIVE.', 'account_not_active');
   if (refusal === 'STAFF') throw new AmbassadorAdminError('A Kabso Team account.', 'staff');
-  if (refusal === 'AMBASSADOR') throw new AmbassadorAdminError('Already an ambassador.', 'already_ambassador');
+  if (refusal === 'AMBASSADOR')
+    throw new AmbassadorAdminError('Already an ambassador.', 'already_ambassador');
   await tx.ambassadorApplication.updateMany({
     where: { userId, status: 'PENDING' },
     data: { status: 'CANCELLED', decidedAt: now, decidedById: by.actorUserId },
   });
-  await makeAmbassadorIn(tx, { userId, source: 'APPOINTED', applicationId: null, country: input.country }, now, by);
-  await audit(tx, AuditAction.AMBASSADOR_APPOINT, 'ambassador', userId, { reason: input.reason, country: input.country }, by);
+  await makeAmbassadorIn(
+    tx,
+    { userId, source: 'APPOINTED', applicationId: null, country: input.country },
+    now,
+    by,
+  );
+  await audit(
+    tx,
+    AuditAction.AMBASSADOR_APPOINT,
+    'ambassador',
+    userId,
+    { reason: input.reason, country: input.country },
+    by,
+  );
 }
 
 /** OWNER: freeze (every payout and reward held) or unfreeze. Changes nothing when already so. */
@@ -913,11 +1007,21 @@ export async function clearAmbassadorReviewIn(
   const row = await tx.ambassador.findUnique({ where: { userId } });
   if (!row) throw new AmbassadorAdminError('Not an ambassador.', 'not_found');
   if (!row.underReview) return false;
-  await tx.ambassador.update({ where: { userId }, data: { underReview: false, reviewReason: null, reviewAt: null } });
+  await tx.ambassador.update({
+    where: { userId },
+    data: { underReview: false, reviewReason: null, reviewAt: null },
+  });
   const cleared = await tx.ambassadorFlag.updateMany({
     where: { ambassadorUserId: userId, clearedAt: null },
     data: { clearedAt: now, clearedById: by.actorUserId },
   });
-  await audit(tx, AuditAction.AMBASSADOR_REVIEW_CLEAR, 'ambassador', userId, { reason, flags: cleared.count }, by);
+  await audit(
+    tx,
+    AuditAction.AMBASSADOR_REVIEW_CLEAR,
+    'ambassador',
+    userId,
+    { reason, flags: cleared.count },
+    by,
+  );
   return true;
 }

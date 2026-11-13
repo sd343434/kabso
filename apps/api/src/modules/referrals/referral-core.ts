@@ -849,8 +849,7 @@ export async function clawbackPlanIn(db: Db, referralId: string): Promise<Clawba
             kind: 'MILESTONE',
             status: 'CREDITED',
             milestoneFriends: {
-              gt:
-                (await qualifiedFriendsIn(db, referral.inviterUserId)) - 1,
+              gt: (await qualifiedFriendsIn(db, referral.inviterUserId)) - 1,
             },
           },
           orderBy: { milestoneFriends: 'asc' },
