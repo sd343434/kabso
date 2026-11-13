@@ -2636,6 +2636,8 @@ enum NotificationType {
   AMBASSADOR_APPLICATION_REJECTED
   AMBASSADOR_LEVEL_UP
   AMBASSADOR_REWARD_GRANTED
+  /// D390 follow-up (§10.179.11): the OWNER ended the membership (no target).
+  AMBASSADOR_MEMBERSHIP_ENDED
 
   @@map("notification_type")
 }
@@ -9044,6 +9046,8 @@ model VipScheduledGift {
 enum AmbassadorStatus {
   ACTIVE
   FROZEN
+  /// D390 follow-up (§10.179.11): the OWNER ended the membership; only the OWNER re-appoints.
+  ENDED
 
   @@map("ambassador_status")
 }
@@ -9078,7 +9082,7 @@ enum AmbassadorCommissionStatus {
 model AmbassadorSettings {
   id                    Int      @id @default(1) @db.SmallInt
   enabled               Boolean  @default(false)
-  attributionWindowDays Int      @default(90) @map("attribution_window_days")
+  attributionWindowDays Int      @default(60) @map("attribution_window_days")
   holdDays              Int      @default(14) @map("hold_days")
   minActiveDays         Int      @default(3) @map("min_active_days")
   minActiveTopupCoins   BigInt   @default(100000) @map("min_active_topup_coins")
@@ -9086,7 +9090,7 @@ model AmbassadorSettings {
   velocityMaxPerDay     Int      @default(30) @map("velocity_max_per_day")
   ipClusterMax          Int      @default(3) @map("ip_cluster_max")
   ipClusterWindowDays   Int      @default(30) @map("ip_cluster_window_days")
-  levels                Json     @default("[{\"code\":\"BRONZE\",\"minActiveReferrals\":0,\"minTopupCoins\":0,\"commissionBps\":300,\"reward\":{\"kind\":\"NONE\"}},{\"code\":\"SILVER\",\"minActiveReferrals\":5,\"minTopupCoins\":3000000,\"commissionBps\":500,\"reward\":{\"kind\":\"COINS\",\"amount\":100000}},{\"code\":\"GOLD\",\"minActiveReferrals\":15,\"minTopupCoins\":15000000,\"commissionBps\":700,\"reward\":{\"kind\":\"VIP_DAYS\",\"amount\":7,\"vipTier\":\"VIP_1\"}},{\"code\":\"DIAMOND\",\"minActiveReferrals\":40,\"minTopupCoins\":60000000,\"commissionBps\":1000,\"reward\":{\"kind\":\"COINS\",\"amount\":1000000}}]") @db.JsonB
+  levels                Json     @default("[{\"code\":\"BRONZE\",\"minActiveReferrals\":0,\"minTopupCoins\":0,\"commissionBps\":200,\"reward\":{\"kind\":\"NONE\"}},{\"code\":\"SILVER\",\"minActiveReferrals\":5,\"minTopupCoins\":3000000,\"commissionBps\":300,\"reward\":{\"kind\":\"COINS\",\"amount\":100000}},{\"code\":\"GOLD\",\"minActiveReferrals\":15,\"minTopupCoins\":15000000,\"commissionBps\":400,\"reward\":{\"kind\":\"VIP_DAYS\",\"amount\":7,\"vipTier\":\"VIP_1\"}},{\"code\":\"DIAMOND\",\"minActiveReferrals\":40,\"minTopupCoins\":60000000,\"commissionBps\":500,\"reward\":{\"kind\":\"COINS\",\"amount\":1000000}}]") @db.JsonB
   updatedAt             DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
   updatedById           String?  @map("updated_by_id") @db.Uuid
 
@@ -9110,6 +9114,9 @@ model Ambassador {
   underReview    Boolean          @default(false) @map("under_review")
   reviewReason   String?          @map("review_reason") @db.VarChar(32)
   reviewAt       DateTime?        @map("review_at") @db.Timestamptz(3)
+  endedAt        DateTime?        @map("ended_at") @db.Timestamptz(3)
+  endedReason    String?          @map("ended_reason") @db.VarChar(500)
+  endedById      String?          @map("ended_by_id") @db.Uuid
 
   @@index([status, activatedAt(sort: Desc)], map: "ambassadors_status_idx")
   @@map("ambassadors")

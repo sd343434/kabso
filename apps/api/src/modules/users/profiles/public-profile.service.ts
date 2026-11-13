@@ -31,6 +31,7 @@ import type { VerificationBadgeValue } from '../../verification/verification-rul
 import { visibleStatusEmoji } from '../../status-emoji/status-emoji-catalogue.js';
 import type { StaffRegion } from '../../live/staff-regions.js';
 import { shownAnimatedAvatarIn } from '../animated-avatar.js';
+import { ambassadorBadgeIn } from '../../ambassadors/ambassador-core.js';
 import type { AnimatedAvatarDto } from '../profile-edit.service.js';
 
 /**
@@ -130,6 +131,11 @@ export interface PublicProfileDto {
   coinsSent?: number;
   /** v1.95-social (D301, §10.112): the app owner (an ACTIVE account holding the OWNER panel role); absent otherwise. */
   kabsoOwner?: true;
+  /**
+   * v1.140-social (D390 follow-up, §10.179.9): the exclusive ambassador badge — `{level}` only while the programme is on
+   * and the membership is ACTIVE; absent otherwise (frozen and ended stay private).
+   */
+  ambassador?: { level: string };
   /** v1.95-social (D301, §10.112.1): the owner's cover videos per language (only with at least one). */
   coverVideo?: OwnerCoverVideoDto;
   /** v1.98-social (D307, §10.112.11): the owner's bilingual bio (only with at least one language). */
@@ -310,6 +316,8 @@ export class PublicProfileService {
     const animatedAvatar = staff
       ? null
       : await shownAnimatedAvatarIn(this.prisma, user.id, callerId, this.clock.now());
+    // v1.140-social (D390 follow-up, §10.179.9): the ambassador badge (ACTIVE membership, programme on).
+    const ambassadorLevel = staff ? null : await ambassadorBadgeIn(this.prisma, user.id);
     return {
       id: user.id,
       username: user.username,
@@ -359,6 +367,7 @@ export class PublicProfileService {
       blockedByMe,
       ...stats,
       ...(animatedAvatar ? { animatedAvatar } : {}),
+      ...(ambassadorLevel ? { ambassador: { level: ambassadorLevel } } : {}),
       // v1.95-social (D301, §10.112): the owner's profile layout and cover videos; v1.118-social (D357) the count of
       // «اقترح ميزة / أبلغ» submissions he has received (cached).
       ...(await ownerProfileFields(

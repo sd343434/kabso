@@ -770,6 +770,9 @@ info:
     `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`. Server config `AMBASSADOR_SWEEP_INTERVAL_SECONDS`. Migrations
     `20270518090000_ambassadors_enums`, `20270518090100_ambassadors`. The programme is OFF until the OWNER turns it on.
     Additive; a referral whose inviter is an ambassador no longer earns the D217 inviter rewards (§10.179.3).
+    D390 follow-up (owner): `PublicProfile.ambassador` (the public badge while ACTIVE), «إنهاء العضوية» `endAdminAmbassador`
+    (status ENDED, `AMBASSADOR_MEMBERSHIP_ENDED`, migrations `20270518090200_ambassador_end_enums`,
+    `20270518090300_ambassador_end`); the lower-cost defaults (2 / 3 / 4 / 5 %, a 60-day window).
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -24348,7 +24351,7 @@ paths:
       description: "(v1.140-social, D390, §10.179.8) Newest first, at most 200. `status` REVIEW = under review. `commissions` is null without `ambassadors.settings` (OWNER): revenue and payouts are the OWNER's."
       security: [{ adminSession: [] }]
       parameters:
-        - { name: status, in: query, required: false, schema: { type: string, enum: [ACTIVE, FROZEN, REVIEW] } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [ACTIVE, FROZEN, ENDED, REVIEW] } }
         - { name: q, in: query, required: false, schema: { type: string, maxLength: 64 } }
       responses:
         '200':
@@ -24364,7 +24367,7 @@ paths:
       tags: [admin-panel]
       operationId: appointAdminAmbassador
       summary: "Appoints an ambassador directly (ambassadors.manage; v1.140-social, D390)"
-      description: "(§10.179.2) Refusals under 409 `ADMIN_ACTION_REFUSED` (`details[0] = {field: ambassador, issue}`): `user_not_found`, `account_not_active`, `staff`, `already_ambassador`. A pending application of the person is closed as CANCELLED. The person is notified (`AMBASSADOR_APPLICATION_APPROVED`). Audited `ambassador.appoint`."
+      description: "(§10.179.2) Refusals under 409 `ADMIN_ACTION_REFUSED` (`details[0] = {field: ambassador, issue}`): `user_not_found`, `account_not_active`, `staff`, `already_ambassador`. An ENDED member is re-appointed (ACTIVE at the first level; D390 follow-up, §10.179.11). A pending application of the person is closed as CANCELLED. The person is notified (`AMBASSADOR_APPLICATION_APPROVED`). Audited `ambassador.appoint`."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminCsrf'
@@ -24415,7 +24418,7 @@ paths:
       tags: [admin-panel]
       operationId: freezeAdminAmbassador
       summary: "Freezes an ambassador's pending rewards: no commission is credited and no monthly reward granted until unfrozen (ambassadors.settings: OWNER)"
-      description: "(v1.140-social, D390, §10.179.7) Already frozen: `changed` false. Audited `ambassador.freeze` with the pending amount."
+      description: "(v1.140-social, D390, §10.179.7) Already frozen: `changed` false. An ENDED membership: 409 `ADMIN_ACTION_REFUSED` (`ended`). Audited `ambassador.freeze` with the pending amount."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminCsrf'
@@ -24446,6 +24449,32 @@ paths:
       tags: [admin-panel]
       operationId: unfreezeAdminAmbassador
       summary: "Unfreezes: the held commissions and rewards are paid at the next sweep (ambassadors.settings: OWNER; the code again)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAmbassadorChange' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/ambassadors/{userId}/end:
+    post:
+      tags: [admin-panel]
+      operationId: endAdminAmbassador
+      summary: "«إنهاء العضوية»: ends the membership (ambassadors.settings: OWNER; the code again and a reason; D390 follow-up)"
+      description: "(§10.179.11) The status becomes ENDED at once: no new commission; the friends keep the ambassador track (no conversion back to D217); every PENDING commission (in its hold or held) is VOID `MEMBERSHIP_ENDED` and a month reward still HELD becomes VOID (the default — credited commissions and granted rewards stay); the public badge disappears; the person is notified (`AMBASSADOR_MEMBERSHIP_ENDED`) and may not apply again — only the OWNER re-appoints (`appointAdminAmbassador`). Already ENDED: `changed` false. Audited `ambassador.end` with the voided amounts."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminCsrf'
@@ -34764,6 +34793,13 @@ components:
       type: object
       required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe, verification, statusEmojiId]
       properties:
+        ambassador:
+          type: object
+          additionalProperties: false
+          required: [level]
+          description: "(v1.140-social, D390 follow-up, §10.179.9) The exclusive «سفير Kabso» badge — present only while the programme is on and the person's membership is ACTIVE (never FROZEN or ENDED, never a staff account); absent otherwise. The app shows a small level badge in the profile's badge row and on the live person card."
+          properties:
+            level: { type: string, description: "The level code (BRONZE, SILVER, GOLD, DIAMOND by default)." }
         animatedAvatar:
           $ref: '#/components/schemas/AnimatedAvatar'
           description: "(v1.136-social, D384, §10.173) The VIP animated cut-out picture — present only while the person holds an active VIP with the ANIMATED_AVATAR perk (inherited) and has set a clip, and never when either of the two blocked the other or for a limited Kabso Team account. The person card shows it in the round photo's place — the same circle, size and position, inside the same ring, VIP frame or bag frame — the head popping a little over the circle's top edge (owner: «اجعلها كأنها بإطار دائري بنفس حجم الإطار السابق»). Absent otherwise (the clip is kept when the VIP ends and shows again on renewal)."
@@ -38219,8 +38255,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». (v1.127-social, D372) `CONTENT_GIFT_RECEIVED` (actor the sender, target POST: the post or reel; one unread row per post that new senders join, always on, pushed «أرسل لك فلان هدية»): someone sent a gift on your post or reel «هدية الدعم». (v1.136-social, D384) `ANIMATED_AVATAR_REMOVED` (system, no target): a moderator removed your VIP animated picture «صورة متحركة» (§10.173.5); the app opens the VIP page. (v1.140-social, D390) system, no target: `AMBASSADOR_APPLICATION_APPROVED` (the person is now an ambassador — also when the team appointed them), `AMBASSADOR_APPLICATION_REJECTED` (the reason is in `getAmbassadorProgramme`), `AMBASSADOR_LEVEL_UP` (the monthly evaluation moved them up), `AMBASSADOR_REWARD_GRANTED` (a monthly target reward was given); the app opens the programme or the dashboard. Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED, CONTENT_GIFT_RECEIVED, ANIMATED_AVATAR_REMOVED, AMBASSADOR_APPLICATION_APPROVED, AMBASSADOR_APPLICATION_REJECTED, AMBASSADOR_LEVEL_UP, AMBASSADOR_REWARD_GRANTED]
+      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». (v1.127-social, D372) `CONTENT_GIFT_RECEIVED` (actor the sender, target POST: the post or reel; one unread row per post that new senders join, always on, pushed «أرسل لك فلان هدية»): someone sent a gift on your post or reel «هدية الدعم». (v1.136-social, D384) `ANIMATED_AVATAR_REMOVED` (system, no target): a moderator removed your VIP animated picture «صورة متحركة» (§10.173.5); the app opens the VIP page. (v1.140-social, D390) system, no target: `AMBASSADOR_APPLICATION_APPROVED` (the person is now an ambassador — also when the team appointed them), `AMBASSADOR_APPLICATION_REJECTED` (the reason is in `getAmbassadorProgramme`), `AMBASSADOR_LEVEL_UP` (the monthly evaluation moved them up), `AMBASSADOR_REWARD_GRANTED` (a monthly target reward was given), `AMBASSADOR_MEMBERSHIP_ENDED` (the OWNER ended the membership; the reason stays in the panel); the app opens the programme or the dashboard. Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED, CONTENT_GIFT_RECEIVED, ANIMATED_AVATAR_REMOVED, AMBASSADOR_APPLICATION_APPROVED, AMBASSADOR_APPLICATION_REJECTED, AMBASSADOR_LEVEL_UP, AMBASSADOR_REWARD_GRANTED, AMBASSADOR_MEMBERSHIP_ENDED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
@@ -43505,9 +43541,9 @@ components:
       required: [enabled, status, canApply, refusal, application, levels, rules]
       properties:
         enabled: { type: boolean, description: The OWNER's master switch (off by default). }
-        status: { type: string, enum: [NONE, PENDING, REJECTED, AMBASSADOR] }
+        status: { type: string, enum: [NONE, PENDING, REJECTED, AMBASSADOR, ENDED], description: "ENDED (D390 follow-up): the OWNER ended the membership; no form — only the OWNER re-appoints." }
         canApply: { type: boolean }
-        refusal: { type: [string, 'null'], enum: [DISABLED, ACCOUNT_NOT_ACTIVE, STAFF, AMBASSADOR, PENDING, null] }
+        refusal: { type: [string, 'null'], enum: [DISABLED, ACCOUNT_NOT_ACTIVE, STAFF, AMBASSADOR, ENDED, PENDING, null] }
         application:
           oneOf:
             - { $ref: '#/components/schemas/AmbassadorApplication' }
@@ -43665,10 +43701,10 @@ components:
         avatarUrl: { type: [string, 'null'] }
     AdminAmbassadorRow:
       type: object
-      required: [user, status, level, source, country, activatedAt, underReview, reviewReason, frozenReason, referrals, month, commissions]
+      required: [user, status, level, source, country, activatedAt, underReview, reviewReason, frozenReason, endedAt, endedReason, referrals, month, commissions]
       properties:
         user: { $ref: '#/components/schemas/AdminAmbassadorPerson' }
-        status: { type: string, enum: [ACTIVE, FROZEN] }
+        status: { type: string, enum: [ACTIVE, FROZEN, ENDED] }
         level: { type: string }
         source: { type: string, enum: [APPLICATION, APPOINTED] }
         country: { type: [string, 'null'] }
@@ -43676,6 +43712,8 @@ components:
         underReview: { type: boolean }
         reviewReason: { type: [string, 'null'], enum: [VELOCITY, IP_CLUSTER, SELF_PAYMENT, null] }
         frozenReason: { type: [string, 'null'] }
+        endedAt: { type: [string, 'null'], format: date-time, description: "(D390 follow-up) When the OWNER ended the membership (status ENDED)." }
+        endedReason: { type: [string, 'null'] }
         referrals: { $ref: '#/components/schemas/AmbassadorReferralCounts' }
         month:
           type: object

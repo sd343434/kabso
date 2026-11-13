@@ -89,7 +89,7 @@ export async function ambassadorSettingsIn(db: Db): Promise<AmbassadorSettingsVa
   if (!row) {
     return {
       enabled: false,
-      attributionWindowDays: 90,
+      attributionWindowDays: 60,
       holdDays: 14,
       minActiveDays: 3,
       minActiveTopupCoins: 100_000n,
@@ -187,12 +187,14 @@ export async function healthIn(
 }
 
 /** Why `userId` cannot become an ambassador now (null: they can). */
-export type AmbassadorRefusal = 'ACCOUNT_NOT_ACTIVE' | 'STAFF' | 'AMBASSADOR' | 'PENDING';
+export type AmbassadorRefusal = 'ACCOUNT_NOT_ACTIVE' | 'STAFF' | 'AMBASSADOR' | 'ENDED' | 'PENDING';
 
 export async function eligibilityIn(db: Db, userId: string, now: Date): Promise<AmbassadorRefusal | null> {
   if ((await healthIn(db, userId, now)) !== 'OK') return 'ACCOUNT_NOT_ACTIVE';
   if (await isPanelStaffIn(db, userId)) return 'STAFF';
-  if ((await db.ambassador.count({ where: { userId } })) > 0) return 'AMBASSADOR';
+  const amb = await db.ambassador.findUnique({ where: { userId }, select: { status: true } });
+  // D390 follow-up (§10.179.11): an ENDED member may not apply again — only the OWNER re-appoints.
+  if (amb) return amb.status === 'ENDED' ? 'ENDED' : 'AMBASSADOR';
   if ((await db.ambassadorApplication.count({ where: { userId, status: 'PENDING' } })) > 0) return 'PENDING';
   return null;
 }
@@ -236,7 +238,8 @@ export async function ambassadorTrackIn(
   const settings = await ambassadorSettingsIn(tx);
   if (!settings.enabled) return false;
   const [amb] = await tx.$queryRaw<{ user_id: string }[]>`
-    SELECT user_id::text AS user_id FROM ambassadors WHERE user_id = ${input.inviterId}::uuid FOR UPDATE`;
+    SELECT user_id::text AS user_id FROM ambassadors
+     WHERE user_id = ${input.inviterId}::uuid AND status <> 'ENDED' FOR UPDATE`;
   if (!amb) return false;
   if (await isPanelStaffIn(tx, input.inviterId)) return false;
   const now = input.now;
@@ -301,6 +304,18 @@ export async function ambassadorTrackIn(
   return true;
 }
 
+/**
+ * D390 follow-up (§10.179.9): the public badge — the person's level while the programme is on and the membership is
+ * ACTIVE (never FROZEN or ENDED, which stay private), else null. Read by the public profile and the person card.
+ */
+export async function ambassadorBadgeIn(db: Db, userId: string): Promise<string | null> {
+  const amb = await db.ambassador.findUnique({ where: { userId }, select: { status: true, level: true } });
+  if (amb?.status !== 'ACTIVE') return null;
+  const settings = await ambassadorSettingsIn(db);
+  if (!settings.enabled) return null;
+  return settings.levels[levelIndex(settings.levels, amb.level)]?.code ?? null;
+}
+
 /** Whether `inviterId`'s referral `referralId` is on the ambassador track (D217 skips its own rewards). */
 export async function isAmbassadorReferralIn(db: Db, referralId: string): Promise<boolean> {
   return (await db.ambassadorReferral.count({ where: { referralId } })) > 0;
@@ -361,7 +376,8 @@ export async function ambassadorTopupIn(
   const settings = await ambassadorSettingsIn(tx);
   if (!settings.enabled || settings.levels.length === 0) return null;
   const amb = await tx.ambassador.findUnique({ where: { userId: ref.ambassadorUserId } });
-  if (!amb) return null;
+  // D390 follow-up (§10.179.11): an ended membership earns nothing more (the referral keeps its track).
+  if (!amb || amb.status === 'ENDED') return null;
   const now = input.now;
   const level = settings.levels[levelIndex(settings.levels, amb.level)]!;
   const month = ambassadorMonth(now, timeZone);
@@ -587,6 +603,7 @@ async function settleCommissionIn(tx: Tx, id: string, now: Date): Promise<'CREDI
     return 'VOID' as const;
   };
   if (!amb) return voidWith('NOT_AMBASSADOR');
+  if (amb.status === 'ENDED') return voidWith('MEMBERSHIP_ENDED');
   if (await topupReversedIn(tx, c)) return voidWith('RECHARGE_REVERSED');
   const ref = await tx.ambassadorReferral.findUnique({ where: { referralId: c.referralId } });
   if (!ref || ref.status === 'VOID') return voidWith('REFERRAL_VOID');
@@ -790,7 +807,8 @@ export async function sweepAmbassadors(
   const last = previousMonth(current);
   const toEvaluate = await prisma.$queryRaw<{ user_id: string }[]>`
     SELECT a.user_id::text AS user_id FROM ambassadors a
-     WHERE a.activated_at < (${`${current}-01`}::date::timestamp AT TIME ZONE ${timeZone}::text)
+     WHERE a.status <> 'ENDED'
+       AND a.activated_at < (${`${current}-01`}::date::timestamp AT TIME ZONE ${timeZone}::text)
        AND NOT EXISTS (SELECT 1 FROM ambassador_months m WHERE m.ambassador_user_id = a.user_id AND m.month = ${last})
      ORDER BY a.user_id LIMIT ${batch}`;
   for (const a of toEvaluate) {
@@ -947,12 +965,36 @@ export async function appointAmbassadorIn(
     where: { userId, status: 'PENDING' },
     data: { status: 'CANCELLED', decidedAt: now, decidedById: by.actorUserId },
   });
-  await makeAmbassadorIn(
-    tx,
-    { userId, source: 'APPOINTED', applicationId: null, country: input.country },
-    now,
-    by,
-  );
+  if (refusal === 'ENDED') {
+    // D390 follow-up (§10.179.11): the OWNER's re-appointment of an ended member (`ambassadors.manage` is enough to
+    // appoint, but only the OWNER may end, so a re-appointment is always a deliberate decision). A fresh start: the
+    // first level, ACTIVE, the end cleared, the review flag kept.
+    const settings = await ambassadorSettingsIn(tx);
+    await tx.ambassador.update({
+      where: { userId },
+      data: {
+        status: 'ACTIVE',
+        level: settings.levels[0]?.code ?? 'BRONZE',
+        source: 'APPOINTED',
+        applicationId: null,
+        appointedById: by.actorUserId,
+        country: input.country,
+        activatedAt: now,
+        levelChangedAt: now,
+        endedAt: null,
+        endedReason: null,
+        endedById: null,
+      },
+    });
+    await new Notifier().system(tx, { type: 'AMBASSADOR_APPLICATION_APPROVED', recipientId: userId });
+  } else {
+    await makeAmbassadorIn(
+      tx,
+      { userId, source: 'APPOINTED', applicationId: null, country: input.country },
+      now,
+      by,
+    );
+  }
   await audit(
     tx,
     AuditAction.AMBASSADOR_APPOINT,
@@ -975,6 +1017,7 @@ export async function setAmbassadorFrozenIn(
   const [row] = await tx.$queryRaw<{ status: string }[]>`
     SELECT status::text AS status FROM ambassadors WHERE user_id = ${userId}::uuid FOR UPDATE`;
   if (!row) throw new AmbassadorAdminError('Not an ambassador.', 'not_found');
+  if (row.status === 'ENDED') throw new AmbassadorAdminError('The membership has ended.', 'ended');
   if ((row.status === 'FROZEN') === frozen) return false;
   await tx.ambassador.update({
     where: { userId },
@@ -994,6 +1037,67 @@ export async function setAmbassadorFrozenIn(
     by,
   );
   return true;
+}
+
+/**
+ * D390 follow-up (owner «نعم», §10.179.11): «إنهاء العضوية» — OWNER only (the code again and a reason). The membership is
+ * ENDED at once: no new commission, the friends keep their track (no conversion back to D217), the badge disappears.
+ * Default for the money (documented, owner may choose otherwise): every PENDING commission — in its hold or held — is
+ * VOID `MEMBERSHIP_ENDED`, and a month reward still HELD is VOID; credited commissions and granted rewards stay. The
+ * person is notified (`AMBASSADOR_MEMBERSHIP_ENDED`); audited `ambassador.end` with the amounts. Already ENDED: nothing.
+ */
+export async function endAmbassadorIn(
+  tx: Tx,
+  userId: string,
+  reason: string,
+  now: Date,
+  by: AdminVia,
+): Promise<{ changed: boolean; voidedCommissions: number; voidedCherries: bigint; voidedRewards: number }> {
+  const [row] = await tx.$queryRaw<{ status: string }[]>`
+    SELECT status::text AS status FROM ambassadors WHERE user_id = ${userId}::uuid FOR UPDATE`;
+  if (!row) throw new AmbassadorAdminError('Not an ambassador.', 'not_found');
+  if (row.status === 'ENDED')
+    return { changed: false, voidedCommissions: 0, voidedCherries: 0n, voidedRewards: 0 };
+  await tx.ambassador.update({
+    where: { userId },
+    data: {
+      status: 'ENDED',
+      endedAt: now,
+      endedReason: reason,
+      endedById: by.actorUserId,
+      frozenAt: null,
+      frozenReason: null,
+      frozenById: null,
+    },
+  });
+  const pending = await tx.ambassadorCommission.findMany({
+    where: { ambassadorUserId: userId, status: 'PENDING' },
+  });
+  let voidedCherries = 0n;
+  for (const c of pending) {
+    await voidCommissionIn(tx, c, 'MEMBERSHIP_ENDED', now);
+    voidedCherries += c.cherries;
+  }
+  const rewards = await tx.ambassadorMonth.updateMany({
+    where: { ambassadorUserId: userId, rewardStatus: 'HELD' },
+    data: { rewardStatus: 'VOID' },
+  });
+  await new Notifier().system(tx, { type: 'AMBASSADOR_MEMBERSHIP_ENDED', recipientId: userId });
+  await audit(
+    tx,
+    AuditAction.AMBASSADOR_END,
+    'ambassador',
+    userId,
+    {
+      reason,
+      before: row.status,
+      voidedCommissions: pending.length,
+      voidedCherries: Number(voidedCherries),
+      voidedRewards: rewards.count,
+    },
+    by,
+  );
+  return { changed: true, voidedCommissions: pending.length, voidedCherries, voidedRewards: rewards.count };
 }
 
 /** OWNER: the review is over — the flags cleared, the held payouts resume at the next sweep. */

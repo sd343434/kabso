@@ -402,7 +402,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     expectContract(s, 'getAdminAmbassadorSettings');
     expect(s.body).toMatchObject({
       enabled: false,
-      attributionWindowDays: 90,
+      attributionWindowDays: 60,
       holdDays: 14,
       minActiveDays: 3,
       minActiveTopupCoins: 100_000,
@@ -414,10 +414,10 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     expect(
       (s.body.levels as { code: string; commissionBps: number }[]).map((l) => [l.code, l.commissionBps]),
     ).toEqual([
-      ['BRONZE', 300],
-      ['SILVER', 500],
-      ['GOLD', 700],
-      ['DIAMOND', 1000],
+      ['BRONZE', 200],
+      ['SILVER', 300],
+      ['GOLD', 400],
+      ['DIAMOND', 500],
     ]);
   });
 
@@ -490,7 +490,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       }),
     ).toBe(1);
     const d = await dashboard(u);
-    expect(d.level).toEqual({ code: 'BRONZE', commissionBps: 300 });
+    expect(d.level).toEqual({ code: 'BRONZE', commissionBps: 200 });
     expect(d.code).toBe(await codeOf(u));
     const stranger = await signup();
     expect((await ctx.http.get('/api/v1/ambassadors/me').set(auth(stranger))).status).toBe(404);
@@ -530,11 +530,11 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     // No SIGNUP_INVITER, no FIRST_RECHARGE for the ambassador.
     expect(await ctx.prisma.referralReward.count({ where: { userId: amb.id } })).toBe(before);
     const [c] = await commissionsOf(amb);
-    // BRONZE 3 %: 1 000 000 coins × 10 cherries × 300 / 10 000.
+    // BRONZE 2 %: 1 000 000 coins × 10 cherries × 200 / 10 000.
     expect(c).toMatchObject({
       status: 'PENDING',
-      cherries: 300_000n,
-      rateBps: 300,
+      cherries: 200_000n,
+      rateBps: 200,
       level: 'BRONZE',
       rechargeReason: 'CARD_TOPUP',
     });
@@ -560,7 +560,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     // Before its hold ends the commission stays pending.
     await sweep();
     expect((await commissionsOf(amb))[0]!.status).toBe('PENDING');
-    expect((await dashboard(amb)).commissions.pendingCherries).toBe(300_000);
+    expect((await dashboard(amb)).commissions.pendingCherries).toBe(200_000);
   });
 
   it('after the hold and the activity rule (3 days, 100 000 coins) the commission is credited as withdrawable cherries', async () => {
@@ -572,13 +572,13 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     expect(
       (await ctx.prisma.ambassadorReferral.findUniqueOrThrow({ where: { inviteeUserId: friend.id } })).status,
     ).toBe('ACTIVE');
-    expect(await cherriesOf(amb)).toBe(before + 300_000n);
+    expect(await cherriesOf(amb)).toBe(before + 200_000n);
     const row = await ctx.prisma.cherryLedgerEntry.findFirstOrThrow({
       where: { userId: amb.id, reason: 'AMBASSADOR_COMMISSION' },
     });
-    expect(row.delta).toBe(300_000n);
+    expect(row.delta).toBe(200_000n);
     const d = await dashboard(amb);
-    expect(d.commissions.paidCherries).toBe(300_000);
+    expect(d.commissions.paidCherries).toBe(200_000);
     expect(d.referrals).toMatchObject({ total: 1, active: 1, pending: 0 });
     expect(d.month).toMatchObject({ activeReferrals: 1, topupCoins: 1_000_000 });
   });
@@ -592,7 +592,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     await refund(order1);
     const credited = (await commissionsOf(amb)).find((c) => c.rechargeReference === order1)!;
     expect(credited.status).toBe('REVERSED');
-    expect(await cherriesOf(amb)).toBe(before - 300_000n);
+    expect(await cherriesOf(amb)).toBe(before - 200_000n);
     expect(
       await ctx.prisma.cherryLedgerEntry.count({
         where: { userId: amb.id, reason: 'AMBASSADOR_COMMISSION_REVERSAL' },
@@ -607,12 +607,12 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
         where: { userId: amb.id, reason: 'AMBASSADOR_COMMISSION_REVERSAL' },
       }),
     ).toBe(1);
-    expect((await dashboard(amb)).commissions.reversedCherries).toBe(300_000);
+    expect((await dashboard(amb)).commissions.reversedCherries).toBe(200_000);
   });
 
   it('the monthly cap trims a commission, then pays nothing more this month', async () => {
-    await settings(owner, { monthlyCapCherries: 400_000 });
-    // Used this month: 0 (the first was reversed, the second voided). 1 000 000 coins → 300 000; then 300 000 → cap.
+    await settings(owner, { monthlyCapCherries: 300_000 });
+    // Used this month: 0 (the first was reversed, the second voided). 1 000 000 coins → 200 000; then 100 000 → cap.
     const orders = [];
     for (let i = 0; i < 3; i++) {
       orders.push(await cardTopup(friend, 1_000_000n));
@@ -621,9 +621,9 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     const all = await commissionsOf(amb);
     const last3 = orders.map((o) => all.find((c) => c.rechargeReference === o)!);
     expect(last3.map((c) => [c.status, c.cherries, c.cappedCherries, c.voidReason])).toEqual([
-      ['PENDING', 300_000n, 0n, null],
-      ['PENDING', 100_000n, 200_000n, null],
-      ['VOID', 0n, 300_000n, 'MONTHLY_CAP'],
+      ['PENDING', 200_000n, 0n, null],
+      ['PENDING', 100_000n, 100_000n, null],
+      ['VOID', 0n, 200_000n, 'MONTHLY_CAP'],
     ]);
     await settings(owner, { monthlyCapCherries: 50_000_000 });
   });
@@ -724,14 +724,14 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     expect(await cherriesOf(amb)).toBe(before);
     const held = await dashboard(amb);
     expect(held.payoutsHeld).toBe(true);
-    expect(held.commissions.heldCherries).toBe(400_000);
+    expect(held.commissions.heldCherries).toBe(300_000);
     const unfreeze = await awrite(owner, 'post', `/admin/ambassadors/${amb.id}/unfreeze`, {
       reason: 'resolved',
       totpCode: nextCode(owner.secret),
     });
     expect(unfreeze.status).toBe(200);
     await sweep();
-    expect(await cherriesOf(amb)).toBe(before + 400_000n);
+    expect(await cherriesOf(amb)).toBe(before + 300_000n);
     expect(
       await ctx.prisma.auditLog.count({
         where: { action: { in: ['ambassador.freeze', 'ambassador.unfreeze'] } },
@@ -823,7 +823,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     const asOwner = await aget(owner, `/admin/ambassadors/${amb.id}`);
     expect(asOwner.status).toBe(200);
     expectContract(asOwner, 'getAdminAmbassador');
-    expect(asOwner.body.commissions.paidCherries).toBe(400_000);
+    expect(asOwner.body.commissions.paidCherries).toBe(300_000);
     expect(asOwner.body.level).toBe('SILVER');
     const detailSupport = await aget(support, `/admin/ambassadors/${amb.id}`);
     expect(detailSupport.body.commissionList.every((c: { cherries: unknown }) => c.cherries === null)).toBe(
@@ -867,5 +867,98 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     expectContract(list, 'listAdminAmbassadorCampaigns');
     expect(list.body.data[0].title).toBe('Ramadan nights — Cairo and Giza');
     expect((await aget(finance, '/admin/ambassador-campaigns')).status).toBe(403);
+  });
+  it('the public badge: on the profile only while the membership is ACTIVE and the programme is on', async () => {
+    const viewer = await signup();
+    const profileOf = async (u: TestUser) => {
+      const res = await ctx.http.get(`/api/v1/users/${u.username}`).set(auth(viewer));
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+      expectContract(res, 'getPublicProfile');
+      return res.body as { ambassador?: { level: string } };
+    };
+    expect((await profileOf(amb)).ambassador).toEqual({ level: 'SILVER' });
+    expect((await profileOf(viewer)).ambassador).toBeUndefined();
+    // Frozen: private, no badge.
+    expect(
+      (await awrite(owner, 'post', `/admin/ambassadors/${amb.id}/freeze`, { reason: 'check' })).status,
+    ).toBe(200);
+    expect((await profileOf(amb)).ambassador).toBeUndefined();
+    const un = await awrite(owner, 'post', `/admin/ambassadors/${amb.id}/unfreeze`, {
+      reason: 'ok',
+      totpCode: nextCode(owner.secret),
+    });
+    expect(un.status).toBe(200);
+    expect((await profileOf(amb)).ambassador).toEqual({ level: 'SILVER' });
+    // Programme off: no badge for anyone.
+    await settings(owner, { enabled: false });
+    expect((await profileOf(amb)).ambassador).toBeUndefined();
+    await settings(owner, { enabled: true });
+  });
+
+  it('«إنهاء العضوية»: OWNER only with the code; pending commissions VOID, no new ones, the track kept, notified; re-appointed by the OWNER', async () => {
+    const e = await signup();
+    expect(
+      (await awrite(owner, 'post', '/admin/ambassadors', { username: e.username, reason: 'x' })).status,
+    ).toBe(201);
+    const f = await signup({ code: await codeOf(e) });
+    await cardTopup(f, 1_000_000n);
+    const [pending] = await ctx.prisma.ambassadorCommission.findMany({ where: { ambassadorUserId: e.id } });
+    expect(pending!.status).toBe('PENDING');
+    // SUPPORT may not; a wrong code is refused.
+    expect(
+      (await awrite(support, 'post', `/admin/ambassadors/${e.id}/end`, { reason: 'x', totpCode: '000000' }))
+        .status,
+    ).toBe(403);
+    const end = await awrite(owner, 'post', `/admin/ambassadors/${e.id}/end`, {
+      reason: 'Fake referrals confirmed',
+      totpCode: nextCode(owner.secret),
+    });
+    expect(end.status, JSON.stringify(end.body)).toBe(200);
+    expectContract(end, 'endAdminAmbassador');
+    expect(end.body).toMatchObject({
+      changed: true,
+      ambassador: { status: 'ENDED', endedReason: 'Fake referrals confirmed' },
+    });
+    const after = await ctx.prisma.ambassadorCommission.findUniqueOrThrow({ where: { id: pending!.id } });
+    expect(after).toMatchObject({ status: 'VOID', voidReason: 'MEMBERSHIP_ENDED' });
+    expect(
+      await ctx.prisma.notification.count({
+        where: { recipientId: e.id, type: 'AMBASSADOR_MEMBERSHIP_ENDED' },
+      }),
+    ).toBe(1);
+    expect(await ctx.prisma.auditLog.count({ where: { action: 'ambassador.end', targetId: e.id } })).toBe(1);
+    // No new commission; the friend keeps the ambassador track (no D217 first-recharge reward either).
+    await cardTopup(f, 1_000_000n);
+    expect(await ctx.prisma.ambassadorCommission.count({ where: { ambassadorUserId: e.id } })).toBe(1);
+    expect(await ctx.prisma.ambassadorReferral.count({ where: { inviteeUserId: f.id } })).toBe(1);
+    expect(await ctx.prisma.referralReward.count({ where: { userId: e.id, kind: 'FIRST_RECHARGE' } })).toBe(
+      0,
+    );
+    // A new friend of an ended ambassador is an ordinary D217 referral.
+    const g = await signup({ code: await codeOf(e) });
+    expect(await ctx.prisma.ambassadorReferral.count({ where: { inviteeUserId: g.id } })).toBe(0);
+    // The person sees ENDED, cannot apply again, and has no dashboard; freezing an ended member is refused.
+    const p = await programme(e);
+    expect(p).toMatchObject({ status: 'ENDED', canApply: false, refusal: 'ENDED' });
+    expect((await application(e)).status).toBe(409);
+    expect((await ctx.http.get('/api/v1/ambassadors/me').set(auth(e))).status).toBe(404);
+    expect((await awrite(owner, 'post', `/admin/ambassadors/${e.id}/freeze`, { reason: 'x' })).status).toBe(
+      409,
+    );
+    // A second end changes nothing.
+    const again = await awrite(owner, 'post', `/admin/ambassadors/${e.id}/end`, {
+      reason: 'x',
+      totpCode: nextCode(owner.secret),
+    });
+    expect(again.body.changed).toBe(false);
+    // The OWNER re-appoints: ACTIVE again at the first level.
+    const re = await awrite(owner, 'post', '/admin/ambassadors', {
+      username: e.username,
+      reason: 'second chance',
+    });
+    expect(re.status, JSON.stringify(re.body)).toBe(201);
+    expect(re.body).toMatchObject({ status: 'ACTIVE', level: 'BRONZE', endedAt: null });
+    const ended = await aget(owner, '/admin/ambassadors?status=ENDED');
+    expect(ended.status).toBe(200);
   });
 });

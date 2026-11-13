@@ -252,7 +252,7 @@ All non-2xx responses use one envelope:
 | 409 | `DM_NOT_ARCHIVABLE` | *(v1.104-social, DRAFT, D339)* `archiveDmConversation` on a message request waiting for the caller: a request is accepted or deleted, not archived (§10.132). |
 | 409 | `DM_GROUP_FULL` | *(v1.104-social, DRAFT, D339)* `createDmGroup` / `addDmGroupMembers`: the group would pass `DM_GROUP_MAX_MEMBERS` (100, the creator included). Nothing was changed (§10.133). |
 | 409 | `DM_PIN_LIMIT` | *(v1.137-social, DRAFT, D385)* `pinDmConversation` / `pinDmGroup`: the caller already has 5 pinned chats (`{field: "pins", issue: "too_many"}`); «دعم كابسو» never counts. Nothing was changed; the app says to unpin one first (§10.174.4). |
-| 409 | `AMBASSADOR_APPLICATION_NOT_ALLOWED` | *(v1.140-social, DRAFT, D390)* `applyForAmbassadorProgramme`: the caller may not apply now — `details[0] = {field: "application", issue}` with `ACCOUNT_NOT_ACTIVE` (not ACTIVE or in good standing), `STAFF` (a Kabso Team account, any panel role), `AMBASSADOR` (already one) or `PENDING` (an application is waiting). Nothing was stored; the app shows the status instead of the form (§10.179.2). |
+| 409 | `AMBASSADOR_APPLICATION_NOT_ALLOWED` | *(v1.140-social, DRAFT, D390)* `applyForAmbassadorProgramme`: the caller may not apply now — `details[0] = {field: "application", issue}` with `ACCOUNT_NOT_ACTIVE` (not ACTIVE or in good standing), `STAFF` (a Kabso Team account, any panel role), `AMBASSADOR` (already one), `ENDED` (the OWNER ended the membership — only the OWNER re-appoints, §10.179.11) or `PENDING` (an application is waiting). Nothing was stored; the app shows the status instead of the form (§10.179.2). |
 | 403 | `DM_GROUP_MEMBER_NOT_ALLOWED` | *(v1.104-social, DRAFT, D339)* `createDmGroup` / `addDmGroupMembers`: some of `members` cannot be added by the caller — `details` names each, `[{field: "members.<i>", issue: "not_allowed"}]`, the same whatever the reason (not a mutual follow, «من يستطيع مراسلتك» NOBODY, a block either way, no such ACTIVE account), so a block is never told. Nothing was changed (§10.133). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
@@ -794,7 +794,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
-| v1.140-social (draft) | 2026-11-13 | **D390 (owner's «برنامج سفراء Kabso», via the coordinator 2026-11-13; OFF until the OWNER switches it on):** tag `ambassadors` — `getAmbassadorProgramme` (`GET /ambassadors/programme`, `AmbassadorProgramme`), `applyForAmbassadorProgramme` (`POST /ambassadors/applications`, `AmbassadorApplicationRequest`), `getMyAmbassadorDashboard` (`GET /ambassadors/me`, `AmbassadorDashboard`); panel `listAdminAmbassadors` / `appointAdminAmbassador`, `getAdminAmbassador`, `freezeAdminAmbassador`, `unfreezeAdminAmbassador`, `clearAdminAmbassadorReview`, `listAdminAmbassadorApplications`, `approveAdminAmbassadorApplication`, `rejectAdminAmbassadorApplication`, `getAdminAmbassadorSettings` / `updateAdminAmbassadorSettings`, `listAdminAmbassadorCampaigns`, `createAdminAmbassadorCampaign`, `updateAdminAmbassadorCampaign` (schemas `AmbassadorLevel`, `AmbassadorReward`, `AmbassadorApplication`, `AmbassadorSettings`, `UpdateAmbassadorSettingsRequest`, `AmbassadorReferralCounts`, `AmbassadorCommissionTotals`, `AdminAmbassador*`, `AmbassadorCampaignRequest`); capabilities `ambassadors.view` / `ambassadors.manage` (OWNER, SUPPORT) and `ambassadors.settings` (OWNER); code `AMBASSADOR_APPLICATION_NOT_ALLOWED` (409); `CherryLedgerReason` `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`; `WalletLedgerReason` `AMBASSADOR_REWARD`; `NotificationType` `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`, `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`; config `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (300); migrations `20270518090000_ambassadors_enums`, `20270518090100_ambassadors`. §4, §8, §10.179. | **Additive** (new operations, schemas and enum values; clients ignore unknown notification types and ledger reasons). **Behaviour change (D217, §10.71):** while the programme is ON, a referral whose inviter is an ambassador earns no D217 inviter reward (sign-up, first recharge, milestones) — the ambassador's commission replaces it. OFF by default: no change until the OWNER switches it on. |
+| v1.140-social (draft) | 2026-11-13 | **D390 (owner's «برنامج سفراء Kabso», via the coordinator 2026-11-13; OFF until the OWNER switches it on):** tag `ambassadors` — `getAmbassadorProgramme` (`GET /ambassadors/programme`, `AmbassadorProgramme`), `applyForAmbassadorProgramme` (`POST /ambassadors/applications`, `AmbassadorApplicationRequest`), `getMyAmbassadorDashboard` (`GET /ambassadors/me`, `AmbassadorDashboard`); panel `listAdminAmbassadors` / `appointAdminAmbassador`, `getAdminAmbassador`, `freezeAdminAmbassador`, `unfreezeAdminAmbassador`, `clearAdminAmbassadorReview`, `listAdminAmbassadorApplications`, `approveAdminAmbassadorApplication`, `rejectAdminAmbassadorApplication`, `getAdminAmbassadorSettings` / `updateAdminAmbassadorSettings`, `listAdminAmbassadorCampaigns`, `createAdminAmbassadorCampaign`, `updateAdminAmbassadorCampaign` (schemas `AmbassadorLevel`, `AmbassadorReward`, `AmbassadorApplication`, `AmbassadorSettings`, `UpdateAmbassadorSettingsRequest`, `AmbassadorReferralCounts`, `AmbassadorCommissionTotals`, `AdminAmbassador*`, `AmbassadorCampaignRequest`); capabilities `ambassadors.view` / `ambassadors.manage` (OWNER, SUPPORT) and `ambassadors.settings` (OWNER); code `AMBASSADOR_APPLICATION_NOT_ALLOWED` (409); `CherryLedgerReason` `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`; `WalletLedgerReason` `AMBASSADOR_REWARD`; `NotificationType` `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`, `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`; config `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (300); migrations `20270518090000_ambassadors_enums`, `20270518090100_ambassadors`. Owner follow-up (2026-11-13): `PublicProfile.ambassador` (optional, the public badge), `endAdminAmbassador` «إنهاء العضوية» (status ENDED, `NotificationType` `AMBASSADOR_MEMBERSHIP_ENDED`, `AmbassadorProgramme.status` / `refusal` ENDED, `AdminAmbassadorRow.endedAt` / `endedReason`; migrations `20270518090200_ambassador_end_enums`, `20270518090300_ambassador_end`), the lower-cost defaults (2 / 3 / 4 / 5 %, 60 days). §4, §8, §10.179. | **Additive** (new operations, schemas and enum values; clients ignore unknown notification types and ledger reasons). **Behaviour change (D217, §10.71):** while the programme is ON, a referral whose inviter is an ambassador earns no D217 inviter reward (sign-up, first recharge, milestones) — the ambassador's commission replaces it. OFF by default: no change until the OWNER switches it on. |
 | v1.137-social (draft) | 2026-11-12 | **D385 (owner 2026-11-12: «دعم كابسو» in «الرسائل» and «اجعل شات الإدارة مثبت في الاعلى … يمكن للشخص تثبيت ٥ محادثات في الاعلى»):** tag `support` — `getSupportThread` (`GET /support/thread`, `SupportThread`), `listSupportMessages` / `sendSupportMessage` (`GET` / `POST /support/thread/messages`, `SupportMessage`, `SupportMessagePage`, `SupportStaff`, `SupportSendRequest`, `SupportSendResult`), `readSupportThread` (`POST /support/thread/read`); the staff inbox serves the in-app threads beside WhatsApp — `WaChannel`, `WaConversation.channel`, `WaConversation.phone` nullable, `WaSummary.inApp`, the `channel` filter of `getStaffWhatsAppConversations` / `getAdminWhatsAppConversations`; the inbox routes answer for IN_APP threads without the WhatsApp credentials. Pins: `listDmPins` (`GET /dm/pins`), `pinDmConversation` / `unpinDmConversation`, `pinDmGroup` / `unpinDmGroup` (`DmPin`, `DmPinList`); code `DM_PIN_LIMIT` (409). `DmConversation.online` (every partner who shows their activity, owner) and `DmUnread.support` (owner: in the badge); in-app staff replies may carry a picture. Setting `RATE_LIMIT_SUPPORT_SEND_USER` (10 / min). Migration `20270515090000_support_chat_pins`. §7, §10.174. | **Additive** for the user app. **Behaviour change** for the staff inbox: with WhatsApp off the inbox no longer answers 503 — it lists the IN_APP threads (a WhatsApp-only action still 503s); `phone` is null on an IN_APP thread (a staff app or panel older than this release must not read it as a string — none is deployed with D355 yet). |
 | v1.136-social (draft) | 2026-11-12 | **D384 (owner 2026-11-12: «انتبه جيداً لطريقة الصورة شخصية» — a reference recording, look only, kept out of git, D40; then: an animated cut-out clip, and a VIP perk):** the VIP «صورة متحركة» — catalogue code `ANIMATED_AVATAR` (IDENTITY, value none, no art, **built**); `MediaKind` `ANIMATED_AVATAR` (`image/png` ≤ 8 MiB: a strip of 2–36 square frames, 64–512 px, alpha, 12 a second; re-encoded to a looping animated WebP ≤ 1.5 MiB + a still); `setMyAnimatedAvatar` / `removeMyAnimatedAvatar` (`PUT` / `DELETE /me/animated-avatar`, `SetAnimatedAvatarRequest`, `AnimatedAvatar`; 409 `VIP_UNAVAILABLE` `no_perk`); `PublicProfile.animatedAvatar` (optional: only while the perk is held, never across a block); the panel's `removeAdminUserAnimatedAvatar` (`users.avatar`), `AdminUserDetail.user.animatedAvatarUrl`; `NotificationType.ANIMATED_AVATAR_REMOVED`; audit `user.animated_avatar.update`, `admin.animated_avatar.remove`. Migrations `20270514090000_vip_animated_avatar_enums`, `20270514090100_vip_animated_avatar`. §4, §7, §8, §10.94.1, §10.166.1, §10.173. | **Additive** (new operations, an optional response field, enum values; clients ignore unknown notification types; an older app shows the round photo). |
 | v1.135-social (draft) | 2026-11-12 | **D383 (owner 2026-11-12: «اريد الغاء فكرة صندوق او إطار بطاقة الملف التعريفية وعمل فكرة اخرى»; then «لا ستكون موجودة بحيث ستكون مثلاً تغير لون خلفية او تكون خلفية فيها عناصر متحركة»):** no box or frame around the person card in live and party rooms (owner, then: «ارى ان شكل البطاقة السابقة اجمل» — the earlier layout is kept, only the background changes); the VIP perk `PROFILE_CARD` **kept and redefined** as the card's background — catalogue `value` `none` → `color` (`#RRGGBB`, null = none), art SVGA / MP4 / PNG / WebP (hint 1080 × 1440; MP4 is new for this perk), titles «خلفية البطاقة التعريفية» / "Card background". The bag `PROFILE_CARD` header ornaments are hidden in the app pending the owner's decision (one UI flag; items, the free `bunny_royal` and the API kept); store `PROFILE_CARD` items stay on sale as backgrounds. No new operation, field, enum value or error code; no migration. §10.94.1, §10.166.1, §10.172. | **Additive.** A tier saved before is valid (no value) and its art becomes the background; an older app draws the art as before and ignores the colour; the panel's generic perk form already edits a `color` value and MP4 art. |
@@ -13270,7 +13270,7 @@ Distinct days of activity are not tracked by the server today, so the rule is ac
 - **Base.** Every top-up of the friend on any recharge path — website card top-up (`CARD_TOPUP`), an agent's sale
   (`RECHARGE_PURCHASE`), a recharge order (`RECHARGE_ORDER`), a store purchase (`STORE_IAP`) — through the hook the four
   paths already call (`referralRechargeIn` → `ambassadorTopupIn`, in the recharge's transaction), **within the
-  attribution window** (`attributionWindowDays`, 90, counted from the friend's sign-up), makes one commission:
+  attribution window** (`attributionWindowDays`, 60, counted from the friend's sign-up), makes one commission:
   `floor(coins × CHERRIES_PER_COIN × level bps / 10 000)` cherries at the ambassador's level **at the time of the
   top-up**, unique per recharge (`(recharge_reason, recharge_reference)`). Gifts, quips, events and coins given away are
   not top-ups and pay nothing.
@@ -13291,20 +13291,21 @@ Distinct days of activity are not tracked by the server today, so the rule is ac
   retail, 10 cherries per coin, 1 000 000 cherries = $1.10, a host keeps 65 % of a gift's cherry value). A referred friend
   tops up **1 000 000 coins** and gifts them to a host:
 
-  | | Bronze 3 % | Silver 5 % | Gold 7 % | Diamond 10 % |
+  | | Bronze 2 % | Silver 3 % | Gold 4 % | Diamond 5 % |
   | --- | --- | --- | --- | --- |
   | Money paid for the coins | $12.50 | $12.50 | $12.50 | $12.50 |
   | Host's cherries (6 500 000) | $7.15 | $7.15 | $7.15 | $7.15 |
   | Platform profit before the commission | $5.35 | $5.35 | $5.35 | $5.35 |
-  | Commission (cherries) | 300 000 | 500 000 | 700 000 | 1 000 000 |
-  | Commission ($) | $0.33 | $0.55 | $0.77 | $1.10 |
-  | Share of the money paid | 2.6 % | 4.4 % | 6.2 % | 8.8 % |
-  | Share of the platform profit | 6.2 % | 10.3 % | 14.4 % | 20.6 % |
-  | Platform profit after it | $5.02 | $4.80 | $4.58 | $4.25 |
+  | Commission (cherries) | 200 000 | 300 000 | 400 000 | 500 000 |
+  | Commission ($) | $0.22 | $0.33 | $0.44 | $0.55 |
+  | Share of the money paid | 1.8 % | 2.6 % | 3.5 % | 4.4 % |
+  | Share of the platform profit | 4.1 % | 6.2 % | 8.2 % | 10.3 % |
+  | Platform profit after it | $5.13 | $5.02 | $4.91 | $4.80 |
 
-  Through an agency paying 15 % on top (D285's example, profit $4.2775) a Diamond commission is 25.7 % of the profit. A
-  wholesale top-up bought from a recharge agent ($360 / 30 000 000 coins, $12 per million) leaves less: the same 10 % is
-  9.2 % of the money. The commission is on the coins' cherry value (`CHERRIES_PER_COIN`), like D217's first-recharge
+  (Owner 2026-11-13: the lower-cost option «أ» — 2 / 3 / 4 / 5 % and a 60-day window; the first proposal of 3 / 5 / 7 /
+  10 % and 90 days was not kept.) Through an agency paying 15 % on top (D285's example, profit $4.2775) a Diamond
+  commission is 12.9 % of the profit. A wholesale top-up bought from a recharge agent ($360 / 30 000 000 coins, $12 per
+  million) leaves less: the same 5 % is 4.6 % of the money. The commission is on the coins' cherry value (`CHERRIES_PER_COIN`), like D217's first-recharge
   reward, not on the money paid; the cap bounds an ambassador's month at $55 by default. The `«الربح»` report counts it.
 
 #### 10.179.6 Levels, monthly targets and the dashboard
@@ -13356,17 +13357,17 @@ Distinct days of activity are not tracked by the server today, so the rule is ac
    void, reverse), freeze, flag, review, level change, reward, setting and campaign change has an audit row; the panel's
    performance page is audited (`ambassador.view`).
 
-**Proposed defaults (OWNER to confirm before switching it on):** `enabled` false; `attributionWindowDays` 90;
+**Defaults (owner 2026-11-13: the commissions and the window chosen — option «أ»; the other numbers still proposals for the owner):** `enabled` false; `attributionWindowDays` 60;
 `holdDays` 14; `minActiveDays` 3; `minActiveTopupCoins` 100 000; `monthlyCapCherries` 50 000 000 (≈ $55);
-`velocityMaxPerDay` 30; `ipClusterMax` 3 within `ipClusterWindowDays` 30; levels BRONZE (0 / 0, 3 %, no reward), SILVER
-(5 active referrals / 3 000 000 coins a month, 5 %, 100 000 coins), GOLD (15 / 15 000 000, 7 %, 7 days of VIP_1),
-DIAMOND (40 / 60 000 000, 10 %, 1 000 000 coins). Changed only in the panel (`updateAdminAmbassadorSettings`: OWNER,
+`velocityMaxPerDay` 30; `ipClusterMax` 3 within `ipClusterWindowDays` 30; levels BRONZE (0 / 0, 2 %, no reward), SILVER
+(5 active referrals / 3 000 000 coins a month, 3 %, 100 000 coins), GOLD (15 / 15 000 000, 4 %, 7 days of VIP_1),
+DIAMOND (40 / 60 000 000, 5 %, 1 000 000 coins). Changed only in the panel (`updateAdminAmbassadorSettings`: OWNER,
 the code again and a reason; audited with before / after). The server's only setting is the sweeper's interval
 `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (300; 0 refused in production).
 
 #### 10.179.8 The panel «السفراء» and the capabilities
 
-- `ambassadors.view` — OWNER, SUPPORT: the list (status ACTIVE / FROZEN / REVIEW, search), an ambassador's performance
+- `ambassadors.view` — OWNER, SUPPORT: the list (status ACTIVE / FROZEN / ENDED / REVIEW, search), an ambassador's performance
   (referrals, active referrals, this month's qualifying top-ups, the level, the flags, the months, the friends, the
   commissions, the campaigns; audited), the applications, the campaigns.
 - `ambassadors.manage` — OWNER, SUPPORT: approve / reject applications, appoint, create and edit campaigns.
@@ -13385,13 +13386,17 @@ the code again and a reason; audited with before / after). The server's only set
 - **Entries**: «برنامج سفراء Kabso» on the invite page «دعوة الأصدقاء» (§10.71) and in the Me hub. The explanation page
   (what an ambassador does and gets, the levels with their commission and reward, the rules, the application form or
   the status); an approved ambassador opens the dashboard. Off: the page says «قريباً» and shows no form.
-- **The exclusive ambassador badge** (`AmbassadorBadge`): shown on the ambassador's dashboard and programme page, with its
-  level colour (Bronze, Silver, Gold, Diamond; any other code in the brand colour). It is not yet on the public profile
-  (that needs a `PublicProfile` field — open decision). **D389** (the badge explainer, `KBadgeExplainer`, branch
-  `claude/badge-tooltips`, not on `staging`): TODO at integration — wrap `AmbassadorBadge` in the explainer with
-  «سفير Kabso — {المستوى}: ممثل Kabso في منطقته» / "Kabso ambassador — {level}: Kabso's representative in their region".
+- **The exclusive ambassador badge** (`AmbassadorBadge`): its level colour (Bronze, Silver, Gold, Diamond; any other code
+  in the brand colour). Shown on the ambassador's dashboard and programme page, and — owner decision 2026-11-13 — **to
+  everyone** on the public profile's badge row and on the live person card: `PublicProfile.ambassador` `{level}` is
+  present only while the programme is on and the membership is **ACTIVE** (never FROZEN or ENDED, which stay private;
+  never a staff account), absent otherwise (additive). Small, in the existing badge row style (20 pt high, like the
+  recharge and agent badges). **D389** (the badge explainer, `KBadgeExplainer`, branch `claude/badge-tooltips`, not on
+  `staging`): TODO at integration — wrap `AmbassadorBadge` in the explainer; its string is already in the app
+  (`ambBadgeExplainer`): «سفير Kabso — المستوى {level}» / "Kabso ambassador — {level} level".
 - **Notifications** (system, no target; the four types are new because no existing type says the right thing):
-  `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`, `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`;
+  `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`, `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`,
+  `AMBASSADOR_MEMBERSHIP_ENDED` (§10.179.11);
   pushed with the texts of `push-texts.ts`; the app opens the programme or the dashboard. A commission credited or
   reversed sends nothing (the cherry history names the rows).
 
@@ -13401,3 +13406,25 @@ The owner's «الربح» (D301, §10.112.10; D387 adds role gates on `claude/o
 new line: `AMBASSADOR_COMMISSION` / `AMBASSADOR_COMMISSION_REVERSAL` in **REFERRAL_REWARDS** (net) and the coin rewards
 `AMBASSADOR_REWARD` in **COIN_REWARDS** (at the conservative coin value). VIP days and bag items given as rewards are not
 money in a ledger and are not counted (as event prizes). A separate «السفراء» line is an open owner decision.
+
+#### 10.179.11 «إنهاء العضوية» — ending a membership *(owner «نعم», 2026-11-13)*
+
+`endAdminAmbassador` (`POST /admin/ambassadors/{userId}/end`): **OWNER only** (`ambassadors.settings`), a reason and the
+authenticator code again, as for unfreeze. The status becomes **ENDED** at once (`ended_at`, `ended_reason`,
+`ended_by_id`; a freeze is cleared):
+
+- **No new commission**: a top-up of a friend makes none; a due commission found later is VOID `MEMBERSHIP_ENDED`.
+- **The track stays**: the friends already on the ambassador track keep it — no conversion back to D217 (no sign-up,
+  first-recharge or milestone reward for them). A friend who applies the person's code **after** the end is an ordinary
+  D217 referral (the person is no longer an ambassador).
+- **The money (default, documented):** every PENDING commission — in its hold or held — is **VOID**
+  `MEMBERSHIP_ENDED`; a month reward still HELD becomes **VOID** (`reward_status` VOID, the reward kept for the history).
+  Credited commissions and granted rewards stay (an end is not a claw-back; a refund still reverses as usual).
+  *Alternative for the owner:* pay the commissions already past their hold and void only those still in their hold.
+- The **badge** disappears; the dashboard answers 404; `getAmbassadorProgramme` says `status: ENDED`, `refusal: ENDED`
+  and shows no form — the person **may not apply again**; only the OWNER **re-appoints** (`appointAdminAmbassador`:
+  ACTIVE again at the first level, the end cleared; a new start). Freezing an ENDED member is refused (`ended`).
+- The person is notified (`AMBASSADOR_MEMBERSHIP_ENDED`, system, no target; the reason stays in the panel); audited
+  `ambassador.end` with the voided commissions, cherries and rewards. A second end changes nothing (`changed` false).
+- Migrations `20270518090200_ambassador_end_enums` (`ambassador_status` ENDED, the notification type) and
+  `20270518090300_ambassador_end` (the columns, CHECK `ambassadors_shape` and `ambassador_months_shape` re-made).

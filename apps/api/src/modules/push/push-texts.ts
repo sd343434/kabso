@@ -202,6 +202,10 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       return ar
         ? 'ارتفع مستواك في برنامج سفراء Kabso'
         : 'You moved up a level in the Kabso ambassadors programme';
+    case 'AMBASSADOR_MEMBERSHIP_ENDED':
+      return ar
+        ? 'انتهت عضويتك في برنامج سفراء Kabso. لمعرفة التفاصيل تواصل مع دعم Kabso'
+        : 'Your Kabso ambassador membership has ended. Contact Kabso support for details';
     case 'AMBASSADOR_REWARD_GRANTED':
       return ar
         ? 'حققت أهداف الشهر وحصلت على مكافأة السفير'

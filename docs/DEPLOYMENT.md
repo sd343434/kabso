@@ -4558,6 +4558,11 @@ it on in the panel «السفراء › الإعدادات» (PP-95).
     from the catalogue as `20270319090100` did). Runtime grants from the default privileges (KL-013; full DML). Empty
     tables: no backfill, no long lock (the two sign-rule CHECKs are re-validated over `cherry_ledger` / `wallet_ledger`
     — a full scan of each, done by every migration that extended them before).
+- **Follow-up migrations** (owner 2026-11-13, «إنهاء العضوية»), after the two above and in this order:
+  `20270518090200_ambassador_end_enums` (`ambassador_status` + ENDED, `notification_type` + AMBASSADOR_MEMBERSHIP_ENDED;
+  its own transaction) and `20270518090300_ambassador_end` (`ambassadors.ended_at` / `ended_reason` / `ended_by_id`, the
+  CHECKs `ambassadors_shape` and `ambassador_months_shape` re-made — small, empty tables). The settings row is seeded with
+  the owner's lower-cost defaults («أ»: 2 / 3 / 4 / 5 %, a 60-day window).
 - **Setting:** `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (default `300`; `0` is refused in production) — the sweeper that
   activates referrals, credits or voids held commissions, evaluates the finished month and grants held rewards. Every
   amount and rule is in the panel (`ambassador_settings`), never in the environment. The months follow

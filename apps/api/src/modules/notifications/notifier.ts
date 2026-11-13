@@ -87,6 +87,7 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'AMBASSADOR_APPLICATION_REJECTED',
   'AMBASSADOR_LEVEL_UP',
   'AMBASSADOR_REWARD_GRANTED',
+  'AMBASSADOR_MEMBERSHIP_ENDED',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -251,7 +252,8 @@ export class Notifier {
         | 'AMBASSADOR_APPLICATION_APPROVED'
         | 'AMBASSADOR_APPLICATION_REJECTED'
         | 'AMBASSADOR_LEVEL_UP'
-        | 'AMBASSADOR_REWARD_GRANTED';
+        | 'AMBASSADOR_REWARD_GRANTED'
+        | 'AMBASSADOR_MEMBERSHIP_ENDED';
       recipientId: string;
     } & NotificationTargetRef,
   ): Promise<void> {

@@ -240,6 +240,7 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
             'AMBASSADOR_APPLICATION_REJECTED',
             'AMBASSADOR_LEVEL_UP',
             'AMBASSADOR_REWARD_GRANTED',
+            'AMBASSADOR_MEMBERSHIP_ENDED',
           ],
         },
       },

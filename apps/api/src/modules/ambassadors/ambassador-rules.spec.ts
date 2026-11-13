@@ -19,26 +19,26 @@ import {
 
 /** The migration's proposed defaults (CONVENTIONS §10.179.7). */
 const DEFAULTS: AmbassadorLevel[] = [
-  { code: 'BRONZE', minActiveReferrals: 0, minTopupCoins: 0, commissionBps: 300, reward: { kind: 'NONE' } },
+  { code: 'BRONZE', minActiveReferrals: 0, minTopupCoins: 0, commissionBps: 200, reward: { kind: 'NONE' } },
   {
     code: 'SILVER',
     minActiveReferrals: 5,
     minTopupCoins: 3_000_000,
-    commissionBps: 500,
+    commissionBps: 300,
     reward: { kind: 'COINS', amount: 100_000 },
   },
   {
     code: 'GOLD',
     minActiveReferrals: 15,
     minTopupCoins: 15_000_000,
-    commissionBps: 700,
+    commissionBps: 400,
     reward: { kind: 'VIP_DAYS', amount: 7, vipTier: 'VIP_1' },
   },
   {
     code: 'DIAMOND',
     minActiveReferrals: 40,
     minTopupCoins: 60_000_000,
-    commissionBps: 1000,
+    commissionBps: 500,
     reward: { kind: 'COINS', amount: 1_000_000 },
   },
 ];
@@ -60,7 +60,7 @@ describe('D390 ambassador levels', () => {
       'not_increasing',
     );
     expect(levelsProblem([DEFAULTS[0]!, DEFAULTS[2]!, DEFAULTS[1]!])).toBe('not_increasing');
-    expect(levelsProblem([DEFAULTS[0]!, { ...DEFAULTS[1]!, commissionBps: 200 }])).toBe(
+    expect(levelsProblem([DEFAULTS[0]!, { ...DEFAULTS[1]!, commissionBps: 100 }])).toBe(
       'commission_decreasing',
     );
   });
@@ -94,7 +94,7 @@ describe('D390 commission and cap', () => {
     expect(capCommission(400n, 9_999n, 0n)).toEqual({ cherries: 400n, capped: 0n });
   });
 
-  it('the worked example of §10.179.5: 1 000 000 coins at Silver (5 %) against the platform profit', () => {
+  it('the worked example of §10.179.5: 1 000 000 coins at Diamond (5 %, the lower-cost defaults) against the platform profit', () => {
     const e = commissionEconomics({
       coins: 1_000_000n,
       bps: 500,
@@ -112,16 +112,16 @@ describe('D390 commission and cap', () => {
     // The commission is 4.4 % of the money paid and ≈ 10.3 % of the platform's profit on those coins.
     expect(e.commissionMinor / e.revenueMinor).toBeCloseTo(0.044, 6);
     expect(e.commissionMinor / e.profitMinor).toBeCloseTo(0.1028, 3);
-    // Diamond (10 %): $1.10, ≈ 20.6 % of the profit.
+    // Bronze (2 %): $0.22, ≈ 4.1 % of the profit.
     const d = commissionEconomics({
       ...{ coins: 1_000_000n, cherriesPerCoin: 10, retailMinorPerMillion: 1250 },
-      bps: 1000,
+      bps: 200,
       rateCherries: 1_000_000,
       rateMinor: 110,
       hostShareBps: 6500,
     });
-    expect(d.commissionMinor).toBeCloseTo(110, 6);
-    expect(d.commissionMinor / d.profitMinor).toBeCloseTo(0.2056, 3);
+    expect(d.commissionMinor).toBeCloseTo(22, 6);
+    expect(d.commissionMinor / d.profitMinor).toBeCloseTo(0.0411, 3);
   });
 });
 

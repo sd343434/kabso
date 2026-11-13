@@ -24,6 +24,7 @@ import {
   appointAmbassadorIn,
   approveAmbassadorApplicationIn,
   clearAmbassadorReviewIn,
+  endAmbassadorIn,
   rejectAmbassadorApplicationIn,
   setAmbassadorFrozenIn,
   updateAmbassadorSettingsIn,
@@ -60,7 +61,7 @@ const reason = z.string().trim().min(1).max(500);
 const totpCode = z.string().regex(/^[0-9]{6}$/);
 const country = z.string().regex(/^[A-Z]{2}$/);
 const listQuery = z.strictObject({
-  status: z.enum(['ACTIVE', 'FROZEN', 'REVIEW']).optional(),
+  status: z.enum(['ACTIVE', 'FROZEN', 'ENDED', 'REVIEW']).optional(),
   q: z.string().trim().max(64).optional(),
 });
 const applicationsQuery = z.strictObject({
@@ -180,6 +181,8 @@ export class AdminAmbassadorsController {
       underReview: a.underReview,
       reviewReason: a.reviewReason,
       frozenReason: a.frozenReason,
+      endedAt: a.endedAt?.toISOString() ?? null,
+      endedReason: a.endedReason,
       referrals: counts,
       month: { month, activeReferrals: stats.activeReferrals, topupCoins: Number(stats.topupCoins) },
       // D387 rule: revenue and payouts are the OWNER's.
@@ -356,6 +359,34 @@ export class AdminAmbassadorsController {
       changed = await this.prisma.$transaction((tx) =>
         setAmbassadorFrozenIn(tx, userId, frozen, why, this.clock.now(), viaOf(admin)),
       );
+    } catch (err) {
+      adminError(err);
+    }
+    const [row] = await this.rows({ userId });
+    return { changed, ambassador: await this.rowDto(row!, true) };
+  }
+
+  /**
+   * D390 follow-up (owner «نعم», §10.179.11): «إنهاء العضوية» — OWNER only, the code again and a reason. Pending and held
+   * commissions are voided, a held month reward too; the person is notified; audited `ambassador.end`.
+   */
+  @Post('ambassadors/:userId/end')
+  @HttpCode(200)
+  @RequireCapability('ambassadors.settings')
+  async end(
+    @Param('userId') id: string,
+    @Body(new ZodValidationPipe(codeBody)) body: z.infer<typeof codeBody>,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    await this.auth.reauthenticate(admin, body.totpCode);
+    const userId = pathUuid(id);
+    let changed = false;
+    try {
+      changed = (
+        await this.prisma.$transaction((tx) =>
+          endAmbassadorIn(tx, userId, body.reason, this.clock.now(), viaOf(admin)),
+        )
+      ).changed;
     } catch (err) {
       adminError(err);
     }

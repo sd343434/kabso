@@ -35,7 +35,7 @@ CREATE TYPE "ambassador_commission_status" AS ENUM ('PENDING', 'CREDITED', 'VOID
 CREATE TABLE "ambassador_settings" (
     "id" SMALLINT NOT NULL DEFAULT 1,
     "enabled" BOOLEAN NOT NULL DEFAULT false,
-    "attribution_window_days" INTEGER NOT NULL DEFAULT 90,
+    "attribution_window_days" INTEGER NOT NULL DEFAULT 60,
     "hold_days" INTEGER NOT NULL DEFAULT 14,
     "min_active_days" INTEGER NOT NULL DEFAULT 3,
     "min_active_topup_coins" BIGINT NOT NULL DEFAULT 100000,
@@ -43,7 +43,7 @@ CREATE TABLE "ambassador_settings" (
     "velocity_max_per_day" INTEGER NOT NULL DEFAULT 30,
     "ip_cluster_max" INTEGER NOT NULL DEFAULT 3,
     "ip_cluster_window_days" INTEGER NOT NULL DEFAULT 30,
-    "levels" JSONB NOT NULL DEFAULT '[{"code":"BRONZE","minActiveReferrals":0,"minTopupCoins":0,"commissionBps":300,"reward":{"kind":"NONE"}},{"code":"SILVER","minActiveReferrals":5,"minTopupCoins":3000000,"commissionBps":500,"reward":{"kind":"COINS","amount":100000}},{"code":"GOLD","minActiveReferrals":15,"minTopupCoins":15000000,"commissionBps":700,"reward":{"kind":"VIP_DAYS","amount":7,"vipTier":"VIP_1"}},{"code":"DIAMOND","minActiveReferrals":40,"minTopupCoins":60000000,"commissionBps":1000,"reward":{"kind":"COINS","amount":1000000}}]',
+    "levels" JSONB NOT NULL DEFAULT '[{"code":"BRONZE","minActiveReferrals":0,"minTopupCoins":0,"commissionBps":200,"reward":{"kind":"NONE"}},{"code":"SILVER","minActiveReferrals":5,"minTopupCoins":3000000,"commissionBps":300,"reward":{"kind":"COINS","amount":100000}},{"code":"GOLD","minActiveReferrals":15,"minTopupCoins":15000000,"commissionBps":400,"reward":{"kind":"VIP_DAYS","amount":7,"vipTier":"VIP_1"}},{"code":"DIAMOND","minActiveReferrals":40,"minTopupCoins":60000000,"commissionBps":500,"reward":{"kind":"COINS","amount":1000000}}]',
     "updated_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_by_id" UUID,
 

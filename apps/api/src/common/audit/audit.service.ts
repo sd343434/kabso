@@ -637,6 +637,8 @@ export enum AuditAction {
   AMBASSADOR_APPOINT = 'ambassador.appoint',
   AMBASSADOR_FREEZE = 'ambassador.freeze',
   AMBASSADOR_UNFREEZE = 'ambassador.unfreeze',
+  /** D390 follow-up: «إنهاء العضوية» {reason, before, voidedCommissions, voidedCherries, voidedRewards}. */
+  AMBASSADOR_END = 'ambassador.end',
   AMBASSADOR_REVIEW_FLAG = 'ambassador.review.flag',
   AMBASSADOR_REVIEW_CLEAR = 'ambassador.review.clear',
   AMBASSADOR_REFERRAL_ATTACH = 'ambassador.referral.attach',

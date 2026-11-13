@@ -121,7 +121,7 @@ export class AmbassadorsService {
     const settings = await ambassadorSettingsIn(this.prisma);
     const now = this.clock.now();
     const [amb, latest] = await Promise.all([
-      this.prisma.ambassador.findUnique({ where: { userId: me }, select: { userId: true } }),
+      this.prisma.ambassador.findUnique({ where: { userId: me }, select: { status: true } }),
       this.latest(me),
     ]);
     const refusal: AmbassadorRefusal | 'DISABLED' | null = !settings.enabled
@@ -129,15 +129,18 @@ export class AmbassadorsService {
       : await eligibilityIn(this.prisma, me, now);
     return {
       enabled: settings.enabled,
+      // D390 follow-up (§10.179.11): an ended membership reads ENDED (no form; only the OWNER re-appoints).
       status: amb
-        ? ('AMBASSADOR' as const)
+        ? amb.status === 'ENDED'
+          ? ('ENDED' as const)
+          : ('AMBASSADOR' as const)
         : latest?.status === 'PENDING'
           ? ('PENDING' as const)
           : latest?.status === 'REJECTED'
             ? ('REJECTED' as const)
             : ('NONE' as const),
       canApply: refusal === null,
-      refusal: amb ? ('AMBASSADOR' as const) : refusal,
+      refusal: amb ? (amb.status === 'ENDED' ? ('ENDED' as const) : ('AMBASSADOR' as const)) : refusal,
       application: latest ? applicationDto(latest) : null,
       levels: settings.enabled ? levelsDto(settings.levels) : [],
       rules: {
@@ -250,7 +253,7 @@ export class AmbassadorsService {
   /** `GET /ambassadors/me`: the ambassador's dashboard (404 for anyone else). */
   async dashboard(me: string) {
     const amb = await this.prisma.ambassador.findUnique({ where: { userId: me } });
-    if (!amb) throw new AppException(ErrorCode.NOT_FOUND);
+    if (!amb || amb.status === 'ENDED') throw new AppException(ErrorCode.NOT_FOUND);
     const settings = await ambassadorSettingsIn(this.prisma);
     const now = this.clock.now();
     const month = ambassadorMonth(now, this.zone);
