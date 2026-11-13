@@ -1790,7 +1790,7 @@ unused.
 
 ### 11.13 «واتساب» — the official Kabso WhatsApp number (D355) — [IMPLEMENTED, draft contract v1.116-social; off until the owner configures it, never run against Meta]
 
-The staff answer one official Kabso WhatsApp number from the app («أنا» → «واتساب») and the panel («واتساب»)
+The staff answer one official Kabso WhatsApp number from the app («الرسائل» → the pinned «واتساب» circle after «دعم كابسو»; it was «أنا» → «واتساب» until 2026-11-13) and the panel («واتساب»)
 (CONVENTIONS §10.151). It stays **off** until the five settings below are on the server; nothing else needs a deploy.
 Meta's screens and names change often — follow Meta's current wording; the links are Meta's official pages.
 

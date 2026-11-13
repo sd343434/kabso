@@ -11808,7 +11808,7 @@ Owner (approved): instead of D355's role rule, each staff member gets a WhatsApp
 
 | Level | Capabilities | What it allows |
 |---|---|---|
-| NONE «بدون» | — | Nothing: no «واتساب» row in the app, no panel item, every route 403 (even the summary). |
+| NONE «بدون» | — | Nothing: no «واتساب» entry in the app (the pinned circle in «الرسائل», formerly a Me tab row), no panel item, every route 403 (even the summary). |
 | VIEW «مشاهدة فقط» | `support.whatsapp.view` | Read the conversations, the messages, the media, the customer panel (account card, notes, history), the badge and the pushes, the own push mute. **No** reply (text, media, template), claim, release, transfer, close, reopen, note, account link / unlink, read receipt (`…/read`), templates, agents, quick replies. |
 | REPLY «رد» | + `support.whatsapp` | D355's `support.whatsapp`. |
 | MANAGE «إدارة» | + `support.whatsapp.manage` | D355's `support.whatsapp.manage` (quick-reply edits, settings, «اختبار الاتصال», acting on someone else's conversation). |

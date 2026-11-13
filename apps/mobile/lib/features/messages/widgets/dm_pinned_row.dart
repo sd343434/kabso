@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -14,6 +15,7 @@ import 'package:kabso_live/features/messages/domain/dm_models.dart';
 import 'package:kabso_live/features/messages/widgets/dm_group_row.dart';
 import 'package:kabso_live/features/support/application/support_providers.dart';
 import 'package:kabso_live/features/support/domain/support_models.dart';
+import 'package:kabso_live/features/whatsapp/application/wa_providers.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -47,6 +49,12 @@ abstract final class KDmPins {
 /// or blocked), then up to five chats the person pinned, first pinned
 /// first. Scrolls sideways when it does not fit. A pinned chat stays in the
 /// list below too (the row is a shortcut).
+///
+/// Owner (2026-11-13: «انقل رسائل واتساب داخل تطبيق الى رسائل لتكون اسهل
+/// للوصول»): for the staff who answer the official number
+/// ([waEntryProvider]), «واتساب» comes right after «دعم كابسو», with the
+/// conversations waiting for them on its badge; it opens the inbox. Fixed
+/// like «دعم كابسو» (no long press) and not counted in the five pins.
 class DmPinnedRow extends ConsumerWidget {
   const new({super.key});
 
@@ -56,6 +64,8 @@ class DmPinnedRow extends ConsumerWidget {
   static Key dotKey(String id) => Key('dm.pins.$id.online');
   static Key badgeKey(String id) => Key('dm.pins.$id.badge');
   static const supportBadgeKey = Key('dm.pins.support.badge');
+  static const whatsAppKey = Key('dm.pins.whatsapp');
+  static const whatsAppBadgeKey = Key('dm.pins.whatsapp.badge');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -85,6 +95,7 @@ class DmPinnedRow extends ConsumerWidget {
               picture: const KabsoTeamPicture(size: KDmPins.circle),
               onTap: () => context.push(AppRoutes.supportChat),
             ),
+            if (ref.watch(waEntryProvider)) const _WhatsAppPin(),
             for (final pin in pins.data) _pinned(context, ref, pin),
           ],
         ),
@@ -137,6 +148,53 @@ class DmPinnedRow extends ConsumerWidget {
               ) as ChatPeer,
             ),
       onLongPress: () => unawaited(_unpinSheet(context, ref, chat, name)),
+    );
+  }
+}
+
+/// The staff's «واتساب» circle: the official number's inbox, its badge the
+/// conversations waiting for the caller (theirs and the unassigned ones, as
+/// the Me tab row showed). Hidden while the server says the inbox serves
+/// nothing (WhatsApp and the in-app threads both off); an error or a load
+/// keeps it (the inbox says why). The WhatsApp mark is shown whole, in one
+/// colour, in a neutral circle (assets/icons/social/README.md, §10.153).
+class _WhatsAppPin extends ConsumerWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final summary = ref.watch(waSummaryProvider).value;
+    if (summary != null && !summary.served) return const SizedBox.shrink();
+    final count = summary?.badge ?? 0;
+    return _PinCircle(
+      key: DmPinnedRow.whatsAppKey,
+      label: l10n.waRow,
+      semantics: count > 0
+          ? '${l10n.waRow}, ${l10n.waRowBadge(count)}'
+          : l10n.waRow,
+      unread: count,
+      badgeKey: DmPinnedRow.whatsAppBadgeKey,
+      ring: count > 0 ? _Ring.unread : _Ring.none,
+      picture: Container(
+        width: KDmPins.circle,
+        height: KDmPins.circle,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: p.surfaceRaised,
+          border: Border.all(color: p.border),
+        ),
+        child: SvgPicture.asset(
+          'assets/icons/social/whatsapp.svg',
+          width: KDmPins.circle * 0.46,
+          height: KDmPins.circle * 0.46,
+          excludeFromSemantics: true,
+          colorFilter: ColorFilter.mode(p.textPrimary, BlendMode.srcIn),
+        ),
+      ),
+      onTap: () => context.push(AppRoutes.staffWhatsApp),
     );
   }
 }
