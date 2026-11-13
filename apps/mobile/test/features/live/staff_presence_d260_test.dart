@@ -98,7 +98,8 @@ void main() {
       expect(find.text(l.liveViewersTab('2')), findsOneWidget);
       expect(find.byKey(SeatControlKeys.staffRow(0)), findsOneWidget);
       expect(find.byKey(KabsoTeamBadge.badgeKey), findsOneWidget);
-      expect(find.text(l.liveKabsoTeam), findsOneWidget);
+      // D388: the crest alone, its name spoken (not written on it).
+      expect(find.bySemanticsLabel(l.liveKabsoTeam), findsOneWidget);
       // First in the list, above the viewers.
       final staffY = tester
           .getTopLeft(find.byKey(SeatControlKeys.staffRow(0)))

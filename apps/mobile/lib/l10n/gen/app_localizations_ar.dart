@@ -18911,4 +18911,95 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get waInAppHint =>
       'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.';
+
+  @override
+  String get badgeExplainKabsoTeam =>
+      'شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي';
+
+  @override
+  String badgeExplainWealthLevel(int level) {
+    return 'مستوى الثروة $level';
+  }
+
+  @override
+  String badgeExplainCharmLevel(int level) {
+    return 'مستوى الجاذبية $level';
+  }
+
+  @override
+  String badgeExplainWizardLevel(int level) {
+    return 'مستوى الساحر $level';
+  }
+
+  @override
+  String badgeExplainGamingLevel(int level) {
+    return 'مستوى اللعب $level';
+  }
+
+  @override
+  String badgeExplainRoomLevel(int level) {
+    return 'مستوى الغرفة $level — مستوى جاذبية المضيف';
+  }
+
+  @override
+  String badgeExplainVip(int tier) {
+    return 'عضوية VIP $tier';
+  }
+
+  @override
+  String badgeExplainGoldenId(String id) {
+    return 'آيدي ذهبي $id — من مزايا عضوية VIP';
+  }
+
+  @override
+  String badgeExplainVerification(String kind) {
+    return 'شارة التوثيق: $kind — تُمنح تلقائياً عند تحقق الشروط';
+  }
+
+  @override
+  String get badgeExplainFounder => 'شارة المؤسس — مؤسس Kabso Live';
+
+  @override
+  String badgeExplainRechargeTier(int tier) {
+    return 'شارة الشحن اليومي — المستوى $tier، تظهر 24 ساعة بعد الشحن';
+  }
+
+  @override
+  String badgeExplainRechargeAgent(String code) {
+    return 'وكيل شحن معتمد في كابسو — $code';
+  }
+
+  @override
+  String badgeExplainHostAgent(String code) {
+    return 'وكيل مضيفين في كابسو — $code';
+  }
+
+  @override
+  String badgeExplainItem(String name) {
+    return 'شارة العنصر: $name';
+  }
+
+  @override
+  String get badgeExplainCreatorLive =>
+      'صانع محتوى — المضيف صانع محتوى في كابسو';
+
+  @override
+  String get badgeExplainHostTargetGifts => 'هدف الهدايا اليومي للمضيف';
+
+  @override
+  String get badgeExplainHostTargetLucky => 'هدف هدايا الحظ اليومي للمضيف';
+
+  @override
+  String get badgeExplainHost => 'المضيف — صاحب هذا البث';
+
+  @override
+  String get badgeExplainModerator => 'مشرف — يساعد المضيف في إدارة هذا البث';
+
+  @override
+  String get badgeExplainNewcomer => 'جديد — انضم إلى كابسو مؤخراً';
+
+  @override
+  String badgeExplainFamily(String name, int level) {
+    return 'عائلة $name — المستوى $level';
+  }
 }

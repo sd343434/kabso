@@ -33,7 +33,12 @@ abstract final class RechargeAgentArt {
 /// everywhere it shows in a live room (chat, the join line, the viewers
 /// list, seats). Announced as «وكيل شحن coin0001».
 class RechargeAgentBadge extends StatelessWidget {
-  const new({required this.code, super.key, this.height = 18});
+  const new({
+    required this.code,
+    super.key,
+    this.height = 18,
+    this.explain = true,
+  });
 
   final String code;
 
@@ -42,17 +47,24 @@ class RechargeAgentBadge extends StatelessWidget {
 
   static const badgeKey = Key('recharge.badge');
 
+  /// D388: a tap shows what the badge is.
+  final bool explain;
+
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: context.l10n.rechargeAgentBadgeLabel(KFormat.bidiIsolate(code)),
-    excludeSemantics: true,
-    child: Image.asset(
-      RechargeAgentArt.badge,
-      key: badgeKey,
-      height: height,
-      width: height * RechargeAgentArt.badgeAspect,
-      fit: BoxFit.contain,
-      excludeFromSemantics: true,
+  Widget build(BuildContext context) => KBadgeExplainer(
+    message: context.l10n.badgeExplainRechargeAgent(KFormat.bidiIsolate(code)),
+    enabled: explain,
+    child: Semantics(
+      label: context.l10n.rechargeAgentBadgeLabel(KFormat.bidiIsolate(code)),
+      excludeSemantics: true,
+      child: Image.asset(
+        RechargeAgentArt.badge,
+        key: badgeKey,
+        height: height,
+        width: height * RechargeAgentArt.badgeAspect,
+        fit: BoxFit.contain,
+        excludeFromSemantics: true,
+      ),
     ),
   );
 }
@@ -265,7 +277,12 @@ abstract final class HostAgentArt {
 /// card, and inline next to the name everywhere it shows in a live room.
 /// Announced as «وكيل مضيفين host03».
 class HostAgentBadge extends StatelessWidget {
-  const new({required this.code, super.key, this.height = 18});
+  const new({
+    required this.code,
+    super.key,
+    this.height = 18,
+    this.explain = true,
+  });
 
   final String code;
 
@@ -274,17 +291,24 @@ class HostAgentBadge extends StatelessWidget {
 
   static const badgeKey = Key('hostAgent.badge');
 
+  /// D388: a tap shows what the badge is.
+  final bool explain;
+
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: context.l10n.hostAgentBadgeLabel(KFormat.bidiIsolate(code)),
-    excludeSemantics: true,
-    child: Image.asset(
-      HostAgentArt.badge,
-      key: badgeKey,
-      height: height,
-      width: height * HostAgentArt.badgeAspect,
-      fit: BoxFit.contain,
-      excludeFromSemantics: true,
+  Widget build(BuildContext context) => KBadgeExplainer(
+    message: context.l10n.badgeExplainHostAgent(KFormat.bidiIsolate(code)),
+    enabled: explain,
+    child: Semantics(
+      label: context.l10n.hostAgentBadgeLabel(KFormat.bidiIsolate(code)),
+      excludeSemantics: true,
+      child: Image.asset(
+        HostAgentArt.badge,
+        key: badgeKey,
+        height: height,
+        width: height * HostAgentArt.badgeAspect,
+        fit: BoxFit.contain,
+        excludeFromSemantics: true,
+      ),
     ),
   );
 }

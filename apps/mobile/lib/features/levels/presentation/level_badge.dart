@@ -192,6 +192,20 @@ class KLevelEmblem extends StatelessWidget {
   }
 }
 
+/// D388: what a level badge is, for its explainer bubble — the support
+/// level is the wealth level («مستوى الثروة 25»), attractiveness the charm
+/// level («مستوى الجاذبية 12»).
+String levelBadgeExplanation(
+  AppLocalizations l10n,
+  LevelCategory category,
+  int level,
+) => switch (category) {
+  LevelCategory.support => l10n.badgeExplainWealthLevel(level),
+  LevelCategory.attractiveness => l10n.badgeExplainCharmLevel(level),
+  LevelCategory.wizard => l10n.badgeExplainWizardLevel(level),
+  LevelCategory.gaming => l10n.badgeExplainGamingLevel(level),
+};
+
 /// The compact badge: the emblem with a bevelled pill carrying the level
 /// number (the pack's `KabsoLevelBadge`, on Kabso type). The number is
 /// Latin and left-to-right in both languages; the emblem sits at the
@@ -203,6 +217,7 @@ class KLevelBadge extends StatelessWidget {
     super.key,
     this.iconKey,
     this.height = KMetrics.badgeHeight,
+    this.explain = true,
   });
 
   final LevelCategory category;
@@ -210,8 +225,17 @@ class KLevelBadge extends StatelessWidget {
   final String? iconKey;
   final double height;
 
+  /// D388: a tap shows what the badge is («مستوى الثروة 25»).
+  final bool explain;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => KBadgeExplainer(
+    message: levelBadgeExplanation(context.l10n, category, levelNumber),
+    enabled: explain,
+    child: _art(),
+  );
+
+  Widget _art() {
     if (category == LevelCategory.support) {
       return _SupportPill(levelNumber: levelNumber, height: height);
     }

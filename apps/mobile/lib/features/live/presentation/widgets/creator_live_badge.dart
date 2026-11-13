@@ -7,7 +7,15 @@ import 'package:material_ui/material_ui.dart';
 /// the host's name in the room. The purple is D293's creator seal
 /// (`VerificationBadgeColors.creator`, #7B3FC4), drawn in code (no copied art).
 class CreatorLiveBadge extends StatelessWidget {
-  const new({super.key, this.compact = false, this.iconOnly = false});
+  const new({
+    super.key,
+    this.compact = false,
+    this.iconOnly = false,
+    this.explain = true,
+  });
+
+  /// D388: a tap shows what the badge is.
+  final bool explain;
 
   /// D293's creator colour.
   static const purple = Color(0xFF7B3FC4);
@@ -25,7 +33,13 @@ class CreatorLiveBadge extends StatelessWidget {
   static const iconKey = Key('creatorLiveBadge.icon');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => KBadgeExplainer(
+    message: context.l10n.badgeExplainCreatorLive,
+    enabled: explain,
+    child: _art(context),
+  );
+
+  Widget _art(BuildContext context) {
     final l10n = context.l10n;
     final t = context.textStyles;
     const white = Color(0xFFFFFFFF);

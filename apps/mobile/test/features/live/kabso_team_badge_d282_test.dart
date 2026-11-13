@@ -1,8 +1,9 @@
 // D282 (owner: «اجعلها شارة فريق كابسو بحيث سوف تضع الاسم بالعربي لمن هاتفه
-// عربي وانجليزي لمن هاتفه انجليزي»): the owner's crest-and-banner art is THE
-// Kabso Team badge — the name in its banner in the phone's language, the
-// art at its own aspect ratio and never mirrored, before a staff line's
-// name in every chat mode at the line's emblem height.
+// عربي وانجليزي لمن هاتفه انجليزي»): the owner's art is THE Kabso Team badge,
+// at its own aspect ratio and never mirrored, before a staff line's name in
+// every chat mode at the line's emblem height. D388 (owner: «فريق كابسو
+// يأخذون شارة لكن الشارة لها شريط ازله»): the banner is gone — the badge is
+// the crest alone, with no name written on it; the name is its spoken label.
 
 import 'dart:ui' as ui;
 
@@ -94,9 +95,11 @@ Future<void> _shot(
 Rect _rect(WidgetTester tester, Key key) => tester.getRect(find.byKey(key));
 
 void main() {
-  test('the art is the badge aspect ratio (720 × 328) and in the bundle', () {
-    expect(KabsoTeamBadge.aspectRatio, closeTo(2.1951, 0.001));
-    expect(const KabsoTeamBadge(height: 21).width, closeTo(46.10, 0.01));
+  test('the art is the crest aspect ratio (398 × 328) and in the bundle', () {
+    expect(KabsoTeamBadge.aspectRatio, closeTo(1.2134, 0.001));
+    expect(const KabsoTeamBadge(height: 21).width, closeTo(25.48, 0.01));
+    // D388: the crest alone (the banner made it 2.2 × its height).
+    expect(KabsoTeamBadge.aspectRatio, lessThan(1.5));
   });
 
   testWidgets('the asset decodes at the declared aspect ratio', (tester) async {
@@ -112,21 +115,28 @@ void main() {
   });
 
   for (final language in AppLanguage.values) {
-    testWidgets('${language.name}: the team name in the banner, the art '
-        'unmirrored', (tester) async {
+    testWidgets('${language.name}: the crest alone — no name written on '
+        'it, the name spoken, the art unmirrored (D388)', (tester) async {
       await pumpGolden(tester, _badge(40), language: language, bare: true);
       final l = l10nFor(language);
       expect(
         l.liveKabsoTeam,
         language == AppLanguage.ar ? 'فريق كابسو' : 'Kabso Team',
       );
-      final label = find.byKey(KabsoTeamBadge.labelKey);
-      expect(tester.widget<Text>(label).data, l.liveKabsoTeam);
-      // The art's natural aspect ratio.
+      // The crest's natural aspect ratio.
       final badge = _rect(tester, KabsoTeamBadge.badgeKey);
       expect(badge.height, 40);
       expect(badge.width, closeTo(40 * KabsoTeamBadge.aspectRatio, .01));
-      // Never mirrored: the art is not flipped in Arabic …
+      // D388: no text drawn on the badge (the banner and its name are gone).
+      expect(
+        find.descendant(
+          of: find.byKey(KabsoTeamBadge.badgeKey),
+          matching: find.byType(Text),
+        ),
+        findsNothing,
+      );
+      expect(find.text(l.liveKabsoTeam), findsNothing);
+      // Never mirrored: the art is not flipped in Arabic.
       final image = tester.widget<Image>(
         find.descendant(
           of: find.byKey(KabsoTeamBadge.badgeKey),
@@ -134,28 +144,12 @@ void main() {
         ),
       );
       expect(image.matchTextDirection, isFalse);
-      // … and the name sits centred in the banner (right of the crest) in
-      // both languages, inside it.
-      const b = KabsoTeamBadge.banner;
-      final banner = Rect.fromLTRB(
-        badge.left + b.left * badge.width,
-        badge.top + b.top * badge.height,
-        badge.left + b.right * badge.width,
-        badge.top + b.bottom * badge.height,
-      );
-      final text = tester.getRect(label);
-      expect(text.center.dx, closeTo(banner.center.dx, 0.5));
-      expect(text.center.dy, closeTo(banner.center.dy, 0.5));
-      expect(text.left, greaterThanOrEqualTo(banner.left));
-      expect(text.right, lessThanOrEqualTo(banner.right));
-      expect(text.top, greaterThanOrEqualTo(banner.top - 0.01));
-      expect(text.bottom, lessThanOrEqualTo(banner.bottom + 0.01));
       // Read once, as the team's name.
       expect(find.bySemanticsLabel(l.liveKabsoTeam), findsOneWidget);
     });
   }
 
-  testWidgets('a long name scales down inside a tiny banner (no overflow)', (
+  testWidgets('a large text scale never changes the crest (no overflow)', (
     tester,
   ) async {
     tester.platformDispatcher.textScaleFactorTestValue = 2;

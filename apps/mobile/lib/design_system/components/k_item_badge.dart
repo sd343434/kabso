@@ -1,5 +1,6 @@
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/models/item_badge.dart';
+import 'package:kabso_live/design_system/components/k_badge_explainer.dart';
 import 'package:kabso_live/design_system/theme/app_theme.dart';
 import 'package:kabso_live/design_system/tokens/tokens.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -120,11 +121,20 @@ TextStyle _labelStyle(BuildContext context, _PillMetrics m, Color ink) =>
 /// One badge: its icon and, unless [iconOnly], its name, on its colour.
 /// The screen reader hears the name either way.
 class KItemBadgePill extends StatelessWidget {
-  const new(this.code, {super.key, this.height = 18, this.iconOnly = false});
+  const new(
+    this.code, {
+    super.key,
+    this.height = 18,
+    this.iconOnly = false,
+    this.explain = true,
+  });
 
   final ItemBadgeCode code;
   final double height;
   final bool iconOnly;
+
+  /// D388: a tap shows what the badge is («شارة العنصر: جديد»).
+  final bool explain;
 
   static Key keyOf(ItemBadgeCode code, {bool iconOnly = false}) =>
       Key('itemBadge.${code.wire}${iconOnly ? '.icon' : ''}');
@@ -134,40 +144,44 @@ class KItemBadgePill extends StatelessWidget {
     final style = KItemBadgeStyle.of(code);
     final m = _PillMetrics(height);
     final name = itemBadgeLabel(context.l10n, code);
-    return Semantics(
-      label: name,
-      container: true,
-      child: ExcludeSemantics(
-        child: Container(
-          key: keyOf(code, iconOnly: iconOnly),
-          height: height,
-          constraints: BoxConstraints(minWidth: height),
-          padding: iconOnly
-              ? EdgeInsets.zero
-              : EdgeInsetsDirectional.only(start: m.padStart, end: m.padEnd),
-          decoration: BoxDecoration(
-            color: style.fill,
-            borderRadius: BorderRadius.circular(height / 2),
-            border: style.edge == null
-                ? null
-                : Border.all(color: style.edge!, width: height / 16),
-          ),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppIcon(itemBadgeIcon(code), size: m.icon, color: style.ink),
-              if (!iconOnly) ...[
-                SizedBox(width: m.gap),
-                Text(
-                  name,
-                  maxLines: 1,
-                  softWrap: false,
-                  textScaler: m.scaler(context),
-                  style: _labelStyle(context, m, style.ink),
-                ),
+    return KBadgeExplainer(
+      message: context.l10n.badgeExplainItem(name),
+      enabled: explain,
+      child: Semantics(
+        label: name,
+        container: true,
+        child: ExcludeSemantics(
+          child: Container(
+            key: keyOf(code, iconOnly: iconOnly),
+            height: height,
+            constraints: BoxConstraints(minWidth: height),
+            padding: iconOnly
+                ? EdgeInsets.zero
+                : EdgeInsetsDirectional.only(start: m.padStart, end: m.padEnd),
+            decoration: BoxDecoration(
+              color: style.fill,
+              borderRadius: BorderRadius.circular(height / 2),
+              border: style.edge == null
+                  ? null
+                  : Border.all(color: style.edge!, width: height / 16),
+            ),
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppIcon(itemBadgeIcon(code), size: m.icon, color: style.ink),
+                if (!iconOnly) ...[
+                  SizedBox(width: m.gap),
+                  Text(
+                    name,
+                    maxLines: 1,
+                    softWrap: false,
+                    textScaler: m.scaler(context),
+                    style: _labelStyle(context, m, style.ink),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

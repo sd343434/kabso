@@ -395,32 +395,36 @@ class LiveVipRoomBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Color(vipColorValue(tier.color));
-    return Semantics(
-      label: context.l10n.liveVipLockBody(tier.name),
-      child: Container(
-        key: badgeKey,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: Color.lerp(color, const Color(0xFF000000), 0.45),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: kVipGold, width: 0.8),
-        ),
-        child: ExcludeSemantics(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.lock, size: 11, color: kVipGold),
-              const SizedBox(width: 3),
-              Text(
-                tier.name,
-                style: context.textStyles.caption.copyWith(
-                  color: kVipGold,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
+    // D388: a tap says who the room is for.
+    return KBadgeExplainer(
+      message: context.l10n.liveVipLockBody(tier.name),
+      child: Semantics(
+        label: context.l10n.liveVipLockBody(tier.name),
+        child: Container(
+          key: badgeKey,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Color.lerp(color, const Color(0xFF000000), 0.45),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: kVipGold, width: 0.8),
+          ),
+          child: ExcludeSemantics(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock, size: 11, color: kVipGold),
+                const SizedBox(width: 3),
+                Text(
+                  tier.name,
+                  style: context.textStyles.caption.copyWith(
+                    color: kVipGold,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -4,6 +4,7 @@
 import 'dart:math' as math;
 
 import 'package:kabso_live/core/models/verification_badge.dart';
+import 'package:kabso_live/design_system/components/k_badge_explainer.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -80,13 +81,21 @@ String verificationBadgeKind(AppLocalizations l10n, VerificationBadge b) =>
 /// its white check mark (the OWNER's gold), drawn [size] across (about the
 /// name's line height, vertically centred with it), right after the display
 /// name — the profile header (own and others') and the Me tab's name row.
-/// Every seal carries the same check, so the spoken label and the tooltip
-/// (long press) say which one: «موثّق: وكيل شحن» / "Verified: recharge
-/// agent". The seal is symmetric, so it reads the same right-to-left.
+/// Every seal carries the same check, so the spoken label and — D388 — the
+/// explainer bubble on a tap say which one: «موثّق: وكيل شحن» / "Verified:
+/// recharge agent". The seal is symmetric, so it reads the same right-to-left.
 class ProfileVerificationBadge extends StatelessWidget {
-  const new({required this.badge, super.key, this.size = 23});
+  const new({
+    required this.badge,
+    super.key,
+    this.size = 23,
+    this.explain = true,
+  });
 
   static const badgeKey = Key('profile.verificationBadge');
+
+  /// D388: a tap shows what the seal is.
+  final bool explain;
 
   /// The badge's size beside a name of [fontSize] (owner 2026-11-06: «نعم
   /// كبّرها»): about 1.0–1.1 × the name's line height — 23 lp for the
@@ -105,9 +114,12 @@ class ProfileVerificationBadge extends StatelessWidget {
     final label = l10n.verificationBadgeLabel(
       verificationBadgeKind(l10n, badge),
     );
-    return Tooltip(
-      message: '$label\n${l10n.verificationBadgeAbout}',
-      triggerMode: TooltipTriggerMode.longPress,
+    // D388: a tap explains the seal (was a long-press tooltip).
+    return KBadgeExplainer(
+      message: l10n.badgeExplainVerification(
+        verificationBadgeKind(l10n, badge),
+      ),
+      enabled: explain,
       child: Semantics(
         key: badgeKey,
         label: label,

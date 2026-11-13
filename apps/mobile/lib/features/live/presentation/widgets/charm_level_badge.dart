@@ -1,3 +1,4 @@
+import 'package:kabso_live/design_system/components/k_badge_explainer.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -43,10 +44,23 @@ enum CharmTier {
 /// number. Laid out [height] tall; the creature overflows it (1.55 ×) without
 /// taking room from the line, so it fits inside a one-line title row.
 class CharmLevelBadge extends StatelessWidget {
-  const new({required this.level, super.key, this.height = 14});
+  const new({
+    required this.level,
+    super.key,
+    this.height = 14,
+    this.room = false,
+    this.explain = true,
+  });
 
   final int level;
   final double height;
+
+  /// D388: the badge stands for the room's level (beside a room's name), so
+  /// its explainer says «مستوى الغرفة»; else a person's charm level.
+  final bool room;
+
+  /// D388: a tap shows what the badge is.
+  final bool explain;
 
   /// D135 (owner: "the charm badge in the chat is bigger than the room
   /// level's"): the one size of the badge in a line of text — the chat
@@ -69,61 +83,68 @@ class CharmLevelBadge extends StatelessWidget {
       height: 1,
       letterSpacing: -0.3,
     );
-    return Semantics(
-      key: badgeKey,
-      label: context.l10n.liveRoomLevelBadge(level),
-      excludeSemantics: true,
-      // The number reads left to right in both languages; the creature
-      // stays at the pill's left, as in the owner's pack.
-      child: Directionality(
-        textDirection: TextDirection.ltr,
-        child: Padding(
-          // The creature's left edge at 0; it covers the pill's first 0.62 h.
-          padding: EdgeInsets.only(left: icon - h * 0.62),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.centerLeft,
-            children: [
-              Container(
-                height: h,
-                padding: EdgeInsets.only(left: h * 0.72, right: h * 0.4),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(h),
-                  gradient: LinearGradient(
-                    colors: [tier.pillStart, tier.pillEnd],
+    final l10n = context.l10n;
+    return KBadgeExplainer(
+      message: room
+          ? l10n.badgeExplainRoomLevel(level)
+          : l10n.badgeExplainCharmLevel(level),
+      enabled: explain,
+      child: Semantics(
+        key: badgeKey,
+        label: context.l10n.liveRoomLevelBadge(level),
+        excludeSemantics: true,
+        // The number reads left to right in both languages; the creature
+        // stays at the pill's left, as in the owner's pack.
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Padding(
+            // The creature's left edge at 0; it covers the pill's first 0.62 h.
+            padding: EdgeInsets.only(left: icon - h * 0.62),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.centerLeft,
+              children: [
+                Container(
+                  height: h,
+                  padding: EdgeInsets.only(left: h * 0.72, right: h * 0.4),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(h),
+                    gradient: LinearGradient(
+                      colors: [tier.pillStart, tier.pillEnd],
+                    ),
+                    border: Border.all(
+                      color: gold
+                          ? const Color(0xFFFFD24A)
+                          : Colors.white.withValues(alpha: 0.55),
+                      width: h * (gold ? 0.07 : 0.05),
+                    ),
                   ),
-                  border: Border.all(
-                    color: gold
-                        ? const Color(0xFFFFD24A)
-                        : Colors.white.withValues(alpha: 0.55),
-                    width: h * (gold ? 0.07 : 0.05),
+                  child: Text(
+                    '$level',
+                    style: number.copyWith(
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: tier.pillStart,
+                          offset: Offset(0, h * 0.05),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                child: Text(
-                  '$level',
-                  style: number.copyWith(
-                    color: Colors.white,
-                    shadows: [
-                      Shadow(
-                        color: tier.pillStart,
-                        offset: Offset(0, h * 0.05),
-                      ),
-                    ],
+                Positioned(
+                  left: -(icon - h * 0.62),
+                  top: -(icon - h) / 2,
+                  child: Image.asset(
+                    tier.icon,
+                    width: icon,
+                    height: icon,
+                    excludeFromSemantics: true,
                   ),
                 ),
-              ),
-              Positioned(
-                left: -(icon - h * 0.62),
-                top: -(icon - h) / 2,
-                child: Image.asset(
-                  tier.icon,
-                  width: icon,
-                  height: icon,
-                  excludeFromSemantics: true,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
