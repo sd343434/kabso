@@ -1370,6 +1370,8 @@ enum WalletLedgerReason {
   /// transaction), cancelled or could not be delivered.
   VIP_SCHEDULED_GIFT
   VIP_SCHEDULED_GIFT_RELEASE
+  /// v1.140-social (D390, §10.179): an ambassador's monthly target reward in coins (reference `AMB:<user>@<YYYY-MM>`).
+  AMBASSADOR_REWARD
 
   @@map("wallet_ledger_reason")
 }
@@ -2628,6 +2630,12 @@ enum NotificationType {
   CONTENT_GIFT_RECEIVED
   /// v1.136-social (D384, §10.173.5, system, no target): a moderator removed the VIP animated picture.
   ANIMATED_AVATAR_REMOVED
+  /// v1.140-social (D390, §10.179, system, no target): «برنامج سفراء Kabso» — the application approved / rejected, a
+  /// level up after the monthly evaluation, a monthly target reward granted.
+  AMBASSADOR_APPLICATION_APPROVED
+  AMBASSADOR_APPLICATION_REJECTED
+  AMBASSADOR_LEVEL_UP
+  AMBASSADOR_REWARD_GRANTED
 
   @@map("notification_type")
 }
@@ -4951,6 +4959,10 @@ enum CherryLedgerReason {
   /// v1.97-social (D303, §10.114): an event prize in cherries (reference `EVP:<result>`), locked for withdrawal and the
   /// store like TASK_REWARD (§10.46.1).
   EVENT_PRIZE
+  /// v1.140-social (D390, §10.179): an ambassador's commission on a referred person's qualifying top-up (credit,
+  /// withdrawable; reference = the `ambassador_commissions` row) and its claw-back after a refund (debit, same reference).
+  AMBASSADOR_COMMISSION
+  AMBASSADOR_COMMISSION_REVERSAL
 
   @@map("cherry_ledger_reason")
 }
@@ -9023,4 +9035,210 @@ model VipScheduledGift {
   @@index([senderId, createdAt(sort: Desc)], map: "vip_scheduled_gifts_sender_idx")
   @@index([recipientId], map: "vip_scheduled_gifts_recipient_idx")
   @@map("vip_scheduled_gifts")
+}
+
+// ---- v1.140-social (D390, CONVENTIONS §10.179): «برنامج سفراء Kabso» — the ambassadors programme ------------------
+// The user ids are plain columns (the foreign keys are in the migration); no relation on `User`, so the programme adds
+// nothing to the other modules' models.
+
+enum AmbassadorStatus {
+  ACTIVE
+  FROZEN
+
+  @@map("ambassador_status")
+}
+
+enum AmbassadorApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("ambassador_application_status")
+}
+
+enum AmbassadorReferralStatus {
+  PENDING
+  ACTIVE
+  VOID
+
+  @@map("ambassador_referral_status")
+}
+
+enum AmbassadorCommissionStatus {
+  PENDING
+  CREDITED
+  VOID
+  REVERSED
+
+  @@map("ambassador_commission_status")
+}
+
+/// D390: the programme's settings (one row, id 1). OFF until the OWNER switches it on; every number is OWNER-edited.
+model AmbassadorSettings {
+  id                    Int      @id @default(1) @db.SmallInt
+  enabled               Boolean  @default(false)
+  attributionWindowDays Int      @default(90) @map("attribution_window_days")
+  holdDays              Int      @default(14) @map("hold_days")
+  minActiveDays         Int      @default(3) @map("min_active_days")
+  minActiveTopupCoins   BigInt   @default(100000) @map("min_active_topup_coins")
+  monthlyCapCherries    BigInt   @default(50000000) @map("monthly_cap_cherries")
+  velocityMaxPerDay     Int      @default(30) @map("velocity_max_per_day")
+  ipClusterMax          Int      @default(3) @map("ip_cluster_max")
+  ipClusterWindowDays   Int      @default(30) @map("ip_cluster_window_days")
+  levels                Json     @default("[{\"code\":\"BRONZE\",\"minActiveReferrals\":0,\"minTopupCoins\":0,\"commissionBps\":300,\"reward\":{\"kind\":\"NONE\"}},{\"code\":\"SILVER\",\"minActiveReferrals\":5,\"minTopupCoins\":3000000,\"commissionBps\":500,\"reward\":{\"kind\":\"COINS\",\"amount\":100000}},{\"code\":\"GOLD\",\"minActiveReferrals\":15,\"minTopupCoins\":15000000,\"commissionBps\":700,\"reward\":{\"kind\":\"VIP_DAYS\",\"amount\":7,\"vipTier\":\"VIP_1\"}},{\"code\":\"DIAMOND\",\"minActiveReferrals\":40,\"minTopupCoins\":60000000,\"commissionBps\":1000,\"reward\":{\"kind\":\"COINS\",\"amount\":1000000}}]") @db.JsonB
+  updatedAt             DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById           String?  @map("updated_by_id") @db.Uuid
+
+  @@map("ambassador_settings")
+}
+
+/// D390: an ambassador (an approved application or appointed by the team). FROZEN holds every payout and reward.
+model Ambassador {
+  userId         String           @id @map("user_id") @db.Uuid
+  status         AmbassadorStatus @default(ACTIVE)
+  level          String           @db.VarChar(16)
+  source         String           @db.VarChar(16)
+  applicationId  String?          @map("application_id") @db.Uuid
+  appointedById  String?          @map("appointed_by_id") @db.Uuid
+  country        String?          @db.Char(2)
+  activatedAt    DateTime         @default(now()) @map("activated_at") @db.Timestamptz(3)
+  levelChangedAt DateTime         @default(now()) @map("level_changed_at") @db.Timestamptz(3)
+  frozenAt       DateTime?        @map("frozen_at") @db.Timestamptz(3)
+  frozenReason   String?          @map("frozen_reason") @db.VarChar(500)
+  frozenById     String?          @map("frozen_by_id") @db.Uuid
+  underReview    Boolean          @default(false) @map("under_review")
+  reviewReason   String?          @map("review_reason") @db.VarChar(32)
+  reviewAt       DateTime?        @map("review_at") @db.Timestamptz(3)
+
+  @@index([status, activatedAt(sort: Desc)], map: "ambassadors_status_idx")
+  @@map("ambassadors")
+}
+
+/// D390: «انضم إلى برنامج السفراء» — one PENDING application per person.
+model AmbassadorApplication {
+  id           String                      @id @db.Uuid
+  userId       String                      @map("user_id") @db.Uuid
+  status       AmbassadorApplicationStatus @default(PENDING)
+  country      String                      @db.Char(2)
+  links        String[]                    @db.VarChar(200)
+  audienceSize Int                         @map("audience_size")
+  motivation   String                      @db.VarChar(1000)
+  createdAt    DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt    DateTime?                   @map("decided_at") @db.Timestamptz(3)
+  decidedById  String?                     @map("decided_by_id") @db.Uuid
+  rejectReason String?                     @map("reject_reason") @db.VarChar(500)
+
+  @@index([userId, createdAt(sort: Desc)], map: "ambassador_applications_user_idx")
+  @@index([status, createdAt(sort: Desc)], map: "ambassador_applications_status_idx")
+  @@map("ambassador_applications")
+}
+
+/// D390: a D217 referral that took the ambassador track (precedence: no D217 inviter reward for it, §10.179.3).
+model AmbassadorReferral {
+  referralId       String                   @id @map("referral_id") @db.Uuid
+  ambassadorUserId String                   @map("ambassador_user_id") @db.Uuid
+  inviteeUserId    String                   @unique(map: "ambassador_referrals_invitee_key") @map("invitee_user_id") @db.Uuid
+  status           AmbassadorReferralStatus @default(PENDING)
+  windowUntil      DateTime                 @map("window_until") @db.Timestamptz(3)
+  inviteeIp        String?                  @map("invitee_ip") @db.VarChar(64)
+  activeAt         DateTime?                @map("active_at") @db.Timestamptz(3)
+  activeMonth      String?                  @map("active_month") @db.Char(7)
+  voidedAt         DateTime?                @map("voided_at") @db.Timestamptz(3)
+  voidReason       String?                  @map("void_reason") @db.VarChar(32)
+  createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([ambassadorUserId, createdAt(sort: Desc)], map: "ambassador_referrals_ambassador_idx")
+  @@index([createdAt], map: "ambassador_referrals_pending_idx", where: raw("status = 'PENDING'::ambassador_referral_status"))
+  @@map("ambassador_referrals")
+}
+
+/// D390: a commission on one qualifying top-up of a referred person — PENDING (held) → CREDITED / VOID / REVERSED.
+model AmbassadorCommission {
+  id                String                     @id @db.Uuid
+  ambassadorUserId  String                     @map("ambassador_user_id") @db.Uuid
+  inviteeUserId     String                     @map("invitee_user_id") @db.Uuid
+  referralId        String                     @map("referral_id") @db.Uuid
+  rechargeReason    String                     @map("recharge_reason") @db.VarChar(24)
+  rechargeReference String                     @map("recharge_reference") @db.VarChar(64)
+  coins             BigInt
+  level             String                     @db.VarChar(16)
+  rateBps           Int                        @map("rate_bps")
+  cherries          BigInt
+  cappedCherries    BigInt                     @default(0) @map("capped_cherries")
+  month             String                     @db.Char(7)
+  status            AmbassadorCommissionStatus @default(PENDING)
+  holdUntil         DateTime                   @map("hold_until") @db.Timestamptz(3)
+  createdAt         DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  creditedAt        DateTime?                  @map("credited_at") @db.Timestamptz(3)
+  voidedAt          DateTime?                  @map("voided_at") @db.Timestamptz(3)
+  voidReason        String?                    @map("void_reason") @db.VarChar(32)
+  reversedAt        DateTime?                  @map("reversed_at") @db.Timestamptz(3)
+  reversalShortfall BigInt?                    @map("reversal_shortfall")
+
+  @@unique([rechargeReason, rechargeReference], map: "ambassador_commissions_recharge_key")
+  @@index([ambassadorUserId, createdAt(sort: Desc)], map: "ambassador_commissions_ambassador_idx")
+  @@index([ambassadorUserId, month], map: "ambassador_commissions_month_idx")
+  @@index([holdUntil], map: "ambassador_commissions_due_idx", where: raw("status = 'PENDING'::ambassador_commission_status"))
+  @@map("ambassador_commissions")
+}
+
+/// D390: one ambassador's month — the stats, the level change and the target reward (NONE / GRANTED / HELD).
+model AmbassadorMonth {
+  ambassadorUserId   String    @map("ambassador_user_id") @db.Uuid
+  month              String    @db.Char(7)
+  activeReferrals    Int       @map("active_referrals")
+  topupCoins         BigInt    @map("topup_coins")
+  commissionCherries BigInt    @map("commission_cherries")
+  levelBefore        String    @map("level_before") @db.VarChar(16)
+  levelAfter         String    @map("level_after") @db.VarChar(16)
+  metLevel           String?   @map("met_level") @db.VarChar(16)
+  reward             Json?     @db.JsonB
+  rewardStatus       String    @map("reward_status") @db.VarChar(8)
+  evaluatedAt        DateTime  @map("evaluated_at") @db.Timestamptz(3)
+  grantedAt          DateTime? @map("granted_at") @db.Timestamptz(3)
+
+  @@id([ambassadorUserId, month])
+  @@map("ambassador_months")
+}
+
+/// D390: a fraud signal (VELOCITY, IP_CLUSTER, SELF_PAYMENT) that put an ambassador under review.
+model AmbassadorFlag {
+  id               String    @id @db.Uuid
+  ambassadorUserId String    @map("ambassador_user_id") @db.Uuid
+  kind             String    @db.VarChar(16)
+  detail           Json      @default("{}") @db.JsonB
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  clearedAt        DateTime? @map("cleared_at") @db.Timestamptz(3)
+  clearedById      String?   @map("cleared_by_id") @db.Uuid
+
+  @@index([ambassadorUserId, createdAt(sort: Desc)], map: "ambassador_flags_ambassador_idx")
+  @@map("ambassador_flags")
+}
+
+/// D390: a campaign or event coordinated with the team (a simple record with its ambassadors).
+model AmbassadorCampaign {
+  id          String                     @id @db.Uuid
+  title       String                     @db.VarChar(120)
+  country     String?                    @db.Char(2)
+  startsOn    DateTime                   @map("starts_on") @db.Date
+  endsOn      DateTime                   @map("ends_on") @db.Date
+  notes       String                     @default("") @db.VarChar(2000)
+  createdById String?                    @map("created_by_id") @db.Uuid
+  createdAt   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime                   @default(now()) @map("updated_at") @db.Timestamptz(3)
+  members     AmbassadorCampaignMember[]
+
+  @@index([startsOn(sort: Desc)], map: "ambassador_campaigns_dates_idx")
+  @@map("ambassador_campaigns")
+}
+
+model AmbassadorCampaignMember {
+  campaignId String @map("campaign_id") @db.Uuid
+  userId     String @map("user_id") @db.Uuid
+
+  campaign AmbassadorCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, userId])
+  @@map("ambassador_campaign_members")
 }

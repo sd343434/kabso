@@ -605,6 +605,43 @@ export async function reverseReferralCherriesIn(
   return { balanceAfter: wallet.cherries, shortfall: referralShortfall(cherries, wallet.cherries) };
 }
 
+/**
+ * v1.140-social (D390, §10.179.5): an ambassador's commission after its hold — one `AMBASSADOR_COMMISSION` row,
+ * reference = the commission (once). Withdrawable like the referral rewards (not in the task-cherry lock).
+ */
+export async function creditAmbassadorCommissionIn(
+  tx: Tx,
+  userId: string,
+  cherries: bigint,
+  commissionId: string,
+  now: Date,
+): Promise<void> {
+  await applyMovementsIn(tx, [{ userId, reason: 'AMBASSADOR_COMMISSION', delta: cherries }], commissionId, now);
+}
+
+/**
+ * v1.140-social (D390, §10.179.5): a credited commission taken back after a refund or a chargeback of its top-up — one
+ * `AMBASSADOR_COMMISSION_REVERSAL` row (reference = the commission, so never twice). The balance may go below 0, as a
+ * referral claw-back's (§10.71): the shortfall is a debt that blocks withdrawals until it is earned back.
+ */
+export async function reverseAmbassadorCommissionIn(
+  tx: Tx,
+  userId: string,
+  cherries: bigint,
+  commissionId: string,
+  now: Date,
+): Promise<{ balanceAfter: bigint; shortfall: bigint }> {
+  if (cherries <= 0n) throw new RangeError('A claw-back is positive');
+  await applyMovementsIn(
+    tx,
+    [{ userId, reason: 'AMBASSADOR_COMMISSION_REVERSAL', delta: -cherries }],
+    commissionId,
+    now,
+  );
+  const wallet = await tx.cherryWallet.findUniqueOrThrow({ where: { userId }, select: { cherries: true } });
+  return { balanceAfter: wallet.cherries, shortfall: referralShortfall(cherries, wallet.cherries) };
+}
+
 /** The part of a `cherries` debit a balance of `balanceAfter` (after the debit) did not cover. */
 export function referralShortfall(cherries: bigint, balanceAfter: bigint): bigint {
   if (balanceAfter >= 0n) return 0n;

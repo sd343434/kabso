@@ -189,6 +189,21 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       return ar ? 'رُفع القيد عن حسابك' : 'The restriction on your account was lifted';
     case 'BALANCE_ADJUSTED':
       return ar ? 'عدّل فريق Kabso رصيدك' : 'The Kabso team adjusted your balance';
+    // v1.140-social (D390, §10.179.9): «برنامج سفراء Kabso» (the reason of a rejection is in the app, not the push).
+    case 'AMBASSADOR_APPLICATION_APPROVED':
+      return ar
+        ? 'تمت الموافقة على طلبك: أصبحت سفيراً لـ Kabso Live. افتح لوحة السفير لرمزك وأهدافك'
+        : 'Your application was approved: you are now a Kabso Live ambassador. Open your ambassador dashboard';
+    case 'AMBASSADOR_APPLICATION_REJECTED':
+      return ar
+        ? 'لم تتم الموافقة على طلبك في برنامج سفراء Kabso. افتح البرنامج لمعرفة السبب'
+        : 'Your Kabso ambassadors application was not approved. Open the programme to see why';
+    case 'AMBASSADOR_LEVEL_UP':
+      return ar ? 'ارتفع مستواك في برنامج سفراء Kabso' : 'You moved up a level in the Kabso ambassadors programme';
+    case 'AMBASSADOR_REWARD_GRANTED':
+      return ar
+        ? 'حققت أهداف الشهر وحصلت على مكافأة السفير'
+        : 'You reached the month’s targets and got your ambassador reward';
     // v1.74-social (D217): the amount is in the cherry history (`REFERRAL_REVERSAL`).
     case 'REFERRAL_REWARD_REVERSED':
       return ar

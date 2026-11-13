@@ -4,6 +4,7 @@ import { AuditAction } from '../../common/audit/audit.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { recordRechargeIn, type RechargeCreditRules } from '../recharge/recharge-badges.js';
 import { referralRechargeIn } from '../referrals/referral-core.js';
+import { ambassadorTopupReversedIn } from '../ambassadors/ambassador-core.js';
 import {
   earnRechargePointsIn,
   movePointsIn,
@@ -72,6 +73,8 @@ export async function reconcileOrderIn(
   if (await earnedPointsIn(tx, order.id)) {
     await movePointsIn(tx, order.userId, -delta, 'REVERSAL', reversalReference('web', referenceId));
   }
+  // v1.140-social (D390, §10.179.5): coins taken back void or claw back the ambassador's commission on the order.
+  if (delta > 0n) await ambassadorTopupReversedIn(tx, 'CARD_TOPUP', order.id, now);
   await tx.topupOrder.update({ where: { id: order.id }, data: { coinsReversed: target, updatedAt: now } });
   await tx.auditLog.create({
     data: {

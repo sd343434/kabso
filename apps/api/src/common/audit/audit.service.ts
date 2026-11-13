@@ -627,6 +627,30 @@ export enum AuditAction {
    * reason, via}.
    */
   RECHARGE_POINTS_ADJUST = 'recharge_points.adjust',
+  // ---- v1.140-social (D390, §10.179): «برنامج سفراء Kabso» — every grant, approval, freeze and level change --------
+  AMBASSADOR_SETTINGS_UPDATE = 'ambassador.settings.update',
+  /** The panel opened an ambassador's performance page {money: whether the money totals were shown}. */
+  AMBASSADOR_VIEW = 'ambassador.view',
+  AMBASSADOR_APPLICATION_SUBMIT = 'ambassador.application.submit',
+  AMBASSADOR_APPLICATION_APPROVE = 'ambassador.application.approve',
+  AMBASSADOR_APPLICATION_REJECT = 'ambassador.application.reject',
+  AMBASSADOR_APPOINT = 'ambassador.appoint',
+  AMBASSADOR_FREEZE = 'ambassador.freeze',
+  AMBASSADOR_UNFREEZE = 'ambassador.unfreeze',
+  AMBASSADOR_REVIEW_FLAG = 'ambassador.review.flag',
+  AMBASSADOR_REVIEW_CLEAR = 'ambassador.review.clear',
+  AMBASSADOR_REFERRAL_ATTACH = 'ambassador.referral.attach',
+  AMBASSADOR_REFERRAL_ACTIVE = 'ambassador.referral.active',
+  AMBASSADOR_REFERRAL_VOID = 'ambassador.referral.void',
+  AMBASSADOR_COMMISSION_CREATE = 'ambassador.commission.create',
+  AMBASSADOR_COMMISSION_CREDIT = 'ambassador.commission.credit',
+  AMBASSADOR_COMMISSION_VOID = 'ambassador.commission.void',
+  AMBASSADOR_COMMISSION_REVERSE = 'ambassador.commission.reverse',
+  AMBASSADOR_MONTH_EVALUATE = 'ambassador.month.evaluate',
+  AMBASSADOR_LEVEL_CHANGE = 'ambassador.level.change',
+  AMBASSADOR_REWARD_GRANT = 'ambassador.reward.grant',
+  AMBASSADOR_CAMPAIGN_CREATE = 'ambassador.campaign.create',
+  AMBASSADOR_CAMPAIGN_UPDATE = 'ambassador.campaign.update',
 }
 
 export interface AuditEntry {

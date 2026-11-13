@@ -9,6 +9,12 @@ import type {
   ReferralStatus,
 } from '../../generated/prisma/client.js';
 import { creditReferralCherriesIn, reverseReferralCherriesIn } from '../economy/cherry-ledger.js';
+import {
+  ambassadorTimeZone,
+  ambassadorTopupIn,
+  ambassadorTrackIn,
+  isAmbassadorReferralIn,
+} from '../ambassadors/ambassador-core.js';
 import { Notifier } from '../notifications/notifier.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { emailHadAccountIn, otherAccountsOnDeviceIn } from './signup-codes.js';
@@ -289,9 +295,13 @@ export async function attachReferralIn(tx: Tx, input: AttachInput): Promise<Atta
       createdAt: now,
     },
   });
+  // v1.140-social (D390, §10.179.3): an ambassador's referral takes the ambassador track — no D217 inviter reward.
+  const ambassadorTrack =
+    reject === null &&
+    (await ambassadorTrackIn(tx, { referralId, inviterId, inviteeId: input.inviteeUserId, ip, now }));
   const rewards: { kind: ReferralRewardKind; userId: string; cherries: bigint; voidReason?: string }[] = [];
   if (reject === null) {
-    if (settings.inviterSignupCherries > 0n) {
+    if (settings.inviterSignupCherries > 0n && !ambassadorTrack) {
       let capped = false;
       if (settings.dailySignupCap > 0) {
         const recent = await tx.referralReward.count({
@@ -387,11 +397,15 @@ export async function referralRechargeIn(
   input: { userId: string; coins: bigint; reason: RechargeLedgerReason; reference: string; now: Date },
   cherriesPerCoin: number,
 ): Promise<string | null> {
+  // v1.140-social (D390, §10.179.5): every qualifying top-up of an ambassador's referral makes a held commission.
+  await ambassadorTopupIn(tx, input, cherriesPerCoin, ambassadorTimeZone());
   const [ref] = await tx.$queryRaw<{ id: string; inviter: string; status: ReferralStatus }[]>`
     UPDATE referrals SET first_recharge_at = ${input.now}
      WHERE invitee_user_id = ${input.userId}::uuid AND first_recharge_at IS NULL
     RETURNING id::text AS id, inviter_user_id::text AS inviter, status::text AS status`;
   if (!ref || (ref.status !== 'PENDING' && ref.status !== 'QUALIFIED')) return null;
+  // v1.140-social (D390, §10.179.3): the ambassador's commission replaces the FIRST_RECHARGE reward.
+  if (await isAmbassadorReferralIn(tx, ref.id)) return null;
   const settings = await referralSettingsIn(tx);
   if (!settings.enabled) return null;
   const cherries = firstRechargeCherries(input.coins, cherriesPerCoin, settings.firstRechargeBps);
@@ -489,7 +503,7 @@ export async function milestonesIn(tx: Tx, inviterId: string, now: Date): Promis
   const settings = await referralSettingsIn(tx);
   if (!settings.enabled || settings.milestones.length === 0) return 0n;
   if ((await accountHealthIn(tx, inviterId, now)) !== 'OK') return 0n;
-  const qualified = await tx.referral.count({ where: { inviterUserId: inviterId, status: 'QUALIFIED' } });
+  const qualified = await qualifiedFriendsIn(tx, inviterId);
   const given = new Set(
     (
       await tx.referralReward.findMany({
@@ -530,6 +544,18 @@ export async function milestonesIn(tx: Tx, inviterId: string, now: Date): Promis
     total += m.cherries;
   }
   return total;
+}
+
+/**
+ * The inviter's QUALIFIED friends that count for the D217 milestones — v1.140-social (D390, §10.179.3): not the
+ * referrals on the ambassador track (an ambassador is paid for those by the programme, never twice).
+ */
+async function qualifiedFriendsIn(db: Db, inviterId: string): Promise<number> {
+  const [row] = await db.$queryRaw<{ n: bigint }[]>`
+    SELECT count(*)::bigint AS n FROM referrals r
+     WHERE r.inviter_user_id = ${inviterId}::uuid AND r.status = 'QUALIFIED'
+       AND NOT EXISTS (SELECT 1 FROM ambassador_referrals a WHERE a.referral_id = r.id)`;
+  return Number(row?.n ?? 0n);
 }
 
 const HEALTH_REASON: Record<Exclude<AccountHealth, 'OK'>, string> = {
@@ -735,7 +761,10 @@ export async function approveReferralIn(
     });
   }
   const toCredit: ReferralReward[] = existing.filter((r) => r.status !== 'CREDITED');
+  // v1.140-social (D390, §10.179.3): an ambassador-track referral never gets a D217 inviter reward, even approved.
+  const ambassadorTrack = await isAmbassadorReferralIn(tx, referralId);
   for (const m of missing) {
+    if (ambassadorTrack && m.userId === referral.inviterUserId) continue;
     toCredit.push(
       await tx.referralReward.create({
         data: {
@@ -821,9 +850,7 @@ export async function clawbackPlanIn(db: Db, referralId: string): Promise<Clawba
             status: 'CREDITED',
             milestoneFriends: {
               gt:
-                (await db.referral.count({
-                  where: { inviterUserId: referral.inviterUserId, status: 'QUALIFIED' },
-                })) - 1,
+                (await qualifiedFriendsIn(db, referral.inviterUserId)) - 1,
             },
           },
           orderBy: { milestoneFriends: 'asc' },

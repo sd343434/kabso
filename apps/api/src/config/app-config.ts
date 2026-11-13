@@ -481,6 +481,13 @@ export interface AppConfig {
     readonly sweepIntervalSeconds: number;
   };
   /**
+   * v1.140-social (D390, CONVENTIONS §10.179): «برنامج سفراء Kabso». Every amount and rule is in `ambassador_settings`
+   * (the OWNER's panel); only the sweeper's interval is a server setting (0 = off: tests; refused in production).
+   */
+  readonly ambassadors: {
+    readonly sweepIntervalSeconds: number;
+  };
+  /**
    * v1.75-live (D285, CONVENTIONS §10.96.13): recruitment by staff. The shares per type live in
    * `staff_recruit_settings` (the panel); the daily commission job's interval (0 = off: tests; refused in production)
    * and how many past days it catches up after a pause are server settings.
@@ -1088,6 +1095,9 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     },
     referrals: {
       sweepIntervalSeconds: e.REFERRAL_SWEEP_INTERVAL_SECONDS,
+    },
+    ambassadors: {
+      sweepIntervalSeconds: e.AMBASSADOR_SWEEP_INTERVAL_SECONDS,
     },
     recruits: {
       sweepIntervalSeconds: e.RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS,

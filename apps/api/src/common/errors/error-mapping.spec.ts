@@ -172,6 +172,8 @@ describe('ErrorCode', () => {
         'DM_NOT_ARCHIVABLE',
         'DM_GROUP_FULL',
         'DM_PIN_LIMIT',
+        // v1.140-social (D390)
+        'AMBASSADOR_APPLICATION_NOT_ALLOWED',
         'DM_GROUP_MEMBER_NOT_ALLOWED',
         // v1.32-live (DRAFT, D154)
         'QUIP_FREE_USED',
@@ -324,6 +326,7 @@ describe('ErrorCode', () => {
       AGENCY_OPEN_NOT_ALLOWED: 409,
       HOST_APPLICATION_NOT_ALLOWED: 409,
       CREATOR_APPLICATION_NOT_ALLOWED: 409,
+      AMBASSADOR_APPLICATION_NOT_ALLOWED: 409,
       LEVEL_RAISE_DUPLICATE: 409,
       OWNER_ONLY: 403,
       OWNER_JOURNEY_LIMIT: 409,

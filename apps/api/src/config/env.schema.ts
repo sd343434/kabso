@@ -1221,6 +1221,11 @@ export const envSchema = z
      */
     REFERRAL_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
     /**
+     * v1.140-social (D390, CONVENTIONS §10.179): the ambassadors' sweeper — referrals activated, held commissions
+     * credited or voided, the months evaluated (0 = off: tests; refused in production). Every amount is in the panel.
+     */
+    AMBASSADOR_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
+    /**
      * v1.75-live (D285, CONVENTIONS §10.96.13): the staff recruiters' daily commission job — how often it looks for
      * finished days to pay (0 = off: tests; refused in production) and how many past days it still pays after a pause.
      */
@@ -2169,6 +2174,14 @@ export const envSchema = z
           code: 'custom',
           path: ['REFERRAL_SWEEP_INTERVAL_SECONDS'],
           message: 'the referral sweeper cannot be disabled in production',
+        });
+      }
+      // D390: the ambassadors' held commissions and monthly rewards are settled by the sweeper.
+      if (env.AMBASSADOR_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['AMBASSADOR_SWEEP_INTERVAL_SECONDS'],
+          message: 'the ambassador sweeper cannot be disabled in production',
         });
       }
       // D285: the recruiters' commissions are paid by the daily job.

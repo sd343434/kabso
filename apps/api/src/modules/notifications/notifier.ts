@@ -82,6 +82,11 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'EVENT_PRIZE_WON',
   // v1.101-social (D325): an event for the person's audience started (target the event).
   'EVENT_STARTED',
+  // v1.140-social (D390): «برنامج سفراء Kabso» — the application decided, a level up, a monthly reward (no target).
+  'AMBASSADOR_APPLICATION_APPROVED',
+  'AMBASSADOR_APPLICATION_REJECTED',
+  'AMBASSADOR_LEVEL_UP',
+  'AMBASSADOR_REWARD_GRANTED',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -241,7 +246,12 @@ export class Notifier {
         | 'REFERRAL_REWARD_REVERSED'
         | 'KYC_APPROVED'
         | 'KYC_DECLINED'
-        | 'KYC_IN_REVIEW';
+        | 'KYC_IN_REVIEW'
+        // v1.140-social (D390, §10.179.9): the ambassadors programme (no target; the app opens the programme).
+        | 'AMBASSADOR_APPLICATION_APPROVED'
+        | 'AMBASSADOR_APPLICATION_REJECTED'
+        | 'AMBASSADOR_LEVEL_UP'
+        | 'AMBASSADOR_REWARD_GRANTED';
       recipientId: string;
     } & NotificationTargetRef,
   ): Promise<void> {

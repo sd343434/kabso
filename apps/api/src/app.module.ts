@@ -60,6 +60,7 @@ import { CpSpaceModule } from './modules/cp-space/cp-space.module.js';
 import { HomeModule } from './modules/home/home.module.js';
 import { HostApplicationsModule } from './modules/host-applications/host-applications.module.js';
 import { ReferralsModule } from './modules/referrals/referrals.module.js';
+import { AmbassadorsModule } from './modules/ambassadors/ambassadors.controller.js';
 import { RecruitsModule } from './modules/recruits/recruits.controller.js';
 import { LevelRaiseModule } from './modules/level-raise/level-raise.controller.js';
 import { OwnerProfileModule } from './modules/owner-profile/owner-profile.controller.js';
@@ -147,6 +148,8 @@ export class AppModule {
         HostApplicationsModule,
         // v1.74-social (D217): «دعوة الأصدقاء».
         ReferralsModule,
+        // v1.140-social (D390, §10.179): «برنامج سفراء Kabso».
+        AmbassadorsModule,
         RecruitsModule,
         // v1.89-social (D290, §10.103): level-raise requests «طلب رفع ليفيل».
         LevelRaiseModule,

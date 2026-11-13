@@ -67,7 +67,9 @@ export type WalletLedgerReason =
    * given back on delivery (then charged as its DM_GIFT), cancellation or failure (reference: the same row).
    */
   | 'VIP_SCHEDULED_GIFT'
-  | 'VIP_SCHEDULED_GIFT_RELEASE';
+  | 'VIP_SCHEDULED_GIFT_RELEASE'
+  /** v1.140-social (D390, §10.179.6): an ambassador's monthly target reward in coins (reference `AMB:<user>@<month>`). */
+  | 'AMBASSADOR_REWARD';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

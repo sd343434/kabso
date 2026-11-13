@@ -232,6 +232,17 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: { in: ['HOST_APPLICATION_APPROVED', 'HOST_APPLICATION_REJECTED'] } },
       // v1.74-social (D217): the team voided a referral and took its credited cherries back (system, no target).
       { type: 'REFERRAL_REWARD_REVERSED' },
+      // v1.140-social (D390): «برنامج سفراء Kabso» — the application decided, a level up, a monthly reward (system).
+      {
+        type: {
+          in: [
+            'AMBASSADOR_APPLICATION_APPROVED',
+            'AMBASSADOR_APPLICATION_REJECTED',
+            'AMBASSADOR_LEVEL_UP',
+            'AMBASSADOR_REWARD_GRANTED',
+          ],
+        },
+      },
       // v1.60-live (D250): the team acted on the caller's live from the panel (system; the action is the target).
       { type: 'LIVE_MODERATED', liveModerationId: { not: null } },
       // v1.68-live (D273): a report on a live the caller looks after as «فريق كابسو» (system; the live is the target).

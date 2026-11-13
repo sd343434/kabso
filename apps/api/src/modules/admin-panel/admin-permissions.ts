@@ -259,6 +259,20 @@ export const CAPABILITIES = {
    * (`whatsappCapabilitiesOf`): these role lists are only the default when no level is set for the person.
    */
   'support.whatsapp.view': ['OWNER', 'MODERATION', 'SUPPORT'],
+  // ---- v1.140-social (D390, CONVENTIONS §10.179.8): «برنامج سفراء Kabso» -------------------------------------------
+  /**
+   * The ambassadors, the applications, each ambassador's performance (counts and level, no money totals — those are
+   * the OWNER's), the flags and the campaigns (read). SUPPORT decides applications as for the creator programme
+   * (D285); with D387, TALENT and COMMUNITY are added here.
+   */
+  'ambassadors.view': ['OWNER', 'SUPPORT'],
+  /** Approve / reject an application, appoint an ambassador directly, create and edit campaigns. */
+  'ambassadors.manage': ['OWNER', 'SUPPORT'],
+  /**
+   * Money and payouts — OWNER only: the settings (switch, every number, the levels; the code again), freeze / unfreeze
+   * an ambassador's pending rewards, clear a review flag, and the money totals on every ambassador screen.
+   */
+  'ambassadors.settings': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

@@ -120,7 +120,13 @@ export const CHERRY_LINES: Readonly<
     'PARENT_COMMISSION_REVERSAL',
     'AGENCY_FORFEIT',
   ],
-  REFERRAL_REWARDS: ['REFERRAL_REWARD', 'REFERRAL_REVERSAL'],
+  // v1.140-social (D390, §10.179.10): the ambassadors' commissions are referral costs too (net of their claw-backs).
+  REFERRAL_REWARDS: [
+    'REFERRAL_REWARD',
+    'REFERRAL_REVERSAL',
+    'AMBASSADOR_COMMISSION',
+    'AMBASSADOR_COMMISSION_REVERSAL',
+  ],
   TASK_REWARDS: ['TASK_REWARD', 'HOST_TARGET_REWARD'],
   STAFF_COMMISSIONS: ['STAFF_RECRUIT_COMMISSION'],
   TEAM_ADJUSTMENTS: ['ADMIN_ADJUSTMENT'],
@@ -133,7 +139,13 @@ export const CHERRY_COST_REASONS: readonly string[] = Object.values(CHERRY_LINES
  * COIN_REWARDS: the coins Kabso gives away (event prizes, task and check-in coins), valued conservatively at the lowest
  * price an agent pays Kabso (owner: $120 per 10 000 000 coins, `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION`).
  */
-export const FREE_COIN_REASONS = ['EVENT_PRIZE', 'TASK_REWARD', 'CHECK_IN_REWARD'] as const;
+export const FREE_COIN_REASONS = [
+  'EVENT_PRIZE',
+  'TASK_REWARD',
+  'CHECK_IN_REWARD',
+  // v1.140-social (D390, §10.179.10): an ambassador's monthly target reward in coins.
+  'AMBASSADOR_REWARD',
+] as const;
 
 /**
  * v1.100-social (D312, CONVENTIONS §10.118; owner: «وتُحسب كتكلفة في الربح»): the custom gift owners' coin shares are coins

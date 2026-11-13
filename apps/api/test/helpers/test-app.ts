@@ -255,6 +255,7 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS: '0',
     // v1.74-social (D217): the referral sweeper runs only when a test calls it.
     REFERRAL_SWEEP_INTERVAL_SECONDS: '0',
+    AMBASSADOR_SWEEP_INTERVAL_SECONDS: '0',
     RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS: '0',
     VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS: '0',
     // D300: the content-creator medals' sweeper runs only when a test calls it.

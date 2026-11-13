@@ -1518,7 +1518,7 @@ async function lockVipUser(tx: Tx, userId: string): Promise<void> {
  * by `days`; a higher tier held — that membership is extended by `days` (a prize never lowers a tier); a lower tier held
  * — the prize tier from now for `days` (as an upgrade). Returns the new end, or null when the tier is gone.
  */
-async function grantVipIn(tx: Tx, userId: string, tierCode: string, days: number, now: Date) {
+export async function grantVipIn(tx: Tx, userId: string, tierCode: string, days: number, now: Date) {
   const tier = await tx.vipTier.findUnique({ where: { code: tierCode } });
   if (!tier) return null;
   await lockVipUser(tx, userId);
