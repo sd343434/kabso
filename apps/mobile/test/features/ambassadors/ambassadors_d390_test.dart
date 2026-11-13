@@ -11,6 +11,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/ambassadors/data/ambassador_repository.dart';
 import 'package:kabso_live/features/ambassadors/presentation/ambassador_badge.dart';
 import 'package:kabso_live/features/ambassadors/presentation/ambassador_dashboard_screen.dart';
+import 'package:kabso_live/features/ambassadors/presentation/ambassador_entry_card.dart';
 import 'package:kabso_live/features/ambassadors/presentation/ambassador_programme_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/notifications/domain/notification_models.dart';
@@ -223,6 +224,32 @@ void main() {
     );
     expect(find.bySemanticsLabel('Kabso ambassador · Diamond'), findsOne);
     handle.dispose();
+  });
+
+  testWidgets('the invite page entry shows only while the programme is on', (
+    tester,
+  ) async {
+    for (final (enabled, shown) in [(false, false), (true, true)]) {
+      await pumpScreen(
+        tester,
+        const AmbassadorEntryCard(),
+        overrides: [
+          ambassadorRepositoryProvider.overrideWithValue(
+            FakeAmbassadorRepository(
+              programme: ambassadorProgramme(
+                enabled: enabled,
+                refusal: enabled ? null : 'DISABLED',
+              ),
+            ),
+          ),
+        ],
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(AmbassadorEntryCard.cardKey),
+        shown ? findsOne : findsNothing,
+      );
+    }
   });
 
   test('the four notifications are system notifications of the programme', () {

@@ -85,6 +85,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.dmNotArchivable: 409,
   ErrorCode.dmGroupFull: 409,
   ErrorCode.dmPinLimit: 409,
+  // v1.140-social (D390).
+  ErrorCode.ambassadorApplicationNotAllowed: 409,
   ErrorCode.dmGroupMemberNotAllowed: 403,
   ErrorCode.quipFreeUsed: 409,
   ErrorCode.quipQueueFull: 409,
@@ -288,6 +290,8 @@ void main() {
           'DM_NOT_ARCHIVABLE',
           'DM_GROUP_FULL',
           'DM_PIN_LIMIT',
+          // v1.140-social (D390)
+          'AMBASSADOR_APPLICATION_NOT_ALLOWED',
           'DM_GROUP_MEMBER_NOT_ALLOWED',
           'QUIP_FREE_USED',
           'QUIP_QUEUE_FULL',

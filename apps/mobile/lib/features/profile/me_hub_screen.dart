@@ -109,10 +109,7 @@ enum MeHubItem {
   medals,
   ranking,
   relationship,
-  premium,
-
-  /// v1.140-social (D390): «سفراء Kabso» — only while the programme is on.
-  ambassadors;
+  premium;
 
   Key get key => Key('meHub.item.$name');
 }
@@ -134,6 +131,9 @@ class MeHubScreen extends ConsumerWidget {
   const new({super.key});
 
   static const settingsKey = Key('meHub.settings');
+
+  /// v1.140-social (D390): «سفراء Kabso» (only while the programme is on).
+  static const ambassadorsKey = Key('meHub.ambassadors');
 
   /// D168 (owner): the profile page (posts, reels, reposts, saved) opens
   /// from this icon beside Settings; the «المنشورات» row is gone.
@@ -532,7 +532,7 @@ class MeHubScreen extends ConsumerWidget {
               if (ref.watch(ambassadorProgrammeProvider).value case final a?
                   when a.enabled || a.isAmbassador)
                 _HubRow(
-                  item: MeHubItem.ambassadors,
+                  rowKey: MeHubScreen.ambassadorsKey,
                   icon: Icons.public_rounded,
                   hue: _Hues.blue,
                   title: l10n.meHubAmbassadors,
