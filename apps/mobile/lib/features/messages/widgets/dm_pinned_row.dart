@@ -9,6 +9,7 @@ import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart' show ChatPeer;
 import 'package:kabso_live/features/messages/domain/dm_models.dart';
@@ -45,16 +46,17 @@ abstract final class KDmPins {
 }
 
 /// D385: the horizontal row of round pictures between «الرسائل» and the
-/// chats: «دعم كابسو» always first (fixed — it cannot be unpinned, deleted
-/// or blocked), then up to five chats the person pinned, first pinned
-/// first. Scrolls sideways when it does not fit. A pinned chat stays in the
-/// list below too (the row is a shortcut).
+/// chats: «دعم كابسو» always first for the members (fixed — it cannot be
+/// unpinned, deleted or blocked), then up to five chats the person pinned,
+/// first pinned first. Scrolls sideways when it does not fit. A pinned chat
+/// stays in the list below too (the row is a shortcut).
 ///
 /// Owner (2026-11-13: «انقل رسائل واتساب داخل تطبيق الى رسائل لتكون اسهل
-/// للوصول»): for the staff who answer the official number
-/// ([waEntryProvider]), «واتساب» comes right after «دعم كابسو», with the
-/// conversations waiting for them on its badge; it opens the inbox. Fixed
-/// like «دعم كابسو» (no long press) and not counted in the five pins.
+/// للوصول», then «موظف ليس لديه رسائل دعم فقط في الاعلى مثبت رقم واتساب»):
+/// a Kabso Team account (the founder, the staff) has no «دعم كابسو»
+/// circle; for those who answer the official number ([waEntryProvider]),
+/// «واتساب» comes first, with the conversations waiting for them on its
+/// badge, and opens the inbox. Fixed (no long press), not one of the five.
 class DmPinnedRow extends ConsumerWidget {
   const new({super.key});
 
@@ -69,9 +71,12 @@ class DmPinnedRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final support = ref.watch(supportThreadProvider);
     final pins = ref.watch(dmPinsProvider);
+    // Owner (2026-11-13: «موظف ليس لديه رسائل دعم فقط في الاعلى مثبت رقم
+    // واتساب»): a Kabso Team account (the founder and the staff) answers the
+    // support instead of writing to it — no «دعم كابسو» circle; «واتساب»
+    // is first.
+    final team = ref.watch(currentUserProvider)?.kabsoTeam ?? false;
     // The start of the first circle lines up with the title above it.
     const start = KDmListInsets.start - (KDmPins.slot - KDmPins.circle) / 2;
     return Padding(
@@ -83,18 +88,7 @@ class DmPinnedRow extends ConsumerWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _PinCircle(
-              key: supportKey,
-              label: l10n.supportChatName,
-              semantics: support.unreadCount > 0
-                  ? l10n.supportUnread(support.unreadCount)
-                  : l10n.supportChatName,
-              unread: support.unreadCount,
-              badgeKey: supportBadgeKey,
-              ring: _Ring.team,
-              picture: const KabsoTeamPicture(size: KDmPins.circle),
-              onTap: () => context.push(AppRoutes.supportChat),
-            ),
+            if (!team) const _SupportPin(),
             if (ref.watch(waEntryProvider)) const _WhatsAppPin(),
             for (final pin in pins.data) _pinned(context, ref, pin),
           ],
@@ -148,6 +142,30 @@ class DmPinnedRow extends ConsumerWidget {
               ) as ChatPeer,
             ),
       onLongPress: () => unawaited(_unpinSheet(context, ref, chat, name)),
+    );
+  }
+}
+
+/// «دعم كابسو» (D385): the person's thread with the Kabso team, always
+/// first for the members (not shown to a Kabso Team account).
+class _SupportPin extends ConsumerWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final support = ref.watch(supportThreadProvider);
+    return _PinCircle(
+      key: DmPinnedRow.supportKey,
+      label: l10n.supportChatName,
+      semantics: support.unreadCount > 0
+          ? l10n.supportUnread(support.unreadCount)
+          : l10n.supportChatName,
+      unread: support.unreadCount,
+      badgeKey: DmPinnedRow.supportBadgeKey,
+      ring: _Ring.team,
+      picture: const KabsoTeamPicture(size: KDmPins.circle),
+      onTap: () => context.push(AppRoutes.supportChat),
     );
   }
 }

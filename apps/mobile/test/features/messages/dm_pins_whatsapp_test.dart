@@ -1,9 +1,11 @@
 // Owner (2026-11-13: «انقل رسائل واتساب داخل تطبيق الى رسائل لتكون اسهل
 // للوصول»): «واتساب» moved from a Me tab row to «الرسائل» — a pinned circle
-// right after «دعم كابسو» for the staff who answer the official number
+// first in the row for the staff who answer the official number
 // (`waEntryProvider`: the founder; a staff member by their WhatsApp level,
 // the D355 roles while it is unknown), with the conversations waiting for
-// them on its badge; it opens the inbox. Nobody else sees it, and it hides
+// them on its badge; it opens the inbox. A Kabso Team account has no «دعم
+// كابسو» circle (owner: «موظف ليس لديه رسائل دعم فقط في الاعلى مثبت رقم
+// واتساب»). Nobody else sees «واتساب», and it hides
 // while the server says the inbox serves nothing. No overflow at 360 wide,
 // text ×1.3, Arabic.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -153,30 +155,33 @@ Future<void> _end(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('a support agent: «واتساب» after «دعم كابسو», with its badge, '
-      'opens the inbox', (tester) async {
-    await _pump(tester, user: _staff(StaffLineRole.support));
-    expect(_circles(tester), ['support', 'whatsapp']);
-    // FakeWaRepository's summary: 3 conversations waiting.
-    expect(
-      find.descendant(
-        of: find.byKey(DmPinnedRow.whatsAppBadgeKey),
-        matching: find.text('3'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(DmPinnedRow.whatsAppKey),
-        matching: find.text('WhatsApp'),
-      ),
-      findsOneWidget,
-    );
-    await tester.tap(find.byKey(DmPinnedRow.whatsAppKey));
-    await tester.pumpAndSettle();
-    expect(_visited, [AppRoutes.staffWhatsApp]);
-    await _end(tester);
-  });
+  testWidgets(
+    'a support agent: «واتساب» alone at the top (no «دعم كابسو»), its badge, '
+    'opens the inbox',
+    (tester) async {
+      await _pump(tester, user: _staff(StaffLineRole.support));
+      expect(_circles(tester), ['whatsapp']);
+      // FakeWaRepository's summary: 3 conversations waiting.
+      expect(
+        find.descendant(
+          of: find.byKey(DmPinnedRow.whatsAppBadgeKey),
+          matching: find.text('3'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(DmPinnedRow.whatsAppKey),
+          matching: find.text('WhatsApp'),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(DmPinnedRow.whatsAppKey));
+      await tester.pumpAndSettle();
+      expect(_visited, [AppRoutes.staffWhatsApp]);
+      await _end(tester);
+    },
+  );
 
   testWidgets('read-only (VIEW) staff see it too', (tester) async {
     await _pump(
@@ -194,7 +199,7 @@ void main() {
       user: testUser().copyWith(kabsoTeam: true),
       founder: true,
     );
-    expect(_circles(tester), ['support', 'whatsapp']);
+    expect(_circles(tester), ['whatsapp']);
     await _end(tester);
   });
 
@@ -211,6 +216,7 @@ void main() {
       capabilities: const [],
     );
     expect(find.byKey(DmPinnedRow.whatsAppKey), findsNothing);
+    expect(find.byKey(DmPinnedRow.supportKey), findsNothing);
     await _end(tester);
 
     await _pump(
@@ -241,7 +247,7 @@ void main() {
     await _end(tester);
   });
 
-  testWidgets('Arabic, 360 wide, text ×1.3: «واتساب» after «دعم كابسو», no '
+  testWidgets('Arabic, 360 wide, text ×1.3: «واتساب» first, no '
       'overflow', (tester) async {
     await _pump(
       tester,
@@ -250,7 +256,7 @@ void main() {
       size: const Size(360, 800),
       textScale: 1.3,
     );
-    expect(_circles(tester), ['support', 'whatsapp']);
+    expect(_circles(tester), ['whatsapp']);
     expect(
       find.descendant(
         of: find.byKey(DmPinnedRow.whatsAppKey),
