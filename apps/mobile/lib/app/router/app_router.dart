@@ -13,6 +13,8 @@ import 'package:kabso_live/features/agency/data/agency_repository.dart'
 import 'package:kabso_live/features/agency/presentation/agency_open_screen.dart';
 import 'package:kabso_live/features/agency/presentation/agency_screen.dart';
 import 'package:kabso_live/features/agency/presentation/host_apply_screen.dart';
+import 'package:kabso_live/features/ambassadors/presentation/ambassador_dashboard_screen.dart';
+import 'package:kabso_live/features/ambassadors/presentation/ambassador_programme_screen.dart';
 import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
@@ -634,6 +636,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.creatorApply,
         builder: (_, _) => const CreatorApplyScreen(),
+      ),
+      // v1.140-social (D390): «برنامج سفراء Kabso».
+      GoRoute(
+        path: AppRoutes.ambassadors,
+        builder: (_, _) => const AmbassadorProgrammeScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.ambassadorDashboard,
+        builder: (_, _) => const AmbassadorDashboardScreen(),
       ),
       GoRoute(
         path: AppRoutes.staffUnavailable,

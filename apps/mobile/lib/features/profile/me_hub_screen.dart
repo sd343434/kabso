@@ -11,6 +11,7 @@ import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/ambassadors/data/ambassador_repository.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
@@ -108,7 +109,10 @@ enum MeHubItem {
   medals,
   ranking,
   relationship,
-  premium;
+  premium,
+
+  /// v1.140-social (D390): «سفراء Kabso» — only while the programme is on.
+  ambassadors;
 
   Key get key => Key('meHub.item.$name');
 }
@@ -523,6 +527,21 @@ class MeHubScreen extends ConsumerWidget {
                       : AppRoutes.inviteFriends,
                 ),
               ),
+              // D390: «برنامج سفراء Kabso», only while the programme is on
+              // (or for an ambassador); nothing changes before that.
+              if (ref.watch(ambassadorProgrammeProvider).value case final a?
+                  when a.enabled || a.isAmbassador)
+                _HubRow(
+                  item: MeHubItem.ambassadors,
+                  icon: Icons.public_rounded,
+                  hue: _Hues.blue,
+                  title: l10n.meHubAmbassadors,
+                  onTap: () => push(
+                    a.isAmbassador
+                        ? AppRoutes.ambassadorDashboard
+                        : AppRoutes.ambassadors,
+                  ),
+                ),
               _HubRow(
                 item: MeHubItem.taskCenter,
                 icon: Icons.task_alt_rounded,

@@ -84,6 +84,11 @@ abstract final class AppRoutes {
   /// v1.75-live (D285): «انضم كصانع محتوى» (from the creator centre).
   static const creatorApply = '/creator/apply';
 
+  /// v1.140-social (D390): «برنامج سفراء Kabso» — the explanation and the
+  /// application, and the ambassador's dashboard.
+  static const ambassadors = '/ambassadors';
+  static const ambassadorDashboard = '/ambassadors/me';
+
   /// v1.72-live (D283, §10.96.10): the pages a Kabso Team account (MODERATION
   /// / SUPPORT / FINANCE, not OWNER) cannot use: going live and announcing a
   /// live, levels, VIP, family, store, wallet / recharge, bag, agency,
@@ -103,6 +108,9 @@ abstract final class AppRoutes {
       premium,
       wallet,
       inviteFriends,
+      // D390: Kabso Team accounts are never ambassadors.
+      ambassadors,
+      ambassadorDashboard,
       creatorCenter,
       agency,
       recharge,

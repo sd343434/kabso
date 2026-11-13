@@ -18911,4 +18911,321 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get waInAppHint =>
       'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.';
+
+  @override
+  String get ambProgrammeTitle => 'برنامج سفراء Kabso';
+
+  @override
+  String get ambProgrammeEntry => 'كن سفيراً لـ Kabso';
+
+  @override
+  String get ambProgrammeEntryHint =>
+      'مثّل Kabso في منطقتك واربح عمولة على شحن أصدقائك النشطين';
+
+  @override
+  String get ambHeroTitle =>
+      'سفير Kabso ليس مجرد ناشر إعلانات، بل ممثل Kabso في منطقته';
+
+  @override
+  String get ambWhatYouDo => 'ماذا يفعل السفير';
+
+  @override
+  String get ambDo1 => 'يجلب مستخدمين جدداً عبر رمزه ورابطه الشخصي';
+
+  @override
+  String get ambDo2 => 'ينشر محتوى ترويجياً على وسائل التواصل';
+
+  @override
+  String get ambDo3 => 'يعرّف بـ Kabso في بلده';
+
+  @override
+  String get ambDo4 => 'ينظّم حملات وفعاليات ومسابقات بالتنسيق مع الإدارة';
+
+  @override
+  String get ambWhatYouGet => 'ماذا يحصل عليه';
+
+  @override
+  String get ambGet1 => 'عمولة على الشحن المؤهل لأصدقائه النشطين';
+
+  @override
+  String get ambGet2 =>
+      'مكافآت شهرية عند تحقيق الأهداف: كوينز أو أيام VIP أو عناصر';
+
+  @override
+  String get ambGet3 => 'شارة السفير الحصرية';
+
+  @override
+  String get ambGet4 => 'مستويات بمكافآت متصاعدة';
+
+  @override
+  String get ambLevelsTitle => 'المستويات';
+
+  @override
+  String ambLevelName(String code) {
+    String _temp0 = intl.Intl.selectLogic(code, {
+      'BRONZE': 'برونزي',
+      'SILVER': 'فضي',
+      'GOLD': 'ذهبي',
+      'DIAMOND': 'ماسي',
+      'other': '$code',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ambLevelRequirement(String active, String coins) {
+    return 'إحالات نشطة: $active · شحن: $coins كوينز شهرياً';
+  }
+
+  @override
+  String ambLevelCommission(String pct) {
+    return 'عمولة $pct';
+  }
+
+  @override
+  String get ambRewardNone => 'بلا مكافأة شهرية';
+
+  @override
+  String ambRewardCoins(String amount) {
+    return 'مكافأة: $amount كوينز';
+  }
+
+  @override
+  String ambRewardVip(String tier, String days) {
+    return 'مكافأة: $tier · أيام: $days';
+  }
+
+  @override
+  String ambRewardItem(String days) {
+    return 'مكافأة: عنصر حقيبة · أيام: $days';
+  }
+
+  @override
+  String get ambRulesTitle => 'القواعد';
+
+  @override
+  String ambRuleWindow(String days) {
+    return 'نافذة الإسناد بعد تسجيل الصديق (أيام): $days';
+  }
+
+  @override
+  String ambRuleHold(String days) {
+    return 'مدة الحجز قبل الدفع (أيام): $days';
+  }
+
+  @override
+  String ambRuleActive(String days, String coins) {
+    return 'الصديق النشط — عمر الحساب بالأيام: $days · الشحن بالكوينز: $coins';
+  }
+
+  @override
+  String get ambRuleFraud =>
+      'الإحالات الوهمية والدفع من حسابك والاسترجاع تلغي العمولة';
+
+  @override
+  String get ambRuleTrack =>
+      'صديق يسجّل برمزك يُحتسب في برنامج السفراء بدلاً من مكافأة «دعوة الأصدقاء»';
+
+  @override
+  String get ambFormTitle => 'طلب الانضمام';
+
+  @override
+  String get ambCountry => 'البلد';
+
+  @override
+  String get ambCountryError => 'اختر بلدك';
+
+  @override
+  String get ambLinks => 'روابط حساباتك على التواصل الاجتماعي';
+
+  @override
+  String get ambAddLink => 'إضافة رابط';
+
+  @override
+  String get ambLinkError => 'أدخل رابطاً يبدأ بـ https://';
+
+  @override
+  String get ambAudience => 'حجم جمهورك (عدد المتابعين)';
+
+  @override
+  String get ambAudienceError => 'أدخل رقماً';
+
+  @override
+  String get ambMotivation => 'لماذا تريد أن تكون سفيراً؟';
+
+  @override
+  String get ambMotivationError => 'اكتب سبباً قصيراً';
+
+  @override
+  String get ambSubmit => 'إرسال الطلب';
+
+  @override
+  String get ambSent => 'تم إرسال طلبك';
+
+  @override
+  String get ambStatusPending => 'طلبك قيد المراجعة من الإدارة';
+
+  @override
+  String ambStatusRejected(String reason) {
+    return 'لم تتم الموافقة على طلبك: $reason. يمكنك التقديم مرة أخرى.';
+  }
+
+  @override
+  String get ambStatusStaff =>
+      'حسابات فريق كابسو لا يمكنها الانضمام إلى برنامج السفراء';
+
+  @override
+  String get ambStatusNotActive => 'حسابك غير متاح للتقديم حالياً';
+
+  @override
+  String get ambSoon => 'البرنامج قريباً — ستتمكن من التقديم عند إطلاقه';
+
+  @override
+  String get ambYouAreAmbassador => 'أنت سفير Kabso';
+
+  @override
+  String get ambOpenDashboard => 'لوحة السفير';
+
+  @override
+  String get ambDashTitle => 'لوحة السفير';
+
+  @override
+  String get ambYourCode => 'رمزك ورابطك';
+
+  @override
+  String get ambCopy => 'نسخ';
+
+  @override
+  String get ambCopied => 'تم النسخ';
+
+  @override
+  String get ambShare => 'مشاركة';
+
+  @override
+  String ambShareText(String code, String link) {
+    return 'انضم إلى Kabso Live برمزي $code: $link';
+  }
+
+  @override
+  String ambCommissionRate(String pct) {
+    return 'عمولتك $pct من الشحن المؤهل';
+  }
+
+  @override
+  String ambNextLevel(String level) {
+    return 'للوصول إلى $level هذا الشهر';
+  }
+
+  @override
+  String ambNeedActive(String n) {
+    return 'إحالات نشطة متبقية: $n';
+  }
+
+  @override
+  String ambNeedCoins(String n) {
+    return 'شحن متبقٍ بالكوينز: $n';
+  }
+
+  @override
+  String get ambTopLevel => 'أنت في أعلى مستوى';
+
+  @override
+  String get ambThisMonth => 'أهداف هذا الشهر';
+
+  @override
+  String get ambActiveReferrals => 'إحالات نشطة';
+
+  @override
+  String get ambQualifiedTopups => 'شحن مؤهل (كوينز)';
+
+  @override
+  String get ambReferrals => 'إحالاتك';
+
+  @override
+  String get ambTotal => 'الكل';
+
+  @override
+  String get ambActive => 'نشطة';
+
+  @override
+  String get ambPendingRefs => 'بانتظار النشاط';
+
+  @override
+  String get ambCommissions => 'العمولات (كرز)';
+
+  @override
+  String get ambPending => 'قيد الحجز';
+
+  @override
+  String get ambHeld => 'معلّقة';
+
+  @override
+  String get ambPaid => 'مدفوعة';
+
+  @override
+  String get ambReversed => 'مسترجعة';
+
+  @override
+  String get ambPayoutsHeld => 'مدفوعاتك معلّقة مؤقتاً لمراجعة الإدارة';
+
+  @override
+  String get ambOff => 'البرنامج متوقف مؤقتاً — تُحفظ عمولاتك حتى يعود';
+
+  @override
+  String get ambHistory => 'السجل الشهري';
+
+  @override
+  String get ambRecent => 'آخر العمولات';
+
+  @override
+  String get ambNoHistory => 'لا شيء بعد';
+
+  @override
+  String ambCommissionStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'PENDING': 'قيد الحجز',
+      'CREDITED': 'مدفوعة',
+      'VOID': 'ملغاة',
+      'REVERSED': 'مسترجعة',
+      'other': '$status',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ambRewardStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'GRANTED': 'مُنحت المكافأة',
+      'HELD': 'المكافأة معلّقة',
+      'other': 'بلا مكافأة',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ambBadgeLabel(String level) {
+    return 'سفير Kabso · $level';
+  }
+
+  @override
+  String get meHubAmbassadors => 'سفراء Kabso';
+
+  @override
+  String get notifAmbassadorApproved =>
+      'تمت الموافقة على طلبك: أصبحت سفيراً لـ Kabso Live';
+
+  @override
+  String get notifAmbassadorRejected =>
+      'لم تتم الموافقة على طلبك في برنامج سفراء Kabso. افتح البرنامج لمعرفة السبب';
+
+  @override
+  String get notifAmbassadorLevelUp => 'ارتفع مستواك في برنامج سفراء Kabso';
+
+  @override
+  String get notifAmbassadorReward =>
+      'حققت أهداف الشهر وحصلت على مكافأة السفير';
+
+  @override
+  String get errorAmbassadorApplicationNotAllowed =>
+      'لا يمكنك التقديم إلى برنامج السفراء الآن';
 }

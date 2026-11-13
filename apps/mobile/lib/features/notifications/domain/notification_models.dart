@@ -146,6 +146,13 @@ enum NotificationType {
   /// v1.127-social (D372; actor the sender(s), target POST): someone sent a
   /// gift on your post or reel «هدية الدعم» — one row per post.
   contentGiftReceived('CONTENT_GIFT_RECEIVED'),
+
+  /// v1.140-social (D390, system, no target): «برنامج سفراء Kabso» — the
+  /// application approved / rejected, a level up, a monthly reward granted.
+  ambassadorApplicationApproved('AMBASSADOR_APPLICATION_APPROVED'),
+  ambassadorApplicationRejected('AMBASSADOR_APPLICATION_REJECTED'),
+  ambassadorLevelUp('AMBASSADOR_LEVEL_UP'),
+  ambassadorRewardGranted('AMBASSADOR_REWARD_GRANTED'),
   unknown('');
 
   new(this.wire);
@@ -178,7 +185,15 @@ enum NotificationType {
       isLevelRaise ||
       this == ownerFeedbackNew ||
       this == ownerAnnouncement ||
-      this == referralRewardReversed;
+      this == referralRewardReversed ||
+      isAmbassador;
+
+  /// v1.140-social (D390): the ambassadors programme.
+  bool get isAmbassador =>
+      this == ambassadorApplicationApproved ||
+      this == ambassadorApplicationRejected ||
+      this == ambassadorLevelUp ||
+      this == ambassadorRewardGranted;
 
   /// v1.89-social (D290): a level-raise request's result.
   bool get isLevelRaise =>

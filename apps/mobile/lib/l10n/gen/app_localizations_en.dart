@@ -18906,4 +18906,327 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get waInAppHint =>
       'A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text or a picture.';
+
+  @override
+  String get ambProgrammeTitle => 'Kabso Ambassadors Program';
+
+  @override
+  String get ambProgrammeEntry => 'Become a Kabso ambassador';
+
+  @override
+  String get ambProgrammeEntryHint =>
+      'Represent Kabso in your region and earn a commission on your active friends\' top-ups';
+
+  @override
+  String get ambHeroTitle =>
+      'A Kabso ambassador is not just someone who posts ads, but Kabso\'s representative in their region';
+
+  @override
+  String get ambWhatYouDo => 'What an ambassador does';
+
+  @override
+  String get ambDo1 => 'Brings new users with a personal code and link';
+
+  @override
+  String get ambDo2 => 'Posts promotional content on social media';
+
+  @override
+  String get ambDo3 => 'Introduces Kabso in their country';
+
+  @override
+  String get ambDo4 =>
+      'Runs campaigns, events and contests with the management';
+
+  @override
+  String get ambWhatYouGet => 'What an ambassador gets';
+
+  @override
+  String get ambGet1 =>
+      'A commission on the qualifying top-ups of active friends';
+
+  @override
+  String get ambGet2 =>
+      'Monthly rewards for reaching targets: coins, VIP days or items';
+
+  @override
+  String get ambGet3 => 'The exclusive ambassador badge';
+
+  @override
+  String get ambGet4 => 'Levels with growing rewards';
+
+  @override
+  String get ambLevelsTitle => 'Levels';
+
+  @override
+  String ambLevelName(String code) {
+    String _temp0 = intl.Intl.selectLogic(code, {
+      'BRONZE': 'Bronze',
+      'SILVER': 'Silver',
+      'GOLD': 'Gold',
+      'DIAMOND': 'Diamond',
+      'other': '$code',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ambLevelRequirement(String active, String coins) {
+    return 'Active referrals: $active · top-ups: $coins coins a month';
+  }
+
+  @override
+  String ambLevelCommission(String pct) {
+    return '$pct commission';
+  }
+
+  @override
+  String get ambRewardNone => 'No monthly reward';
+
+  @override
+  String ambRewardCoins(String amount) {
+    return 'Reward: $amount coins';
+  }
+
+  @override
+  String ambRewardVip(String tier, String days) {
+    return 'Reward: $tier · days: $days';
+  }
+
+  @override
+  String ambRewardItem(String days) {
+    return 'Reward: a bag item · days: $days';
+  }
+
+  @override
+  String get ambRulesTitle => 'Rules';
+
+  @override
+  String ambRuleWindow(String days) {
+    return 'Attribution window after the friend signs up (days): $days';
+  }
+
+  @override
+  String ambRuleHold(String days) {
+    return 'Hold before payout (days): $days';
+  }
+
+  @override
+  String ambRuleActive(String days, String coins) {
+    return 'An active friend — account age in days: $days · top-ups in coins: $coins';
+  }
+
+  @override
+  String get ambRuleFraud =>
+      'Fake referrals, paying with your own account and refunds cancel the commission';
+
+  @override
+  String get ambRuleTrack =>
+      'A friend who signs up with your code counts in the ambassadors programme instead of the «Invite friends» reward';
+
+  @override
+  String get ambFormTitle => 'Apply';
+
+  @override
+  String get ambCountry => 'Country';
+
+  @override
+  String get ambCountryError => 'Choose your country';
+
+  @override
+  String get ambLinks => 'Links to your social accounts';
+
+  @override
+  String get ambAddLink => 'Add a link';
+
+  @override
+  String get ambLinkError => 'Enter a link that starts with https://';
+
+  @override
+  String get ambAudience => 'Your audience (followers)';
+
+  @override
+  String get ambAudienceError => 'Enter a number';
+
+  @override
+  String get ambMotivation => 'Why do you want to be an ambassador?';
+
+  @override
+  String get ambMotivationError => 'Write a short reason';
+
+  @override
+  String get ambSubmit => 'Send the application';
+
+  @override
+  String get ambSent => 'Your application was sent';
+
+  @override
+  String get ambStatusPending =>
+      'Your application is being reviewed by the management';
+
+  @override
+  String ambStatusRejected(String reason) {
+    return 'Your application was not approved: $reason. You can apply again.';
+  }
+
+  @override
+  String get ambStatusStaff =>
+      'Kabso Team accounts cannot join the ambassadors programme';
+
+  @override
+  String get ambStatusNotActive => 'Your account cannot apply right now';
+
+  @override
+  String get ambSoon => 'Coming soon — you can apply once it launches';
+
+  @override
+  String get ambYouAreAmbassador => 'You are a Kabso ambassador';
+
+  @override
+  String get ambOpenDashboard => 'Ambassador dashboard';
+
+  @override
+  String get ambDashTitle => 'Ambassador dashboard';
+
+  @override
+  String get ambYourCode => 'Your code and link';
+
+  @override
+  String get ambCopy => 'Copy';
+
+  @override
+  String get ambCopied => 'Copied';
+
+  @override
+  String get ambShare => 'Share';
+
+  @override
+  String ambShareText(String code, String link) {
+    return 'Join Kabso Live with my code $code: $link';
+  }
+
+  @override
+  String ambCommissionRate(String pct) {
+    return 'Your commission: $pct of qualifying top-ups';
+  }
+
+  @override
+  String ambNextLevel(String level) {
+    return 'To reach $level this month';
+  }
+
+  @override
+  String ambNeedActive(String n) {
+    return 'Active referrals to go: $n';
+  }
+
+  @override
+  String ambNeedCoins(String n) {
+    return 'Top-ups to go (coins): $n';
+  }
+
+  @override
+  String get ambTopLevel => 'You are at the top level';
+
+  @override
+  String get ambThisMonth => 'This month\'s targets';
+
+  @override
+  String get ambActiveReferrals => 'Active referrals';
+
+  @override
+  String get ambQualifiedTopups => 'Qualifying top-ups (coins)';
+
+  @override
+  String get ambReferrals => 'Your referrals';
+
+  @override
+  String get ambTotal => 'All';
+
+  @override
+  String get ambActive => 'Active';
+
+  @override
+  String get ambPendingRefs => 'Waiting';
+
+  @override
+  String get ambCommissions => 'Commissions (cherries)';
+
+  @override
+  String get ambPending => 'In hold';
+
+  @override
+  String get ambHeld => 'Held';
+
+  @override
+  String get ambPaid => 'Paid';
+
+  @override
+  String get ambReversed => 'Reversed';
+
+  @override
+  String get ambPayoutsHeld =>
+      'Your payouts are on hold while the management reviews them';
+
+  @override
+  String get ambOff =>
+      'The programme is paused — your commissions are kept until it resumes';
+
+  @override
+  String get ambHistory => 'Monthly history';
+
+  @override
+  String get ambRecent => 'Latest commissions';
+
+  @override
+  String get ambNoHistory => 'Nothing yet';
+
+  @override
+  String ambCommissionStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'PENDING': 'In hold',
+      'CREDITED': 'Paid',
+      'VOID': 'Cancelled',
+      'REVERSED': 'Reversed',
+      'other': '$status',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ambRewardStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'GRANTED': 'Reward granted',
+      'HELD': 'Reward held',
+      'other': 'No reward',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ambBadgeLabel(String level) {
+    return 'Kabso ambassador · $level';
+  }
+
+  @override
+  String get meHubAmbassadors => 'Kabso ambassadors';
+
+  @override
+  String get notifAmbassadorApproved =>
+      'Your application was approved: you are now a Kabso Live ambassador';
+
+  @override
+  String get notifAmbassadorRejected =>
+      'Your Kabso ambassadors application was not approved. Open the programme to see why';
+
+  @override
+  String get notifAmbassadorLevelUp =>
+      'You moved up a level in the Kabso ambassadors programme';
+
+  @override
+  String get notifAmbassadorReward =>
+      'You reached the month\'s targets and got your ambassador reward';
+
+  @override
+  String get errorAmbassadorApplicationNotAllowed =>
+      'You cannot apply to the ambassadors programme now';
 }

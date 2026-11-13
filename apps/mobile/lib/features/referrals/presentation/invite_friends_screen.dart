@@ -10,6 +10,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/ambassadors/presentation/ambassador_entry_card.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/referrals/application/referral_providers.dart';
 import 'package:kabso_live/features/referrals/data/referral_repository.dart';
@@ -331,6 +332,8 @@ class _InviteBody extends ConsumerWidget {
                 ],
               ),
             ),
+          // D390: «برنامج سفراء Kabso» (only while it is on).
+          const AmbassadorEntryCard(),
           _Friends(invitees: r.invitees),
         ],
       ),

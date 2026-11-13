@@ -363,6 +363,9 @@ class NotificationRow extends StatelessWidget {
     if (item.type == NotificationType.referralRewardReversed) {
       return AppRoutes.walletCherries;
     }
+    // D390: the ambassadors programme → the programme (an approved ambassador
+    // finds the dashboard there).
+    if (item.type.isAmbassador) return AppRoutes.ambassadors;
     if (item.type == NotificationType.rechargeCherryRequest) {
       return AppRoutes.rechargeCherries;
     }
@@ -539,6 +542,12 @@ class NotificationRow extends StatelessWidget {
       NotificationType.hostApplicationApproved => l10n.notifHostApproved,
       NotificationType.hostApplicationRejected => l10n.notifHostRejected,
       NotificationType.referralRewardReversed => l10n.notifReferralReversed,
+      NotificationType.ambassadorApplicationApproved =>
+        l10n.notifAmbassadorApproved,
+      NotificationType.ambassadorApplicationRejected =>
+        l10n.notifAmbassadorRejected,
+      NotificationType.ambassadorLevelUp => l10n.notifAmbassadorLevelUp,
+      NotificationType.ambassadorRewardGranted => l10n.notifAmbassadorReward,
       NotificationType.kycApproved => l10n.notifKycApproved,
       NotificationType.kycDeclined => l10n.notifKycDeclined,
       NotificationType.kycInReview => l10n.notifKycInReview,
@@ -877,6 +886,7 @@ NotificationKind notificationKind(
   NotificationType.familyJoinAccepted ||
   NotificationType.agencyProbationPassed ||
   NotificationType.hostApplicationApproved ||
+  NotificationType.ambassadorApplicationApproved ||
   NotificationType.kycApproved ||
   NotificationType.levelRaiseApproved => (
     color: p.success,
@@ -899,6 +909,7 @@ NotificationKind notificationKind(
   ),
   NotificationType.familyJoinDeclined ||
   NotificationType.hostApplicationRejected ||
+  NotificationType.ambassadorApplicationRejected ||
   NotificationType.kycDeclined ||
   NotificationType.levelRaiseRejected ||
   NotificationType.agencyClosed => (color: p.error, icon: Icons.close_rounded),
@@ -910,6 +921,8 @@ NotificationKind notificationKind(
   NotificationType.staffReportNew => (color: p.error, icon: Icons.flag_rounded),
   NotificationType.medalAwarded ||
   NotificationType.eventPrizeWon ||
+  NotificationType.ambassadorLevelUp ||
+  NotificationType.ambassadorRewardGranted ||
   NotificationType.levelRaised ||
   NotificationType.premiumUsernameExpired => (
     color: p.warning,

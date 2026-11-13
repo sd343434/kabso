@@ -31881,6 +31881,510 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.'**
   String get waInAppHint;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'برنامج سفراء Kabso'**
+  String get ambProgrammeTitle;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'كن سفيراً لـ Kabso'**
+  String get ambProgrammeEntry;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'مثّل Kabso في منطقتك واربح عمولة على شحن أصدقائك النشطين'**
+  String get ambProgrammeEntryHint;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'سفير Kabso ليس مجرد ناشر إعلانات، بل ممثل Kabso في منطقته'**
+  String get ambHeroTitle;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'ماذا يفعل السفير'**
+  String get ambWhatYouDo;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'يجلب مستخدمين جدداً عبر رمزه ورابطه الشخصي'**
+  String get ambDo1;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'ينشر محتوى ترويجياً على وسائل التواصل'**
+  String get ambDo2;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'يعرّف بـ Kabso في بلده'**
+  String get ambDo3;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'ينظّم حملات وفعاليات ومسابقات بالتنسيق مع الإدارة'**
+  String get ambDo4;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'ماذا يحصل عليه'**
+  String get ambWhatYouGet;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولة على الشحن المؤهل لأصدقائه النشطين'**
+  String get ambGet1;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت شهرية عند تحقيق الأهداف: كوينز أو أيام VIP أو عناصر'**
+  String get ambGet2;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة السفير الحصرية'**
+  String get ambGet3;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'مستويات بمكافآت متصاعدة'**
+  String get ambGet4;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'المستويات'**
+  String get ambLevelsTitle;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'{code, select, BRONZE{برونزي} SILVER{فضي} GOLD{ذهبي} DIAMOND{ماسي} other{{code}}}'**
+  String ambLevelName(String code);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'إحالات نشطة: {active} · شحن: {coins} كوينز شهرياً'**
+  String ambLevelRequirement(String active, String coins);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولة {pct}'**
+  String ambLevelCommission(String pct);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا مكافأة شهرية'**
+  String get ambRewardNone;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة: {amount} كوينز'**
+  String ambRewardCoins(String amount);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة: {tier} · أيام: {days}'**
+  String ambRewardVip(String tier, String days);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة: عنصر حقيبة · أيام: {days}'**
+  String ambRewardItem(String days);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'القواعد'**
+  String get ambRulesTitle;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'نافذة الإسناد بعد تسجيل الصديق (أيام): {days}'**
+  String ambRuleWindow(String days);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'مدة الحجز قبل الدفع (أيام): {days}'**
+  String ambRuleHold(String days);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'الصديق النشط — عمر الحساب بالأيام: {days} · الشحن بالكوينز: {coins}'**
+  String ambRuleActive(String days, String coins);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'الإحالات الوهمية والدفع من حسابك والاسترجاع تلغي العمولة'**
+  String get ambRuleFraud;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'صديق يسجّل برمزك يُحتسب في برنامج السفراء بدلاً من مكافأة «دعوة الأصدقاء»'**
+  String get ambRuleTrack;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب الانضمام'**
+  String get ambFormTitle;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'البلد'**
+  String get ambCountry;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر بلدك'**
+  String get ambCountryError;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'روابط حساباتك على التواصل الاجتماعي'**
+  String get ambLinks;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة رابط'**
+  String get ambAddLink;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رابطاً يبدأ بـ https://'**
+  String get ambLinkError;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'حجم جمهورك (عدد المتابعين)'**
+  String get ambAudience;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رقماً'**
+  String get ambAudienceError;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'لماذا تريد أن تكون سفيراً؟'**
+  String get ambMotivation;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب سبباً قصيراً'**
+  String get ambMotivationError;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الطلب'**
+  String get ambSubmit;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال طلبك'**
+  String get ambSent;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبك قيد المراجعة من الإدارة'**
+  String get ambStatusPending;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تتم الموافقة على طلبك: {reason}. يمكنك التقديم مرة أخرى.'**
+  String ambStatusRejected(String reason);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات فريق كابسو لا يمكنها الانضمام إلى برنامج السفراء'**
+  String get ambStatusStaff;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابك غير متاح للتقديم حالياً'**
+  String get ambStatusNotActive;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'البرنامج قريباً — ستتمكن من التقديم عند إطلاقه'**
+  String get ambSoon;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت سفير Kabso'**
+  String get ambYouAreAmbassador;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة السفير'**
+  String get ambOpenDashboard;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة السفير'**
+  String get ambDashTitle;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'رمزك ورابطك'**
+  String get ambYourCode;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ'**
+  String get ambCopy;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم النسخ'**
+  String get ambCopied;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة'**
+  String get ambShare;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم إلى Kabso Live برمزي {code}: {link}'**
+  String ambShareText(String code, String link);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولتك {pct} من الشحن المؤهل'**
+  String ambCommissionRate(String pct);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'للوصول إلى {level} هذا الشهر'**
+  String ambNextLevel(String level);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'إحالات نشطة متبقية: {n}'**
+  String ambNeedActive(String n);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن متبقٍ بالكوينز: {n}'**
+  String ambNeedCoins(String n);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت في أعلى مستوى'**
+  String get ambTopLevel;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'أهداف هذا الشهر'**
+  String get ambThisMonth;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'إحالات نشطة'**
+  String get ambActiveReferrals;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن مؤهل (كوينز)'**
+  String get ambQualifiedTopups;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'إحالاتك'**
+  String get ambReferrals;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get ambTotal;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'نشطة'**
+  String get ambActive;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار النشاط'**
+  String get ambPendingRefs;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'العمولات (كرز)'**
+  String get ambCommissions;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد الحجز'**
+  String get ambPending;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'معلّقة'**
+  String get ambHeld;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'مدفوعة'**
+  String get ambPaid;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'مسترجعة'**
+  String get ambReversed;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'مدفوعاتك معلّقة مؤقتاً لمراجعة الإدارة'**
+  String get ambPayoutsHeld;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'البرنامج متوقف مؤقتاً — تُحفظ عمولاتك حتى يعود'**
+  String get ambOff;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'السجل الشهري'**
+  String get ambHistory;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر العمولات'**
+  String get ambRecent;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا شيء بعد'**
+  String get ambNoHistory;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'{status, select, PENDING{قيد الحجز} CREDITED{مدفوعة} VOID{ملغاة} REVERSED{مسترجعة} other{{status}}}'**
+  String ambCommissionStatus(String status);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'{status, select, GRANTED{مُنحت المكافأة} HELD{المكافأة معلّقة} other{بلا مكافأة}}'**
+  String ambRewardStatus(String status);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'سفير Kabso · {level}'**
+  String ambBadgeLabel(String level);
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'سفراء Kabso'**
+  String get meHubAmbassadors;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على طلبك: أصبحت سفيراً لـ Kabso Live'**
+  String get notifAmbassadorApproved;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تتم الموافقة على طلبك في برنامج سفراء Kabso. افتح البرنامج لمعرفة السبب'**
+  String get notifAmbassadorRejected;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'ارتفع مستواك في برنامج سفراء Kabso'**
+  String get notifAmbassadorLevelUp;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'حققت أهداف الشهر وحصلت على مكافأة السفير'**
+  String get notifAmbassadorReward;
+
+  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكنك التقديم إلى برنامج السفراء الآن'**
+  String get errorAmbassadorApplicationNotAllowed;
 }
 
 class _AppLocalizationsDelegate

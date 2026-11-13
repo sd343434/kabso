@@ -197,6 +197,10 @@ enum ErrorCode {
   /// v1.137-social (D385, §10.174.4): a 6th pinned chat.
   dmPinLimit('DM_PIN_LIMIT'),
 
+  /// v1.140-social (D390, §10.179.2): the caller may not apply to the
+  /// ambassadors programme now (`details[0].issue`).
+  ambassadorApplicationNotAllowed('AMBASSADOR_APPLICATION_NOT_ALLOWED'),
+
   /// v1.104-social (D339): someone the caller may not add to a group.
   dmGroupMemberNotAllowed('DM_GROUP_MEMBER_NOT_ALLOWED'),
 
