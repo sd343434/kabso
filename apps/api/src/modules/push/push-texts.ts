@@ -196,6 +196,15 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
         : 'The Kabso team voided an invalid invite and took back its cherries';
     case 'PROFILE_EDITED_BY_TEAM':
       return ar ? 'عدّل فريق Kabso ملفك الشخصي' : 'The Kabso team edited your profile';
+    // v1.138-social (D386, §10.175.5): the reason of a rejection is in the app, never in the push.
+    case 'CATEGORY_VERIFIED':
+      return ar
+        ? 'وثّق فريق Kabso فئة حسابك — صفحتك الآن بشكلها الخاص'
+        : 'The Kabso team verified your account category — your page now has its own look';
+    case 'CATEGORY_REVIEWED':
+      return ar
+        ? 'راجع فريق Kabso فئة حسابك. افتح «تعديل الملف» لمعرفة التفاصيل'
+        : 'The Kabso team reviewed your account category. Open Edit profile for the details';
     // v1.80-kyc (D227): the identity check «تأكيد الهوية» (the reasons are in the app, never in the push).
     case 'KYC_APPROVED':
       return ar ? 'تم تأكيد هويتك بنجاح' : 'Your identity was verified';

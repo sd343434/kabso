@@ -101,6 +101,8 @@ describe('KL-037 contract coverage', () => {
       .filter((o) => !/^\/api\/v1\/users\/\{username\}\/(posts|reposts|block|mute)$/.test(o.path))
       // CP-008 adds /users/{username}/stories; kl061-stories covers it.
       .filter((o) => o.path !== '/api/v1/users/{username}/stories')
+      // v1.138-social (D386) adds /users/{username}/featured; d386-category-profiles covers it.
+      .filter((o) => o.path !== '/api/v1/users/{username}/featured')
       // CP-010 (v1.6-live draft) adds live video operations under /live/; kl063-live-video
       // covers them with its own exact list. CP-012 (v1.8-live draft) adds tapLiveRoom;
       // kl065-live-taps covers it. CP-011 (v1.7-live draft) adds the seat operations;
@@ -960,6 +962,8 @@ describe('KL-037 public profile and follow', () => {
       followRequested: false,
       gender: null,
       category: null,
+      // v1.138-social (D386): no category, so not verified.
+      categoryVerified: false,
       links: [],
       // v1.85-social (D278b): no profile tags; v1.91-social (D292): so no icons.
       tags: [],

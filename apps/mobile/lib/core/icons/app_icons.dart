@@ -37,6 +37,27 @@ abstract final class AppIcons {
   /// grid, 2-unit round strokes, `currentColor`); not an owner file.
   static const String thumbDown = '$_p/thumb_down_outline.svg';
   static const String thumbDownFilled = '$_p/thumb_down_filled.svg';
+
+  /// D386: the account categories' icons (CONVENTIONS §10.175). The set's
+  /// own camera, video, podcast and star; pen, book, newspaper, palette,
+  /// brush, masks, gamepad, headphones, chef hat, graduation cap and compass
+  /// drawn for Kabso in this set's style (24 grid, 2-unit round strokes,
+  /// `currentColor`); not owner files.
+  static const String camera = '$_p/camera_outline.svg';
+  static const String video = '$_p/video_outline.svg';
+  static const String podcast = '$_p/podcast_outline.svg';
+  static const String star = '$_p/star_outline.svg';
+  static const String pen = '$_p/pen_outline.svg';
+  static const String book = '$_p/book_outline.svg';
+  static const String newspaper = '$_p/newspaper_outline.svg';
+  static const String palette = '$_p/palette_outline.svg';
+  static const String brush = '$_p/brush_outline.svg';
+  static const String mask = '$_p/mask_outline.svg';
+  static const String gamepad = '$_p/gamepad_outline.svg';
+  static const String headphones = '$_p/headphones_outline.svg';
+  static const String chefHat = '$_p/chef_hat_outline.svg';
+  static const String graduation = '$_p/graduation_outline.svg';
+  static const String compass = '$_p/compass_outline.svg';
   static const String comment = '$_p/comment_outline.svg';
   static const String commentFilled = '$_p/comment_filled.svg';
   static const String bookmark = '$_p/bookmark_outline.svg';

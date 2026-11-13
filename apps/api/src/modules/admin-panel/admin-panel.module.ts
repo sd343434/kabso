@@ -40,6 +40,8 @@ import { AdminStatsService } from './admin-stats.service.js';
 import { AdminTeamService } from './admin-team.service.js';
 import { AdminV2Controller } from './admin-v2.controller.js';
 import { AdminLiveBoostsController } from './admin-live-boosts.controller.js';
+import { AdminCategoriesController } from './admin-categories.controller.js';
+import { AdminCategoriesService } from './admin-categories.service.js';
 import { AdminControlController } from './admin-control.controller.js';
 import { AdminControlService } from './admin-control.service.js';
 import { AdminHostApplicationsController } from './admin-host-applications.controller.js';
@@ -105,6 +107,8 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
     AdminControlController,
     // v1.73-social (D209, §10.68): «طلبات المضيفين».
     AdminHostApplicationsController,
+    // v1.138-social (D386, §10.175.5): the account category and «طلبات توثيق الفئة».
+    AdminCategoriesController,
     // v1.78-social (D223, §10.75): the accounts made on a device, and its exception.
     AdminDeviceSignupsController,
     // v1.60-live (D250, §10.91): live moderation «مراقبة البث».
@@ -140,6 +144,7 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
     AdminOrdersService,
     AdminControlService,
     AdminHostApplicationsService,
+    AdminCategoriesService,
     AdminDeviceSignupsService,
     AdminLiveModerationService,
     // v1.64-live (D260): the shift «في المناوبة» and who is on it (§10.96).

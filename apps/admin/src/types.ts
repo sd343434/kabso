@@ -1673,3 +1673,69 @@ export interface WaTestResult {
   templates: number | null;
   error: { status: number; code: number | null; title: string | null } | null;
 }
+
+/** v1.138-social (D386, CONVENTIONS §10.175): `AccountCategory` (24 values). */
+export type AccountCategory =
+  | "SINGER"
+  | "MUSICIAN"
+  | "POET"
+  | "PRESENTER"
+  | "GAMER"
+  | "CONTENT_CREATOR"
+  | "ATHLETE"
+  | "ARTIST"
+  | "BLOGGER"
+  | "PUBLIC_FIGURE"
+  | "OTHER"
+  | "QURAN_RECITER"
+  | "STORYTELLER"
+  | "WRITER"
+  | "JOURNALIST"
+  | "PHOTOGRAPHER"
+  | "ACTOR"
+  | "COMEDIAN"
+  | "CALLIGRAPHER"
+  | "DESIGNER"
+  | "CHEF"
+  | "TEACHER"
+  | "DJ"
+  | "TRAVELER";
+
+/** v1.138-social (D386): `CategoryRequestStatus`. */
+export type CategoryRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+/** v1.138-social (D386): `CategoryVerificationRequest`. */
+export interface CategoryRequestSummary {
+  id: string;
+  category: AccountCategory;
+  status: CategoryRequestStatus;
+  createdAt: string;
+  decidedAt: string | null;
+  rejectReason: string | null;
+}
+
+/** v1.138-social (D386, §10.175.5): `AdminUserCategory`. */
+export interface AdminUserCategory {
+  category: AccountCategory | null;
+  verified: boolean;
+  verifiedAt: string | null;
+  verifiedBy: PersonRef | null;
+  locked: boolean;
+  lockedAt: string | null;
+  kabsoTeam: boolean;
+  request: CategoryRequestSummary | null;
+}
+
+/** v1.138-social (D386): `AdminCategoryRequestRow` — «طلبات توثيق الفئة». */
+export interface CategoryRequestRow {
+  id: string;
+  status: CategoryRequestStatus;
+  category: AccountCategory;
+  currentCategory: AccountCategory | null;
+  note: string | null;
+  user: PersonRef;
+  createdAt: string;
+  decidedAt: string | null;
+  decidedBy: PersonRef | null;
+  rejectReason: string | null;
+}

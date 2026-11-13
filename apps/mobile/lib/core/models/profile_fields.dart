@@ -34,7 +34,22 @@ enum AccountCategory {
   artist('ARTIST'),
   blogger('BLOGGER'),
   publicFigure('PUBLIC_FIGURE'),
-  other('OTHER');
+  other('OTHER'),
+
+  // D386 (v1.138-social, §10.175.1): 13 more («نعم وأضف أي فئة مقترحة»).
+  quranReciter('QURAN_RECITER'),
+  storyteller('STORYTELLER'),
+  writer('WRITER'),
+  journalist('JOURNALIST'),
+  photographer('PHOTOGRAPHER'),
+  actor('ACTOR'),
+  comedian('COMEDIAN'),
+  calligrapher('CALLIGRAPHER'),
+  designer('DESIGNER'),
+  chef('CHEF'),
+  teacher('TEACHER'),
+  dj('DJ'),
+  traveler('TRAVELER');
 
   new(this.wire);
 
@@ -42,6 +57,94 @@ enum AccountCategory {
 
   static AccountCategory? fromWire(Object? wire) =>
       values.where((c) => c.wire == wire).firstOrNull;
+
+  /// D386: the family that gives the profile its look and the picker its
+  /// group (§10.175.1).
+  CategoryFamily get family => switch (this) {
+    singer || musician || dj => CategoryFamily.music,
+    quranReciter || storyteller => CategoryFamily.reciter,
+    poet || writer || blogger || journalist => CategoryFamily.word,
+    artist || photographer || designer || calligrapher => CategoryFamily.visual,
+    contentCreator ||
+    actor ||
+    comedian ||
+    presenter => CategoryFamily.performer,
+    athlete || gamer => CategoryFamily.sportsGames,
+    chef || traveler || teacher => CategoryFamily.lifestyle,
+    publicFigure || other => CategoryFamily.public,
+  };
+}
+
+/// D386 (§10.175.1): the eight families of the 24 categories, in the
+/// picker's order. A family is an app grouping; the wire carries the
+/// category.
+enum CategoryFamily {
+  music,
+  reciter,
+  word,
+  visual,
+  performer,
+  sportsGames,
+  lifestyle,
+  public;
+
+  /// The family's categories, in the picker's order.
+  List<AccountCategory> get categories => [
+    for (final c in AccountCategory.values)
+      if (c.family == this) c,
+  ];
+}
+
+/// D386 (§10.175.2): `FeaturedSection` — the section at the top of a
+/// verified category's profile. Unknown wire values read as null (no
+/// section), so a newer server never breaks an older app.
+enum FeaturedSection {
+  works('WORKS'),
+  recitations('RECITATIONS'),
+  stories('STORIES'),
+  poems('POEMS'),
+  articles('ARTICLES'),
+  reports('REPORTS'),
+  program('PROGRAM'),
+  games('GAMES'),
+  achievements('ACHIEVEMENTS'),
+  gallery('GALLERY'),
+  mostViewed('MOST_VIEWED'),
+  highlights('HIGHLIGHTS');
+
+  new(this.wire);
+
+  final String wire;
+
+  static FeaturedSection? fromWire(Object? wire) =>
+      values.where((s) => s.wire == wire).firstOrNull;
+
+  /// The section of [category] (the server's table, §10.175.2), for the
+  /// owner's «تثبيت في …» menu before the section was read.
+  static FeaturedSection? of(AccountCategory category) => switch (category) {
+    AccountCategory.singer ||
+    AccountCategory.musician ||
+    AccountCategory.dj => works,
+    AccountCategory.quranReciter => recitations,
+    AccountCategory.storyteller => stories,
+    AccountCategory.poet => poems,
+    AccountCategory.writer || AccountCategory.blogger => articles,
+    AccountCategory.journalist => reports,
+    AccountCategory.presenter => program,
+    AccountCategory.gamer => games,
+    AccountCategory.athlete => achievements,
+    AccountCategory.artist ||
+    AccountCategory.photographer ||
+    AccountCategory.designer ||
+    AccountCategory.calligrapher => gallery,
+    AccountCategory.contentCreator ||
+    AccountCategory.actor ||
+    AccountCategory.comedian => mostViewed,
+    AccountCategory.chef ||
+    AccountCategory.traveler ||
+    AccountCategory.teacher => highlights,
+    AccountCategory.publicFigure || AccountCategory.other => null,
+  };
 }
 
 AccountCategory? accountCategoryFromJson(Object? json) =>

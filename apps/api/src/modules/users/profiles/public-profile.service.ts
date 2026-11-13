@@ -87,6 +87,8 @@ export interface PublicProfileDto {
   gender: 'MALE' | 'FEMALE' | null;
   /** v1.47-social (D175): the account category under the name, or null. */
   category: AccountCategory | null;
+  /** v1.138-social (D386, §10.175): the Kabso Team verified the category (false for a Kabso Team account). */
+  categoryVerified: boolean;
   /** v1.47-social (D175): the profile links (0–3), also on a private account's profile. */
   links: ProfileLinkDto[];
   /** v1.85-social (D278b, §10.99): the profile tags «منشنات» (0–10), also on a private account's profile. */
@@ -337,6 +339,7 @@ export class PublicProfileService {
       profileCard,
       gender: user.gender,
       category: kabsoTeam ? null : user.category,
+      categoryVerified: !kabsoTeam && user.categoryVerified,
       links: user.links,
       tags: user.tags,
       tagIcons: user.tagIcons,

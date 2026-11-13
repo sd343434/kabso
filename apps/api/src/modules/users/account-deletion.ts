@@ -484,7 +484,8 @@ export async function purgeAccountIn(
        SET username = ${tombstone}, display_name = ${DELETED_DISPLAY_NAME}, bio = NULL, avatar_url = NULL,
            avatar_media_id = NULL, cover_url = NULL, cover_media_id = NULL, animated_avatar_media_id = NULL,
            animated_avatar_url = NULL, animated_avatar_still_url = NULL, country_code = NULL, premium_tier = NULL, gender = NULL, show_gender = FALSE,
-           account_category = NULL, updated_at = ${at}::timestamptz
+           account_category = NULL, category_verified_at = NULL, category_verified_by = NULL,
+           category_locked_at = NULL, category_locked_by = NULL, updated_at = ${at}::timestamptz
      WHERE user_id = ${u}`;
   const assets = await tx.$queryRaw<{ large_key: string; thumb_key: string; poster_key: string | null }[]>`
     DELETE FROM media_assets a
@@ -499,6 +500,9 @@ export async function purgeAccountIn(
 
   // -- Account data.
   await tx.$executeRaw`DELETE FROM user_profile_links WHERE user_id = ${u}`;
+  // v1.138-social (D386, §10.175): the featured pins and the category requests (their notes are free text).
+  await tx.$executeRaw`DELETE FROM profile_featured_pins WHERE user_id = ${u}`;
+  await tx.$executeRaw`DELETE FROM category_verification_requests WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM user_settings WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM privacy_settings WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM notification_settings WHERE user_id = ${u}`;

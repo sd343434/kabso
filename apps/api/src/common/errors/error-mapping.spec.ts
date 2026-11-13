@@ -175,6 +175,10 @@ describe('ErrorCode', () => {
         'DM_NOT_ARCHIVABLE',
         'DM_GROUP_FULL',
         'DM_PIN_LIMIT',
+        // v1.138-social (D386).
+        'FEATURED_PIN_LIMIT',
+        'CATEGORY_VERIFICATION_PENDING',
+        'ACCOUNT_CATEGORY_LOCKED',
         'DM_GROUP_MEMBER_NOT_ALLOWED',
         // v1.32-live (DRAFT, D154)
         'QUIP_FREE_USED',

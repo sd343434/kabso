@@ -20,6 +20,7 @@ import {
   TempPasswordDialog,
   type ControlAction,
 } from './UserControl';
+import { UserCategoryBlock } from './Categories';
 import { UserDevice } from './UserDevice';
 import { VerificationChip } from './VerificationBadges';
 import type { UserControl } from '../types';
@@ -309,6 +310,8 @@ export function UserDetail({ id }: { id: string }) {
       {tab === 'overview' && (
         <ControlGroups detail={data} control={control.data} onAction={setAction} onTab={setTab} />
       )}
+      {/* v1.138-social (D386): the account category, its verification and lock. */}
+      {tab === 'overview' && can('users.control_view') && <UserCategoryBlock userId={id} />}
       {tab === 'overview' && (
         <div className="grid cols-2">
           <div className="card">

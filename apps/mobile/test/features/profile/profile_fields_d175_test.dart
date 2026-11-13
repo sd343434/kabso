@@ -400,7 +400,8 @@ void main() {
       final repo = await _pumpEdit(tester, language: AppLanguage.ar);
       await tester.tap(find.byKey(EditProfileScreen.categoryKey));
       await tester.pumpAndSettle();
-      for (final c in AccountCategory.values.take(4)) {
+      // D386: the sheet is grouped by family; the first group is on screen.
+      for (final c in CategoryFamily.music.categories) {
         expect(find.byKey(EditProfileFieldsKeys.category(c)), findsOneWidget);
       }
       await tester.tap(

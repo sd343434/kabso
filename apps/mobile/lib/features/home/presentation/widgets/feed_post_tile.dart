@@ -12,10 +12,12 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/media/inline_video.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
 import 'package:kabso_live/features/owner_profile/presentation/official_label.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
@@ -24,6 +26,8 @@ import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/presentation/announcement_label.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
+import 'package:kabso_live/features/profile/category/category_repository.dart';
+import 'package:kabso_live/features/profile/category/category_style.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
@@ -298,6 +302,9 @@ class FeedPostTile extends StatefulWidget {
   static const deleteActionKey = Key('feed.post.more.delete');
   static const pinActionKey = Key('feed.post.more.pin');
 
+  /// D386: «تثبيت في <section>» — the verified category's featured section.
+  static const featureActionKey = Key('feed.post.more.feature');
+
   /// v1.95-social (D301): the owner's «تعيين كإعلان رسمي» toggle.
   static const officialActionKey = Key('feed.post.more.official');
   static const editActionKey = Key('feed.post.more.edit');
@@ -498,7 +505,17 @@ class _ViewTrackerState extends ConsumerState<_ViewTracker> {
 /// API (`PUT`/`DELETE /users/{username}/follow`): the choice applies at
 /// once and comes back with a message on failure. Without a follow state
 /// (your own post, or a source without it) neither is shown.
-enum _MoreAction { follow, hide, mute, report, pin, official, edit, delete }
+enum _MoreAction {
+  follow,
+  hide,
+  mute,
+  report,
+  pin,
+  feature,
+  official,
+  edit,
+  delete,
+}
 
 class _AuthorRow extends ConsumerStatefulWidget {
   const new({required this.post});
@@ -542,6 +559,10 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
     final name = post.authorName;
     // D301: only the app owner marks his own posts «رسمي».
     final owner = post.isSelf && ref.read(isKabsoOwnerProvider);
+    // D386: the verified category's section takes the person's own posts.
+    final section = post.isSelf ? _featuredSection() : null;
+    final featured =
+        id != null && ref.read(myFeaturedPinsProvider).contains(id);
     final choice = await showModalBottomSheet<_MoreAction>(
       context: context,
       builder: (sheet) {
@@ -604,6 +625,22 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                   post.pinned ? l10n.feedPostUnpin : l10n.feedPostPin,
                   _MoreAction.pin,
                 ),
+                if (section != null)
+                  item(
+                    FeedPostTile.featureActionKey,
+                    Icon(
+                      featured ? Icons.star_rounded : Icons.star_outline,
+                      color: color,
+                    ),
+                    featured
+                        ? l10n.featuredUnpinFrom(
+                            featuredSectionTitle(l10n, section),
+                          )
+                        : l10n.featuredPinIn(
+                            featuredSectionTitle(l10n, section),
+                          ),
+                    _MoreAction.feature,
+                  ),
                 if (owner)
                   item(
                     FeedPostTile.officialActionKey,
@@ -666,6 +703,8 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
         );
       case _MoreAction.pin:
         await _pin(pinned: !post.pinned);
+      case _MoreAction.feature:
+        if (section != null) await _feature(section, featured: !featured);
       case _MoreAction.official:
         await _setOfficial(official: !_official);
       case _MoreAction.edit:
@@ -691,6 +730,48 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
         if (ok ?? false) {
           await _run((repo, id) => repo.deletePost(id), l10n.feedPostDeleted);
         }
+    }
+  }
+
+  /// D386 (§10.175.3): the section of the person's verified category, or
+  /// null (not verified, none for the category, a Kabso Team account).
+  FeaturedSection? _featuredSection() {
+    final me = ref.read(currentUserProvider);
+    final category = me?.category;
+    if (me == null || category == null || !me.categoryVerified) return null;
+    if (me.kabsoTeam || me.staff != null || me.staffId != null) return null;
+    return FeaturedSection.of(category);
+  }
+
+  /// D386: pins your post in (or out of) your featured section — at most 6
+  /// (409 `FEATURED_PIN_LIMIT` says so); your page reads it again.
+  Future<void> _feature(
+    FeaturedSection section, {
+    required bool featured,
+  }) async {
+    final id = widget.post.postId;
+    final me = ref.read(currentUserProvider);
+    if (id == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(myFeaturedPinsProvider.notifier)
+          .setPinned(id, pinned: featured);
+      if (me != null) ref.invalidate(profileFeaturedProvider(me.username));
+      if (!mounted) return;
+      final l10n = context.l10n;
+      KSnack.success(
+        context,
+        featured
+            ? l10n.featuredPinned(featuredSectionTitle(l10n, section))
+            : l10n.featuredUnpinned,
+      );
+    } on Object catch (e) {
+      if (mounted) {
+        KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -781,6 +862,8 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
     final t = context.textStyles;
     final p = context.palette;
     final post = widget.post;
+    // D386: your own post's menu knows whether it is featured.
+    if (post.isSelf) ref.watch(myFeaturedPinsProvider);
     final location = post.location;
     final username = post.authorUsername;
     final known = username != null && _following != null;

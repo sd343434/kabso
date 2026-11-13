@@ -10,6 +10,8 @@ import { PostInteractionsService } from './post-interactions.service.js';
 import { PostViews } from './post-views.js';
 import { PostsController } from './posts.controller.js';
 import { PostsService } from './posts.service.js';
+import { ProfileFeaturedController } from './profile-featured.controller.js';
+import { ProfileFeaturedService } from './profile-featured.service.js';
 import { SearchController } from './search.controller.js';
 import { SearchService } from './search.service.js';
 import { SearchTrendsService } from './search-trends.service.js';
@@ -21,7 +23,14 @@ import { SearchTrendsService } from './search-trends.service.js';
  */
 @Module({
   imports: [MediaModule, NotificationsModule, UsersModule],
-  controllers: [PostsController, InteractionsController, CommentsController, SearchController],
+  controllers: [
+    PostsController,
+    InteractionsController,
+    CommentsController,
+    SearchController,
+    // v1.138-social (D386): the featured section and pins.
+    ProfileFeaturedController,
+  ],
   providers: [
     PostsService,
     PostViews,
@@ -30,6 +39,7 @@ import { SearchTrendsService } from './search-trends.service.js';
     CommentsService,
     SearchService,
     SearchTrendsService,
+    ProfileFeaturedService,
   ],
   exports: [PostsService, PostViews, CommentsService],
 })

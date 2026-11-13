@@ -33,6 +33,8 @@ class MeDto {
     this.gender,
     this.showGender = false,
     this.category,
+    this.categoryVerified = false,
+    this.categoryLocked = false,
     this.links = const [],
     this.tags = const [],
     this.tagIcons = const [],
@@ -85,6 +87,13 @@ class MeDto {
   /// v1.47-social (D175): the account category, or null.
   @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)
   final AccountCategory? category;
+
+  /// v1.138-social (D386): the team verified / locked the category. Absent
+  /// from an older server or a cached user → false.
+  @JsonKey(defaultValue: false)
+  final bool categoryVerified;
+  @JsonKey(defaultValue: false)
+  final bool categoryLocked;
 
   /// v1.47-social (D175): the profile links, in order.
   @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)
@@ -164,6 +173,8 @@ class MeDto {
     gender: gender,
     showGender: showGender,
     category: category,
+    categoryVerified: categoryVerified,
+    categoryLocked: categoryLocked,
     links: links,
     tags: tags,
     tagIcons: tagIcons,

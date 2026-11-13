@@ -254,6 +254,9 @@ All non-2xx responses use one envelope:
 | 409 | `DM_NOT_ARCHIVABLE` | *(v1.104-social, DRAFT, D339)* `archiveDmConversation` on a message request waiting for the caller: a request is accepted or deleted, not archived (§10.132). |
 | 409 | `DM_GROUP_FULL` | *(v1.104-social, DRAFT, D339)* `createDmGroup` / `addDmGroupMembers`: the group would pass `DM_GROUP_MAX_MEMBERS` (100, the creator included). Nothing was changed (§10.133). |
 | 409 | `DM_PIN_LIMIT` | *(v1.137-social, DRAFT, D385)* `pinDmConversation` / `pinDmGroup`: the caller already has 5 pinned chats (`{field: "pins", issue: "too_many"}`); «دعم كابسو» never counts. Nothing was changed; the app says to unpin one first (§10.174.4). |
+| 409 | `FEATURED_PIN_LIMIT` | *(v1.138-social, DRAFT, D386)* `pinFeaturedPost`: the caller already has 6 featured pins (`{field: "pins", issue: "too_many"}`). Nothing was changed; the app says to unpin one first (§10.175.3). |
+| 409 | `CATEGORY_VERIFICATION_PENDING` | *(v1.138-social, DRAFT, D386)* `requestCategoryVerification`: the caller already has an open «طلب توثيق الفئة» (§10.175.4). Nothing was changed. |
+| 403 | `ACCOUNT_CATEGORY_LOCKED` | *(v1.138-social, DRAFT, D386)* `updateMe` with a `category` other than the current one while the Kabso Team locked it (§10.175.4). Nothing was stored (none of the request's fields). |
 | 403 | `DM_GROUP_MEMBER_NOT_ALLOWED` | *(v1.104-social, DRAFT, D339)* `createDmGroup` / `addDmGroupMembers`: some of `members` cannot be added by the caller — `details` names each, `[{field: "members.<i>", issue: "not_allowed"}]`, the same whatever the reason (not a mutual follow, «من يستطيع مراسلتك» NOBODY, a block either way, no such ACTIVE account), so a block is never told. Nothing was changed (§10.133). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
@@ -535,6 +538,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /cp/me/confessions` *(v1.24-live, CP-021)* | 10 / hour per user (bucket `cp:confession`, `RATE_LIMIT_CP_CONFESSION_USER`). **Replaces** the per-user default |
 | `POST /families/{familyId}/chat` *(v1.25-live, CP-022)* | 30 / min per user (bucket `families:chat`, `RATE_LIMIT_FAMILY_CHAT_USER`). **Replaces** the per-user default. Deleting a chat message and muting / unmuting a member use the family writes bucket (`families:write`); the family boards, standing, contributions and chat reads use the per-user default |
 | `POST /support/thread/messages` *(v1.137-social, D385)* | 10 / min per user (bucket `support:send`, `RATE_LIMIT_SUPPORT_SEND_USER`). **Replaces** the per-user default. `POST /support/thread/read` and the pin writes (`PUT`/`DELETE /dm/conversations/{id}/pin`, `PUT`/`DELETE /dm/groups/{id}/pin`) use the `dm:write` bucket (300 / hour per user); `GET /support/thread`, `GET /support/thread/messages` and `GET /dm/pins` the per-user default |
+| `PUT /me/featured-pins`, `PUT` / `DELETE /me/featured-pins/{postId}` *(v1.138-social, D386)* | 60 / hour per user (bucket `featured:pins`, `RATE_LIMIT_FEATURED_PINS_USER`). **Replaces** the per-user default. `GET /users/{username}/featured` shares the profile grid's bucket (`users:profile`); `GET /me/featured-pins` the per-user default |
+| `POST /me/category-verification` *(v1.138-social, D386)* | 5 / 24 h per user (bucket `category:request`, `RATE_LIMIT_CATEGORY_REQUEST_USER`). **Replaces** the per-user default. `GET` / `DELETE` the per-user default |
 | `POST /dm/messages` *(v1.40-social, D155)* | 30 / min per user (bucket `dm:send`, `RATE_LIMIT_DM_SEND_USER`). **Replaces** the per-user default. A message that is a **message request** (§11.13) also counts 20 / hour per user (bucket `dm:request`, `RATE_LIMIT_DM_REQUEST_USER`), checked in the send after the request rules |
 | `POST /dm/gifts` *(v1.40-social, D155)* | the live gift buckets (`live:gift:any` first, then `live:gift` or, for a lucky gift, `live:gift:lucky`; §10.23), and a request gift also counts in `dm:request`. **Replaces** the per-user default |
 | `POST /dm/conversations/{id}/read`, `…/accept`, `DELETE /dm/conversations/{id}`, `PUT`/`DELETE …/mute`, `PUT`/`DELETE …/unread` *(v1.43.1-social, D165)*, `DELETE /dm/messages/{id}` *(v1.40-social, D155)* | 300 / hour per user (bucket `dm:write`, `RATE_LIMIT_DM_WRITE_USER`). **Replaces** the per-user default; `GET /dm/conversations`, `GET /dm/unread`, `GET /dm/peers/{username}` and `GET …/messages` use the per-user default |
@@ -703,6 +708,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.101-social)* Enum `event_audience` (`events.audience`, was `program_audience`: + AGENCIES, CP); columns `events.status`, `recurrence`, `period`, `period_starts_at`, `period_ends_at`, `scoring`, `counted_gifts`, `banner_media_id`, `start_notified_at`, `published_at` (CHECKs `events_shape` — a draft may have no dates —, `events_v2_shape`, `events_audience_not_creators`, `events_art_keys`); `event_gifts.points_per_coin` NUMERIC(7,2); `event_results.period` (unique keys with the period); tables `event_periods`, `event_milestones`, `event_milestone_grants`; columns `gifts.event_id` (CHECK `gifts_event_plain`), `store_items.event_id` (CHECK `store_items_event_exclusive`); notification `EVENT_STARTED` (unique `notifications_event_started_once`) | Backend — `programs` module (`gift-events.ts` the only writer of the event structure, periods, milestones and payouts; `events.service.ts` the sweeper and the reads); `gifts` / `live` (an event gift's listing and sale), `store` (event items) | CTO; Security (money: automatic prizes and free gift pieces; mass start notification) |
 | *(v1.102-social)* Columns `events.creators_as_hosts` (existing rows false, default true) and `event_boards.shown` (CHECK `event_boards_shown`, 1–100, default 20) | Backend — `programs` module (`event-audience.ts`, `gift-events.ts`, `events.service.ts`), `home` (banners) | CTO |
 | *(v1.115-social)* Column `events.design` (JSONB, nullable; CHECK `events_design_shape`: an object of `v` 1); media asset kind `EVENT_BOARD_BG` (CHECK `media_assets_kind_known`) | Backend — `programs` module (`event-design.ts` — the only shape and rules of a design; `gift-events.ts` writes it; `events.service.ts` reads it; `event-media.ts` stores the background), `admin-panel` (`AdminGiftEventsService`: upload, form, options) | CTO |
+| *(v1.138-social)* Tables `profile_featured_pins` (CHECK `profile_featured_pins_position`), `category_verification_requests` (CHECKs `category_verification_requests_note_len`, `category_verification_requests_decided`; one PENDING per user); columns `user_profiles.category_verified_at`, `category_verified_by`, `category_locked_at`, `category_locked_by` (CHECK `user_profiles_category_verified_shape`); enum values `account_category` + 13, `notification_type` `CATEGORY_VERIFIED`, `CATEGORY_REVIEWED`; type `category_request_status` | Backend — `users` module (category, verification and requests: `category-verification.ts`), `posts` module (featured section and pins: `profile-featured.service.ts`), `admin-panel` (controls and queue) | CTO; Security reviews the panel actions' audit (§10.175) |
 
 ## 9. Contract change log
 
@@ -797,6 +803,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
 | v1.118-live (draft) | 2026-11-13 | **D391 (CP-041 phase 2, approved by the owner 2026-11-13: «PK رباعي»):** PK 2 v 2 (`format` TEAMS) by invitation — `getLivePk4`, `listLivePk4Candidates`, `openLivePk4Lobby` / `closeLivePk4Lobby`, `inviteLivePk4` / `cancelLivePk4Invite`, `acceptLivePk4Invite` / `declineLivePk4Invite`, `startLivePk4`, `endLivePk4`, `muteLivePk4Host`, `createLivePk4MediaToken`; schemas `Pk4*`; `AdminLive.pk4`, `AdminLiveDetail.pk4` (optional) and `endAdminLivePk4`; codes `PK_LOBBY_CLOSED`, `PK_SEAT_TAKEN` (409); data messages `pk4-match`, `pk4-lobby`, `pk4-invite` on topic `pk`; media identities `pk4:`; config `PK4_ENABLED` (true), `PK4_LOBBY_SECONDS` (120), `PK4_INVITE_TTL_SECONDS` (30), `PK4_MAX_WATCHERS_PER_ROOM` (0); migration `20270518090200_pk4_teams`; `pk-admin` accepts 4-way ids. A host busy in either PK is busy for the other (1 v 1 otherwise unchanged). §4, §8, §10.180. | **Additive**: older apps ignore the new messages and see a 4-way room as a solo live; a 1 v 1 host is refused 409 `PK_HOST_BUSY` only while the other host is in a 4-way lobby or match. |
 | v1.140-social (draft) | 2026-11-13 | **D388 (owner 2026-11-13: «اريد عندما يرسل الشخص يقوم تلقائي بسؤاله عن لغة التي يتحدثها عربي او انجليزي»; first time only, a confirmation, the language shown to the staff, routed to staff who speak it): «سؤال اللغة» — the WhatsApp language question and language routing.** On a WhatsApp conversation's first message (once ever; `WHATSAPP_ASK_LANGUAGE`, default on) the server sends reply buttons «العربية» / «English»; the button (or a typed «عربي» / «English» …) sets `WaConversation.language` (`WaLanguage` AR / EN; null until answered) and a confirmation is sent in that language. Both automatic messages are OUTBOUND messages with `sentBy` null (audited `whatsapp.language.auto`); they never claim the conversation or change its preview. `?language=` on both conversation lists. A REPLY+ staff member speaks AR, EN or both (none set = both): `setAdminTeamWhatsAppLanguages` (code + reason, audited `admin.team.whatsapp_languages`; `team_languages_level`), `AdminTeam.data[].whatsappLanguages`. The new-message push of an unassigned conversation in a language goes to the staff who speak it (everyone when none of them can answer). Migration `20270518090000_whatsapp_language` (§10.177). | Additive (a new required response field `WaConversation.language`, always sent). |
+| v1.138-social (draft) | 2026-11-12 | **D386 (owner 2026-11-12: «أن يكون كل شخص تفاصيل صفحته حسب فئة الحساب»; «نعم وأضف أي فئة مقترحة»; «الموثقة»):** `AccountCategory` gains `QURAN_RECITER`, `STORYTELLER`, `WRITER`, `JOURNALIST`, `PHOTOGRAPHER`, `ACTOR`, `COMEDIAN`, `CALLIGRAPHER`, `DESIGNER`, `CHEF`, `TEACHER`, `DJ`, `TRAVELER` (24 in all); `Me.categoryVerified`, `Me.categoryLocked`, `PublicProfile.categoryVerified` (required); `getUserFeatured` (`GET /users/{username}/featured`, `ProfileFeatured`, `FeaturedSection`); featured pins `listMyFeaturedPins` / `setMyFeaturedPins` (`GET` / `PUT /me/featured-pins`, `FeaturedPinList`, `SetFeaturedPinsRequest`), `pinFeaturedPost` / `unpinFeaturedPost` (`PUT` / `DELETE /me/featured-pins/{postId}`); «طلب توثيق الفئة» `getMyCategoryVerification` / `requestCategoryVerification` / `cancelCategoryVerification` (`GET` / `POST` / `DELETE /me/category-verification`, `CategoryVerificationStatus`, `CategoryVerificationRequest`, `CategoryVerificationRequestBody`, `CategoryRequestStatus`); panel `getAdminUserCategory` / `controlAdminUserCategory` (`GET` / `POST /admin/users/{userId}/category`, `AdminUserCategory`, `AdminCategoryControlRequest`), `listAdminCategoryRequests`, `approveAdminCategoryRequest`, `rejectAdminCategoryRequest` (`/admin/category-requests…`, `AdminCategoryRequestRow`, `AdminCategoryRequestPage`); codes `FEATURED_PIN_LIMIT` (409), `CATEGORY_VERIFICATION_PENDING` (409), `ACCOUNT_CATEGORY_LOCKED` (403); notification types `CATEGORY_VERIFIED`, `CATEGORY_REVIEWED` (system, no target); audit `admin.user.category`, `category.request.*`, `user.category_verification.*`; settings `RATE_LIMIT_FEATURED_PINS_USER` (60 / h), `RATE_LIMIT_CATEGORY_REQUEST_USER` (5 / 24 h); migrations `20270516090000_category_profiles_enums`, `20270516090100_category_profiles`. §4, §7, §10.47, §10.160, §10.175. | **Additive** (new enum values: clients show an unknown category as nothing and ignore unknown notification types; new required response fields: strict clients update their models in the same change set). **Behaviour change:** changing one's category clears its verification; a locked category cannot be changed (403). |
 | v1.137-social (draft) | 2026-11-12 | **D385 (owner 2026-11-12: «دعم كابسو» in «الرسائل» and «اجعل شات الإدارة مثبت في الاعلى … يمكن للشخص تثبيت ٥ محادثات في الاعلى»):** tag `support` — `getSupportThread` (`GET /support/thread`, `SupportThread`), `listSupportMessages` / `sendSupportMessage` (`GET` / `POST /support/thread/messages`, `SupportMessage`, `SupportMessagePage`, `SupportStaff`, `SupportSendRequest`, `SupportSendResult`), `readSupportThread` (`POST /support/thread/read`); the staff inbox serves the in-app threads beside WhatsApp — `WaChannel`, `WaConversation.channel`, `WaConversation.phone` nullable, `WaSummary.inApp`, the `channel` filter of `getStaffWhatsAppConversations` / `getAdminWhatsAppConversations`; the inbox routes answer for IN_APP threads without the WhatsApp credentials. Pins: `listDmPins` (`GET /dm/pins`), `pinDmConversation` / `unpinDmConversation`, `pinDmGroup` / `unpinDmGroup` (`DmPin`, `DmPinList`); code `DM_PIN_LIMIT` (409). `DmConversation.online` (every partner who shows their activity, owner) and `DmUnread.support` (owner: in the badge); in-app staff replies may carry a picture. Setting `RATE_LIMIT_SUPPORT_SEND_USER` (10 / min). Migration `20270515090000_support_chat_pins`. §7, §10.174. | **Additive** for the user app. **Behaviour change** for the staff inbox: with WhatsApp off the inbox no longer answers 503 — it lists the IN_APP threads (a WhatsApp-only action still 503s); `phone` is null on an IN_APP thread (a staff app or panel older than this release must not read it as a string — none is deployed with D355 yet). |
 | v1.136-social (draft) | 2026-11-12 | **D384 (owner 2026-11-12: «انتبه جيداً لطريقة الصورة شخصية» — a reference recording, look only, kept out of git, D40; then: an animated cut-out clip, and a VIP perk):** the VIP «صورة متحركة» — catalogue code `ANIMATED_AVATAR` (IDENTITY, value none, no art, **built**); `MediaKind` `ANIMATED_AVATAR` (`image/png` ≤ 8 MiB: a strip of 2–36 square frames, 64–512 px, alpha, 12 a second; re-encoded to a looping animated WebP ≤ 1.5 MiB + a still); `setMyAnimatedAvatar` / `removeMyAnimatedAvatar` (`PUT` / `DELETE /me/animated-avatar`, `SetAnimatedAvatarRequest`, `AnimatedAvatar`; 409 `VIP_UNAVAILABLE` `no_perk`); `PublicProfile.animatedAvatar` (optional: only while the perk is held, never across a block); the panel's `removeAdminUserAnimatedAvatar` (`users.avatar`), `AdminUserDetail.user.animatedAvatarUrl`; `NotificationType.ANIMATED_AVATAR_REMOVED`; audit `user.animated_avatar.update`, `admin.animated_avatar.remove`. Migrations `20270514090000_vip_animated_avatar_enums`, `20270514090100_vip_animated_avatar`. §4, §7, §8, §10.94.1, §10.166.1, §10.173. | **Additive** (new operations, an optional response field, enum values; clients ignore unknown notification types; an older app shows the round photo). |
 | v1.135-social (draft) | 2026-11-12 | **D383 (owner 2026-11-12: «اريد الغاء فكرة صندوق او إطار بطاقة الملف التعريفية وعمل فكرة اخرى»; then «لا ستكون موجودة بحيث ستكون مثلاً تغير لون خلفية او تكون خلفية فيها عناصر متحركة»):** no box or frame around the person card in live and party rooms (owner, then: «ارى ان شكل البطاقة السابقة اجمل» — the earlier layout is kept, only the background changes); the VIP perk `PROFILE_CARD` **kept and redefined** as the card's background — catalogue `value` `none` → `color` (`#RRGGBB`, null = none), art SVGA / MP4 / PNG / WebP (hint 1080 × 1440; MP4 is new for this perk), titles «خلفية البطاقة التعريفية» / "Card background". The bag `PROFILE_CARD` header ornaments are hidden in the app pending the owner's decision (one UI flag; items, the free `bunny_royal` and the API kept); store `PROFILE_CARD` items stay on sale as backgrounds. No new operation, field, enum value or error code; no migration. §10.94.1, §10.166.1, §10.172. | **Additive.** A tier saved before is valid (no value) and its art becomes the background; an older app draws the art as before and ignores the colour; the panel's generic perk form already edits a `color` value and MP4 art. |
@@ -3526,6 +3533,11 @@ The owner's answers (2026-10-30, Arabic) to D168's questions a–g. Written as �
   شاعر, `PRESENTER` مقدّم برامج, `GAMER` لاعب ألعاب, `CONTENT_CREATOR` صانع محتوى, `ATHLETE` رياضي, `ARTIST`
   فنان, `BLOGGER` مدوّن, `PUBLIC_FIGURE` شخصية عامة, `OTHER` أخرى. Optional; `PATCH /me {category: null}`
   clears it. The app names the values in its own language; clients show an unknown value as nothing.
+  *(v1.138-social, D386, §10.175:* 13 more — `QURAN_RECITER` قارئ قرآن, `STORYTELLER` راوٍ, `WRITER` كاتب, `JOURNALIST`
+  صحفي, `PHOTOGRAPHER` مصوّر, `ACTOR` ممثل, `COMEDIAN` كوميدي, `CALLIGRAPHER` خطّاط, `DESIGNER` مصمّم, `CHEF` طاهٍ,
+  `TEACHER` معلّم / مدرّب, `DJ` دي جي, `TRAVELER` رحّالة (24 in all). A category the Kabso Team **verified**
+  (`categoryVerified`) gives the profile page its own look and featured section; an unverified one stays this word;
+  changing it clears the verification; a category the team locked cannot be changed — 403 `ACCOUNT_CATEGORY_LOCKED`.)*
 - **Profile links:** `PATCH /me {links}` replaces the whole set (0–3, in order; `[]` clears them).
   *(v1.118-social, D357:* the app owner may keep 0–7 — his page's social row, §10.153; `ProfileLink.platform` gains
   `WHATSAPP` (wa.me, whatsapp.com) and `SNAPCHAT` (snapchat.com); a bare international phone number, 8–15 digits with
@@ -12123,6 +12135,8 @@ Owner (2026-11-11): «في صفحة الموظفين يظهر تصنيف مثل 
 - **App:** the line under the name never shows a category on a staff profile (`kabsoTeam`, `staff`, `staffId` or
   `kabsoOwner`), also for an older server's payload; «التصنيف» is not offered in «تعديل الملف» for a staff account.
 - Regular accounts are unchanged.
+- *(v1.138-social, D386)* `categoryVerified` is false too, so a Kabso Team profile keeps the default look and has no
+  featured section (§10.175); `requestCategoryVerification` answers 400 `category` / `required`.
 
 ### 10.161 A live video podcast on the Live hub «بودكاست الحي في صفحة البث» *(v1.115-live, DRAFT — D368)*
 
@@ -13192,6 +13206,113 @@ their counts, the lists hold IN_APP threads only, and a WhatsApp thread or a Wha
 The inbox's retention applies (§10.151.8): a thread with no message for `WHATSAPP_RETENTION_DAYS` (180) is deleted
 with its messages, notes, history and the files of the person's pictures and voice clips; an account purge (§10.56)
 deletes its thread the same way. The data export lists the thread with the WhatsApp conversations (`channel`).
+
+### 10.175 A profile page per account category «صفحة حسب فئة الحساب» *(v1.138-social, DRAFT — D386)*
+
+Owner (2026-11-12): «عندي فكرة أن يكون كل شخص تفاصيل صفحته حسب فئة الحساب، مثلاً قارئ أو مغني يكون شكل الحساب مختلف،
+كاتب أو صحفي كذلك…»; then «نعم وأضف أي فئة مقترحة» (13 new categories) and «الموثقة» (only a category the Kabso Team
+verified changes the page). Owner: `users` module (category, verification, requests), `posts` module (featured section
+and pins), `admin-panel` (controls and the request queue). The live person card is unchanged; only the profile page
+(one's own and others') changes.
+
+#### 10.175.1 Categories and families
+
+`AccountCategory` keeps its 11 values (§10.47) and gains 13 (additive; an older app shows an unknown value as nothing):
+`QURAN_RECITER` قارئ قرآن, `STORYTELLER` راوٍ (stories and books read aloud), `WRITER` كاتب, `JOURNALIST` صحفي,
+`PHOTOGRAPHER` مصوّر, `ACTOR` ممثل, `COMEDIAN` كوميدي, `CALLIGRAPHER` خطّاط, `DESIGNER` مصمّم, `CHEF` طاهٍ, `TEACHER`
+معلّم / مدرّب, `DJ` دي جي, `TRAVELER` رحّالة. Anyone still picks one with `PATCH /me {category}` (or none).
+
+The app groups the 24 into **families** — the picker's groups and the page's look (accent token, icon, background
+pattern drawn in code at low opacity, no third-party art): **music** (SINGER, MUSICIAN, DJ), **reciter** (QURAN_RECITER,
+STORYTELLER), **word** (POET, WRITER, BLOGGER, JOURNALIST), **visual** (ARTIST, PHOTOGRAPHER, DESIGNER, CALLIGRAPHER),
+**performer** (CONTENT_CREATOR, ACTOR, COMEDIAN, PRESENTER), **sports and games** (ATHLETE, GAMER), **lifestyle** (CHEF,
+TRAVELER, TEACHER), **public** (PUBLIC_FIGURE, OTHER). The families are an app grouping; the wire carries the category.
+
+#### 10.175.2 Verified only; the featured section (`getUserFeatured`)
+
+- `Me.categoryVerified` / `PublicProfile.categoryVerified`: the team verified the **current** category. Only then does
+  the profile page take the category's look — the accent on the cover tint, the badge and the primary buttons; the
+  category badge beside the name with its icon and a small check; the pattern; the featured section; the tab order.
+  An unverified category stays the word under the name (§10.47) with the default look. A Kabso Team account shows no
+  category (D367), so `categoryVerified` is false and it has the default look. PUBLIC_FIGURE and OTHER keep the default
+  layout even when verified (badge and accent only, no section).
+- `GET /users/{username}/featured` → `ProfileFeatured {section, source, items, schedule}`; the visibility rules of
+  `listUserPosts` (a private account not followed, a block either way → 404). `section` is null (and the lists empty)
+  unless the category is verified and has a section:
+
+  | Categories | `section` | App title | Automatic pick (no pin the caller may see) |
+  |---|---|---|---|
+  | SINGER, MUSICIAN, DJ | `WORKS` | «أعمالي» | posts and reels with a video |
+  | QURAN_RECITER | `RECITATIONS` | «تلاواتي» | posts and reels with a video, as a player list |
+  | STORYTELLER | `STORIES` | «حكاياتي» | posts and reels with a video, as a player list |
+  | POET | `POEMS` | «قصائدي» | text-only posts (poetry cards) |
+  | WRITER, BLOGGER | `ARTICLES` | «مقالاتي» | text-only posts (title and excerpt) |
+  | JOURNALIST | `REPORTS` | «تقاريري» | posts (news cards) |
+  | PRESENTER | `PROGRAM` | «برنامجي» | none; `schedule` = the announced lives and podcast episodes still ahead (§10.16, §10.69), soonest first, ≤ 6 |
+  | GAMER | `GAMES` | «ألعابي» | posts and reels (no per-player game statistics are public in Kabso) |
+  | ATHLETE | `ACHIEVEMENTS` | «إنجازاتي» | posts with a picture (achievement cards) |
+  | ARTIST, PHOTOGRAPHER, DESIGNER, CALLIGRAPHER | `GALLERY` | «معرضي» | posts with a picture (image grid) |
+  | CONTENT_CREATOR, ACTOR, COMEDIAN | `MOST_VIEWED` | «الأكثر مشاهدة» | reels, most viewed first |
+  | CHEF, TRAVELER, TEACHER | `HIGHLIGHTS` | «المميز» | posts with a picture or a video (cards) |
+
+  Kabso has no audio-only post: the reciter and storyteller lists play the video posts' sound. `items` (≤ 6) are the
+  person's pins in their order (`source: PINNED`) when the caller may see at least one; else the automatic pick, newest
+  published first (`AUTO`); `NONE` when nothing shows. A pin always shows whatever it is (the person chose it).
+  Posts are the full `Post` the feed uses (likes, views, the caller's state).
+
+#### 10.175.3 Featured pins (`listMyFeaturedPins`, `setMyFeaturedPins`, `pinFeaturedPost`, `unpinFeaturedPost`)
+
+`profile_featured_pins` (user, post, `position` 0–5; one row per post; CHECK `profile_featured_pins_position`) keeps up to
+**6** of the person's own published, not deleted, not hidden posts or reels, in order (`FEATURED_PIN_MAX`). They are
+separate from the grid's 3 pinned posts (§11.2). `PUT /me/featured-pins {postIds}` replaces the set (reorder, clear);
+`PUT /me/featured-pins/{postId}` appends one (idempotent; a 7th → 409 `FEATURED_PIN_LIMIT`, under a per-person lock);
+`DELETE …/{postId}` removes one (idempotent). A pin whose post was deleted, hidden by the team or is no longer published
+is dropped when the person's pins are read or written, and a reader never sees it (a deleted post is also dropped by
+the foreign key when the row is purged). Pins can be set whatever the category; the app offers «تثبيت في <section>» in
+a post's menu only on one's own post while one's category is verified and has a section, and the section's «ترتيب»
+sheet reorders them. 60 / hour per user (bucket `featured:pins`, `RATE_LIMIT_FEATURED_PINS_USER`), the reads the
+per-user default. Account deletion deletes the pins; the data export lists them.
+
+#### 10.175.4 Verification requests «طلب توثيق الفئة» (`getMyCategoryVerification`, `requestCategoryVerification`, `cancelCategoryVerification`)
+
+**Choice (D386):** a new, small request table — `category_verification_requests` — rather than reusing an existing
+flow. KYC / Didit (§10.77) proves a person's identity, not what they do; the D293 badges (§10.105) are computed from
+conditions with no request or decision; the host application (§10.68) grants a hosting permission with private ID
+pictures. None verifies a category claim, so reusing one would mix meanings. The new table copies the host
+application's proven shape (one PENDING per person — partial unique index —, approve / reject with a reason, the panel
+table, system notifications) without its private files.
+
+- `POST /me/category-verification {note?}` → 201 `CategoryVerificationStatus`: a PENDING request for the current category.
+  Order: 400 body (`note` ≤ 300 code points, §6 hygiene) → no category, or a Kabso Team account → 400 `category` /
+  `required` → already verified → 400 `category` / `already_verified` → an open request → 409
+  `CATEGORY_VERIFICATION_PENDING`. 5 / day per user (bucket `category:request`, `RATE_LIMIT_CATEGORY_REQUEST_USER`).
+- `DELETE /me/category-verification` cancels the open request (idempotent); `GET` returns the state with the open
+  request, else the latest one (with the team's `rejectReason` when rejected).
+- **Changing one's category clears the verification and cancels the open request** (`cancel_reason = 'category_changed'`).
+  Setting the same value again changes nothing.
+- `user_profiles.category_verified_at` / `category_verified_by` hold the verification; `category_locked_at` /
+  `category_locked_by` the team's lock (CHECK `user_profiles_category_verified_shape`: verified needs a category).
+  While locked, `PATCH /me` with a different `category` → 403 `ACCOUNT_CATEGORY_LOCKED` before anything is stored (the
+  same value passes). Account deletion clears them and deletes the requests.
+
+#### 10.175.5 The panel (`getAdminUserCategory`, `controlAdminUserCategory`, «طلبات توثيق الفئة»)
+
+The D208 account-control patterns (§10.67): the capability is checked on every request — reading
+`users.control_view` (OWNER, MODERATION, SUPPORT, FINANCE), acting `users.profile_edit` (OWNER, MODERATION, SUPPORT);
+the CSRF header and a `reason` (1–500) on every change; never on one's own account (409 `ADMIN_ACTION_REFUSED`); a
+panel admin's account only by an OWNER (403); no authenticator code (no money moves).
+- `POST /admin/users/{userId}/category {action, reason}`: `VERIFY` (needs a category, else 409 `ADMIN_ACTION_REFUSED`
+  `no_category`; approves an open request for the same category), `UNVERIFY`, `CLEAR` (category none, verification
+  gone, open request cancelled `cleared_by_team`), `LOCK`, `UNLOCK`. Audited `admin.user.category` `{action, reason,
+  before: {category, verified, locked}, after, via: panel}`; the person gets `CATEGORY_VERIFIED` (VERIFY) or
+  `CATEGORY_REVIEWED` (the others; system, no target, pushed). A no-op answers 200 with no audit and no notification.
+- `GET /admin/category-requests` (the §10.60.1 table: status filter, `q`, sort, CSV audited `admin.export.csv`);
+  `POST …/{requestId}/approve` (the request's category must still be the account's — it always is, a change cancels
+  the request — the account ACTIVE: verifies, audited `category.request.approve`, `CATEGORY_VERIFIED`);
+  `POST …/{requestId}/reject {reason}` (the reason is shown to the person; audited `category.request.reject`,
+  `CATEGORY_REVIEWED`; they may ask again at once — the daily limit applies). Not PENDING → 409 `ADMIN_ACTION_REFUSED`.
+- The admin's user page shows the category, «موثّقة» / «مقفلة», the latest request and the five actions; the queue is a
+  page under the users group.
 
 ### 10.177 «سؤال اللغة» — the WhatsApp language question and language routing *(v1.140-social, DRAFT — D388)*
 
