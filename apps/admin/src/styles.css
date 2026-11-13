@@ -2782,3 +2782,10 @@ table.events-v2 td .row { flex-wrap: wrap; }
 }
 [dir='rtl'] .ev-hub-dots { transform: translateX(50%); }
 .btn.link { background: none; border: none; padding: 0; color: var(--primary-text); text-decoration: underline; cursor: pointer; }
+
+/* v1.140-social (D390): the ambassador level chips (the app's AmbassadorBadge colours). */
+.amb-level { display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 12px; }
+.amb-bronze { background: #f3e1d2; color: #7a4a24; }
+.amb-silver { background: #e6e8ec; color: #4b5563; }
+.amb-gold { background: #fbefc7; color: #7a5a00; }
+.amb-diamond { background: #dceffd; color: #0b5c8f; }

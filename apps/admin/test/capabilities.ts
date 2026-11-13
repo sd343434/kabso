@@ -104,4 +104,8 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'support.whatsapp.manage': ['OWNER', 'MODERATION'],
   // D360: the default when no WhatsApp level is set for the person (exactly D355).
   'support.whatsapp.view': ['OWNER', 'MODERATION', 'SUPPORT'],
+  // v1.140-social (D390): «برنامج سفراء كابسو».
+  'ambassadors.view': ['OWNER', 'SUPPORT'],
+  'ambassadors.manage': ['OWNER', 'SUPPORT'],
+  'ambassadors.settings': ['OWNER'],
 };

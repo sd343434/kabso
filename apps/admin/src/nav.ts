@@ -98,6 +98,16 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    // v1.140-social (D390): «برنامج سفراء كابسو» — the settings are the OWNER's (`ambassadors.settings`).
+    key: 'navGroupAmbassadors',
+    items: [
+      { to: '/ambassadors', key: 'navAmbassadors', icon: 'users', cap: 'ambassadors.view', match: ['ambassadors', 'ambassador'] },
+      { to: '/ambassador-applications', key: 'navAmbassadorApplications', icon: 'inbox', cap: 'ambassadors.view', match: ['ambassadorApplications'] },
+      { to: '/ambassador-campaigns', key: 'navAmbassadorCampaigns', icon: 'calendar', cap: 'ambassadors.view', match: ['ambassadorCampaigns'] },
+      { to: '/ambassador-settings', key: 'navAmbassadorSettings', icon: 'money', cap: 'ambassadors.settings', match: ['ambassadorSettings'] },
+    ],
+  },
+  {
     // v1.89-social (D290): «طلب رفع ليفيل» — the requests (MODERATION, SUPPORT: their own; OWNER: all), the source-app
     // data and the weights (OWNER).
     key: 'navGroupLevelRaise',

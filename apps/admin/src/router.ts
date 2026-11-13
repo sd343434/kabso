@@ -80,6 +80,12 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'myRecruits', pattern: '/my-recruits' },
   { name: 'recruits', pattern: '/recruits' },
   { name: 'creatorApplications', pattern: '/creator-applications' },
+  // v1.140-social (D390): «السفراء».
+  { name: 'ambassadors', pattern: '/ambassadors' },
+  { name: 'ambassador', pattern: '/ambassadors/:id' },
+  { name: 'ambassadorApplications', pattern: '/ambassador-applications' },
+  { name: 'ambassadorCampaigns', pattern: '/ambassador-campaigns' },
+  { name: 'ambassadorSettings', pattern: '/ambassador-settings' },
   // v1.89-social (D290): «طلب رفع ليفيل».
   { name: 'levelRaises', pattern: '/level-raises' },
   { name: 'levelRaise', pattern: '/level-raises/:id' },

@@ -121,7 +121,11 @@ export type Capability =
   | "support.whatsapp"
   | "support.whatsapp.manage"
   // v1.120-social (D360): «مشاهدة فقط» — the WhatsApp level VIEW (the three come from the staff member's level).
-  | "support.whatsapp.view";
+  | "support.whatsapp.view"
+  // v1.140-social (D390): «برنامج سفراء كابسو».
+  | "ambassadors.view"
+  | "ambassadors.manage"
+  | "ambassadors.settings";
 
 /** v1.90-social (D293, §10.105): the automatic verification badge, highest first. */
 export const VERIFICATION_BADGES = [

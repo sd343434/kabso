@@ -18,6 +18,7 @@ import { LiveWatch } from './pages/LiveWatch';
 import { HostApplicationDetail, HostApplications } from './pages/HostApplications';
 import { PkDares } from './pages/PkDares';
 import { CreatorApplications, MyRecruits, Recruits } from './pages/Recruits';
+import { AmbassadorApplications, AmbassadorCampaigns, AmbassadorDetail, Ambassadors, AmbassadorSettingsPage } from './pages/Ambassadors';
 import { LevelRaiseApps, LevelRaiseDetail, LevelRaises, LevelRaiseSettingsPage } from './pages/LevelRaises';
 import { OwnerFixedCosts } from './pages/OwnerFixedCosts';
 import { OwnerInbox } from './pages/OwnerInbox';
@@ -241,6 +242,22 @@ export function App() {
           break;
         case 'creatorApplications':
           page = <CreatorApplications />;
+          break;
+        // v1.140-social (D390).
+        case 'ambassadors':
+          page = <Ambassadors />;
+          break;
+        case 'ambassador':
+          page = <AmbassadorDetail id={match.params.id!} />;
+          break;
+        case 'ambassadorApplications':
+          page = <AmbassadorApplications />;
+          break;
+        case 'ambassadorCampaigns':
+          page = <AmbassadorCampaigns />;
+          break;
+        case 'ambassadorSettings':
+          page = <AmbassadorSettingsPage />;
           break;
         // v1.89-social (D290).
         case 'levelRaises':
