@@ -15820,5 +15820,11 @@
   "waInApp": "داخل التطبيق",
   "@waInApp": {"description": "D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174)."},
   "waInAppHint": "محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.",
-  "@waInAppHint": {"description": "D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174)."}
+  "@waInAppHint": {"description": "D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174)."},
+  "waLangAR": "عربي",
+  "@waLangAR": {"description": "D388 (§10.177): a WhatsApp conversation's customer language AR, shown as a small tag on the inbox row and the chat's status strip."},
+  "waLangEN": "English",
+  "@waLangEN": {"description": "D388 (§10.177): a WhatsApp conversation's customer language EN, shown as a small tag on the inbox row and the chat's status strip."},
+  "waLangLabel": "لغة العميل: {language}",
+  "@waLangLabel": {"description": "D388 (§10.177): the semantics of the customer-language tag.", "placeholders": {"language": {"type": "String"}}}
 }

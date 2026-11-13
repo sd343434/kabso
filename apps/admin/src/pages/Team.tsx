@@ -3,8 +3,8 @@ import { api } from '../api';
 import { Avatar, codeField, Dialog, ErrorAlert, FormDialog, reasonField, StatusBadge, useAsync } from '../components';
 import { useApp } from '../context';
 import { formatDate } from '../format';
-import type { PanelRole, WaDepartment } from '../types';
-import { WA_DEPARTMENTS } from '../types';
+import type { PanelRole, WaDepartment, WaLanguage } from '../types';
+import { WA_DEPARTMENTS, WA_LANGUAGES } from '../types';
 import { Icon } from '../ui/icons';
 import { STAFF_REGIONS, type StaffRegion } from '../i18n-d283';
 import { recruitBreakdown, type RecruitCounts } from './Recruits';
@@ -33,6 +33,101 @@ export interface Member {
   whatsapp?: TeamWhatsApp;
   /** D366: the WhatsApp departments «الأقسام» (absent from an older API). */
   whatsappDepartments?: TeamWaDepartments;
+  /** D388: the WhatsApp languages «اللغات» (absent from an older API). */
+  whatsappLanguages?: TeamWaLanguages;
+}
+
+/** D388 (v1.140-social, §10.177.3): the languages a staff member speaks (both when none is set). */
+export interface TeamWaLanguages {
+  languages: WaLanguage[];
+  isDefault: boolean;
+}
+
+/** D388: set the languages ([] = back to both) — team.manage, the reason and a fresh code; audited. */
+export const setStaffWaLanguages = (userId: string, languages: WaLanguage[], reason: string, totpCode: string) =>
+  api.put<{ userId: string; before: WaLanguage[]; whatsappLanguages: TeamWaLanguages }>(
+    `/admin/team/${userId}/whatsapp/languages`,
+    { languages, reason, totpCode },
+  );
+
+/** D388: the languages row of a member card, under the departments. */
+export function WaLanguagesRow({
+  m,
+  onEdit,
+}: {
+  m: Member & { whatsappLanguages: TeamWaLanguages };
+  onEdit?: () => void;
+}) {
+  const { t } = useApp();
+  const l = m.whatsappLanguages;
+  const replies = answersWhatsApp(m);
+  return (
+    <>
+      <dt>{t('waLanguages')}</dt>
+      <dd data-wa-languages={l.languages.join(',')} data-wa-languages-default={l.isDefault ? 'true' : 'false'}>
+        {l.languages.map((x) => (
+          <Fragment key={x}>
+            <span className={`badge ${replies ? 'info' : ''}`}>{t(`waLang${x}`)}</span>{' '}
+          </Fragment>
+        ))}
+        {l.isDefault && <span className="badge">{t('waLanguagesDefaultTag')}</span>}
+        {!replies && <div className="muted small">{t('waLanguagesReplyOnly')}</div>}
+        {replies && onEdit && (
+          <div>
+            <button className="btn small" data-edit-wa-languages onClick={onEdit}>
+              {t('waLanguagesEdit')}
+            </button>
+          </div>
+        )}
+      </dd>
+    </>
+  );
+}
+
+/** D388: pick the languages (none = both), then the reason and the code. */
+export function WaLanguagesDialog({
+  member,
+  onClose,
+  onDone,
+}: {
+  member: Member & { whatsappLanguages: TeamWaLanguages };
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { t } = useApp();
+  const l = member.whatsappLanguages;
+  const [picked, setPicked] = useState<WaLanguage[]>(l.isDefault ? [] : l.languages);
+  return (
+    <FormDialog
+      title={t('waLanguagesTitle', { name: member.displayName || `@${member.username}` })}
+      intro={
+        <>
+          <p className="muted small">{t('waLanguagesIntro')}</p>
+          <div className="region-picks" role="group" aria-label={t('waLanguages')}>
+            {WA_LANGUAGES.map((x) => (
+              <label key={x} className="check-row" data-wa-language-option={x}>
+                <input
+                  type="checkbox"
+                  checked={picked.includes(x)}
+                  onChange={(e) =>
+                    setPicked((p) =>
+                      e.target.checked ? WA_LANGUAGES.filter((y) => y === x || p.includes(y)) : p.filter((y) => y !== x),
+                    )
+                  }
+                />{' '}
+                <span className="strong">{t(`waLang${x}`)}</span>
+              </label>
+            ))}
+          </div>
+        </>
+      }
+      fields={[reasonField(t), stepField(t)]}
+      confirmLabel={t('save')}
+      submit={(v) => setStaffWaLanguages(member.id, picked, v.reason ?? '', v.totpCode ?? '')}
+      onClose={onClose}
+      onDone={onDone}
+    />
+  );
 }
 
 /** D366 (v1.123-social, §10.159.1): a staff member's WhatsApp departments (GENERAL when none is set). */
@@ -422,6 +517,7 @@ export function MemberCard({
   onRegions,
   onWhatsApp,
   onWaDepartments,
+  onWaLanguages,
 }: {
   m: Member;
   selfId: string | undefined;
@@ -434,6 +530,8 @@ export function MemberCard({
   onWhatsApp?: () => void;
   /** D366: change the WhatsApp departments (REPLY / MANAGE only). */
   onWaDepartments?: () => void;
+  /** D388: change the WhatsApp languages (REPLY / MANAGE only). */
+  onWaLanguages?: () => void;
 }) {
   const { t, lang } = useApp();
   const self = m.id === selfId;
@@ -518,6 +616,9 @@ export function MemberCard({
         {m.whatsapp && m.whatsappDepartments && (
           <WaDepartmentsRow m={m as Member & { whatsappDepartments: TeamWaDepartments }} onEdit={onWaDepartments} />
         )}
+        {m.whatsapp && m.whatsappLanguages && (
+          <WaLanguagesRow m={m as Member & { whatsappLanguages: TeamWaLanguages }} onEdit={onWaLanguages} />
+        )}
         {m.lockedUntil && (
           <>
             <dt>{t('teamLocked')}</dt>
@@ -565,6 +666,7 @@ export function Team() {
     | { regions: Member }
     | { whatsapp: Member & { whatsapp: TeamWhatsApp } }
     | { departments: Member & { whatsappDepartments: TeamWaDepartments } }
+    | { languages: Member & { whatsappLanguages: TeamWaLanguages } }
     | null
   >(null);
   const [revokeRole, setRevokeRole] = useState<PanelRole | null>(null);
@@ -629,6 +731,11 @@ export function Team() {
             onWaDepartments={
               m.whatsappDepartments
                 ? () => setDialog({ departments: m as Member & { whatsappDepartments: TeamWaDepartments } })
+                : undefined
+            }
+            onWaLanguages={
+              m.whatsappLanguages
+                ? () => setDialog({ languages: m as Member & { whatsappLanguages: TeamWaLanguages } })
                 : undefined
             }
           />
@@ -697,6 +804,9 @@ export function Team() {
       )}
       {dialog && dialog !== 'grant' && 'departments' in dialog && (
         <WaDepartmentsDialog member={dialog.departments} onClose={() => setDialog(null)} onDone={done} />
+      )}
+      {dialog && dialog !== 'grant' && 'languages' in dialog && (
+        <WaLanguagesDialog member={dialog.languages} onClose={() => setDialog(null)} onDone={done} />
       )}
       {dialog && dialog !== 'grant' && 'regions' in dialog && (
         <RegionsDialog member={dialog.regions} onClose={() => setDialog(null)} onDone={done} />

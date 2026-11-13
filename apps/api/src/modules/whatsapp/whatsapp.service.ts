@@ -29,6 +29,14 @@ import {
 import { isAtWhatsAppLevel, staffAtLevel } from './whatsapp-access.js';
 import { SupportPush } from './support-push.js';
 import {
+  LANGUAGE_CONFIRMATION,
+  LANGUAGE_QUESTION_TEXT,
+  languageQuestionPayload,
+  setLanguagesOf,
+  speaks,
+  type WaLanguage,
+} from './whatsapp-language.js';
+import {
   DEFAULT_DEPARTMENT,
   effectiveDepartments,
   firstAvailable,
@@ -110,6 +118,8 @@ export interface WaConversationDto {
   priority: boolean;
   /** v1.137-social (D385, §10.174.6): WHATSAPP, or IN_APP «دعم كابسو» «داخل التطبيق». */
   channel: WaChannel;
+  /** v1.140-social (D388, §10.177): the customer's language «اللغة» (null until they answer the question). */
+  language: WaLanguage | null;
 }
 
 export interface WaMessageDto {
@@ -248,6 +258,7 @@ export class WhatsAppService {
       filter: WaFilter;
       department?: WaDepartment | undefined;
       channel?: WaChannel | undefined;
+      language?: WaLanguage | undefined;
       q?: string;
       cursor?: string;
       limit: number;
@@ -257,10 +268,12 @@ export class WhatsAppService {
     if (q.channel === 'WHATSAPP') this.requireGraph();
     const channel = q.channel ?? this.servedChannel();
     const term = q.q?.trim() ?? '';
-    const scope = `wa:${q.filter}:${ctx.userId}:${q.department ?? '*'}:${channel ?? '*'}:${term}`;
+    const scope = `wa:${q.filter}:${ctx.userId}:${q.department ?? '*'}:${channel ?? '*'}:${q.language ?? '*'}:${term}`;
     const where: Prisma.WaConversationWhereInput = { purgeAfter: null };
     if (q.department) where.department = q.department;
     if (channel) where.channel = channel;
+    // v1.140-social (D388, §10.177.4): one language (a conversation with none yet is in neither).
+    if (q.language) where.language = q.language;
     if (q.filter === 'closed') where.status = 'CLOSED';
     else where.status = 'OPEN';
     if (q.filter === 'unassigned') where.assignedToId = null;
@@ -462,6 +475,7 @@ export class WhatsAppService {
         department: r.department,
         priority: r.priority,
         channel: r.channel,
+        language: r.language,
       };
     });
   }
@@ -1276,7 +1290,88 @@ export class WhatsAppService {
    * VIEW or above, never a muted one: the assignee if they can still answer (REPLY+); else the VIEW+ staff on shift,
    * plus every REPLY+ agent when none of those on shift can answer (somebody who can reply is always told).
    */
-  async pushRecipients(conv: { assignedToId: string | null }): Promise<string[]> {
+  // ---- the language question (v1.140-social, D388, §10.177) ------------------------------------------------------
+
+  /** §10.177.1: the reply-buttons question «العربية / English», sent once on a conversation's first message. */
+  async askLanguage(conv: { id: string; waId: string | null }): Promise<void> {
+    if (!conv.waId) return;
+    await this.sendAutomatic(
+      conv,
+      languageQuestionPayload(conv.waId),
+      'INTERACTIVE',
+      LANGUAGE_QUESTION_TEXT,
+      {
+        kind: 'question',
+      },
+    );
+  }
+
+  /** §10.177.2: the confirmation in the language the customer chose. */
+  async confirmLanguage(conv: { id: string; waId: string | null }, language: WaLanguage): Promise<void> {
+    if (!conv.waId) return;
+    const body = LANGUAGE_CONFIRMATION[language];
+    await this.sendAutomatic(
+      conv,
+      { to: conv.waId, type: 'text', text: { body, preview_url: false } },
+      'TEXT',
+      body,
+      { kind: 'confirmation', language },
+    );
+  }
+
+  /**
+   * An automatic message (no staff sender): sent to Meta, then stored as an OUTBOUND message of the conversation
+   * (`sentBy` null) and audited `whatsapp.language.auto`. It never claims the conversation and leaves its preview, last
+   * direction and unread count alone (the inbox still shows the customer's message). A send failure is logged and
+   * nothing is stored; the question is not sent again (§10.177.1: asked once).
+   */
+  private async sendAutomatic(
+    conv: { id: string },
+    payload: Record<string, unknown>,
+    type: 'INTERACTIVE' | 'TEXT',
+    body: string,
+    metadata: Record<string, string>,
+  ): Promise<void> {
+    if (!this.graph) return;
+    let waMessageId: string;
+    try {
+      ({ waMessageId } = await this.graph.sendMessage(payload));
+    } catch (err) {
+      this.logger.warn(
+        { error: safeErrorLog(err), ...metadata },
+        'An automatic WhatsApp language message failed',
+      );
+      return;
+    }
+    const now = this.clock.now();
+    await this.prisma.$transaction(async (tx) => {
+      const msg = await tx.waMessage.create({
+        data: {
+          conversationId: conv.id,
+          waMessageId,
+          direction: 'OUTBOUND',
+          type,
+          body,
+          status: 'SENT',
+          sentById: null,
+          statusAt: now,
+          createdAt: now,
+        },
+      });
+      await this.audit.recordIn(tx, {
+        action: AuditAction.WHATSAPP_LANGUAGE_AUTO,
+        actorUserId: null,
+        targetType: 'wa_conversation',
+        targetId: conv.id,
+        metadata: { messageId: msg.id, ...metadata },
+      });
+    });
+  }
+
+  async pushRecipients(conv: {
+    assignedToId: string | null;
+    language?: WaLanguage | null;
+  }): Promise<string[]> {
     const muted = new Set(
       (
         await this.prisma.waAgentSetting.findMany({ where: { pushMuted: true }, select: { userId: true } })
@@ -1285,7 +1380,18 @@ export class WhatsAppService {
     if (conv.assignedToId && (await this.isAgent(this.prisma, conv.assignedToId))) {
       return muted.has(conv.assignedToId) ? [] : [conv.assignedToId];
     }
-    const staff = await staffAtLevel(this.prisma, 'VIEW');
+    let staff = await staffAtLevel(this.prisma, 'VIEW');
+    // v1.140-social (D388, §10.177.4): a conversation in a language goes to the staff who speak it (none set: both),
+    // unless that leaves nobody who can answer — then to everyone, as before.
+    if (conv.language) {
+      const language = conv.language;
+      const set = await setLanguagesOf(
+        this.prisma,
+        staff.map((s) => s.userId),
+      );
+      const speakers = staff.filter((s) => speaks(set.get(s.userId), language));
+      if (speakers.some((s) => s.level === 'REPLY' || s.level === 'MANAGE')) staff = speakers;
+    }
     const on = new Set(
       (
         await this.prisma.adminShift.findMany({

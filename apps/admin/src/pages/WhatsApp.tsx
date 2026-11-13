@@ -25,8 +25,9 @@ import type {
   WaTemplate,
   WaTestResult,
   WaDepartment,
+  WaLanguage,
 } from "../types";
-import { WA_DEPARTMENTS } from "../types";
+import { WA_DEPARTMENTS, WA_LANGUAGES } from "../types";
 import "./whatsapp.css";
 
 /**
@@ -106,6 +107,21 @@ export function DepartmentTag({ d }: { d: WaDepartment | undefined }) {
       title={`${t("waDeptFilter")}: ${name}`}
     >
       {name}
+    </span>
+  );
+}
+
+/** D388 (§10.177.4): the customer's language tag «عربي» / «English» (nothing until they answer the question). */
+export function LanguageTag({ l }: { l: WaLanguage | null | undefined }) {
+  const { t } = useApp();
+  if (!l) return null;
+  return (
+    <span
+      className="tag lang"
+      data-wa-language={l}
+      title={`${t("waLangFilter")}: ${t(`waLang${l}` as Key)}`}
+    >
+      {t(`waLang${l}` as Key)}
     </span>
   );
 }
@@ -235,6 +251,7 @@ export function WaConversationList({
                 </span>
               )}
               <DepartmentTag d={c.department} />
+              <LanguageTag l={c.language} />
               {c.priority && (
                 <span className="tag vip" data-wa-priority>
                   {t("priorityVip")}
@@ -421,7 +438,7 @@ export function WaChatView({
           </h2>
           <p className="muted small">
             <Phone value={c.phone} /> · {ownerText(t, c)}{" "}
-            <DepartmentTag d={c.department} />
+            <DepartmentTag d={c.department} /> <LanguageTag l={c.language} />
           </p>
         </div>
         {reply && (
@@ -899,6 +916,7 @@ export function WhatsAppInbox() {
   const selected = search.get("c");
   const [filter, setFilter] = useState<Filter>("unassigned");
   const [department, setDepartment] = useState<WaDepartment | "">("");
+  const [language, setLanguage] = useState<WaLanguage | "">("");
   const [q, setQ] = useState("");
   const [tick, setTick] = useState(0);
   const bump = useCallback(() => {
@@ -911,10 +929,11 @@ export function WhatsAppInbox() {
       api.get<Page<WaConversation>>(`${BASE}/conversations`, {
         filter,
         department: department || undefined,
+        language: language || undefined,
         q: q.trim() || undefined,
         limit: 50,
       }),
-    [filter, department, q, tick],
+    [filter, department, language, q, tick],
   );
   useEffect(() => {
     const h = window.setInterval(() => setTick((x) => x + 1), 15_000);
@@ -948,6 +967,7 @@ export function WhatsAppInbox() {
             ))}
           </div>
           <DepartmentFilter value={department} onChange={setDepartment} />
+          <LanguageFilter value={language} onChange={setLanguage} />
           <input
             className="input"
             type="search"
@@ -981,6 +1001,35 @@ export function WhatsAppInbox() {
         )}
       </div>
     </>
+  );
+}
+
+/** D388 (§10.177.4): the inbox's language filter (a conversation with no language yet is in neither). */
+export function LanguageFilter({
+  value,
+  onChange,
+}: {
+  value: WaLanguage | "";
+  onChange: (l: WaLanguage | "") => void;
+}) {
+  const { t } = useApp();
+  return (
+    <label className="field wa-dept-filter">
+      <span className="small muted">{t("waLangFilter")}</span>
+      <select
+        className="input"
+        data-wa-language-filter
+        value={value}
+        onChange={(e) => onChange(e.target.value as WaLanguage | "")}
+      >
+        <option value="">{t("waLangAll")}</option>
+        {WA_LANGUAGES.map((l) => (
+          <option key={l} value={l}>
+            {t(`waLang${l}` as Key)}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

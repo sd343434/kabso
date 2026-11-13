@@ -18906,4 +18906,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get waInAppHint =>
       'A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text or a picture.';
+
+  @override
+  String get waLangAR => 'Arabic';
+
+  @override
+  String get waLangEN => 'English';
+
+  @override
+  String waLangLabel(String language) {
+    return 'Customer language: $language';
+  }
 }

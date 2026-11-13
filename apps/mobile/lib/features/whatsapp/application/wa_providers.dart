@@ -2,7 +2,11 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart'
+    show isKabsoOwnerProvider;
 import 'package:kabso_live/features/staff/application/staff_providers.dart';
+import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 import 'package:kabso_live/features/staff/domain/staff_models.dart';
 import 'package:kabso_live/features/whatsapp/data/wa_repository.dart';
 import 'package:kabso_live/features/whatsapp/domain/wa_models.dart';
@@ -32,6 +36,27 @@ WaAccess waAccessOf(StaffStatus s) {
 final Provider<WaAccess?> waAccessProvider = Provider<WaAccess?>((ref) {
   final s = ref.watch(staffStatusProvider).value;
   return s == null ? null : waAccessOf(s);
+});
+
+/// Owner (2026-11-13: «انقل رسائل واتساب داخل تطبيق الى رسائل لتكون اسهل
+/// للوصول»): whether the caller gets the «واتساب» entry, now a pinned circle
+/// in «الرسائل» after «دعم كابسو» (it was a row of the Me tab). The same
+/// rule as the Me tab row had: the founder always; a staff member by their
+/// WhatsApp level (VIEW and above), the D355 roles (MODERATION, SUPPORT)
+/// while the level is unknown; nobody else. Only a Kabso Team account reads
+/// the founder check, so other people never fetch anything for it.
+final Provider<bool> waEntryProvider = Provider.autoDispose<bool>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null || !user.kabsoTeam) return false;
+  if (ref.watch(isKabsoOwnerProvider)) return true;
+  final staff = user.staff;
+  if (staff == null) return false;
+  return switch (ref.watch(waAccessProvider)) {
+    null =>
+      staff.role == StaffLineRole.moderation ||
+          staff.role == StaffLineRole.support,
+    final WaAccess a => a != WaAccess.none,
+  };
 });
 
 /// D360: the caller reads only (the WhatsApp level VIEW).

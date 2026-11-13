@@ -1790,7 +1790,7 @@ unused.
 
 ### 11.13 «واتساب» — the official Kabso WhatsApp number (D355) — [IMPLEMENTED, draft contract v1.116-social; off until the owner configures it, never run against Meta]
 
-The staff answer one official Kabso WhatsApp number from the app («أنا» → «واتساب») and the panel («واتساب»)
+The staff answer one official Kabso WhatsApp number from the app («الرسائل» → the pinned «واتساب» circle after «دعم كابسو»; it was «أنا» → «واتساب» until 2026-11-13) and the panel («واتساب»)
 (CONVENTIONS §10.151). It stays **off** until the five settings below are on the server; nothing else needs a deploy.
 Meta's screens and names change often — follow Meta's current wording; the links are Meta's official pages.
 
@@ -4539,3 +4539,26 @@ CONVENTIONS §10.174 (owner 2026-11-12). One migration and one optional setting;
 - **Order:** deploy the API image (the migration runs first), then the panel, then ship the APK. An older app shows no
   row and no support chat; an older staff app or panel must not open the inbox while in-app threads exist (their phone
   is null) — none is deployed with D355 yet.
+
+### 5.130 «سؤال اللغة» — the WhatsApp language question (D388; migration `20270518090000_whatsapp_language`) — [IMPLEMENTED, draft contract v1.140-social; not deployed, not tested against Meta]
+
+CONVENTIONS §10.177 (owner 2026-11-13). One migration and one optional setting; no new secret, no new host.
+
+- **Migration** `20270518090000_whatsapp_language` (the usual `migrate` job, as the migration role): enum `wa_language`;
+  `wa_conversations.language` and `language_asked_at` (nullable, no default: metadata-only, no table rewrite); the new
+  table `wa_staff_languages` (runtime grants from the default privileges, KL-013). Nothing to backfill: every existing
+  conversation has no language and is asked once, on its next message.
+- **Setting:** `WHATSAPP_ASK_LANGUAGE` (default `true`) — the reply-buttons question «العربية / English» on a
+  conversation's first message. Set `false` to stop asking (languages already chosen stay shown); anything but
+  `true` / `false` stops the API at boot.
+- **Meta:** nothing to configure. The question is an interactive reply-buttons message inside the 24-hour window (the
+  customer just wrote), so no template is needed; the answer arrives on the `messages` webhook field already
+  subscribed (§11.13). The confirmation is a plain text in the chosen language.
+- **Panel:** «الموظفون والصلاحيات» → each REPLY / MANAGE staff card has «لغات واتساب» (none set = both). Set them so the
+  new-message pushes of an Arabic or English conversation reach the right staff.
+- **Check after deploy:** from a phone that never wrote to the number, send «مرحبا»: the buttons arrive; tap «English»:
+  the English confirmation arrives and the inbox shows «English» on the conversation.
+- **Rollback:** deploy the previous API image; it ignores the columns and the table (leave them). Set
+  `WHATSAPP_ASK_LANGUAGE=false` instead to stop only the question.
+- **Order:** the API image (the migration runs first), then the panel, then the APK. An older app or panel just shows
+  no language.

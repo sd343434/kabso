@@ -792,6 +792,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.140-social (draft) | 2026-11-13 | **D388 (owner 2026-11-13: «اريد عندما يرسل الشخص يقوم تلقائي بسؤاله عن لغة التي يتحدثها عربي او انجليزي»; first time only, a confirmation, the language shown to the staff, routed to staff who speak it): «سؤال اللغة» — the WhatsApp language question and language routing.** On a WhatsApp conversation's first message (once ever; `WHATSAPP_ASK_LANGUAGE`, default on) the server sends reply buttons «العربية» / «English»; the button (or a typed «عربي» / «English» …) sets `WaConversation.language` (`WaLanguage` AR / EN; null until answered) and a confirmation is sent in that language. Both automatic messages are OUTBOUND messages with `sentBy` null (audited `whatsapp.language.auto`); they never claim the conversation or change its preview. `?language=` on both conversation lists. A REPLY+ staff member speaks AR, EN or both (none set = both): `setAdminTeamWhatsAppLanguages` (code + reason, audited `admin.team.whatsapp_languages`; `team_languages_level`), `AdminTeam.data[].whatsappLanguages`. The new-message push of an unassigned conversation in a language goes to the staff who speak it (everyone when none of them can answer). Migration `20270518090000_whatsapp_language` (§10.177). | Additive (a new required response field `WaConversation.language`, always sent). |
 | v1.137-social (draft) | 2026-11-12 | **D385 (owner 2026-11-12: «دعم كابسو» in «الرسائل» and «اجعل شات الإدارة مثبت في الاعلى … يمكن للشخص تثبيت ٥ محادثات في الاعلى»):** tag `support` — `getSupportThread` (`GET /support/thread`, `SupportThread`), `listSupportMessages` / `sendSupportMessage` (`GET` / `POST /support/thread/messages`, `SupportMessage`, `SupportMessagePage`, `SupportStaff`, `SupportSendRequest`, `SupportSendResult`), `readSupportThread` (`POST /support/thread/read`); the staff inbox serves the in-app threads beside WhatsApp — `WaChannel`, `WaConversation.channel`, `WaConversation.phone` nullable, `WaSummary.inApp`, the `channel` filter of `getStaffWhatsAppConversations` / `getAdminWhatsAppConversations`; the inbox routes answer for IN_APP threads without the WhatsApp credentials. Pins: `listDmPins` (`GET /dm/pins`), `pinDmConversation` / `unpinDmConversation`, `pinDmGroup` / `unpinDmGroup` (`DmPin`, `DmPinList`); code `DM_PIN_LIMIT` (409). `DmConversation.online` (every partner who shows their activity, owner) and `DmUnread.support` (owner: in the badge); in-app staff replies may carry a picture. Setting `RATE_LIMIT_SUPPORT_SEND_USER` (10 / min). Migration `20270515090000_support_chat_pins`. §7, §10.174. | **Additive** for the user app. **Behaviour change** for the staff inbox: with WhatsApp off the inbox no longer answers 503 — it lists the IN_APP threads (a WhatsApp-only action still 503s); `phone` is null on an IN_APP thread (a staff app or panel older than this release must not read it as a string — none is deployed with D355 yet). |
 | v1.136-social (draft) | 2026-11-12 | **D384 (owner 2026-11-12: «انتبه جيداً لطريقة الصورة شخصية» — a reference recording, look only, kept out of git, D40; then: an animated cut-out clip, and a VIP perk):** the VIP «صورة متحركة» — catalogue code `ANIMATED_AVATAR` (IDENTITY, value none, no art, **built**); `MediaKind` `ANIMATED_AVATAR` (`image/png` ≤ 8 MiB: a strip of 2–36 square frames, 64–512 px, alpha, 12 a second; re-encoded to a looping animated WebP ≤ 1.5 MiB + a still); `setMyAnimatedAvatar` / `removeMyAnimatedAvatar` (`PUT` / `DELETE /me/animated-avatar`, `SetAnimatedAvatarRequest`, `AnimatedAvatar`; 409 `VIP_UNAVAILABLE` `no_perk`); `PublicProfile.animatedAvatar` (optional: only while the perk is held, never across a block); the panel's `removeAdminUserAnimatedAvatar` (`users.avatar`), `AdminUserDetail.user.animatedAvatarUrl`; `NotificationType.ANIMATED_AVATAR_REMOVED`; audit `user.animated_avatar.update`, `admin.animated_avatar.remove`. Migrations `20270514090000_vip_animated_avatar_enums`, `20270514090100_vip_animated_avatar`. §4, §7, §8, §10.94.1, §10.166.1, §10.173. | **Additive** (new operations, an optional response field, enum values; clients ignore unknown notification types; an older app shows the round photo). |
 | v1.135-social (draft) | 2026-11-12 | **D383 (owner 2026-11-12: «اريد الغاء فكرة صندوق او إطار بطاقة الملف التعريفية وعمل فكرة اخرى»; then «لا ستكون موجودة بحيث ستكون مثلاً تغير لون خلفية او تكون خلفية فيها عناصر متحركة»):** no box or frame around the person card in live and party rooms (owner, then: «ارى ان شكل البطاقة السابقة اجمل» — the earlier layout is kept, only the background changes); the VIP perk `PROFILE_CARD` **kept and redefined** as the card's background — catalogue `value` `none` → `color` (`#RRGGBB`, null = none), art SVGA / MP4 / PNG / WebP (hint 1080 × 1440; MP4 is new for this perk), titles «خلفية البطاقة التعريفية» / "Card background". The bag `PROFILE_CARD` header ornaments are hidden in the app pending the owner's decision (one UI flag; items, the free `bunny_royal` and the API kept); store `PROFILE_CARD` items stay on sale as backgrounds. No new operation, field, enum value or error code; no migration. §10.94.1, §10.166.1, §10.172. | **Additive.** A tier saved before is valid (no value) and its art becomes the background; an older app draws the art as before and ignores the colour; the panel's generic perk form already edits a `color` value and MP4 art. |
@@ -11808,7 +11809,7 @@ Owner (approved): instead of D355's role rule, each staff member gets a WhatsApp
 
 | Level | Capabilities | What it allows |
 |---|---|---|
-| NONE «بدون» | — | Nothing: no «واتساب» row in the app, no panel item, every route 403 (even the summary). |
+| NONE «بدون» | — | Nothing: no «واتساب» entry in the app (the pinned circle in «الرسائل», formerly a Me tab row), no panel item, every route 403 (even the summary). |
 | VIEW «مشاهدة فقط» | `support.whatsapp.view` | Read the conversations, the messages, the media, the customer panel (account card, notes, history), the badge and the pushes, the own push mute. **No** reply (text, media, template), claim, release, transfer, close, reopen, note, account link / unlink, read receipt (`…/read`), templates, agents, quick replies. |
 | REPLY «رد» | + `support.whatsapp` | D355's `support.whatsapp`. |
 | MANAGE «إدارة» | + `support.whatsapp.manage` | D355's `support.whatsapp.manage` (quick-reply edits, settings, «اختبار الاتصال», acting on someone else's conversation). |
@@ -13187,3 +13188,59 @@ their counts, the lists hold IN_APP threads only, and a WhatsApp thread or a Wha
 The inbox's retention applies (§10.151.8): a thread with no message for `WHATSAPP_RETENTION_DAYS` (180) is deleted
 with its messages, notes, history and the files of the person's pictures and voice clips; an account purge (§10.56)
 deletes its thread the same way. The data export lists the thread with the WhatsApp conversations (`channel`).
+
+### 10.177 «سؤال اللغة» — the WhatsApp language question and language routing *(v1.140-social, DRAFT — D388)*
+
+Owner (2026-11-13): «اريد عندما يرسل الشخص يقوم تلقائي بسؤاله عن لغة التي يتحدثها عربي او انجليزي» — asked the first
+time only, a confirmation in the chosen language, the language shown to the staff, and the conversation routed to staff
+who speak it. Migration `20270518090000_whatsapp_language`: enum `wa_language` (AR, EN); `wa_conversations.language`
+(null until answered) and `language_asked_at` (null: never asked); table `wa_staff_languages` (one row per language a
+staff member speaks; **no row = both**, so nothing changes on deploy). No foreign keys (the module's staff ids, §10.151).
+
+#### 10.177.1 The question
+
+When a customer's WhatsApp message is stored (§10.151.3; not a reaction) on a conversation whose `language` is null and
+that was **never asked** (`language_asked_at` null), the server sets `language_asked_at` in the same transaction and,
+after the answer to Meta, sends one interactive reply-buttons message: the text «مرحباً بك في Kabso Live 👋 / اختر لغتك
+للمتابعة / Welcome to Kabso Live 👋 / Please choose your language» and the buttons `kabso_lang_ar` «العربية» and
+`kabso_lang_en` «English». A conversation is asked once, ever (also every conversation that existed before this change,
+on its next message): a closed and reopened conversation, a later message or a failed send never asks again. IN_APP
+threads (§10.174) are never asked. `WHATSAPP_ASK_LANGUAGE=false` turns the question off (a language already chosen
+stays shown). The message is inside the customer-service window (the customer just wrote), so no template is needed.
+
+#### 10.177.2 The answer and the confirmation
+
+While the conversation was asked and has no language, a customer message chooses one when it is the tap of a question
+button (Meta's `interactive.button_reply.id`, or a quick-reply `button.payload`, equal to `kabso_lang_ar` /
+`kabso_lang_en`), or a text or button whose whole text is one of «العربية», «عربي», "Arabic" (AR) or «English»,
+«انجليزي», «الإنجليزية» (EN) (case, spaces and the alef forms ignored). The language is stored in the message's
+transaction and a confirmation is sent in it: «شكراً لك! سيرد عليك فريق كابسو باللغة العربية في أقرب وقت.» / "Thank
+you! The Kabso team will reply to you in English as soon as possible." Any other message leaves the language null (the
+customer may never answer; the staff answer as usual). The answer itself is stored and counted like any customer
+message. Once set, the language does not change.
+
+Both automatic messages are stored as OUTBOUND messages of the conversation (`type` INTERACTIVE for the question with
+its text, TEXT for the confirmation; `sentBy` null; Meta's ticks as for any outbound message) and audited
+`whatsapp.language.auto` {messageId, kind: question | confirmation, language} with no actor. They never claim the
+conversation and change neither its preview, last direction nor unread count. A send failure is logged and nothing is
+stored.
+
+#### 10.177.3 The staff's languages
+
+`setAdminTeamWhatsAppLanguages` (`PUT /admin/team/{userId}/whatsapp/languages`, `team.manage`, the code again and a
+reason, `RATE_LIMIT_ADMIN_TEAM_IP`) sets the languages a staff member speaks: `[AR]`, `[EN]`, `[AR, EN]`, or `[]` to go
+back to the default (both). Refused like the departments (§10.159.1): 409 `ADMIN_ACTION_REFUSED` `team_not_member`
+without a panel role, `team_languages_level` below the WhatsApp level REPLY. Audited `admin.team.whatsapp_languages`
+{before, after (effective lists), setBefore, setAfter, reason, via}. `AdminTeam.data[].whatsappLanguages`
+{languages (AR first; both when none is set), isDefault}. Leaving the team entirely drops them (counted in the
+`role_revoked` audit as `languagesDropped`).
+
+#### 10.177.4 Shown to the staff and routing
+
+`WaConversation.language` (`WaLanguage` or null) is on every conversation of both inboxes (the app and the panel show
+«عربي» / «English»); `?language=AR|EN` on `getStaffWhatsAppConversations` and the panel's list keeps only the
+conversations in that language (one with no language yet is in neither; the cursor is bound to it). The new-message
+push (§10.151.5) of an **unassigned** conversation in a language goes to the staff who speak it (no languages set:
+both) — on shift first, as before — unless none of them can answer (REPLY or above), then to everyone, as before. An
+assigned conversation still pushes its assignee only. Claims, transfers and «أول متاح في القسم» are unchanged.
+
