@@ -12,12 +12,14 @@ import 'package:kabso_live/features/ambassadors/data/ambassador_repository.dart'
 import 'package:kabso_live/features/ambassadors/presentation/ambassador_badge.dart';
 import 'package:kabso_live/features/ambassadors/presentation/ambassador_dashboard_screen.dart';
 import 'package:kabso_live/features/ambassadors/presentation/ambassador_programme_screen.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/notifications/domain/notification_models.dart';
 import 'package:kabso_live/features/referrals/presentation/invite_friends_screen.dart'
     show InviteSharer, inviteSharerProvider;
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/ambassadors/ambassador_fixtures.dart';
+import '../../helpers/fakes.dart';
 import '../../helpers/pump_app.dart';
 
 class _Sharer implements InviteSharer {
@@ -47,7 +49,10 @@ void main() {
       tester,
       const AmbassadorProgrammeScreen(),
       language: language,
-      overrides: [ambassadorRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        currentUserProvider.overrideWithValue(testUser()),
+        ambassadorRepositoryProvider.overrideWithValue(repo),
+      ],
     );
     await tester.pumpAndSettle();
     return repo;
@@ -72,7 +77,7 @@ void main() {
     }
     expect(find.textContaining('100,000'), findsWidgets);
     expect(find.textContaining('VIP 1'), findsOne);
-    expect(find.textContaining('days): ⁨90⁩'), findsOne);
+    expect(find.textContaining('days): \u206890\u2069'), findsOne);
   });
 
   testWidgets('the form refuses an http link and sends a valid application', (
@@ -165,6 +170,7 @@ void main() {
       tester,
       const AmbassadorDashboardScreen(),
       overrides: [
+        currentUserProvider.overrideWithValue(testUser()),
         ambassadorRepositoryProvider.overrideWithValue(
           FakeAmbassadorRepository(
             dashboard: ambassadorDashboard(payoutsHeld: held),
@@ -184,8 +190,11 @@ void main() {
     expect(find.text('https://kabsolive.com/i/K7M4QX2D'), findsOne);
     expect(find.textContaining('5%'), findsOne);
     expect(find.text('To reach Gold this month'), findsOne);
-    expect(find.textContaining('Active referrals to go: ⁨6⁩'), findsOne);
-    expect(find.text('⁨9⁩ / ⁨15⁩'), findsOne);
+    expect(
+      find.textContaining('Active referrals to go: \u20686\u2069'),
+      findsOne,
+    );
+    expect(find.text('\u20689\u2069 / \u206815\u2069'), findsOne);
     expect(find.text('3,860,000'), findsOne);
     expect(find.text('410,000'), findsOne);
     expect(find.text('23'), findsOne);

@@ -20,9 +20,11 @@ import 'package:kabso_live/features/ambassadors/data/ambassador_repository.dart'
 import 'package:kabso_live/features/ambassadors/presentation/ambassador_badge.dart';
 import 'package:kabso_live/features/ambassadors/presentation/ambassador_dashboard_screen.dart';
 import 'package:kabso_live/features/ambassadors/presentation/ambassador_programme_screen.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../fixtures/ambassadors/ambassador_fixtures.dart';
+import '../helpers/fakes.dart';
 import '../helpers/golden.dart';
 import '../helpers/pump_app.dart';
 
@@ -33,8 +35,8 @@ void main() {
     final name = language.name;
 
     for (final (screen, widget, height) in [
-      ('programme', const AmbassadorProgrammeScreen(), 2150.0),
-      ('dashboard', const AmbassadorDashboardScreen(), 1640.0),
+      ('programme', const AmbassadorProgrammeScreen(), 1460.0),
+      ('dashboard', const AmbassadorDashboardScreen(), 1270.0),
     ]) {
       testWidgets('ambassadors_d390.$screen $name', (tester) async {
         setViewport(tester, GoldenViewport.phone);
@@ -45,6 +47,7 @@ void main() {
           language: language,
           disableAnimations: true,
           overrides: [
+            currentUserProvider.overrideWithValue(testUser()),
             ambassadorRepositoryProvider.overrideWithValue(
               FakeAmbassadorRepository(),
             ),

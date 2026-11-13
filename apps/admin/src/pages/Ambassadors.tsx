@@ -261,40 +261,40 @@ export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData;
           <UserCell username={data.user.username} displayName={data.user.displayName} avatarUrl={data.user.avatarUrl} />
           <AmbStatus row={data} />
         </div>
-        <div className="kpis" style={{ marginTop: 12 }}>
-          <div className="kpi">
-            <span className="muted small">{t('ambColLevel')}</span>
-            <strong className={`amb-level amb-${data.level.toLowerCase()}`}>{data.level}</strong>
+        <div className="amb-kpis">
+          <div className="stat amb-stat">
+            <div className="label">{t('ambColLevel')}</div>
+            <div className="value"><span className={`amb-level amb-${data.level.toLowerCase()}`}>{data.level}</span></div>
           </div>
-          <div className="kpi">
-            <span className="muted small">{t('ambColReferrals')}</span>
-            <strong>{formatNumber(data.referrals.total, lang)}</strong>
+          <div className="stat amb-stat">
+            <div className="label">{t('ambColReferrals')}</div>
+            <div className="value">{formatNumber(data.referrals.total, lang)}</div>
           </div>
-          <div className="kpi">
-            <span className="muted small">{t('ambColActive')}</span>
-            <strong>{formatNumber(data.referrals.active, lang)}</strong>
+          <div className="stat amb-stat">
+            <div className="label">{t('ambColActive')}</div>
+            <div className="value">{formatNumber(data.referrals.active, lang)}</div>
           </div>
-          <div className="kpi">
-            <span className="muted small">{t('ambColMonthTopups')}</span>
-            <strong>{formatNumber(data.month.topupCoins, lang)}</strong>
+          <div className="stat amb-stat">
+            <div className="label">{t('ambColMonthTopups')}</div>
+            <div className="value">{formatNumber(data.month.topupCoins, lang)}</div>
           </div>
           {c && (
             <>
-              <div className="kpi" data-amb-paid>
-                <span className="muted small">{t('ambPaid')}</span>
-                <strong>{formatNumber(c.paidCherries, lang)}</strong>
+              <div className="stat amb-stat" data-amb-paid>
+                <div className="label">{t('ambPaid')}</div>
+                <div className="value">{formatNumber(c.paidCherries, lang)}</div>
               </div>
-              <div className="kpi">
-                <span className="muted small">{t('ambPending')}</span>
-                <strong>{formatNumber(c.pendingCherries, lang)}</strong>
+              <div className="stat amb-stat">
+                <div className="label">{t('ambPending')}</div>
+                <div className="value">{formatNumber(c.pendingCherries, lang)}</div>
               </div>
-              <div className="kpi">
-                <span className="muted small">{t('ambHeld')}</span>
-                <strong>{formatNumber(c.heldCherries, lang)}</strong>
+              <div className="stat amb-stat">
+                <div className="label">{t('ambHeld')}</div>
+                <div className="value">{formatNumber(c.heldCherries, lang)}</div>
               </div>
-              <div className="kpi">
-                <span className="muted small">{t('ambReversed')}</span>
-                <strong>{formatNumber(c.reversedCherries, lang)}</strong>
+              <div className="stat amb-stat">
+                <div className="label">{t('ambReversed')}</div>
+                <div className="value">{formatNumber(c.reversedCherries, lang)}</div>
               </div>
             </>
           )}
@@ -797,7 +797,7 @@ export function AmbassadorSettingsForm({ saved, draft, onChange, onSave }: { sav
       </div>
       <h2>{t('ambLevels')}</h2>
       <div className="table-wrap">
-        <table className="table" data-amb-levels>
+        <table className="table amb-levels" data-amb-levels>
           <thead>
             <tr>
               <th>{t('ambLevelCode')}</th>

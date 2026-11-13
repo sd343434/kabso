@@ -4,7 +4,7 @@
 
 import 'package:kabso_live/features/ambassadors/data/ambassador_repository.dart';
 
-const _levels = [
+const List<Map<String, Object>> _levels = [
   {
     'code': 'BRONZE',
     'minActiveReferrals': 0,
@@ -176,8 +176,10 @@ class FakeAmbassadorRepository implements AmbassadorRepository {
   @override
   Future<AmbassadorProgramme> apply(AmbassadorApplicationDraft draft) async {
     sent.add(draft);
-    programmeValue = ambassadorProgramme(status: 'PENDING', refusal: 'PENDING');
-    return programmeValue;
+    return programmeValue = ambassadorProgramme(
+      status: 'PENDING',
+      refusal: 'PENDING',
+    );
   }
 
   @override

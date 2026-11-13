@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
@@ -39,7 +38,7 @@ class AmbassadorDashboardScreen extends ConsumerWidget {
         backgroundColor: p.background,
         centerTitle: true,
         title: Text(l10n.ambDashTitle),
-        leading: context.canPop() ? null : const SizedBox.shrink(),
+        leading: Navigator.canPop(context) ? null : const SizedBox.shrink(),
       ),
       body: switch (dash) {
         AsyncData(:final value) => RefreshIndicator(
@@ -408,7 +407,7 @@ class _StatsCard extends StatelessWidget {
             children: [
               Icon(icon, color: p.primary, size: 20),
               const SizedBox(width: KSpacing.xs),
-              Text(title, style: t.bodyStrong),
+              Expanded(child: Text(title, style: t.bodyStrong)),
             ],
           ),
           const SizedBox(height: KSpacing.sm),
@@ -486,10 +485,15 @@ class _History extends StatelessWidget {
                   ),
                   const SizedBox(width: KSpacing.sm),
                   AmbassadorBadge(level: m.levelAfter),
-                  const Spacer(),
-                  Text(
-                    l10n.ambRewardStatus(m.rewardStatus),
-                    style: t.caption.copyWith(color: p.textSecondary),
+                  const SizedBox(width: KSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      l10n.ambRewardStatus(m.rewardStatus),
+                      textAlign: TextAlign.end,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.caption.copyWith(color: p.textSecondary),
+                    ),
                   ),
                 ],
               ),

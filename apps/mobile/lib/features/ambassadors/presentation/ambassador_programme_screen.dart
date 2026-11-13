@@ -137,7 +137,7 @@ class _AmbassadorProgrammeScreenState
         backgroundColor: p.background,
         centerTitle: true,
         title: Text(l10n.ambProgrammeTitle),
-        leading: context.canPop() ? null : const SizedBox.shrink(),
+        leading: Navigator.canPop(context) ? null : const SizedBox.shrink(),
       ),
       body: switch (programme) {
         AsyncData(:final value) => ListView(
@@ -450,7 +450,7 @@ class _Section extends StatelessWidget {
             children: [
               Icon(icon, color: p.primary, size: 22),
               const SizedBox(width: KSpacing.xs),
-              Text(title, style: t.bodyStrong),
+              Expanded(child: Text(title, style: t.bodyStrong)),
             ],
           ),
           const SizedBox(height: KSpacing.xs),

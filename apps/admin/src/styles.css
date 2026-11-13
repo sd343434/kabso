@@ -2789,3 +2789,7 @@ table.events-v2 td .row { flex-wrap: wrap; }
 .amb-silver { background: #e6e8ec; color: #4b5563; }
 .amb-gold { background: #fbefc7; color: #7a5a00; }
 .amb-diamond { background: #dceffd; color: #0b5c8f; }
+.amb-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 12px 0; }
+.amb-stat { border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; }
+.amb-stat .value { font-size: 22px; }
+.amb-levels input, .amb-levels select { min-width: 88px; }
