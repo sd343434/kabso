@@ -18906,4 +18906,74 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get waInAppHint =>
       'A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text or a picture.';
+
+  @override
+  String get staffRoleTrustSafety => 'Trust & safety';
+
+  @override
+  String get staffRoleLiveOps => 'Live operations manager';
+
+  @override
+  String get staffRoleTalent => 'Agencies & talent manager';
+
+  @override
+  String get staffRoleVipCare => 'VIP care';
+
+  @override
+  String get staffRoleCommunity => 'Community & events';
+
+  @override
+  String get staffOnShiftNow => 'On shift now';
+
+  @override
+  String get staffScheduledHint =>
+      'From the shift schedule in the admin panel.';
+
+  @override
+  String get staffMyRoles => 'My roles';
+
+  @override
+  String get staffRolesAndShift => 'My roles and shift';
+
+  @override
+  String get staffOpsPanelHint => 'Your role\'s tools are in the admin panel.';
+
+  @override
+  String get settingsFollowUs => 'Follow us';
+
+  @override
+  String get socialPlatformInstagram => 'Instagram';
+
+  @override
+  String get socialPlatformTiktok => 'TikTok';
+
+  @override
+  String get socialPlatformX => 'X';
+
+  @override
+  String get socialPlatformFacebook => 'Facebook';
+
+  @override
+  String get socialPlatformYoutube => 'YouTube';
+
+  @override
+  String get socialPlatformSnapchat => 'Snapchat';
+
+  @override
+  String get socialPlatformTelegram => 'Telegram';
+
+  @override
+  String get socialPlatformWhatsapp => 'WhatsApp';
+
+  @override
+  String get socialPlatformThreads => 'Threads';
+
+  @override
+  String get socialPlatformLinkedin => 'LinkedIn';
+
+  @override
+  String get socialPlatformDiscord => 'Discord';
+
+  @override
+  String get socialPlatformOther => 'Other';
 }

@@ -34,6 +34,7 @@ class StaffStatus {
     required this.authenticatorEnrolled,
     required this.onShift,
     this.lockedUntil,
+    this.scheduledShift = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => StaffStatus(
@@ -44,6 +45,9 @@ class StaffStatus {
     ],
     authenticatorEnrolled: json['authenticatorEnrolled'] as bool? ?? false,
     onShift: json['onShift'] as bool? ?? false,
+    // v1.139-social (D387, §10.176.6): a slot of the shift schedule covers
+    // now — «في المناوبة الآن» (absent from an older API: false).
+    scheduledShift: json['scheduledShift'] as bool? ?? false,
     lockedUntil: switch (json['lockedUntil']) {
       final String at => DateTime.parse(at),
       _ => null,
@@ -66,6 +70,9 @@ class StaffStatus {
   final bool onShift;
   final DateTime? lockedUntil;
 
+  /// v1.139-social (D387): the shift schedule says this person works now.
+  final bool scheduledShift;
+
   bool can(String capability) => capabilities.contains(capability);
 
   StaffStatus copyWith({bool? onShift}) => StaffStatus(
@@ -75,6 +82,7 @@ class StaffStatus {
     authenticatorEnrolled: authenticatorEnrolled,
     onShift: onShift ?? this.onShift,
     lockedUntil: lockedUntil,
+    scheduledShift: scheduledShift,
   );
 }
 

@@ -31881,6 +31881,144 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.'**
   String get waInAppHint;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'مراقبة المحتوى والأمان'**
+  String get staffRoleTrustSafety;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'مدير عمليات البث'**
+  String get staffRoleLiveOps;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'مدير الوكالات والمواهب'**
+  String get staffRoleTalent;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'دعم كبار الداعمين'**
+  String get staffRoleVipCare;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'المجتمع والفعاليات'**
+  String get staffRoleCommunity;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'في المناوبة الآن'**
+  String get staffOnShiftNow;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'حسب جدول المناوبات في لوحة الإدارة.'**
+  String get staffScheduledHint;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدواري'**
+  String get staffMyRoles;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدواري والمناوبة'**
+  String get staffRolesAndShift;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدوات دورك في لوحة الإدارة.'**
+  String get staffOpsPanelHint;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'تابعنا'**
+  String get settingsFollowUs;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'إنستغرام'**
+  String get socialPlatformInstagram;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'تيك توك'**
+  String get socialPlatformTiktok;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'إكس'**
+  String get socialPlatformX;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيسبوك'**
+  String get socialPlatformFacebook;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'يوتيوب'**
+  String get socialPlatformYoutube;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'سناب شات'**
+  String get socialPlatformSnapchat;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'تيليجرام'**
+  String get socialPlatformTelegram;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'واتساب'**
+  String get socialPlatformWhatsapp;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'ثريدز'**
+  String get socialPlatformThreads;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'لينكدإن'**
+  String get socialPlatformLinkedin;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'ديسكورد'**
+  String get socialPlatformDiscord;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'موقع آخر'**
+  String get socialPlatformOther;
 }
 
 class _AppLocalizationsDelegate
