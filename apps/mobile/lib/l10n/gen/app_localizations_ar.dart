@@ -18911,4 +18911,15 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get waInAppHint =>
       'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.';
+
+  @override
+  String get waLangAR => 'عربي';
+
+  @override
+  String get waLangEN => 'English';
+
+  @override
+  String waLangLabel(String language) {
+    return 'لغة العميل: $language';
+  }
 }

@@ -138,6 +138,25 @@ enum WaChannel {
   static WaChannel fromWire(Object? v) => v == 'IN_APP' ? inApp : whatsapp;
 }
 
+/// v1.140-social (D388, CONVENTIONS §10.177): the customer's language,
+/// chosen by answering the automatic question «العربية» / «English».
+enum WaLanguage {
+  ar('AR'),
+  en('EN');
+
+  new(this.wire);
+
+  final String wire;
+
+  /// Not answered yet, an unknown value or a server before D388: null.
+  static WaLanguage? fromWire(Object? v) {
+    for (final l in WaLanguage.values) {
+      if (l.wire == v) return l;
+    }
+    return null;
+  }
+}
+
 class WaConversation {
   const new({
     required this.id,
@@ -154,6 +173,7 @@ class WaConversation {
     this.linkedAccount,
     this.department = WaDepartment.general,
     this.channel = WaChannel.whatsapp,
+    this.language,
   });
 
   factory fromJson(Map<String, dynamic> j) {
@@ -176,6 +196,7 @@ class WaConversation {
           ? WaAccountCard.fromJson(account)
           : null,
       department: WaDepartment.fromWire(j['department']),
+      language: WaLanguage.fromWire(j['language']),
     );
   }
 
@@ -204,6 +225,10 @@ class WaConversation {
 
   /// D366: the department «القسم» (changed only by a transfer).
   final WaDepartment department;
+
+  /// D388 (§10.177.4): the customer's language «عربي» / «English»; null
+  /// until they answer the question (and from a server before D388).
+  final WaLanguage? language;
 
   String get title => name ?? phone ?? '';
 

@@ -32,6 +32,8 @@ WaConversation waConversation({
   WaDepartment department = WaDepartment.general,
   // D385: «دعم كابسو» inside the app — no phone, no window.
   WaChannel channel = WaChannel.whatsapp,
+  // D388: the customer's language (null: not answered yet).
+  WaLanguage? language,
 }) => WaConversation(
   id: id,
   phone: channel == WaChannel.inApp ? null : '+966500001001',
@@ -51,6 +53,7 @@ WaConversation waConversation({
       : d355Now.subtract(const Duration(hours: 3)),
   linkedAccount: account,
   department: department,
+  language: language,
 );
 
 /// [reaction]: the golden font has no emoji, so the goldens leave it out.
@@ -298,6 +301,7 @@ class FakeWaRepository implements WaRepository {
       windowClosesAt: current.windowClosesAt,
       linkedAccount: current.linkedAccount,
       department: department,
+      language: current.language,
     );
   }
 

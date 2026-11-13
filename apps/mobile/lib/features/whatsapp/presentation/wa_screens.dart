@@ -37,6 +37,9 @@ class WaInboxScreen extends ConsumerStatefulWidget {
   static const searchKey = Key('wa.search');
   static Key row(String id) => Key('wa.row.$id');
 
+  /// D388: a row's customer-language pill «عربي» / «English».
+  static Key languageKey(String id) => Key('wa.row.$id.language');
+
   /// D366: the department filter's chips (null: «كل الأقسام»).
   static const departmentsKey = Key('wa.departments');
   static Key departmentChip(WaDepartment? d) =>
@@ -382,6 +385,36 @@ class WaDepartmentPill extends StatelessWidget {
   }
 }
 
+/// D388 (§10.177.4): the customer's language in the app's language.
+String waLanguageName(AppLocalizations l10n, WaLanguage l) => switch (l) {
+  WaLanguage.ar => l10n.waLangAR,
+  WaLanguage.en => l10n.waLangEN,
+};
+
+/// D388: the customer's language as a small neutral pill next to the
+/// department's (inbox rows, the chat's status strip), read as «لغة العميل:
+/// …». Not shown while the customer has not answered (null).
+class WaLanguagePill extends StatelessWidget {
+  const new({required this.language, super.key});
+
+  final WaLanguage language;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final name = waLanguageName(l10n, language);
+    return Semantics(
+      label: l10n.waLangLabel(name),
+      excludeSemantics: true,
+      child: WaPill(
+        label: name,
+        color: context.palette.textSecondary,
+        icon: Icons.translate_rounded,
+      ),
+    );
+  }
+}
+
 /// D365: one inbox row, in the Messages tab's language (D336): the picture,
 /// the name (or the number, formatted), the time and the unread count under
 /// it, the last message, and who has it as a small tinted chip.
@@ -470,6 +503,11 @@ class WaConversationTile extends StatelessWidget {
                           WaInAppPill(key: WaInboxScreen.inAppKey(c.id)),
                         WaPill(label: tag, color: tagColor),
                         WaDepartmentPill(department: c.department),
+                        if (c.language case final l?)
+                          WaLanguagePill(
+                            key: WaInboxScreen.languageKey(c.id),
+                            language: l,
+                          ),
                       ],
                     ),
                   ],
@@ -622,6 +660,9 @@ class WaChatScreen extends ConsumerStatefulWidget {
   static const sendKey = Key('wa.send');
   static const templateKey = Key('wa.template');
   static const windowClosedKey = Key('wa.windowClosed');
+
+  /// D388: the status strip's customer-language pill.
+  static const languageKey = Key('wa.chat.language');
   static const menuKey = Key('wa.menu');
   static const detailsKey = Key('wa.details');
 
@@ -1108,6 +1149,8 @@ class WaWindowBanner extends StatelessWidget {
               icon: Icons.support_agent_rounded,
             ),
           WaDepartmentPill(department: c.department),
+          if (c.language case final l?)
+            WaLanguagePill(key: WaChatScreen.languageKey, language: l),
           if (viewOnly) const WaViewOnlyLabel(),
         ],
       ),
