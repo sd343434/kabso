@@ -93,12 +93,19 @@ function personOf(u: SlotRow['user']): ShiftPersonDto {
     username: u.profile?.username ?? '',
     displayName: u.profile?.displayName ?? '',
     avatarUrl: u.profile?.avatarUrl ?? null,
-    roles: u.adminPermissions.map((p) => p.permission as string).filter(isPanelRole).sort(),
+    roles: u.adminPermissions
+      .map((p) => p.permission as string)
+      .filter(isPanelRole)
+      .sort(),
   };
 }
 
 /** Still schedulable now: an ACTIVE admin holding MODERATION, SUPPORT or VIP_CARE. */
-function schedulable(u: { role: string; status: string; adminPermissions: { permission: AdminPermission }[] }) {
+function schedulable(u: {
+  role: string;
+  status: string;
+  adminPermissions: { permission: AdminPermission }[];
+}) {
   return (
     u.role === 'ADMIN' &&
     u.status === 'ACTIVE' &&
@@ -184,7 +191,9 @@ export class StaffScheduleService {
   private async check(tx: Tx, input: SlotInput, exceptId: string | null): Promise<void> {
     const shape = slotShapeIssue(input);
     if (shape) {
-      throw new AppException(ErrorCode.VALIDATION_FAILED, undefined, [{ field: shape, issue: 'invalid_value' }]);
+      throw new AppException(ErrorCode.VALIDATION_FAILED, undefined, [
+        { field: shape, issue: 'invalid_value' },
+      ]);
     }
     // One change per person at a time (the overlap check below reads their slots).
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:staff-schedule'), hashtext(${input.userId}))`;
@@ -194,7 +203,11 @@ export class StaffScheduleService {
     });
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     if (!schedulable(user)) {
-      throw refused('Only an active MODERATION, SUPPORT or VIP_CARE staff member can be scheduled.', 'schedule_role', 'rule');
+      throw refused(
+        'Only an active MODERATION, SUPPORT or VIP_CARE staff member can be scheduled.',
+        'schedule_role',
+        'rule',
+      );
     }
     const others = await tx.staffScheduleSlot.findMany({
       where: { userId: input.userId, weekday: input.weekday, ...(exceptId ? { id: { not: exceptId } } : {}) },
@@ -205,7 +218,13 @@ export class StaffScheduleService {
     }
   }
 
-  private auditIn(tx: Tx, ctx: AdminContext, action: AuditAction, slotId: string, metadata: Record<string, unknown>) {
+  private auditIn(
+    tx: Tx,
+    ctx: AdminContext,
+    action: AuditAction,
+    slotId: string,
+    metadata: Record<string, unknown>,
+  ) {
     return this.audit.recordIn(tx, {
       action,
       actorUserId: ctx.userId,

@@ -76,14 +76,14 @@ export function ScheduleGrid({
                   <li key={s.id} className={s.onShiftNow ? 'on-shift' : ''} data-on-shift={s.onShiftNow || undefined}>
                     <Avatar url={s.person.avatarUrl} name={s.person.displayName} />
                     <span className="names">
-                      <span>
-                        <strong>{s.person.displayName}</strong>{' '}
-                        {s.onShiftNow && <span className="badge ok">{t('shiftOnNow')}</span>}
-                      </span>
-                      <span className="muted small ltr">
+                      <strong>{s.person.displayName}</strong>
+                      {s.onShiftNow && <span className="badge ok">{t('shiftOnNow')}</span>}
+                      <span className="small">
+                        {'\u2066'}
                         {minuteLabel(s.startMinute)}–{minuteLabel(s.endMinute)}
-                        {local && ` · ${t('schedYourTime', { time: local })}`}
+                        {'\u2069'}
                       </span>
+                      {local && <span className="muted small">{t('schedYourTime', { time: local })}</span>}
                       <span className="muted small">{s.person.roles.map((r) => t(`role${r}`)).join(' · ')}</span>
                     </span>
                     {onEdit && (

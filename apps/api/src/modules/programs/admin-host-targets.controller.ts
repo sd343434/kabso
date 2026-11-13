@@ -199,7 +199,9 @@ export class AdminHostTargetsController {
       },
       day,
       // v1.139-social (D387, §10.176.2): the platform profit counted is the OWNER's (`revenue.view`).
-      targets: admin.capabilities.includes('revenue.view') ? targets : targets.map((t) => ({ ...t, profitUsd: null })),
+      targets: admin.capabilities.includes('revenue.view')
+        ? targets
+        : targets.map((t) => ({ ...t, profitUsd: null })),
     };
   }
 }

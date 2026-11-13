@@ -41,14 +41,16 @@ export function normalizeSocialUrl(raw: string): string | null {
   } catch {
     return null;
   }
-  if (url.protocol !== 'https:' || url.hostname === '' || url.username !== '' || url.password !== '') return null;
+  if (url.protocol !== 'https:' || url.hostname === '' || url.username !== '' || url.password !== '')
+    return null;
   const out = url.toString();
   return out.length > 512 ? null : out;
 }
 
 /** A handle: 1–64 characters after trimming, no control characters. */
 // eslint-disable-next-line no-control-regex
-const handle = z.string().trim().min(1).max(64).regex(/^[^\u0000-\u001f\u007f]+$/);
+const NO_CONTROL = /^[^\u0000-\u001f\u007f]+$/;
+const handle = z.string().trim().min(1).max(64).regex(NO_CONTROL);
 
 export const socialAccountBody = z.strictObject({
   platform: z.enum(SOCIAL_PLATFORMS),

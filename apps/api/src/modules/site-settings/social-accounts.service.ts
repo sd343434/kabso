@@ -160,7 +160,9 @@ export class SocialAccountsService {
       const rows = await this.rows(tx);
       const want = ids.map((i) => i.toLowerCase());
       const same =
-        want.length === rows.length && new Set(want).size === want.length && rows.every((r) => want.includes(r.id));
+        want.length === rows.length &&
+        new Set(want).size === want.length &&
+        rows.every((r) => want.includes(r.id));
       if (!same) {
         throw new AppException(ErrorCode.VALIDATION_FAILED, 'Every account once.', [
           { field: 'ids', issue: 'invalid_value' },

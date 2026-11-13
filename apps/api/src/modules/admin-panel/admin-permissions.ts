@@ -35,7 +35,16 @@ export const PANEL_ROLES = [
 export type PanelRole = (typeof PANEL_ROLES)[number];
 
 export const CAPABILITIES = {
-  'dashboard.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE', 'LIVE_OPS', 'TALENT', 'VIP_CARE', 'COMMUNITY'],
+  'dashboard.view': [
+    'OWNER',
+    'MODERATION',
+    'SUPPORT',
+    'FINANCE',
+    'LIVE_OPS',
+    'TALENT',
+    'VIP_CARE',
+    'COMMUNITY',
+  ],
   'users.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE', 'TALENT', 'VIP_CARE'],
   /** A user's balances, read-only (owner 2026-10-31: the moderator «مشرف» sees them too). */
   'users.balances': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],

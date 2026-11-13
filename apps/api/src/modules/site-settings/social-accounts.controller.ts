@@ -7,11 +7,7 @@ import { pathUuid } from '../admin-panel/admin-panel.schemas.js';
 import { AdminSessionGuard, CurrentAdmin, RequireCapability } from '../admin-panel/admin-session.guard.js';
 import { Public } from '../auth/public.decorator.js';
 import { SITE_SETTINGS_CACHE_CONTROL } from './site-settings.rules.js';
-import {
-  socialAccountBody,
-  socialAccountOrderBody,
-  type SocialAccountInput,
-} from './social-accounts.js';
+import { socialAccountBody, socialAccountOrderBody, type SocialAccountInput } from './social-accounts.js';
 import { SocialAccountsService } from './social-accounts.service.js';
 
 /** v1.139-social (D387, §10.176.5): `GET /social-accounts` — the app's official accounts, public (cached 60 s). */

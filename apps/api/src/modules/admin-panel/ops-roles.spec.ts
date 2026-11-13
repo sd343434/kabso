@@ -39,7 +39,8 @@ describe('D387 operations roles — the capability matrix', () => {
     ]);
     expect(parseRole('trust_safety')).toBe('MODERATION');
     expect(parseRole('MODERATOR')).toBe('MODERATION');
-    for (const r of ['LIVE_OPS', 'TALENT', 'VIP_CARE', 'COMMUNITY']) expect(parseRole(r.toLowerCase())).toBe(r);
+    for (const r of ['LIVE_OPS', 'TALENT', 'VIP_CARE', 'COMMUNITY'])
+      expect(parseRole(r.toLowerCase())).toBe(r);
   });
 
   it('revenue.view is the OWNER alone, and OWNER still holds every capability', () => {
@@ -190,7 +191,12 @@ describe('D387 operations roles — the capability matrix', () => {
   it('FINANCE keeps the individual requests but no revenue dashboards', () => {
     const fin = capabilitiesOf(['FINANCE']);
     expect(fin).toEqual(
-      expect.arrayContaining(['withdrawals.view', 'withdrawals.decide', 'recharge.topup', 'recharge.topups.view']),
+      expect.arrayContaining([
+        'withdrawals.view',
+        'withdrawals.decide',
+        'recharge.topup',
+        'recharge.topups.view',
+      ]),
     );
     expect(fin).not.toContain('revenue.view');
   });
@@ -233,7 +239,11 @@ describe('D387 shift schedule rules', () => {
     // Sunday 23:00 → Wednesday 08:00.
     expect(minutesUntilStart(slot, { weekday: 7, minute: 23 * 60 })).toBe(60 + 2 * 1440 + 8 * 60);
     const order = nextSlots(
-      [slot, { weekday: 1, startMinute: 0, endMinute: 60 }, { weekday: 3, startMinute: 20 * 60, endMinute: 1440 }],
+      [
+        slot,
+        { weekday: 1, startMinute: 0, endMinute: 60 },
+        { weekday: 3, startMinute: 20 * 60, endMinute: 1440 },
+      ],
       { weekday: 3, minute: 17 * 60 },
     ).map((s) => s.slot.weekday * 10000 + s.slot.startMinute);
     expect(order).toEqual([3 * 10000 + 20 * 60, 1 * 10000, 3 * 10000 + 8 * 60]);
@@ -270,7 +280,9 @@ describe('D387 compensation limits', () => {
 
 describe('D387 official social accounts', () => {
   it('https links only, never a user name or password part', () => {
-    expect(normalizeSocialUrl('https://www.instagram.com/kabsolive')).toBe('https://www.instagram.com/kabsolive');
+    expect(normalizeSocialUrl('https://www.instagram.com/kabsolive')).toBe(
+      'https://www.instagram.com/kabsolive',
+    );
     expect(normalizeSocialUrl('  HTTPS://X.com/kabso ')).toBe('https://x.com/kabso');
     expect(normalizeSocialUrl('http://x.com/kabso')).toBeNull();
     expect(normalizeSocialUrl('javascript:alert(1)')).toBeNull();
@@ -280,7 +292,11 @@ describe('D387 official social accounts', () => {
   });
 
   it('the body has no field for a password or token', () => {
-    const ok = socialAccountBody.safeParse({ platform: 'TIKTOK', handle: '@kabsolive', url: 'https://tiktok.com/@k' });
+    const ok = socialAccountBody.safeParse({
+      platform: 'TIKTOK',
+      handle: '@kabsolive',
+      url: 'https://tiktok.com/@k',
+    });
     expect(ok.success).toBe(true);
     expect(
       socialAccountBody.safeParse({
@@ -290,6 +306,8 @@ describe('D387 official social accounts', () => {
         password: 'x',
       }).success,
     ).toBe(false);
-    expect(socialAccountBody.safeParse({ platform: 'MYSPACE', handle: 'k', url: 'https://a.b' }).success).toBe(false);
+    expect(
+      socialAccountBody.safeParse({ platform: 'MYSPACE', handle: 'k', url: 'https://a.b' }).success,
+    ).toBe(false);
   });
 });

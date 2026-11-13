@@ -2789,4 +2789,6 @@ table.events-v2 td .row { flex-wrap: wrap; }
 .schedule-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-block-start: 12px; }
 .schedule-day h3 { margin: 0 0 8px; font-size: 15px; }
 .schedule-day.today { outline: 2px solid var(--primary); outline-offset: -2px; }
+.schedule-grid .names > * { white-space: normal; overflow: visible; }
+.schedule-grid .names .badge { justify-self: start; margin-block: 2px; }
 .schedule-grid li.on-shift { background: color-mix(in srgb, var(--c-green) 12%, transparent); border-radius: 10px; }

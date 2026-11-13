@@ -18,8 +18,13 @@ export const VIP_CARE_INACTIVE_DAYS = 7;
 /** TALENT: an agency with no host live for this many days is inactive. */
 export const TALENT_INACTIVE_AGENCY_DAYS = 14;
 
-const PERSON = { select: { id: true, profile: { select: { username: true, displayName: true, avatarUrl: true } } } };
-type Person = { id: string; profile: { username: string; displayName: string; avatarUrl: string | null } | null };
+const PERSON = {
+  select: { id: true, profile: { select: { username: true, displayName: true, avatarUrl: true } } },
+};
+type Person = {
+  id: string;
+  profile: { username: string; displayName: string; avatarUrl: string | null } | null;
+};
 const personDto = (u: Person) => ({
   id: u.id,
   username: u.profile?.username ?? '',
@@ -54,7 +59,12 @@ function supporterDto(r: SupporterRow) {
     vipTier:
       r.tier_code === null
         ? null
-        : { code: r.tier_code, nameAr: r.tier_name_ar ?? '', nameEn: r.tier_name_en ?? '', color: r.tier_color ?? '' },
+        : {
+            code: r.tier_code,
+            nameAr: r.tier_name_ar ?? '',
+            nameEn: r.tier_name_en ?? '',
+            color: r.tier_color ?? '',
+          },
     lastActiveAt: r.last_active_at?.toISOString() ?? null,
   };
 }

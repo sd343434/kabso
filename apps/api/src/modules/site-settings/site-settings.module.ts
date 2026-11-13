@@ -8,7 +8,10 @@ import {
   SiteSettingsController,
 } from './site-settings.controller.js';
 import { SiteSettingsService } from './site-settings.service.js';
-import { AdminSocialAccountsController, OfficialSocialAccountsController } from './social-accounts.controller.js';
+import {
+  AdminSocialAccountsController,
+  OfficialSocialAccountsController,
+} from './social-accounts.controller.js';
 import { SocialAccountsService } from './social-accounts.service.js';
 
 /**

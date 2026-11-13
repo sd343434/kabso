@@ -63,8 +63,13 @@ export interface CompensationInput {
   readonly totpCode: string;
 }
 
-const PERSON = { select: { id: true, profile: { select: { username: true, displayName: true, avatarUrl: true } } } };
-type Person = { id: string; profile: { username: string; displayName: string; avatarUrl: string | null } | null };
+const PERSON = {
+  select: { id: true, profile: { select: { username: true, displayName: true, avatarUrl: true } } },
+};
+type Person = {
+  id: string;
+  profile: { username: string; displayName: string; avatarUrl: string | null } | null;
+};
 const personDto = (u: Person) => ({
   id: u.id,
   username: u.profile?.username ?? '',
@@ -226,7 +231,10 @@ export class StaffCompensationsService {
   }
 
   /** `listAdminCompensations`: VIP_CARE sees their own, the OWNER (`compensation.approve`) everyone's. */
-  async list(q: { status?: CompensationStatus | undefined; page: number; pageSize: number }, ctx: AdminContext) {
+  async list(
+    q: { status?: CompensationStatus | undefined; page: number; pageSize: number },
+    ctx: AdminContext,
+  ) {
     const where: Prisma.StaffCompensationWhereInput = {
       ...(q.status ? { status: q.status } : {}),
       ...(ctx.capabilities.includes('compensation.approve') ? {} : { staffId: ctx.userId }),
@@ -248,17 +256,24 @@ export class StaffCompensationsService {
   private async recipientId(tx: Tx, who: string): Promise<string> {
     const value = who.trim();
     let id: string | null = null;
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) id = value.toLowerCase();
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))
+      id = value.toLowerCase();
     else if (/^[^@\s]+@[^@\s]+$/.test(value)) {
-      id = (await tx.user.findUnique({ where: { email: value.toLowerCase() }, select: { id: true } }))?.id ?? null;
+      id =
+        (await tx.user.findUnique({ where: { email: value.toLowerCase() }, select: { id: true } }))?.id ??
+        null;
     } else if (value.length > 0) {
       const staff = parseStaffId(value);
       if (staff !== null) {
-        id = (await tx.staffId.findUnique({ where: { number: staff }, select: { userId: true } }))?.userId ?? null;
+        id =
+          (await tx.staffId.findUnique({ where: { number: staff }, select: { userId: true } }))?.userId ??
+          null;
       }
       if (id === null) {
         const username = value.replace(/^@/, '').toLowerCase();
-        id = (await tx.userProfile.findUnique({ where: { username }, select: { userId: true } }))?.userId ?? null;
+        id =
+          (await tx.userProfile.findUnique({ where: { username }, select: { userId: true } }))?.userId ??
+          null;
       }
     }
     if (id === null) throw new AppException(ErrorCode.NOT_FOUND);
@@ -272,7 +287,9 @@ export class StaffCompensationsService {
       select: { status: true, adminPermissions: { select: { permission: true } } },
     });
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
-    const staff = user.adminPermissions.some((p) => (PANEL_ROLES as readonly string[]).includes(p.permission));
+    const staff = user.adminPermissions.some((p) =>
+      (PANEL_ROLES as readonly string[]).includes(p.permission),
+    );
     if (userId === ctx.userId || user.status !== 'ACTIVE' || staff) {
       throw refused(
         'A compensation goes to an active person who is not on the team (and never to oneself).',
@@ -321,11 +338,25 @@ export class StaffCompensationsService {
     if (price === null || price <= 0n) {
       throw refused('This store item has no coin price for those days.', 'compensation_item', 'rule');
     }
-    return { kind: 'ITEM', coins: null, days: input.days, vipTierId: null, itemCode: input.itemCode, value: price };
+    return {
+      kind: 'ITEM',
+      coins: null,
+      days: input.days,
+      vipTierId: null,
+      itemCode: input.itemCode,
+      value: price,
+    };
   }
 
   /** Gives what the compensation says, inside the caller's transaction (GRANTED now, or APPROVED by the OWNER). */
-  private async give(tx: Tx, id: string, userId: string, plan: Plan, reason: string, by: AdminVia): Promise<void> {
+  private async give(
+    tx: Tx,
+    id: string,
+    userId: string,
+    plan: Plan,
+    reason: string,
+    by: AdminVia,
+  ): Promise<void> {
     const now = this.clock.now();
     if (plan.kind === 'COINS') {
       await creditIn(tx, userId, plan.coins!, 'STAFF_COMPENSATION', id);
@@ -333,7 +364,15 @@ export class StaffCompensationsService {
     }
     if (plan.kind === 'ITEM') {
       try {
-        await grantBagItemByAdminIn(tx, userId, plan.itemCode!, plan.days, by, `compensation ${id}: ${reason}`, now);
+        await grantBagItemByAdminIn(
+          tx,
+          userId,
+          plan.itemCode!,
+          plan.days,
+          by,
+          `compensation ${id}: ${reason}`,
+          now,
+        );
       } catch (err) {
         if (err instanceof BagAdminError) throw refused(err.message, 'compensation_item', 'rule');
         throw err;
@@ -347,7 +386,11 @@ export class StaffCompensationsService {
     const add = plan.days! * 86_400_000;
     const active = held !== null && vipActive(held.expiresAt, now);
     if (active && held.tierId !== tier.id) {
-      throw refused('The person holds another VIP tier now: give days of that tier.', 'compensation_vip_tier', 'rule');
+      throw refused(
+        'The person holds another VIP tier now: give days of that tier.',
+        'compensation_vip_tier',
+        'rule',
+      );
     }
     const membership = await tx.vipMembership.upsert({
       where: { userId },
@@ -463,7 +506,12 @@ export class StaffCompensationsService {
       const now = this.clock.now();
       await tx.staffCompensation.update({
         where: { id },
-        data: { status: 'APPROVED', decidedById: ctx.userId, decidedAt: now, decisionNote: body.note ?? null },
+        data: {
+          status: 'APPROVED',
+          decidedById: ctx.userId,
+          decidedAt: now,
+          decisionNote: body.note ?? null,
+        },
       });
       await tx.auditLog.create({
         data: {
@@ -493,7 +541,12 @@ export class StaffCompensationsService {
       const row = await this.pendingIn(tx, id);
       await tx.staffCompensation.update({
         where: { id },
-        data: { status: 'REJECTED', decidedById: ctx.userId, decidedAt: this.clock.now(), decisionNote: reason },
+        data: {
+          status: 'REJECTED',
+          decidedById: ctx.userId,
+          decidedAt: this.clock.now(),
+          decisionNote: reason,
+        },
       });
       await tx.auditLog.create({
         data: {

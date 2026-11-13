@@ -38,7 +38,8 @@ export function slotsOverlap(a: ScheduleSlotLike, b: ScheduleSlotLike): boolean 
 /** The shape rule (also CHECK `staff_schedule_slots_shape`): null when valid, else the field that is wrong. */
 export function slotShapeIssue(slot: ScheduleSlotLike): 'weekday' | 'startMinute' | 'endMinute' | null {
   if (!Number.isInteger(slot.weekday) || slot.weekday < 1 || slot.weekday > 7) return 'weekday';
-  if (!Number.isInteger(slot.startMinute) || slot.startMinute < 0 || slot.startMinute > 1439) return 'startMinute';
+  if (!Number.isInteger(slot.startMinute) || slot.startMinute < 0 || slot.startMinute > 1439)
+    return 'startMinute';
   if (!Number.isInteger(slot.endMinute) || slot.endMinute < 1 || slot.endMinute > 1440) return 'endMinute';
   if (slot.endMinute <= slot.startMinute) return 'endMinute';
   return null;
