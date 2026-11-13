@@ -18990,4 +18990,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorStaffWithdrawalCompanyOnly =>
       'A Kabso Team account withdraws its cherries only through Kabso.';
+
+  @override
+  String get ownerProfitCompensations => 'VIP care compensations (coins)';
 }

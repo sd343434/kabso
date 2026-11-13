@@ -15874,5 +15874,7 @@
   "staffCherriesCompanyOnly": "حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.",
   "@staffCherriesCompanyOnly": {"description": "D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9)."},
   "errorStaffWithdrawalCompanyOnly": "حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط.",
-  "@errorStaffWithdrawalCompanyOnly": {"description": "D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9)."}
+  "@errorStaffWithdrawalCompanyOnly": {"description": "D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9)."},
+  "ownerProfitCompensations": "تعويضات دعم كبار الداعمين (عملات)",
+  "@ownerProfitCompensations": {"description": "D387 (§10.176.4): «الربح» — the coins given as VIP care compensations."}
 }

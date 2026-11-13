@@ -1417,6 +1417,8 @@ model WalletLedgerEntry {
   @@index([userId, createdAt(sort: Desc)], map: "wallet_ledger_user_created_idx")
   /// D301 follow-up (§10.112.10): «الربح» sums the free coins given in a period (migration 20270402090400_owner_profit).
   @@index([createdAt], map: "wallet_ledger_free_coins_idx", where: raw("reason IN ('EVENT_PRIZE'::wallet_ledger_reason, 'TASK_REWARD'::wallet_ledger_reason, 'CHECK_IN_REWARD'::wallet_ledger_reason)"))
+  /// v1.139-social (D387, §10.176.4): «الربح» reads the coin compensations (migration 20270517090300_staff_compensation_profit).
+  @@index([createdAt], map: "wallet_ledger_staff_compensation_idx", where: raw("(reason = 'STAFF_COMPENSATION'::wallet_ledger_reason)"))
   /// v1.100-social (D312): «الربح» reads the custom gift owners' coin shares per day.
   @@index([createdAt], map: "wallet_ledger_gift_owner_idx", where: raw("reason IN ('GIFT_OWNER_ROYALTY'::wallet_ledger_reason, 'GIFT_OWNER_ROYALTY_REVERSAL'::wallet_ledger_reason)"))
   @@map("wallet_ledger")

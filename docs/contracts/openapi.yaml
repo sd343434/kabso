@@ -4607,7 +4607,7 @@ paths:
         membership) stores `GIFT_DIRECT_HOST_SHARE_PERCENT` (70 %) — in a content creator's live
         `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75 %, instead of 70 %); quips, lucky and custom gifts unchanged.
 
-        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. A watch-staff viewer (OWNER, MODERATION, SUPPORT) keeps the earlier 403 `LIVE_STAFF_REFUSED`; the host is refused too.
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. A watch-staff viewer (OWNER, MODERATION, SUPPORT) keeps the earlier 403 `LIVE_STAFF_REFUSED` (D273, unchanged); an employee host is refused too, the OWNER as host may send.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -9537,7 +9537,7 @@ paths:
         `CP_NOT_PAIRED`; 409 `INSUFFICIENT_COINS`. The charge (ledger `CP_GIFT`; it counts for the
         sender's family) and the couple's CP points (+ `amount`) and tier are one transaction.
 
-        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. (after 409 `CP_NOT_PAIRED`).
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. (after 409 `CP_NOT_PAIRED`).
       requestBody:
         required: true
         content:
@@ -10037,7 +10037,7 @@ paths:
         v1.59-social (D190): 403 `TOPUP_ACCOUNT_FROZEN` while the caller's coin balance is below 0 (a reversed
         website purchase, §10.53).
 
-        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. (a bag item sent is a gift).
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. (a bag item sent is a gift).
       requestBody:
         required: true
         content:
@@ -10788,7 +10788,7 @@ paths:
         gift: `live:gift:any`, then `live:gift`) → 403 `TOPUP_ACCOUNT_FROZEN` / `ACCOUNT_RESTRICTED` (`NO_GIFTS`) → 409
         `INSUFFICIENT_COINS` / `GIFT_BAG_INSUFFICIENT`; nothing is charged, stored or sent on a refusal.
 
-        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged.
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged.
       parameters:
         - $ref: '#/components/parameters/PostIdPath'
       requestBody:
@@ -11677,7 +11677,7 @@ paths:
         `LUCKY_GIFT_REGION_UNAVAILABLE` → 429 → 409 `INSUFFICIENT_COINS` / `GIFT_BAG_INSUFFICIENT`.
         The gift message expires after 24 h; the send and its ledger rows are permanent.
 
-        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged.
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged.
       requestBody:
         required: true
         content:
@@ -12598,7 +12598,7 @@ paths:
         the held coins come back (`VIP_SCHEDULED_GIFT_RELEASE`) and the gift is charged (`DM_GIFT`) in that same
         transaction. A refused delivery → FAILED and the coins come back.
 
-        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. A delivery whose sender became staff meanwhile fails (FAILED, the coins come back).
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. A delivery whose sender became staff meanwhile fails (FAILED, the coins come back).
       requestBody:
         required: true
         content:
@@ -12885,7 +12885,7 @@ paths:
         `INSUFFICIENT_COINS` / `INSUFFICIENT_CHERRIES`. A refused request charges and changes nothing. Audited
         `store.purchase`. 30 / hour per user (bucket `store:buy`).
 
-        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. — only for a purchase with a `recipient` (a gift); buying for oneself is unchanged.
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. — only for a purchase with a `recipient` (a gift); buying for oneself is unchanged.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -34575,15 +34575,18 @@ components:
         generatedAt: { type: string, format: date-time, description: "When the numbers were computed (cached 60 s)." }
     OwnerProfitDeductionKey:
       type: string
-      enum: [GIFTS, AGENCY_COMMISSIONS, REFERRAL_REWARDS, TASK_REWARDS, STAFF_COMMISSIONS, TEAM_ADJUSTMENTS, COIN_REWARDS, CARD_FEES]
+      enum: [GIFTS, AGENCY_COMMISSIONS, REFERRAL_REWARDS, TASK_REWARDS, STAFF_COMMISSIONS, TEAM_ADJUSTMENTS, COIN_REWARDS, STAFF_COMPENSATIONS, CARD_FEES]
       description: |
         A deduction line of «الربح» (§10.112.10): GIFTS — the gift cherries credited to hosts and creators (GIFT_RECEIVED
         − GIFT_REVERSAL); AGENCY_COMMISSIONS — agency and parent-agency commissions (− their reversals and forfeits);
         REFERRAL_REWARDS — referral rewards (− reversals); TASK_REWARDS — task and host-target reward cherries;
         STAFF_COMMISSIONS — recruiters' commissions; TEAM_ADJUSTMENTS — the team's cherry adjustments (net, may be
         negative); COIN_REWARDS — the coins given away (event prizes, task and check-in coins) at the lowest price an
-        agent pays Kabso (owner: $120 per 10 000 000 coins, `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION`); CARD_FEES — the
-        estimated card fees of the period's card orders.
+        agent pays Kabso (owner: $120 per 10 000 000 coins, `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION`);
+        STAFF_COMPENSATIONS (v1.139-social, D387, §10.176.4; owner: «نعم ينقص تقرير الربح قيمة هذه العملات») — the coins
+        given as VIP care compensations (wallet ledger `STAFF_COMPENSATION`) at the same coin value, its own line (`coins`);
+        CARD_FEES — the estimated card fees of the period's card orders. An older app that does not know a key leaves the
+        line out of its list; `after` already counts it.
     OwnerProfitPeriod:
       type: object
       required: [kind, key, from, to, days, daysInMonth, partial, before, deductions, fixedCosts, after, info, otherCurrencies]
@@ -34614,8 +34617,8 @@ components:
             properties:
               key: { $ref: '#/components/schemas/OwnerProfitDeductionKey' }
               amountMinor: { type: integer, description: "US cents (a negative net lowers the costs)." }
-              cherries: { type: [integer, 'null'], description: "The net cherries of a cherry line (null for COIN_REWARDS and CARD_FEES)." }
-              coins: { type: [integer, 'null'], description: "The coins of COIN_REWARDS (null otherwise)." }
+              cherries: { type: [integer, 'null'], description: "The net cherries of a cherry line (null for COIN_REWARDS, STAFF_COMPENSATIONS and CARD_FEES)." }
+              coins: { type: [integer, 'null'], description: "The coins of COIN_REWARDS and STAFF_COMPENSATIONS (null otherwise)." }
               orders: { type: [integer, 'null'], description: "The card orders of CARD_FEES (null otherwise)." }
         fixedCosts:
           type: object

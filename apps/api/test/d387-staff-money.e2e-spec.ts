@@ -2,9 +2,9 @@
  * D387 follow-up (owner 2026-11-12, verbatim: «اي موظف لدينا لا يمكنه ارسال الهدايا — بالاضافة للموظفين الذين لديهم كرز
  * يسحب من خلالنا فقط»; contract v1.139-social, CONVENTIONS §10.176.8–9), end to end against PostgreSQL + Redis:
  *
- *  - a staff account (any panel role: OWNER, VIP_CARE, COMMUNITY, FINANCE, …) sends no gift — a conversation gift, a live
- *    gift (a viewer, and the OWNER as the host), a bag item — 403 `STAFF_GIFT_REFUSED`, nothing charged; a normal account
- *    still sends; receiving is not blocked; a revoked role sends again;
+ *  - an employee (any panel role except OWNER: VIP_CARE, COMMUNITY, FINANCE, …) sends no gift — a conversation gift, a
+ *    live gift as a viewer, a bag item — 403 `STAFF_GIFT_REFUSED`, nothing charged; the OWNER (owner: «لا غير ممنوع»),
+ *    also with another role, and a normal account still send; receiving is not blocked; a revoked role sends again;
  *  - a staff account's cherries are never sold to a recharge agent (403 `STAFF_WITHDRAWAL_COMPANY_ONLY`, also at the
  *    confirmation of a request made before the role); its withdrawal request to the company is marked `staffRequest`,
  *    listed and decided only by the OWNER (`withdrawals.staff`) — FINANCE neither sees nor decides it.
@@ -214,10 +214,9 @@ describe('D387 staff money rules', { timeout: 900_000 }, () => {
   });
 
   describe('no gift from a staff account (§10.176.8)', () => {
-    it('every role is refused a conversation gift, with nothing charged; a normal account sends', async () => {
+    it('every employee role is refused a conversation gift, with nothing charged; a normal account sends', async () => {
       const someone = await signup();
       for (const role of [
-        'OWNER',
         'VIP_CARE',
         'COMMUNITY',
         'FINANCE',
@@ -238,6 +237,22 @@ describe('D387 staff money rules', { timeout: 900_000 }, () => {
       expect(ok.status, JSON.stringify(ok.body)).toBe(201);
     });
 
+    it('the OWNER is not blocked (owner: «لا غير ممنوع»), also while holding another role', async () => {
+      const someone = await signup();
+      const owner = await makeStaff('OWNER');
+      await coins(owner, 10_000);
+      const sent = await dmGift(owner, someone);
+      expect(sent.status, JSON.stringify(sent.body)).toBe(201);
+      expectContract(sent, 'sendDmGift');
+      expect(await balance(owner)).toBe(9_900);
+      // OWNER plus an employee role is still the owner.
+      const both = await makeStaff('OWNER');
+      await grant(both, 'VIP_CARE');
+      await coins(both, 10_000);
+      const again = await dmGift(both, someone);
+      expect(again.status, JSON.stringify(again.body)).toBe(201);
+    });
+
     it('receiving is not blocked: a staff account receives a gift and its cherries', async () => {
       const ok = await dmGift(viewer, vip, 'staff_big');
       expect(ok.status, JSON.stringify(ok.body)).toBe(201);
@@ -255,12 +270,14 @@ describe('D387 staff money rules', { timeout: 900_000 }, () => {
       const ok = await liveGift(roomId, viewer, host);
       expect([200, 201], JSON.stringify(ok.body)).toContain(ok.status);
 
-      // The OWNER (the founder's account may host) gifting in their own live (D128: a host may gift).
+      // The OWNER is not blocked: as the host of their own live (D128: a host may gift) the gift goes through. (As a
+      // viewer the OWNER keeps D273's LIVE_STAFF_REFUSED, unchanged from staging.)
       const owner = await makeStaff('OWNER');
       await coins(owner, 10_000);
       const ownerRoom = await startLive(owner);
-      refusedGift(await liveGift(ownerRoom, owner, owner));
-      expect(await balance(owner)).toBe(10_000);
+      const ownerGift = await liveGift(ownerRoom, owner, owner);
+      expect([200, 201], JSON.stringify(ownerGift.body)).toContain(ownerGift.status);
+      expect(await balance(owner)).toBe(9_900);
     });
 
     it('a bag item sent is a gift: refused for staff', async () => {

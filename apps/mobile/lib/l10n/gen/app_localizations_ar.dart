@@ -18994,4 +18994,7 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errorStaffWithdrawalCompanyOnly =>
       'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط.';
+
+  @override
+  String get ownerProfitCompensations => 'تعويضات دعم كبار الداعمين (عملات)';
 }

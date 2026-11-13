@@ -77,16 +77,25 @@ export async function isPanelStaff(db: Db, userId: string): Promise<boolean> {
 }
 
 /**
- * v1.139-social (D387, CONVENTIONS §10.176.8; owner: «اي موظف لدينا لا يمكنه ارسال الهدايا»): «staff» for money is
+ * v1.139-social (D387, CONVENTIONS §10.176.8–9): «staff» for the withdrawal rule (§10.176.9) is
  * **any panel role held now** ({@link PANEL_STAFF_ROLES}: OWNER, MODERATION / TRUST_SAFETY, SUPPORT, FINANCE, BD,
  * LIVE_OPS, TALENT, VIP_CARE, COMMUNITY — an ACTIVE ADMIN account), the same set as `STAFF_PROTECTED`. One helper so
  * every path asks the same question.
  */
 export const isStaffAccount = isPanelStaff;
 
-/** 403 STAFF_GIFT_REFUSED when the caller is a staff account (every gift-send path; §10.176.8). */
+/**
+ * The gift rule's staff (§10.176.8; owner 2026-11-12: «لا غير ممنوع» — the OWNER is not blocked): an **employee** —
+ * a staff account that does not hold OWNER (an OWNER who also holds another role is still the owner). The same set as
+ * the limited staff account ({@link isLimitedStaff}).
+ */
+export async function isGiftBlockedStaff(db: Db, userId: string): Promise<boolean> {
+  return isLimitedStaff(db, userId);
+}
+
+/** 403 STAFF_GIFT_REFUSED when the caller is an employee (every gift-send path; §10.176.8). */
 export async function refuseStaffGift(db: Db, callerId: string): Promise<void> {
-  if (await isStaffAccount(db, callerId)) {
+  if (await isGiftBlockedStaff(db, callerId)) {
     throw new AppException(ErrorCode.STAFF_GIFT_REFUSED, undefined, [{ field: 'staff', issue: 'gifts' }]);
   }
 }

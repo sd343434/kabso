@@ -997,9 +997,9 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     };
 
     final String? reason;
-    // v1.139-social (D387, §10.176.8): a staff account sends no gift — the
+    // v1.139-social (D387, §10.176.8): an employee sends no gift — the
     // panel opens (to look) with Send disabled and the reason.
-    if (ref.watch(isStaffAccountProvider)) {
+    if (ref.watch(isGiftBlockedStaffProvider)) {
       reason = l10n.giftStaffRefused;
     } else if (catalogue != null && catalogue.data.isEmpty) {
       reason = l10n.liveGiftEmptyTitle;

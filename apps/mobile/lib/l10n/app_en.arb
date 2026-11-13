@@ -5864,5 +5864,6 @@
   "giftStaffRefused": "Kabso Team accounts cannot send gifts.",
   "errorStaffGiftRefused": "Kabso Team accounts cannot send gifts.",
   "staffCherriesCompanyOnly": "A Kabso Team account withdraws its cherries only through Kabso: request a withdrawal from the cherry wallet. Cherries cannot be sold to an agent.",
-  "errorStaffWithdrawalCompanyOnly": "A Kabso Team account withdraws its cherries only through Kabso."
+  "errorStaffWithdrawalCompanyOnly": "A Kabso Team account withdraws its cherries only through Kabso.",
+  "ownerProfitCompensations": "VIP care compensations (coins)"
 }

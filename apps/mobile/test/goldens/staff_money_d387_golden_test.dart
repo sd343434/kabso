@@ -27,6 +27,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_cherry_screen.dart';
+import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../fixtures/live/live_gift_fixtures.dart';
@@ -88,7 +89,10 @@ Future<void> _end(WidgetTester tester) async {
 
 void main() {
   setUpAll(loadAppFonts);
-  final staff = testUser().copyWith(staffId: 'Kabso11');
+  final staff = testUser().copyWith(
+    staffId: 'Kabso11',
+    staff: const KabsoStaffIdentity(role: StaffLineRole.vipCare),
+  );
 
   forEachLanguage((language) {
     final name = language.name;

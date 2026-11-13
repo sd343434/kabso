@@ -32043,6 +32043,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط.'**
   String get errorStaffWithdrawalCompanyOnly;
+
+  /// D387 (§10.176.4): «الربح» — the coins given as VIP care compensations.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعويضات دعم كبار الداعمين (عملات)'**
+  String get ownerProfitCompensations;
 }
 
 class _AppLocalizationsDelegate

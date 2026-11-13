@@ -4559,9 +4559,12 @@ CONVENTIONS §10.176 (owner 2026-11-12). Two migrations; no new setting, secret 
 - **After deploying:** the OWNER grants the new roles from «الموظفون والصلاحيات» (or `admin-admin grant`), sets the
   compensation limits in «التعويضات» if the defaults do not fit, enters the 24/7 schedule in «جدول المناوبات» and the
   official accounts in «حساباتنا الرسمية» (https links only; never a password or token).
+- **Owner follow-up (2026-11-12, §10.176.4):** migration `20270517090300_staff_compensation_profit` adds the partial
+  index `wallet_ledger_staff_compensation_idx` (built without `CONCURRENTLY`; no row has that reason before this
+  release, so it is instant); «الربح» gains the line `STAFF_COMPENSATIONS`.
 - **Owner follow-up (2026-11-12, §10.176.8–9):** migration `20270517090200_staff_withdrawals` adds
-  `cherry_withdrawals.staff_request` (BOOLEAN NOT NULL DEFAULT false: no rewrite; existing rows false). Staff accounts
-  (any panel role, the OWNER included) can no longer send gifts on any path (403 `STAFF_GIFT_REFUSED`) and can no longer
+  `cherry_withdrawals.staff_request` (BOOLEAN NOT NULL DEFAULT false: no rewrite; existing rows false). Employees
+  (any panel role except OWNER; owner: «لا غير ممنوع») can no longer send gifts on any path (403 `STAFF_GIFT_REFUSED`) and can no longer
   sell cherries to a recharge agent (403 `STAFF_WITHDRAWAL_COMPANY_ONLY`); their withdrawal requests go to the OWNER only.
   Tell the team before deploying: an open agent cherry request with a staff host cannot be confirmed any more.
 - **Not in this release (§10.176.7):** the COMMUNITY broadcast notification and the TALENT training message to every
