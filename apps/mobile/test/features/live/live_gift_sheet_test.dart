@@ -210,6 +210,22 @@ String? _reason(WidgetTester tester) {
 void main() {
   final ar = l10nFor(AppLanguage.ar);
 
+  testWidgets('D387: a staff account sees the gifts but Send stays off with '
+      'the reason, and nothing is sent', (tester) async {
+    final h = await _pump(
+      tester,
+      user: testUser().copyWith(staffId: 'Kabso04'),
+    );
+    await _tap(tester, _cell('rose'));
+    expect(_sendEnabled(tester), isFalse);
+    expect(_sendHint(tester), en.giftStaffRefused);
+    await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+    expect(_toast(tester), en.giftStaffRefused);
+    await tester.pump(KLiveGiftSheet.toastTime);
+    await tester.pumpAndSettle();
+    expect(h.gifts.sends, isEmpty);
+  });
+
   testWidgets('tabs from the catalogue plus the bag; 4-column grid with '
       'names, prices and badges', (tester) async {
     await _pump(tester);

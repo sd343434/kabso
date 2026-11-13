@@ -151,7 +151,8 @@ export type Capability =
   | "gifts.manage"
   | "banners.manage"
   | "boosts.manage"
-  | "site.public";
+  | "site.public"
+  | "withdrawals.staff";
 
 /** v1.90-social (D293, §10.105): the automatic verification badge, highest first. */
 export const VERIFICATION_BADGES = [
@@ -395,6 +396,8 @@ export interface WithdrawalRow {
   createdAt: string;
   decidedAt: string | null;
   decisionNote: string | null;
+  /** v1.139-social (D387, §10.176.9): a staff member's request (the company route) — the OWNER's alone. */
+  staffRequest?: boolean;
   user: UserRef;
 }
 

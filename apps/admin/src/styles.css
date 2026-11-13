@@ -2792,3 +2792,5 @@ table.events-v2 td .row { flex-wrap: wrap; }
 .schedule-grid .names > * { white-space: normal; overflow: visible; }
 .schedule-grid .names .badge { justify-self: start; margin-block: 2px; }
 .schedule-grid li.on-shift { background: color-mix(in srgb, var(--c-green) 12%, transparent); border-radius: 10px; }
+/* v1.139-social (D387, §10.176.9): «طلب موظف» beside the person. */
+[data-staff-request] { margin-inline-start: 6px; vertical-align: middle; }

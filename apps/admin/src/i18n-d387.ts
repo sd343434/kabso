@@ -159,6 +159,9 @@ export const AR_D387 = {
   navStaffSchedule: "جدول المناوبات",
   navCompensations: "التعويضات",
   navSocialAccounts: "حساباتنا الرسمية",
+  // ---- staff money rules (§10.176.8–9) -------------------------------------------------------------------------
+  wdStaffRequest: "طلب موظف",
+  wdStaffRequestHint: "موظف في فريق كابسو يسحب الكرز عن طريق الشركة فقط — يعالجه المالك وحده.",
 };
 
 export const EN_D387: Record<keyof typeof AR_D387, string> = {
@@ -310,4 +313,6 @@ export const EN_D387: Record<keyof typeof AR_D387, string> = {
   navStaffSchedule: "Shift schedule",
   navCompensations: "Compensations",
   navSocialAccounts: "Official accounts",
+  wdStaffRequest: "Staff request",
+  wdStaffRequestHint: "A Kabso Team member withdraws cherries only through the company — the owner alone handles it.",
 };

@@ -121,4 +121,5 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'banners.manage': ['OWNER', 'COMMUNITY'],
   'boosts.manage': ['OWNER', 'LIVE_OPS'],
   'site.public': ['OWNER', 'COMMUNITY'],
+  'withdrawals.staff': ['OWNER'],
 };

@@ -3,10 +3,29 @@ import { api } from '../api';
 import { codeField, ErrorAlert, FormDialog, Loading, Pager, reasonField, StatusBadge, useAsync, useCursorPages, UserCell } from '../components';
 import { useApp } from '../context';
 import { formatDate, formatMoney, formatNumber } from '../format';
-import type { Page, WithdrawalRow } from '../types';
+import type { Capability, Page, WithdrawalRow } from '../types';
 import { StatusTabs } from './Applications';
 
 const STATUSES = ['PENDING', 'PAID', 'REJECTED'] as const;
+
+/**
+ * v1.139-social (D387, §10.176.9; owner: «الموظفين الذين لديهم كرز يسحب من خلالنا فقط»): a staff member's request is
+ * the company route for their cherries — only the OWNER (`withdrawals.staff`) decides it (the server lists it to no one
+ * else).
+ */
+export function mayDecideWithdrawal(w: Pick<WithdrawalRow, 'staffRequest'>, can: (c: Capability) => boolean): boolean {
+  return can('withdrawals.decide') && (!w.staffRequest || can('withdrawals.staff'));
+}
+
+/** The «طلب موظف» mark beside the person. */
+export function StaffRequestBadge({ w }: { w: Pick<WithdrawalRow, 'staffRequest'> }) {
+  const { t } = useApp();
+  return w.staffRequest ? (
+    <span className="badge warn" data-staff-request title={t('wdStaffRequestHint')}>
+      {t('wdStaffRequest')}
+    </span>
+  ) : null;
+}
 
 export function Withdrawals() {
   const { t, lang, can, toast } = useApp();
@@ -44,6 +63,7 @@ export function Withdrawals() {
                 <tr key={w.id}>
                   <td>
                     <UserCell username={w.user.username} displayName={w.user.displayName} />
+                    <StaffRequestBadge w={w} />
                   </td>
                   <td className="num" style={{ fontWeight: 600 }}>
                     {formatMoney(w.amountMinor, w.currency, lang)}
@@ -53,7 +73,7 @@ export function Withdrawals() {
                   <td className="date small">{formatDate(w.createdAt, lang)}</td>
                   {status === 'PENDING' ? (
                     <td>
-                      {can('withdrawals.decide') && (
+                      {mayDecideWithdrawal(w, can) && (
                         <div className="row">
                           <button className="btn small primary" onClick={() => setAct({ kind: 'pay', w })}>
                             {t('markPaid')}

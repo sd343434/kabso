@@ -24,6 +24,7 @@ import {
 } from '../src/pages/RoleHomes';
 import { isHttpsUrl, moved, SocialAccountList } from '../src/pages/SocialAccounts';
 import { parseClock, ScheduleGrid, slotsOf } from '../src/pages/StaffSchedule';
+import { mayDecideWithdrawal, StaffRequestBadge } from '../src/pages/Withdrawals';
 import { ROLES, RolesGuide } from '../src/pages/Team';
 import type {
   Capability,
@@ -346,6 +347,24 @@ describe('D387 the official accounts', () => {
       expect(html).toContain('href="https://www.tiktok.com/@kabso"');
       expect(html).toContain('rel="noopener noreferrer"');
       expect(html).not.toMatch(/password|token/i);
+    }
+  });
+});
+
+describe('D387 staff money rules in the panel (§10.176.9)', () => {
+  it('a staff member’s withdrawal request is marked and decided by the OWNER alone', () => {
+    expect(CAPABILITY_ROLES['withdrawals.staff']).toEqual(['OWNER']);
+    const can = (role: PanelRole) => (c: Capability) => capsOf(role).includes(c);
+    expect(mayDecideWithdrawal({ staffRequest: true }, can('OWNER'))).toBe(true);
+    expect(mayDecideWithdrawal({ staffRequest: true }, can('FINANCE'))).toBe(false);
+    expect(mayDecideWithdrawal({ staffRequest: false }, can('FINANCE'))).toBe(true);
+    expect(mayDecideWithdrawal({}, can('FINANCE'))).toBe(true);
+    expect(mayDecideWithdrawal({ staffRequest: false }, can('VIP_CARE'))).toBe(false);
+    for (const lang of ['ar', 'en'] as const) {
+      const html = render(<StaffRequestBadge w={{ staffRequest: true }} />, lang, capsOf('OWNER'));
+      expect(html).toContain('data-staff-request');
+      expect(html).toContain(translate(lang, 'wdStaffRequest'));
+      expect(render(<StaffRequestBadge w={{ staffRequest: false }} />, lang, capsOf('OWNER'))).toBe('');
     }
   });
 });
