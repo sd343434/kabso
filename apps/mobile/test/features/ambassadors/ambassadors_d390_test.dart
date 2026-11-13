@@ -15,6 +15,10 @@ import 'package:kabso_live/features/ambassadors/presentation/ambassador_entry_ca
 import 'package:kabso_live/features/ambassadors/presentation/ambassador_programme_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/notifications/domain/notification_models.dart';
+import 'package:kabso_live/features/owner_profile/domain/owner_models.dart'
+    show ProfitDeductionKey;
+import 'package:kabso_live/features/owner_profile/presentation/owner_profit.dart'
+    show deductionLabel;
 import 'package:kabso_live/features/profile/domain/profile_models.dart'
     show ambassadorLevelFromJson, ambassadorLevelToJson;
 import 'package:kabso_live/features/referrals/presentation/invite_friends_screen.dart'
@@ -283,6 +287,27 @@ void main() {
     expect(
       ambassadorBadgeExplainer(l10nFor(AppLanguage.en), 'GOLD'),
       'Kabso ambassador — Gold level',
+    );
+  });
+
+  test('«الربح»: the two ambassador lines have their own labels (D390)', () {
+    final ar = l10nFor(AppLanguage.ar);
+    final en = l10nFor(AppLanguage.en);
+    expect(
+      ProfitDeductionKey.fromWire('AMBASSADOR_COMMISSIONS'),
+      ProfitDeductionKey.ambassadorCommissions,
+    );
+    expect(
+      ProfitDeductionKey.fromWire('AMBASSADOR_REWARDS'),
+      ProfitDeductionKey.ambassadorRewards,
+    );
+    expect(
+      deductionLabel(ar, ProfitDeductionKey.ambassadorCommissions),
+      'عمولات السفراء',
+    );
+    expect(
+      deductionLabel(en, ProfitDeductionKey.ambassadorRewards),
+      'Ambassador rewards (coins)',
     );
   });
 
