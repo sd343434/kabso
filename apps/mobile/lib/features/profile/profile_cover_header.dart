@@ -878,13 +878,18 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
     );
   }
 
-  /// The VIP frame shows only when no agent or bag frame is worn and the
-  /// person is not live.
+  /// The VIP frame shows only when no agent, bag or CP Special Frame is worn
+  /// and the person is not live. D391 (owner: «هناك إطارين والصورة شخصية
+  /// اسفل الإطار»): [ProfileAvatar] draws the CP Special Frame itself, so a
+  /// VIP frame here was drawn around it as well — two frames, the VIP one
+  /// centred on the photo slot and the picture low in the heart's opening.
+  /// The Special Frame wins, as on the person card.
   UserVip? get _vip =>
       profile.liveRoomId == null &&
           profile.rechargeAgentCode == null &&
           profile.hostAgentCode == null &&
-          profile.avatarFrame == null
+          profile.avatarFrame == null &&
+          !(widget.cpFrame ?? cpWearsSpecialFrame(profile.cp))
       ? profile.vip
       : null;
 

@@ -9,6 +9,9 @@
 //                          VIP lines in the chat (the owner's 44.webp)
 //   live.flat_chat.vip     the host's flat chat (D253) with a VIP line
 //   profile.vip            the profile header with the VIP 1 frame
+//   profile.vip_cp         D391: a VIP 1 member whose couple unlocked the CP
+//                          Special Frame — one frame (the heart), not the
+//                          VIP frame drawn around it as well
 //
 // The frame is a 256 px still of the owner's `svip_1_frame` (its SVGA stays
 // out of git, as D258's); the badge and the bubble have no art here (the
@@ -29,6 +32,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/cp/domain/cp_models.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -37,6 +41,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_lin
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
@@ -289,6 +294,64 @@ void main() {
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('png/profile.vip.ar.phone.png'),
+    );
+  });
+
+  // D391 (owner: «هناك إطارين والصورة شخصية اسفل الإطار»): a VIP 1 member
+  // whose couple unlocked the CP Special Frame wore both frames on the
+  // profile header — the VIP frame centred on the photo slot and, inside it,
+  // the heart frame with the picture in the heart's lower opening. The
+  // Special Frame wins (as on the person card): one frame, the picture in
+  // its opening.
+  testWidgets('profile.vip_cp ar', (tester) async {
+    await loadAppFonts();
+    setViewport(tester, GoldenViewport.phone);
+    await pumpScreen(
+      tester,
+      const PublicProfileScreen(username: 'host0'),
+      language: AppLanguage.ar,
+      brightness: Brightness.light,
+      disableAnimations: true,
+      overrides: [
+        profileRepositoryProvider.overrideWithValue(
+          FakeProfileRepository(
+            apiProfile(ar: true).copyWith(
+              displayName: 'نبّ',
+              vip: _vip1,
+              liveRoomId: null,
+              cp: ProfileCp(
+                id: 'cp-1',
+                partner: const UserSummary(
+                  id: 'u-omar',
+                  username: 'omar',
+                  displayName: 'Omar',
+                  avatarUrl: null,
+                ),
+                since: DateTime.utc(2026, 10, 2),
+                level: 4,
+                levelName: 'Diamond couple',
+                points: 6000,
+                privileges: const ['SPECIAL_FRAME'],
+              ),
+            ),
+          ),
+        ),
+        vipCatalogProvider.overrideWith((ref) async => _catalog),
+        secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+        profileGridProvider.overrideWith(
+          (ref, _) =>
+              FeedItems([for (var i = 0; i < 6; i++) const ProfileGridItem()]),
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+    await precacheImages(tester);
+    await tester.pumpAndSettle();
+    expect(find.byKey(ProfileHeaderView.cpFrameKey), findsOneWidget);
+    expect(find.byKey(VipAvatarFrame.frameKey), findsNothing);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('png/profile.vip_cp.ar.phone.png'),
     );
   });
 }
