@@ -1,6 +1,6 @@
 # CP-041 — PK with four hosts «PK رباعي»: 2 v 2 and every host for themselves
 
-**Status: PROPOSED — waiting for the owner's answers (§9).** No code yet. Owner (2026-11-13): «الان هناك pk رباعي لم
+**Status: APPROVED by the owner (2026-11-13, answers in §9) — phase 2 next.** No code yet. Owner (2026-11-13): «الان هناك pk رباعي لم
 نقم بتفعيله»; answers the same day: **both formats** (2 v 2 teams *and* all four against each other), started **by
 invitation and by random matching**, built in phases (this document first). Builds on CP-038 / §10.58 (PK 1 v 1),
 §10.62 (settings, best of three, auto-start), §10.70 (random friends), §10.80 (PK أحكام), §10.85 (rematch) and D71
@@ -61,7 +61,8 @@ Every number below is a **default the owner can change** (server config, as in C
   - TEAMS: the host's points so far stay in the team score; the teammate carries on alone. Both hosts of a team gone
     → the other team wins at once.
   - FREE_FOR_ALL: the host is out and takes the **last free place** (4th, then 3rd …); the others carry on. One host
-    left → that host wins at once.
+    left → that host wins at once. In a DARES match the dare goes to the **lowest place still on air** (owner: «ان كان
+    حكم ينفذ الثالث الحكم» — the 4th left, so the 3rd does it).
   - Everyone gone at once → a draw (void for records, as both-absent in 1 v 1).
 - **A moderator's end** (`pk-admin end`, the panel): void, as in 1 v 1.
 
@@ -80,15 +81,15 @@ The same four boosters, gifts, windows and multipliers (§10.58).
 - RESULT shows the win / lose / draw animation per room (a winning room «فوز», a losing one «خسارة»), the scores and
   the **top three supporters per room** (TEAMS: per team, from both rooms).
 - **Records** (`pk_host_records`): TEAMS → a win, a loss or a draw for each host as in 1 v 1. FREE_FOR_ALL → 1st place
-  is a **win**, 4th place a **loss**, 2nd and 3rd neither; a new counter `ffaFirsts` / `ffaPlayed`. The history keeps
+  is a **win**, every other place a **loss** (owner); equal first places → a draw for them, a loss for the others. The history keeps
   the four hosts, the format, the scores and the places.
 - PK points for the «نقاط PK» stage (D276): as in 1 v 1, per host.
 
 ## 7. «PK أحكام» and «جولة أخرى»
 
 - **Dares (type `DARES`):** TEAMS → the **losing team** gets one dare drawn as in §10.80, done by both its hosts; the
-  winning team judges (either winner's vote counts). FREE_FOR_ALL → the **4th place** does the dare; 1st place
-  judges. A draw → no dare.
+  winning team judges (either winner's vote counts). FREE_FOR_ALL → the **4th place** does the dare (or, if the 4th left the
+  match, the lowest place still on air); 1st place judges. A draw → no dare.
 - **Rematch «جولة أخرى»:** any host offers it in RESULT; it starts only when **all four** accept within
   **`PK_REMATCH_ACCEPT_SECONDS` = 15**. Same hosts, same teams, same format; `PK_REMATCH_MAX` applies.
 
@@ -97,9 +98,15 @@ The same four boosters, gifts, windows and multipliers (§10.58).
 - **No new LiveKit room.** As in 1 v 1, each viewer and host opens **subscribe-only connections to the other rooms**
   — here **three** instead of one (`createLivePk4MediaToken` per other room; identity `pk4:<matchId>:<id>`; never
   counted as viewers).
-- **Cost:** about **three extra LiveKit participants per viewer** during a 4-way PK (1 v 1: one). To keep bandwidth
-  sane on phones the app asks for the **lower simulcast layer** of the three other hosts (a quarter-screen pane needs
-  no HD).
+- **Cost:** about **three extra LiveKit participants per viewer** during a 4-way PK (1 v 1: one). Owner: accepted,
+  **keep it as low as possible**:
+  - viewers subscribe to the **lowest simulcast layer** of the three other hosts (a quarter-screen pane; about 180p,
+    15 fps), the hosts to the middle layer;
+  - a pane that is off screen or covered (the app in the background, a full-screen sheet) is **paused** (video
+    unsubscribed, sound kept);
+  - the extra connections are opened only for the BATTLE and RESULT phases and closed at once when the match ends;
+  - a server cap `PK4_MAX_WATCHERS_PER_ROOM` (default 0 = no cap) can stop new viewers from opening the other rooms'
+    video (they then see the four names and the scores, with their own host's video only).
 - **Sound:** viewers hear all four hosts; each host can **mute any of the other three** for their own room (one switch
   per pane).
 - **PK guests:** a host's guests (seats 1–3) stay in their own room but are **not shown** in the 2 × 2 grid (no room);
@@ -109,19 +116,18 @@ The same four boosters, gifts, windows and multipliers (§10.58).
   (`pk4-match`, `pk4-lobby`, `pk4-queue` on the `pk` topic).
 - **Panel:** 4-way matches in the live monitor and the moderator's end.
 
-## 9. Questions for the owner
+## 9. The owner's answers (2026-11-13)
 
-1. The numbers: lobby **120 s**, each invitation **30 s**, random wait **120 s**, battle and result as in 1 v 1 —
-   confirm or change.
-2. **Single round only** for 4-way PK (no best of three) — agreed?
-3. TEAMS boosters: **shared by the team** (a gift in either room activates it for both, limits per team) — or per
-   host?
-4. FREE_FOR_ALL records: **1st = win, 4th = loss, 2nd / 3rd neither** — or 1st win and everyone else a loss?
-5. Dares: TEAMS → the **losing team** does one dare together; FREE_FOR_ALL → the **4th place** — agreed?
-6. A host who leaves: TEAMS → the teammate carries on alone; FREE_FOR_ALL → the host is out and the others carry on
-   — agreed?
-7. PK guests hidden during a 4-way PK — agreed?
-8. Media cost: three extra connections per viewer (≈ 3× the 1 v 1 PK cost per viewer) — acceptable?
+| # | Question | Answer |
+|---|---|---|
+| 1 | Lobby 120 s, invitation 30 s, random wait 120 s | «موافق» |
+| 2 | Single round only | «موافق» |
+| 3 | TEAMS boosters shared by the team | «الاثنين» — shared: a gift in either teammate's room activates it for both |
+| 4 | FREE_FOR_ALL records | «الأول فوز والباقي خسارة» — 1st a win, every other place a loss |
+| 5 | Dares: the losing team together; FFA the 4th place | «موافق» |
+| 6 | A host who leaves | «نعم» — and in a DARES FFA the dare goes to the 3rd when the 4th left («ان كان حكم ينفذ الثالث الحكم») |
+| 7 | Guests hidden during a 4-way PK | «نعم» |
+| 8 | Media cost about 3× per viewer | «نعم قللها» — accepted, reduced as in §8 |
 
 ## 10. Phases
 
