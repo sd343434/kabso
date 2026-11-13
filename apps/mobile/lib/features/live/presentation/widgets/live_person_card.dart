@@ -13,6 +13,7 @@ import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/ambassadors/presentation/ambassador_badge.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
@@ -267,6 +268,9 @@ class LivePersonSheet extends ConsumerWidget {
   static const agentBadgeKey = Key('room.userCard.agentBadge');
   static const hostAgentBadgeKey = Key('room.userCard.hostAgentBadge');
   static const rechargeBadgeKey = Key('room.userCard.rechargeBadge');
+
+  /// D390: the ambassador badge in the badge row.
+  static const ambassadorBadgeKey = Key('room.userCard.ambassadorBadge');
 
   /// D220: the bag frame the person wears, and the clean ring without one.
   static const bagFrameKey = Key('room.userCard.bagFrame');
@@ -742,6 +746,13 @@ class _Body extends ConsumerWidget {
         RechargeTierBadge(
           key: LivePersonSheet.rechargeBadgeKey,
           badge: profile.rechargeBadge,
+          height: 20,
+        ),
+      // D390 (owner 2026-11-13): the exclusive ambassador badge.
+      if (profile.ambassadorLevel case final level?)
+        AmbassadorBadge(
+          key: LivePersonSheet.ambassadorBadgeKey,
+          level: level,
           height: 20,
         ),
       if (profile.rechargeAgentCode case final code?)

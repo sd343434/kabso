@@ -32385,6 +32385,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يمكنك التقديم إلى برنامج السفراء الآن'**
   String get errorAmbassadorApplicationNotAllowed;
+
+  /// D390 follow-up (owner 2026-11-13): the public badge's explainer (D389) and «إنهاء العضوية» (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'سفير Kabso — المستوى {level}'**
+  String ambBadgeExplainer(String level);
+
+  /// D390 follow-up (owner 2026-11-13): the public badge's explainer (D389) and «إنهاء العضوية» (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت عضويتك في برنامج السفراء. لا يمكنك التقديم مجدداً إلا إذا أعادت الإدارة تعيينك.'**
+  String get ambStatusEnded;
+
+  /// D390 follow-up (owner 2026-11-13): the public badge's explainer (D389) and «إنهاء العضوية» (CONVENTIONS §10.179).
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت عضويتك في برنامج سفراء Kabso'**
+  String get notifAmbassadorEnded;
 }
 
 class _AppLocalizationsDelegate

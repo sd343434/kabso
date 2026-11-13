@@ -5921,5 +5921,8 @@
   "notifAmbassadorRejected": "Your Kabso ambassadors application was not approved. Open the programme to see why",
   "notifAmbassadorLevelUp": "You moved up a level in the Kabso ambassadors programme",
   "notifAmbassadorReward": "You reached the month's targets and got your ambassador reward",
-  "errorAmbassadorApplicationNotAllowed": "You cannot apply to the ambassadors programme now"
+  "errorAmbassadorApplicationNotAllowed": "You cannot apply to the ambassadors programme now",
+  "ambBadgeExplainer": "Kabso ambassador — {level} level",
+  "ambStatusEnded": "Your ambassador membership has ended. You can't apply again unless the management re-appoints you.",
+  "notifAmbassadorEnded": "Your Kabso ambassador membership has ended"
 }

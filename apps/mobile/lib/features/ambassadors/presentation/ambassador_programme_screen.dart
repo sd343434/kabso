@@ -188,6 +188,11 @@ class _AmbassadorProgrammeScreenState
         Icons.verified_rounded,
         l10n.ambYouAreAmbassador,
       ),
+      // D390 follow-up (§10.179.11): the OWNER ended the membership.
+      AmbassadorProgramme(status: 'ENDED') => (
+        Icons.block_rounded,
+        l10n.ambStatusEnded,
+      ),
       AmbassadorProgramme(refusal: 'DISABLED') => (
         Icons.hourglass_top_rounded,
         l10n.ambSoon,

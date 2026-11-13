@@ -32,17 +32,26 @@ import 'package:material_ui/material_ui.dart';
   _ => (from: p.primary, to: p.primary, ink: p.onPrimary),
 };
 
+/// The D389 explainer's text for an ambassador badge («سفير Kabso — المستوى
+/// ذهبي»). TODO(D389): wrap [AmbassadorBadge] in `KBadgeExplainer` with it
+/// when that branch lands (CONVENTIONS §10.179.9).
+String ambassadorBadgeExplainer(AppLocalizations l10n, String level) =>
+    l10n.ambBadgeExplainer(l10n.ambLevelName(level));
+
 /// v1.140-social (D390, §10.179.9): the exclusive «سفير Kabso» badge — a
 /// pill in the level's metal with a crest and the level's name. Its spoken
 /// label is «سفير Kabso · {المستوى}». When the D389 badge explainer
 /// (`KBadgeExplainer`) lands, wrap this widget in it (TODO in §10.179.9).
 class AmbassadorBadge extends StatelessWidget {
-  const new({required this.level, super.key, this.large = false});
+  const new({required this.level, super.key, this.large = false, this.height});
 
   final String level;
 
   /// The dashboard's hero size (else the inline size).
   final bool large;
+
+  /// A fixed height (the profile's and person card's badge rows).
+  final double? height;
 
   static const badgeKey = Key('ambassador.badge');
 
@@ -51,7 +60,7 @@ class AmbassadorBadge extends StatelessWidget {
     final l10n = context.l10n;
     final c = ambassadorLevelColors(level, context.palette);
     final name = l10n.ambLevelName(level);
-    final h = large ? 30.0 : 22.0;
+    final h = height ?? (large ? 30.0 : 22.0);
     return Semantics(
       label: l10n.ambBadgeLabel(name),
       excludeSemantics: true,

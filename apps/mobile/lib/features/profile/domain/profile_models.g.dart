@@ -72,6 +72,7 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       ownerBio: ownerBioFromJson(json['ownerBio']),
       founderFeedbackCount: (json['founderFeedbackCount'] as num?)?.toInt(),
       animatedAvatar: animatedAvatarFromJson(json['animatedAvatar']),
+      ambassadorLevel: ambassadorLevelFromJson(json['ambassador']),
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -122,6 +123,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'ownerBio': ?ownerBioToJson(instance.ownerBio),
       'founderFeedbackCount': ?instance.founderFeedbackCount,
       'animatedAvatar': ?animatedAvatarToJson(instance.animatedAvatar),
+      'ambassador': ?ambassadorLevelToJson(instance.ambassadorLevel),
     };
 
 _ProfileLive _$ProfileLiveFromJson(Map<String, dynamic> json) => _ProfileLive(

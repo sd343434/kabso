@@ -43,6 +43,7 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/ambassadors/presentation/ambassador_badge.dart';
 import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
@@ -1506,6 +1507,14 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
           key: ProfileHeaderView.rechargeBadgeKey,
           badge: profile.rechargeBadge,
           height: KPublicProfile.nameBadge,
+        ),
+      // D390 (owner 2026-11-13): the exclusive ambassador badge, for
+      // everyone, while the membership is ACTIVE (the server's rule).
+      if (profile.ambassadorLevel case final level?)
+        AmbassadorBadge(
+          key: ProfileHeaderView.ambassadorBadgeKey,
+          level: level,
+          height: KPublicProfile.nameBadge - 4,
         ),
       // D283: a Kabso Team account shows no levels.
       // D361 (§10.156; owner: «المؤسس ليس له ليفيل»): nor does the founder.

@@ -23,7 +23,7 @@ export interface AmbassadorTotals {
 }
 export interface AmbassadorRow {
   user: { id: string; username: string; displayName: string; avatarUrl: string | null };
-  status: 'ACTIVE' | 'FROZEN';
+  status: 'ACTIVE' | 'FROZEN' | 'ENDED';
   level: string;
   source: 'APPLICATION' | 'APPOINTED';
   country: string | null;
@@ -31,6 +31,8 @@ export interface AmbassadorRow {
   underReview: boolean;
   reviewReason: string | null;
   frozenReason: string | null;
+  endedAt: string | null;
+  endedReason: string | null;
   referrals: { total: number; active: number; pending: number; void: number };
   month: { month: string; activeReferrals: number; topupCoins: number };
   commissions: AmbassadorTotals | null;
@@ -131,8 +133,8 @@ function AmbStatus({ row }: { row: AmbassadorRow }) {
   const { t } = useApp();
   return (
     <span className="row" style={{ gap: 4 }}>
-      <span className={`badge ${row.status === 'FROZEN' ? 'danger' : 'ok'}`} data-amb-status={row.status}>
-        {t(row.status === 'FROZEN' ? 'ambStatusFROZEN' : 'ambStatusACTIVE')}
+      <span className={`badge ${row.status === 'ACTIVE' ? 'ok' : 'danger'}`} data-amb-status={row.status}>
+        {t(row.status === 'FROZEN' ? 'ambStatusFROZEN' : row.status === 'ENDED' ? 'ambStatusENDED' : 'ambStatusACTIVE')}
       </span>
       {row.underReview && (
         <span className="badge warn" data-amb-review>
@@ -187,7 +189,7 @@ export function AmbassadorTable({ rows }: { rows: AmbassadorRow[] }) {
   );
 }
 
-const LIST_TABS = ['', 'ACTIVE', 'FROZEN', 'REVIEW'] as const;
+const LIST_TABS = ['', 'ACTIVE', 'FROZEN', 'REVIEW', 'ENDED'] as const;
 
 export function Ambassadors() {
   const { t, can, toast } = useApp();
@@ -248,8 +250,11 @@ export function Ambassadors() {
   );
 }
 
+/** The OWNER's actions on one ambassador. */
+export type AmbassadorAction = 'freeze' | 'unfreeze' | 'review' | 'end';
+
 /** One ambassador's performance (pure: rendered in the tests). */
-export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData; onAction: (a: 'freeze' | 'unfreeze' | 'review') => void }) {
+export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData; onAction: (a: AmbassadorAction) => void }) {
   const { t, lang, can } = useApp();
   const keyed = useKeyed();
   const owner = can('ambassadors.settings');
@@ -302,8 +307,9 @@ export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData;
         <p className="muted small">
           {keyed('ambSource', data.source)} · {data.country ?? '—'} · {formatDate(data.activatedAt, lang)}
           {data.frozenReason ? ` · ${data.frozenReason}` : ''}
+          {data.endedAt ? ` · ${t('ambEndedOn')} ${formatDate(data.endedAt, lang)} — ${data.endedReason ?? ''}` : ''}
         </p>
-        {owner && (
+        {owner && data.status !== 'ENDED' && (
           <div className="row" style={{ marginTop: 12 }}>
             {data.status === 'ACTIVE' ? (
               <button className="btn danger" onClick={() => onAction('freeze')} data-amb-freeze>
@@ -319,6 +325,9 @@ export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData;
                 {t('ambClearReview')}
               </button>
             )}
+            <button className="btn danger" onClick={() => onAction('end')} data-amb-end>
+              {t('ambEnd')}
+            </button>
           </div>
         )}
       </div>
@@ -418,10 +427,10 @@ export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData;
 export function AmbassadorDetail({ id }: { id: string }) {
   const { t, toast } = useApp();
   const { data, error, loading, reload } = useAsync(() => api.get<AmbassadorDetailData>(`/admin/ambassadors/${id}`), [id]);
-  const [action, setAction] = useState<'freeze' | 'unfreeze' | 'review' | null>(null);
+  const [action, setAction] = useState<AmbassadorAction | null>(null);
   if (loading && !data) return <Loading />;
   if (!data) return <ErrorAlert error={error} />;
-  const label = action === 'freeze' ? t('ambFreeze') : action === 'unfreeze' ? t('ambUnfreeze') : t('ambClearReview');
+  const label = action === 'freeze' ? t('ambFreeze') : action === 'unfreeze' ? t('ambUnfreeze') : action === 'end' ? t('ambEnd') : t('ambClearReview');
   return (
     <>
       <div className="page-head">
@@ -431,10 +440,10 @@ export function AmbassadorDetail({ id }: { id: string }) {
       {action && (
         <FormDialog
           title={label}
-          intro={action === 'freeze' ? <p className="muted small">{t('ambFreezeIntro')}</p> : undefined}
+          intro={action === 'freeze' ? <p className="muted small">{t('ambFreezeIntro')}</p> : action === 'end' ? <p className="muted small">{t('ambEndIntro')}</p> : undefined}
           fields={action === 'freeze' ? [reasonField(t)] : [reasonField(t), codeField(t)]}
           confirmLabel={label}
-          danger={action === 'freeze'}
+          danger={action === 'freeze' || action === 'end'}
           submit={(v) => api.post(`/admin/ambassadors/${id}/${action === 'review' ? 'clear-review' : action}`, v)}
           onClose={() => setAction(null)}
           onDone={() => {

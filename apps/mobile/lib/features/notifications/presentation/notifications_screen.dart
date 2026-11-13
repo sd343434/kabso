@@ -548,6 +548,7 @@ class NotificationRow extends StatelessWidget {
         l10n.notifAmbassadorRejected,
       NotificationType.ambassadorLevelUp => l10n.notifAmbassadorLevelUp,
       NotificationType.ambassadorRewardGranted => l10n.notifAmbassadorReward,
+      NotificationType.ambassadorMembershipEnded => l10n.notifAmbassadorEnded,
       NotificationType.kycApproved => l10n.notifKycApproved,
       NotificationType.kycDeclined => l10n.notifKycDeclined,
       NotificationType.kycInReview => l10n.notifKycInReview,
@@ -910,6 +911,7 @@ NotificationKind notificationKind(
   NotificationType.familyJoinDeclined ||
   NotificationType.hostApplicationRejected ||
   NotificationType.ambassadorApplicationRejected ||
+  NotificationType.ambassadorMembershipEnded ||
   NotificationType.kycDeclined ||
   NotificationType.levelRaiseRejected ||
   NotificationType.agencyClosed => (color: p.error, icon: Icons.close_rounded),

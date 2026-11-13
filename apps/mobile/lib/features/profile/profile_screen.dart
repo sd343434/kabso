@@ -458,6 +458,9 @@ class ProfileHeaderView extends StatelessWidget {
   static const hostAgentBadgeKey = Key('profile.hostAgentBadge');
   static const rechargeBadgeKey = Key('profile.rechargeBadge');
 
+  /// D390: the exclusive ambassador badge in the badge row.
+  static const ambassadorBadgeKey = Key('profile.ambassadorBadge');
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;

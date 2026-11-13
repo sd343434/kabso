@@ -15988,5 +15988,11 @@
   "notifAmbassadorReward": "حققت أهداف الشهر وحصلت على مكافأة السفير",
   "@notifAmbassadorReward": {"description": "D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179)."},
   "errorAmbassadorApplicationNotAllowed": "لا يمكنك التقديم إلى برنامج السفراء الآن",
-  "@errorAmbassadorApplicationNotAllowed": {"description": "D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179)."}
+  "@errorAmbassadorApplicationNotAllowed": {"description": "D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179)."},
+  "ambBadgeExplainer": "سفير Kabso — المستوى {level}",
+  "@ambBadgeExplainer": {"description": "D390 follow-up (owner 2026-11-13): the public badge's explainer (D389) and «إنهاء العضوية» (CONVENTIONS §10.179).", "placeholders": {"level": {"type": "String"}}},
+  "ambStatusEnded": "انتهت عضويتك في برنامج السفراء. لا يمكنك التقديم مجدداً إلا إذا أعادت الإدارة تعيينك.",
+  "@ambStatusEnded": {"description": "D390 follow-up (owner 2026-11-13): the public badge's explainer (D389) and «إنهاء العضوية» (CONVENTIONS §10.179)."},
+  "notifAmbassadorEnded": "انتهت عضويتك في برنامج سفراء Kabso",
+  "@notifAmbassadorEnded": {"description": "D390 follow-up (owner 2026-11-13): the public badge's explainer (D389) and «إنهاء العضوية» (CONVENTIONS §10.179)."}
 }

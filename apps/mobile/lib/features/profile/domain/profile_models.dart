@@ -248,6 +248,18 @@ abstract class PublicProfile with _$PublicProfile {
       includeIfNull: false,
     )
     AnimatedAvatar? animatedAvatar,
+
+    /// v1.140-social (D390 follow-up, §10.179.9): the exclusive ambassador
+    /// badge's level (`PublicProfile.ambassador.level`) — only while the
+    /// programme is on and the membership is ACTIVE; null otherwise and from
+    /// older servers.
+    @JsonKey(
+      name: 'ambassador',
+      fromJson: ambassadorLevelFromJson,
+      toJson: ambassadorLevelToJson,
+      includeIfNull: false,
+    )
+    String? ambassadorLevel,
   }) = _PublicProfile;
 
   const new _();
@@ -299,3 +311,12 @@ abstract class FollowState with _$FollowState {
 
   factory fromJson(Map<String, dynamic> json) => _$FollowStateFromJson(json);
 }
+
+/// v1.140-social (D390): `{level}` → the level code (anything else → null).
+String? ambassadorLevelFromJson(Object? json) => switch (json) {
+  {'level': final String level} when level.isNotEmpty => level,
+  _ => null,
+};
+
+Object? ambassadorLevelToJson(String? level) =>
+    level == null ? null : {'level': level};

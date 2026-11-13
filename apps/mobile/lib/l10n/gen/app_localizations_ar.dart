@@ -19228,4 +19228,16 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errorAmbassadorApplicationNotAllowed =>
       'لا يمكنك التقديم إلى برنامج السفراء الآن';
+
+  @override
+  String ambBadgeExplainer(String level) {
+    return 'سفير Kabso — المستوى $level';
+  }
+
+  @override
+  String get ambStatusEnded =>
+      'انتهت عضويتك في برنامج السفراء. لا يمكنك التقديم مجدداً إلا إذا أعادت الإدارة تعيينك.';
+
+  @override
+  String get notifAmbassadorEnded => 'انتهت عضويتك في برنامج سفراء Kabso';
 }

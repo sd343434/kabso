@@ -58,6 +58,8 @@ const row = (over: Partial<AmbassadorRow> = {}): AmbassadorRow => ({
   underReview: false,
   reviewReason: null,
   frozenReason: null,
+  endedAt: null,
+  endedReason: null,
   referrals: { total: 12, active: 7, pending: 5, void: 1 },
   month: { month: '2026-11', activeReferrals: 4, topupCoins: 3_200_000 },
   commissions: { pendingCherries: 120_000, heldCherries: 0, paidCherries: 960_000, reversedCherries: 30_000 },
@@ -106,7 +108,7 @@ const detail = (over: Partial<AmbassadorDetailData> = {}): AmbassadorDetailData 
 });
 const SETTINGS: AmbassadorSettings = {
   enabled: false,
-  attributionWindowDays: 90,
+  attributionWindowDays: 60,
   holdDays: 14,
   minActiveDays: 3,
   minActiveTopupCoins: 100_000,
@@ -115,10 +117,10 @@ const SETTINGS: AmbassadorSettings = {
   ipClusterMax: 3,
   ipClusterWindowDays: 30,
   levels: [
-    { code: 'BRONZE', minActiveReferrals: 0, minTopupCoins: 0, commissionBps: 300, reward: { kind: 'NONE' } },
-    { code: 'SILVER', minActiveReferrals: 5, minTopupCoins: 3_000_000, commissionBps: 500, reward: { kind: 'COINS', amount: 100_000 } },
-    { code: 'GOLD', minActiveReferrals: 15, minTopupCoins: 15_000_000, commissionBps: 700, reward: { kind: 'VIP_DAYS', amount: 7, vipTier: 'VIP_1' } },
-    { code: 'DIAMOND', minActiveReferrals: 40, minTopupCoins: 60_000_000, commissionBps: 1000, reward: { kind: 'COINS', amount: 1_000_000 } },
+    { code: 'BRONZE', minActiveReferrals: 0, minTopupCoins: 0, commissionBps: 200, reward: { kind: 'NONE' } },
+    { code: 'SILVER', minActiveReferrals: 5, minTopupCoins: 3_000_000, commissionBps: 300, reward: { kind: 'COINS', amount: 100_000 } },
+    { code: 'GOLD', minActiveReferrals: 15, minTopupCoins: 15_000_000, commissionBps: 400, reward: { kind: 'VIP_DAYS', amount: 7, vipTier: 'VIP_1' } },
+    { code: 'DIAMOND', minActiveReferrals: 40, minTopupCoins: 60_000_000, commissionBps: 500, reward: { kind: 'COINS', amount: 1_000_000 } },
   ],
   updatedAt: '2026-11-13T10:00:00.000Z',
 };
@@ -173,6 +175,14 @@ describe('D390 the list and the performance page', () => {
     expect(owner).toContain('BRONZE → SILVER');
     const frozen = html('en', <AmbassadorView data={detail({ status: 'FROZEN', frozenReason: 'complaint' })} onAction={noop} />);
     expect(frozen).toContain('data-amb-unfreeze');
+    expect(frozen).toContain('data-amb-end');
+    // «إنهاء العضوية»: an ended member shows the end and no OWNER button at all.
+    const ended = html('ar', <AmbassadorView data={detail({ status: 'ENDED', endedAt: '2026-11-13T10:00:00.000Z', endedReason: 'إحالات وهمية' })} onAction={noop} />);
+    expect(ended).toContain('data-amb-status="ENDED"');
+    expect(ended).toContain('انتهت العضوية');
+    expect(ended).toContain('إحالات وهمية');
+    expect(ended).not.toContain('data-amb-end');
+    expect(ended).not.toContain('data-amb-freeze');
     expect(frozen).toContain('complaint');
     const support = html('en', <AmbassadorView data={detail({ commissions: null })} onAction={noop} />, 'SUPPORT');
     expect(support).not.toContain('data-amb-freeze');
@@ -228,7 +238,8 @@ describe('D390 the settings (OWNER)', () => {
     const ar = html('ar', <AmbassadorSettingsForm saved={SETTINGS} draft={SETTINGS} onChange={noop} onSave={noop} />);
     expect(ar).toContain('البرنامج متوقف حالياً');
     for (const code of ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND']) expect(ar).toContain(`data-amb-level="${code}"`);
-    expect(ar).toContain('data-bps="1000"');
+    expect(ar).toContain('data-bps="500"');
+    expect(ar).toContain('value="60"');
     expect(ar).toContain('لا تغييرات');
   });
 
@@ -238,7 +249,7 @@ describe('D390 the settings (OWNER)', () => {
     expect(levelsValid([SETTINGS.levels[0]!, { ...SETTINGS.levels[1]!, commissionBps: 100 }])).toBe(false);
     expect(levelsValid([SETTINGS.levels[0]!, { ...SETTINGS.levels[1]!, code: 'BRONZE' }])).toBe(false);
     expect(ambassadorSettingsChanges(SETTINGS, { ...SETTINGS, enabled: true, holdDays: 7 })).toEqual({ enabled: true, holdDays: 7 });
-    const levels = SETTINGS.levels.map((l) => (l.code === 'GOLD' ? { ...l, commissionBps: 800 } : l));
+    const levels = SETTINGS.levels.map((l) => (l.code === 'GOLD' ? { ...l, commissionBps: 450 } : l));
     expect(ambassadorSettingsChanges(SETTINGS, { ...SETTINGS, levels })).toEqual({ levels });
     expect(rewardOf('NONE', 5, 'x')).toEqual({ kind: 'NONE' });
     expect(rewardOf('VIP_DAYS', 7, '')).toEqual({ kind: 'VIP_DAYS', amount: 7, vipTier: 'VIP_1' });

@@ -15,6 +15,8 @@ import 'package:kabso_live/features/ambassadors/presentation/ambassador_entry_ca
 import 'package:kabso_live/features/ambassadors/presentation/ambassador_programme_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/notifications/domain/notification_models.dart';
+import 'package:kabso_live/features/profile/domain/profile_models.dart'
+    show ambassadorLevelFromJson, ambassadorLevelToJson;
 import 'package:kabso_live/features/referrals/presentation/invite_friends_screen.dart'
     show InviteSharer, inviteSharerProvider;
 import 'package:material_ui/material_ui.dart';
@@ -73,12 +75,12 @@ void main() {
       'rules from the server', (tester) async {
     await pumpProgramme(tester);
     expect(find.byType(AmbassadorBadge), findsNWidgets(4));
-    for (final pct in ['3%', '5%', '7%', '10%']) {
+    for (final pct in ['2%', '3%', '4%', '5%']) {
       expect(find.textContaining(pct), findsWidgets);
     }
     expect(find.textContaining('100,000'), findsWidgets);
     expect(find.textContaining('VIP 1'), findsOne);
-    expect(find.textContaining('days): \u206890\u2069'), findsOne);
+    expect(find.textContaining('days): \u206860\u2069'), findsOne);
   });
 
   testWidgets('the form refuses an http link and sends a valid application', (
@@ -189,7 +191,7 @@ void main() {
     final sharer = await pumpDashboard(tester);
     expect(find.text('K7M4QX2D'), findsOne);
     expect(find.text('https://kabsolive.com/i/K7M4QX2D'), findsOne);
-    expect(find.textContaining('5%'), findsOne);
+    expect(find.textContaining('3%'), findsOne);
     expect(find.text('To reach Gold this month'), findsOne);
     expect(
       find.textContaining('Active referrals to go: \u20686\u2069'),
@@ -252,12 +254,45 @@ void main() {
     }
   });
 
+  testWidgets('an ended membership: the status, no form', (tester) async {
+    await pumpProgramme(
+      tester,
+      programme: ambassadorProgramme(status: 'ENDED', refusal: 'ENDED'),
+    );
+    expect(
+      find.textContaining('Your ambassador membership has ended'),
+      findsOne,
+    );
+    expect(find.byKey(AmbassadorProgrammeScreen.submitKey), findsNothing);
+    expect(find.byKey(AmbassadorProgrammeScreen.dashboardKey), findsNothing);
+  });
+
+  test('PublicProfile.ambassador → the level; absent or malformed → null', () {
+    expect(ambassadorLevelFromJson({'level': 'GOLD'}), 'GOLD');
+    expect(ambassadorLevelFromJson(null), isNull);
+    expect(ambassadorLevelFromJson({'level': ''}), isNull);
+    expect(ambassadorLevelFromJson('GOLD'), isNull);
+    expect(ambassadorLevelToJson('SILVER'), {'level': 'SILVER'});
+  });
+
+  test('the D389 explainer text for the badge (ar and en)', () {
+    expect(
+      ambassadorBadgeExplainer(l10nFor(AppLanguage.ar), 'GOLD'),
+      'سفير Kabso — المستوى ذهبي',
+    );
+    expect(
+      ambassadorBadgeExplainer(l10nFor(AppLanguage.en), 'GOLD'),
+      'Kabso ambassador — Gold level',
+    );
+  });
+
   test('the four notifications are system notifications of the programme', () {
     for (final wire in [
       'AMBASSADOR_APPLICATION_APPROVED',
       'AMBASSADOR_APPLICATION_REJECTED',
       'AMBASSADOR_LEVEL_UP',
       'AMBASSADOR_REWARD_GRANTED',
+      'AMBASSADOR_MEMBERSHIP_ENDED',
     ]) {
       final t = NotificationType.fromWire(wire);
       expect(t, isNot(NotificationType.unknown), reason: wire);

@@ -153,6 +153,7 @@ enum NotificationType {
   ambassadorApplicationRejected('AMBASSADOR_APPLICATION_REJECTED'),
   ambassadorLevelUp('AMBASSADOR_LEVEL_UP'),
   ambassadorRewardGranted('AMBASSADOR_REWARD_GRANTED'),
+  ambassadorMembershipEnded('AMBASSADOR_MEMBERSHIP_ENDED'),
   unknown('');
 
   new(this.wire);
@@ -193,7 +194,8 @@ enum NotificationType {
       this == ambassadorApplicationApproved ||
       this == ambassadorApplicationRejected ||
       this == ambassadorLevelUp ||
-      this == ambassadorRewardGranted;
+      this == ambassadorRewardGranted ||
+      this == ambassadorMembershipEnded;
 
   /// v1.89-social (D290): a level-raise request's result.
   bool get isLevelRaise =>

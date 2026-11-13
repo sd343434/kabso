@@ -19229,4 +19229,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorAmbassadorApplicationNotAllowed =>
       'You cannot apply to the ambassadors programme now';
+
+  @override
+  String ambBadgeExplainer(String level) {
+    return 'Kabso ambassador — $level level';
+  }
+
+  @override
+  String get ambStatusEnded =>
+      'Your ambassador membership has ended. You can\'t apply again unless the management re-appoints you.';
+
+  @override
+  String get notifAmbassadorEnded =>
+      'Your Kabso ambassador membership has ended';
 }
