@@ -19202,4 +19202,97 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ownerProfitCompensations => 'VIP care compensations (coins)';
+
+  @override
+  String get badgeExplainKabsoTeam =>
+      'Kabso Team badge — this account is part of Kabso\'s official team';
+
+  @override
+  String badgeExplainWealthLevel(int level) {
+    return 'Wealth level $level';
+  }
+
+  @override
+  String badgeExplainCharmLevel(int level) {
+    return 'Charm level $level';
+  }
+
+  @override
+  String badgeExplainWizardLevel(int level) {
+    return 'Wizard level $level';
+  }
+
+  @override
+  String badgeExplainGamingLevel(int level) {
+    return 'Gaming level $level';
+  }
+
+  @override
+  String badgeExplainRoomLevel(int level) {
+    return 'Room level $level — the host\'s charm level';
+  }
+
+  @override
+  String badgeExplainVip(int tier) {
+    return 'VIP $tier membership';
+  }
+
+  @override
+  String badgeExplainGoldenId(String id) {
+    return 'Golden ID $id — a VIP membership perk';
+  }
+
+  @override
+  String badgeExplainVerification(String kind) {
+    return 'Verified: $kind — granted automatically when the conditions are met';
+  }
+
+  @override
+  String get badgeExplainFounder => 'Founder badge — the founder of Kabso Live';
+
+  @override
+  String badgeExplainRechargeTier(int tier) {
+    return 'Daily recharge badge — tier $tier, shown for 24 hours after a recharge';
+  }
+
+  @override
+  String badgeExplainRechargeAgent(String code) {
+    return 'Official Kabso Live recharge agent — $code';
+  }
+
+  @override
+  String badgeExplainHostAgent(String code) {
+    return 'Kabso Live host agent — $code';
+  }
+
+  @override
+  String badgeExplainItem(String name) {
+    return 'Item badge: $name';
+  }
+
+  @override
+  String get badgeExplainCreatorLive =>
+      'Creator — the host is a Kabso Live content creator';
+
+  @override
+  String get badgeExplainHostTargetGifts => 'The host\'s daily gifts target';
+
+  @override
+  String get badgeExplainHostTargetLucky =>
+      'The host\'s daily lucky-gifts target';
+
+  @override
+  String get badgeExplainHost => 'Host — the owner of this live';
+
+  @override
+  String get badgeExplainModerator =>
+      'Moderator — helps the host run this live';
+
+  @override
+  String get badgeExplainNewcomer => 'New — recently joined Kabso Live';
+
+  @override
+  String badgeExplainFamily(String name, int level) {
+    return 'Family $name — level $level';
+  }
 }

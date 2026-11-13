@@ -13563,3 +13563,54 @@ For a staff account (§10.176.8):
 payout channel was built; (2) the flag is fixed at request time, so a request made before a role is granted stays with
 FINANCE, and one made by staff stays with the OWNER after a revoke; (3) a staff member who is also a recharge agent may
 still **buy** cherries as an agent (the rule is about the staff member's own cherries leaving).
+
+### 10.178 The badge explainer, and the Kabso Team badge without its banner *(app only, no contract change — D389)*
+
+Owner (2026-11-13, board D389): «فريق كابسو يأخذون شارة لكن الشارة لها شريط ازله — واجعل عند ضغط عن اي شارة التطبيق
+يشرح ما هي بصندوق صغير شفاف». Two app-only changes; no API, contract version, data message or database change. (§10.175,
+§10.176 and §10.177 are taken on other branches.)
+
+#### 10.178.1 The Kabso Team badge is the crest alone
+
+The «فريق كابسو» badge (D282 / D282c, `KabsoTeamBadge`) loses its long red-and-gold banner and the team's name written in
+it: it is the owner's crest alone (Kabi in a headset, the crown, the laurels and the small ribbon scroll at the bottom,
+which is part of the emblem), cut from the owner's own file (`assets/staff/PROVENANCE.md`), 398 × 328 px, aspect
+398 / 328, never mirrored. Nothing is written on it; its spoken label stays «فريق كابسو» / "Kabso Team". It is shown
+where it was (chat lines, viewer list, person card, profile and Me tab, announcements, staff screens). Heights: 24 pt in
+a boxed, inline or VIP chat line and 22 on the host's flat line (still taller than the line's other emblems), 36 on the
+Me tab and in the profile's badge row (was 44, sized for the banner's text), 26 on the profile's name line, 28 on the
+person card (was 32), 24 before «إعلان رسمي» (was 28); the staff screens keep 36–40.
+
+#### 10.178.2 A tap on any badge says what it is
+
+A tap on a badge shows a small translucent bubble beside it (`KBadgeExplainer`, design system): white text on dark glass
+(a 72 % near-black tint over a 12-pt blur, a faint light edge, radius 12), at most 260 pt wide, under the badge or above it
+when there is no room below, centred on it and kept inside the screen and its safe area (12 pt margin) in both reading
+directions; the text is in the app's language and direction. One bubble at a time; it closes after 3 s, on a tap
+anywhere outside it, on a tap on it, or on a second tap on the badge. Reduce motion: no fade.
+
+The tap belongs to the badge: inside a tappable row (a chat line, a list tile, a room card, the profile's levels row) a
+tap on the badge shows the bubble and does **not** also open the row; a tap beside the badge still does. A badge that is
+only a picture can opt out (`explain: false`), and then the row keeps the tap. Screen readers are unchanged: each badge
+keeps its own spoken label; the bubble is a live region. The verification seal's and the founder seal's long-press
+tooltips are replaced by the bubble.
+
+| Badge | Bubble (ar / en) |
+| ----- | ---------------- |
+| Kabso Team (`KabsoTeamBadge`, the chat's team tag) | «شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي» / "Kabso Team badge — this account is part of Kabso's official team" |
+| Level (`KLevelBadge`): SUPPORT, ATTRACTIVENESS, WIZARD, GAMING | «مستوى الثروة 25» / "Wealth level 25"; «مستوى الجاذبية N» / "Charm level N"; «مستوى الساحر N»; «مستوى اللعب N» |
+| Charm creature (`CharmLevelBadge`): a person's / a room's | «مستوى الجاذبية N» / "Charm level N"; beside a room's name «مستوى الغرفة N — مستوى جاذبية المضيف» / "Room level N — the host's charm level" |
+| VIP (`VipNameBadge`, art or «VIPn» pill) | «عضوية VIP 3» / "VIP 3 membership" |
+| Golden ID (`VipGoldenIdChip`) | «آيدي ذهبي 8888 — من مزايا عضوية VIP» / "Golden ID 8888 — a VIP membership perk" |
+| Verification seal (`ProfileVerificationBadge`, `VerificationSeal`): STAFF, RECHARGE_AGENT, HOST_AGENT, CREATOR, VERIFIED_HOST | «شارة التوثيق: {النوع} — تُمنح تلقائياً عند تحقق الشروط» / "Verified: {kind} — granted automatically when the conditions are met" |
+| Founder seal (`FounderBadge`) | «شارة المؤسس — مؤسس Kabso Live» / "Founder badge — the founder of Kabso Live" |
+| Daily recharge tier (`RechargeTierBadge`) | «شارة الشحن اليومي — المستوى N، تظهر 24 ساعة بعد الشحن» / "Daily recharge badge — tier N, shown for 24 hours after a recharge" |
+| Recharge agent / host agent (`RechargeAgentBadge`, `HostAgentBadge`) | «وكيل شحن معتمد في كابسو — code» / "Official Kabso recharge agent — code"; «وكيل مضيفين في كابسو — code» / "Kabso host agent — code" |
+| Item badges (`KItemBadgePill`, in `KItemBadgeRow` / `KItemBadgeList`) | «شارة العنصر: {الاسم}» / "Item badge: {name}" |
+| Creator live (`CreatorLiveBadge`) | «صانع محتوى — المضيف صانع محتوى في كابسو» / "Creator — the host is a Kabso content creator" |
+| Host targets (`KHostTargetBadge`, `KDailyTargetBadge`) | «هدف الهدايا اليومي للمضيف» / «هدف هدايا الحظ اليومي للمضيف» |
+| VIP room (`LiveVipRoomBadge`) | the lock sheet's sentence «هذه الغرفة لأعضاء {VIP n} فما فوق» |
+| Chat and person-card role tags (host, moderator), «جديد», family chip | «المضيف — صاحب هذا البث», «مشرف — يساعد المضيف في إدارة هذا البث», «جديد — انضم إلى كابسو مؤخراً», «عائلة {الاسم} — المستوى N» |
+
+Not explainers: status markers that are not a person's badge (the LIVE / PK / New / guests pills of `KBadge`, unread
+counters, the VIP page's tier showcase `VipBadge`), which keep their own behaviour.

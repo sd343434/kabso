@@ -42,6 +42,10 @@ void main() {
       // تكون على اليمين بالعربية»): the live hub's top-bar brand alone is
       // written in Arabic script; checked exactly below.
       if (key == 'liveHubBrand') continue;
+      // D389 (owner, 2026-11-13, chose «ب) هذا الحساب من فريق عمل كابسو
+      // الرسمي»): the Kabso Team badge's explainer, by the owner's own
+      // wording — this one string only, checked exactly below.
+      if (key == 'badgeExplainKabsoTeam') continue;
       // D260 (owner, 2026-11-04): the staff badge is «فريق كابسو» in
       // Arabic, by the owner's own wording. D273: the team's name in the
       // staff strings too — only that phrase, never the brand alone.
@@ -54,6 +58,10 @@ void main() {
       );
     }
     expect(ar['liveHubBrand'], 'كابسو لايف');
+    expect(
+      ar['badgeExplainKabsoTeam'],
+      'شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي',
+    );
     expect(ar['appTitle'], 'Kabso Live');
     expect(ar['codeWelcome'], contains('Kabso Live'));
   });

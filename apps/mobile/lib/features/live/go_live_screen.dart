@@ -4171,7 +4171,7 @@ class _LiveClock extends StatelessWidget {
               ),
               if (level case final level?) ...[
                 const SizedBox(width: KSpacing.xs),
-                CharmLevelBadge(level: level),
+                CharmLevelBadge(level: level, room: true),
               ],
             ],
           ),

@@ -69,28 +69,39 @@ class LiveChatRoleTag extends StatelessWidget {
         LiveChatTagKind.team => context.l10n.liveKabsoTeam,
       };
 
+  /// D389: what a pill tag is, for its explainer bubble.
+  static String explanationOf(BuildContext context, LiveChatTagKind kind) =>
+      switch (kind) {
+        LiveChatTagKind.host => context.l10n.badgeExplainHost,
+        LiveChatTagKind.moderator => context.l10n.badgeExplainModerator,
+        LiveChatTagKind.team => context.l10n.badgeExplainKabsoTeam,
+      };
+
   @override
   Widget build(BuildContext context) => kind == LiveChatTagKind.team
       ? KabsoTeamBadge(height: emblemHeight ?? height)
-      : Container(
-          height: height,
-          padding: EdgeInsets.symmetric(horizontal: height * 0.4),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: colorOf(kind),
-            borderRadius: BorderRadius.circular(KRadius.pill),
-          ),
-          child: Text(
-            labelOf(context, kind),
-            maxLines: 1,
-            textScaler: TextScaler.noScaling,
-            style: context.textStyles.caption.copyWith(
-              // D284: the tags' one text size on the emblems' bar.
-              fontSize: KChat.tagTextSize(height),
-              height: 1.1,
-              color: const Color(0xFFFFFFFF),
-              fontWeight: FontWeight.w800,
-              shadows: const [],
+      : KBadgeExplainer(
+          message: explanationOf(context, kind),
+          child: Container(
+            height: height,
+            padding: EdgeInsets.symmetric(horizontal: height * 0.4),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: colorOf(kind),
+              borderRadius: BorderRadius.circular(KRadius.pill),
+            ),
+            child: Text(
+              labelOf(context, kind),
+              maxLines: 1,
+              textScaler: TextScaler.noScaling,
+              style: context.textStyles.caption.copyWith(
+                // D284: the tags' one text size on the emblems' bar.
+                fontSize: KChat.tagTextSize(height),
+                height: 1.1,
+                color: const Color(0xFFFFFFFF),
+                fontWeight: FontWeight.w800,
+                shadows: const [],
+              ),
             ),
           ),
         );

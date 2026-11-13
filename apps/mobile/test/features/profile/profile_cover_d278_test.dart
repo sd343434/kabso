@@ -676,14 +676,16 @@ void main() {
           matching: find.byKey(KabsoTeamBadge.badgeKey),
         );
         expect(badge, findsOneWidget);
-        // D292: large enough for its name to read.
+        // D292 / D389: the crest at the profile's height.
         expect(tester.getSize(badge).height, KabsoTeamBadge.profileHeight);
+        // D389: no name written on it; the name is its spoken label.
         expect(
-          find.descendant(
-            of: badge,
-            matching: find.text(ar ? 'فريق كابسو' : 'Kabso Team'),
-          ),
-          findsOneWidget,
+          find.descendant(of: badge, matching: find.byType(Text)),
+          findsNothing,
+        );
+        expect(
+          find.bySemanticsLabel(ar ? 'فريق كابسو' : 'Kabso Team'),
+          findsWidgets,
         );
         await precacheImages(tester);
         await expectLater(

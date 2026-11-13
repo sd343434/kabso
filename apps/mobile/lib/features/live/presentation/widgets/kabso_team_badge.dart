@@ -13,135 +13,78 @@ abstract final class KabsoTeamColors {
 
 /// D282 (owner: «اجعلها شارة فريق كابسو بحيث سوف تضع الاسم بالعربي لمن هاتفه
 /// عربي وانجليزي لمن هاتفه انجليزي»): THE «فريق كابسو» badge — the owner's
-/// crest and banner ([asset]; D282c: the red-and-gold crest with Kabi in a
-/// headset, replacing the green one), the team's name written in the banner
-/// in the app's language («فريق كابسو» / "Kabso Team"). Drawn [height] tall
-/// at the art's own [aspectRatio] wherever the team is shown: before a staff
-/// line's name in every chat mode (D269's team tag), the viewer list's staff
-/// group (D260), the person card and profile of a staff account, the staff
-/// tools sheet and the shift page (D273).
+/// crest ([asset]; D282c: the red-and-gold crest with Kabi in a headset).
+/// D389 (owner: «فريق كابسو يأخذون شارة لكن الشارة لها شريط ازله»): the
+/// long banner that carried the team's name is gone — the badge is the crest
+/// alone (with the small ribbon scroll under it, part of the emblem), drawn
+/// [height] tall at the crest's own [aspectRatio]. The team's name is no
+/// longer written on it: it is the badge's spoken label («فريق كابسو» /
+/// "Kabso Team") and, on a tap, the explainer bubble ([KBadgeExplainer])
+/// says what it is. Shown wherever the team is: before a staff line's name
+/// in every chat mode (D269's team tag), the viewer list's staff group
+/// (D260), the person card and profile of a staff account, the staff tools
+/// sheet and the shift page (D273).
 ///
-/// Right-to-left: the art is NOT mirrored — the crest stays on the left as
-/// drawn (a mirrored crown and laurels would read as a different emblem) —
-/// and the Arabic name is centred in the banner like the English one.
+/// Right-to-left: the art is NOT mirrored (a mirrored crown and laurels
+/// would read as a different emblem).
 class KabsoTeamBadge extends StatelessWidget {
-  const new({super.key, this.height = 18});
+  const new({super.key, this.height = 18, this.explain = true});
 
   static const badgeKey = Key('live.kabsoTeam.badge');
 
-  /// The team's name inside the banner.
-  static const labelKey = Key('live.kabsoTeam.badge.label');
-
-  /// The owner's art (assets/staff/PROVENANCE.md), trimmed to its bounds.
+  /// The owner's crest (assets/staff/PROVENANCE.md), trimmed to its bounds.
   static const asset = 'assets/staff/kabso_team_badge.png';
 
-  /// The art's width ÷ height (720 × 328 px).
-  static const double aspectRatio = 720 / 328;
+  /// The crest's width ÷ height (398 × 328 px).
+  static const double aspectRatio = 398 / 328;
 
-  /// The banner's inner (green) area, as fractions of the art's width and
-  /// height, so the name scales with the badge.
-  static const banner = Rect.fromLTRB(0.555, 0.449, 0.875, 0.727);
-
-  /// D282b (owner: «نكبّرها في الدردشة»): in a chat line the badge is
-  /// taller than the line's other emblems so its name reads — 24 pt in the
-  /// boxed, inline and VIP rows (the smallest height where «فريق كابسو» /
-  /// "Kabso Team" reads clearly) …
+  /// D282b: in a chat line the crest is taller than the line's other
+  /// emblems so it reads — 24 pt in the boxed, inline and VIP rows (D389:
+  /// 29 pt wide now, was 53 with the banner) …
   static const double chatHeight = 24;
 
-  /// … and 22 pt on the host's compact flat line (still readable).
+  /// … and 22 pt on the host's compact flat line.
   static const double flatChatHeight = 22;
 
-  /// D292 (owner, on the profile: «شارة فريق كابسو صغيرة وغير واضحة»):
-  /// beside the name on the profile header and the Me hub (was 20 / 22,
-  /// where the banner's name was ≈ 3.5 pt). D299i (owner: «ميدالية مشرفين
-  /// يجب ان تكون الايقونة بحجم اكبر ليكون كلام مكتوب بداخلها واضح»): 44 pt
-  /// (was 30, a ≈ 5 pt name) — the banner's name is now ≈ 7.5 pt; in a
-  /// tight row the badge wraps to its own line, never shrinks.
-  static const double profileHeight = 44;
+  /// D292 / D299i set 44 pt beside the name on the Me hub so the banner's
+  /// name read. D389: with no name to read, 36 pt (44 wide, was 97) — still
+  /// the largest emblem of the row, never squeezed (in a tight row it wraps
+  /// to its own line).
+  static const double profileHeight = 36;
 
-  /// D299i: the live person card, after the name (was 24, the name's line).
-  static const double cardHeight = 32;
+  /// D299i: the live person card, after the name (D389: 28, was 32).
+  static const double cardHeight = 28;
 
-  /// D299i: before «إعلان رسمي — فريق كابسو» in the composer (was 22).
-  static const double announcementHeight = 28;
-
-  /// D282c (owner: «ولون الخط في داخلها ذهبي مناسب»): the name in a warm
-  /// gold matching the banner's frame, bold, over a thin dark shadow so it
-  /// reads on the red.
-  static const ink = Color(0xFFFFD36A);
+  /// D299i: before «إعلان رسمي — فريق كابسو» in the composer (D389: 24,
+  /// was 28 — the label beside it says the team's name).
+  static const double announcementHeight = 24;
 
   final double height;
+
+  /// D389: a tap shows what the badge is (false: a badge drawn as a
+  /// picture only).
+  final bool explain;
 
   double get width => height * aspectRatio;
 
   @override
   Widget build(BuildContext context) {
-    final w = width;
-    final bannerW = banner.width * w;
-    final bannerH = banner.height * height;
-    return Semantics(
-      label: context.l10n.liveKabsoTeam,
-      container: true,
-      child: ExcludeSemantics(
+    final l10n = context.l10n;
+    return KBadgeExplainer(
+      message: l10n.badgeExplainKabsoTeam,
+      enabled: explain,
+      child: Semantics(
+        label: l10n.liveKabsoTeam,
+        container: true,
+        excludeSemantics: true,
         child: SizedBox(
           key: badgeKey,
-          width: w,
+          width: width,
           height: height,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Image.asset(
-                  asset,
-                  fit: BoxFit.fill,
-                  excludeFromSemantics: true,
-                ),
-              ),
-              // Absolute (never directional) offsets: the banner is where
-              // the art draws it, in either direction.
-              Positioned(
-                left: banner.left * w,
-                top: banner.top * height,
-                width: bannerW,
-                height: bannerH,
-                // D299i: thinner insets and a larger name, so the name
-                // fills the banner (still scaled down to fit, never cut).
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: bannerW * 0.035,
-                    vertical: bannerH * 0.06,
-                  ),
-                  child: Center(
-                    // Auto-fit: a long name (or a small badge) scales down,
-                    // never overflows the banner.
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        context.l10n.liveKabsoTeam,
-                        key: labelKey,
-                        maxLines: 1,
-                        softWrap: false,
-                        textAlign: TextAlign.center,
-                        textScaler: TextScaler.noScaling,
-                        style: context.textStyles.caption.copyWith(
-                          fontSize: bannerH * 0.70,
-                          height: 1.15,
-                          color: ink,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0,
-                          shadows: [
-                            Shadow(
-                              color: const Color(0xE6400000),
-                              offset: Offset(0, bannerH * 0.04),
-                              blurRadius: bannerH * 0.05,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          child: Image.asset(
+            asset,
+            fit: BoxFit.fill,
+            excludeFromSemantics: true,
           ),
         ),
       ),
