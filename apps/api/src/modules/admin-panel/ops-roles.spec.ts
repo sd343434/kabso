@@ -83,6 +83,9 @@ describe('D387 operations roles — the capability matrix', () => {
       'creators.applications',
       'creators.decide',
       'home.talent',
+      // D390 (§10.179.8): the ambassadors programme, no money.
+      'ambassadors.view',
+      'ambassadors.manage',
     ],
     VIP_CARE: [
       'dashboard.view',
@@ -103,6 +106,9 @@ describe('D387 operations roles — the capability matrix', () => {
       'gifts.manage',
       'banners.manage',
       'site.public',
+      // D390 (§10.179.8): the ambassadors' campaigns and events.
+      'ambassadors.view',
+      'ambassadors.manage',
     ],
   };
 
