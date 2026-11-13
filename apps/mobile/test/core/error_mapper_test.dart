@@ -168,6 +168,9 @@ const Map<ErrorCode, int> _statusFor = {
   // v1.133-social (D380).
   ErrorCode.vipProtected: 403,
   ErrorCode.liveStaffRefused: 403,
+  // v1.139-social (D387).
+  ErrorCode.staffGiftRefused: 403,
+  ErrorCode.staffWithdrawalCompanyOnly: 403,
   ErrorCode.staffStepUpRequired: 403,
   ErrorCode.staffTotpNotEnrolled: 409,
   ErrorCode.adminTotpInvalid: 403,

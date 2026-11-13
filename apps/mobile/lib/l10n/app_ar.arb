@@ -15871,8 +15871,8 @@
   "@giftStaffRefused": {"description": "D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9)."},
   "errorStaffGiftRefused": "حسابات فريق كابسو لا ترسل الهدايا.",
   "@errorStaffGiftRefused": {"description": "D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9)."},
-  "staffCherriesCompanyOnly": "حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.",
+  "staffCherriesCompanyOnly": "حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.",
   "@staffCherriesCompanyOnly": {"description": "D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9)."},
-  "errorStaffWithdrawalCompanyOnly": "حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط.",
+  "errorStaffWithdrawalCompanyOnly": "حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط.",
   "@errorStaffWithdrawalCompanyOnly": {"description": "D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9)."}
 }

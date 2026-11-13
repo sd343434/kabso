@@ -32035,13 +32035,13 @@ abstract class AppLocalizations {
   /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
   ///
   /// In ar, this message translates to:
-  /// **'حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.'**
+  /// **'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.'**
   String get staffCherriesCompanyOnly;
 
   /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
   ///
   /// In ar, this message translates to:
-  /// **'حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط.'**
+  /// **'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط.'**
   String get errorStaffWithdrawalCompanyOnly;
 }
 

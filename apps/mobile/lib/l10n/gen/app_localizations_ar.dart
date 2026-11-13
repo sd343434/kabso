@@ -18989,9 +18989,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get staffCherriesCompanyOnly =>
-      'حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.';
+      'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.';
 
   @override
   String get errorStaffWithdrawalCompanyOnly =>
-      'حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط.';
+      'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط.';
 }
