@@ -18980,4 +18980,18 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get socialPlatformOther => 'موقع آخر';
+
+  @override
+  String get giftStaffRefused => 'حسابات فريق كابسو لا ترسل الهدايا.';
+
+  @override
+  String get errorStaffGiftRefused => 'حسابات فريق كابسو لا ترسل الهدايا.';
+
+  @override
+  String get staffCherriesCompanyOnly =>
+      'حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.';
+
+  @override
+  String get errorStaffWithdrawalCompanyOnly =>
+      'حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط.';
 }

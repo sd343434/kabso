@@ -32019,6 +32019,30 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'موقع آخر'**
   String get socialPlatformOther;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات فريق كابسو لا ترسل الهدايا.'**
+  String get giftStaffRefused;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات فريق كابسو لا ترسل الهدايا.'**
+  String get errorStaffGiftRefused;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.'**
+  String get staffCherriesCompanyOnly;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط.'**
+  String get errorStaffWithdrawalCompanyOnly;
 }
 
 class _AppLocalizationsDelegate

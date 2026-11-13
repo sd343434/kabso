@@ -21,6 +21,7 @@ import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
+import 'package:kabso_live/features/staff/application/staff_money_rules.dart';
 import 'package:kabso_live/features/status/status_emoji_layer.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
@@ -1338,7 +1339,11 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               onEmoji: (e) => _send(e.token),
               giftKey: CommentsSheet.giftKey,
               onGift: switch (widget.target.giftTo) {
-                final author? => () => unawaited(_openGift(author)),
+                // v1.139-social (D387): a staff account sends no gift.
+                final author? => () {
+                  if (refuseStaffGift(context, ref)) return;
+                  unawaited(_openGift(author));
+                },
                 null => null,
               },
             )

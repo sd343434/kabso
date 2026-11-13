@@ -15866,5 +15866,13 @@
   "socialPlatformDiscord": "ديسكورد",
   "@socialPlatformDiscord": {"description": "D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176)."},
   "socialPlatformOther": "موقع آخر",
-  "@socialPlatformOther": {"description": "D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176)."}
+  "@socialPlatformOther": {"description": "D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176)."},
+  "giftStaffRefused": "حسابات فريق كابسو لا ترسل الهدايا.",
+  "@giftStaffRefused": {"description": "D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9)."},
+  "errorStaffGiftRefused": "حسابات فريق كابسو لا ترسل الهدايا.",
+  "@errorStaffGiftRefused": {"description": "D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9)."},
+  "staffCherriesCompanyOnly": "حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.",
+  "@staffCherriesCompanyOnly": {"description": "D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9)."},
+  "errorStaffWithdrawalCompanyOnly": "حساب فريق كابسو يسحب الكرز عن طريق كابسو فقط.",
+  "@errorStaffWithdrawalCompanyOnly": {"description": "D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9)."}
 }

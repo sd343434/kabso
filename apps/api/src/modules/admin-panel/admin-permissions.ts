@@ -314,6 +314,11 @@ export const CAPABILITIES = {
    * website top-up on or off still needs `payments.settings`.
    */
   'site.public': ['OWNER', 'COMMUNITY'],
+  /**
+   * §10.176.9 (owner: «الموظفين الذين لديهم كرز يسحب من خلالنا فقط»): a staff member's withdrawal request — the only way
+   * their cherries leave — is seen and decided by the OWNER alone (FINANCE never sees it).
+   */
+  'withdrawals.staff': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

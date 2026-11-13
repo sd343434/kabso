@@ -351,15 +351,20 @@ export class AdminFinanceService {
 
   // ---- withdrawals ----------------------------------------------------------------------------------------------
 
-  async withdrawals(query: {
-    status: 'PENDING' | 'PAID' | 'REJECTED';
-    cursor?: string | undefined;
-    limit: number;
-  }): Promise<Page<unknown>> {
+  async withdrawals(
+    query: {
+      status: 'PENDING' | 'PAID' | 'REJECTED';
+      cursor?: string | undefined;
+      limit: number;
+    },
+    ctx?: AdminContext,
+  ): Promise<Page<unknown>> {
     // Pending ones oldest first (the queue); decided ones newest first.
     const dir = query.status === 'PENDING' ? 'asc' : 'desc';
+    // v1.139-social (D387, §10.176.9): a staff member's request is the OWNER's alone (`withdrawals.staff`).
+    const staff = ctx?.capabilities.includes('withdrawals.staff') ?? false;
     const rows = await this.prisma.cherryWithdrawal.findMany({
-      where: { status: query.status, ...after(query.cursor, dir) },
+      where: { status: query.status, ...(staff ? {} : { staffRequest: false }), ...after(query.cursor, dir) },
       orderBy: [{ createdAt: dir }, { id: dir }],
       take: query.limit + 1,
       select: {
@@ -372,6 +377,7 @@ export class AdminFinanceService {
         createdAt: true,
         decidedAt: true,
         decisionNote: true,
+        staffRequest: true,
         user: { select: { id: true, profile: { select: { username: true, displayName: true } } } },
       },
     });
@@ -385,6 +391,7 @@ export class AdminFinanceService {
       createdAt: w.createdAt.toISOString(),
       decidedAt: w.decidedAt?.toISOString() ?? null,
       decisionNote: w.decisionNote,
+      staffRequest: w.staffRequest,
       user: {
         id: w.user.id,
         username: w.user.profile?.username ?? '',
@@ -393,12 +400,20 @@ export class AdminFinanceService {
     }));
   }
 
+  /** v1.139-social (D387, §10.176.9): a staff member's request — 403 `AUTH_FORBIDDEN` without `withdrawals.staff`. */
+  private async assertMayDecide(id: string, ctx: AdminContext): Promise<void> {
+    if (ctx.capabilities.includes('withdrawals.staff')) return;
+    const row = await this.prisma.cherryWithdrawal.findUnique({ where: { id }, select: { staffRequest: true } });
+    if (row?.staffRequest) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+  }
+
   /** Marks a request paid (the money was sent by hand); the note keeps the payment reference. Code again. */
   async payWithdrawal(
     id: string,
     body: { reference: string; note?: string | undefined; totpCode: string },
     ctx: AdminContext,
   ) {
+    await this.assertMayDecide(id, ctx);
     await this.auth.reauthenticate(ctx, body.totpCode);
     const note = body.note ? `ref: ${body.reference} — ${body.note}` : `ref: ${body.reference}`;
     const d = await shared(() =>
@@ -409,6 +424,7 @@ export class AdminFinanceService {
 
   /** Rejects a request with a reason: the held cherries go back (a balance change: code again). */
   async rejectWithdrawal(id: string, body: { reason: string; totpCode: string }, ctx: AdminContext) {
+    await this.assertMayDecide(id, ctx);
     await this.auth.reauthenticate(ctx, body.totpCode);
     const d = await shared(() =>
       this.prisma.$transaction((tx) =>

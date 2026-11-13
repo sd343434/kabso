@@ -29,6 +29,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart
     show pkBoosterFailureMessage;
 import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/staff/application/staff_money_rules.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -996,7 +997,11 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     };
 
     final String? reason;
-    if (catalogue != null && catalogue.data.isEmpty) {
+    // v1.139-social (D387, §10.176.8): a staff account sends no gift — the
+    // panel opens (to look) with Send disabled and the reason.
+    if (ref.watch(isStaffAccountProvider)) {
+      reason = l10n.giftStaffRefused;
+    } else if (catalogue != null && catalogue.data.isEmpty) {
       reason = l10n.liveGiftEmptyTitle;
     } else if (candidates.isEmpty) {
       reason = l10n.liveGiftNoRecipients;

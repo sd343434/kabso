@@ -432,6 +432,14 @@ enum ErrorCode {
   /// bullets in a live and takes no seat; a hidden observer does not chat.
   liveStaffRefused('LIVE_STAFF_REFUSED'),
 
+  /// v1.139-social (D387, §10.176.8, 403): a staff account sends no gift on
+  /// any path (owner: «اي موظف لدينا لا يمكنه ارسال الهدايا»).
+  staffGiftRefused('STAFF_GIFT_REFUSED'),
+
+  /// v1.139-social (D387, §10.176.9, 403): a staff account's cherries leave
+  /// only through a withdrawal request to Kabso (never through an agent).
+  staffWithdrawalCompanyOnly('STAFF_WITHDRAWAL_COMPANY_ONLY'),
+
   /// v1.68-live (D273, §10.96.6, 403): a staff tool needs the step-up (the
   /// panel authenticator code in the app).
   staffStepUpRequired('STAFF_STEP_UP_REQUIRED'),

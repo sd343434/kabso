@@ -377,6 +377,9 @@ void main() {
           // v1.133-social (D380): KICK_MUTE_SHIELD.
           'VIP_PROTECTED',
           'LIVE_STAFF_REFUSED',
+          // v1.139-social (D387).
+          'STAFF_GIFT_REFUSED',
+          'STAFF_WITHDRAWAL_COMPANY_ONLY',
           'STAFF_STEP_UP_REQUIRED',
           'STAFF_TOTP_NOT_ENROLLED',
           'ADMIN_TOTP_INVALID',

@@ -417,8 +417,9 @@ export class AdminFinanceController {
       cursor?: string;
       limit: number;
     },
+    @CurrentAdmin() admin: AdminContext,
   ) {
-    return this.finance.withdrawals(query);
+    return this.finance.withdrawals(query, admin);
   }
 
   @Post('withdrawals/:withdrawalId/pay')

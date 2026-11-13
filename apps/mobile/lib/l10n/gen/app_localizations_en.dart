@@ -18976,4 +18976,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get socialPlatformOther => 'Other';
+
+  @override
+  String get giftStaffRefused => 'Kabso Team accounts cannot send gifts.';
+
+  @override
+  String get errorStaffGiftRefused => 'Kabso Team accounts cannot send gifts.';
+
+  @override
+  String get staffCherriesCompanyOnly =>
+      'A Kabso Team account withdraws its cherries only through Kabso: request a withdrawal from the cherry wallet. Cherries cannot be sold to an agent.';
+
+  @override
+  String get errorStaffWithdrawalCompanyOnly =>
+      'A Kabso Team account withdraws its cherries only through Kabso.';
 }

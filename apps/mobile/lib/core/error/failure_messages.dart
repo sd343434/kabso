@@ -124,6 +124,9 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.staffProtected => l10n.errorStaffProtected,
     ErrorCode.vipProtected => l10n.errorVipProtected,
     ErrorCode.liveStaffRefused => l10n.errorLiveStaffRefused,
+    ErrorCode.staffGiftRefused => l10n.errorStaffGiftRefused,
+    ErrorCode.staffWithdrawalCompanyOnly =>
+      l10n.errorStaffWithdrawalCompanyOnly,
     ErrorCode.staffStepUpRequired => l10n.errorStaffStepUpRequired,
     ErrorCode.staffTotpNotEnrolled => l10n.errorStaffTotpNotEnrolled,
     ErrorCode.adminTotpInvalid => l10n.errorAdminTotpInvalid,

@@ -4606,6 +4606,8 @@ paths:
         CONVENTIONS §10.140): a normal gift whose recipients are all direct (the hosting permission, no ACTIVE agency
         membership) stores `GIFT_DIRECT_HOST_SHARE_PERCENT` (70 %) — in a content creator's live
         `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75 %, instead of 70 %); quips, lucky and custom gifts unchanged.
+
+        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. A watch-staff viewer (OWNER, MODERATION, SUPPORT) keeps the earlier 403 `LIVE_STAFF_REFUSED`; the host is refused too.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -7311,6 +7313,8 @@ paths:
         `IDEMPOTENCY_CONFLICT` when the body differs) → 409 `WITHDRAWAL_PENDING` (one at a time) → 409
         `INSUFFICIENT_CHERRIES` (nothing held; *v1.53-social, D184:* more than `withdrawableCherries` — the
         balance less the task cherries still locked, §10.46.1) → 201.
+
+        v1.139-social (D387, §10.176.9): the company route — the only way a staff account's cherries leave. A staff member's request is marked `staffRequest` and only the OWNER sees and decides it in the panel (`withdrawals.staff`); the rules above are unchanged.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -7331,6 +7335,7 @@ paths:
               schema: { $ref: '#/components/schemas/CherryWithdrawal' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '409':
           description: "`WITHDRAWAL_PENDING`, `INSUFFICIENT_CHERRIES` or `IDEMPOTENCY_CONFLICT`."
           content:
@@ -8509,6 +8514,8 @@ paths:
         «يمكنه شراء الكرز») → 409 `RECHARGE_OFF_SHIFT`. The employee themselves cannot be the host (400 `host`); a block
         between the employee and the host is 404. A host's offer (`agentCode`) notifies the agent and every allowed
         employee on shift.
+
+        v1.139-social (D387, §10.176.9): when the host side (whose cherries would be sold) is a staff account → 403 `STAFF_WITHDRAWAL_COMPANY_ONLY` (`{field: staff, issue: company_only}`): a staff member's cherries leave only through `requestCherryWithdrawal`.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -8560,6 +8567,8 @@ paths:
         removed employee is 404). After the side check: 403 `RECHARGE_EMPLOYEE_NOT_PERMITTED` → 409
         `RECHARGE_OFF_SHIFT`; the agent always acts. The first answer wins under the row lock; a second one (another
         employee, the agent) gets 409 `RECHARGE_CHERRY_REQUEST_CLOSED`. An employee's answer sets `actedBy`.
+
+        v1.139-social (D387, §10.176.9): confirming a sale whose host is now a staff account → 403 `STAFF_WITHDRAWAL_COMPANY_ONLY`; nothing moves.
       parameters:
         - name: requestId
           in: path
@@ -9527,6 +9536,8 @@ paths:
         `clientId` → 200 (the first gift, the couple and the current balance); 409
         `CP_NOT_PAIRED`; 409 `INSUFFICIENT_COINS`. The charge (ledger `CP_GIFT`; it counts for the
         sender's family) and the couple's CP points (+ `amount`) and tier are one transaction.
+
+        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. (after 409 `CP_NOT_PAIRED`).
       requestBody:
         required: true
         content:
@@ -9546,6 +9557,7 @@ paths:
               schema: { $ref: '#/components/schemas/CpGiftResult' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/cp/me/tasks:
@@ -10024,6 +10036,8 @@ paths:
         `Accept-Language`.
         v1.59-social (D190): 403 `TOPUP_ACCOUNT_FROZEN` while the caller's coin balance is below 0 (a reversed
         website purchase, §10.53).
+
+        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. (a bag item sent is a gift).
       requestBody:
         required: true
         content:
@@ -10773,6 +10787,8 @@ paths:
         `GIFT_UNAVAILABLE` (unknown, off, a lucky gift or a quip) → 400 (a custom gift from the bag) → 429 (as a live
         gift: `live:gift:any`, then `live:gift`) → 403 `TOPUP_ACCOUNT_FROZEN` / `ACCOUNT_RESTRICTED` (`NO_GIFTS`) → 409
         `INSUFFICIENT_COINS` / `GIFT_BAG_INSUFFICIENT`; nothing is charged, stored or sent on a refusal.
+
+        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged.
       parameters:
         - $ref: '#/components/parameters/PostIdPath'
       requestBody:
@@ -11660,6 +11676,8 @@ paths:
         its coins are spent) → 409 `GIFT_UNAVAILABLE` → 400 (a quip's source or quantity) → 403 `LUCKY_GIFT_AGE_UNCONFIRMED` /
         `LUCKY_GIFT_REGION_UNAVAILABLE` → 429 → 409 `INSUFFICIENT_COINS` / `GIFT_BAG_INSUFFICIENT`.
         The gift message expires after 24 h; the send and its ledger rows are permanent.
+
+        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged.
       requestBody:
         required: true
         content:
@@ -12579,6 +12597,8 @@ paths:
         pair's conversation (`sendDmGift`'s pipeline: the «هدية» message and its push; the rules of that moment apply);
         the held coins come back (`VIP_SCHEDULED_GIFT_RELEASE`) and the gift is charged (`DM_GIFT`) in that same
         transaction. A refused delivery → FAILED and the coins come back.
+
+        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. A delivery whose sender became staff meanwhile fails (FAILED, the coins come back).
       requestBody:
         required: true
         content:
@@ -12864,6 +12884,8 @@ paths:
         `item_off` | `owned_permanent`; `days` `not_priced` | `too_far`) → 409 `STORE_PRICE_CHANGED` → 409
         `INSUFFICIENT_COINS` / `INSUFFICIENT_CHERRIES`. A refused request charges and changes nothing. Audited
         `store.purchase`. 30 / hour per user (bucket `store:buy`).
+
+        v1.139-social (D387, §10.176.8): a staff account (any panel role held now, OWNER included) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. — only for a purchase with a `recipient` (a gift); buying for oneself is unchanged.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -13870,6 +13892,8 @@ paths:
           schema: { type: string, enum: [PENDING, PAID, REJECTED], default: PENDING }
         - $ref: '#/components/parameters/AdminCursor'
         - $ref: '#/components/parameters/AdminLimit'
+      description: |
+        v1.139-social (D387, §10.176.9): `staffRequest` marks a staff member's request; those rows are listed only with `withdrawals.staff` (OWNER) — FINANCE never sees them.
       responses:
         '200':
           description: One page.
@@ -13884,7 +13908,10 @@ paths:
       tags: [admin-panel]
       operationId: payAdminWithdrawal
       summary: "Marks a request paid (money sent by hand) — the `economy-admin withdrawal-pay` rule (withdrawals.decide; code again; audited)"
-      description: "Financial: `totpCode` again. `reference` (and `note`) are kept as the decision note. 409 `ADMIN_ACTION_REFUSED` when the request is no longer PENDING."
+      description: |
+        Financial: `totpCode` again. `reference` (and `note`) are kept as the decision note. 409 `ADMIN_ACTION_REFUSED` when the request is no longer PENDING.
+
+        v1.139-social (D387, §10.176.9): a staff member's request without `withdrawals.staff` (OWNER) → 403 `AUTH_FORBIDDEN`, before the code is checked.
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminWithdrawalIdPath'
@@ -13920,6 +13947,8 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/AdminWithdrawalRejectRequest' }
+      description: |
+        v1.139-social (D387, §10.176.9): a staff member's request without `withdrawals.staff` (OWNER) → 403 `AUTH_FORBIDDEN`, before the code is checked.
       responses:
         '200':
           description: REJECTED, cherries refunded.
@@ -28191,10 +28220,13 @@ components:
         dailyCherryCap: { type: [integer, 'null'] }
     AdminWithdrawalRow:
       type: object
-      required: [id, status, cherries, amountMinor, currency, payoutDetails, createdAt, decidedAt, decisionNote, user]
+      required: [id, status, cherries, amountMinor, currency, payoutDetails, createdAt, decidedAt, decisionNote, staffRequest, user]
       properties:
         id: { type: string, format: uuid }
         status: { type: string, enum: [PENDING, PAID, REJECTED] }
+        staffRequest:
+          type: boolean
+          description: v1.139-social (D387, §10.176.9) — made by a staff account (the company route); listed and decided only with `withdrawals.staff` (OWNER).
         cherries: { type: integer }
         amountMinor: { type: integer }
         currency: { type: string }

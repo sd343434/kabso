@@ -28,6 +28,7 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart'
     show PostGridLoadMore;
+import 'package:kabso_live/features/staff/application/staff_money_rules.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -1408,6 +1409,8 @@ class _GiftsCardState extends ConsumerState<_GiftsCard> {
   final Map<int, String> _clientIds = {};
 
   Future<void> _send(int amount, String name) async {
+    // v1.139-social (D387): a staff account sends no gift.
+    if (refuseStaffGift(context, ref)) return;
     final l10n = context.l10n;
     final ok = await confirmBond(
       context,

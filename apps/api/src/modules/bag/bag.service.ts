@@ -44,7 +44,7 @@ import {
   type StoreArtDto,
   type StoreWearDto,
 } from '../store/store-rules.js';
-import { refuseLimitedStaff } from '../live/live-staff.js';
+import { refuseLimitedStaff, refuseStaffGift } from '../live/live-staff.js';
 
 /** `BagCatalogueItem`. */
 export interface BagCatalogueItemDto {
@@ -526,6 +526,8 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
       if (await inCoinDebtIn(tx, callerId)) throw new AppException(ErrorCode.TOPUP_ACCOUNT_FROZEN);
       // v1.72-social (D208, §10.67): the team's «منع إرسال الهدايا» (a bag item sent is a gift too).
       await assertNotRestricted(tx, callerId, 'NO_GIFTS');
+      // v1.139-social (D387, §10.176.8): a staff account sends no gift (owner: «اي موظف لدينا لا يمكنه ارسال الهدايا»).
+      await refuseStaffGift(tx, callerId);
       const item = await catalogueItemIn(tx, body.code);
       if (!item) throw new AppException(ErrorCode.BAG_ITEM_NOT_OWNED);
       await lockItemHoldersIn(tx, item.code, [callerId, target.id]);

@@ -76,6 +76,34 @@ export async function isPanelStaff(db: Db, userId: string): Promise<boolean> {
   return row?.ok === true;
 }
 
+/**
+ * v1.139-social (D387, CONVENTIONS §10.176.8; owner: «اي موظف لدينا لا يمكنه ارسال الهدايا»): «staff» for money is
+ * **any panel role held now** ({@link PANEL_STAFF_ROLES}: OWNER, MODERATION / TRUST_SAFETY, SUPPORT, FINANCE, BD,
+ * LIVE_OPS, TALENT, VIP_CARE, COMMUNITY — an ACTIVE ADMIN account), the same set as `STAFF_PROTECTED`. One helper so
+ * every path asks the same question.
+ */
+export const isStaffAccount = isPanelStaff;
+
+/** 403 STAFF_GIFT_REFUSED when the caller is a staff account (every gift-send path; §10.176.8). */
+export async function refuseStaffGift(db: Db, callerId: string): Promise<void> {
+  if (await isStaffAccount(db, callerId)) {
+    throw new AppException(ErrorCode.STAFF_GIFT_REFUSED, undefined, [{ field: 'staff', issue: 'gifts' }]);
+  }
+}
+
+/**
+ * 403 STAFF_WITHDRAWAL_COMPANY_ONLY when `userId` (whose cherries would leave) is a staff account: a staff member's
+ * cherries leave only through `requestCherryWithdrawal` (to the company; the OWNER handles it), never through a
+ * recharge agent or any third party (§10.176.9).
+ */
+export async function refuseStaffCherryRoute(db: Db, userId: string): Promise<void> {
+  if (await isStaffAccount(db, userId)) {
+    throw new AppException(ErrorCode.STAFF_WITHDRAWAL_COMPANY_ONLY, undefined, [
+      { field: 'staff', issue: 'company_only' },
+    ]);
+  }
+}
+
 /** 403 STAFF_PROTECTED when `targetId` holds a panel role (§10.96.7). */
 export async function assertNotStaffTarget(db: Db, targetId: string): Promise<void> {
   if (await isPanelStaff(db, targetId)) throw new AppException(ErrorCode.STAFF_PROTECTED);

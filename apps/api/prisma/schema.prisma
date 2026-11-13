@@ -5261,6 +5261,9 @@ model CherryWithdrawal {
   createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
   decidedAt     DateTime?              @map("decided_at") @db.Timestamptz(3)
   decisionNote  String?                @map("decision_note") @db.VarChar(500)
+  /// v1.139-social (D387, §10.176.9): made by a staff account (any panel role at the time) — the company route only;
+  /// the OWNER alone sees and decides it (`withdrawals.staff`).
+  staffRequest  Boolean                @default(false) @map("staff_request")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
