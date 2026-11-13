@@ -40,6 +40,7 @@ import {
   type PkRegionPrefName,
   type PkSideName,
 } from './live-pk.js';
+import { pk4BusySql } from './live-pk4.js';
 import {
   LIVE_TX_OPTIONS,
   LiveRoomsService,
@@ -676,6 +677,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
                         AND (from_room_id = ${roomId}::uuid OR to_room_id = ${roomId}::uuid))
           OR (NOT ${opts.ignoreQueue === true}
               AND EXISTS (SELECT 1 FROM pk_queue WHERE host_id = ${hostId}::uuid AND expires_at > ${iso(now)}::timestamptz))
+          OR ${pk4BusySql(Prisma.sql`${roomId}::uuid`, iso(now))}
           AS busy`;
     return row?.busy ?? false;
   }
@@ -1025,6 +1027,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
          AND NOT EXISTS (SELECT 1 FROM pk_invites i WHERE i.status = 'PENDING'
                           AND i.expires_at > ${iso(now)}::timestamptz
                           AND (i.from_room_id = r.id OR i.to_room_id = r.id))
+         AND NOT ${pk4BusySql(Prisma.sql`r.id`, iso(now))}
          AND (${q} = '' OR lower(p.username) LIKE ${q} || '%' OR lower(p.display_name) LIKE '%' || ${q} || '%')
          AND (${q} <> '' OR ${friends} OR COALESCE(s.recommendable, true))
          AND (NOT ${friends} OR (
@@ -1372,7 +1375,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       SELECT EXISTS (SELECT 1 FROM pk_matches WHERE status <> 'CLOSED'
                         AND (room_a_id = ${roomId}::uuid OR room_b_id = ${roomId}::uuid))
           OR EXISTS (SELECT 1 FROM pk_invites WHERE status = 'PENDING' AND expires_at > ${iso(now)}::timestamptz
-                        AND (from_room_id = ${roomId}::uuid OR to_room_id = ${roomId}::uuid)) AS busy`;
+                        AND (from_room_id = ${roomId}::uuid OR to_room_id = ${roomId}::uuid))
+          OR ${pk4BusySql(Prisma.sql`${roomId}::uuid`, iso(now))} AS busy`;
     return row?.busy ?? false;
   }
 
@@ -1406,7 +1410,9 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
     const [busy] = await tx.$queryRaw<{ busy: boolean }[]>`
       SELECT EXISTS (SELECT 1 FROM pk_matches WHERE status <> 'CLOSED'
                       AND (room_a_id IN (${input.roomA}::uuid, ${input.roomB}::uuid)
-                        OR room_b_id IN (${input.roomA}::uuid, ${input.roomB}::uuid))) AS busy`;
+                        OR room_b_id IN (${input.roomA}::uuid, ${input.roomB}::uuid)))
+          OR ${pk4BusySql(Prisma.sql`${input.roomA}::uuid`, iso(input.now))}
+          OR ${pk4BusySql(Prisma.sql`${input.roomB}::uuid`, iso(input.now))} AS busy`;
     if (busy?.busy) return null;
     const id = uuidv7();
     const [a, b] = await Promise.all([
@@ -2848,6 +2854,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
                           AND (m.status <> 'CLOSED' OR m.closed_at > ${iso(rest)}::timestamptz))
          AND NOT EXISTS (SELECT 1 FROM pk_invites i WHERE i.status = 'PENDING' AND i.expires_at > ${iso(now)}::timestamptz
                           AND (i.from_room_id = r.id OR i.to_room_id = r.id))
+         AND NOT ${pk4BusySql(Prisma.sql`r.id`, iso(now))}
        ORDER BY r.started_at, s.host_id
        LIMIT 200`;
     let joined = 0;

@@ -474,6 +474,19 @@ export class AdminV2Controller {
     return this.lives.end(pathUuid(id), body.reason, admin);
   }
 
+  /** v1.118-live (D391, §10.180): a moderator ends the room's open 4-way PK «PK رباعي» (void). */
+  @Post('lives/:roomId/pk4/end')
+  @HttpCode(200)
+  @RequireCapability('lives.moderate')
+  async endLivePk4(
+    @Param('roomId') id: string,
+    @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    await this.shifts.work(admin, 'staff_tool');
+    return this.lives.endPk4(pathUuid(id), body.reason, admin);
+  }
+
   @Get('live-hosts')
   @RequireCapability('lives.view')
   async hosts(

@@ -20,6 +20,49 @@ export interface LivePk {
   opponentDisplayName: string | null;
 }
 
+/** D391 (v1.118-live): the live's open 4-way PK «PK رباعي» — the match, this room's team and the four places. */
+export interface LivePk4 {
+  matchId: string;
+  status: 'CONNECTED' | 'BATTLE' | 'RESULT';
+  format: 'TEAMS' | 'FREE_FOR_ALL';
+  team: 'A' | 'B';
+  hosts: {
+    seat: number;
+    team: 'A' | 'B';
+    roomId: string;
+    username: string | null;
+    displayName: string | null;
+    score: number;
+    out: boolean;
+  }[];
+}
+
+/** D391: «@a + @b ضد @c + @d» (this room's team first). */
+export function pk4TeamsLine(pk4: LivePk4, t: (key: 'livePk4Teams', vars: Record<string, string>) => string): string {
+  const team = (side: 'A' | 'B') =>
+    pk4.hosts
+      .filter((h) => h.team === side)
+      .map((h) => (h.username ? `@${h.username}` : '?'))
+      .join(' + ');
+  return t('livePk4Teams', { a: team(pk4.team), b: team(pk4.team === 'A' ? 'B' : 'A') });
+}
+
+/** D391: the four places of a live's 4-way PK (the live's dialog): team, host, score, out. */
+export function Pk4Hosts({ pk4 }: { pk4: LivePk4 }) {
+  const { t, lang } = useApp();
+  return (
+    <ul className="pk4-hosts" data-pk4-match={pk4.matchId}>
+      {pk4.hosts.map((h) => (
+        <li key={h.seat} data-pk4-seat={h.seat} data-pk4-team={h.team} data-own-team={h.team === pk4.team ? 'true' : undefined}>
+          <span className="badge">{t('livePk4Team', { team: h.team })}</span> <span className="ltr">@{h.username ?? '?'}</span>{' '}
+          <span className="num">{formatNumber(h.score, lang)}</span>
+          {h.out && <span className="muted small"> · {t('livePk4Out')}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export interface LiveRow {
   id: string;
   title: string;
@@ -33,6 +76,8 @@ export interface LiveRow {
   host: PersonRef;
   /** D241: null when not in a PK. */
   pk: LivePk | null;
+  /** D391: the open 4-way PK (null or absent: none; absent from an older API). */
+  pk4?: LivePk4 | null;
   /** D250: the live's open reports (the red badge; absent from an older API). */
   openReports?: number;
   /** D260: the staff member on shift it is assigned to (null: nobody on shift; absent from an older API). */
@@ -109,7 +154,25 @@ function LiveDialog({ id, onClose, onEnded }: { id: string; onClose: () => void;
   const { t, lang, can, toast } = useApp();
   const { data, error } = useAsync(() => api.get<LiveDetailDto>(`/admin/lives/${id}`), [id]);
   const [ending, setEnding] = useState(false);
+  const [endingPk4, setEndingPk4] = useState(false);
   const n = (v: number) => formatNumber(v, lang);
+  // D391: a moderator ends the room's 4-way PK (void; the live goes on).
+  if (endingPk4)
+    return (
+      <FormDialog
+        title={t('livePk4End')}
+        intro={<p className="muted small">{t('livePk4EndIntro')}</p>}
+        fields={[reasonField(t)]}
+        confirmLabel={t('livePk4End')}
+        danger
+        submit={(v) => api.post(`/admin/lives/${id}/pk4/end`, { reason: v.reason })}
+        onClose={() => setEndingPk4(false)}
+        onDone={() => {
+          toast(t('livePk4Ended'));
+          onEnded();
+        }}
+      />
+    );
   if (ending)
     return (
       <FormDialog
@@ -149,7 +212,17 @@ function LiveDialog({ id, onClose, onEnded }: { id: string; onClose: () => void;
             <dt>{t('liveOnAir')}</dt>
             <dd className="num">{onAir(data.startedAt)}</dd>
             <dt>{t('colMode')}</dt>
-            <dd>{data.pk ? t('livePkBadge') : data.mode}</dd>
+            <dd>{data.pk4 ? t('livePk4Badge') : data.pk ? t('livePkBadge') : data.mode}</dd>
+            {data.pk4 && (
+              <>
+                <dt>{t('livePk4Status')}</dt>
+                <dd>{t(`livePk4Status${data.pk4.status}`)}</dd>
+                <dt>{t('livePk4Hosts')}</dt>
+                <dd>
+                  <Pk4Hosts pk4={data.pk4} />
+                </dd>
+              </>
+            )}
             {data.pk && (
               <>
                 <dt>{t('livePkOpponent')}</dt>
@@ -171,6 +244,12 @@ function LiveDialog({ id, onClose, onEnded }: { id: string; onClose: () => void;
             <button className="btn" onClick={onClose}>
               {t('close')}
             </button>
+            {can('lives.moderate') && data.pk4 && (
+              <button className="btn danger" data-pk4-end onClick={() => setEndingPk4(true)}>
+                <Icon name="stop" size={16} />
+                {t('livePk4End')}
+              </button>
+            )}
             {can('lives.manage') && data.status === 'LIVE' && (
               <button className="btn danger" onClick={() => setEnding(true)}>
                 <Icon name="stop" size={16} />
@@ -272,13 +351,19 @@ export function LiveCard({
   const [menu, setMenu] = useState(menuOpen);
   const actions = onAction ? liveActions(can as never, true, l.openReports ?? 0) : [];
   return (
-    <article className="live-card" data-live-pk={l.pk ? 'true' : undefined} data-reported={(l.openReports ?? 0) > 0 ? 'true' : undefined}>
+    <article
+      className="live-card"
+      data-live-pk={l.pk || l.pk4 ? 'true' : undefined}
+      data-live-pk4={l.pk4 ? 'true' : undefined}
+      data-reported={(l.openReports ?? 0) > 0 ? 'true' : undefined}
+    >
       <button type="button" className="card-open" onClick={onOpen}>
         <span className="thumb-wrap">
           <CardThumb live={l} pool={pool} enabled={can('lives.watch')} />
           <span className="live-badge">{t('liveNow')}</span>
           <LiveModeTag mode={l.mode} />
           {l.pk && <span className="live-badge pk-badge">{t('livePkBadge')}</span>}
+          {l.pk4 && <span className="live-badge pk-badge pk4-badge">{t('livePk4Badge')}</span>}
           {(l.openReports ?? 0) > 0 && (
             <span className="report-badge" data-open-reports={l.openReports}>
               <span className="red-dot" aria-hidden="true" />
@@ -294,6 +379,11 @@ export function LiveCard({
           {l.pk?.opponentUsername && (
             <span className="small pk-vs" dir="auto">
               {t('livePkVs', { handle: l.pk.opponentUsername })}
+            </span>
+          )}
+          {l.pk4 && (
+            <span className="small pk-vs" dir="auto" data-pk4-teams>
+              {pk4TeamsLine(l.pk4, t)}
             </span>
           )}
           <span className="row small muted">

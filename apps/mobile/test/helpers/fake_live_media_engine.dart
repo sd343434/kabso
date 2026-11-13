@@ -11,6 +11,7 @@ import 'package:kabso_live/features/live/data/streamer/live_screen_share.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
+import 'package:kabso_live/features/live/domain/live_pk4.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// In-memory [LiveMediaEngine]: no camera, no media server. Records every
@@ -399,6 +400,12 @@ class FakeLiveMediaEngine
 
   @override
   Stream<PkEvent> get pkEvents => pk.stream;
+
+  /// v1.118-live (D391): what the media room delivers to [pk4Events].
+  final pk4 = StreamController<Pk4Event>.broadcast();
+
+  @override
+  Stream<Pk4Event> get pk4Events => pk4.stream;
 
   @override
   Listenable get changes => _changes;

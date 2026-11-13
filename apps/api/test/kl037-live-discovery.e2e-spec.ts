@@ -181,7 +181,8 @@ describe('KL-037 contract coverage', () => {
           // indicator: d201-live-tools — each with its own exact list. v1.47-live (D212): the announced
           // podcasts, d212-podcast. v1.56-live (D213) / v1.57-live (D247): updateLiveStreamer, d213-streamer and
           // d247-web-studio. v1.114-live (D363): the video podcast's director relay, d363-video-podcast.
-          !/^\/api\/v1\/live\/(rooms\/\{roomId\}\/(pk|second-camera|recording|streamer|podcast)|pk|second-camera|podcasts|hosts\/\{username\}\/targets)(\/|$)/.test(
+          // v1.118-live (D391): «PK رباعي» (`/pk4`), d391-pk4.
+          !/^\/api\/v1\/live\/(rooms\/\{roomId\}\/(pk|pk4|second-camera|recording|streamer|podcast)|pk|second-camera|podcasts|hosts\/\{username\}\/targets)(\/|$)/.test(
             o.path,
           ),
       )

@@ -185,6 +185,14 @@ export enum AuditAction {
   LIVE_PK_ADMIN_END = 'live.pk.admin_end',
   LIVE_PK_SETTINGS = 'live.pk.settings',
   /**
+   * v1.118-live (D391, §10.180) «PK رباعي»: a lobby opened, cancelled or expired, a 4-way match started, a host out of
+   * it, its battle ended. A moderator's end of a 4-way match is `live.pk.admin_end` (format in the metadata).
+   */
+  LIVE_PK4_LOBBY = 'live.pk4.lobby',
+  LIVE_PK4_START = 'live.pk4.start',
+  LIVE_PK4_OUT = 'live.pk4.out',
+  LIVE_PK4_END = 'live.pk4.end',
+  /**
    * v1.50-live (D229, §10.80): «PK أحكام» — the server's draw {options, drawn, level}, the loser's answer (accepted /
    * refused, or the decision time ran out), the winner's verdict, an end without a verdict (timer, a host gone, a
    * moderator), the PK points written for a match {host, kind, points}, a dare reported by a viewer, and a dare

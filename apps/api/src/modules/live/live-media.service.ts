@@ -29,6 +29,8 @@ import { LiveChatService } from './live-chat.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { LivePkService } from './live-pk.service.js';
 import { PK_IDENTITY_PREFIX } from './live-pk.js';
+import { LivePk4Service } from './live-pk4.service.js';
+import { PK4_IDENTITY_PREFIX } from './live-pk4.js';
 import { staffRolesOf, WATCH_STAFF_ROLES, watchStaffAmong } from './live-staff.js';
 import { LiveStaffAssignmentService } from './live-staff-assignment.service.js';
 import { LiveToolsService, SECOND_CAMERA_PREFIX } from './live-tools.service.js';
@@ -165,6 +167,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     private readonly categories: LiveCategoriesService,
     private readonly metadata: LiveRoomMetadataService,
     private readonly pk: LivePkService,
+    private readonly pk4: LivePk4Service,
     private readonly tools: LiveToolsService,
     private readonly staffShift: LiveStaffAssignmentService,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
@@ -858,6 +861,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       // v1.43-live (D195): a PK watcher of the other room is never a viewer here; a host leaving
       // their own media session during a PK battle starts the absence time.
       if (event.identity.startsWith(PK_IDENTITY_PREFIX)) return;
+      // v1.118-live (D391, §10.180): nor a 4-way PK watcher of another room.
+      if (event.identity.startsWith(PK4_IDENTITY_PREFIX)) return;
       // v1.60-live (D250): a staff observer was never recorded.
       if (event.identity.startsWith(STAFF_IDENTITY_PREFIX)) return;
       // v1.64-live (D260): a visible staff watcher is no longer listed (never counted).
@@ -871,6 +876,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         return;
       }
       await this.pk.onHostMedia(roomId, event.identity, false);
+      await this.pk4.onHostMedia(roomId, event.identity, false);
       await closeVisits(this.prisma, roomId, [event.identity], this.clock.now());
       await this.prisma.liveRoomViewer.deleteMany({ where: { roomId, identity: event.identity } });
       await this.recount(this.prisma, roomId);
@@ -895,6 +901,13 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     // hidden — allowed while that match runs, never recorded or counted as a viewer of this room.
     if (identity.startsWith(PK_IDENTITY_PREFIX)) {
       if (!room || room.status !== 'LIVE' || !(await this.pk.allowsWatcher(roomId, identity))) {
+        await this.kick(roomId, identity);
+      }
+      return;
+    }
+    // v1.118-live (D391, §10.180): a watcher of a 4-way PK's other room — the same rule for its four rooms.
+    if (identity.startsWith(PK4_IDENTITY_PREFIX)) {
+      if (!room || room.status !== 'LIVE' || !(await this.pk4.allowsWatcher(roomId, identity))) {
         await this.kick(roomId, identity);
       }
       return;
@@ -935,6 +948,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     if (userId === room.hostUserId) {
       // The host is not a viewer; back in the session during a PK battle (D195).
       await this.pk.onHostMedia(roomId, userId, true);
+      await this.pk4.onHostMedia(roomId, userId, true);
       return;
     }
     if (guestId !== null && !room.allowGuests) {

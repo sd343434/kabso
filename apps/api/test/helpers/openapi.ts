@@ -147,3 +147,18 @@ export function expectContract(res: request.Response, operationId: string): void
   expect(undeclared(schema, res.body, '$'), `${operationId}: undeclared properties`).toEqual([]);
   expect(res.headers['content-type']).toMatch(/^application\/json/);
 }
+
+/**
+ * v1.118-live (D391): asserts that `value` matches the component schema `name` (e.g. a data message's `match`, which no
+ * HTTP response carries) and declares no extra property.
+ */
+export function expectSchema(name: string, value: unknown): void {
+  const pointer = `/components/schemas/${name}`;
+  const validate = validatorFor(pointer);
+  const ok = validate(value);
+  expect(
+    ok ? [] : (validate.errors ?? []).map((e) => `${e.instancePath} ${e.message}`),
+    `${name}: ${JSON.stringify(value)}`,
+  ).toEqual([]);
+  expect(undeclared(get(`#${pointer}`), value, '$'), `${name}: undeclared properties`).toEqual([]);
+}

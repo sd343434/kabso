@@ -12,6 +12,7 @@ import { AR_D228, EN_D228 } from './i18n-d228';
 import { AR_D227, EN_D227 } from './i18n-d227';
 import { AR_D233, EN_D233 } from './i18n-d233';
 import { AR_D241, EN_D241 } from './i18n-d241';
+import { AR_D391, EN_D391 } from './i18n-d391';
 import { AR_D245, EN_D245 } from './i18n-d245';
 import { AR_D249, EN_D249 } from './i18n-d249';
 import { AR_D248, EN_D248 } from './i18n-d248';
@@ -453,6 +454,7 @@ const ar = {
   ...AR_D227,
   ...AR_D233,
   ...AR_D241,
+  ...AR_D391,
   ...AR_D250,
   ...AR_D254,
   ...AR_D305,
@@ -881,6 +883,7 @@ const en: Record<Key, string> = {
   ...EN_D227,
   ...EN_D233,
   ...EN_D241,
+  ...EN_D391,
   ...EN_D250,
   ...EN_D254,
   ...EN_D305,

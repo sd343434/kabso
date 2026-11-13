@@ -27,6 +27,7 @@ import 'package:kabso_live/features/live/application/live_global_strips.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/application/live_level_ticker.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
+import 'package:kabso_live/features/live/application/live_pk4_controller.dart';
 import 'package:kabso_live/features/live/application/live_pk_controller.dart';
 import 'package:kabso_live/features/live/application/live_program.dart';
 import 'package:kabso_live/features/live/application/live_quips.dart';
@@ -49,6 +50,7 @@ import 'package:kabso_live/features/live/data/live_vip_repository.dart';
 import 'package:kabso_live/features/live/data/streamer/live_streamer_platform.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:kabso_live/features/live/domain/live_vip.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart'
     show pkFollowOpponent, showHostSheet, showPkOpponentCard;
@@ -104,6 +106,8 @@ import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.d
 import 'package:kabso_live/features/live/presentation/widgets/live_host_target_chip.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk4_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk4_stage.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_dare.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_rematch.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
@@ -241,6 +245,9 @@ class GoLiveScreen extends ConsumerStatefulWidget {
 
   /// v1.43-live (D195): the host's PK stage.
   static const pkStageKey = Key('goLive.pkStage');
+
+  /// v1.118-live (D391): the 4-way PK's 2 × 2 stage.
+  static const pk4StageKey = Key('goLive.pk4Stage');
   static Key categoryKey(String? slug) => GoLiveKeys.category(slug);
 
   /// The title limit (CONVENTIONS §10.3: 1–80 grapheme clusters).
@@ -685,6 +692,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           () => ref
               .read(livePkProvider(room.id).notifier)
               .attach(engine.pkEvents, host: true),
+        );
+        // v1.118-live (D391): «PK رباعي» (its lobby, invitations, match).
+        _optional(
+          'pk4',
+          () => ref
+              .read(livePk4Provider(room.id).notifier)
+              .attach(engine.pk4Events, host: true),
         );
       }
       // D138: the emojis people play on their seats.
@@ -2359,7 +2373,24 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final hostName = user?.displayName ?? room.host.displayName;
     // v1.43-live (D195): a PK puts both hosts side by side in the stage.
     final pk = ref.watch(livePkProvider(room.id));
-    final pkStage = pk.match == null ? null : _hostPkStage(pk, room, state);
+    // v1.118-live (D391): a 4-way PK puts the four hosts in the 2 × 2 stage.
+    final pk4 = ref.watch(livePk4Provider(room.id));
+    final pkStage = pk.match != null
+        ? _hostPkStage(pk, room, state)
+        : pk4.match != null
+        ? _hostPk4Stage(pk4, room, state)
+        : null;
+    ref.listen(livePk4Provider(room.id).select((p) => p.notice), (_, notice) {
+      if (notice == null) return;
+      ref.read(livePk4Provider(room.id).notifier).clearNotice();
+      KSnack.info(context, switch (notice) {
+        Pk4Notice.lobbyExpired => l10n.pk4NoticeExpired,
+        Pk4Notice.lobbyCancelled => l10n.pk4NoticeCancelled,
+        Pk4Notice.declined => l10n.pk4NoticeDeclined,
+        Pk4Notice.inviteExpired => l10n.pk4NoticeInviteExpired,
+        Pk4Notice.left => l10n.pk4NoticeLeft,
+      });
+    });
     ref.listen(livePkProvider(room.id).select((p) => p.notice), (_, notice) {
       if (notice == null) return;
       ref.read(livePkProvider(room.id).notifier).clearNotice();
@@ -2461,7 +2492,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               showSecondCameraSheet(
                 context,
                 roomId: live ? room.id : null,
-                inPk: ref.read(livePkProvider(room.id)).match != null,
+                inPk:
+                    ref.read(livePkProvider(room.id)).match != null ||
+                    ref.read(livePk4Provider(room.id)).match != null,
               ),
             ),
           ),
@@ -2920,8 +2953,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 // D346 (owner): no PK button on a streamer live at all.
                 showPk: room.mode != LiveRoomMode.streamer,
                 // v1.43-live (D195): the PK sheet (invite, random, end).
+                // v1.118-live (D391): in a 4-way PK (or its lobby) the
+                // 4-way sheet.
                 onPk: live && room.mode == LiveRoomMode.solo
-                    ? () => unawaited(showLivePkSheet(context, roomId: room.id))
+                    ? () => unawaited(
+                        pk4.match != null || pk4.lobby != null
+                            ? showLivePk4Sheet(context, roomId: room.id)
+                            : showLivePkSheet(context, roomId: room.id),
+                      )
                     : () => KSnack.info(context, l10n.goLivePkSoon),
                 // D199 (ref 275): the box — the live's games (honest «قريباً»).
                 onBox: () => unawaited(showLiveGamesSheet(context)),
@@ -2933,6 +2972,28 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ],
           ),
     );
+    // v1.118-live (D391): «{name} يدعوك إلى PK رباعي».
+    final incoming4 = room.mode == LiveRoomMode.solo && incoming == null
+        ? pk4.incoming
+        : null;
+    if (incoming4 != null) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          scaffold,
+          Positioned(
+            left: 0,
+            right: 0,
+            top: MediaQuery.paddingOf(context).top + 96,
+            child: LivePk4IncomingInvite(
+              key: ValueKey(incoming4.id),
+              roomId: room.id,
+              invite: incoming4,
+            ),
+          ),
+        ],
+      );
+    }
     if (incoming == null) return scaffold;
     // v1.43-live (D195): «{name} يدعوك إلى تحدي PK» over the room.
     return Stack(
@@ -3003,6 +3064,53 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
+  /// v1.118-live (D391): the host's 4-way stage — their own camera at the top
+  /// of the start column, the three other hosts from the 4-way connections,
+  /// a mute switch per other pane.
+  Widget _hostPk4Stage(LivePk4State pk4, LiveRoom room, GoLiveState state) {
+    final engine = _host.engine;
+    final match = pk4.match!;
+    final controller = ref.read(livePk4Provider(room.id).notifier);
+    final rooms = controller.rooms;
+    Widget stage() => LivePk4Stage(
+      key: GoLiveScreen.pk4StageKey,
+      match: match,
+      roomId: room.id,
+      now: pk4.now,
+      video: (seat) => seat.roomId == room.id
+          ? (engine.videoPaused ? null : engine.preview())
+          : rooms[seat.roomId]?.video(seat.host.id),
+      speaking: {
+        ...engine.speaking,
+        for (final m in rooms.values) ...m.speaking,
+      },
+      announcement: pk4.announcement,
+      isHost: true,
+      onMute: (seat, {required muted}) => unawaited(
+        controller.setMuted(seat.roomId, muted: muted).catchError((Object e) {
+          if (mounted) KSnack.error(context, pk4FailureMessage(l10nOf(), e));
+        }),
+      ),
+      onPerson: (u) => unawaited(_person(room.id, u.username)),
+      onHost: (u) => unawaited(_person(room.id, u.username)),
+      onStart: match.status == PkMatchStatus.connected
+          ? () => unawaited(
+              controller.start().catchError((Object e) {
+                if (mounted) {
+                  KSnack.error(context, pk4FailureMessage(l10nOf(), e));
+                }
+              }),
+            )
+          : null,
+    );
+    return ListenableBuilder(
+      listenable: Listenable.merge([for (final m in rooms.values) m.changes]),
+      builder: (context, _) => stage(),
+    );
+  }
+
+  AppLocalizations l10nOf() => context.l10n;
+
   /// D174: a solo live's guests as tiles at the end over the chat (a tap:
   /// their card, with remove and mute), then the lucky combo (D145a).
   Widget? _soloChatEnd(LiveRoom room, LiveSeats? liveSeats) {
@@ -3010,7 +3118,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         ? LuckyComboCluster(roomId: room.id)
         : null;
     // v1.43-live (D195): in a PK the guests are circles in the stage.
-    final inPk = ref.watch(livePkProvider(room.id)).match != null;
+    // v1.118-live (D391): in a 4-way PK they are not drawn (CP-041 §8).
+    final inPk =
+        ref.watch(livePkProvider(room.id)).match != null ||
+        ref.watch(livePk4Provider(room.id)).match != null;
     final guests = room.mode == LiveRoomMode.solo && !inPk
         ? (liveSeats?.seats ?? const <LiveSeat>[])
               .where((s) => s.state == LiveSeatState.taken)
@@ -3517,7 +3628,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // D154: the host's free quips are the soundboard's.
           soundboard: (_) => true,
           // v1.43-live (D195): the boosters' «PK» tab during a battle.
-          pk: (ref) => ref.watch(livePkProvider(room.id)).match,
+          // v1.118-live (D391): a 4-way battle's team boosters too.
+          pk: (ref) => pkMatchForGifts(ref, room.id),
         ),
       );
 

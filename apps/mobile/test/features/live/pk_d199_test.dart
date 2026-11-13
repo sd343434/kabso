@@ -8,6 +8,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/application/live_pk_controller.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk4_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_boost_fx.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_pages.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
@@ -62,26 +63,32 @@ AppLocalizations _l10n(WidgetTester tester) =>
 
 void main() {
   group('PK sheet (refs 276 / 277)', () {
-    testWidgets('1v1 is selected and works; Team and Multi say «قريباً»', (
-      tester,
-    ) async {
+    // D391 (v1.118-live): «PK رباعي» (the former «PK الفرق» card) opens the
+    // 4-way lobby; «PK متعدد» (CP-041 phase 3) still says «قريباً».
+    testWidgets('1v1 is selected and works; 4-way opens its lobby; Multi says '
+        '«قريباً»', (tester) async {
       final repo = await _sheet(tester);
       final l10n = _l10n(tester);
       final one = tester.widget<PkModeCard>(
         find.byKey(LivePkSheet.modeKey(PkSheetMode.oneVsOne)),
       );
       expect((one.selected, one.soon), (true, false));
-      for (final m in [PkSheetMode.team, PkSheetMode.multi]) {
-        final card = tester.widget<PkModeCard>(
-          find.byKey(LivePkSheet.modeKey(m)),
-        );
-        expect((card.selected, card.soon), (false, true), reason: m.name);
-      }
-      expect(find.text(l10n.liveSoon), findsNWidgets(2));
-      await tester.tap(find.byKey(LivePkSheet.modeKey(PkSheetMode.team)));
+      final four = tester.widget<PkModeCard>(
+        find.byKey(LivePkSheet.modeKey(PkSheetMode.team)),
+      );
+      expect((four.selected, four.soon), (false, false));
+      final multi = tester.widget<PkModeCard>(
+        find.byKey(LivePkSheet.modeKey(PkSheetMode.multi)),
+      );
+      expect((multi.selected, multi.soon), (false, true));
+      expect(find.text(l10n.liveSoon), findsOneWidget);
+      await tester.tap(find.byKey(LivePkSheet.modeKey(PkSheetMode.multi)));
       await tester.pump();
-      expect(find.text(l10n.pkModeSoon(l10n.pkModeTeam)), findsOneWidget);
-      // Still 1v1: nothing was asked of the server.
+      expect(find.text(l10n.pkModeSoon(l10n.pkModeMulti)), findsOneWidget);
+      await tester.tap(find.byKey(LivePkSheet.modeKey(PkSheetMode.team)));
+      await tester.pumpAndSettle();
+      expect(find.byType(LivePk4Sheet), findsOneWidget);
+      // Still 1v1 for this sheet: nothing was asked of its server.
       expect(
         repo.calls.where((c) => c.startsWith('invite') || c == 'random'),
         isEmpty,

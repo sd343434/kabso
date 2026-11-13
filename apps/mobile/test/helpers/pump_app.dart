@@ -55,6 +55,7 @@ import 'fake_live_host_targets_repository.dart';
 import 'fake_live_media_engine.dart';
 import 'fake_live_newcomers_repository.dart';
 import 'fake_live_pk.dart';
+import 'fake_live_pk4.dart';
 import 'fake_live_program_repository.dart';
 import 'fake_live_rankings_repository.dart';
 import 'fake_live_repository.dart';
@@ -283,6 +284,8 @@ Future<void> pumpScreen(
   RechargeRepository? rechargeRepository,
   FakeLivePkRepository? livePkRepository,
   FakePkOpponentMedia? pkOpponent,
+  // v1.118-live (D391): the 4-way PK's repository.
+  FakeLivePk4Repository? livePk4Repository,
   // D305: the strip switches live in the notification settings.
   FakeNotificationsRepository? notificationsRepository,
   // D220: the person card is white in light mode, dark in dark mode.
@@ -318,7 +321,11 @@ Future<void> pumpScreen(
         mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
         // Never a camera or a media server: an in-memory engine.
         // v1.43-live (D195): never the network for the PK.
-        ...pkOverrides(livePkRepository ?? FakeLivePkRepository(), pkOpponent),
+        ...pkOverrides(
+          livePkRepository ?? FakeLivePkRepository(),
+          pkOpponent,
+          livePk4Repository,
+        ),
         liveMediaEngineProvider.overrideWithValue(
           liveMediaEngine == null
               ? FakeLiveMediaEngine.new

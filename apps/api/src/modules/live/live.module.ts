@@ -49,6 +49,8 @@ import {
 } from './live.controller.js';
 import { LivePkController, MyLivePkController } from './live-pk.controller.js';
 import { LivePkService } from './live-pk.service.js';
+import { LivePk4Controller } from './live-pk4.controller.js';
+import { LivePk4Service } from './live-pk4.service.js';
 import { LiveToolsController } from './live-tools.controller.js';
 import { LiveToolsService } from './live-tools.service.js';
 import { LIVE_MEDIA_PROVIDER } from './media/live-media.provider.js';
@@ -81,6 +83,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     // v1.43-live (D195, §10.58): PK 1 v 1.
     LivePkController,
     MyLivePkController,
+    // v1.118-live (D391, CP-041 phase 2): «PK رباعي» (§10.180).
+    LivePk4Controller,
     // v1.45-live (D201, §10.63): the second camera, the recording indicator, the music-rights notice.
     LiveToolsController,
   ],
@@ -125,6 +129,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveGiftsService,
     // v1.43-live (D195, CP-038): PK 1 v 1 — matches, boosters, the PK tick (§10.58).
     LivePkService,
+    // v1.118-live (D391): PK 2 v 2 by invitation — lobbies, matches, team boosters, its own tick (§10.180).
+    LivePk4Service,
     LiveToolsService,
     LiveLuckyTickerService,
     LiveGiftTickerService,
@@ -164,6 +170,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveDataCenterService,
     // v1.68-live (D273): the staff tools' kick as «فريق كابسو».
     LiveKicksService,
+    // v1.118-live (D391): the panel's moderator end of a 4-way PK.
+    LivePk4Service,
   ],
 })
 export class LiveModule {}
