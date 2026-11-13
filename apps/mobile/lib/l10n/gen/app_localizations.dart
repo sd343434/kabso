@@ -32476,6 +32476,12 @@ abstract class AppLocalizations {
   /// **'شارة التوثيق: {kind} — تُمنح تلقائياً عند تحقق الشروط'**
   String badgeExplainVerification(String kind);
 
+  /// D389 (§10.178) for D386 (§10.175): the explainer of a verified category's badge beside the name
+  ///
+  /// In ar, this message translates to:
+  /// **'فئة موثّقة: {category} — وثّقها فريق كابسو'**
+  String badgeExplainCategory(String category);
+
   /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:

@@ -5937,6 +5937,7 @@
   "badgeExplainVip": "VIP {tier} membership",
   "badgeExplainGoldenId": "Golden ID {id} — a VIP membership perk",
   "badgeExplainVerification": "Verified: {kind} — granted automatically when the conditions are met",
+  "badgeExplainCategory": "Verified category: {category} — verified by the Kabso Team",
   "badgeExplainFounder": "Founder badge — the founder of Kabso Live",
   "badgeExplainRechargeTier": "Daily recharge badge — tier {tier}, shown for 24 hours after a recharge",
   "badgeExplainRechargeAgent": "Official Kabso Live recharge agent — {code}",

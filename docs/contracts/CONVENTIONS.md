@@ -13603,6 +13603,7 @@ tooltips are replaced by the bubble.
 | VIP (`VipNameBadge`, art or «VIPn» pill) | «عضوية VIP 3» / "VIP 3 membership" |
 | Golden ID (`VipGoldenIdChip`) | «آيدي ذهبي 8888 — من مزايا عضوية VIP» / "Golden ID 8888 — a VIP membership perk" |
 | Verification seal (`ProfileVerificationBadge`, `VerificationSeal`): STAFF, RECHARGE_AGENT, HOST_AGENT, CREATOR, VERIFIED_HOST | «شارة التوثيق: {النوع} — تُمنح تلقائياً عند تحقق الشروط» / "Verified: {kind} — granted automatically when the conditions are met" |
+| Verified category (`CategoryBadge`, D386 §10.175, beside the name) | «فئة موثّقة: {الفئة} — وثّقها فريق كابسو» / "Verified category: {category} — verified by the Kabso Team" |
 | Founder seal (`FounderBadge`) | «شارة المؤسس — مؤسس Kabso Live» / "Founder badge — the founder of Kabso Live" |
 | Daily recharge tier (`RechargeTierBadge`) | «شارة الشحن اليومي — المستوى N، تظهر 24 ساعة بعد الشحن» / "Daily recharge badge — tier N, shown for 24 hours after a recharge" |
 | Recharge agent / host agent (`RechargeAgentBadge`, `HostAgentBadge`) | «وكيل شحن معتمد في كابسو — code» / "Official Kabso recharge agent — code"; «وكيل مضيفين في كابسو — code» / "Kabso host agent — code" |

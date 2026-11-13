@@ -19247,6 +19247,11 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String badgeExplainCategory(String category) {
+    return 'فئة موثّقة: $category — وثّقها فريق كابسو';
+  }
+
+  @override
   String get badgeExplainFounder => 'شارة المؤسس — مؤسس Kabso Live';
 
   @override

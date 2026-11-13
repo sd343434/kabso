@@ -8,6 +8,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/models/item_badge.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -21,6 +22,9 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_role_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/owner_profile/presentation/founder_badge.dart';
+import 'package:kabso_live/features/profile/category/category_decor.dart';
+import 'package:kabso_live/features/profile/category/category_style.dart';
+import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
@@ -98,6 +102,19 @@ List<_Case> _cases() => [
     name: 'founder',
     badge: const FounderBadge(),
     message: (AppLocalizations l) => l.badgeExplainFounder,
+  ),
+  // D386 (§10.175): a verified category's badge beside the name.
+  (
+    name: 'verified category',
+    badge: const CategoryBadge(
+      look: CategoryLook(
+        category: AccountCategory.poet,
+        accent: Color(0xFF7B3FE4),
+        onAccent: Color(0xFFFFFFFF),
+      ),
+    ),
+    message: (AppLocalizations l) =>
+        l.badgeExplainCategory(categoryLabel(l, AccountCategory.poet)),
   ),
   (
     name: 'recharge tier',
@@ -227,6 +244,14 @@ void main() {
     final en = l10nFor(AppLanguage.en);
     expect(en.badgeExplainWealthLevel(25), 'Wealth level 25');
     expect(en.badgeExplainVip(3), 'VIP 3 membership');
+    expect(
+      ar.badgeExplainCategory(categoryLabel(ar, AccountCategory.poet)),
+      'فئة موثّقة: شاعر — وثّقها فريق كابسو',
+    );
+    expect(
+      en.badgeExplainCategory(categoryLabel(en, AccountCategory.poet)),
+      'Verified category: Poet — verified by the Kabso Team',
+    );
   });
 
   testWidgets('a tap outside closes it; a second tap on the badge too', (

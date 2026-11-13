@@ -16019,6 +16019,8 @@
   "@badgeExplainGoldenId": {"description": "D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it", "placeholders": {"id": {"type": "String"}}},
   "badgeExplainVerification": "شارة التوثيق: {kind} — تُمنح تلقائياً عند تحقق الشروط",
   "@badgeExplainVerification": {"description": "D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it", "placeholders": {"kind": {"type": "String"}}},
+  "badgeExplainCategory": "فئة موثّقة: {category} — وثّقها فريق كابسو",
+  "@badgeExplainCategory": {"description": "D389 (§10.178) for D386 (§10.175): the explainer of a verified category's badge beside the name", "placeholders": {"category": {"type": "String"}}},
   "badgeExplainFounder": "شارة المؤسس — مؤسس Kabso Live",
   "@badgeExplainFounder": {"description": "D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it"},
   "badgeExplainRechargeTier": "شارة الشحن اليومي — المستوى {tier}، تظهر 24 ساعة بعد الشحن",

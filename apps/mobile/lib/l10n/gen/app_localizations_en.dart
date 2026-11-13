@@ -19248,6 +19248,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String badgeExplainCategory(String category) {
+    return 'Verified category: $category — verified by the Kabso Team';
+  }
+
+  @override
   String get badgeExplainFounder => 'Founder badge — the founder of Kabso Live';
 
   @override

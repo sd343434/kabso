@@ -253,14 +253,23 @@ class CategoryCoverOverlay extends StatelessWidget {
 
 /// The category badge beside the name: a round accent disc with the
 /// category's icon and a small check on its corner (the team verified it).
-/// Read aloud «فئة موثّقة: شاعر».
+/// Read aloud «فئة موثّقة: شاعر». D389 (§10.178.2): a tap explains it in the
+/// badge explainer's bubble, like the D293 seal beside it.
 class CategoryBadge extends StatelessWidget {
-  const new({required this.look, this.size = 23, super.key});
+  const new({
+    required this.look,
+    this.size = 23,
+    this.explain = true,
+    super.key,
+  });
 
   final CategoryLook look;
 
   /// The disc's diameter (≈ the name's line height, like the D293 seal).
   final double size;
+
+  /// D389: false draws the badge with no tap (a preview).
+  final bool explain;
 
   static const badgeKey = Key('profile.category.badge');
   static const checkKey = Key('profile.category.badge.check');
@@ -270,47 +279,55 @@ class CategoryBadge extends StatelessWidget {
     final l10n = context.l10n;
     final page = context.palette.background;
     final check = size * 0.48;
-    return Semantics(
-      label: l10n.categoryBadgeVerified(categoryLabel(l10n, look.category)),
-      excludeSemantics: true,
-      child: SizedBox.square(
-        key: badgeKey,
-        dimension: size,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: look.accent,
-              ),
-              child: Center(
-                child: AppIcon(
-                  look.icon,
-                  size: size * 0.62,
-                  color: look.onAccent,
+    final name = categoryLabel(l10n, look.category);
+    return KBadgeExplainer(
+      message: l10n.badgeExplainCategory(name),
+      enabled: explain,
+      child: Semantics(
+        label: l10n.categoryBadgeVerified(name),
+        excludeSemantics: true,
+        child: SizedBox.square(
+          key: badgeKey,
+          dimension: size,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: look.accent,
+                ),
+                child: Center(
+                  child: AppIcon(
+                    look.icon,
+                    size: size * 0.62,
+                    color: look.onAccent,
+                  ),
                 ),
               ),
-            ),
-            PositionedDirectional(
-              end: -check * 0.25,
-              bottom: -check * 0.2,
-              child: Container(
-                key: checkKey,
-                width: check,
-                height: check,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: page),
-                padding: EdgeInsets.all(check * 0.12),
-                child: DecoratedBox(
+              PositionedDirectional(
+                end: -check * 0.25,
+                bottom: -check * 0.2,
+                child: Container(
+                  key: checkKey,
+                  width: check,
+                  height: check,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: look.accent,
+                    color: page,
                   ),
-                  child: CustomPaint(painter: _CheckPainter(look.onAccent)),
+                  padding: EdgeInsets.all(check * 0.12),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: look.accent,
+                    ),
+                    child: CustomPaint(painter: _CheckPainter(look.onAccent)),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
