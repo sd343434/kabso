@@ -44,6 +44,9 @@ describe('ErrorCode', () => {
         // v1.55-live (D242).
         'PK_REMATCH_UNAVAILABLE',
         'PK_REMATCH_CLOSED',
+        // v1.118-live (D391).
+        'PK_LOBBY_CLOSED',
+        'PK_SEAT_TAKEN',
         // v1.45-live (D201).
         'SECOND_CAMERA_CODE_INVALID',
         'SECOND_CAMERA_UNAVAILABLE',

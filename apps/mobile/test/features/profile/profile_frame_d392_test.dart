@@ -1,4 +1,4 @@
-// D391 (owner, a VIP 1 member's public profile: «انظر للإطار هناك إطارين
+// D392 (owner, a VIP 1 member's public profile: «انظر للإطار هناك إطارين
 // والصورة شخصية اسفل الإطار هناك خلل واضح»): the profile header drew the VIP
 // frame around the CP Special Frame — two frames, the VIP one centred on the
 // photo slot and the picture low and small in the heart's opening. One frame
@@ -128,7 +128,7 @@ void main() {
         "heart's opening (${language.name})", (tester) async {
       await _pump(tester, language: language, cp: true);
       expect(find.byKey(ProfileHeaderView.cpFrameKey), findsOneWidget);
-      // Before D391 the VIP frame was drawn around the heart as well.
+      // Before D392 the VIP frame was drawn around the heart as well.
       expect(find.byKey(VipAvatarFrame.frameKey), findsNothing);
       expect(
         find.descendant(

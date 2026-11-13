@@ -9,7 +9,7 @@
 //                          VIP lines in the chat (the owner's 44.webp)
 //   live.flat_chat.vip     the host's flat chat (D253) with a VIP line
 //   profile.vip            the profile header with the VIP 1 frame
-//   profile.vip_cp         D391: a VIP 1 member whose couple unlocked the CP
+//   profile.vip_cp         D392: a VIP 1 member whose couple unlocked the CP
 //                          Special Frame — one frame (the heart), not the
 //                          VIP frame drawn around it as well
 //
@@ -297,7 +297,7 @@ void main() {
     );
   });
 
-  // D391 (owner: «هناك إطارين والصورة شخصية اسفل الإطار»): a VIP 1 member
+  // D392 (owner: «هناك إطارين والصورة شخصية اسفل الإطار»): a VIP 1 member
   // whose couple unlocked the CP Special Frame wore both frames on the
   // profile header — the VIP frame centred on the photo slot and, inside it,
   // the heart frame with the picture in the heart's lower opening. The

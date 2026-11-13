@@ -197,6 +197,8 @@ All non-2xx responses use one envelope:
 | 409 | `PK_BOOSTER_UNAVAILABLE` | *(v1.43-live, DRAFT, D195)* A booster gift outside a battle, outside its window, over its per-match limit or not higher than the active one (detail issue). §10.58. |
 | 409 | `PK_REMATCH_UNAVAILABLE` | *(v1.55-live, DRAFT, D242)* «جولة أخرى» cannot be offered now: the PK is not in its result or its dare runs, a host left, is away, banned or blocked, or `PK_REMATCH_MAX` rematches in a row were played. §10.85. |
 | 409 | `PK_REMATCH_CLOSED` | *(v1.55-live, DRAFT, D242)* no open rematch offer to answer or withdraw (answered, withdrawn or lapsed). §10.85. |
+| 409 | `PK_LOBBY_CLOSED` | *(v1.118-live, DRAFT, D391)* «PK رباعي»: no OPEN 4-way lobby for this step (it started, was cancelled or ran out — or the room has none). §10.180. |
+| 409 | `PK_SEAT_TAKEN` | *(v1.118-live, DRAFT, D391)* that place of the 4-way lobby already has an open or accepted invitation. §10.180. |
 | 409 | `PK_DARE_CLOSED` | *(v1.50-live, DRAFT, D229)* «PK أحكام»: the dare is not at that step — still shuffling, already answered or judged, the decision time or the timer ran out. §10.80. |
 | 403 | `PK_DARE_FORBIDDEN` | *(v1.50-live, DRAFT, D229)* «PK أحكام»: only the losing host accepts or refuses, only the winning host judges. §10.80. |
 | 422 | `SECOND_CAMERA_CODE_INVALID` | *(v1.45-live, DRAFT, D201)* The second-camera pairing code is unknown, expired, used, replaced or another account's — one answer for all. §10.63. |
@@ -652,6 +654,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.30-live)* Table `device_tokens`; column `notifications.pushed_at` | Backend — `push` module (tokens; the notifications module's push dispatcher sets `pushed_at`; the auth module's session revocation deletes the session's token) | CTO; Security reviews token handling (§11.12) |
 | *(v1.32-live)* Table `live_free_quips`; columns `gifts.sound_key`, `sound_ms`, `quip_text`, `live_gifts.host_share_bps`, `live_rooms.quip_busy_until`; server config `GIFT_HOST_SHARE_PERCENTS`, `QUIP_QUEUE_MAX_WAIT_SECONDS` | Backend — `gifts` module (catalogue, `quips.ts`) and `live` module (`LiveGiftsService` writes sends, free quips and the queue in the send's transaction; `LiveQuipsService` the soundboard) | CTO; Security (coin paths; the host share is a money rule, D149) |
 | *(v1.43-live)* Tables `pk_matches`, `pk_invites`, `pk_queue`, `pk_boosts`, `pk_gift_points`, `pk_supporters`, `pk_host_records`, `pk_host_settings`; column `gifts.pk_booster`; server config `PK_*` | Backend — `live` module (`LivePkService`; PK points written in the gift send's transaction by `LiveGiftsService`; `pk-admin` CLI for moderation) | CTO; Security (the gift path; PK points never touch money) |
+| *(v1.118-live)* Tables `pk4_lobbies`, `pk4_invites`, `pk4_matches`, `pk4_seats`, `pk4_boosts`, `pk4_gift_points`, `pk4_supporters`, `pk4_point_events`; server config `PK4_*` | Backend — `live` module (`LivePk4Service`; 4-way PK points written in the gift send's transaction by `LiveGiftsService`; `pk-admin` CLI and the panel's `endAdminLivePk4` for moderation) | CTO; Security (the gift path; PK points never touch money) |
 | *(v1.50-live, D229)* Tables `pk_dares`, `pk_match_dares`, `pk_dare_reports`, `pk_dare_seen`, `pk_point_events`, `pk_dare_settings`; the seed `apps/api/prisma/seed/pk-dares/` | Backend — `live` module (`live-pk.service.ts`, `pk-dares/`) | CTO; the library's content: the owner / moderation team (panel «أحكام PK»); any change to the safety rules in `pk-dare-rules.ts` needs Trust & Safety review |
 | *(v1.33-live)* Tables `live_boosts`, `live_boost_cards`; ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; server config `LIVE_BOOST_PRICES`, `LIVE_BOOST_SLOTS`, `LIVE_BOOST_MAX_WAIT_MINUTES` | Backend — `live` module (`LiveBoostsService`; cards granted only by the `boost-admin` CLI) | CTO; Security (coin paths, refunds) |
 | *(v1.51-live)* Table `live_boost_prices`; column `live_boosts.stage` | Backend — `live` module (`LiveBoostsService`; the prices written only by the panel's `updateAdminLiveBoostPrices`, `catalog.manage`, audited) | CTO; Security (coin prices) |
@@ -803,6 +806,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.118-live (draft) | 2026-11-13 | **D391 (CP-041 phase 2, approved by the owner 2026-11-13: «PK رباعي»):** PK 2 v 2 (`format` TEAMS) by invitation — `getLivePk4`, `listLivePk4Candidates`, `openLivePk4Lobby` / `closeLivePk4Lobby`, `inviteLivePk4` / `cancelLivePk4Invite`, `acceptLivePk4Invite` / `declineLivePk4Invite`, `startLivePk4`, `endLivePk4`, `muteLivePk4Host`, `createLivePk4MediaToken`; schemas `Pk4*`; `AdminLive.pk4`, `AdminLiveDetail.pk4` (optional) and `endAdminLivePk4`; codes `PK_LOBBY_CLOSED`, `PK_SEAT_TAKEN` (409); data messages `pk4-match`, `pk4-lobby`, `pk4-invite` on topic `pk`; media identities `pk4:`; config `PK4_ENABLED` (true), `PK4_LOBBY_SECONDS` (120), `PK4_INVITE_TTL_SECONDS` (30), `PK4_MAX_WATCHERS_PER_ROOM` (0); migration `20270518090200_pk4_teams`; `pk-admin` accepts 4-way ids. A host busy in either PK is busy for the other (1 v 1 otherwise unchanged). §4, §8, §10.180. | **Additive**: older apps ignore the new messages and see a 4-way room as a solo live; a 1 v 1 host is refused 409 `PK_HOST_BUSY` only while the other host is in a 4-way lobby or match. |
 | v1.141-social (draft) | 2026-11-13 | **D390 (owner's «برنامج سفراء Kabso», via the coordinator 2026-11-13; OFF until the OWNER switches it on):** tag `ambassadors` — `getAmbassadorProgramme` (`GET /ambassadors/programme`, `AmbassadorProgramme`), `applyForAmbassadorProgramme` (`POST /ambassadors/applications`, `AmbassadorApplicationRequest`), `getMyAmbassadorDashboard` (`GET /ambassadors/me`, `AmbassadorDashboard`); panel `listAdminAmbassadors` / `appointAdminAmbassador`, `getAdminAmbassador`, `freezeAdminAmbassador`, `unfreezeAdminAmbassador`, `clearAdminAmbassadorReview`, `listAdminAmbassadorApplications`, `approveAdminAmbassadorApplication`, `rejectAdminAmbassadorApplication`, `getAdminAmbassadorSettings` / `updateAdminAmbassadorSettings`, `listAdminAmbassadorCampaigns`, `createAdminAmbassadorCampaign`, `updateAdminAmbassadorCampaign` (schemas `AmbassadorLevel`, `AmbassadorReward`, `AmbassadorApplication`, `AmbassadorSettings`, `UpdateAmbassadorSettingsRequest`, `AmbassadorReferralCounts`, `AmbassadorCommissionTotals`, `AdminAmbassador*`, `AmbassadorCampaignRequest`); capabilities `ambassadors.view` / `ambassadors.manage` (OWNER, SUPPORT) and `ambassadors.settings` (OWNER); code `AMBASSADOR_APPLICATION_NOT_ALLOWED` (409); `CherryLedgerReason` `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`; `WalletLedgerReason` `AMBASSADOR_REWARD`; `NotificationType` `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`, `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`; config `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (300); migrations `20270519090000_ambassadors_enums`, `20270519090100_ambassadors`. Owner follow-up (2026-11-13): `PublicProfile.ambassador` (optional, the public badge), `endAdminAmbassador` «إنهاء العضوية» (status ENDED, `NotificationType` `AMBASSADOR_MEMBERSHIP_ENDED`, `AmbassadorProgramme.status` / `refusal` ENDED, `AdminAmbassadorRow.endedAt` / `endedReason`; migrations `20270519090200_ambassador_end_enums`, `20270519090300_ambassador_end`), the lower-cost defaults (2 / 3 / 4 / 5 %, 60 days). §4, §8, §10.179. | **Additive** (new operations, schemas and enum values; clients ignore unknown notification types and ledger reasons). **Behaviour change (D217, §10.71):** while the programme is ON, a referral whose inviter is an ambassador earns no D217 inviter reward (sign-up, first recharge, milestones) — the ambassador's commission replaces it. OFF by default: no change until the OWNER switches it on. |
 | v1.140-social (draft) | 2026-11-13 | **D388 (owner 2026-11-13: «اريد عندما يرسل الشخص يقوم تلقائي بسؤاله عن لغة التي يتحدثها عربي او انجليزي»; first time only, a confirmation, the language shown to the staff, routed to staff who speak it): «سؤال اللغة» — the WhatsApp language question and language routing.** On a WhatsApp conversation's first message (once ever; `WHATSAPP_ASK_LANGUAGE`, default on) the server sends reply buttons «العربية» / «English»; the button (or a typed «عربي» / «English» …) sets `WaConversation.language` (`WaLanguage` AR / EN; null until answered) and a confirmation is sent in that language. Both automatic messages are OUTBOUND messages with `sentBy` null (audited `whatsapp.language.auto`); they never claim the conversation or change its preview. `?language=` on both conversation lists. A REPLY+ staff member speaks AR, EN or both (none set = both): `setAdminTeamWhatsAppLanguages` (code + reason, audited `admin.team.whatsapp_languages`; `team_languages_level`), `AdminTeam.data[].whatsappLanguages`. The new-message push of an unassigned conversation in a language goes to the staff who speak it (everyone when none of them can answer). Migration `20270518090000_whatsapp_language` (§10.177). | Additive (a new required response field `WaConversation.language`, always sent). |
 | v1.139-social (draft) | 2026-11-12 | **D387 (owner 2026-11-12: operations staff roles as core roles, a 24/7 shift schedule, VIP_CARE compensations, the official social accounts, earnings and revenue for the OWNER only):** `AdminPanelRole` gains `LIVE_OPS`, `TALENT`, `VIP_CARE`, `COMMUNITY` (MODERATION is shown as TRUST_SAFETY «مراقبة المحتوى والأمان»; the wire value stays MODERATION), `KabsoStaffIdentity.role` the same four; capabilities `revenue.view` (OWNER only), `home.*`, `staff.schedule.view` / `.manage`, `compensation.grant` / `.settings` / `.approve`, `social.accounts`, `gifts.manage`, `banners.manage`, `boosts.manage`, `site.public` (the last four moved out of `catalog.manage` / `site.settings`, which only OWNER held); roles added to existing capabilities (§10.176.1). **Revenue OWNER only:** `getAdminDashboard`, `getAdminStatsOverview`, `getAdminStatsSeries`, `getAdminFinanceReport`, `listAdminStoreSales` need `revenue.view`; agency earnings, top-up totals, `AdminGift.coinsSpent` and the smart targets' `profitUsd` are null without it. Tag `admin-panel`: `getAdminLiveOpsHome`, `getAdminTalentHome`, `getAdminTrustSafetyHome`, `getAdminVipCareHome`, `getAdminCommunityHome`; `getAdminStaffSchedule`, `createAdminStaffScheduleSlot`, `updateAdminStaffScheduleSlot`, `deleteAdminStaffScheduleSlot`; `getAdminCompensationSettings`, `updateAdminCompensationSettings`, `listAdminCompensations`, `createAdminCompensation`, `approveAdminCompensation`, `rejectAdminCompensation`; `listAdminSocialAccounts`, `createAdminSocialAccount`, `updateAdminSocialAccount`, `deleteAdminSocialAccount`, `reorderAdminSocialAccounts`; public `listOfficialSocialAccounts` (`GET /social-accounts`). `StaffStatus.scheduledShift`; `WalletLedgerReason.STAFF_COMPENSATION`; audit `staff.schedule.*`, `staff.compensation.*`, `site.social_account.*`, `onShift` / `scheduled` on the report resolve and action rows. Migrations `20270517090000_ops_roles_enums`, `20270517090100_ops_roles`, `20270517090200_staff_withdrawals`, `20270517090300_staff_compensation_profit`. §10.176. **Owner follow-ups (2026-11-12):** `OwnerProfitDeductionKey.STAFF_COMPENSATIONS` (the compensation coins reduce «الربح»); codes `STAFF_GIFT_REFUSED` (403, every gift-send path refuses an employee — not the OWNER) and `STAFF_WITHDRAWAL_COMPANY_ONLY` (403, a staff account's cherries are never sold to an agent); `AdminWithdrawalRow.staffRequest`, capability `withdrawals.staff` (OWNER); §10.176.8–9. | **Additive** for the app (new enum values an older app ignores, one optional field, a new public operation). **Behaviour change** for the panel: FINANCE and every non-OWNER role lose the money dashboards, the financial report and the store sales (403), and see `null` for the masked aggregates; the gift / banner / rocket-price / website-settings writes check the new capabilities (OWNER unchanged). |
@@ -13914,3 +13918,99 @@ authenticator code again, as for unfreeze. The status becomes **ENDED** at once 
   `ambassador.end` with the voided commissions, cherries and rewards. A second end changes nothing (`changed` false).
 - Migrations `20270519090200_ambassador_end_enums` (`ambassador_status` ENDED, the notification type) and
   `20270519090300_ambassador_end` (the columns, CHECK `ambassadors_shape` and `ambassador_months_shape` re-made).
+
+### 10.180 «PK رباعي» — PK 2 v 2 (TEAMS) by invitation *(v1.118-live, DRAFT — D391, CP-041 phase 2)*
+
+The owner's approved design is CP-041 (`docs/contracts/proposals/CP-041-pk-4way.md`, answers in its §9). This section is
+phase 2: the **TEAMS** format started **by invitation**. FREE_FOR_ALL (phase 3), random matching, «PK أحكام» and
+«جولة أخرى» for four (phase 4) are not here; the data model already carries `format`, places 1–4 and teams A / B for
+them. **PK 1 v 1 (§10.58 and its extensions) does not change**, except that a host busy in one PK is busy for the other.
+Every number is an owner-confirmable default (server config).
+
+- **Who.** The same "eligible" room as §10.58: a LIVE SOLO video live of the caller, fresh heartbeat, host present.
+  `PK_ENABLED` off or **`PK4_ENABLED`** (default true) off → 409 `PK_UNAVAILABLE` for every new 4-way step (running
+  matches end as usual). Each room keeps its own chat, viewers, seats and gifts.
+- **Busy (409 `PK_HOST_BUSY`).** For a 4-way step: an open 1 v 1 match, an open 1 v 1 invitation either way, an open 4-way
+  match, an OPEN lobby the host organises or accepted a place in, an open 4-way invitation to the host; the caller's own
+  random-queue wait (an invited host's wait is not busy, §10.70; accepting ends it). For PK 1 v 1 (`busyIn`, candidates,
+  pairing, Auto Match, a match's creation) the same 4-way rows make a room busy. Both PKs take the same per-room advisory
+  lock (`pk-room:<roomId>`), in sorted order.
+- **The lobby** (`pk4_lobbies`). `openLivePk4Lobby {format: TEAMS}`: the caller becomes the **organiser** (place 1,
+  team A); OPEN for **`PK4_LOBBY_SECONDS` = 120**. Places: 2 = the **teammate** (team A), 3 and 4 = the **opponents**
+  (team B). `inviteLivePk4 {toRoomId, seat}` (the organiser): the place must be free (an open or accepted invitation →
+  409 `PK_SEAT_TAKEN`); the invited room eligible, its host's invitations on (409 `PK_INVITES_OFF`, the §10.58 switch),
+  not already in the lobby (400), **no block either way with any host of the lobby** (the organiser, the accepted and
+  the invited hosts; 404), not busy. Each invitation (`pk4_invites`) is open **`PK4_INVITE_TTL_SECONDS` = 30**, never past
+  the lobby's end; at most one open 4-way invitation per invited room. Declined, expired or cancelled → the place is free
+  and may be offered again while the lobby is open. `cancelLivePk4Invite` (the organiser takes one back),
+  `declineLivePk4Invite`, `closeLivePk4Lobby` (the organiser cancels: every open invitation CANCELLED; an accepted host
+  leaves: LEFT, the place free). The lobby running out first → EXPIRED, nothing starts, every host of the lobby is told
+  («لم يكتمل العدد»). The organiser's live ending cancels the lobby; an accepted host's live ending frees their place (the
+  PK tick). `listLivePk4Candidates` is `listLivePkCandidates` with these rules.
+- **The start.** The third acceptance (all four in) creates the match (`pk4_matches`, `pk4_seats`) under the four rooms'
+  PK locks, the lobby row lock and fresh checks (eligible, not busy, no block between any two of the four); a failed
+  check refuses that acceptance (409 `PK_UNAVAILABLE` / `PK_HOST_BUSY`) and the lobby stays OPEN. The **organiser's**
+  settings are used (§10.62): the round time (`roundMinutes`, else `PK_BATTLE_SECONDS`) and auto-start — off →
+  CONNECTED until any of the four calls `startLivePk4` (cancelled as §10.62 by an End, a host gone or
+  `PK_CONNECT_SECONDS`). **One round only** (best of three stays 1 v 1). The four hosts leave the random queue; audited
+  `live.pk4.start`.
+- **The match.** BATTLE for the round time, RESULT for `PK_RESULT_SECONDS`, CLOSED; every change bumps `seq`. At most one
+  open place per room (`pk4_seats` partial unique index on `room_id` while `active`).
+  - **Score.** A gift sent in a host's room during the battle gives that host PK points exactly as §10.58 (the real coin
+    value of the send — lucky gifts their coin value, a free quip 0 — × the **team's** active multiplier; one
+    `pk4_gift_points` row per send, never counted twice; gifts after `battleEndsAt` count nothing). **The team's score is
+    the sum of its two hosts' points** (`Pk4TeamState.score`); each host's own points are under their pane
+    (`Pk4SeatState.score`). Multipliers affect only PK points: money, cherries, live scores, boards, charm and levels are
+    written by the send from the real value, as §10.58.
+  - **Boosters** (the four of §10.58, their gifts, windows, multipliers and durations) are **the team's**: a booster gift
+    sent in either teammate's room (to that host alone, quantity 1) activates it for **both rooms of the team**; the uses
+    (`PK_BOOSTER_LIMITS`, 2 each) are **per team**; one active booster per team, replaced only by a higher one. Refusals
+    as §10.58 (409 `PK_BOOSTER_UNAVAILABLE` `no_match` / `too_early` / `limit_reached` / `active_higher`, the send rolled
+    back). Every room sees «فعّل فريق X …» and the countdown on that team.
+  - **A host who leaves** — `endLivePk4` (FORFEIT), their live ended (FORFEIT when the host ended it, else DISCONNECT),
+    absent (stale heartbeat, out of the media session) or away for **`PK_ABSENCE_GRACE_SECONDS` = 30** (DISCONNECT / AWAY)
+    — is **out** (`Pk4SeatState.out`, `outReason`): their points stay in the team's score, gifts in their room no longer
+    count, the **teammate carries on alone**. **Both hosts of a team out → the other team wins at once** (`endReason` the
+    last one's reason). **All four out at once → a draw that is void for the records** (`effective` false). TIME → the
+    higher team sum wins; equal → a **draw**.
+  - **A moderator's end** (`pk-admin end <matchId>` — the CLI accepts a 4-way match id —, or the panel's
+    `endAdminLivePk4`): void (ADMIN, no winner, not counted), as §10.58; a RESULT match is closed with its result.
+  - `endLivePk4` during RESULT closes the match for the four rooms; CONNECTED → CANCELLED (void).
+- **Records.** A finished match counts (`effective`) when the four hosts' PK points together reach
+  `PK_EFFECTIVE_MIN_POINTS` and it is not ADMIN, CANCELLED or everyone gone. Then **each host** gets a win, a loss or a
+  draw from their team's result (a host who left keeps their team's result) in `pk_host_records` with the PK points of
+  `pk_dare_settings` (win / draw / loss, as a NORMAL 1 v 1), once per match and host (`pk4_point_events`; audited
+  `live.pk.points`). The 1 v 1 history (`getLivePkHost.recent`) does not list 4-way matches in phase 2.
+- **Supporters.** The **top three per team** from both of its rooms (`pk4_supporters`), frozen when the battle ends.
+- **Mute.** `muteLivePk4Host {roomId, muted}`: a host turns any of the other three hosts' sound off for their own room
+  (`Pk4SeatState.mutedRoomIds`); one switch per pane.
+- **PK guests.** A host's guests (seats 1–3) stay in their own room but are **not drawn in the 2 × 2 grid**; they are back
+  when the PK ends. Nothing about the seats changes on the server.
+- **Real time.** Data messages on topic **`pk`**: `{type: "pk4-match", event: connected|started|score|boost|out|ended|
+  closed|mute, match: Pk4Match, boost?: {team, roomId, kind, multiplier, endsAt}}` to **all four rooms** (state at once,
+  scores at most every `PK_SCORE_BROADCAST_MS`); `{type: "pk4-lobby", event: opened|invited|accepted|declined|
+  invite-expired|invite-cancelled|left|cancelled|expired|started, lobby: Pk4Lobby}` to every host of the lobby (the
+  organiser, the accepted hosts and the host the event is about) in their own room; `{type: "pk4-invite", invite:
+  Pk4Invite}` to the invited host (sent, cancelled, expired). Apps keep the highest `seq` and read `getLivePk4` after
+  joining, a reconnect or a gap; countdowns use `serverTime`. An older app ignores these types. The PK tick (`PK_TICK_MS`)
+  expires 4-way invitations and lobbies, marks absent hosts out, ends battles (TIME, a team gone, everyone gone), closes
+  result phases and announces moderator ends — each step idempotent under the rows' state guards (`UPDATE … WHERE
+  status = …`, row locks), so instances may run it concurrently.
+- **Media** (CP-041 §8). No new LiveKit room and no forwarding: each viewer, guest and host opens a subscribe-only,
+  hidden connection to **each of the three other rooms** (`createLivePk4MediaToken`; identity
+  `pk4:<matchId>:<userId | guest:<guestId>>`; the media webhook never records `pk4:` identities as viewers — no count, no
+  "joined" line — and disconnects them when the match is not open; they are removed from the four rooms when it
+  closes). The app subscribes viewers to the **lowest simulcast layer** (`layer` LOW) and the hosts to the middle one
+  (MEDIUM), pauses the video of a pane that is hidden (the app in the background, a full-screen sheet; sound kept), opens
+  the connections for CONNECTED, BATTLE and RESULT only and closes them as the match closes. **`PK4_MAX_WATCHERS_PER_ROOM`**
+  (default 0 = no cap): a room with that many `pk4:` watchers is left out of new tokens (`capped`), whose app then shows
+  that host's name and score without video. Cost: about three more LiveKit participants per viewer during a 4-way PK.
+- **The panel.** `AdminLive.pk4` / `AdminLiveDetail.pk4` (the match, the caller room's team and the four places with their
+  scores) — the «PK» filter of the live monitor lists 4-way rooms too — and `endAdminLivePk4` (`lives.moderate`, a
+  reason). `pk-admin list|show|end` lists, shows and ends 4-way matches as well.
+- **Config.** `PK4_ENABLED` (true), `PK4_LOBBY_SECONDS` (120, 30–600), `PK4_INVITE_TTL_SECONDS` (30, 5–120),
+  `PK4_MAX_WATCHERS_PER_ROOM` (0, 0–100 000). Rate limits: `openLivePk4Lobby` and `inviteLivePk4` as `inviteLivePk`
+  (`live:pk:invite`), the other host actions as `live:pk:action`, the media token as `createLivePkMediaToken`.
+- **Migration** `20270518090200_pk4_teams`: enums `pk4_format`, `pk4_lobby_status`, `pk4_invite_status`; tables
+  `pk4_lobbies`, `pk4_invites`, `pk4_matches`, `pk4_seats`, `pk4_boosts`, `pk4_gift_points`, `pk4_supporters`,
+  `pk4_point_events` (runtime grants from the default privileges).

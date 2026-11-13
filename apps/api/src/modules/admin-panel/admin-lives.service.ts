@@ -5,6 +5,7 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { LiveMediaService } from '../live/live-media.service.js';
+import { LivePk4Service } from '../live/live-pk4.service.js';
 import { LIVE_TX_OPTIONS, LiveRoomsService } from '../live/live-rooms.service.js';
 import { normalizeUsername } from '../users/username.js';
 import type { AdminContext } from './admin-auth.service.js';
@@ -16,7 +17,13 @@ import { countriesOfRegions, isStaffRegion, regionOfCountry } from '../live/staf
 /** v1.54-live (D241): an open D195 PK match (CONNECTED, BATTLE or RESULT) on either side. */
 const OPEN_PK = { status: { not: 'CLOSED' as const } };
 const inOpenPk: Prisma.LiveRoomWhereInput = {
-  OR: [{ mode: 'PK' }, { pkMatchesAsA: { some: OPEN_PK } }, { pkMatchesAsB: { some: OPEN_PK } }],
+  OR: [
+    { mode: 'PK' },
+    { pkMatchesAsA: { some: OPEN_PK } },
+    { pkMatchesAsB: { some: OPEN_PK } },
+    // v1.118-live (D391): an open 4-way place «PK رباعي».
+    { pk4Seats: { some: { active: true } } },
+  ],
 };
 const pkOpponent = {
   pkMatchesAsA: {
@@ -91,7 +98,86 @@ export class AdminLivesService {
     private readonly audit: AuditService,
     private readonly rooms: LiveRoomsService,
     private readonly media: LiveMediaService,
+    private readonly pk4: LivePk4Service,
   ) {}
+
+  /**
+   * v1.118-live (D391, §10.180): the open 4-way PK of each room (`AdminLivePk4`): the match, the room's team and the
+   * four places with their hosts and scores.
+   */
+  private async pk4Of(roomIds: readonly string[]) {
+    const out = new Map<
+      string,
+      {
+        matchId: string;
+        status: 'CONNECTED' | 'BATTLE' | 'RESULT';
+        format: 'TEAMS' | 'FREE_FOR_ALL';
+        team: 'A' | 'B';
+        hosts: {
+          seat: number;
+          team: 'A' | 'B';
+          roomId: string;
+          username: string | null;
+          displayName: string | null;
+          score: number;
+          out: boolean;
+        }[];
+      }
+    >();
+    if (roomIds.length === 0) return out;
+    const mine = await this.prisma.pk4Seat.findMany({
+      where: { active: true, roomId: { in: [...roomIds] }, match: { status: { not: 'CLOSED' } } },
+      select: { roomId: true, matchId: true, team: true },
+    });
+    if (mine.length === 0) return out;
+    const matches = await this.prisma.pk4Match.findMany({
+      where: { id: { in: [...new Set(mine.map((m) => m.matchId))] } },
+      select: {
+        id: true,
+        status: true,
+        format: true,
+        seats: {
+          orderBy: { seat: 'asc' },
+          select: {
+            seat: true,
+            team: true,
+            roomId: true,
+            score: true,
+            outAt: true,
+            host: { select: { profile: { select: { username: true, displayName: true } } } },
+          },
+        },
+      },
+    });
+    for (const m of mine) {
+      const match = matches.find((x) => x.id === m.matchId);
+      if (!match || match.status === 'CLOSED') continue;
+      out.set(m.roomId, {
+        matchId: match.id,
+        status: match.status,
+        format: match.format,
+        team: m.team,
+        hosts: match.seats.map((x) => ({
+          seat: x.seat,
+          team: x.team,
+          roomId: x.roomId,
+          username: x.host.profile?.username ?? null,
+          displayName: x.host.profile?.displayName ?? null,
+          score: Number(x.score),
+          out: x.outAt !== null,
+        })),
+      });
+    }
+    return out;
+  }
+
+  /**
+   * v1.118-live (D391) `endAdminLivePk4`: a moderator ends the room's open 4-way PK (void; a RESULT keeps its result) —
+   * the rule of `pk-admin end`, audited `live.pk.admin_end` with the reason.
+   */
+  async endPk4(id: string, reason: string, ctx: AdminContext) {
+    return this.pk4.adminEndOfRoom(id, reason, { adminId: ctx.userId, ip: ctx.ip, requestId: ctx.requestId });
+  }
 
   async now(
     q: TableQuery & {
@@ -171,6 +257,7 @@ export class AdminLivesService {
         this.prisma,
         rows.map((r) => r.id),
       ));
+    const four = await this.pk4Of(rows.map((r) => r.id));
     const data = rows.map((r) => ({
       id: r.id,
       title: r.title,
@@ -192,6 +279,7 @@ export class AdminLivesService {
       hostCountry: r.host.profile?.countryCode ?? null,
       region: regionOfCountry(r.host.profile?.countryCode),
       pk: pkOf(r),
+      pk4: four.get(r.id) ?? null,
       assignedTo: r.assignment
         ? { id: r.assignment.adminId, displayName: r.assignment.admin.profile?.displayName ?? '' }
         : null,
@@ -209,7 +297,13 @@ export class AdminLivesService {
         ['title', (r) => r.title],
         ['host', (r) => r.host.username],
         ['mode', (r) => r.mode],
-        ['pk_opponent', (r) => r.pk?.opponentUsername ?? (r.pk ? 'PK' : '')],
+        [
+          'pk_opponent',
+          (r) =>
+            r.pk4
+              ? r.pk4.hosts.map((h) => h.username ?? '?').join(' ')
+              : (r.pk?.opponentUsername ?? (r.pk ? 'PK' : '')),
+        ],
         ['viewers', (r) => r.viewers],
         ['started_at', (r) => r.startedAt],
       ],
@@ -291,6 +385,7 @@ export class AdminLivesService {
       openReports,
       moderators,
       pk: pkOf(r),
+      pk4: (await this.pk4Of([r.id])).get(r.id) ?? null,
     };
   }
 

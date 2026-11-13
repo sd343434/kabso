@@ -11336,7 +11336,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pkModeOneVsOne => '1v1 PK';
 
   @override
-  String get pkModeTeam => 'Team PK';
+  String get pkModeTeam => '4-way PK';
 
   @override
   String get pkModeMulti => 'Multi PK';
@@ -19653,4 +19653,125 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ownerProfitAmbassadorRewards => 'Ambassador rewards (coins)';
+
+  @override
+  String get pk4Title => '4-way PK';
+
+  @override
+  String get pk4Subtitle => '2 v 2 — two teams of two hosts';
+
+  @override
+  String get pk4LobbyHint =>
+      'Invite a teammate and two opponents. The battle starts when all four accept.';
+
+  @override
+  String get pk4OpenLobby => 'Open a 4-way PK';
+
+  @override
+  String pk4LobbyEndsIn(String time) {
+    return 'Closes in $time';
+  }
+
+  @override
+  String get pk4SeatOrganiser => 'Organiser';
+
+  @override
+  String get pk4SeatTeammate => 'Teammate';
+
+  @override
+  String get pk4SeatOpponent => 'Opponent';
+
+  @override
+  String get pk4SeatInvite => 'Invite a host';
+
+  @override
+  String pk4SeatWaiting(String seconds) {
+    return 'Waiting… $seconds';
+  }
+
+  @override
+  String get pk4SeatReady => 'Ready';
+
+  @override
+  String pk4InviteTo(String place) {
+    return 'Invite to: $place';
+  }
+
+  @override
+  String get pk4PickPlace => 'Pick an empty place to invite to';
+
+  @override
+  String get pk4CancelLobby => 'Cancel the 4-way PK';
+
+  @override
+  String get pk4LeaveLobby => 'Leave';
+
+  @override
+  String get pk4CancelInvite => 'Withdraw the invite';
+
+  @override
+  String get pk4IncomingTitle => '4-way PK invite';
+
+  @override
+  String pk4IncomingBody(String name, String place) {
+    return '$name invites you to a 4-way PK as $place';
+  }
+
+  @override
+  String get pk4NoticeExpired => 'Not enough hosts joined';
+
+  @override
+  String get pk4NoticeCancelled => 'The organiser cancelled the 4-way PK';
+
+  @override
+  String get pk4NoticeDeclined => 'The host declined — invite someone else';
+
+  @override
+  String get pk4NoticeInviteExpired => 'No answer — invite someone else';
+
+  @override
+  String get pk4NoticeLeft => 'A host left their place';
+
+  @override
+  String get pk4Out => 'Left';
+
+  @override
+  String pk4MuteHost(String name) {
+    return 'Mute $name';
+  }
+
+  @override
+  String pk4UnmuteHost(String name) {
+    return 'Unmute $name';
+  }
+
+  @override
+  String get pk4ResultWin => 'Your team won';
+
+  @override
+  String get pk4ResultLoss => 'Your team lost';
+
+  @override
+  String pk4ScoreSemantics(String own, String other) {
+    return 'Your team $own, opponents $other';
+  }
+
+  @override
+  String pk4PaneSemantics(String name, String score) {
+    return '$name, $score points';
+  }
+
+  @override
+  String get pk4ConnectedHint =>
+      'The four hosts are connected — the battle starts when one of them taps Start';
+
+  @override
+  String get pk4EndConfirmBody =>
+      'You leave the battle and your teammate carries on alone; your points stay with your team.';
+
+  @override
+  String get pk4ErrorLobbyClosed => 'This 4-way PK lobby is no longer open';
+
+  @override
+  String get pk4ErrorSeatTaken => 'That place already has an invite';
 }

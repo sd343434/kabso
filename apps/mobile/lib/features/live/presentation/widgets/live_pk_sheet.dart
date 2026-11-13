@@ -11,6 +11,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/application/live_pk_controller.dart';
 import 'package:kabso_live/features/live/data/live_pk_repository.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk4_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_pages.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -58,7 +59,8 @@ String? pkBoosterFailureMessage(
 /// The host's «PK» sheet — D195's PK in the owner's layout (D199, refs
 /// 276 / 277): the history clock and the settings gear at the start, «PK»
 /// with its help in the middle, ✕ at the end; three mode cards — «PK ثنائي»
-/// works, «PK الفرق» and «PK متعدد» are not built and say «قريباً»; the
+/// works, «PK رباعي» opens the 4-way lobby (D391), «PK متعدد» is not built
+/// and says «قريباً»; the
 /// «الأصدقاء» tab (mutual follows live now) with Kabi when there is nobody;
 /// search and «مطابقة عشوائية» (D195) at the bottom. During a PK: start (a
 /// connected PK), mute the opponent and End PK.
@@ -433,17 +435,22 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
         PkSheetMode.team => l10n.pkModeTeam,
         PkSheetMode.multi => l10n.pkModeMulti,
       },
-      // 1 v 1 is the only mode built (D195): always the selected one.
+      // 1 v 1 is this sheet's mode (D195): always the selected one.
+      // v1.118-live (D391): «PK رباعي» (2 v 2 by invitation) opens its own
+      // lobby sheet; «PK متعدد» (every host for themselves) is CP-041 phase
+      // 3 and still says «قريباً».
       selected: m == PkSheetMode.oneVsOne,
-      soon: m != PkSheetMode.oneVsOne,
-      onTap: m == PkSheetMode.oneVsOne
-          ? null
-          : () => KSnack.info(
-              context,
-              l10n.pkModeSoon(
-                m == PkSheetMode.team ? l10n.pkModeTeam : l10n.pkModeMulti,
-              ),
-            ),
+      soon: m == PkSheetMode.multi,
+      onTap: switch (m) {
+        PkSheetMode.oneVsOne => null,
+        PkSheetMode.team => () => unawaited(
+          showLivePk4Sheet(context, roomId: widget.roomId),
+        ),
+        PkSheetMode.multi => () => KSnack.info(
+          context,
+          l10n.pkModeSoon(l10n.pkModeMulti),
+        ),
+      },
     );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: PkSheetMetrics.cardSide),

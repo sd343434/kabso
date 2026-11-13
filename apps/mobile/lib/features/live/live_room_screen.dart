@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveViewersPreviewProvider;
 import 'package:kabso_live/features/live/application/live_level_ticker.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
+import 'package:kabso_live/features/live/application/live_pk4_controller.dart';
 import 'package:kabso_live/features/live/application/live_pk_controller.dart';
 import 'package:kabso_live/features/live/application/live_program.dart';
 import 'package:kabso_live/features/live/application/live_quips.dart';
@@ -76,6 +77,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_interruption.
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk4_stage.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_dare.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -597,6 +599,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         ref
             .read(livePkProvider(room.id).notifier)
             .attach(_session.engine.pkEvents, host: false);
+        // v1.118-live (D391): «PK رباعي» (the match for viewers).
+        ref
+            .read(livePk4Provider(room.id).notifier)
+            .attach(_session.engine.pk4Events, host: false);
       }
       // D138: the emojis people play on their seats.
       ref
@@ -1458,7 +1464,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // v1.43-live (D195): a PK replaces the full-screen video with the split
     // stage (both hosts, the bar, the boosters, the result).
     final pkState = ended ? null : ref.watch(livePkProvider(room.id));
-    final pkStage = pkState?.match == null ? null : _pkStage(pkState!, engine);
+    // v1.118-live (D391): a 4-way PK replaces it with the 2 × 2 stage.
+    final pk4State = ended ? null : ref.watch(livePk4Provider(room.id));
+    final pkStage = pkState?.match != null
+        ? _pkStage(pkState!, engine)
+        : pk4State?.match != null
+        ? _pk4Stage(pk4State!, engine)
+        : null;
     return KLiveRoomScaffold(
       // D145c: the gift strips keep above the chat text.
       onChatTop: (top) =>
@@ -2495,7 +2507,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         ? LuckyComboCluster(roomId: room.id)
         : null;
     // v1.43-live (D195): in a PK the guests are circles in the stage.
-    final inPk = ref.watch(livePkProvider(room.id)).match != null;
+    // v1.118-live (D391): no guests in a 4-way PK's grid either.
+    final inPk =
+        ref.watch(livePkProvider(room.id)).match != null ||
+        ref.watch(livePk4Provider(room.id)).match != null;
     final guests = room.mode == LiveRoomMode.solo && !inPk
         ? (session.seats?.seats ?? const <LiveSeat>[])
               .where((s) => s.state == LiveSeatState.taken)
@@ -2605,6 +2620,34 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // the connection comes up mid-PK).
     return ListenableBuilder(
       listenable: opponent?.changes ?? const AlwaysStoppedAnimation<double>(0),
+      builder: (context, _) => stage(),
+    );
+  }
+
+  /// v1.118-live (D391): the 4-way stage — this room's host from the room's
+  /// session at the top of the start column, the three others from the 4-way
+  /// connections (lowest layer); no guests in the grid.
+  Widget _pk4Stage(LivePk4State pk4, LiveMediaEngine engine) {
+    final match = pk4.match!;
+    final room = _room;
+    final rooms = ref.read(livePk4Provider(room.id).notifier).rooms;
+    Widget stage() => LivePk4Stage(
+      match: match,
+      roomId: room.id,
+      now: pk4.now,
+      video: (seat) => seat.roomId == room.id
+          ? engine.remoteVideo(seat.host.id)
+          : rooms[seat.roomId]?.video(seat.host.id),
+      speaking: {
+        ...engine.speaking,
+        for (final m in rooms.values) ...m.speaking,
+      },
+      announcement: pk4.announcement,
+      onPerson: (u) => _person(u.username),
+      onHost: (u) => _person(u.username),
+    );
+    return ListenableBuilder(
+      listenable: Listenable.merge([for (final m in rooms.values) m.changes]),
       builder: (context, _) => stage(),
     );
   }
@@ -2876,7 +2919,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       soundboard: (ref) =>
           ref.watch(liveRoomSessionProvider(widget.room.id)).canModerate,
       // v1.43-live (D195): the boosters' «PK» tab during a battle.
-      pk: (ref) => ref.watch(livePkProvider(widget.room.id)).match,
+      // v1.118-live (D391): a 4-way battle's team boosters too.
+      pk: (ref) => pkMatchForGifts(ref, widget.room.id),
     ),
   );
 }

@@ -2804,3 +2804,19 @@ table.events-v2 td .row { flex-wrap: wrap; }
 .amb-stat { border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; }
 .amb-stat .value { font-size: 22px; }
 .amb-levels input, .amb-levels select { min-width: 88px; }
+
+/* D391: the four places of a live's 4-way PK «PK رباعي» in the live's dialog. */
+.pk4-hosts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.pk4-hosts li[data-own-team='true'] .badge {
+  color: var(--primary-text);
+}
+/* D391: the 4-way badge in the team colours of the app (Kabso red, blazing orange). */
+.live-badge.pk-badge.pk4-badge {
+  background: linear-gradient(90deg, #e50914, #ff7a00);
+}

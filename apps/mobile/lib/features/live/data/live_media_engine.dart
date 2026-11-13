@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/data/streamer/live_screen_share.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
+import 'package:kabso_live/features/live/domain/live_pk4.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:material_ui/material_ui.dart';
 
@@ -372,6 +373,11 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
   /// (the match for both rooms; invitations and queue ends for the host).
   Stream<PkEvent> get pkEvents;
 
+  /// v1.118-live (D391, §10.180): the 4-way PK's `pk4-*` messages on the
+  /// same `pk` topic (the match for the four rooms; lobbies and invitations
+  /// for the host).
+  Stream<Pk4Event> get pk4Events;
+
   /// v1.114-live (D363, §10.157): the server's `podcast` data messages in
   /// the room (the director's shots, question upvotes).
   Stream<PodcastEvent> get podcastEvents;
@@ -425,6 +431,7 @@ class LiveKitMediaEngine
   final _invites = StreamController<String>.broadcast();
   final _chat = StreamController<LiveChatEvent>.broadcast();
   final _pk = StreamController<PkEvent>.broadcast();
+  final _pk4 = StreamController<Pk4Event>.broadcast();
   final _podcast = StreamController<PodcastEvent>.broadcast();
   Set<String> _speaking = const {};
   int? _seatsVersion;
@@ -1130,6 +1137,12 @@ class LiveKitMediaEngine
             return;
           }
           // v1.43-live (D195): PK matches, invitations and queue ends.
+          // v1.118-live (D391): the 4-way PK's messages.
+          if (message is Map && '${message['type']}'.startsWith('pk4-')) {
+            final pk4 = Pk4Event.parse(message);
+            if (pk4 != null) _pk4.add(pk4);
+            return;
+          }
           if (e.topic == 'pk' ||
               (message is Map && '${message['type']}'.startsWith('pk-'))) {
             final pk = PkEvent.parse(message);
@@ -1554,6 +1567,9 @@ class LiveKitMediaEngine
 
   @override
   Stream<PkEvent> get pkEvents => _pk.stream;
+
+  @override
+  Stream<Pk4Event> get pk4Events => _pk4.stream;
 
   @override
   Stream<PodcastEvent> get podcastEvents => _podcast.stream;

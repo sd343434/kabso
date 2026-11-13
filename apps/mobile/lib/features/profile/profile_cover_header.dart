@@ -879,7 +879,7 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
   }
 
   /// The VIP frame shows only when no agent, bag or CP Special Frame is worn
-  /// and the person is not live. D391 (owner: «هناك إطارين والصورة شخصية
+  /// and the person is not live. D392 (owner: «هناك إطارين والصورة شخصية
   /// اسفل الإطار»): [ProfileAvatar] draws the CP Special Frame itself, so a
   /// VIP frame here was drawn around it as well — two frames, the VIP one
   /// centred on the photo slot and the picture low in the heart's opening.

@@ -584,8 +584,10 @@ const ROOM_COLUMNS = Prisma.sql`
          c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
          r.wish_gifts, r.episode_number, r.podcast_topic, r.questions_open,
          r.question_seconds::int AS question_seconds, r.podcast_video,
-         EXISTS (SELECT 1 FROM pk_matches pm WHERE pm.status <> 'CLOSED'::pk_match_status
-                   AND (pm.room_a_id = r.id OR pm.room_b_id = r.id)) AS in_pk,
+         (EXISTS (SELECT 1 FROM pk_matches pm WHERE pm.status <> 'CLOSED'::pk_match_status
+                   AND (pm.room_a_id = r.id OR pm.room_b_id = r.id))
+          -- v1.118-live (D391): an open 4-way place too.
+          OR EXISTS (SELECT 1 FROM pk4_seats p4 WHERE p4.active AND p4.room_id = r.id)) AS in_pk,
          CASE WHEN r.mode = 'PODCAST'::live_room_mode THEN (
            SELECT COALESCE(json_agg(json_build_object('id', s2.user_id::text, 'username', spp.username,
                     'displayName', spp.display_name, 'avatarUrl', spp.avatar_url) ORDER BY s2.seat_index), '[]'::json)

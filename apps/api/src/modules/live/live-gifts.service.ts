@@ -61,6 +61,7 @@ import { liveGiftSendSchema } from './live.schemas.js';
 import { quipSlot } from '../gifts/quips.js';
 import { LiveQuipsService, type LiveQuipDto } from './live-quips.service.js';
 import { LivePkService, type PkGiftCredit } from './live-pk.service.js';
+import { LivePk4Service, type Pk4GiftCredit } from './live-pk4.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 import { assertNotRestricted } from '../users/account-control.js';
 import { addGiftsSentIn, addLuckyGiftsSentIn } from '../medals/medal-awards.js';
@@ -362,6 +363,7 @@ export class LiveGiftsService {
     private readonly giftTicker: LiveGiftTickerService,
     private readonly quips: LiveQuipsService,
     private readonly pk: LivePkService,
+    private readonly pk4: LivePk4Service,
     private readonly levelTicker: LiveLevelTickerService,
     private readonly finisher: GiftFinishService,
   ) {}
@@ -563,6 +565,8 @@ export class LiveGiftsService {
       luckyResult: LuckyGiftResultDto | null;
       quip: LiveQuipDto | null;
       pk: PkGiftCredit | null;
+      /** v1.118-live (D391): the send's 4-way PK points. */
+      pk4: Pk4GiftCredit | null;
     };
     try {
       // D148: one transaction per sender at a time in this process too (FIFO), so a burst of one
@@ -893,9 +897,11 @@ export class LiveGiftsService {
           // v1.43-live (D195, §10.58): PK points — the send's REAL coin value (lucky gifts too) × the
           // side's booster, in their own tables only (money, cherries, scores and levels above all used
           // the real value). A refused booster rolls the whole send back.
-          const pk = freeQuip
-            ? null
-            : await this.pk.creditGiftIn(tx, {
+          // v1.118-live (D391, §10.180): a room with an open 4-way place counts its gifts by the 4-way rules (the team's
+          // booster); every other room exactly as before (PK 1 v 1).
+          const inPk4 = freeQuip ? false : await this.pk4.inMatchIn(tx, row.id);
+          const pk4 = inPk4
+            ? await this.pk4.creditGiftIn(tx, {
                 roomId: row.id,
                 giftId,
                 giftCode: gift.code,
@@ -903,8 +909,21 @@ export class LiveGiftsService {
                 coins: amounts.totalCoins,
                 booster: gift.pkBooster,
                 now,
-                lucky: isLucky,
-              });
+              })
+            : null;
+          const pk =
+            freeQuip || inPk4
+              ? null
+              : await this.pk.creditGiftIn(tx, {
+                  roomId: row.id,
+                  giftId,
+                  giftCode: gift.code,
+                  senderId: callerId,
+                  coins: amounts.totalCoins,
+                  booster: gift.pkBooster,
+                  now,
+                  lucky: isLucky,
+                });
 
           // v1.27-live (D132, §10.27): the lucky settlement last, so the day row (locked by every lucky
           // send of the day) is held for as short a time as possible.
@@ -961,7 +980,7 @@ export class LiveGiftsService {
                   delayMs: slot.delayMs,
                   createdAt: at,
                 };
-          return { dto, coins, bagQuantity, hostLevelChanged, levelUps, luckyResult, quip, pk };
+          return { dto, coins, bagQuantity, hostLevelChanged, levelUps, luckyResult, quip, pk, pk4 };
         }, LIVE_TX_OPTIONS),
       );
     } catch (err) {
@@ -1015,6 +1034,12 @@ export class LiveGiftsService {
     if (pkCredit) {
       this.background.run('pk score data message', async () => {
         await this.pk.afterGift(pkCredit);
+      });
+    }
+    const pk4Credit = created.pk4;
+    if (pk4Credit) {
+      this.background.run('pk4 score data message', async () => {
+        await this.pk4.afterGift(pk4Credit);
       });
     }
     const luckyResult = created.luckyResult;
