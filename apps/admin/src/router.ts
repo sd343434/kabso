@@ -90,6 +90,10 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'ownerInbox', pattern: '/owner-inbox' },
   // D301 follow-up (§10.112.10): «التكاليف الثابتة» (OWNER only).
   { name: 'ownerFixedCosts', pattern: '/owner-fixed-costs' },
+  // v1.139-social (D387): «جدول المناوبات», «التعويضات», «حساباتنا الرسمية».
+  { name: 'staffSchedule', pattern: '/staff-schedule' },
+  { name: 'compensations', pattern: '/compensations' },
+  { name: 'socialAccounts', pattern: '/social-accounts' },
 ];
 
 export function matchPath(path: string): Match | null {

@@ -210,7 +210,7 @@ export function TalentHomeView({ data }: { data: TalentHome }) {
         <ul className="activity">
           {data.inactiveAgencies.map((a) => (
             <li key={a.id}>
-              <button type="button" className="linklike" onClick={() => navigate(`/agencies/${a.id}`)}>
+              <button type="button" className="btn link" onClick={() => navigate(`/agencies/${a.id}`)}>
                 <span className="mono">{a.inviteCode}</span> {a.name ?? ''}
               </button>
               <span className="names">

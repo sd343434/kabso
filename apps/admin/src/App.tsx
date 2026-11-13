@@ -48,6 +48,9 @@ import { Withdrawals } from './pages/Withdrawals';
 import { Users } from './pages/Users';
 import { matchPath, navigate, useLocation } from './router';
 import type { AdminSessionInfo } from './types';
+import { StaffSchedulePage } from './pages/StaffSchedule';
+import { Compensations } from './pages/Compensations';
+import { SocialAccounts } from './pages/SocialAccounts';
 
 type Theme = 'light' | 'dark';
 
@@ -262,6 +265,16 @@ export function App() {
         // D301 follow-up (§10.112.10).
         case 'ownerFixedCosts':
           page = <OwnerFixedCosts />;
+          break;
+        // v1.139-social (D387).
+        case 'staffSchedule':
+          page = <StaffSchedulePage />;
+          break;
+        case 'compensations':
+          page = <Compensations />;
+          break;
+        case 'socialAccounts':
+          page = <SocialAccounts />;
           break;
         case 'verificationBadges':
           page = <VerificationBadgesPage />;

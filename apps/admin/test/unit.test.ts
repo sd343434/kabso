@@ -350,7 +350,9 @@ describe('navigation by role', () => {
   const items = (role: string) => visibleNav((c) => CAPS[role]!.includes(c)).flatMap((g) => g.items.map((i) => i.to));
   it('shows each role only what it can open (groups without items vanish)', () => {
     expect(items('MODERATION')).toEqual(['/', '/users', '/lives', '/live-hosts', '/host-applications', '/reports']);
-    expect(items('FINANCE')).toContain('/finance/report');
+    // v1.139-social (D387, §10.176.2): the financial report is the OWNER's alone (`revenue.view`).
+    expect(items('FINANCE')).not.toContain('/finance/report');
+    expect(items('FINANCE')).toContain('/withdrawals');
     expect(items('FINANCE')).not.toContain('/team');
     expect(items('FINANCE')).not.toContain('/reports');
     expect(visibleNav((c) => CAPS.MODERATION!.includes(c)).map((g) => g.key)).not.toContain('navGroupMoney');
@@ -363,7 +365,8 @@ describe('navigation by role', () => {
     for (const to of ['/finance/report', '/withdrawals', '/recharge/applications', '/referrals', '/payments']) expect(mod, to).not.toContain(to);
     expect(CAP_OF_ROUTE.topups).toBe('recharge.topups.view');
     expect(CAP_OF_ROUTE.cards).toBe('recharge.topups.view');
-    expect(CAP_OF_ROUTE.report).toBe('finance.view');
+    // v1.139-social (D387): the report moved to `revenue.view` (OWNER only).
+    expect(CAP_OF_ROUTE.report).toBe('revenue.view');
   });
   it('every v2 route has a capability', () => {
     for (const r of ['agencies', 'agency', 'complaints', 'lives', 'hosts', 'gifts', 'items', 'promo', 'report', 'topups', 'cards', 'tasks', 'levels', 'waitlist', 'team', 'audit', 'specialUsernames', 'hostApplications', 'hostApplication', 'referrals', 'referral', 'referralSettings']) {

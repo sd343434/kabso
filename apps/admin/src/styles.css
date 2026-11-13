@@ -2782,3 +2782,11 @@ table.events-v2 td .row { flex-wrap: wrap; }
 }
 [dir='rtl'] .ev-hub-dots { transform: translateX(50%); }
 .btn.link { background: none; border: none; padding: 0; color: var(--primary-text); text-decoration: underline; cursor: pointer; }
+
+/* v1.139-social (D387, §10.176): the role homes, the shift schedule «جدول المناوبات». */
+.role-home { margin-block-end: 24px; }
+.role-home > h2 { margin-block: 8px 12px; }
+.schedule-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-block-start: 12px; }
+.schedule-day h3 { margin: 0 0 8px; font-size: 15px; }
+.schedule-day.today { outline: 2px solid var(--primary); outline-offset: -2px; }
+.schedule-grid li.on-shift { background: color-mix(in srgb, var(--c-green) 12%, transparent); border-radius: 10px; }

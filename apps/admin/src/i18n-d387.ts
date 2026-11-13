@@ -6,7 +6,6 @@
  */
 export const AR_D387 = {
   // ---- the roles (§10.176.1) --------------------------------------------------------------------------------------
-  roleMODERATION: "مراقبة المحتوى والأمان",
   roleLIVE_OPS: "مدير عمليات البث",
   roleTALENT: "مدير الوكالات والمواهب",
   roleVIP_CARE: "دعم كبار الداعمين",
@@ -16,8 +15,6 @@ export const AR_D387 = {
   roleHintTALENT: "طلبات المضيفين وصناع المحتوى والوكالات، الاستقطاب، وأهداف المضيفين.",
   roleHintVIP_CARE: "كبار الداعمين بلا أي مبالغ، «دعم كابسو» بأولوية VIP، طلبات رفع الليفيل، والتعويضات ضمن الحدود.",
   roleHintCOMMUNITY: "الهدايا الموسمية ورفعها، الفعاليات، البانرات، إعدادات الموقع، وحسابات التطبيق الرسمية.",
-  roleHintOWNER: "كل الصلاحيات، ووحده يرى الأرباح والإيرادات.",
-  roleHintSUPPORT: "الدعم والطلبات والشحن — كما هو.",
   roleHintFINANCE: "السحوبات والشحن: مبلغ الطلب الذي يعالجه فقط، بلا مجاميع أو لوحات إيرادات.",
   opsRolesTitle: "الأدوار وصلاحياتها",
   opsRolesNote:
@@ -165,7 +162,6 @@ export const AR_D387 = {
 };
 
 export const EN_D387: Record<keyof typeof AR_D387, string> = {
-  roleMODERATION: "Trust & safety",
   roleLIVE_OPS: "Live operations manager",
   roleTALENT: "Agencies & talent manager",
   roleVIP_CARE: "VIP care",
@@ -175,8 +171,6 @@ export const EN_D387: Record<keyof typeof AR_D387, string> = {
   roleHintTALENT: "Host, creator and agency applications, recruitment, and host targets.",
   roleHintVIP_CARE: "Top supporters without any amounts, «Kabso Support» with VIP priority, level-raise requests, and compensations within limits.",
   roleHintCOMMUNITY: "Seasonal gifts and uploads, events, banners, the website settings, and the app's official accounts.",
-  roleHintOWNER: "Every capability; the only one who sees earnings and revenue.",
-  roleHintSUPPORT: "Support, applications and top-ups — as before.",
   roleHintFINANCE: "Withdrawals and top-ups: the amount of the request at hand only, no totals or revenue dashboards.",
   opsRolesTitle: "Roles and what they can do",
   opsRolesNote:
