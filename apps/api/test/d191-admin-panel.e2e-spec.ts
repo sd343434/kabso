@@ -421,10 +421,11 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
     });
 
     it('expires an idle session; logout ends it; a revoked role applies at once', async () => {
+      // v1.139-social (D387, §10.176.2): the money dashboard is OWNER only; a moderator's session reads the attention list.
       const a = await makeAdmin(['MODERATION']);
-      expect((await get(a, '/admin/dashboard')).status).toBe(200);
+      expect((await get(a, '/admin/stats/attention')).status).toBe(200);
       advance(601_000);
-      expect((await get(a, '/admin/dashboard')).status).toBe(401);
+      expect((await get(a, '/admin/stats/attention')).status).toBe(401);
 
       const b = await makeAdmin(['MODERATION']);
       const out = await post(b, '/admin/auth/logout');
@@ -443,13 +444,17 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
     beforeAll(() => relogin(owner, moderator, support, finance));
     /** One read per capability that has one; the mutations are covered below. */
     const READS: Partial<Record<Capability, string>> = {
-      'dashboard.view': '/admin/dashboard',
+      // v1.139-social (D387, §10.176.2): `/admin/dashboard` (coins sold, gift value) needs `revenue.view` (OWNER only).
+      'dashboard.view': '/admin/stats/attention',
+      'revenue.view': '/admin/dashboard',
       'users.view': '/admin/users?q=a',
       'recharge.applications': '/admin/recharge/applications',
       'recharge.agents': '/admin/recharge/agents',
       'withdrawals.view': '/admin/withdrawals',
       'reports.view': '/admin/moderation/reports',
-      'site.settings': '/admin/site-settings',
+      // v1.139-social (D387): `/admin/site-settings` moved to `site.public`; `site.settings` keeps the camera filters.
+      'site.settings': '/admin/camera-fx',
+      'site.public': '/admin/site-settings',
       // v1.64-social (D196): the Stripe keys «الدفع (Stripe)».
       'payments.settings': '/admin/payment-settings',
       // v1.69-social (D204): the dispute queue.
@@ -464,6 +469,11 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
         SUPPORT: support,
         FINANCE: finance,
         BD: bd,
+        // v1.139-social (D387, §10.176.1): the operations roles.
+        LIVE_OPS: await makeAdmin(['LIVE_OPS']),
+        TALENT: await makeAdmin(['TALENT']),
+        VIP_CARE: await makeAdmin(['VIP_CARE']),
+        COMMUNITY: await makeAdmin(['COMMUNITY']),
       };
       for (const role of PANEL_ROLES) {
         const a = byRole[role]!;

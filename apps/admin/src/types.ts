@@ -1,5 +1,18 @@
 /** The shapes of openapi.yaml's `admin-panel` schemas the panel reads (contract v1.60-social, D191). */
-export type PanelRole = "OWNER" | "MODERATION" | "SUPPORT" | "FINANCE" | "BD";
+/**
+ * v1.139-social (D387, §10.176.1): + LIVE_OPS, TALENT, VIP_CARE, COMMUNITY. MODERATION is shown as TRUST_SAFETY
+ * «مراقبة المحتوى والأمان» (the wire value stays MODERATION).
+ */
+export type PanelRole =
+  | "OWNER"
+  | "MODERATION"
+  | "SUPPORT"
+  | "FINANCE"
+  | "BD"
+  | "LIVE_OPS"
+  | "TALENT"
+  | "VIP_CARE"
+  | "COMMUNITY";
 
 export type Capability =
   | "dashboard.view"
@@ -121,7 +134,24 @@ export type Capability =
   | "support.whatsapp"
   | "support.whatsapp.manage"
   // v1.120-social (D360): «مشاهدة فقط» — the WhatsApp level VIEW (the three come from the staff member's level).
-  | "support.whatsapp.view";
+  | "support.whatsapp.view"
+  // v1.139-social (D387, §10.176): the operations roles. `revenue.view` is OWNER only.
+  | "revenue.view"
+  | "home.live_ops"
+  | "home.talent"
+  | "home.trust_safety"
+  | "home.vip_care"
+  | "home.community"
+  | "staff.schedule.view"
+  | "staff.schedule.manage"
+  | "compensation.grant"
+  | "compensation.settings"
+  | "compensation.approve"
+  | "social.accounts"
+  | "gifts.manage"
+  | "banners.manage"
+  | "boosts.manage"
+  | "site.public";
 
 /** v1.90-social (D293, §10.105): the automatic verification badge, highest first. */
 export const VERIFICATION_BADGES = [
@@ -1667,4 +1697,186 @@ export interface WaTestResult {
   qualityRating: string | null;
   templates: number | null;
   error: { status: number; code: number | null; title: string | null } | null;
+}
+
+// ---- v1.139-social (D387, CONVENTIONS §10.176): the operations roles ----------------------------------------------
+
+/** `AdminPersonRef`. */
+export interface OpsPersonRef {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+/** `AdminShiftPerson`. */
+export interface ShiftPerson {
+  userId: string;
+  staffId: string | null;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  roles: PanelRole[];
+}
+
+/** `AdminShiftNow`: who is on shift now and the next slots (§10.176.6). */
+export interface ShiftNow {
+  timeZone: string;
+  onShiftNow: ShiftPerson[];
+  next: { person: ShiftPerson; startsAt: string; weekday: number; startMinute: number; endMinute: number }[];
+}
+
+/** `AdminHomeLive`. */
+export interface HomeLive {
+  roomId: string;
+  title: string;
+  host: OpsPersonRef;
+  viewers: number;
+  startedAt: string;
+}
+
+/** `AdminHomeEvent`. */
+export interface HomeEvent {
+  id: string;
+  titleAr: string;
+  titleEn: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  running: boolean;
+}
+
+export interface LiveOpsHome {
+  livesNow: number;
+  topLives: HomeLive[];
+  topHosts: { host: OpsPersonRef; liveMinutes7d: number; liveNow: boolean }[];
+  pk: { battlesNow: number; battlesToday: number };
+  events: HomeEvent[];
+}
+
+export interface TalentHome {
+  newHosts7d: number;
+  liveHours7d: number;
+  inactiveAgencies: {
+    id: string;
+    name: string | null;
+    inviteCode: string;
+    owner: OpsPersonRef;
+    activeHosts: number;
+    lastLiveAt: string | null;
+  }[];
+  queue: { hostApplications: number; creatorApplications: number };
+}
+
+export interface TrustSafetyHome {
+  openReports: number;
+  avgResolveMinutes: number | null;
+  resolved7d: number;
+  livesNow: number;
+  shift: ShiftNow;
+}
+
+/** `AdminVipSupporter`: levels and VIP tiers only — never a coin amount. */
+export interface VipSupporter {
+  user: OpsPersonRef;
+  level: number | null;
+  vipTier: { code: string; nameAr: string; nameEn: string; color: string } | null;
+  lastActiveAt: string | null;
+}
+
+export interface VipCareHome {
+  topSupporters: VipSupporter[];
+  stoppedActive: VipSupporter[];
+  inactiveDays: number;
+  pendingCompensations: number;
+  shift: ShiftNow;
+}
+
+export interface CommunityHome {
+  upcomingEvents: HomeEvent[];
+  participation: { eventId: string; titleAr: string; titleEn: string; entrants: number }[];
+  bannersLive: { id: string; titleAr: string | null; titleEn: string | null; placement: string; endsAt: string | null }[];
+}
+
+/** `AdminStaffScheduleSlot`. */
+export interface ScheduleSlot {
+  id: string;
+  person: ShiftPerson;
+  weekday: number;
+  startMinute: number;
+  endMinute: number;
+  onShiftNow: boolean;
+}
+
+/** `AdminStaffSchedule`. */
+export interface StaffSchedule {
+  timeZone: string;
+  now: { weekday: number; minute: number };
+  slots: ScheduleSlot[];
+  shift: ShiftNow;
+  me: { onShiftNow: boolean };
+}
+
+/** `AdminCompensationSettings`. */
+export interface CompensationSettings {
+  dailyLimitCoins: number;
+  perGrantMaxCoins: number;
+  usedTodayCoins: number;
+  timeZone: string;
+  updatedAt: string | null;
+}
+
+export type CompensationKind = "COINS" | "VIP_DAYS" | "ITEM";
+export type CompensationStatus = "GRANTED" | "PENDING" | "APPROVED" | "REJECTED";
+
+/** `AdminCompensation`. */
+export interface Compensation {
+  id: string;
+  staff: OpsPersonRef | null;
+  user: OpsPersonRef;
+  kind: CompensationKind;
+  coins: number | null;
+  days: number | null;
+  tierCode: string | null;
+  itemCode: string | null;
+  valueCoins: number;
+  reason: string;
+  status: CompensationStatus;
+  overLimit: "per_grant" | "daily" | null;
+  decidedBy: OpsPersonRef | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  createdAt: string;
+}
+
+export interface CompensationPage {
+  data: Compensation[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export const SOCIAL_PLATFORMS = [
+  "INSTAGRAM",
+  "TIKTOK",
+  "X",
+  "FACEBOOK",
+  "YOUTUBE",
+  "SNAPCHAT",
+  "TELEGRAM",
+  "WHATSAPP",
+  "THREADS",
+  "LINKEDIN",
+  "DISCORD",
+  "OTHER",
+] as const;
+export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];
+
+/** `AdminSocialAccount`: links only — never a password or token. */
+export interface SocialAccount {
+  id: string;
+  platform: SocialPlatform;
+  handle: string;
+  url: string;
+  sortOrder: number;
+  updatedAt: string;
 }

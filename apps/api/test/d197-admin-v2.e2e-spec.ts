@@ -264,7 +264,9 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
   describe('permission matrix', () => {
     it('every role gets exactly its capabilities on every v2 read (server-side)', async () => {
       const READS: Partial<Record<Capability, string>> = {
-        'dashboard.view': '/admin/stats/overview',
+        // v1.139-social (D387, §10.176.2): the KPI overview (coins sold, gift value) is `revenue.view` (OWNER only).
+        'revenue.view': '/admin/stats/overview',
+        'dashboard.view': '/admin/stats/attention',
         'users.list': '/admin/tables/users',
         'users.ledger': `/admin/users/${plain.id}/ledger`,
         'users.sessions': `/admin/users/${plain.id}/sessions`,
@@ -288,6 +290,11 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
         SUPPORT: support,
         FINANCE: finance,
         BD: bd,
+        // v1.139-social (D387, §10.176.1): the operations roles.
+        LIVE_OPS: await makeAdmin(['LIVE_OPS']),
+        TALENT: await makeAdmin(['TALENT']),
+        VIP_CARE: await makeAdmin(['VIP_CARE']),
+        COMMUNITY: await makeAdmin(['COMMUNITY']),
       };
       for (const role of PANEL_ROLES) {
         const a = byRole[role]!;
@@ -539,8 +546,9 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
       expect(res.body.total).toBeGreaterThanOrEqual(6);
       expect(res.body.data[0].id).toBe(agentUser.id); // created «yesterday»: the oldest
       const admins = await get(owner, '/admin/tables/users?role=ADMIN');
-      // The four panel admins (and BD once the permission matrix signed it in, D285).
-      expect([4, 5]).toContain(admins.body.total);
+      // The four panel admins (and BD once the permission matrix signed it in, D285; with the four D387 operations
+      // roles too once it ran).
+      expect([4, 5, 9]).toContain(admins.body.total);
       const q = await get(owner, `/admin/tables/users?q=${plain.username}`);
       expect(q.body.data.map((u: { id: string }) => u.id)).toEqual([plain.id]);
       expect((await get(owner, '/admin/tables/users?sort=password')).status).toBe(400);
@@ -956,12 +964,20 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
       expect(cm).toMatchObject({ before: 'OPEN', after: 'CLOSED' });
       const topups = await get(finance, '/admin/finance/recharge-topups');
       expectContract(topups, 'listAdminRechargeTopups');
-      expect(topups.body.totals).toEqual({ coins: 100_000, paidMinor: 125, expectedMinor: 100 });
+      // v1.139-social (D387, §10.176.2): FINANCE keeps each top-up's amounts, the totals are the OWNER's.
+      expect(topups.body.totals).toBeNull();
+      expect(topups.body.data.length).toBeGreaterThan(0);
+      const ownerTopups = await get(owner, '/admin/finance/recharge-topups');
+      expect(ownerTopups.body.totals).toEqual({ coins: 100_000, paidMinor: 125, expectedMinor: 100 });
     });
 
     it('the financial report sums the seeded day exactly; its CSV is audited', async () => {
       const day = new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date(clock));
-      const res = await get(finance, `/admin/finance/report?granularity=day&from=${day}&to=${day}`);
+      // v1.139-social (D387, §10.176.2): the financial report is `revenue.view` (OWNER only): FINANCE gets 403.
+      expect((await get(finance, `/admin/finance/report?granularity=day&from=${day}&to=${day}`)).status).toBe(
+        403,
+      );
+      const res = await get(owner, `/admin/finance/report?granularity=day&from=${day}&to=${day}`);
       expect(res.status, JSON.stringify(res.body)).toBe(200);
       expectContract(res, 'getAdminFinanceReport');
       expect(res.body.rows).toHaveLength(1);
@@ -979,16 +995,16 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
       });
       expect(res.body.cardFee).toEqual({ bps: 290, fixedMinor: 30 });
       const month = await get(
-        finance,
+        owner,
         `/admin/finance/report?granularity=month&from=${day.slice(0, 8)}01&to=${day}`,
       );
       expect(month.body.rows).toHaveLength(1);
       expect(month.body.rows[0].period).toBe(day.slice(0, 7));
-      expect((await get(finance, `/admin/finance/report?from=2020-01-01&to=2026-12-31`)).status).toBe(400);
-      const csv = await get(finance, `/admin/finance/report?from=${day}&to=${day}&format=csv`);
+      expect((await get(owner, `/admin/finance/report?from=2020-01-01&to=2026-12-31`)).status).toBe(400);
+      const csv = await get(owner, `/admin/finance/report?from=${day}&to=${day}&format=csv`);
       expect(csv.headers['content-type']).toMatch(/text\/csv/);
       expect(csv.text.split('\r\n')[0]).toContain('agent_revenue_minor');
-      await expectPanelAudit('admin.export.csv', 'finance-report-day', finance);
+      await expectPanelAudit('admin.export.csv', 'finance-report-day', owner);
       expect((await get(support, `/admin/finance/report?from=${day}&to=${day}`)).status).toBe(403);
     });
   });
