@@ -88,6 +88,8 @@ export interface PublicProfileDto {
   gender: 'MALE' | 'FEMALE' | null;
   /** v1.47-social (D175): the account category under the name, or null. */
   category: AccountCategory | null;
+  /** v1.138-social (D386, §10.175): the Kabso Team verified the category (false for a Kabso Team account). */
+  categoryVerified: boolean;
   /** v1.47-social (D175): the profile links (0–3), also on a private account's profile. */
   links: ProfileLinkDto[];
   /** v1.85-social (D278b, §10.99): the profile tags «منشنات» (0–10), also on a private account's profile. */
@@ -132,7 +134,7 @@ export interface PublicProfileDto {
   /** v1.95-social (D301, §10.112): the app owner (an ACTIVE account holding the OWNER panel role); absent otherwise. */
   kabsoOwner?: true;
   /**
-   * v1.140-social (D390 follow-up, §10.179.9): the exclusive ambassador badge — `{level}` only while the programme is on
+   * v1.141-social (D390 follow-up, §10.179.9): the exclusive ambassador badge — `{level}` only while the programme is on
    * and the membership is ACTIVE; absent otherwise (frozen and ended stay private).
    */
   ambassador?: { level: string };
@@ -316,7 +318,7 @@ export class PublicProfileService {
     const animatedAvatar = staff
       ? null
       : await shownAnimatedAvatarIn(this.prisma, user.id, callerId, this.clock.now());
-    // v1.140-social (D390 follow-up, §10.179.9): the ambassador badge (ACTIVE membership, programme on).
+    // v1.141-social (D390 follow-up, §10.179.9): the ambassador badge (ACTIVE membership, programme on).
     const ambassadorLevel = staff ? null : await ambassadorBadgeIn(this.prisma, user.id);
     return {
       id: user.id,
@@ -345,6 +347,7 @@ export class PublicProfileService {
       profileCard,
       gender: user.gender,
       category: kabsoTeam ? null : user.category,
+      categoryVerified: !kabsoTeam && user.categoryVerified,
       links: user.links,
       tags: user.tags,
       tagIcons: user.tagIcons,

@@ -80,6 +80,10 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.dmNotArchivable => l10n.errorDmNotArchivable,
     ErrorCode.dmGroupFull => l10n.errorDmGroupFull,
     ErrorCode.dmPinLimit => l10n.errorDmPinLimit,
+    ErrorCode.featuredPinLimit => l10n.errorFeaturedPinLimit,
+    ErrorCode.categoryVerificationPending =>
+      l10n.errorCategoryVerificationPending,
+    ErrorCode.accountCategoryLocked => l10n.errorAccountCategoryLocked,
     ErrorCode.ambassadorApplicationNotAllowed =>
       l10n.errorAmbassadorApplicationNotAllowed,
     ErrorCode.dmGroupMemberNotAllowed => l10n.errorDmGroupMemberNotAllowed,
@@ -126,6 +130,9 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.staffProtected => l10n.errorStaffProtected,
     ErrorCode.vipProtected => l10n.errorVipProtected,
     ErrorCode.liveStaffRefused => l10n.errorLiveStaffRefused,
+    ErrorCode.staffGiftRefused => l10n.errorStaffGiftRefused,
+    ErrorCode.staffWithdrawalCompanyOnly =>
+      l10n.errorStaffWithdrawalCompanyOnly,
     ErrorCode.staffStepUpRequired => l10n.errorStaffStepUpRequired,
     ErrorCode.staffTotpNotEnrolled => l10n.errorStaffTotpNotEnrolled,
     ErrorCode.adminTotpInvalid => l10n.errorAdminTotpInvalid,

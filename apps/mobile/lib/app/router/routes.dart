@@ -84,7 +84,7 @@ abstract final class AppRoutes {
   /// v1.75-live (D285): «انضم كصانع محتوى» (from the creator centre).
   static const creatorApply = '/creator/apply';
 
-  /// v1.140-social (D390): «برنامج سفراء Kabso» — the explanation and the
+  /// v1.141-social (D390): «برنامج سفراء Kabso» — the explanation and the
   /// application, and the ambassador's dashboard.
   static const ambassadors = '/ambassadors';
   static const ambassadorDashboard = '/ambassadors/me';

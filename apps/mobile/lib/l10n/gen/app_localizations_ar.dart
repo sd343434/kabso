@@ -18913,6 +18913,403 @@ class AppLocalizationsAr extends AppLocalizations {
       'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.';
 
   @override
+  String get categoryQuranReciter => 'قارئ قرآن';
+
+  @override
+  String get categoryStoryteller => 'راوٍ';
+
+  @override
+  String get categoryWriter => 'كاتب';
+
+  @override
+  String get categoryJournalist => 'صحفي';
+
+  @override
+  String get categoryPhotographer => 'مصوّر';
+
+  @override
+  String get categoryActor => 'ممثل';
+
+  @override
+  String get categoryComedian => 'كوميدي';
+
+  @override
+  String get categoryCalligrapher => 'خطّاط';
+
+  @override
+  String get categoryDesigner => 'مصمّم';
+
+  @override
+  String get categoryChef => 'طاهٍ';
+
+  @override
+  String get categoryTeacher => 'معلّم / مدرّب';
+
+  @override
+  String get categoryDj => 'دي جي';
+
+  @override
+  String get categoryTraveler => 'رحّالة';
+
+  @override
+  String get categoryFamilyMusic => 'الموسيقى';
+
+  @override
+  String get categoryFamilyReciter => 'التلاوة والرواية';
+
+  @override
+  String get categoryFamilyWord => 'الكلمة';
+
+  @override
+  String get categoryFamilyVisual => 'الفنون البصرية';
+
+  @override
+  String get categoryFamilyPerformer => 'الأداء والمحتوى';
+
+  @override
+  String get categoryFamilySportsGames => 'الرياضة والألعاب';
+
+  @override
+  String get categoryFamilyLifestyle => 'أسلوب الحياة';
+
+  @override
+  String get categoryFamilyPublic => 'عام';
+
+  @override
+  String get featuredWorks => 'أعمالي';
+
+  @override
+  String get featuredRecitations => 'تلاواتي';
+
+  @override
+  String get featuredStories => 'حكاياتي';
+
+  @override
+  String get featuredPoems => 'قصائدي';
+
+  @override
+  String get featuredArticles => 'مقالاتي';
+
+  @override
+  String get featuredReports => 'تقاريري';
+
+  @override
+  String get featuredProgram => 'برنامجي';
+
+  @override
+  String get featuredGames => 'ألعابي';
+
+  @override
+  String get featuredAchievements => 'إنجازاتي';
+
+  @override
+  String get featuredGallery => 'معرضي';
+
+  @override
+  String get featuredMostViewed => 'الأكثر مشاهدة';
+
+  @override
+  String get featuredHighlights => 'المميز';
+
+  @override
+  String featuredPinIn(String section) {
+    return 'تثبيت في «$section»';
+  }
+
+  @override
+  String featuredUnpinFrom(String section) {
+    return 'إلغاء التثبيت من «$section»';
+  }
+
+  @override
+  String featuredPinned(String section) {
+    return 'ثُبّت في «$section»';
+  }
+
+  @override
+  String get featuredUnpinned => 'أُلغي التثبيت';
+
+  @override
+  String get featuredReorder => 'ترتيب';
+
+  @override
+  String get featuredReorderHint => 'اسحب لتغيير الترتيب. حتى ٦ منشورات.';
+
+  @override
+  String get featuredReorderSave => 'حفظ الترتيب';
+
+  @override
+  String get featuredEmptyOwn =>
+      'ثبّت حتى ٦ من منشوراتك هنا من قائمة «⋯» في المنشور.';
+
+  @override
+  String get featuredAutoNote => 'أحدث منشوراتك — ثبّت ما تريد إظهاره هنا';
+
+  @override
+  String get featuredUpcoming => 'قادم';
+
+  @override
+  String get featuredPodcast => 'بودكاست';
+
+  @override
+  String featuredViews(String count) {
+    return '$count مشاهدة';
+  }
+
+  @override
+  String get featuredPlay => 'تشغيل';
+
+  @override
+  String get featuredReadMore => 'اقرأ المزيد';
+
+  @override
+  String categoryBadgeVerified(String category) {
+    return 'فئة موثّقة: $category';
+  }
+
+  @override
+  String get categoryVerifyRequest => 'طلب توثيق الفئة';
+
+  @override
+  String get categoryVerifyHint =>
+      'بعد أن يوثّق فريق كابسو فئتك تأخذ صفحتك شكلها الخاص: لون وشارة وقسم مميّز في الأعلى.';
+
+  @override
+  String get categoryVerifyPending => 'طلب التوثيق قيد المراجعة';
+
+  @override
+  String get categoryVerifyCancel => 'إلغاء الطلب';
+
+  @override
+  String get categoryVerifyVerified => 'فئتك موثّقة';
+
+  @override
+  String categoryVerifyRejected(String reason) {
+    return 'لم يُقبل طلبك: $reason';
+  }
+
+  @override
+  String get categoryVerifySent => 'أُرسل طلب التوثيق إلى فريق كابسو';
+
+  @override
+  String get categoryVerifyChangeWarning => 'تغيير الفئة يزيل التوثيق.';
+
+  @override
+  String get categoryLockedNote =>
+      'قفل فريق كابسو فئة حسابك، فلا يمكن تغييرها الآن.';
+
+  @override
+  String get errorFeaturedPinLimit =>
+      'يمكنك تثبيت ٦ منشورات فقط هنا. ألغِ تثبيت واحد أولاً.';
+
+  @override
+  String get errorCategoryVerificationPending => 'لديك طلب توثيق قيد المراجعة.';
+
+  @override
+  String get errorAccountCategoryLocked => 'قفل فريق كابسو فئة حسابك.';
+
+  @override
+  String get notifCategoryVerified =>
+      'وثّق فريق كابسو فئة حسابك — صفحتك الآن بشكلها الخاص';
+
+  @override
+  String get notifCategoryReviewed =>
+      'راجع فريق كابسو فئة حسابك. افتح «تعديل الملف» لمعرفة التفاصيل';
+
+  @override
+  String get staffRoleTrustSafety => 'مراقبة المحتوى والأمان';
+
+  @override
+  String get staffRoleLiveOps => 'مدير عمليات البث';
+
+  @override
+  String get staffRoleTalent => 'مدير الوكالات والمواهب';
+
+  @override
+  String get staffRoleVipCare => 'دعم كبار الداعمين';
+
+  @override
+  String get staffRoleCommunity => 'المجتمع والفعاليات';
+
+  @override
+  String get staffOnShiftNow => 'في المناوبة الآن';
+
+  @override
+  String get staffScheduledHint => 'حسب جدول المناوبات في لوحة الإدارة.';
+
+  @override
+  String get staffMyRoles => 'أدواري';
+
+  @override
+  String get staffRolesAndShift => 'أدواري والمناوبة';
+
+  @override
+  String get staffOpsPanelHint => 'أدوات دورك في لوحة الإدارة.';
+
+  @override
+  String get settingsFollowUs => 'تابعنا';
+
+  @override
+  String get socialPlatformInstagram => 'إنستغرام';
+
+  @override
+  String get socialPlatformTiktok => 'تيك توك';
+
+  @override
+  String get socialPlatformX => 'إكس';
+
+  @override
+  String get socialPlatformFacebook => 'فيسبوك';
+
+  @override
+  String get socialPlatformYoutube => 'يوتيوب';
+
+  @override
+  String get socialPlatformSnapchat => 'سناب شات';
+
+  @override
+  String get socialPlatformTelegram => 'تيليجرام';
+
+  @override
+  String get socialPlatformWhatsapp => 'واتساب';
+
+  @override
+  String get socialPlatformThreads => 'ثريدز';
+
+  @override
+  String get socialPlatformLinkedin => 'لينكدإن';
+
+  @override
+  String get socialPlatformDiscord => 'ديسكورد';
+
+  @override
+  String get socialPlatformOther => 'موقع آخر';
+
+  @override
+  String get giftStaffRefused => 'حسابات فريق كابسو لا ترسل الهدايا.';
+
+  @override
+  String get errorStaffGiftRefused => 'حسابات فريق كابسو لا ترسل الهدايا.';
+
+  @override
+  String get staffCherriesCompanyOnly =>
+      'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.';
+
+  @override
+  String get errorStaffWithdrawalCompanyOnly =>
+      'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط.';
+
+  @override
+  String get ownerProfitCompensations => 'تعويضات دعم كبار الداعمين (عملات)';
+
+  @override
+  String get badgeExplainKabsoTeam =>
+      'شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي';
+
+  @override
+  String badgeExplainWealthLevel(int level) {
+    return 'مستوى الثروة $level';
+  }
+
+  @override
+  String badgeExplainCharmLevel(int level) {
+    return 'مستوى الجاذبية $level';
+  }
+
+  @override
+  String badgeExplainWizardLevel(int level) {
+    return 'مستوى الساحر $level';
+  }
+
+  @override
+  String badgeExplainGamingLevel(int level) {
+    return 'مستوى اللعب $level';
+  }
+
+  @override
+  String badgeExplainRoomLevel(int level) {
+    return 'مستوى الغرفة $level — مستوى جاذبية المضيف';
+  }
+
+  @override
+  String badgeExplainVip(int tier) {
+    return 'عضوية VIP $tier';
+  }
+
+  @override
+  String badgeExplainGoldenId(String id) {
+    return 'آيدي ذهبي $id — من مزايا عضوية VIP';
+  }
+
+  @override
+  String badgeExplainVerification(String kind) {
+    return 'شارة التوثيق: $kind — تُمنح تلقائياً عند تحقق الشروط';
+  }
+
+  @override
+  String badgeExplainCategory(String category) {
+    return 'فئة موثّقة: $category — وثّقها فريق كابسو';
+  }
+
+  @override
+  String get badgeExplainFounder => 'شارة المؤسس — مؤسس Kabso Live';
+
+  @override
+  String badgeExplainRechargeTier(int tier) {
+    return 'شارة الشحن اليومي — المستوى $tier، تظهر 24 ساعة بعد الشحن';
+  }
+
+  @override
+  String badgeExplainRechargeAgent(String code) {
+    return 'وكيل شحن معتمد في Kabso Live — $code';
+  }
+
+  @override
+  String badgeExplainHostAgent(String code) {
+    return 'وكيل مضيفين في Kabso Live — $code';
+  }
+
+  @override
+  String badgeExplainItem(String name) {
+    return 'شارة العنصر: $name';
+  }
+
+  @override
+  String get badgeExplainCreatorLive =>
+      'صانع محتوى — المضيف صانع محتوى في Kabso Live';
+
+  @override
+  String get badgeExplainHostTargetGifts => 'هدف الهدايا اليومي للمضيف';
+
+  @override
+  String get badgeExplainHostTargetLucky => 'هدف هدايا الحظ اليومي للمضيف';
+
+  @override
+  String get badgeExplainHost => 'المضيف — صاحب هذا البث';
+
+  @override
+  String get badgeExplainModerator => 'مشرف — يساعد المضيف في إدارة هذا البث';
+
+  @override
+  String get badgeExplainNewcomer => 'جديد — انضم إلى Kabso Live مؤخراً';
+
+  @override
+  String badgeExplainFamily(String name, int level) {
+    return 'عائلة $name — المستوى $level';
+  }
+
+  @override
+  String get waLangAR => 'عربي';
+
+  @override
+  String get waLangEN => 'English';
+
+  @override
+  String waLangLabel(String language) {
+    return 'لغة العميل: $language';
+  }
+
+  @override
   String get ambProgrammeTitle => 'برنامج سفراء Kabso';
 
   @override
@@ -19240,4 +19637,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get notifAmbassadorEnded => 'انتهت عضويتك في برنامج سفراء Kabso';
+
+  @override
+  String get ownerProfitAmbassadorCommissions => 'عمولات السفراء';
+
+  @override
+  String get ownerProfitAmbassadorRewards => 'مكافآت السفراء (عملات)';
 }

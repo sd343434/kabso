@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { addMonths, monthKey } from '../economy/economy-math.js';
 
 /**
- * «برنامج سفراء Kabso» (v1.140-social, D390, CONVENTIONS §10.179): the pure rules — the levels and their validation,
+ * «برنامج سفراء Kabso» (v1.141-social, D390, CONVENTIONS §10.179): the pure rules — the levels and their validation,
  * the commission, the monthly cap, the monthly level evaluation (promotion / demotion) and the month keys. No database,
  * no Nest: shared by the API, the sweeper and the unit tests.
  */

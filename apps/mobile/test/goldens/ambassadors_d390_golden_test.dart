@@ -1,4 +1,4 @@
-// v1.140-social (D390): «برنامج سفراء Kabso».
+// v1.141-social (D390): «برنامج سفراء Kabso».
 //
 //   ambassadors_d390.programme   the explanation page with the levels, the
 //                                rules and the application form (programme on)

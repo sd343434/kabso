@@ -92,8 +92,10 @@ import {
   teamRegionsBody,
   teamWhatsAppBody,
   teamWaDepartmentsBody,
+  teamWaLanguagesBody,
   type TeamRegionsBody,
   type TeamWaDepartmentsBody,
+  type TeamWaLanguagesBody,
   teamRevokeBody,
   updateGiftBody,
   usersTableQuery,
@@ -163,13 +165,13 @@ export class AdminV2Controller {
   // ---- statistics and search (§10.60.1) -------------------------------------------------------------------------
 
   @Get('stats/overview')
-  @RequireCapability('dashboard.view')
+  @RequireCapability('revenue.view')
   overview() {
     return this.stats.overview();
   }
 
   @Get('stats/series')
-  @RequireCapability('dashboard.view')
+  @RequireCapability('revenue.view')
   series(@Query(new ZodValidationPipe(statsSeriesQuery)) q: { days: 7 | 30 | 90 }) {
     return this.stats.series(q.days);
   }
@@ -297,8 +299,8 @@ export class AdminV2Controller {
 
   @Get('agencies/:agencyId')
   @RequireCapability('agencies.view')
-  agency(@Param('agencyId') id: string) {
-    return this.agencies.detail(pathUuid(id));
+  agency(@Param('agencyId') id: string, @CurrentAdmin() admin: AdminContext) {
+    return this.agencies.detail(pathUuid(id), admin.capabilities.includes('revenue.view'));
   }
 
   @Post('agencies/:agencyId/suspend')
@@ -507,13 +509,14 @@ export class AdminV2Controller {
 
   @Get('gifts')
   @RequireCapability('catalog.view')
-  gifts() {
-    return this.catalog.gifts();
+  gifts(@CurrentAdmin() admin: AdminContext) {
+    // v1.139-social (D387, §10.176.2): `coinsSpent` (gift coin spending) only with `revenue.view`.
+    return this.catalog.gifts(admin.capabilities.includes('revenue.view'));
   }
 
   @Post('gifts')
   @HttpCode(201)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('gifts.manage')
   createGift(
     @Body(new ZodValidationPipe(createGiftBody)) body: GiftBody & { code: string },
     @CurrentAdmin() admin: AdminContext,
@@ -523,7 +526,7 @@ export class AdminV2Controller {
   }
 
   @Patch('gifts/:code')
-  @RequireCapability('catalog.manage')
+  @RequireCapability('gifts.manage')
   updateGift(
     @Param('code') code: string,
     @Body(new ZodValidationPipe(updateGiftBody)) body: GiftBody,
@@ -534,7 +537,7 @@ export class AdminV2Controller {
 
   @Post('gifts/:code/enable')
   @HttpCode(200)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('gifts.manage')
   enableGift(
     @Param('code') code: string,
     @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
@@ -549,7 +552,7 @@ export class AdminV2Controller {
    */
   @Delete('gifts/:code')
   @HttpCode(200)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('gifts.manage')
   removeGift(
     @Param('code') code: string,
     @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
@@ -561,7 +564,7 @@ export class AdminV2Controller {
   /** v1.103-social (D338) «استعادة»: an archived gift back in the list and the catalogue (switched on). */
   @Post('gifts/:code/restore')
   @HttpCode(200)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('gifts.manage')
   restoreGift(
     @Param('code') code: string,
     @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
@@ -635,11 +638,11 @@ export class AdminV2Controller {
 
   /**
    * One file of a gift (image, SVGA / MP4 effect, MP3 sound) or a category's icon, the raw bytes as the body
-   * (`application/octet-stream`, at most 26 MB). catalog.manage; an icon gifts.categories.
+   * (`application/octet-stream`, at most 26 MB). gifts.manage (v1.139-social, D387); an icon gifts.categories.
    */
   @Post('gift-uploads')
   @HttpCode(201)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('gifts.manage')
   uploadGiftFile(
     @Query(new ZodValidationPipe(giftUploadQuery)) q: { kind: GiftUploadKind; code: string },
     @Req() req: Request,
@@ -664,7 +667,7 @@ export class AdminV2Controller {
 
   @Post('gifts/:code/disable')
   @HttpCode(200)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('gifts.manage')
   disableGift(
     @Param('code') code: string,
     @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
@@ -692,7 +695,7 @@ export class AdminV2Controller {
    */
   @Post('banner-uploads')
   @HttpCode(201)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('banners.manage')
   uploadBannerPicture(
     @Query(new ZodValidationPipe(bannerUploadQuery)) q: { placement: BannerPlacementParam },
     @Req() req: Request,
@@ -709,14 +712,14 @@ export class AdminV2Controller {
    */
   @Post('banner-video-uploads')
   @HttpCode(201)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('banners.manage')
   uploadBannerVideo(@Req() req: Request, @CurrentAdmin() admin: AdminContext) {
     return this.catalog.uploadBannerVideo(req.body, admin);
   }
 
   @Post('banners')
   @HttpCode(201)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('banners.manage')
   createBanner(
     @Body(new ZodValidationPipe(createBannerBody))
     body: Parameters<AdminCatalogService['createBanner']>[0],
@@ -727,7 +730,7 @@ export class AdminV2Controller {
 
   @Post('banners/:bannerId/enable')
   @HttpCode(200)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('banners.manage')
   enableBanner(
     @Param('bannerId') id: string,
     @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
@@ -738,7 +741,7 @@ export class AdminV2Controller {
 
   @Post('banners/:bannerId/disable')
   @HttpCode(200)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('banners.manage')
   disableBanner(
     @Param('bannerId') id: string,
     @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
@@ -749,7 +752,7 @@ export class AdminV2Controller {
 
   @Post('banners/:bannerId/remove')
   @HttpCode(200)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('banners.manage')
   removeBanner(
     @Param('bannerId') id: string,
     @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
@@ -918,7 +921,7 @@ export class AdminV2Controller {
   }
 
   @Get('finance/report')
-  @RequireCapability('finance.view')
+  @RequireCapability('revenue.view')
   async report(
     @Query(new ZodValidationPipe(reportQuery))
     q: { granularity: 'day' | 'month'; from: string; to: string; format: 'json' | 'csv' },
@@ -1019,6 +1022,19 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
   ) {
     return this.team.setWaDepartments(pathUuid(id), body, admin);
+  }
+
+  /** v1.140-social (D388, §10.177.3): the languages a staff member speaks (team.manage, code + reason, audited). */
+  @Put('team/:userId/whatsapp/languages')
+  @HttpCode(200)
+  @TEAM_LIMIT
+  @RequireCapability('team.manage')
+  teamWaLanguages(
+    @Param('userId') id: string,
+    @Body(new ZodValidationPipe(teamWaLanguagesBody)) body: TeamWaLanguagesBody,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.team.setWaLanguages(pathUuid(id), body, admin);
   }
 
   @Post('team/:userId/reset-2fa')

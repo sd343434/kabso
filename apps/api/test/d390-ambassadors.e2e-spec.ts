@@ -1,5 +1,5 @@
 /**
- * D390 (contract v1.140-social, CONVENTIONS §10.179): «برنامج سفراء Kabso» — the ambassadors programme. OFF by default;
+ * D390 (contract v1.141-social, CONVENTIONS §10.179): «برنامج سفراء Kabso» — the ambassadors programme. OFF by default;
  * the application and its review, the direct appointment, the precedence over the D217 referral reward (no double
  * pay), the commission on qualifying top-ups with its hold, the activity rule, the refund / chargeback reversal, the
  * monthly cap, self-referral and self-payment, the velocity and IP-cluster flags, freeze / unfreeze, staff
@@ -44,7 +44,7 @@ interface Admin extends TestUser {
 }
 
 describe('D390 contract coverage', () => {
-  it('openapi v1.140-social declares the app and panel operations, the enums and the capabilities', () => {
+  it('openapi v1.141-social declares the app and panel operations, the enums and the capabilities', () => {
     const ids = operations().map((o) => `${o.operationId} ${o.method.toUpperCase()} ${o.path}`);
     expect(ids).toEqual(
       expect.arrayContaining([

@@ -364,10 +364,20 @@ enum ProfitDeductionKey {
   gifts('GIFTS'),
   agencyCommissions('AGENCY_COMMISSIONS'),
   referralRewards('REFERRAL_REWARDS'),
+
+  /// v1.141-social (D390, §10.179.10): the ambassadors' commissions.
+  ambassadorCommissions('AMBASSADOR_COMMISSIONS'),
   taskRewards('TASK_REWARDS'),
   staffCommissions('STAFF_COMMISSIONS'),
   teamAdjustments('TEAM_ADJUSTMENTS'),
   coinRewards('COIN_REWARDS'),
+
+  /// v1.139-social (D387, §10.176.4; owner: «نعم ينقص تقرير الربح قيمة هذه
+  /// العملات»): the coins given as VIP care compensations.
+  staffCompensations('STAFF_COMPENSATIONS'),
+
+  /// v1.141-social (D390, §10.179.10): the ambassadors' coin rewards.
+  ambassadorRewards('AMBASSADOR_REWARDS'),
   cardFees('CARD_FEES');
 
   new(this.wire);

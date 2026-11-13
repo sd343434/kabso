@@ -606,7 +606,7 @@ export async function reverseReferralCherriesIn(
 }
 
 /**
- * v1.140-social (D390, §10.179.5): an ambassador's commission after its hold — one `AMBASSADOR_COMMISSION` row,
+ * v1.141-social (D390, §10.179.5): an ambassador's commission after its hold — one `AMBASSADOR_COMMISSION` row,
  * reference = the commission (once). Withdrawable like the referral rewards (not in the task-cherry lock).
  */
 export async function creditAmbassadorCommissionIn(
@@ -625,7 +625,7 @@ export async function creditAmbassadorCommissionIn(
 }
 
 /**
- * v1.140-social (D390, §10.179.5): a credited commission taken back after a refund or a chargeback of its top-up — one
+ * v1.141-social (D390, §10.179.5): a credited commission taken back after a refund or a chargeback of its top-up — one
  * `AMBASSADOR_COMMISSION_REVERSAL` row (reference = the commission, so never twice). The balance may go below 0, as a
  * referral claw-back's (§10.71): the shortfall is a debt that blocks withdrawals until it is earned back.
  */

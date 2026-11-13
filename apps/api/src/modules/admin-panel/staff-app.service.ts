@@ -12,6 +12,7 @@ import { openLiveReportsByRoom } from '../live/live-reports.js';
 import { AdminAuthService, type AdminContext, type AdminMeta } from './admin-auth.service.js';
 import type { Capability } from './admin-permissions.js';
 import { refused } from './admin-users.service.js';
+import { scheduledNowIn } from './staff-schedule.js';
 import {
   countriesOfRegions,
   isStaffRegion,
@@ -64,6 +65,8 @@ export interface StaffStatusDto {
   /** DEPRECATED v1.76-live (D286): always set for watch staff (no step-up any more); older apps read it as unlocked. */
   stepUp: { expiresAt: string } | null;
   onShift: boolean;
+  /** v1.139-social (D387, §10.176.6): a slot of the shift schedule covers now — «في المناوبة الآن». */
+  scheduledShift: boolean;
 }
 
 /** `StaffLive` (D273): one of «بثوثي» — a live assigned to the caller. */
@@ -127,14 +130,16 @@ export class StaffAppService {
         lockedUntil: null,
         stepUp: null,
         onShift: false,
+        scheduledShift: false,
       };
     }
     const caps = capabilities.filter((c) => (STAFF_APP_CAPABILITIES as readonly string[]).includes(c));
     const isStaff = roles.some((r) => (WATCH_STAFF_ROLES as readonly string[]).includes(r));
     const now = this.clock.now();
-    const [second, shift] = await Promise.all([
+    const [second, shift, scheduledShift] = await Promise.all([
       this.adminAuth.secondFactorState(userId),
       this.prisma.adminShift.findUnique({ where: { userId }, select: { onShift: true } }),
+      scheduledNowIn(this.prisma, userId, this.config.live.rankingsTimeZone, now),
     ]);
     // DEPRECATED v1.76-live (D286): the tools need no step-up — `stepUp` is always set for watch staff (a rolling
     // `STAFF_APP_GRANT_SECONDS` ahead, bound to nothing), so an app before D286 shows its tools without asking.
@@ -149,6 +154,7 @@ export class StaffAppService {
       lockedUntil: second.lockedUntil?.toISOString() ?? null,
       stepUp: isStaff ? { expiresAt: standing.toISOString() } : null,
       onShift: isStaff && shift?.onShift === true,
+      scheduledShift,
     };
   }
 

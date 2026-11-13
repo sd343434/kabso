@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { WA_DEPARTMENTS } from './whatsapp-departments.js';
+import { WA_LANGUAGES } from './whatsapp-language.js';
 
 /** v1.116-social (D355, CONVENTIONS §10.151): the request shapes of «واتساب». */
 export const listQuery = z.strictObject({
@@ -8,6 +9,8 @@ export const listQuery = z.strictObject({
   department: z.enum(WA_DEPARTMENTS).optional(),
   /** v1.137-social (D385, §10.174.6): only WhatsApp or only in-app «دعم كابسو» threads. */
   channel: z.enum(['WHATSAPP', 'IN_APP']).optional(),
+  /** v1.140-social (D388, §10.177.4): only the conversations whose customer chose this language. */
+  language: z.enum(WA_LANGUAGES).optional(),
   q: z.string().trim().max(80).optional(),
   cursor: z.string().max(512).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),

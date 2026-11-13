@@ -33,7 +33,7 @@ import {
 import { ambassadorLevelSchema, ambassadorMonth, levelsProblem } from './ambassador-rules.js';
 import { AmbassadorSweeper, AmbassadorsService, applicationDto, settingsDto } from './ambassadors.service.js';
 
-/** «برنامج سفراء Kabso» (v1.140-social, D390, §10.179): the app's programme page, application and dashboard. */
+/** «برنامج سفراء Kabso» (v1.141-social, D390, §10.179): the app's programme page, application and dashboard. */
 @Controller('ambassadors')
 export class AmbassadorsController {
   constructor(private readonly ambassadors: AmbassadorsService) {}
@@ -115,7 +115,7 @@ function adminError(err: unknown): never {
 }
 
 /**
- * The panel «السفراء» (v1.140-social, D390, §10.179.8): `ambassadors.view` (the list, an ambassador's performance, the
+ * The panel «السفراء» (v1.141-social, D390, §10.179.8): `ambassadors.view` (the list, an ambassador's performance, the
  * applications, the campaigns), `ambassadors.manage` (decide applications, appoint, campaigns) and the OWNER's
  * `ambassadors.settings` (the settings with the code again, freeze / unfreeze, clear a review, every money total —
  * null for anyone else).
@@ -132,8 +132,9 @@ export class AdminAmbassadorsController {
     private readonly clock: Clock,
   ) {}
 
+  /** D387 (§10.176.2): revenue and payouts are the OWNER's — `revenue.view`, as everywhere in the panel. */
   private money(admin: AdminContext): boolean {
-    return admin.capabilities.includes('ambassadors.settings');
+    return admin.capabilities.includes('revenue.view');
   }
 
   private async rows(where: { userId?: string; status?: string; q?: string }): Promise<AmbassadorRow[]> {
@@ -639,7 +640,7 @@ export class AdminAmbassadorsController {
   }
 }
 
-/** v1.140-social (D390): «برنامج سفراء Kabso». The recharge and referral hooks are in `ambassador-core.ts`. */
+/** v1.141-social (D390): «برنامج سفراء Kabso». The recharge and referral hooks are in `ambassador-core.ts`. */
 @Module({
   imports: [AdminPanelModule],
   controllers: [AmbassadorsController, AdminAmbassadorsController],

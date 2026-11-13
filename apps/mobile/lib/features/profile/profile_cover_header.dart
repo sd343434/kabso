@@ -52,6 +52,8 @@ import 'package:kabso_live/features/medals/domain/medal_models.dart';
 import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
 import 'package:kabso_live/features/owner_profile/presentation/founder_badge.dart';
 import 'package:kabso_live/features/owner_profile/presentation/founder_socials.dart';
+import 'package:kabso_live/features/profile/category/category_decor.dart';
+import 'package:kabso_live/features/profile/category/category_style.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_badge_wrap.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
@@ -824,6 +826,15 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
           // cover while the member holds the perk (the own cover is kept).
           if (staff == null && (profile.vip?.member ?? false))
             VipAnimatedCover(vip: profile.vip),
+          // D386: a verified category's accent tint and pattern.
+          if (CategoryLookScope.maybeOf(context) case final look?
+              when staff == null)
+            CategoryCoverOverlay(
+              look: look,
+              // The VIP animated cover keeps showing (a tint over it).
+              solid:
+                  profile.coverUrl == null && !(profile.vip?.member ?? false),
+            ),
           // D299e: a shade under the status bar and the bar, so the white
           // @username reads over a bright cover.
           const Align(
@@ -1434,6 +1445,16 @@ class _ProfileCoverHeaderState extends ConsumerState<ProfileCoverHeader> {
                           size: KPublicProfile.nameSeal,
                         ),
                       ],
+                      // D386: a verified category's badge (its icon and a
+                      // check) after the name and the seal.
+                      if (CategoryLookScope.maybeOf(context)
+                          case final look?) ...[
+                        const SizedBox(width: KPublicProfile.sealGap),
+                        CategoryBadge(
+                          look: look,
+                          size: KPublicProfile.nameSeal,
+                        ),
+                      ],
                       // D335 follow-up: a staff account's team badge on the
                       // name line (the name is cut first on a narrow line).
                       if (_teamInline) ...[
@@ -1954,12 +1975,16 @@ abstract final class ProfileCoverButtons {
     Widget? icon,
   }) {
     final p = context.palette;
+    // D386: a verified category's page draws its primary pills in the
+    // category's accent (its own ink on it).
+    final look = CategoryLookScope.maybeOf(context);
+    final ink = look?.onAccent ?? p.onPrimary;
     final style = FilledButton.styleFrom(
       backgroundColor: const Color(0x00000000),
       disabledBackgroundColor: const Color(0x00000000),
       shadowColor: const Color(0x00000000),
-      foregroundColor: p.onPrimary,
-      disabledForegroundColor: p.onPrimary.withValues(alpha: 0.7),
+      foregroundColor: ink,
+      disabledForegroundColor: ink.withValues(alpha: 0.7),
       elevation: 0,
       padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
       shape: const StadiumBorder(),
@@ -1968,12 +1993,12 @@ abstract final class ProfileCoverButtons {
     return Opacity(
       opacity: onPressed == null ? 0.5 : 1,
       child: DecoratedBox(
-        decoration: const ShapeDecoration(
-          shape: StadiumBorder(),
+        decoration: ShapeDecoration(
+          shape: const StadiumBorder(),
           gradient: LinearGradient(
             begin: AlignmentDirectional.centerStart,
             end: AlignmentDirectional.centerEnd,
-            colors: KPublicProfile.gradient,
+            colors: look?.gradient ?? KPublicProfile.gradient,
           ),
         ),
         child: icon == null
@@ -2060,6 +2085,8 @@ class ProfileInfoBlock extends StatelessWidget {
           ? null
           : profile.category,
       gender: profile.gender,
+      // D386: a verified category reads in the page's accent.
+      categoryColor: CategoryLookScope.maybeOf(context)?.accent,
     );
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(

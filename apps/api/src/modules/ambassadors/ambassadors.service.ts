@@ -24,7 +24,7 @@ import {
 import { ambassadorMonth, levelIndex, progressToNext, type AmbassadorLevel } from './ambassador-rules.js';
 
 /**
- * «برنامج سفراء Kabso» (v1.140-social, D390, CONVENTIONS §10.179): the app's programme page and application, the
+ * «برنامج سفراء Kabso» (v1.141-social, D390, CONVENTIONS §10.179): the app's programme page and application, the
  * ambassador's dashboard, the panel's reads, and the sweeper.
  */
 
@@ -334,7 +334,7 @@ export class AmbassadorsService {
 }
 
 /**
- * The ambassadors' sweeper (v1.140-social, D390): every `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (0: off — tests; refused
+ * The ambassadors' sweeper (v1.141-social, D390): every `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (0: off — tests; refused
  * in production) it activates referrals, credits or voids due commissions and evaluates the finished month.
  */
 @Injectable()

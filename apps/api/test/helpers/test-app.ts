@@ -276,6 +276,8 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_DM_WRITE_USER: GENEROUS,
     RATE_LIMIT_DM_GROUP_CREATE_USER: GENEROUS,
     RATE_LIMIT_SUPPORT_SEND_USER: GENEROUS,
+    RATE_LIMIT_FEATURED_PINS_USER: GENEROUS,
+    RATE_LIMIT_CATEGORY_REQUEST_USER: GENEROUS,
     // D166: specs call EventsService.sweep() with a fake clock.
     EVENTS_SWEEP_INTERVAL_SECONDS: '0',
     // D179: specs call AgencyService.evaluateRanks() with a fake clock.
@@ -342,7 +344,7 @@ export async function resetDatabase(): Promise<void> {
     await client.$executeRawUnsafe(SEED_GIFT_CATEGORIES_SQL);
     // v1.74-social (D217): the referral settings' one row (its defaults), inserted by its migration.
     await client.$executeRawUnsafe(`INSERT INTO referral_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
-    // v1.140-social (D390): the ambassadors programme's one row (OFF, the proposed defaults), inserted by its migration.
+    // v1.141-social (D390): the ambassadors programme's one row (OFF, the proposed defaults), inserted by its migration.
     await client.$executeRawUnsafe(`INSERT INTO ambassador_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
     // v1.75-live (D285): the recruit shares' one row (the owner's defaults), inserted by its migration.
     await client.$executeRawUnsafe(

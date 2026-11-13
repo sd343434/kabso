@@ -329,10 +329,14 @@ String deductionLabel(AppLocalizations l10n, ProfitDeductionKey k) =>
       ProfitDeductionKey.gifts => l10n.ownerProfitGifts,
       ProfitDeductionKey.agencyCommissions => l10n.ownerProfitAgencies,
       ProfitDeductionKey.referralRewards => l10n.ownerProfitReferrals,
+      ProfitDeductionKey.ambassadorCommissions =>
+        l10n.ownerProfitAmbassadorCommissions,
       ProfitDeductionKey.taskRewards => l10n.ownerProfitTasks,
       ProfitDeductionKey.staffCommissions => l10n.ownerProfitStaff,
       ProfitDeductionKey.teamAdjustments => l10n.ownerProfitTeam,
       ProfitDeductionKey.coinRewards => l10n.ownerProfitCoins,
+      ProfitDeductionKey.staffCompensations => l10n.ownerProfitCompensations,
+      ProfitDeductionKey.ambassadorRewards => l10n.ownerProfitAmbassadorRewards,
       ProfitDeductionKey.cardFees => l10n.ownerProfitCardFees,
     };
 
@@ -475,10 +479,13 @@ class _PeriodView extends StatelessWidget {
                   percent,
                   ownerMoney(profit.cardFeeFixedMinor, 'USD'),
                 ),
-                ProfitDeductionKey.coinRewards => l10n.ownerProfitCoinsDetail(
-                  KFormat.grouped(d.coins ?? 0),
-                  ownerMoney(profit.coinValueMinorPerMillion, 'USD'),
-                ),
+                ProfitDeductionKey.coinRewards ||
+                ProfitDeductionKey.staffCompensations ||
+                ProfitDeductionKey.ambassadorRewards =>
+                  l10n.ownerProfitCoinsDetail(
+                    KFormat.grouped(d.coins ?? 0),
+                    ownerMoney(profit.coinValueMinorPerMillion, 'USD'),
+                  ),
                 _ => l10n.ownerProfitCherries(
                   KFormat.grouped(d.cherries ?? 0),
                   rate,

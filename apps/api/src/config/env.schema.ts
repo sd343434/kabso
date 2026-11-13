@@ -638,6 +638,9 @@ export const envSchema = z
     RATE_LIMIT_DM_GROUP_CREATE_USER: rateLimit('2/86400'),
     // v1.137-social (D385, CONVENTIONS §7, §10.174.3): messages to «دعم كابسو», per user.
     RATE_LIMIT_SUPPORT_SEND_USER: rateLimit('10/60'),
+    // v1.138-social (D386, CONVENTIONS §7, §10.175): featured-pin writes and «طلب توثيق الفئة», per user.
+    RATE_LIMIT_FEATURED_PINS_USER: rateLimit('60/3600'),
+    RATE_LIMIT_CATEGORY_REQUEST_USER: rateLimit('5/86400'),
     // v1.48-social (D171, CONVENTIONS §7, §10.45): bag item sends, per user.
     RATE_LIMIT_BAG_SEND_USER: rateLimit('30/3600'),
     /** v1.54-social (D185, §10.48): coin sales by a recharge agent or employee, and the other recharge writes. */
@@ -1221,7 +1224,7 @@ export const envSchema = z
      */
     REFERRAL_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
     /**
-     * v1.140-social (D390, CONVENTIONS §10.179): the ambassadors' sweeper — referrals activated, held commissions
+     * v1.141-social (D390, CONVENTIONS §10.179): the ambassadors' sweeper — referrals activated, held commissions
      * credited or voided, the months evaluated (0 = off: tests; refused in production). Every amount is in the panel.
      */
     AMBASSADOR_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
@@ -1769,6 +1772,15 @@ export const envSchema = z
     WHATSAPP_TEMPLATE_CACHE_SECONDS: intSetting(600, 0, 86_400),
     /** At most one push per staff member and conversation in this many seconds (a burst is one push); 0 = every message. */
     WHATSAPP_PUSH_GAP_SECONDS: intSetting(30, 0, 3600),
+    /**
+     * v1.140-social (D388, §10.177.1): ask a customer their language (العربية / English reply buttons) on the first
+     * message of a conversation never asked; `false` turns the question off (the staff can still see a language a
+     * customer already chose).
+     */
+    WHATSAPP_ASK_LANGUAGE: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('true')
+      .transform((v) => v === 'true'),
     /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.

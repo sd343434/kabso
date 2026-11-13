@@ -34,6 +34,7 @@ import {
 import { cpGiftSendSchema, cpRequestSendSchema, type CpRequestListQuery } from './couples.schemas.js';
 import { recordCpPointsIn } from './cp-points.js';
 import { vipFreeCpRequestsIn } from '../vip/vip-gift-perks.js';
+import { refuseStaffGift } from '../live/live-staff.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -612,6 +613,8 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
           SELECT couple_id::text AS couple_id, partner_id::text AS partner_id
             FROM cp_partners WHERE user_id = ${callerId}::uuid`;
         if (!partner) throw new AppException(ErrorCode.CP_NOT_PAIRED);
+        // v1.139-social (D387, §10.176.8): a staff account sends no gift (owner: «اي موظف لدينا لا يمكنه ارسال الهدايا»).
+        await refuseStaffGift(tx, callerId);
         const [couple] = await tx.$queryRaw<{ points: bigint; level: number }[]>`
           SELECT points, level FROM cp_couples WHERE id = ${partner.couple_id}::uuid AND ended_at IS NULL FOR UPDATE`;
         if (!couple) throw new AppException(ErrorCode.CP_NOT_PAIRED);

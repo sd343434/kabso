@@ -24,6 +24,7 @@ import { AR_D347, EN_D347 } from './i18n-d347';
 import { AR_D359, EN_D359 } from './i18n-d359';
 import { AR_D360, EN_D360 } from './i18n-d360';
 import { AR_D366, EN_D366 } from './i18n-d366';
+import { AR_D388, EN_D388 } from './i18n-d388';
 import { AR_D258, EN_D258 } from './i18n-d258';
 import { AR_D370, EN_D370 } from './i18n-d370';
 import { AR_D373, EN_D373 } from './i18n-d373';
@@ -31,7 +32,9 @@ import { AR_D374, EN_D374 } from './i18n-d374';
 import { AR_D378, EN_D378 } from './i18n-d378';
 import { AR_D381, EN_D381 } from './i18n-d381';
 import { AR_D384, EN_D384 } from './i18n-d384';
+import { AR_D386, EN_D386 } from './i18n-d386';
 import { AR_D385, EN_D385 } from './i18n-d385';
+import { AR_D387, EN_D387 } from './i18n-d387';
 import { AR_D390, EN_D390 } from './i18n-d390';
 import { AR_D260, EN_D260 } from './i18n-d260';
 import { AR_D252, EN_D252 } from './i18n-d252';
@@ -131,7 +134,8 @@ const ar = {
   navReports: 'البلاغات',
   navSite: 'إعدادات الموقع',
   roleOWNER: 'مالك',
-  roleMODERATION: 'مشرف',
+  // v1.139-social (D387, §10.176.1): MODERATION is shown as TRUST_SAFETY.
+  roleMODERATION: 'مراقبة المحتوى والأمان',
   roleSUPPORT: 'دعم',
   roleFINANCE: 'مالية',
   // dashboard
@@ -459,6 +463,7 @@ const ar = {
   ...AR_D359,
   ...AR_D360,
   ...AR_D366,
+  ...AR_D388,
   ...AR_D258,
   ...AR_D370,
   ...AR_D373,
@@ -466,6 +471,7 @@ const ar = {
   ...AR_D378,
   ...AR_D381,
   ...AR_D384,
+  ...AR_D386,
   ...AR_D385,
   ...AR_D390,
   ...AR_D260,
@@ -500,6 +506,8 @@ const ar = {
   ...AR_D345,
   ...AR_D355,
   ...AR_D356,
+  // v1.139-social (D387): last, so `roleMODERATION` reads TRUST_SAFETY's name.
+  ...AR_D387,
 };
 
 export type Key = keyof typeof ar;
@@ -567,7 +575,7 @@ const en: Record<Key, string> = {
   navReports: 'Reports',
   navSite: 'Website settings',
   roleOWNER: 'Owner',
-  roleMODERATION: 'Moderator',
+  roleMODERATION: 'Trust & safety',
   roleSUPPORT: 'Support',
   roleFINANCE: 'Finance',
   dashTitle: 'Home',
@@ -884,6 +892,7 @@ const en: Record<Key, string> = {
   ...EN_D359,
   ...EN_D360,
   ...EN_D366,
+  ...EN_D388,
   ...EN_D258,
   ...EN_D370,
   ...EN_D373,
@@ -891,6 +900,7 @@ const en: Record<Key, string> = {
   ...EN_D378,
   ...EN_D381,
   ...EN_D384,
+  ...EN_D386,
   ...EN_D385,
   ...EN_D390,
   ...EN_D260,
@@ -925,6 +935,7 @@ const en: Record<Key, string> = {
   ...EN_D345,
   ...EN_D355,
   ...EN_D356,
+  ...EN_D387,
 };
 
 export const DICTIONARIES: Record<Lang, Record<Key, string>> = { ar, en };

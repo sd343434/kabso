@@ -13,10 +13,13 @@ import 'package:material_ui/material_ui.dart';
 /// (`assets/host_targets/gifts_target.png`) on «الهدايا», the lucky badge
 /// (`lucky_target.png`) on «هدايا الحظ».
 class KDailyTargetBadge extends StatelessWidget {
-  const new(this.target, {super.key, this.size = 16});
+  const new(this.target, {super.key, this.size = 16, this.explain = true});
 
   final HostDailyTarget target;
   final double size;
+
+  /// D389: a tap shows what the badge is.
+  final bool explain;
 
   static Key giftKeyOf(TargetLevel level) =>
       Key('target.daily.gift.${level.name}');
@@ -24,18 +27,20 @@ class KDailyTargetBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gift = target.gift;
+    final kind = target.lucky ? HostTargetKind.lucky : HostTargetKind.gifts;
     if (gift != null) {
-      return KGiftImage(
-        gift.assetKey,
-        key: giftKeyOf(target.level),
-        imageUrl: gift.imageUrl,
-        size: size,
+      return KBadgeExplainer(
+        message: kind.explanation(context.l10n),
+        enabled: explain,
+        child: KGiftImage(
+          gift.assetKey,
+          key: giftKeyOf(target.level),
+          imageUrl: gift.imageUrl,
+          size: size,
+        ),
       );
     }
-    return KHostTargetBadge(
-      target.lucky ? HostTargetKind.lucky : HostTargetKind.gifts,
-      size: size,
-    );
+    return KHostTargetBadge(kind, size: size, explain: explain);
   }
 }
 
@@ -64,6 +69,12 @@ enum HostTargetKind {
 
   new(this.asset);
 
+  /// D389: what the badge is, for its explainer bubble.
+  String explanation(AppLocalizations l10n) => switch (this) {
+    gifts => l10n.badgeExplainHostTargetGifts,
+    lucky => l10n.badgeExplainHostTargetLucky,
+  };
+
   /// The badge's art. D277 (owner: «واستبدل الشارة بشارة اخرى ساقوم
   /// بارفاقها»): a fixed slot — replacing the file swaps the badge on the
   /// chip and the sheet with no code change (assets/host_targets/PROVENANCE.md).
@@ -76,24 +87,31 @@ enum HostTargetKind {
 /// wizard hat (lucky). A missing or broken file falls back to the same art
 /// drawn in code, so the chip never loses its mark.
 class KHostTargetBadge extends StatelessWidget {
-  const new(this.kind, {super.key, this.size = 16});
+  const new(this.kind, {super.key, this.size = 16, this.explain = true});
 
   final HostTargetKind kind;
   final double size;
 
+  /// D389: a tap shows what the badge is.
+  final bool explain;
+
   static Key keyOf(HostTargetKind kind) => Key('target.badge.${kind.name}');
 
   @override
-  Widget build(BuildContext context) => Image.asset(
-    kind.asset,
-    key: keyOf(kind),
-    width: size,
-    height: size,
-    fit: BoxFit.contain,
-    excludeFromSemantics: true,
-    errorBuilder: (_, _, _) => switch (kind) {
-      HostTargetKind.gifts => KCherryIcon(size: size),
-      HostTargetKind.lucky => KWizardHatIcon(size: size),
-    },
+  Widget build(BuildContext context) => KBadgeExplainer(
+    message: kind.explanation(context.l10n),
+    enabled: explain,
+    child: Image.asset(
+      kind.asset,
+      key: keyOf(kind),
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      excludeFromSemantics: true,
+      errorBuilder: (_, _, _) => switch (kind) {
+        HostTargetKind.gifts => KCherryIcon(size: size),
+        HostTargetKind.lucky => KWizardHatIcon(size: size),
+      },
+    ),
   );
 }

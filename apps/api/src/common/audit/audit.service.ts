@@ -381,8 +381,20 @@ export enum AuditAction {
   WHATSAPP_LEVEL = 'admin.team.whatsapp',
   /** v1.123-social (D366, §10.159.1): a staff member's WhatsApp departments set or reset {before, after, reason}. */
   WHATSAPP_DEPARTMENTS = 'admin.team.whatsapp_departments',
+  /** v1.140-social (D388, §10.177.3): a staff member's WhatsApp languages set or reset {before, after, reason}. */
+  WHATSAPP_LANGUAGES = 'admin.team.whatsapp_languages',
+  /** v1.140-social (D388, §10.177.1-2): the automatic language question or confirmation was sent {kind, language}. */
+  WHATSAPP_LANGUAGE_AUTO = 'whatsapp.language.auto',
   /** v1.137-social (D385, §10.174.3): a person opened a «دعم كابسو» ticket {department, reopened}. */
   SUPPORT_TICKET_OPEN = 'support.ticket.open',
+  /** v1.138-social (D386, §10.175.5): the team verified / unverified / cleared / locked / unlocked a category. */
+  ADMIN_USER_CATEGORY = 'admin.user.category',
+  /** v1.138-social (D386, §10.175.5): a «طلب توثيق الفئة» approved / rejected by the team. */
+  CATEGORY_REQUEST_APPROVE = 'category.request.approve',
+  CATEGORY_REQUEST_REJECT = 'category.request.reject',
+  /** v1.138-social (D386, §10.175.4): a person asked for / cancelled a category verification {category}. */
+  CATEGORY_VERIFICATION_REQUEST = 'user.category_verification.request',
+  CATEGORY_VERIFICATION_CANCEL = 'user.category_verification.cancel',
   TOPUP_EVENT_UNMATCHED = 'topup.event.unmatched',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',
@@ -627,7 +639,25 @@ export enum AuditAction {
    * reason, via}.
    */
   RECHARGE_POINTS_ADJUST = 'recharge_points.adjust',
-  // ---- v1.140-social (D390, §10.179): «برنامج سفراء Kabso» — every grant, approval, freeze and level change --------
+  // ---- v1.139-social (D387, CONVENTIONS §10.176): operations staff roles ---------------------------------------------
+  /** A slot of the shift schedule added / changed / removed {slotId, userId, weekday, startMinute, endMinute, reason}. */
+  STAFF_SCHEDULE_CREATE = 'staff.schedule.create',
+  STAFF_SCHEDULE_UPDATE = 'staff.schedule.update',
+  STAFF_SCHEDULE_DELETE = 'staff.schedule.delete',
+  /** A compensation granted within the limits {compensationId, kind, valueCoins, …, reason}. */
+  STAFF_COMPENSATION_GRANT = 'staff.compensation.grant',
+  /** A compensation over a limit, waiting for the OWNER {compensationId, overLimit, …}. */
+  STAFF_COMPENSATION_REQUEST = 'staff.compensation.request',
+  STAFF_COMPENSATION_APPROVE = 'staff.compensation.approve',
+  STAFF_COMPENSATION_REJECT = 'staff.compensation.reject',
+  /** The compensation limits {before, after, reason}. */
+  STAFF_COMPENSATION_SETTINGS = 'staff.compensation.settings',
+  /** The official social accounts {accountId, before, after} / {ids}. */
+  SOCIAL_ACCOUNT_CREATE = 'site.social_account.create',
+  SOCIAL_ACCOUNT_UPDATE = 'site.social_account.update',
+  SOCIAL_ACCOUNT_DELETE = 'site.social_account.delete',
+  SOCIAL_ACCOUNT_REORDER = 'site.social_account.reorder',
+  // ---- v1.141-social (D390, §10.179): «برنامج سفراء Kabso» — every grant, approval, freeze and level change --------
   AMBASSADOR_SETTINGS_UPDATE = 'ambassador.settings.update',
   /** The panel opened an ambassador's performance page {money: whether the money totals were shown}. */
   AMBASSADOR_VIEW = 'ambassador.view',

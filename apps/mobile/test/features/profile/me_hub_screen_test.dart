@@ -201,7 +201,7 @@ void main() {
   });
 
   testWidgets('D293: the verification badge right after the name, spoken '
-      'and explained on a long press; none without one', (tester) async {
+      'and explained on a tap (D389); none without one', (tester) async {
     await _pump(
       tester,
       user: testUser().copyWith(verification: VerificationBadge.creator),
@@ -214,14 +214,18 @@ void main() {
     expect(seal.center.dy, moreOrLessEquals(name.center.dy, epsilon: 4));
     expect(seal.width, ProfileVerificationBadge.sizeForFont(KMeHub.nameSize));
     expect(find.bySemanticsLabel('Verified: content creator'), findsOneWidget);
-    await tester.longPress(find.byKey(MeHubScreen.verificationBadgeKey));
-    await tester.pumpAndSettle();
+    // D389: a tap shows the explainer bubble (was a long-press tooltip).
+    await tester.tap(find.byKey(MeHubScreen.verificationBadgeKey));
+    await tester.pump();
     expect(
       find.text(
-        'Verified: content creator\nGranted automatically by conditions',
+        'Verified: content creator — granted automatically when the '
+        'conditions are met',
       ),
       findsOneWidget,
     );
+    await tester.pump(KBadgeExplainer.showFor);
+    expect(find.byKey(KBadgeExplainer.bubbleKey), findsNothing);
   });
 
   for (final language in AppLanguage.values) {

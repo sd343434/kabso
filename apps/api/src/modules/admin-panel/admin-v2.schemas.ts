@@ -17,6 +17,7 @@ import { dayRange, tableQuery } from './admin-tables.js';
 import { STAFF_REGION_CODES, type StaffRegion } from '../live/staff-regions.js';
 import { itemBadgesInput } from '../gifts/item-badges.schemas.js';
 import { WA_DEPARTMENTS } from '../whatsapp/whatsapp-departments.js';
+import { WA_LANGUAGES } from '../whatsapp/whatsapp-language.js';
 
 /** Request bodies and queries of the panel v2 (v1.65-social, D197, CONVENTIONS §10.60; openapi tag `admin-panel`). */
 
@@ -446,6 +447,17 @@ export const teamWaDepartmentsBody = z.strictObject({
   totpCode,
 });
 export type TeamWaDepartmentsBody = z.output<typeof teamWaDepartmentsBody>;
+
+/** v1.140-social (D388, §10.177.3): `setAdminTeamWhatsAppLanguages` — [] = back to the default (both). */
+export const teamWaLanguagesBody = z.strictObject({
+  languages: z
+    .array(z.enum(WA_LANGUAGES))
+    .max(WA_LANGUAGES.length)
+    .refine((v) => new Set(v).size === v.length, { message: 'duplicate', params: { issue: 'duplicate' } }),
+  reason,
+  totpCode,
+});
+export type TeamWaLanguagesBody = z.output<typeof teamWaLanguagesBody>;
 
 export const specialUsernamesQuery = tableQuery(['grantedAt', 'username'], 'grantedAt')
   .extend({

@@ -24,6 +24,8 @@ import {
   coinMoney,
   fixedCostShare,
   FREE_COIN_REASONS,
+  STAFF_COMPENSATION_COIN_REASONS,
+  AMBASSADOR_REWARD_COIN_REASONS,
   GIFT_OWNER_COIN_REASONS,
   isDayKey,
   periodsOf,
@@ -245,7 +247,7 @@ export class OwnerProfitService {
   private async period(p: ProfitPeriod, costs: Row[]): Promise<ProfitPeriodDto> {
     const gte = dayBound(p.from, false, this.zone)!;
     const lt = dayBound(p.to, true, this.zone)!;
-    const [cards, agents, cherries, free, royalties] = await Promise.all([
+    const [cards, agents, cherries, free, royalties, compensations, ambassadorRewards] = await Promise.all([
       // The store's card orders credited in the period, by currency: charged, refunded (the team's or Stripe's,
       // whichever is larger), held by an open or lost dispute (never more than what is left), and their count.
       this.prisma.$queryRaw<
@@ -281,6 +283,16 @@ export class OwnerProfitService {
       this.prisma.$queryRaw<{ n: bigint | null }[]>`
         SELECT sum(delta)::bigint AS n FROM wallet_ledger
          WHERE reason IN (${Prisma.join(GIFT_OWNER_COIN_REASONS.map((r) => Prisma.sql`${r}::wallet_ledger_reason`))})
+           AND created_at >= ${gte} AND created_at < ${lt}`,
+      // v1.139-social (D387, §10.176.4): the coin compensations (`wallet_ledger_staff_compensation_idx`).
+      this.prisma.$queryRaw<{ n: bigint | null }[]>`
+        SELECT sum(delta)::bigint AS n FROM wallet_ledger
+         WHERE reason IN (${Prisma.join(STAFF_COMPENSATION_COIN_REASONS.map((r) => Prisma.sql`${r}::wallet_ledger_reason`))})
+           AND created_at >= ${gte} AND created_at < ${lt}`,
+      // v1.141-social (D390, §10.179.10): the ambassadors' coin rewards.
+      this.prisma.$queryRaw<{ n: bigint | null }[]>`
+        SELECT sum(delta)::bigint AS n FROM wallet_ledger
+         WHERE reason IN (${Prisma.join(AMBASSADOR_REWARD_COIN_REASONS.map((r) => Prisma.sql`${r}::wallet_ledger_reason`))})
            AND created_at >= ${gte} AND created_at < ${lt}`,
     ]);
     const e = this.config.economy;
@@ -332,11 +344,19 @@ export class OwnerProfitService {
     const usdFees = cardFees(usd.charged, usd.orders, fee);
     const freeCoins = BigInt(free[0]?.n ?? 0n) + BigInt(royalties[0]?.n ?? 0n);
     const coinValue = coinMoney(freeCoins, this.config.adminPanel.ownerProfitCoinMinorPerMillion);
+    const compCoins = BigInt(compensations[0]?.n ?? 0n);
+    const compValue = coinMoney(compCoins, this.config.adminPanel.ownerProfitCoinMinorPerMillion);
+    const ambCoins = BigInt(ambassadorRewards[0]?.n ?? 0n);
+    const ambValue = coinMoney(ambCoins, this.config.adminPanel.ownerProfitCoinMinorPerMillion);
     const deductions: ProfitPeriodDto['deductions'] = PROFIT_DEDUCTIONS.map((key) => {
       if (key === 'CARD_FEES')
         return { key, amountMinor: num(usdFees), cherries: null, coins: null, orders: num(usd.orders) };
       if (key === 'COIN_REWARDS')
         return { key, amountMinor: num(coinValue), cherries: null, coins: num(freeCoins), orders: null };
+      if (key === 'STAFF_COMPENSATIONS')
+        return { key, amountMinor: num(compValue), cherries: null, coins: num(compCoins), orders: null };
+      if (key === 'AMBASSADOR_REWARDS')
+        return { key, amountMinor: num(ambValue), cherries: null, coins: num(ambCoins), orders: null };
       const v = cherryLines.get(key)!;
       return {
         key,

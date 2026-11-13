@@ -1764,35 +1764,38 @@ class _RoleBadge extends StatelessWidget {
     final colors = host
         ? const [Color(0xFFFFC94D), Color(0xFFF29A1F)]
         : const [Color(0xFF6FA8FF), Color(0xFF3B6FE0)];
-    return Semantics(
-      label: label,
-      excludeSemantics: true,
-      child: Container(
-        key: badgeKey,
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(KRadius.pill),
-          gradient: LinearGradient(colors: colors),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              host ? Icons.mic_rounded : Icons.shield_rounded,
-              size: 12,
-              color: const Color(0xFFFFFFFF),
-            ),
-            const SizedBox(width: 3),
-            Text(
-              label,
-              style: context.textStyles.caption.copyWith(
+    return KBadgeExplainer(
+      message: host ? l10n.badgeExplainHost : l10n.badgeExplainModerator,
+      child: Semantics(
+        label: label,
+        excludeSemantics: true,
+        child: Container(
+          key: badgeKey,
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(KRadius.pill),
+            gradient: LinearGradient(colors: colors),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                host ? Icons.mic_rounded : Icons.shield_rounded,
+                size: 12,
                 color: const Color(0xFFFFFFFF),
-                fontSize: 11,
-                height: 1.2,
-                fontWeight: FontWeight.w800,
               ),
-            ),
-          ],
+              const SizedBox(width: 3),
+              Text(
+                label,
+                style: context.textStyles.caption.copyWith(
+                  color: const Color(0xFFFFFFFF),
+                  fontSize: 11,
+                  height: 1.2,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

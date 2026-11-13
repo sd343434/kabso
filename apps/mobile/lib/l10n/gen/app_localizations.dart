@@ -31882,6 +31882,696 @@ abstract class AppLocalizations {
   /// **'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.'**
   String get waInAppHint;
 
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'قارئ قرآن'**
+  String get categoryQuranReciter;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'راوٍ'**
+  String get categoryStoryteller;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'كاتب'**
+  String get categoryWriter;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'صحفي'**
+  String get categoryJournalist;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'مصوّر'**
+  String get categoryPhotographer;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'ممثل'**
+  String get categoryActor;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'كوميدي'**
+  String get categoryComedian;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'خطّاط'**
+  String get categoryCalligrapher;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'مصمّم'**
+  String get categoryDesigner;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'طاهٍ'**
+  String get categoryChef;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'معلّم / مدرّب'**
+  String get categoryTeacher;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'دي جي'**
+  String get categoryDj;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'رحّالة'**
+  String get categoryTraveler;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الموسيقى'**
+  String get categoryFamilyMusic;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'التلاوة والرواية'**
+  String get categoryFamilyReciter;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكلمة'**
+  String get categoryFamilyWord;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الفنون البصرية'**
+  String get categoryFamilyVisual;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأداء والمحتوى'**
+  String get categoryFamilyPerformer;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرياضة والألعاب'**
+  String get categoryFamilySportsGames;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'أسلوب الحياة'**
+  String get categoryFamilyLifestyle;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'عام'**
+  String get categoryFamilyPublic;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'أعمالي'**
+  String get featuredWorks;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'تلاواتي'**
+  String get featuredRecitations;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'حكاياتي'**
+  String get featuredStories;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'قصائدي'**
+  String get featuredPoems;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'مقالاتي'**
+  String get featuredArticles;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'تقاريري'**
+  String get featuredReports;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'برنامجي'**
+  String get featuredProgram;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'ألعابي'**
+  String get featuredGames;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'إنجازاتي'**
+  String get featuredAchievements;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'معرضي'**
+  String get featuredGallery;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأكثر مشاهدة'**
+  String get featuredMostViewed;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'المميز'**
+  String get featuredHighlights;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'تثبيت في «{section}»'**
+  String featuredPinIn(String section);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء التثبيت من «{section}»'**
+  String featuredUnpinFrom(String section);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'ثُبّت في «{section}»'**
+  String featuredPinned(String section);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغي التثبيت'**
+  String get featuredUnpinned;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب'**
+  String get featuredReorder;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب لتغيير الترتيب. حتى ٦ منشورات.'**
+  String get featuredReorderHint;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ الترتيب'**
+  String get featuredReorderSave;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'ثبّت حتى ٦ من منشوراتك هنا من قائمة «⋯» في المنشور.'**
+  String get featuredEmptyOwn;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'أحدث منشوراتك — ثبّت ما تريد إظهاره هنا'**
+  String get featuredAutoNote;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'قادم'**
+  String get featuredUpcoming;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'بودكاست'**
+  String get featuredPodcast;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} مشاهدة'**
+  String featuredViews(String count);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل'**
+  String get featuredPlay;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'اقرأ المزيد'**
+  String get featuredReadMore;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'فئة موثّقة: {category}'**
+  String categoryBadgeVerified(String category);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب توثيق الفئة'**
+  String get categoryVerifyRequest;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'بعد أن يوثّق فريق كابسو فئتك تأخذ صفحتك شكلها الخاص: لون وشارة وقسم مميّز في الأعلى.'**
+  String get categoryVerifyHint;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب التوثيق قيد المراجعة'**
+  String get categoryVerifyPending;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الطلب'**
+  String get categoryVerifyCancel;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'فئتك موثّقة'**
+  String get categoryVerifyVerified;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُقبل طلبك: {reason}'**
+  String categoryVerifyRejected(String reason);
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسل طلب التوثيق إلى فريق كابسو'**
+  String get categoryVerifySent;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الفئة يزيل التوثيق.'**
+  String get categoryVerifyChangeWarning;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'قفل فريق كابسو فئة حسابك، فلا يمكن تغييرها الآن.'**
+  String get categoryLockedNote;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك تثبيت ٦ منشورات فقط هنا. ألغِ تثبيت واحد أولاً.'**
+  String get errorFeaturedPinLimit;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب توثيق قيد المراجعة.'**
+  String get errorCategoryVerificationPending;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'قفل فريق كابسو فئة حسابك.'**
+  String get errorAccountCategoryLocked;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'وثّق فريق كابسو فئة حسابك — صفحتك الآن بشكلها الخاص'**
+  String get notifCategoryVerified;
+
+  /// D386: a profile page per account category (CONVENTIONS §10.175).
+  ///
+  /// In ar, this message translates to:
+  /// **'راجع فريق كابسو فئة حسابك. افتح «تعديل الملف» لمعرفة التفاصيل'**
+  String get notifCategoryReviewed;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'مراقبة المحتوى والأمان'**
+  String get staffRoleTrustSafety;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'مدير عمليات البث'**
+  String get staffRoleLiveOps;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'مدير الوكالات والمواهب'**
+  String get staffRoleTalent;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'دعم كبار الداعمين'**
+  String get staffRoleVipCare;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'المجتمع والفعاليات'**
+  String get staffRoleCommunity;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'في المناوبة الآن'**
+  String get staffOnShiftNow;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'حسب جدول المناوبات في لوحة الإدارة.'**
+  String get staffScheduledHint;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدواري'**
+  String get staffMyRoles;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدواري والمناوبة'**
+  String get staffRolesAndShift;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدوات دورك في لوحة الإدارة.'**
+  String get staffOpsPanelHint;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'تابعنا'**
+  String get settingsFollowUs;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'إنستغرام'**
+  String get socialPlatformInstagram;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'تيك توك'**
+  String get socialPlatformTiktok;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'إكس'**
+  String get socialPlatformX;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيسبوك'**
+  String get socialPlatformFacebook;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'يوتيوب'**
+  String get socialPlatformYoutube;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'سناب شات'**
+  String get socialPlatformSnapchat;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'تيليجرام'**
+  String get socialPlatformTelegram;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'واتساب'**
+  String get socialPlatformWhatsapp;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'ثريدز'**
+  String get socialPlatformThreads;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'لينكدإن'**
+  String get socialPlatformLinkedin;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'ديسكورد'**
+  String get socialPlatformDiscord;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'موقع آخر'**
+  String get socialPlatformOther;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات فريق كابسو لا ترسل الهدايا.'**
+  String get giftStaffRefused;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات فريق كابسو لا ترسل الهدايا.'**
+  String get errorStaffGiftRefused;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.'**
+  String get staffCherriesCompanyOnly;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط.'**
+  String get errorStaffWithdrawalCompanyOnly;
+
+  /// D387 (§10.176.4): «الربح» — the coins given as VIP care compensations.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعويضات دعم كبار الداعمين (عملات)'**
+  String get ownerProfitCompensations;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي'**
+  String get badgeExplainKabsoTeam;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الثروة {level}'**
+  String badgeExplainWealthLevel(int level);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الجاذبية {level}'**
+  String badgeExplainCharmLevel(int level);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الساحر {level}'**
+  String badgeExplainWizardLevel(int level);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى اللعب {level}'**
+  String badgeExplainGamingLevel(int level);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الغرفة {level} — مستوى جاذبية المضيف'**
+  String badgeExplainRoomLevel(int level);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'عضوية VIP {tier}'**
+  String badgeExplainVip(int tier);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'آيدي ذهبي {id} — من مزايا عضوية VIP'**
+  String badgeExplainGoldenId(String id);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة التوثيق: {kind} — تُمنح تلقائياً عند تحقق الشروط'**
+  String badgeExplainVerification(String kind);
+
+  /// D389 (§10.178) for D386 (§10.175): the explainer of a verified category's badge beside the name
+  ///
+  /// In ar, this message translates to:
+  /// **'فئة موثّقة: {category} — وثّقها فريق كابسو'**
+  String badgeExplainCategory(String category);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة المؤسس — مؤسس Kabso Live'**
+  String get badgeExplainFounder;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة الشحن اليومي — المستوى {tier}، تظهر 24 ساعة بعد الشحن'**
+  String badgeExplainRechargeTier(int tier);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل شحن معتمد في Kabso Live — {code}'**
+  String badgeExplainRechargeAgent(String code);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل مضيفين في Kabso Live — {code}'**
+  String badgeExplainHostAgent(String code);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة العنصر: {name}'**
+  String badgeExplainItem(String name);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'صانع محتوى — المضيف صانع محتوى في Kabso Live'**
+  String get badgeExplainCreatorLive;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'هدف الهدايا اليومي للمضيف'**
+  String get badgeExplainHostTargetGifts;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'هدف هدايا الحظ اليومي للمضيف'**
+  String get badgeExplainHostTargetLucky;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف — صاحب هذا البث'**
+  String get badgeExplainHost;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مشرف — يساعد المضيف في إدارة هذا البث'**
+  String get badgeExplainModerator;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد — انضم إلى Kabso Live مؤخراً'**
+  String get badgeExplainNewcomer;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'عائلة {name} — المستوى {level}'**
+  String badgeExplainFamily(String name, int level);
+
+  /// D388 (§10.177): a WhatsApp conversation's customer language AR, shown as a small tag on the inbox row and the chat's status strip.
+  ///
+  /// In ar, this message translates to:
+  /// **'عربي'**
+  String get waLangAR;
+
+  /// D388 (§10.177): a WhatsApp conversation's customer language EN, shown as a small tag on the inbox row and the chat's status strip.
+  ///
+  /// In ar, this message translates to:
+  /// **'English'**
+  String get waLangEN;
+
+  /// D388 (§10.177): the semantics of the customer-language tag.
+  ///
+  /// In ar, this message translates to:
+  /// **'لغة العميل: {language}'**
+  String waLangLabel(String language);
+
   /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
   ///
   /// In ar, this message translates to:
@@ -32403,6 +33093,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'انتهت عضويتك في برنامج سفراء Kabso'**
   String get notifAmbassadorEnded;
+
+  /// D390 (§10.179.10): the owner profit report «الربح» — the ambassadors' two lines.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولات السفراء'**
+  String get ownerProfitAmbassadorCommissions;
+
+  /// D390 (§10.179.10): the owner profit report «الربح» — the ambassadors' two lines.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت السفراء (عملات)'**
+  String get ownerProfitAmbassadorRewards;
 }
 
 class _AppLocalizationsDelegate

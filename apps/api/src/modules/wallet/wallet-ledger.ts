@@ -68,7 +68,9 @@ export type WalletLedgerReason =
    */
   | 'VIP_SCHEDULED_GIFT'
   | 'VIP_SCHEDULED_GIFT_RELEASE'
-  /** v1.140-social (D390, §10.179.6): an ambassador's monthly target reward in coins (reference `AMB:<user>@<month>`). */
+  /** v1.139-social (D387, §10.176.4): a compensation from the VIP care staff (a credit; reference: the compensation). */
+  | 'STAFF_COMPENSATION'
+  /** v1.141-social (D390, §10.179.6): an ambassador's monthly target reward in coins (reference `AMB:<user>@<month>`). */
   | 'AMBASSADOR_REWARD';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */

@@ -39,6 +39,7 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       followRequested: json['followRequested'] as bool? ?? false,
       gender: genderFromJson(json['gender']),
       category: accountCategoryFromJson(json['category']),
+      categoryVerified: json['categoryVerified'] as bool? ?? false,
       links: json['links'] == null
           ? const <ProfileLink>[]
           : profileLinksFromJson(json['links']),
@@ -98,6 +99,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'followRequested': instance.followRequested,
       'gender': genderToJson(instance.gender),
       'category': accountCategoryToJson(instance.category),
+      'categoryVerified': instance.categoryVerified,
       'links': profileLinksToJson(instance.links),
       'tags': instance.tags,
       'tagIcons': instance.tagIcons,

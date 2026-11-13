@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/design_system/components/k_badge_explainer.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -21,10 +22,19 @@ abstract final class RechargeBadgeArt {
 /// without a refresh. Square art; [height] is its side. Announced as
 /// «شارة الشحن اليومي، المستوى N».
 class RechargeTierBadge extends StatefulWidget {
-  const new({required this.badge, super.key, this.height = 18, this.gap = 0});
+  const new({
+    required this.badge,
+    super.key,
+    this.height = 18,
+    this.gap = 0,
+    this.explain = true,
+  });
 
   final RechargeBadge? badge;
   final double height;
+
+  /// D389: a tap shows what the badge is.
+  final bool explain;
 
   /// Space before the badge (start side) when it shows.
   final double gap;
@@ -76,16 +86,20 @@ class _RechargeTierBadgeState extends State<RechargeTierBadge> {
       return const SizedBox.shrink();
     }
     final h = widget.height;
-    final art = Semantics(
-      label: context.l10n.rechargeBadgeLabel(badge.tier),
-      excludeSemantics: true,
-      child: Image.asset(
-        RechargeBadgeArt.asset(badge.tier),
-        key: RechargeTierBadge.badgeKey,
-        height: h,
-        width: h,
-        fit: BoxFit.contain,
-        excludeFromSemantics: true,
+    final art = KBadgeExplainer(
+      message: context.l10n.badgeExplainRechargeTier(badge.tier),
+      enabled: widget.explain,
+      child: Semantics(
+        label: context.l10n.rechargeBadgeLabel(badge.tier),
+        excludeSemantics: true,
+        child: Image.asset(
+          RechargeBadgeArt.asset(badge.tier),
+          key: RechargeTierBadge.badgeKey,
+          height: h,
+          width: h,
+          fit: BoxFit.contain,
+          excludeFromSemantics: true,
+        ),
       ),
     );
     if (widget.gap <= 0) return art;

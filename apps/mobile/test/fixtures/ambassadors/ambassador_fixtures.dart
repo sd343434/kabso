@@ -1,5 +1,5 @@
 // D390 «برنامج سفراء Kabso»: payloads shaped like `AmbassadorProgramme` and
-// `AmbassadorDashboard` in openapi.yaml (v1.140-social), with the migration's
+// `AmbassadorDashboard` in openapi.yaml (v1.141-social), with the migration's
 // proposed defaults. Test data only (G-26).
 
 import 'package:kabso_live/features/ambassadors/data/ambassador_repository.dart';

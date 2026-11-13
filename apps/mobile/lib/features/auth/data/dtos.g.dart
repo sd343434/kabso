@@ -25,6 +25,8 @@ MeDto _$MeDtoFromJson(Map<String, dynamic> json) => MeDto(
   gender: genderFromJson(json['gender']),
   showGender: json['showGender'] as bool? ?? false,
   category: accountCategoryFromJson(json['category']),
+  categoryVerified: json['categoryVerified'] as bool? ?? false,
+  categoryLocked: json['categoryLocked'] as bool? ?? false,
   links: json['links'] == null ? const [] : profileLinksFromJson(json['links']),
   tags:
       (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
@@ -60,6 +62,8 @@ Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
   'gender': genderToJson(instance.gender),
   'showGender': instance.showGender,
   'category': accountCategoryToJson(instance.category),
+  'categoryVerified': instance.categoryVerified,
+  'categoryLocked': instance.categoryLocked,
   'links': profileLinksToJson(instance.links),
   'tags': instance.tags,
   'tagIcons': instance.tagIcons,

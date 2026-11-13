@@ -265,7 +265,7 @@ export async function refundPurchaseIn(
   if (!purchase || purchase.status !== 'CREDITED') return none;
   const { unspent, spends } = await unspentOfIn(tx, purchase);
   const change = await reverseStoreIapIn(tx, purchase.userId, purchase.coins, purchase.id);
-  // v1.140-social (D390, §10.179.5): a store refund voids or claws back the ambassador's commission on the purchase.
+  // v1.141-social (D390, §10.179.5): a store refund voids or claws back the ambassador's commission on the purchase.
   await ambassadorTopupReversedIn(tx, 'STORE_IAP', purchase.id, now);
   // v1.126-social (D370, §10.163): the refunded purchase's points go too (the balance may go below 0) — only when it
   // earned some (purchases credited before the points existed earned none).

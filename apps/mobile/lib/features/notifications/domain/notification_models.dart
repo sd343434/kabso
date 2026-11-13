@@ -75,6 +75,15 @@ enum NotificationType {
   /// picture «صورة متحركة» (no target; opens it to record another).
   animatedAvatarRemoved('ANIMATED_AVATAR_REMOVED'),
 
+  /// v1.138-social (D386, system): the Kabso Team verified your account
+  /// category (no target; opens Edit profile).
+  categoryVerified('CATEGORY_VERIFIED'),
+
+  /// v1.138-social (D386, system): the team rejected your request, removed
+  /// the verification, cleared, locked or unlocked your category (no target;
+  /// opens Edit profile, where the details are).
+  categoryReviewed('CATEGORY_REVIEWED'),
+
   /// v1.66-social (D198, system): the data export «تنزيل بياناتي» is ready
   /// (no target; opens the export screen).
   dataExportReady('DATA_EXPORT_READY'),
@@ -147,7 +156,7 @@ enum NotificationType {
   /// gift on your post or reel «هدية الدعم» — one row per post.
   contentGiftReceived('CONTENT_GIFT_RECEIVED'),
 
-  /// v1.140-social (D390, system, no target): «برنامج سفراء Kabso» — the
+  /// v1.141-social (D390, system, no target): «برنامج سفراء Kabso» — the
   /// application approved / rejected, a level up, a monthly reward granted.
   ambassadorApplicationApproved('AMBASSADOR_APPLICATION_APPROVED'),
   ambassadorApplicationRejected('AMBASSADOR_APPLICATION_REJECTED'),
@@ -189,7 +198,7 @@ enum NotificationType {
       this == referralRewardReversed ||
       isAmbassador;
 
-  /// v1.140-social (D390): the ambassadors programme.
+  /// v1.141-social (D390): the ambassadors programme.
   bool get isAmbassador =>
       this == ambassadorApplicationApproved ||
       this == ambassadorApplicationRejected ||

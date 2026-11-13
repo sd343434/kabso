@@ -40,6 +40,8 @@ import { AdminStatsService } from './admin-stats.service.js';
 import { AdminTeamService } from './admin-team.service.js';
 import { AdminV2Controller } from './admin-v2.controller.js';
 import { AdminLiveBoostsController } from './admin-live-boosts.controller.js';
+import { AdminCategoriesController } from './admin-categories.controller.js';
+import { AdminCategoriesService } from './admin-categories.service.js';
 import { AdminControlController } from './admin-control.controller.js';
 import { AdminControlService } from './admin-control.service.js';
 import { AdminHostApplicationsController } from './admin-host-applications.controller.js';
@@ -52,6 +54,10 @@ import { AdminMedalsController } from './admin-medals.controller.js';
 import { AdminIapController } from './admin-iap.controller.js';
 import { AdminIapService } from './admin-iap.service.js';
 import { IapModule } from '../store-iap/iap.module.js';
+import { AdminOpsController } from './admin-ops.controller.js';
+import { AdminRoleHomesService } from './admin-role-homes.service.js';
+import { StaffCompensationsService } from './staff-compensations.service.js';
+import { StaffScheduleService } from './staff-schedule.service.js';
 
 /**
  * v1.60-social (D191, CONVENTIONS §10.54): the admin panel «لوحة الإدارة» API behind its own cookie session with a
@@ -105,6 +111,8 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
     AdminControlController,
     // v1.73-social (D209, §10.68): «طلبات المضيفين».
     AdminHostApplicationsController,
+    // v1.138-social (D386, §10.175.5): the account category and «طلبات توثيق الفئة».
+    AdminCategoriesController,
     // v1.78-social (D223, §10.75): the accounts made on a device, and its exception.
     AdminDeviceSignupsController,
     // v1.60-live (D250, §10.91): live moderation «مراقبة البث».
@@ -118,6 +126,8 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
     StaffAppController,
     // v1.99-social (D311, §10.117): «إجراءات المؤسس» — the app owner's moderation actions in the app.
     OwnerModerationController,
+    // v1.139-social (D387, §10.176): the operations roles — homes, the shift schedule, compensations.
+    AdminOpsController,
   ],
   providers: [
     AdminIapService,
@@ -140,6 +150,7 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
     AdminOrdersService,
     AdminControlService,
     AdminHostApplicationsService,
+    AdminCategoriesService,
     AdminDeviceSignupsService,
     AdminLiveModerationService,
     // v1.64-live (D260): the shift «في المناوبة» and who is on it (§10.96).
@@ -147,6 +158,10 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
     // v1.68-live (D273): the staff tools in the app.
     StaffAppService,
     StaffAppGuard,
+    // v1.139-social (D387, §10.176).
+    StaffScheduleService,
+    StaffCompensationsService,
+    AdminRoleHomesService,
   ],
   exports: [AdminAuthService, AdminSessionGuard],
 })

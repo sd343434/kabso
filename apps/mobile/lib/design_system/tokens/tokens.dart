@@ -139,6 +139,61 @@ class KPalette {
   );
 }
 
+/// `color.categoryAccent` (D386, v1.138-social, CONVENTIONS §10.175): the
+/// accent of a verified account category's profile page, per family — the
+/// cover tint, the category badge, the primary buttons and the featured
+/// section. [dark] on the dark palette, [light] on the light one; each is
+/// ≥ 4.5:1 against its page background. [onDark] / [onLight] is the text on
+/// a filled accent.
+class KCategoryAccents {
+  const new({
+    required this.music,
+    required this.reciter,
+    required this.word,
+    required this.visual,
+    required this.performer,
+    required this.sportsGames,
+    required this.lifestyle,
+    required this.public,
+  });
+
+  final Color music;
+  final Color reciter;
+  final Color word;
+  final Color visual;
+  final Color performer;
+  final Color sportsGames;
+  final Color lifestyle;
+  final Color public;
+
+  static const dark = KCategoryAccents(
+    music: Color(0xFFB388FF),
+    reciter: Color(0xFF3DD6A3),
+    word: Color(0xFFF0B45E),
+    visual: Color(0xFF4FC9E8),
+    performer: Color(0xFFFF6FAE),
+    sportsGames: Color(0xFFFF9447),
+    lifestyle: Color(0xFFA8D65A),
+    public: Color(0xFFF5C451),
+  );
+
+  static const light = KCategoryAccents(
+    music: Color(0xFF6A35D9),
+    reciter: Color(0xFF0B7A55),
+    word: Color(0xFF8F5A0E),
+    visual: Color(0xFF0A6F8A),
+    performer: Color(0xFFB8155A),
+    sportsGames: Color(0xFFB04A06),
+    lifestyle: Color(0xFF4E7A12),
+    public: Color(0xFF8A6508),
+  );
+
+  /// Text and icons on a filled accent: the page's dark ink on the bright
+  /// dark-mode accents, white on the deep light-mode ones.
+  static const onDark = Color(0xFF0B0B0D);
+  static const onLight = Color(0xFFFFFFFF);
+}
+
 /// `spacing`
 abstract final class KSpacing {
   static const double xxs = 2;
@@ -168,6 +223,11 @@ abstract final class KFonts {
   /// Arabic for Arabic, bundled so every phone draws the same.
   static const latin = 'Roboto';
   static const arabic = 'Noto Sans Arabic';
+
+  /// D386: the poetry cards of a verified poet's «قصائدي» — the bundled
+  /// Baloo Bhaijaan 2 (OFL, D64's welcome face), Roboto / Noto Sans Arabic
+  /// for anything it lacks.
+  static const poetry = 'Baloo Bhaijaan 2';
 
   /// Arabic locales use Noto Sans Arabic with Roboto for Latin runs; other
   /// locales use Roboto with Noto Sans Arabic for Arabic runs.

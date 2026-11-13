@@ -6,10 +6,11 @@ import type {
   Prisma,
   PrismaClient,
 } from '../../generated/prisma/client.js';
-import { PANEL_ROLES } from '../admin-panel/admin-permissions.js';
 import { grantBagItemByAdminIn } from '../bag/bag-admin-rules.js';
 import { creditAmbassadorCommissionIn, reverseAmbassadorCommissionIn } from '../economy/cherry-ledger.js';
 import { uuidv7 } from '../levels/uuidv7.js';
+// D387: the shared «any panel role» check (the OWNER included), §10.179.2.
+import { isPanelStaff } from '../live/live-staff.js';
 import { Notifier } from '../notifications/notifier.js';
 import { grantVipIn } from '../programs/gift-events.js';
 import { creditIn } from '../wallet/wallet-ledger.js';
@@ -28,7 +29,7 @@ import {
 } from './ambassador-rules.js';
 
 /**
- * «برنامج سفراء Kabso» (v1.140-social, D390, CONVENTIONS §10.179): the database rules, shared by the API (the
+ * «برنامج سفراء Kabso» (v1.141-social, D390, CONVENTIONS §10.179): the database rules, shared by the API (the
  * referral hooks, the recharge hooks, the sweeper, the panel). No Nest dependency.
  *
  * Built on D217 (the invite code, the referral row and its fraud rules) and the recharge hooks every top-up path
@@ -161,16 +162,6 @@ export async function updateAmbassadorSettingsIn(
   return after;
 }
 
-/** A Kabso Team account: `users.role` ADMIN holding any panel role, the OWNER included (§10.179.2). */
-export async function isPanelStaffIn(db: Db, userId: string): Promise<boolean> {
-  const [row] = await db.$queryRaw<{ n: bigint }[]>`
-    SELECT count(*)::bigint AS n
-      FROM users u JOIN user_admin_permissions p ON p.user_id = u.id
-     WHERE u.id = ${userId}::uuid AND u.role = 'ADMIN'::user_role
-       AND p.permission::text = ANY(${[...PANEL_ROLES]}::text[])`;
-  return (row?.n ?? 0n) > 0n;
-}
-
 /** Banned, deleted (or being deleted) or locked by the team (D208 LOCK) — as D217's `accountHealthIn`. */
 export async function healthIn(
   db: Db,
@@ -191,7 +182,7 @@ export type AmbassadorRefusal = 'ACCOUNT_NOT_ACTIVE' | 'STAFF' | 'AMBASSADOR' | 
 
 export async function eligibilityIn(db: Db, userId: string, now: Date): Promise<AmbassadorRefusal | null> {
   if ((await healthIn(db, userId, now)) !== 'OK') return 'ACCOUNT_NOT_ACTIVE';
-  if (await isPanelStaffIn(db, userId)) return 'STAFF';
+  if (await isPanelStaff(db, userId)) return 'STAFF';
   const amb = await db.ambassador.findUnique({ where: { userId }, select: { status: true } });
   // D390 follow-up (§10.179.11): an ENDED member may not apply again — only the OWNER re-appoints.
   if (amb) return amb.status === 'ENDED' ? 'ENDED' : 'AMBASSADOR';
@@ -241,7 +232,7 @@ export async function ambassadorTrackIn(
     SELECT user_id::text AS user_id FROM ambassadors
      WHERE user_id = ${input.inviterId}::uuid AND status <> 'ENDED' FOR UPDATE`;
   if (!amb) return false;
-  if (await isPanelStaffIn(tx, input.inviterId)) return false;
+  if (await isPanelStaff(tx, input.inviterId)) return false;
   const now = input.now;
   const invitee = await tx.user.findUniqueOrThrow({
     where: { id: input.inviteeId },
@@ -385,7 +376,7 @@ export async function ambassadorTopupIn(
   let voidReason: string | null = null;
   let cherries = gross;
   let capped = 0n;
-  if (await isPanelStaffIn(tx, amb.userId)) voidReason = 'STAFF';
+  if (await isPanelStaff(tx, amb.userId)) voidReason = 'STAFF';
   else if (await selfPaymentIn(tx, amb.userId, input.reason, input.reference)) voidReason = 'SELF_PAYMENT';
   else {
     // The month's cap, serialized per ambassador by the row lock.
@@ -607,7 +598,7 @@ async function settleCommissionIn(tx: Tx, id: string, now: Date): Promise<'CREDI
   if (await topupReversedIn(tx, c)) return voidWith('RECHARGE_REVERSED');
   const ref = await tx.ambassadorReferral.findUnique({ where: { referralId: c.referralId } });
   if (!ref || ref.status === 'VOID') return voidWith('REFERRAL_VOID');
-  if (await isPanelStaffIn(tx, amb.userId)) return voidWith('STAFF');
+  if (await isPanelStaff(tx, amb.userId)) return voidWith('STAFF');
   const health = await healthIn(tx, amb.userId, now);
   if (health === 'BANNED' || health === 'DELETED') return voidWith(`AMBASSADOR_${health}`);
   // Held: frozen, under review, locked by the team, or the friend is not active yet.
@@ -696,7 +687,7 @@ async function evaluateMonthIn(
   const after = levelAfterMonth(before, met);
   const reward = levels[met]!.reward;
   const hasReward = reward.kind !== 'NONE';
-  const isHeld = held(row) || (await isPanelStaffIn(tx, userId));
+  const isHeld = held(row) || (await isPanelStaff(tx, userId));
   await tx.ambassadorMonth.create({
     data: {
       ambassadorUserId: userId,
@@ -828,7 +819,7 @@ export async function sweepAmbassadors(
       const [locked] = await tx.$queryRaw<{ reward: unknown }[]>`
         SELECT reward FROM ambassador_months
          WHERE ambassador_user_id = ${h.user_id}::uuid AND month = ${h.month} AND reward_status = 'HELD' FOR UPDATE`;
-      if (!locked || (await isPanelStaffIn(tx, h.user_id))) return false;
+      if (!locked || (await isPanelStaff(tx, h.user_id))) return false;
       await grantRewardIn(tx, h.user_id, h.month, locked.reward as AmbassadorReward, now);
       return true;
     });
@@ -898,7 +889,7 @@ export async function approveAmbassadorApplicationIn(
   const app = await lockPendingApplication(tx, id);
   if ((await healthIn(tx, app.userId, now)) !== 'OK')
     throw new AmbassadorAdminError('The account is not ACTIVE.', 'account_not_active');
-  if (await isPanelStaffIn(tx, app.userId)) throw new AmbassadorAdminError('A Kabso Team account.', 'staff');
+  if (await isPanelStaff(tx, app.userId)) throw new AmbassadorAdminError('A Kabso Team account.', 'staff');
   if ((await tx.ambassador.count({ where: { userId: app.userId } })) > 0)
     throw new AmbassadorAdminError('Already an ambassador.', 'already_ambassador');
   await tx.ambassadorApplication.update({

@@ -28,7 +28,7 @@ import { referralRechargeIn } from '../referrals/referral-core.js';
 import { blockError, RechargeOrdersService } from './recharge-orders.service.js';
 import { moveStockIn, privateKeyOf, purgeApplications } from './recharge-core.js';
 import { recruiterOfForm } from '../recruits/recruit-core.js';
-import { isLimitedStaff, limitedStaffAmong } from '../live/live-staff.js';
+import { isLimitedStaff, limitedStaffAmong, refuseStaffCherryRoute } from '../live/live-staff.js';
 import {
   agentSideBlock,
   applicationSchema,
@@ -1172,6 +1172,9 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     ) {
       throw new AppException(ErrorCode.NOT_FOUND);
     }
+    // v1.139-social (D387, §10.176.9; owner: «الموظفين الذين لديهم كرز يسحب من خلالنا فقط»): a staff account's cherries
+    // are never sold to an agent — only a withdrawal request to the company.
+    await refuseStaffCherryRoute(this.prisma, hostUserId);
     const r = this.config.recharge;
     const cherries = BigInt(input.cherries);
     if (!validCherryAmount(cherries, r.cherryMin, r.cherryStep)) {
@@ -1364,6 +1367,10 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
         if (this.overCap({ dailyCherryCap: agent.cap }, today, found.cherries)) {
           throw new AppException(ErrorCode.RECHARGE_CHERRY_CAP_REACHED);
         }
+        // v1.139-social (D387, §10.176.9; owner: «الموظفين الذين لديهم كرز يسحب من خلالنا فقط»): a staff account's cherries
+        // are never sold to an agent — only a withdrawal request to the company.
+        // (Checked again at confirmation: a request made before the role was granted is refused too.)
+        await refuseStaffCherryRoute(tx, found.hostUserId);
         // D184: the locked task cherries are never sold (the same guarded debit as a withdrawal).
         const lock = await taskCherryLockIn(tx, found.hostUserId, this.config.economy);
         const balance = await holdCherriesIn(

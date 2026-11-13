@@ -757,22 +757,55 @@ info:
     `pinDmGroup` / `unpinDmGroup` (`PUT` / `DELETE …/pin`; `DmPin`, `DmPinList`; at most 5, more → 409 `DM_PIN_LIMIT`).
     Server config `RATE_LIMIT_SUPPORT_SEND_USER`. Migration `20270515090000_support_chat_pins`. Additive for the app; the
     staff inbox's `phone` may now be null (an IN_APP thread).
-    **D390 (DRAFT v1.140-social)** «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179; coordinator
+    **D386 (DRAFT v1.138-social)** a profile page per account category «صفحة حسب فئة الحساب» (CONVENTIONS §10.175; owner
+    2026-11-12): `AccountCategory` gains 13 values (24 in all); `Me.categoryVerified`, `Me.categoryLocked`,
+    `PublicProfile.categoryVerified`. Only a category the Kabso Team verified changes the profile page: tag `users`
+    `getUserFeatured` (`ProfileFeatured`, `FeaturedSection`); tag `me` — featured pins `listMyFeaturedPins`,
+    `setMyFeaturedPins`, `pinFeaturedPost`, `unpinFeaturedPost` (`FeaturedPinList`; at most 6, more → 409
+    `FEATURED_PIN_LIMIT`) and «طلب توثيق الفئة» `getMyCategoryVerification`, `requestCategoryVerification` (409
+    `CATEGORY_VERIFICATION_PENDING`), `cancelCategoryVerification`. `PATCH /me {category}` while the team locked it → 403
+    `ACCOUNT_CATEGORY_LOCKED`; changing the category clears the verification. Panel: `getAdminUserCategory`,
+    `controlAdminUserCategory` (VERIFY · UNVERIFY · CLEAR · LOCK · UNLOCK), `listAdminCategoryRequests`,
+    `approveAdminCategoryRequest`, `rejectAdminCategoryRequest`; notifications `CATEGORY_VERIFIED`, `CATEGORY_REVIEWED`.
+    Server config `RATE_LIMIT_FEATURED_PINS_USER`, `RATE_LIMIT_CATEGORY_REQUEST_USER`. Migrations
+    `20270516090000_category_profiles_enums`, `20270516090100_category_profiles`. Additive.
+    **D387 (DRAFT v1.139-social)** operations staff roles (CONVENTIONS §10.176; owner 2026-11-12): `AdminPanelRole`
+    LIVE_OPS, TALENT, VIP_CARE, COMMUNITY (MODERATION shown as TRUST_SAFETY); role homes `getAdminLiveOpsHome`,
+    `getAdminTalentHome`, `getAdminTrustSafetyHome`, `getAdminVipCareHome`, `getAdminCommunityHome` (no money figure);
+    the 24/7 shift schedule `getAdminStaffSchedule`, `createAdminStaffScheduleSlot`, `updateAdminStaffScheduleSlot`,
+    `deleteAdminStaffScheduleSlot` and `StaffStatus.scheduledShift`; VIP_CARE compensations `getAdminCompensationSettings`,
+    `updateAdminCompensationSettings`, `listAdminCompensations`, `createAdminCompensation`, `approveAdminCompensation`,
+    `rejectAdminCompensation` (ledger reason `STAFF_COMPENSATION`, the code again); the official social accounts
+    `listAdminSocialAccounts`, `createAdminSocialAccount`, `updateAdminSocialAccount`, `deleteAdminSocialAccount`,
+    `reorderAdminSocialAccounts` and the public `listOfficialSocialAccounts` (links only). Revenue is OWNER only
+    (`revenue.view`): the dashboards, the financial report and the store sales answer 403 to everyone else, and the
+    agency earnings, top-up totals, `AdminGift.coinsSpent` and `profitUsd` are null. Migrations
+    `20270517090000_ops_roles_enums`, `20270517090100_ops_roles`.
+    **D388 (DRAFT v1.140-social)** «سؤال اللغة» — the WhatsApp language question and language routing (CONVENTIONS
+    §10.177; owner 2026-11-13): on a conversation's first message (once ever, `WHATSAPP_ASK_LANGUAGE`) the server sends
+    reply buttons «العربية» / «English»; the answer sets `WaConversation.language` (`WaLanguage` AR / EN, null until
+    answered) and is confirmed in that language. Both automatic messages are stored as OUTBOUND messages with `sentBy`
+    null. `language` filter on both conversation lists. A REPLY+ staff member speaks one or both languages (none set =
+    both), set by `team.manage` with `setAdminTeamWhatsAppLanguages` (`PUT /admin/team/{userId}/whatsapp/languages`,
+    code + reason, audited `admin.team.whatsapp_languages`; refusals `team_not_member`, `team_languages_level`);
+    `AdminTeam.data[].whatsappLanguages`. The new-message push of an unassigned conversation in a language goes to the
+    staff who speak it (everyone when none of them can answer). Migration `20270518090000_whatsapp_language`. Additive.
+    **D390 (DRAFT v1.141-social)** «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179; coordinator
     brief from the owner, 2026-11-13): tag `ambassadors` — `getAmbassadorProgramme`, `applyForAmbassadorProgramme`
     (`AmbassadorApplicationRequest`; code `AMBASSADOR_APPLICATION_NOT_ALLOWED`, 409), `getMyAmbassadorDashboard`; the
     panel's `listAdminAmbassadors`, `appointAdminAmbassador`, `getAdminAmbassador`, `freezeAdminAmbassador`,
     `unfreezeAdminAmbassador`, `clearAdminAmbassadorReview`, `listAdminAmbassadorApplications`,
     `approveAdminAmbassadorApplication`, `rejectAdminAmbassadorApplication`, `getAdminAmbassadorSettings` /
     `updateAdminAmbassadorSettings`, `listAdminAmbassadorCampaigns`, `createAdminAmbassadorCampaign`,
-    `updateAdminAmbassadorCampaign`; capabilities `ambassadors.view` / `ambassadors.manage` / `ambassadors.settings`.
+    `updateAdminAmbassadorCampaign`; capabilities `ambassadors.view` / `ambassadors.manage` (OWNER, SUPPORT, TALENT, COMMUNITY) / `ambassadors.settings` (OWNER); the money totals follow D387's `revenue.view`.
     `CherryLedgerReason` `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`; `WalletLedgerReason`
     `AMBASSADOR_REWARD`; `NotificationType` `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`,
     `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`. Server config `AMBASSADOR_SWEEP_INTERVAL_SECONDS`. Migrations
-    `20270518090000_ambassadors_enums`, `20270518090100_ambassadors`. The programme is OFF until the OWNER turns it on.
+    `20270519090000_ambassadors_enums`, `20270519090100_ambassadors`. The programme is OFF until the OWNER turns it on.
     Additive; a referral whose inviter is an ambassador no longer earns the D217 inviter rewards (§10.179.3).
     D390 follow-up (owner): `PublicProfile.ambassador` (the public badge while ACTIVE), «إنهاء العضوية» `endAdminAmbassador`
-    (status ENDED, `AMBASSADOR_MEMBERSHIP_ENDED`, migrations `20270518090200_ambassador_end_enums`,
-    `20270518090300_ambassador_end`); the lower-cost defaults (2 / 3 / 4 / 5 %, a 60-day window).
+    (status ENDED, `AMBASSADOR_MEMBERSHIP_ENDED`, migrations `20270519090200_ambassador_end_enums`,
+    `20270519090300_ambassador_end`); the lower-cost defaults (2 / 3 / 4 / 5 %, a 60-day window).
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -1440,7 +1473,7 @@ tags:
   - name: support
     description: "(v1.137-social DRAFT, D385) «دعم كابسو» — the caller's in-app support chat with the Kabso Team (CONVENTIONS §10.174). The staff answer it in the WhatsApp inbox (`channel: IN_APP`)."
   - name: ambassadors
-    description: "(v1.140-social DRAFT, D390) «برنامج سفراء Kabso» — the ambassadors programme: the explanation and the application, the ambassador's dashboard (CONVENTIONS §10.179). The panel's side is under admin-panel."
+    description: "(v1.141-social DRAFT, D390) «برنامج سفراء Kabso» — the ambassadors programme: the explanation and the application, the ambassador's dashboard (CONVENTIONS §10.179). The panel's side is under admin-panel."
   - name: whatsapp
     description: "(v1.116-social DRAFT, D355) Meta's WhatsApp Business Platform webhook for the official Kabso number «واتساب» (public, signed). The staff's inbox is under the tags staff and admin-panel (CONVENTIONS §10.151)."
 paths:
@@ -1902,7 +1935,7 @@ paths:
                   type: boolean
                   description: v1.47-social (D175). Whether others see the gender on the profile (default false).
                 category:
-                  description: v1.47-social (D175). The account category shown under the name; null clears it.
+                  description: "v1.47-social (D175). The account category shown under the name; null clears it. (v1.138-social, D386) A change clears the team's verification and cancels an open «طلب توثيق الفئة»; while the team locked it, another value → 403 `ACCOUNT_CATEGORY_LOCKED` (nothing of the request is stored)."
                   oneOf:
                     - $ref: '#/components/schemas/AccountCategory'
                     - type: 'null'
@@ -2859,6 +2892,7 @@ paths:
                     profileCard: { code: bunny_royal, assetKey: header_bunny_royal }
                     gender: FEMALE
                     category: SINGER
+                    categoryVerified: true
                     links:
                       - { id: 0192f1d0-7777-7000-8000-000000000009, url: 'https://www.instagram.com/layla.k', label: Instagram, platform: INSTAGRAM }
                     tags: [مطربة, صانعة محتوى, '10👑']
@@ -4612,6 +4646,8 @@ paths:
         CONVENTIONS §10.140): a normal gift whose recipients are all direct (the hosting permission, no ACTIVE agency
         membership) stores `GIFT_DIRECT_HOST_SHARE_PERCENT` (70 %) — in a content creator's live
         `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75 %, instead of 70 %); quips, lucky and custom gifts unchanged.
+
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. A watch-staff viewer (OWNER, MODERATION, SUPPORT) keeps the earlier 403 `LIVE_STAFF_REFUSED` (D273, unchanged); an employee host is refused too, the OWNER as host may send.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -7317,6 +7353,8 @@ paths:
         `IDEMPOTENCY_CONFLICT` when the body differs) → 409 `WITHDRAWAL_PENDING` (one at a time) → 409
         `INSUFFICIENT_CHERRIES` (nothing held; *v1.53-social, D184:* more than `withdrawableCherries` — the
         balance less the task cherries still locked, §10.46.1) → 201.
+
+        v1.139-social (D387, §10.176.9): the company route — the only way a staff account's cherries leave. A staff member's request is marked `staffRequest` and only the OWNER sees and decides it in the panel (`withdrawals.staff`); the rules above are unchanged.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -7337,6 +7375,7 @@ paths:
               schema: { $ref: '#/components/schemas/CherryWithdrawal' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '409':
           description: "`WITHDRAWAL_PENDING`, `INSUFFICIENT_CHERRIES` or `IDEMPOTENCY_CONFLICT`."
           content:
@@ -8515,6 +8554,8 @@ paths:
         «يمكنه شراء الكرز») → 409 `RECHARGE_OFF_SHIFT`. The employee themselves cannot be the host (400 `host`); a block
         between the employee and the host is 404. A host's offer (`agentCode`) notifies the agent and every allowed
         employee on shift.
+
+        v1.139-social (D387, §10.176.9): when the host side (whose cherries would be sold) is a staff account → 403 `STAFF_WITHDRAWAL_COMPANY_ONLY` (`{field: staff, issue: company_only}`): a staff member's cherries leave only through `requestCherryWithdrawal`.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -8566,6 +8607,8 @@ paths:
         removed employee is 404). After the side check: 403 `RECHARGE_EMPLOYEE_NOT_PERMITTED` → 409
         `RECHARGE_OFF_SHIFT`; the agent always acts. The first answer wins under the row lock; a second one (another
         employee, the agent) gets 409 `RECHARGE_CHERRY_REQUEST_CLOSED`. An employee's answer sets `actedBy`.
+
+        v1.139-social (D387, §10.176.9): confirming a sale whose host is now a staff account → 403 `STAFF_WITHDRAWAL_COMPANY_ONLY`; nothing moves.
       parameters:
         - name: requestId
           in: path
@@ -9533,6 +9576,8 @@ paths:
         `clientId` → 200 (the first gift, the couple and the current balance); 409
         `CP_NOT_PAIRED`; 409 `INSUFFICIENT_COINS`. The charge (ledger `CP_GIFT`; it counts for the
         sender's family) and the couple's CP points (+ `amount`) and tier are one transaction.
+
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. (after 409 `CP_NOT_PAIRED`).
       requestBody:
         required: true
         content:
@@ -9552,6 +9597,7 @@ paths:
               schema: { $ref: '#/components/schemas/CpGiftResult' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/cp/me/tasks:
@@ -10030,6 +10076,8 @@ paths:
         `Accept-Language`.
         v1.59-social (D190): 403 `TOPUP_ACCOUNT_FROZEN` while the caller's coin balance is below 0 (a reversed
         website purchase, §10.53).
+
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. (a bag item sent is a gift).
       requestBody:
         required: true
         content:
@@ -10413,6 +10461,154 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/featured:
+    get:
+      tags: [users]
+      operationId: getUserFeatured
+      summary: "The featured section at the top of a profile «أعمالي / قصائدي / معرضي …» (v1.138-social, D386)"
+      description: |
+        CONVENTIONS §10.175. Only for an account whose category the Kabso Team **verified** (`categoryVerified`) and
+        that holds no panel role (D367); otherwise `section` is null with no items. `section` follows the category
+        (§10.175.2); `items` are the person's pinned posts and reels (`setMyFeaturedPins`, in their order) the caller
+        may see, or — with none — the newest posts that match the section (`source: AUTO`; MOST_VIEWED: the reels with
+        the most views). PROGRAM (a presenter) lists the upcoming scheduled lives and podcast episodes in `schedule`.
+        The visibility rules of `listUserPosts`: a private account the caller does not follow, or a block either way
+        → 404 (the profile itself stays visible).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The featured section (possibly empty).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileFeatured' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/featured-pins:
+    get:
+      tags: [me]
+      operationId: listMyFeaturedPins
+      summary: "The caller's pinned featured posts, in order (v1.138-social, D386)"
+      description: "CONVENTIONS §10.175.3. A pin whose post was deleted, hidden by the team or is no longer published is dropped (and never counts)."
+      responses:
+        '200':
+          description: The pins.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeaturedPinList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [me]
+      operationId: setMyFeaturedPins
+      summary: "Replace the caller's featured pins: set, reorder or clear (v1.138-social, D386)"
+      description: |
+        CONVENTIONS §10.175.3. `postIds` in the wanted order (0–6; `[]` clears them). Each must be the caller's own
+        published post or reel that is not deleted or hidden; an unknown, someone else's or repeated id → 400
+        `postIds.<i>` / `invalid_value`; more than 6 → 400 `postIds` / `too_many`. 60 / hour per user, shared with the
+        two operations below (§7).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetFeaturedPinsRequest' }
+      responses:
+        '200':
+          description: The pins now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeaturedPinList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/featured-pins/{postId}:
+    put:
+      tags: [me]
+      operationId: pinFeaturedPost
+      summary: "«تثبيت في …»: pin one of the caller's posts or reels at the end of the featured section (v1.138-social, D386)"
+      description: |
+        CONVENTIONS §10.175.3. Idempotent (an already pinned post keeps its place). Not the caller's own published,
+        visible post or reel → 404. A 7th pin → 409 `FEATURED_PIN_LIMIT` (`{field: "pins", issue: "too_many"}`),
+        checked under a per-person lock.
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: The pins now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeaturedPinList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [me]
+      operationId: unpinFeaturedPost
+      summary: "Unpin a featured post (idempotent; v1.138-social, D386)"
+      description: "CONVENTIONS §10.175.3. The others keep their order. A post that is not pinned (or not the caller's) changes nothing."
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: The pins now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeaturedPinList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/category-verification:
+    get:
+      tags: [me]
+      operationId: getMyCategoryVerification
+      summary: "The caller's category verification «توثيق الفئة» and their latest request (v1.138-social, D386)"
+      description: "CONVENTIONS §10.175.4."
+      responses:
+        '200':
+          description: The state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryVerificationStatus' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [me]
+      operationId: requestCategoryVerification
+      summary: "«طلب توثيق الفئة»: ask the Kabso Team to verify the caller's current category (v1.138-social, D386)"
+      description: |
+        CONVENTIONS §10.175.4. Order after auth and the rate limit (5 / day per user, §7): 400 body (`note` ≤ 300 code
+        points, the §6 hygiene) → no category (or a Kabso Team account, whose category is not shown) → 400 `category` /
+        `required` → already verified → 400 `category` / `already_verified` → an open request → 409
+        `CATEGORY_VERIFICATION_PENDING` → 201 with the PENDING request. The panel lists it «طلبات توثيق الفئة».
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryVerificationRequestBody' }
+      responses:
+        '201':
+          description: The request was made.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryVerificationStatus' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [me]
+      operationId: cancelCategoryVerification
+      summary: "Cancel the caller's open verification request (idempotent; v1.138-social, D386)"
+      description: "CONVENTIONS §10.175.4. With no open request nothing changes."
+      responses:
+        '200':
+          description: The state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryVerificationStatus' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/users/{username}/official-posts:
     get:
       tags: [owner]
@@ -10779,6 +10975,8 @@ paths:
         `GIFT_UNAVAILABLE` (unknown, off, a lucky gift or a quip) → 400 (a custom gift from the bag) → 429 (as a live
         gift: `live:gift:any`, then `live:gift`) → 403 `TOPUP_ACCOUNT_FROZEN` / `ACCOUNT_RESTRICTED` (`NO_GIFTS`) → 409
         `INSUFFICIENT_COINS` / `GIFT_BAG_INSUFFICIENT`; nothing is charged, stored or sent on a refusal.
+
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged.
       parameters:
         - $ref: '#/components/parameters/PostIdPath'
       requestBody:
@@ -11666,6 +11864,8 @@ paths:
         its coins are spent) → 409 `GIFT_UNAVAILABLE` → 400 (a quip's source or quantity) → 403 `LUCKY_GIFT_AGE_UNCONFIRMED` /
         `LUCKY_GIFT_REGION_UNAVAILABLE` → 429 → 409 `INSUFFICIENT_COINS` / `GIFT_BAG_INSUFFICIENT`.
         The gift message expires after 24 h; the send and its ledger rows are permanent.
+
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged.
       requestBody:
         required: true
         content:
@@ -12585,6 +12785,8 @@ paths:
         pair's conversation (`sendDmGift`'s pipeline: the «هدية» message and its push; the rules of that moment apply);
         the held coins come back (`VIP_SCHEDULED_GIFT_RELEASE`) and the gift is charged (`DM_GIFT`) in that same
         transaction. A refused delivery → FAILED and the coins come back.
+
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. A delivery whose sender became staff meanwhile fails (FAILED, the coins come back).
       requestBody:
         required: true
         content:
@@ -12870,6 +13072,8 @@ paths:
         `item_off` | `owned_permanent`; `days` `not_priced` | `too_far`) → 409 `STORE_PRICE_CHANGED` → 409
         `INSUFFICIENT_COINS` / `INSUFFICIENT_CHERRIES`. A refused request charges and changes nothing. Audited
         `store.purchase`. 30 / hour per user (bucket `store:buy`).
+
+        v1.139-social (D387, §10.176.8): an employee (any panel role held now except OWNER; owner: «لا غير ممنوع» — an OWNER with another role may send) → 403 `STAFF_GIFT_REFUSED` (`{field: staff, issue: gifts}`), before anything is charged. — only for a purchase with a `recipient` (a gift); buying for oneself is unchanged.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -13379,7 +13583,7 @@ paths:
     get:
       tags: [admin-panel]
       operationId: getAdminDashboard
-      summary: "Home: today's real aggregates and the pending queues (capability dashboard.view)"
+      summary: "Home: today's real aggregates and the pending queues (v1.139-social, D387: revenue.view — OWNER only)"
       description: "«Today» is the Asia/Riyadh day (`since` = that day's midnight; server setting `ADMIN_DASHBOARD_TIME_ZONE`, default Asia/Riyadh; owner 2026-10-31). Website top-ups are not counted yet."
       security: [{ adminSession: [] }]
       responses:
@@ -13876,6 +14080,8 @@ paths:
           schema: { type: string, enum: [PENDING, PAID, REJECTED], default: PENDING }
         - $ref: '#/components/parameters/AdminCursor'
         - $ref: '#/components/parameters/AdminLimit'
+      description: |
+        v1.139-social (D387, §10.176.9): `staffRequest` marks a staff member's request; those rows are listed only with `withdrawals.staff` (OWNER) — FINANCE never sees them.
       responses:
         '200':
           description: One page.
@@ -13890,7 +14096,10 @@ paths:
       tags: [admin-panel]
       operationId: payAdminWithdrawal
       summary: "Marks a request paid (money sent by hand) — the `economy-admin withdrawal-pay` rule (withdrawals.decide; code again; audited)"
-      description: "Financial: `totpCode` again. `reference` (and `note`) are kept as the decision note. 409 `ADMIN_ACTION_REFUSED` when the request is no longer PENDING."
+      description: |
+        Financial: `totpCode` again. `reference` (and `note`) are kept as the decision note. 409 `ADMIN_ACTION_REFUSED` when the request is no longer PENDING.
+
+        v1.139-social (D387, §10.176.9): a staff member's request without `withdrawals.staff` (OWNER) → 403 `AUTH_FORBIDDEN`, before the code is checked.
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminWithdrawalIdPath'
@@ -13926,6 +14135,8 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/AdminWithdrawalRejectRequest' }
+      description: |
+        v1.139-social (D387, §10.176.9): a staff member's request without `withdrawals.staff` (OWNER) → 403 `AUTH_FORBIDDEN`, before the code is checked.
       responses:
         '200':
           description: REJECTED, cherries refunded.
@@ -14067,7 +14278,7 @@ paths:
     get:
       tags: [admin-panel]
       operationId: getAdminSiteSettings
-      summary: "The public website's settings «إعدادات الموقع» (site.settings: OWNER)"
+      summary: "The public website's settings «إعدادات الموقع» (v1.139-social, D387: site.public — OWNER, COMMUNITY)"
       security: [{ adminSession: [] }]
       responses:
         '200':
@@ -14080,7 +14291,7 @@ paths:
     put:
       tags: [admin-panel]
       operationId: updateAdminSiteSettings
-      summary: "Replaces the website's social links and the top-up switch (site.settings: OWNER; audited with before and after)"
+      summary: "Replaces the website's social links and the top-up switch (v1.139-social, D387: site.public — OWNER, COMMUNITY; changing the switch needs payments.settings; audited with before and after)"
       description: "The one write route of the website's settings (D191 + D192; the panel session and its CSRF token — a bearer token is not a session: 401). The whole document. Links are checked and stored in one form: Instagram `https://(www.)instagram.com/<handle>` → `https://www.instagram.com/<handle>`, TikTok `https://(www.)tiktok.com/@<handle>` → `https://www.tiktok.com/@<handle>`, WhatsApp `https://wa.me/<digits>` or the number in international form (`+966 50 000 0000`, 8–15 digits) → `https://wa.me/<digits>`; null or empty clears. Any other host or shape → 400 `VALIDATION_FAILED` (`socials.<name>` `invalid_value`), nothing changed. Audited `site.settings.update` (before, after, `reason`). v1.64-social (D196): turning `topupEnabled` on while card top-ups have no Stripe keys (panel or env) is 409 `ADMIN_ACTION_REFUSED` (`topupEnabled` `stripe_keys_missing`), nothing changed."
       security: [{ adminSession: [] }]
       parameters:
@@ -14910,7 +15121,7 @@ paths:
       tags:
       - admin-panel
       operationId: getAdminStatsOverview
-      summary: 'Dashboard KPI cards: today, yesterday and a 14-day sparkline, Asia/Riyadh days (dashboard.view)'
+      summary: 'Dashboard KPI cards: today, yesterday and a 14-day sparkline, Asia/Riyadh days (v1.139-social, D387: revenue.view — OWNER only)'
       description: (v1.65-social, D197) Real aggregates of indexed time columns grouped by the `ADMIN_DASHBOARD_TIME_ZONE` day.
       security:
       - adminSession: []
@@ -14930,7 +15141,7 @@ paths:
       tags:
       - admin-panel
       operationId: getAdminStatsSeries
-      summary: 'Dashboard chart: new users, coins sold and gift coins per day (dashboard.view)'
+      summary: 'Dashboard chart: new users, coins sold and gift coins per day (v1.139-social, D387: revenue.view — OWNER only)'
       description: '(v1.65-social, D197) '
       security:
       - adminSession: []
@@ -17695,6 +17906,139 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/category:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminUserCategory
+      summary: "The account's category, its verification, the lock and the latest request (users.control_view)"
+      description: "(v1.138-social, D386, §10.175.5) The stored category (also for a Kabso Team account, whose profile shows none)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserCategory' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: controlAdminUserCategory
+      summary: "Verify, unverify, clear, lock or unlock the account's category (users.profile_edit; audited; the person is notified)"
+      description: |
+        (v1.138-social, D386, §10.175.5) `VERIFY` the current category (none → 409 `ADMIN_ACTION_REFUSED`
+        `no_category`; an open request is approved with it), `UNVERIFY`, `CLEAR` (the category becomes none, the
+        verification goes, an open request is cancelled), `LOCK` (the person cannot change the category until
+        `UNLOCK`; with none they cannot choose one), `UNLOCK`. An action that changes nothing answers 200 and is not
+        audited. Never on one's own account (409 `ADMIN_ACTION_REFUSED`); a panel admin's account only by an OWNER (403). Audited
+        `admin.user.category` `{action, reason, before, after, via: panel}`; the person gets `CATEGORY_VERIFIED`
+        (VERIFY) or `CATEGORY_REVIEWED` (the others).
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCategoryControlRequest' }
+      responses:
+        '200':
+          description: The state now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserCategory' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/category-requests:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminCategoryRequests
+      summary: "«طلبات توثيق الفئة»: the category verification requests (users.control_view)"
+      description: "(v1.138-social, D386, §10.175.5) `q`: the person's username or email prefix. `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminPage'
+        - $ref: '#/components/parameters/AdminPageSize'
+        - $ref: '#/components/parameters/AdminOrder'
+        - $ref: '#/components/parameters/AdminQ'
+        - $ref: '#/components/parameters/AdminFormat'
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [createdAt, decidedAt], default: createdAt }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/CategoryRequestStatus' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCategoryRequestPage' }
+            text/csv:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/category-requests/{requestId}/approve:
+    post:
+      tags: [admin-panel]
+      operationId: approveAdminCategoryRequest
+      summary: "Approve a pending request: the category is verified (users.profile_edit; audited)"
+      description: "(v1.138-social, D386, §10.175.5) The person gets `CATEGORY_VERIFIED`. Audited `category.request.approve`. 409 `ADMIN_ACTION_REFUSED` when not PENDING (`status` / `not_pending`), the account is not ACTIVE, or it is one's own; 403 for a panel admin's request unless OWNER."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCategoryRequestIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      responses:
+        '200':
+          description: Approved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCategoryRequestRow' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/category-requests/{requestId}/reject:
+    post:
+      tags: [admin-panel]
+      operationId: rejectAdminCategoryRequest
+      summary: "Reject a pending request with a reason the person sees (users.profile_edit; audited)"
+      description: "(v1.138-social, D386, §10.175.5) The person gets `CATEGORY_REVIEWED` and sees the reason in `getMyCategoryVerification`; they may ask again. Audited `category.request.reject`. 409 `ADMIN_ACTION_REFUSED` when not PENDING."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCategoryRequestIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Rejected.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCategoryRequestRow' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/referrals:
     get:
       tags: [admin-panel]
@@ -17835,7 +18179,7 @@ paths:
     put:
       tags: [admin-panel]
       operationId: updateAdminLiveBoostPrices
-      summary: "Sets the four stages' prices (catalog.manage: OWNER; the code again; audited)"
+      summary: "Sets the four stages' prices (v1.139-social, D387: boosts.manage — OWNER, LIVE_OPS; the code again; audited)"
       description: "(v1.51-live, D233, §10.81) All four prices, stage 1 first, each 1 … 10^9 coins and strictly more than the stage before (else 400 `prices` `invalid_value`), with a reason and the authenticator code again (a wrong code answers like every re-authentication). Audited `live.boost_prices.update` with before and after. Only new purchases pay the new prices: a card already bought keeps `coinsCharged`, and its refund gives that back."
       security: [{ adminSession: [] }]
       parameters:
@@ -18315,7 +18659,7 @@ paths:
     get:
       tags: [admin-panel]
       operationId: listAdminStoreSales
-      summary: "The store's latest sales and their totals (catalog.view: OWNER, SUPPORT, FINANCE)"
+      summary: "The store's latest sales and their totals (v1.139-social, D387: revenue.view — OWNER only)"
       description: "(v1.84-social, D270, §10.98.5) The newest `limit` (1–200, default 50) purchases — of one item with `itemId` — and the totals of that filter: purchases, gifts among them, coins and cherries taken."
       security: [{ adminSession: [] }]
       parameters:
@@ -18900,7 +19244,7 @@ paths:
       tags:
       - admin-panel
       operationId: createAdminGift
-      summary: Adds a gift — the `gift-admin add` rule (reason; audited) (catalog.manage)
+      summary: Adds a gift — the `gift-admin add` rule (reason; audited) (gifts.manage — OWNER, LIVE_OPS, COMMUNITY; D387)
       description: '(v1.65-social, D197) v1.79-live (D289): `badges` sets the badge set (400 `ITEM_BADGES_INVALID` on a broken rule, §10.102.2).'
       security:
       - adminSession: []
@@ -18934,7 +19278,7 @@ paths:
       tags:
       - admin-panel
       operationId: updateAdminGift
-      summary: Changes a gift — the `gift-admin update` rule (reason; audited with before/after) (catalog.manage)
+      summary: Changes a gift — the `gift-admin update` rule (reason; audited with before/after) (gifts.manage — OWNER, LIVE_OPS, COMMUNITY; D387)
       description: '(v1.65-social, D197) v1.79-live (D289): `badges` replaces the whole badge set (400 `ITEM_BADGES_INVALID` on a broken rule, §10.102.2).'
       security:
       - adminSession: []
@@ -18970,7 +19314,7 @@ paths:
       tags:
       - admin-panel
       operationId: deleteAdminGift
-      summary: "Deletes a gift with no pieces and no history, or archives it (catalog.manage: OWNER; reason; audited)"
+      summary: "Deletes a gift with no pieces and no history, or archives it (gifts.manage — D387; reason; audited)"
       description: |
         (v1.103-social, D338, §10.131) Owner: «أريد زر لإزالتهم وليس فقط إيقافهم». In the gift's transaction: nobody holds
         pieces and nothing points at it — no send (live or direct), lucky draw, event, PK boost, wish list, task / host
@@ -19016,7 +19360,7 @@ paths:
       tags:
       - admin-panel
       operationId: restoreAdminGift
-      summary: "Brings an archived gift back, switched on (catalog.manage: OWNER; reason; audited)"
+      summary: "Brings an archived gift back, switched on (gifts.manage — D387; reason; audited)"
       description: "(v1.103-social, D338, §10.131) «استعادة»: `archivedAt` cleared and the gift switched on (in the catalogue and the bag again). Not archived: 200 with `changed` false, nothing written. Audited `gift.restore`."
       security:
       - adminSession: []
@@ -19051,7 +19395,7 @@ paths:
       tags:
       - admin-panel
       operationId: enableAdminGift
-      summary: Enables a gift (reason; audited) (catalog.manage)
+      summary: Enables a gift (reason; audited) (gifts.manage — OWNER, LIVE_OPS, COMMUNITY; D387)
       description: '(v1.65-social, D197) v1.103-social (D338): an archived gift is refused (409 `ADMIN_ACTION_REFUSED`; `restoreAdminGift` first).'
       security:
       - adminSession: []
@@ -19088,7 +19432,7 @@ paths:
       tags:
       - admin-panel
       operationId: disableAdminGift
-      summary: Disables a gift (reason; audited) (catalog.manage)
+      summary: Disables a gift (reason; audited) (gifts.manage — OWNER, LIVE_OPS, COMMUNITY; D387)
       description: '(v1.65-social, D197) '
       security:
       - adminSession: []
@@ -19360,7 +19704,7 @@ paths:
       tags:
       - admin-panel
       operationId: uploadAdminGiftFile
-      summary: Checks and stores one gift file or category icon, the raw bytes as the body (catalog.manage; an icon gifts.categories)
+      summary: Checks and stores one gift file or category icon, the raw bytes as the body (gifts.manage — D387; an icon gifts.categories)
       description: |
         (v1.71-social, D207) The body is the file itself (`application/octet-stream`, at most 26 MB). By `kind`:
         `image` «صورة الهدية» PNG/WebP, square, at least 128 px, at most 512 KB; `animation` «ملف العرض» an SVGA 2.x
@@ -19460,7 +19804,7 @@ paths:
       tags:
       - admin-panel
       operationId: createAdminBanner
-      summary: Adds a banner on an uploaded picture (reason; audited) (catalog.manage)
+      summary: Adds a banner on an uploaded picture (reason; audited) (banners.manage — OWNER, COMMUNITY; D387)
       description: |
         (v1.59-live, D248, CONVENTIONS §10.90) The `banner-admin add` rules: the picture is a `uploadAdminBannerPicture`
         answer for the same placement (its shape is checked), unused and less than 24 hours old; the link allowlist;
@@ -19497,7 +19841,7 @@ paths:
     post:
       tags: [admin-panel]
       operationId: uploadAdminBannerVideo
-      summary: "(v1.97-social, D303) Uploads a home banner's video — raw bytes (catalog.manage)"
+      summary: "(v1.97-social, D303) Uploads a home banner's video — raw bytes (banners.manage — OWNER, COMMUNITY; D387)"
       description: "CONVENTIONS §10.114.6. `application/octet-stream`: MP4 or MOV with H.264 / HEVC video, 1–30 s, at most 30 MiB (checked from the container; stored unchanged; the app plays it muted). Shown nowhere until `createAdminBanner` names it as `videoMediaId` (with a poster picture as `mediaId`) within 24 hours. Not an acceptable video → 422 `MEDIA_INVALID`."
       security:
         - adminSession: []
@@ -19526,7 +19870,7 @@ paths:
       tags:
       - admin-panel
       operationId: uploadAdminBannerPicture
-      summary: Checks and stores a banner picture, the raw bytes as the body (catalog.manage)
+      summary: Checks and stores a banner picture, the raw bytes as the body (banners.manage — OWNER, COMMUNITY; D387)
       description: |
         (v1.59-live, D248, CONVENTIONS §10.90) The body is the picture (`application/octet-stream`, JPEG / PNG / WebP,
         at most 15 MiB, at most 8 000 px a side and 50 MP). *(v1.61-live, D248c, §10.90.1)* Also GIF, and an
@@ -19584,7 +19928,7 @@ paths:
       tags:
       - admin-panel
       operationId: enableAdminBanner
-      summary: Turns a banner on (reason; audited) (catalog.manage)
+      summary: Turns a banner on (reason; audited) (banners.manage — OWNER, COMMUNITY; D387)
       description: '(v1.65-social, D197) '
       security:
       - adminSession: []
@@ -19619,7 +19963,7 @@ paths:
       tags:
       - admin-panel
       operationId: disableAdminBanner
-      summary: Turns a banner off (reason; audited) (catalog.manage)
+      summary: Turns a banner off (reason; audited) (banners.manage — OWNER, COMMUNITY; D387)
       description: '(v1.65-social, D197) '
       security:
       - adminSession: []
@@ -19654,7 +19998,7 @@ paths:
       tags:
       - admin-panel
       operationId: removeAdminBanner
-      summary: Deletes a banner and its picture (reason; audited) (catalog.manage)
+      summary: Deletes a banner and its picture (reason; audited) (banners.manage — D387)
       description: '(v1.65-social, D197) '
       security:
       - adminSession: []
@@ -20341,7 +20685,7 @@ paths:
       tags:
       - admin-panel
       operationId: getAdminFinanceReport
-      summary: Financial report by day or month (Asia/Riyadh) (finance.view)
+      summary: Financial report by day or month (Asia/Riyadh) (v1.139-social, D387 — revenue.view, OWNER only; was finance.view)
       description: '(v1.65-social, D197) At most 400 days by day, about 36 months by month. The CSV has the rows and a `total` line. `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
       security:
       - adminSession: []
@@ -20738,6 +21082,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminTeamWhatsAppDepartmentsResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/team/{userId}/whatsapp/languages:
+    put:
+      tags:
+      - admin-panel
+      operationId: setAdminTeamWhatsAppLanguages
+      summary: Sets the languages a staff member speaks on WhatsApp «اللغات» (code again; reason; audited) (team.manage)
+      description: >-
+        (v1.140-social, DRAFT, D388, §10.177.3) AR, EN or both, or [] to go back to the default (both). Only for a staff
+        member at the WhatsApp level REPLY or above (409 `ADMIN_ACTION_REFUSED` `team_languages_level`;
+        `team_not_member` without a panel role). The languages route the new-message pushes of a conversation in a
+        language (§10.177.4); conversations already assigned stay. Audited `admin.team.whatsapp_languages` {before,
+        after, setBefore, setAfter, reason}. 429 past `RATE_LIMIT_ADMIN_TEAM_IP`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminTeamWhatsAppLanguagesRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTeamWhatsAppLanguagesResult'
         '400':
           $ref: '#/components/responses/Error'
         '401':
@@ -22916,6 +23300,11 @@ paths:
           required: false
           description: "(v1.137-social, D385, §10.174.6) Only WhatsApp or only in-app «دعم كابسو» threads (both when absent)."
           schema: { $ref: '#/components/schemas/WaChannel' }
+        - name: language
+          in: query
+          required: false
+          description: "(v1.140-social, D388, §10.177.4) Only the conversations whose customer chose this language (one with no language yet is in neither)."
+          schema: { $ref: '#/components/schemas/WaLanguage' }
         - name: q
           in: query
           required: false
@@ -23563,6 +23952,11 @@ paths:
           required: false
           description: "(v1.137-social, D385, §10.174.6) Only WhatsApp or only in-app «دعم كابسو» threads (both when absent)."
           schema: { $ref: '#/components/schemas/WaChannel' }
+        - name: language
+          in: query
+          required: false
+          description: "(v1.140-social, D388, §10.177.4) Only the conversations whose customer chose this language (one with no language yet is in neither)."
+          schema: { $ref: '#/components/schemas/WaLanguage' }
         - name: q
           in: query
           required: false
@@ -24285,11 +24679,456 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+  # ---- v1.139-social (DRAFT, D387, CONVENTIONS §10.176): operations staff roles -------------------------------------
+  /api/v1/admin/role-homes/live-ops:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminLiveOpsHome
+      summary: "«مدير عمليات البث» home: top lives and hosts now, PK activity, events — no money (home.live_ops)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.3."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The home.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveOpsHome' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/role-homes/talent:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminTalentHome
+      summary: "«مدير الوكالات والمواهب» home: new hosts, live hours, inactive agencies, the application queue — no earnings (home.talent)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.3."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The home.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTalentHome' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/role-homes/trust-safety:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminTrustSafetyHome
+      summary: "«مراقبة المحتوى والأمان» home: open reports, time to resolve, lives now, the shift (home.trust_safety)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.3."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The home.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTrustSafetyHome' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/role-homes/vip-care:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminVipCareHome
+      summary: "«دعم كبار الداعمين» home: top supporters by level and VIP tier, those who stopped being active — no coin amounts (home.vip_care)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.3."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The home.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVipCareHome' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/role-homes/community:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminCommunityHome
+      summary: "«المجتمع والفعاليات» home: upcoming events, contest participation, banners on now (home.community)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.3."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The home.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCommunityHome' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/staff-schedule:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminStaffSchedule
+      summary: "The weekly shift schedule «جدول المناوبات», who is on shift now and who is next (staff.schedule.view)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.6. Times are minutes of the day in `timeZone` (`LIVE_RANKINGS_TIME_ZONE`)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The schedule.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStaffSchedule' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminStaffScheduleSlot
+      summary: "Adds a weekly slot for a MODERATION, SUPPORT or VIP_CARE staff member (staff.schedule.manage: OWNER; reason; audited)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.6. 409 `ADMIN_ACTION_REFUSED` `schedule_role` (the person holds none of the three roles) or `schedule_overlap` (another slot of theirs overlaps); audited `staff.schedule.create`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminStaffScheduleSlotRequest' }
+      responses:
+        '201':
+          description: The schedule after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStaffSchedule' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/staff-schedule/{slotId}:
+    parameters:
+      - { name: slotId, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminStaffScheduleSlot
+      summary: "Changes a slot (staff.schedule.manage: OWNER; reason; audited)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.6. The same rules as a new slot; audited `staff.schedule.update` with before and after."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminStaffScheduleSlotRequest' }
+      responses:
+        '200':
+          description: The schedule after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStaffSchedule' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/staff-schedule/{slotId}/remove:
+    parameters:
+      - { name: slotId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [admin-panel]
+      operationId: deleteAdminStaffScheduleSlot
+      summary: "Removes a slot (staff.schedule.manage: OWNER; reason; audited)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.6. Audited `staff.schedule.delete` with the slot."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: The schedule after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStaffSchedule' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/compensations/settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminCompensationSettings
+      summary: "The compensation limits and what the caller granted today (compensation.grant)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.4."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The limits.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCompensationSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminCompensationSettings
+      summary: "Sets the daily limit per staff member and the per-grant maximum (compensation.settings: OWNER; reason and the code again; audited)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.4. Audited `staff.compensation.settings` with before and after."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminCompensationSettingsRequest' }
+      responses:
+        '200':
+          description: The limits.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCompensationSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/compensations:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminCompensations
+      summary: "The compensation history, newest first (compensation.grant: VIP_CARE their own, OWNER everyone's)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.4."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/AdminCompensationStatus' } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+      responses:
+        '200':
+          description: The page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCompensationPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminCompensation
+      summary: "Grants a compensation — coins, VIP days or a store item — within the limits, else a PENDING request for the OWNER (compensation.grant; reason and the code again)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.4. 404 no such account; 409 `ADMIN_ACTION_REFUSED` `compensation_recipient` / `compensation_vip_tier` / `compensation_item`. Audited `staff.compensation.grant` or `staff.compensation.request`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAdminCompensationRequest' }
+      responses:
+        '201':
+          description: The compensation (GRANTED, or PENDING with `overLimit`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCompensation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/compensations/{compensationId}/approve:
+    parameters:
+      - { name: compensationId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [admin-panel]
+      operationId: approveAdminCompensation
+      summary: "Approves a PENDING compensation: the grant runs now (compensation.approve: OWNER; the code again)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.4. 409 `compensation_decided` when it is not PENDING (or a rule refused the grant now). Audited `staff.compensation.approve`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApproveAdminCompensationRequest' }
+      responses:
+        '200':
+          description: The compensation (APPROVED).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCompensation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/compensations/{compensationId}/reject:
+    parameters:
+      - { name: compensationId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [admin-panel]
+      operationId: rejectAdminCompensation
+      summary: "Rejects a PENDING compensation; nothing moves (compensation.approve: OWNER; reason)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.4. 409 `compensation_decided` when it is not PENDING. Audited `staff.compensation.reject`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: The compensation (REJECTED).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCompensation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/social-accounts:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminSocialAccounts
+      summary: "The app's official social media accounts «حساباتنا الرسمية», in order (social.accounts: OWNER, COMMUNITY)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.5. Links only — no password or token is ever stored."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The accounts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSocialAccountList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminSocialAccount
+      summary: "Adds an official account at the end (social.accounts; https only; audited)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.5. 400 `VALIDATION_FAILED` `url` / `invalid_value` (not https, a user or password part); 409 `ADMIN_ACTION_REFUSED` `social_accounts_full` (20). Audited `site.social_account.create`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminSocialAccountRequest' }
+      responses:
+        '201':
+          description: The list after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSocialAccountList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/social-accounts/order:
+    put:
+      tags: [admin-panel]
+      operationId: reorderAdminSocialAccounts
+      summary: "Sets the order: every id once (social.accounts; audited)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.5. A list that is not exactly the current ids → 400 `ids` / `invalid_value`. Audited `site.social_account.reorder`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminSocialAccountOrderRequest' }
+      responses:
+        '200':
+          description: The list after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSocialAccountList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/social-accounts/{accountId}:
+    parameters:
+      - { name: accountId, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminSocialAccount
+      summary: "Changes an official account (social.accounts; https only; audited)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.5. Audited `site.social_account.update` with before and after."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminSocialAccountRequest' }
+      responses:
+        '200':
+          description: The list after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSocialAccountList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [admin-panel]
+      operationId: deleteAdminSocialAccount
+      summary: "Removes an official account (social.accounts; audited)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.5. Audited `site.social_account.delete` with the account."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      responses:
+        '200':
+          description: The list after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSocialAccountList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/social-accounts:
+    get:
+      tags: [site]
+      operationId: listOfficialSocialAccounts
+      summary: "The app's official social media accounts, in order (public; cached 60 s)"
+      description: "(v1.139-social, D387) CONVENTIONS §10.176.5. Public, no token; the app's Settings «تابعنا». Rate limit: the public per-IP default."
+      security: []
+      responses:
+        '200':
+          description: The accounts.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'public, max-age=60' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OfficialSocialAccountList' }
+              example:
+                data:
+                  - { platform: INSTAGRAM, handle: kabsolive, url: 'https://www.instagram.com/kabsolive' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/ambassadors/programme:
     get:
       tags: [ambassadors]
       operationId: getAmbassadorProgramme
-      summary: "«برنامج سفراء Kabso»: the programme's rules and levels, the caller's status and latest application (v1.140-social, D390)"
+      summary: "«برنامج سفراء Kabso»: the programme's rules and levels, the caller's status and latest application (v1.141-social, D390)"
       description: |
         CONVENTIONS §10.179.2. `levels` is empty while the programme is switched off (`enabled: false`; the app then
         shows «قريباً» and no form). `refusal` in this order: `DISABLED`, `ACCOUNT_NOT_ACTIVE`, `STAFF` (any panel role,
@@ -24306,7 +25145,7 @@ paths:
     post:
       tags: [ambassadors]
       operationId: applyForAmbassadorProgramme
-      summary: "«انضم إلى برنامج السفراء»: apply (v1.140-social, D390)"
+      summary: "«انضم إلى برنامج السفراء»: apply (v1.141-social, D390)"
       description: |
         CONVENTIONS §10.179.2. Order: 503 `SERVICE_UNAVAILABLE` (switched off) → 400 body (`links`: 1–5 plain `https://`
         URLs) → 409 `AMBASSADOR_APPLICATION_NOT_ALLOWED` (`details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`,
@@ -24332,7 +25171,7 @@ paths:
     get:
       tags: [ambassadors]
       operationId: getMyAmbassadorDashboard
-      summary: "The ambassador's dashboard: code and link, level and progress, this month's targets, referrals, commissions, history (v1.140-social, D390)"
+      summary: "The ambassador's dashboard: code and link, level and progress, this month's targets, referrals, commissions, history (v1.141-social, D390)"
       description: "CONVENTIONS §10.179.6. 404 `NOT_FOUND` for anyone who is not an ambassador. The code is the person's D217 invite code (one code per person)."
       responses:
         '200':
@@ -24347,8 +25186,8 @@ paths:
     get:
       tags: [admin-panel]
       operationId: listAdminAmbassadors
-      summary: "«السفراء»: the ambassadors with their performance (ambassadors.view; money totals only with ambassadors.settings)"
-      description: "(v1.140-social, D390, §10.179.8) Newest first, at most 200. `status` REVIEW = under review. `commissions` is null without `ambassadors.settings` (OWNER): revenue and payouts are the OWNER's."
+      summary: "«السفراء»: the ambassadors with their performance (ambassadors.view; money totals only with revenue.view)"
+      description: "(v1.141-social, D390, §10.179.8) Newest first, at most 200. `status` REVIEW = under review. `commissions` is null without `revenue.view` (D387, OWNER only): revenue and payouts are the OWNER's."
       security: [{ adminSession: [] }]
       parameters:
         - { name: status, in: query, required: false, schema: { type: string, enum: [ACTIVE, FROZEN, ENDED, REVIEW] } }
@@ -24366,7 +25205,7 @@ paths:
     post:
       tags: [admin-panel]
       operationId: appointAdminAmbassador
-      summary: "Appoints an ambassador directly (ambassadors.manage; v1.140-social, D390)"
+      summary: "Appoints an ambassador directly (ambassadors.manage; v1.141-social, D390)"
       description: "(§10.179.2) Refusals under 409 `ADMIN_ACTION_REFUSED` (`details[0] = {field: ambassador, issue}`): `user_not_found`, `account_not_active`, `staff`, `already_ambassador`. An ENDED member is re-appointed (ACTIVE at the first level; D390 follow-up, §10.179.11). A pending application of the person is closed as CANCELLED. The person is notified (`AMBASSADOR_APPLICATION_APPROVED`). Audited `ambassador.appoint`."
       security: [{ adminSession: [] }]
       parameters:
@@ -24399,7 +25238,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminAmbassador
       summary: "One ambassador's performance: referrals, active referrals, qualifying top-ups, commissions, level, flags, months (ambassadors.view)"
-      description: "(v1.140-social, D390, §10.179.8) Every money field is null without `ambassadors.settings`. Audited `ambassador.view`."
+      description: "(v1.141-social, D390, §10.179.8) Every money field is null without `revenue.view` (D387, OWNER only). Audited `ambassador.view`."
       security: [{ adminSession: [] }]
       parameters:
         - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -24418,7 +25257,7 @@ paths:
       tags: [admin-panel]
       operationId: freezeAdminAmbassador
       summary: "Freezes an ambassador's pending rewards: no commission is credited and no monthly reward granted until unfrozen (ambassadors.settings: OWNER)"
-      description: "(v1.140-social, D390, §10.179.7) Already frozen: `changed` false. An ENDED membership: 409 `ADMIN_ACTION_REFUSED` (`ended`). Audited `ambassador.freeze` with the pending amount."
+      description: "(v1.141-social, D390, §10.179.7) Already frozen: `changed` false. An ENDED membership: 409 `ADMIN_ACTION_REFUSED` (`ended`). Audited `ambassador.freeze` with the pending amount."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminCsrf'
@@ -24524,7 +25363,7 @@ paths:
     get:
       tags: [admin-panel]
       operationId: listAdminAmbassadorApplications
-      summary: "«طلبات السفراء»: the applications (ambassadors.view; v1.140-social, D390)"
+      summary: "«طلبات السفراء»: the applications (ambassadors.view; v1.141-social, D390)"
       security: [{ adminSession: [] }]
       parameters:
         - { name: status, in: query, required: false, schema: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELLED] } }
@@ -24606,7 +25445,7 @@ paths:
     get:
       tags: [admin-panel]
       operationId: getAdminAmbassadorSettings
-      summary: "The programme's switch and every number (ambassadors.settings: OWNER; v1.140-social, D390)"
+      summary: "The programme's switch and every number (ambassadors.settings: OWNER; v1.141-social, D390)"
       security: [{ adminSession: [] }]
       responses:
         '200':
@@ -24644,7 +25483,7 @@ paths:
     get:
       tags: [admin-panel]
       operationId: listAdminAmbassadorCampaigns
-      summary: "Campaigns and events coordinated with the ambassadors (ambassadors.view; v1.140-social, D390)"
+      summary: "Campaigns and events coordinated with the ambassadors (ambassadors.view; v1.141-social, D390)"
       security: [{ adminSession: [] }]
       responses:
         '200':
@@ -24739,6 +25578,12 @@ components:
       required: true
       description: (v1.73-social, D209) a «كن مضيفاً مع الإدارة» application.
       schema: { type: string, format: uuid }
+    AdminCategoryRequestIdPath:
+      name: requestId
+      in: path
+      required: true
+      description: (v1.138-social, D386) a «طلب توثيق الفئة». A malformed id is treated as not found (404).
+      schema: { type: string }
     AdminReferralIdPath:
       name: referralId
       in: path
@@ -25134,7 +25979,7 @@ components:
         closesAt: { type: [string, 'null'], format: date-time }
     WaConversation:
       type: object
-      required: [id, phone, name, status, assignedTo, assignedToMe, unreadCount, lastMessageAt, lastPreview, lastDirection, window, linkedAccount, closedAt, createdAt, department, priority, channel]
+      required: [id, phone, name, status, assignedTo, assignedToMe, unreadCount, lastMessageAt, lastPreview, lastDirection, window, linkedAccount, closedAt, createdAt, department, priority, channel, language]
       properties:
         id: { type: string, format: uuid }
         phone: { type: [string, 'null'], pattern: '^\+[1-9][0-9]{6,14}$', description: "E.164. (v1.137-social, D385) null for an IN_APP thread (the account is `linkedAccount`)." }
@@ -25159,6 +26004,11 @@ components:
         department: { $ref: '#/components/schemas/WaDepartment' }
         priority: { type: boolean, description: "v1.134-social (D381, §10.171.3): the linked account held PRIORITY_SUPPORT when it was linked or last wrote — the inbox lists these first (each newest first)." }
         channel: { $ref: '#/components/schemas/WaChannel' }
+        language:
+          description: "(v1.140-social, D388, §10.177) The customer's language «اللغة», chosen with the automatic question; null until they answer it (and always for an IN_APP thread)."
+          oneOf:
+            - { $ref: '#/components/schemas/WaLanguage' }
+            - { type: 'null' }
     WaConversationPage:
       type: object
       required: [data, page]
@@ -25325,6 +26175,10 @@ components:
       properties:
         message: { $ref: '#/components/schemas/SupportMessage' }
         thread: { $ref: '#/components/schemas/SupportThread' }
+    WaLanguage:
+      type: string
+      enum: [AR, EN]
+      description: "(v1.140-social, D388, §10.177) A WhatsApp language: AR «العربية», EN «English»."
     WaDepartment:
       type: string
       enum: [PAYMENTS, AGENCIES, TECHNICAL, REPORTS, GENERAL]
@@ -26270,7 +27124,7 @@ components:
         rewardCherries: { type: integer, format: int64, minimum: 0 }
         paidCherries: { type: [integer, 'null'], format: int64 }
         paidAt: { type: [string, 'null'], format: date-time }
-        profitUsd: { type: [number, 'null'], description: "The platform profit counted at the payment (US dollars)." }
+        profitUsd: { type: [number, 'null'], description: "The platform profit counted at the payment (US dollars). (v1.139-social, D387) null without `revenue.view` (OWNER only)." }
         catalogueVersion: { type: string }
         reason:
           type: object
@@ -26657,8 +27511,8 @@ components:
     # ---- v1.60-social (DRAFT, D191, CONVENTIONS §10.54): the admin panel ------------------------------------------
     AdminPanelRole:
       type: string
-      description: "The panel's roles (values of the admin permissions): OWNER (everything), MODERATION (the moderator «مشرف»), SUPPORT «دعم», FINANCE «مالية», (v1.75-live, D285) BD «تطوير الأعمال» (recruitment only: «استقطاباتي», no moderation). Granted only with `admin-admin grant` or the OWNER's team page."
-      enum: [OWNER, MODERATION, SUPPORT, FINANCE, BD]
+      description: "The panel's roles (values of the admin permissions): OWNER (everything), MODERATION (the moderator «مشرف»), SUPPORT «دعم», FINANCE «مالية», (v1.75-live, D285) BD «تطوير الأعمال» (recruitment only: «استقطاباتي», no moderation). Granted only with `admin-admin grant` or the OWNER's team page. (v1.139-social, D387, §10.176) LIVE_OPS «مدير عمليات البث», TALENT «مدير الوكالات والمواهب» (extends BD), VIP_CARE «دعم كبار الداعمين», COMMUNITY «المجتمع والفعاليات»; MODERATION is shown as TRUST_SAFETY «مراقبة المحتوى والأمان» (the wire value stays MODERATION)."
+      enum: [OWNER, MODERATION, SUPPORT, FINANCE, BD, LIVE_OPS, TALENT, VIP_CARE, COMMUNITY]
     AdminLoginRequest:
       type: object
       additionalProperties: false
@@ -27208,7 +28062,8 @@ components:
         protected: { type: boolean, description: "Holds any panel role now (FINANCE too): nobody acts on the account from the app." }
         roles:
           type: array
-          items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE, BD] }
+          description: "(v1.139-social, D387) The four operations roles too; an app shows an unknown one as a plain chip."
+          items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE, BD, LIVE_OPS, TALENT, VIP_CARE, COMMUNITY] }
         capabilities:
           type: array
           description: "The panel capabilities the staff tools use, for the caller's roles (the app shows only these). (v1.78-live, D288) `reports.view` / `reports.resolve`: the «بلاغات» row (the shared queue). (v1.93-social, D296) `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`: the actions from a report. (v1.97-social, D303) `events.manage`: «الفعاليات» (create / edit gift events, hold their payout). (v1.116-social, D355) `support.whatsapp` / `support.whatsapp.manage`: «واتساب». (v1.120-social, D360, §10.155) `support.whatsapp.view`: «واتساب» read only — the three are the caller's WhatsApp level (VIEW: only `.view`; the app shows «مشاهدة فقط» and no composer or actions)."
@@ -27224,6 +28079,9 @@ components:
             - $ref: '#/components/schemas/StaffStepUp'
             - type: 'null'
         onShift: { type: boolean }
+        scheduledShift:
+          type: boolean
+          description: "(v1.139-social, D387, §10.176.6) A slot of the shift schedule covers now (the app's time zone): the staff page's «في المناوبة الآن» badge. False for anyone else; an older server omits it."
     StaffStepUpRequest:
       type: object
       additionalProperties: false
@@ -27275,7 +28133,7 @@ components:
         no levels.
       required: [role, regions]
       properties:
-        role: { type: string, enum: [MODERATION, SUPPORT, FINANCE, BD], description: "(v1.75-live, D285) BD «تطوير الأعمال»: the line reads «تطوير الأعمال — الوطن العربي» / \"Business development — Arab World\"." }
+        role: { type: string, enum: [MODERATION, SUPPORT, FINANCE, BD, LIVE_OPS, TALENT, VIP_CARE, COMMUNITY], description: "(v1.75-live, D285) BD «تطوير الأعمال»: the line reads «تطوير الأعمال — الوطن العربي» / \"Business development — Arab World\". (v1.139-social, D387, §10.176.1) LIVE_OPS, TALENT, VIP_CARE, COMMUNITY: the line is the role's name; an app that does not know the value shows no line." }
         regions:
           type: array
           maxItems: 13
@@ -27311,7 +28169,7 @@ components:
                 username: { type: string }
                 displayName: { type: string }
                 avatarUrl: { type: [string, 'null'] }
-                role: { type: string, enum: [MODERATION, BD] }
+                role: { type: string, enum: [MODERATION, BD, TALENT], description: "(v1.139-social, D387) TALENT recruits like BD." }
             - type: 'null'
     StaffRecruitCounts:
       type: object
@@ -27772,6 +28630,39 @@ components:
           type: array
           items: { $ref: '#/components/schemas/WaDepartment' }
         whatsappDepartments: { $ref: '#/components/schemas/AdminTeamWhatsAppDepartments' }
+    AdminTeamWhatsAppLanguages:
+      type: object
+      required: [languages, isDefault]
+      description: (v1.140-social, D388, §10.177.3) The languages a staff member speaks.
+      properties:
+        languages:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/WaLanguage' }
+          description: The languages that apply (AR first); both when none is set.
+        isDefault: { type: boolean, description: "None set: both languages by default." }
+    AdminTeamWhatsAppLanguagesRequest:
+      type: object
+      additionalProperties: false
+      required: [languages, reason, totpCode]
+      properties:
+        languages:
+          type: array
+          maxItems: 2
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/WaLanguage' }
+          description: Empty — back to the default (both).
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminTeamWhatsAppLanguagesResult:
+      type: object
+      required: [userId, before, whatsappLanguages]
+      properties:
+        userId: { type: string, format: uuid }
+        before:
+          type: array
+          items: { $ref: '#/components/schemas/WaLanguage' }
+        whatsappLanguages: { $ref: '#/components/schemas/AdminTeamWhatsAppLanguages' }
     AdminTeamRegionsResult:
       type: object
       required: [userId, regions, before]
@@ -28166,10 +29057,13 @@ components:
         dailyCherryCap: { type: [integer, 'null'] }
     AdminWithdrawalRow:
       type: object
-      required: [id, status, cherries, amountMinor, currency, payoutDetails, createdAt, decidedAt, decisionNote, user]
+      required: [id, status, cherries, amountMinor, currency, payoutDetails, createdAt, decidedAt, decisionNote, staffRequest, user]
       properties:
         id: { type: string, format: uuid }
         status: { type: string, enum: [PENDING, PAID, REJECTED] }
+        staffRequest:
+          type: boolean
+          description: v1.139-social (D387, §10.176.9) — made by a staff account (the company route); listed and decided only with `withdrawals.staff` (OWNER).
         cherries: { type: integer }
         amountMinor: { type: integer }
         currency: { type: string }
@@ -29519,9 +30413,11 @@ components:
         subAgencies:
           type: integer
         monthHostCherries:
-          type: integer
+          type: [integer, 'null']
+          description: (v1.139-social, D387) null without `revenue.view` (OWNER only).
         monthCommission:
-          type: integer
+          type: [integer, 'null']
+          description: (v1.139-social, D387) null without `revenue.view` (OWNER only).
         createdAt:
           type: string
           format: date-time
@@ -29721,9 +30617,11 @@ components:
               user:
                 $ref: '#/components/schemas/AdminPersonRef'
               monthCherries:
-                type: integer
+                type: [integer, 'null']
+                description: (v1.139-social, D387) null without `revenue.view`.
               monthCommission:
-                type: integer
+                type: [integer, 'null']
+                description: (v1.139-social, D387) null without `revenue.view`.
         months:
           type: array
           items:
@@ -29737,24 +30635,26 @@ components:
               month:
                 type: string
               hostCherries:
-                type: integer
+                type: [integer, 'null']
+                description: (v1.139-social, D387) null without `revenue.view`.
               commission:
-                type: integer
+                type: [integer, 'null']
               parentCommission:
-                type: integer
+                type: [integer, 'null']
         lifetime:
           type: object
+          description: (v1.139-social, D387) every total null without `revenue.view` (OWNER only).
           required:
           - hostCherries
           - commission
           - parentCommission
           properties:
             hostCherries:
-              type: integer
+              type: [integer, 'null']
             commission:
-              type: integer
+              type: [integer, 'null']
             parentCommission:
-              type: integer
+              type: [integer, 'null']
         openComplaints:
           type: integer
       description: '(v1.65-social, D197) An agency: owner, host code, rank, the last six months (cherries, commissions), hosts with this month''s cherries, sub-agencies.'
@@ -30638,7 +31538,8 @@ components:
         sends:
           type: integer
         coinsSpent:
-          type: integer
+          type: [integer, 'null']
+          description: (v1.139-social, D387) the coins spent on the gift, ever — null without `revenue.view` (OWNER only).
         archivedAt:
           type: [string, 'null']
           format: date-time
@@ -32144,7 +33045,8 @@ components:
         pageSize:
           type: integer
         totals:
-          type: object
+          type: [object, 'null']
+          description: (v1.139-social, D387, §10.176.2) the filter's sums — null without `revenue.view` (OWNER only); each row keeps its amounts.
           required:
           - coins
           - paidMinor
@@ -32563,6 +33465,9 @@ components:
               whatsappDepartments:
                 $ref: '#/components/schemas/AdminTeamWhatsAppDepartments'
                 description: (v1.123-social, D366, §10.159.1) The person's WhatsApp departments «الأقسام»; set with `setAdminTeamWhatsAppDepartments`.
+              whatsappLanguages:
+                $ref: '#/components/schemas/AdminTeamWhatsAppLanguages'
+                description: (v1.140-social, D388, §10.177.3) The languages the person speaks «اللغات»; set with `setAdminTeamWhatsAppLanguages`.
     AdminTeamGrantRequest:
       type: object
       description: (v1.66-live, D271) Exactly one of `account` and `email` (400 `VALIDATION_FAILED` otherwise).
@@ -33952,8 +34857,14 @@ components:
         tokens: { $ref: '#/components/schemas/TokenPair' }
     Me:
       type: object
-      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links, tags, coverUrl, verification, statusEmojiId]
+      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, categoryVerified, categoryLocked, links, tags, coverUrl, verification, statusEmojiId]
       properties:
+        categoryVerified:
+          type: boolean
+          description: "(v1.138-social, D386, §10.175) The Kabso Team verified the caller's current category: the profile takes the category's look (accent, badge with a check, pattern, featured section, tab order). False with no category, and for a Kabso Team account (D367). Changing the category clears it."
+        categoryLocked:
+          type: boolean
+          description: "(v1.138-social, D386, §10.175) The team locked the category: «تعديل الملف» shows it read-only and `PATCH /me {category}` with another value → 403 `ACCOUNT_CATEGORY_LOCKED`."
         kabsoOwner:
           type: boolean
           const: true
@@ -34510,15 +35421,21 @@ components:
         generatedAt: { type: string, format: date-time, description: "When the numbers were computed (cached 60 s)." }
     OwnerProfitDeductionKey:
       type: string
-      enum: [GIFTS, AGENCY_COMMISSIONS, REFERRAL_REWARDS, TASK_REWARDS, STAFF_COMMISSIONS, TEAM_ADJUSTMENTS, COIN_REWARDS, CARD_FEES]
+      enum: [GIFTS, AGENCY_COMMISSIONS, REFERRAL_REWARDS, AMBASSADOR_COMMISSIONS, TASK_REWARDS, STAFF_COMMISSIONS, TEAM_ADJUSTMENTS, COIN_REWARDS, STAFF_COMPENSATIONS, AMBASSADOR_REWARDS, CARD_FEES]
       description: |
         A deduction line of «الربح» (§10.112.10): GIFTS — the gift cherries credited to hosts and creators (GIFT_RECEIVED
         − GIFT_REVERSAL); AGENCY_COMMISSIONS — agency and parent-agency commissions (− their reversals and forfeits);
         REFERRAL_REWARDS — referral rewards (− reversals); TASK_REWARDS — task and host-target reward cherries;
         STAFF_COMMISSIONS — recruiters' commissions; TEAM_ADJUSTMENTS — the team's cherry adjustments (net, may be
         negative); COIN_REWARDS — the coins given away (event prizes, task and check-in coins) at the lowest price an
-        agent pays Kabso (owner: $120 per 10 000 000 coins, `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION`); CARD_FEES — the
-        estimated card fees of the period's card orders.
+        agent pays Kabso (owner: $120 per 10 000 000 coins, `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION`);
+        STAFF_COMPENSATIONS (v1.139-social, D387, §10.176.4; owner: «نعم ينقص تقرير الربح قيمة هذه العملات») — the coins
+        given as VIP care compensations (wallet ledger `STAFF_COMPENSATION`) at the same coin value, its own line (`coins`);
+        AMBASSADOR_COMMISSIONS (v1.141-social, D390, §10.179.10) — the ambassadors' commissions in cherries
+        (AMBASSADOR_COMMISSION − AMBASSADOR_COMMISSION_REVERSAL); AMBASSADOR_REWARDS (D390) — the ambassadors' monthly rewards
+        in coins (wallet ledger `AMBASSADOR_REWARD`) at the same coin value as COIN_REWARDS (`coins`);
+        CARD_FEES — the estimated card fees of the period's card orders. An older app that does not know a key leaves the
+        line out of its list; `after` already counts it.
     OwnerProfitPeriod:
       type: object
       required: [kind, key, from, to, days, daysInMonth, partial, before, deductions, fixedCosts, after, info, otherCurrencies]
@@ -34549,8 +35466,8 @@ components:
             properties:
               key: { $ref: '#/components/schemas/OwnerProfitDeductionKey' }
               amountMinor: { type: integer, description: "US cents (a negative net lowers the costs)." }
-              cherries: { type: [integer, 'null'], description: "The net cherries of a cherry line (null for COIN_REWARDS and CARD_FEES)." }
-              coins: { type: [integer, 'null'], description: "The coins of COIN_REWARDS (null otherwise)." }
+              cherries: { type: [integer, 'null'], description: "The net cherries of a cherry line (null for COIN_REWARDS, STAFF_COMPENSATIONS, AMBASSADOR_REWARDS and CARD_FEES)." }
+              coins: { type: [integer, 'null'], description: "The coins of COIN_REWARDS, STAFF_COMPENSATIONS and AMBASSADOR_REWARDS (null otherwise)." }
               orders: { type: [integer, 'null'], description: "The card orders of CARD_FEES (null otherwise)." }
         fixedCosts:
           type: object
@@ -34791,15 +35708,18 @@ components:
         nextCursor: { type: [string, 'null'] }
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe, verification, statusEmojiId]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, categoryVerified, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe, verification, statusEmojiId]
       properties:
         ambassador:
           type: object
           additionalProperties: false
           required: [level]
-          description: "(v1.140-social, D390 follow-up, §10.179.9) The exclusive «سفير Kabso» badge — present only while the programme is on and the person's membership is ACTIVE (never FROZEN or ENDED, never a staff account); absent otherwise. The app shows a small level badge in the profile's badge row and on the live person card."
+          description: "(v1.141-social, D390 follow-up, §10.179.9) The exclusive «سفير Kabso» badge — present only while the programme is on and the person's membership is ACTIVE (never FROZEN or ENDED, never a staff account); absent otherwise. The app shows a small level badge in the profile's badge row and on the live person card."
           properties:
             level: { type: string, description: "The level code (BRONZE, SILVER, GOLD, DIAMOND by default)." }
+        categoryVerified:
+          type: boolean
+          description: "(v1.138-social, D386, §10.175) The Kabso Team verified this person's category: the profile page takes the category's look and loads `getUserFeatured`. False with no category and for a Kabso Team account (whose `category` is null, D367). An unverified category is only the word under the name, as before."
         animatedAvatar:
           $ref: '#/components/schemas/AnimatedAvatar'
           description: "(v1.136-social, D384, §10.173) The VIP animated cut-out picture — present only while the person holds an active VIP with the ANIMATED_AVATAR perk (inherited) and has set a clip, and never when either of the two blocked the other or for a limited Kabso Team account. The person card shows it in the round photo's place — the same circle, size and position, inside the same ring, VIP frame or bag frame — the head popping a little over the circle's top edge (owner: «اجعلها كأنها بإطار دائري بنفس حجم الإطار السابق»). Absent otherwise (the clip is kept when the VIP ends and shows again on renewal)."
@@ -35035,8 +35955,152 @@ components:
       description: v1.47-social (D175). «ذكر / أنثى / أفضّل عدم الذكر».
     AccountCategory:
       type: string
-      enum: [SINGER, MUSICIAN, POET, PRESENTER, GAMER, CONTENT_CREATOR, ATHLETE, ARTIST, BLOGGER, PUBLIC_FIGURE, OTHER]
-      description: "v1.47-social (D175). Shown under the name: مغنٍّ، موسيقي، شاعر، مقدّم برامج، لاعب ألعاب، صانع محتوى، رياضي، فنان، مدوّن، شخصية عامة، أخرى. The app names them in its own language."
+      enum: [SINGER, MUSICIAN, POET, PRESENTER, GAMER, CONTENT_CREATOR, ATHLETE, ARTIST, BLOGGER, PUBLIC_FIGURE, OTHER, QURAN_RECITER, STORYTELLER, WRITER, JOURNALIST, PHOTOGRAPHER, ACTOR, COMEDIAN, CALLIGRAPHER, DESIGNER, CHEF, TEACHER, DJ, TRAVELER]
+      description: "v1.47-social (D175). Shown under the name: مغنٍّ، موسيقي، شاعر، مقدّم برامج، لاعب ألعاب، صانع محتوى، رياضي، فنان، مدوّن، شخصية عامة، أخرى. The app names them in its own language. (v1.138-social, D386, §10.175) Thirteen more: قارئ قرآن، راوٍ، كاتب، صحفي، مصوّر، ممثل، كوميدي، خطّاط، مصمّم، طاهٍ، معلّم / مدرّب، دي جي، رحّالة. Additive: clients show an unknown value as nothing."
+    FeaturedSection:
+      type: string
+      enum: [WORKS, RECITATIONS, STORIES, POEMS, ARTICLES, REPORTS, PROGRAM, GAMES, ACHIEVEMENTS, GALLERY, MOST_VIEWED, HIGHLIGHTS]
+      description: "(v1.138-social, D386, §10.175.2) The featured section of a verified category's profile: WORKS «أعمالي» (SINGER, MUSICIAN, DJ), RECITATIONS «تلاواتي» (QURAN_RECITER), STORIES «حكاياتي» (STORYTELLER), POEMS «قصائدي» (POET), ARTICLES «مقالاتي» (WRITER, BLOGGER), REPORTS «تقاريري» (JOURNALIST), PROGRAM «برنامجي» (PRESENTER), GAMES «ألعابي» (GAMER), ACHIEVEMENTS «إنجازاتي» (ATHLETE), GALLERY «معرضي» (ARTIST, PHOTOGRAPHER, DESIGNER, CALLIGRAPHER), MOST_VIEWED «الأكثر مشاهدة» (CONTENT_CREATOR, ACTOR, COMEDIAN), HIGHLIGHTS «المميز» (CHEF, TRAVELER, TEACHER). PUBLIC_FIGURE and OTHER have none. Clients draw no section for a value they do not know."
+    ProfileFeatured:
+      type: object
+      description: "(v1.138-social, D386, §10.175.2) The featured section under a profile's header."
+      required: [section, source, items, schedule]
+      properties:
+        section:
+          description: Null when the category is none, not verified, PUBLIC_FIGURE or OTHER, or the account is Kabso Team.
+          oneOf:
+            - $ref: '#/components/schemas/FeaturedSection'
+            - type: 'null'
+        source:
+          type: string
+          enum: [PINNED, AUTO, NONE]
+          description: "PINNED: `items` are the person's pins; AUTO: no pin the caller may see, so the newest matching posts (or, for PROGRAM, only the schedule); NONE: nothing to show."
+        items:
+          type: array
+          maxItems: 6
+          items: { $ref: '#/components/schemas/Post' }
+        schedule:
+          type: array
+          maxItems: 6
+          description: "PROGRAM only (else empty): the person's announced lives and podcast episodes still ahead, soonest first."
+          items: { $ref: '#/components/schemas/LiveScheduleSlot' }
+    FeaturedPinList:
+      type: object
+      description: "(v1.138-social, D386, §10.175.3) The caller's featured pins in order."
+      required: [postIds, max]
+      properties:
+        postIds:
+          type: array
+          maxItems: 6
+          items: { type: string, format: uuid }
+        max: { type: integer, const: 6 }
+    SetFeaturedPinsRequest:
+      type: object
+      additionalProperties: false
+      required: [postIds]
+      properties:
+        postIds:
+          type: array
+          maxItems: 6
+          items: { type: string, format: uuid }
+    CategoryRequestStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+      description: "(v1.138-social, D386) CANCELLED: by the person, by a change of their category, or by the team's CLEAR."
+    CategoryVerificationRequest:
+      type: object
+      description: "(v1.138-social, D386, §10.175.4) A «طلب توثيق الفئة»."
+      required: [id, category, status, createdAt, decidedAt, rejectReason]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/AccountCategory' }
+        status: { $ref: '#/components/schemas/CategoryRequestStatus' }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        rejectReason: { type: [string, 'null'], description: The team's reason (REJECTED only). }
+    CategoryVerificationStatus:
+      type: object
+      description: "(v1.138-social, D386, §10.175.4) The caller's category, whether the team verified it, the lock and the latest request."
+      required: [category, verified, locked, request]
+      properties:
+        category:
+          description: Null for none, and for a Kabso Team account (D367).
+          oneOf:
+            - $ref: '#/components/schemas/AccountCategory'
+            - type: 'null'
+        verified: { type: boolean }
+        locked: { type: boolean, description: "The team locked the category; `PATCH /me` with another `category` → 403 `ACCOUNT_CATEGORY_LOCKED`." }
+        request:
+          description: The open request, else the latest decided or cancelled one; null when none was ever made.
+          oneOf:
+            - $ref: '#/components/schemas/CategoryVerificationRequest'
+            - type: 'null'
+    CategoryVerificationRequestBody:
+      type: object
+      additionalProperties: false
+      properties:
+        note: { type: string, maxLength: 300, description: "Optional, for the team (links to the person's work, …). ≤ 300 code points, §6 hygiene." }
+    AdminCategoryControlRequest:
+      type: object
+      additionalProperties: false
+      required: [action, reason]
+      properties:
+        action: { type: string, enum: [VERIFY, UNVERIFY, CLEAR, LOCK, UNLOCK] }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Kept in the audit log. }
+    AdminUserCategory:
+      type: object
+      description: "(v1.138-social, D386, §10.175.5) An account's stored category and the team's controls."
+      required: [category, verified, verifiedAt, verifiedBy, locked, lockedAt, kabsoTeam, request]
+      properties:
+        category:
+          oneOf:
+            - $ref: '#/components/schemas/AccountCategory'
+            - type: 'null'
+        verified: { type: boolean }
+        verifiedAt: { type: [string, 'null'], format: date-time }
+        verifiedBy:
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+        locked: { type: boolean }
+        lockedAt: { type: [string, 'null'], format: date-time }
+        kabsoTeam: { type: boolean, description: "The account holds a panel role, so its profile shows no category (D367)." }
+        request:
+          oneOf:
+            - $ref: '#/components/schemas/CategoryVerificationRequest'
+            - type: 'null'
+    AdminCategoryRequestRow:
+      type: object
+      description: "(v1.138-social, D386) A row of «طلبات توثيق الفئة»."
+      required: [id, status, category, currentCategory, note, user, createdAt, decidedAt, decidedBy, rejectReason]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/CategoryRequestStatus' }
+        category: { $ref: '#/components/schemas/AccountCategory' }
+        currentCategory:
+          description: The account's category now (null for none).
+          oneOf:
+            - $ref: '#/components/schemas/AccountCategory'
+            - type: 'null'
+        note: { type: [string, 'null'] }
+        user: { $ref: '#/components/schemas/AdminPersonRef' }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        decidedBy:
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+        rejectReason: { type: [string, 'null'] }
+    AdminCategoryRequestPage:
+      type: object
+      required: [data, total, page, pageSize]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminCategoryRequestRow' }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
     ProfileLinkPlatform:
       type: string
       enum: [INSTAGRAM, TIKTOK, YOUTUBE, FACEBOOK, X, WHATSAPP, SNAPCHAT, OTHER]
@@ -38255,8 +39319,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». (v1.127-social, D372) `CONTENT_GIFT_RECEIVED` (actor the sender, target POST: the post or reel; one unread row per post that new senders join, always on, pushed «أرسل لك فلان هدية»): someone sent a gift on your post or reel «هدية الدعم». (v1.136-social, D384) `ANIMATED_AVATAR_REMOVED` (system, no target): a moderator removed your VIP animated picture «صورة متحركة» (§10.173.5); the app opens the VIP page. (v1.140-social, D390) system, no target: `AMBASSADOR_APPLICATION_APPROVED` (the person is now an ambassador — also when the team appointed them), `AMBASSADOR_APPLICATION_REJECTED` (the reason is in `getAmbassadorProgramme`), `AMBASSADOR_LEVEL_UP` (the monthly evaluation moved them up), `AMBASSADOR_REWARD_GRANTED` (a monthly target reward was given), `AMBASSADOR_MEMBERSHIP_ENDED` (the OWNER ended the membership; the reason stays in the panel); the app opens the programme or the dashboard. Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED, CONTENT_GIFT_RECEIVED, ANIMATED_AVATAR_REMOVED, AMBASSADOR_APPLICATION_APPROVED, AMBASSADOR_APPLICATION_REJECTED, AMBASSADOR_LEVEL_UP, AMBASSADOR_REWARD_GRANTED, AMBASSADOR_MEMBERSHIP_ENDED]
+      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». (v1.127-social, D372) `CONTENT_GIFT_RECEIVED` (actor the sender, target POST: the post or reel; one unread row per post that new senders join, always on, pushed «أرسل لك فلان هدية»): someone sent a gift on your post or reel «هدية الدعم». (v1.136-social, D384) `ANIMATED_AVATAR_REMOVED` (system, no target): a moderator removed your VIP animated picture «صورة متحركة» (§10.173.5); the app opens the VIP page. (v1.138-social, D386) system, no target: `CATEGORY_VERIFIED` (the Kabso Team verified your account category — a request approved or the panel's VERIFY), `CATEGORY_REVIEWED` (the team rejected your request, removed the verification, cleared, locked or unlocked your category; the details are in `getMyCategoryVerification`); the app opens «تعديل الملف». (v1.141-social, D390) system, no target: `AMBASSADOR_APPLICATION_APPROVED` (the person is now an ambassador — also when the team appointed them), `AMBASSADOR_APPLICATION_REJECTED` (the reason is in `getAmbassadorProgramme`), `AMBASSADOR_LEVEL_UP` (the monthly evaluation moved them up), `AMBASSADOR_REWARD_GRANTED` (a monthly target reward was given), `AMBASSADOR_MEMBERSHIP_ENDED` (the OWNER ended the membership; the reason stays in the panel); the app opens the programme or the dashboard. Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED, CONTENT_GIFT_RECEIVED, ANIMATED_AVATAR_REMOVED, CATEGORY_VERIFIED, CATEGORY_REVIEWED, AMBASSADOR_APPLICATION_APPROVED, AMBASSADOR_APPLICATION_REJECTED, AMBASSADOR_LEVEL_UP, AMBASSADOR_REWARD_GRANTED, AMBASSADOR_MEMBERSHIP_ENDED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
@@ -40815,7 +41879,10 @@ components:
         # charged as its DM_GIFT), cancellation or failure.
         - VIP_SCHEDULED_GIFT
         - VIP_SCHEDULED_GIFT_RELEASE
-        # v1.140-social (D390, CONVENTIONS §10.179.6): an ambassador's monthly target reward in coins.
+        # v1.139-social (D387, CONVENTIONS §10.176.4): a compensation from the VIP care staff (a credit; reference: the
+        # compensation).
+        - STAFF_COMPENSATION
+        # v1.141-social (D390, CONVENTIONS §10.179.6): an ambassador's monthly target reward in coins.
         - AMBASSADOR_REWARD
     WalletLedgerEntry:
       type: object
@@ -42041,7 +43108,7 @@ components:
         daily share of a recruit's platform profit (reference `SR:<recruitment>@<day>`; withdrawable, §10.96.13).
         *(v1.82-live, D295)* `AGENCY_FORFEIT` (debit): «حظر الوكالة» — the owner's unwithdrawn agency commission
         forfeited (reference: the agency; §10.108). *(v1.97-social, D303)* `EVENT_PRIZE` (credit): a gift event's
-        cherry prize (reference `EVP:<payout>`; locked like `TASK_REWARD`, §10.114.4). *(v1.140-social, D390)*
+        cherry prize (reference `EVP:<payout>`; locked like `TASK_REWARD`, §10.114.4). *(v1.141-social, D390)*
         `AMBASSADOR_COMMISSION` (credit): an ambassador's commission on a referred person's qualifying top-up, after
         its hold (reference: the commission; withdrawable, §10.179.5); `AMBASSADOR_COMMISSION_REVERSAL` (debit): that
         commission taken back after a refund or a chargeback (reference: the same commission; the balance may go below 0).
@@ -43487,9 +44554,366 @@ components:
         total: { type: integer }
         page: { type: integer }
         pageSize: { type: integer }
+    # ---- v1.139-social (DRAFT, D387, CONVENTIONS §10.176): operations staff roles --------------------------------------
+    AdminHomeLive:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387) A live on air in a role home (no money figure).
+      required: [roomId, title, host, viewers, startedAt]
+      properties:
+        roomId: { type: string, format: uuid }
+        title: { type: string }
+        host: { $ref: '#/components/schemas/AdminPersonRef' }
+        viewers: { type: integer, minimum: 0 }
+        startedAt: { type: string, format: date-time }
+    AdminHomeEvent:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387) An event in a role home.
+      required: [id, titleAr, titleEn, startsAt, endsAt, running]
+      properties:
+        id: { type: string, format: uuid }
+        titleAr: { type: string }
+        titleEn: { type: string }
+        startsAt: { type: [string, 'null'], format: date-time }
+        endsAt: { type: [string, 'null'], format: date-time }
+        running: { type: boolean, description: Started and not ended (or permanent). }
+    AdminShiftPerson:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387) A staff member in the shift schedule.
+      required: [userId, staffId, username, displayName, avatarUrl, roles]
+      properties:
+        userId: { type: string, format: uuid }
+        staffId: { type: [string, 'null'], description: "«Kabso01» (D283c)." }
+        username: { type: string }
+        displayName: { type: string }
+        avatarUrl: { type: [string, 'null'] }
+        roles: { type: array, items: { $ref: '#/components/schemas/AdminPanelRole' } }
+    AdminShiftNow:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387, §10.176.6) Who is on shift now and whose slots start next.
+      required: [timeZone, onShiftNow, next]
+      properties:
+        timeZone: { type: string, description: "`LIVE_RANKINGS_TIME_ZONE` (D99)." }
+        onShiftNow: { type: array, items: { $ref: '#/components/schemas/AdminShiftPerson' } }
+        next:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required: [person, startsAt, weekday, startMinute, endMinute]
+            properties:
+              person: { $ref: '#/components/schemas/AdminShiftPerson' }
+              startsAt: { type: string, format: date-time }
+              weekday: { type: integer, minimum: 1, maximum: 7 }
+              startMinute: { type: integer, minimum: 0, maximum: 1439 }
+              endMinute: { type: integer, minimum: 1, maximum: 1440 }
+    AdminLiveOpsHome:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387, §10.176.3) No revenue or earnings figure.
+      required: [livesNow, topLives, topHosts, pk, events]
+      properties:
+        livesNow: { type: integer, minimum: 0 }
+        topLives: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/AdminHomeLive' } }
+        topHosts:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required: [host, liveMinutes7d, liveNow]
+            properties:
+              host: { $ref: '#/components/schemas/AdminPersonRef' }
+              liveMinutes7d: { type: integer, minimum: 0 }
+              liveNow: { type: boolean }
+        pk:
+          type: object
+          additionalProperties: false
+          required: [battlesNow, battlesToday]
+          properties:
+            battlesNow: { type: integer, minimum: 0 }
+            battlesToday: { type: integer, minimum: 0 }
+        events: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/AdminHomeEvent' } }
+    AdminTalentHome:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387, §10.176.3) No earnings figure.
+      required: [newHosts7d, liveHours7d, inactiveAgencies, queue]
+      properties:
+        newHosts7d: { type: integer, minimum: 0 }
+        liveHours7d: { type: number, minimum: 0, description: Live hours of agency hosts in 7 days (one decimal). }
+        inactiveAgencies:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name, inviteCode, owner, activeHosts, lastLiveAt]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: [string, 'null'] }
+              inviteCode: { type: string }
+              owner: { $ref: '#/components/schemas/AdminPersonRef' }
+              activeHosts: { type: integer, minimum: 0 }
+              lastLiveAt: { type: [string, 'null'], format: date-time, description: "The last live of any of its hosts; null: never." }
+        queue:
+          type: object
+          additionalProperties: false
+          required: [hostApplications, creatorApplications]
+          properties:
+            hostApplications: { type: integer, minimum: 0 }
+            creatorApplications: { type: integer, minimum: 0 }
+    AdminTrustSafetyHome:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387, §10.176.3)
+      required: [openReports, avgResolveMinutes, resolved7d, livesNow, shift]
+      properties:
+        openReports: { type: integer, minimum: 0 }
+        avgResolveMinutes: { type: [integer, 'null'], minimum: 0, description: "Reports resolved in the last 7 days; null when none." }
+        resolved7d: { type: integer, minimum: 0 }
+        livesNow: { type: integer, minimum: 0 }
+        shift: { $ref: '#/components/schemas/AdminShiftNow' }
+    AdminVipSupporter:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387, §10.176.3) A top supporter — levels and VIP tier, never a coin amount.
+      required: [user, level, vipTier, lastActiveAt]
+      properties:
+        user: { $ref: '#/components/schemas/AdminPersonRef' }
+        level: { type: [integer, 'null'], description: The SUPPORT level. }
+        vipTier:
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [code, nameAr, nameEn, color]
+              properties:
+                code: { type: string }
+                nameAr: { type: string }
+                nameEn: { type: string }
+                color: { type: string }
+        lastActiveAt: { type: [string, 'null'], format: date-time }
+    AdminVipCareHome:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387, §10.176.3) No coin or revenue amounts.
+      required: [topSupporters, stoppedActive, inactiveDays, pendingCompensations, shift]
+      properties:
+        topSupporters: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/AdminVipSupporter' } }
+        stoppedActive: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/AdminVipSupporter' } }
+        inactiveDays: { type: integer, description: Not seen for this many days (7). }
+        pendingCompensations: { type: integer, minimum: 0 }
+        shift: { $ref: '#/components/schemas/AdminShiftNow' }
+    AdminCommunityHome:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387, §10.176.3)
+      required: [upcomingEvents, participation, bannersLive]
+      properties:
+        upcomingEvents: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/AdminHomeEvent' } }
+        participation:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required: [eventId, titleAr, titleEn, entrants]
+            properties:
+              eventId: { type: string, format: uuid }
+              titleAr: { type: string }
+              titleEn: { type: string }
+              entrants: { type: integer, minimum: 0 }
+        bannersLive:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, titleAr, titleEn, placement, endsAt]
+            properties:
+              id: { type: string, format: uuid }
+              titleAr: { type: [string, 'null'] }
+              titleEn: { type: [string, 'null'] }
+              placement: { type: string }
+              endsAt: { type: [string, 'null'], format: date-time }
+    AdminStaffScheduleSlot:
+      type: object
+      additionalProperties: false
+      required: [id, person, weekday, startMinute, endMinute, onShiftNow]
+      properties:
+        id: { type: string, format: uuid }
+        person: { $ref: '#/components/schemas/AdminShiftPerson' }
+        weekday: { type: integer, minimum: 1, maximum: 7, description: 1 Monday … 7 Sunday. }
+        startMinute: { type: integer, minimum: 0, maximum: 1439 }
+        endMinute: { type: integer, minimum: 1, maximum: 1440 }
+        onShiftNow: { type: boolean }
+    AdminStaffSchedule:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387, §10.176.6) The weekly schedule in `timeZone`.
+      required: [timeZone, now, slots, shift, me]
+      properties:
+        timeZone: { type: string }
+        now:
+          type: object
+          additionalProperties: false
+          required: [weekday, minute]
+          properties:
+            weekday: { type: integer, minimum: 1, maximum: 7 }
+            minute: { type: integer, minimum: 0, maximum: 1439 }
+        slots: { type: array, items: { $ref: '#/components/schemas/AdminStaffScheduleSlot' } }
+        shift: { $ref: '#/components/schemas/AdminShiftNow' }
+        me:
+          type: object
+          additionalProperties: false
+          required: [onShiftNow]
+          properties:
+            onShiftNow: { type: boolean, description: The caller is on shift now (the schedule). }
+    AdminStaffScheduleSlotRequest:
+      type: object
+      additionalProperties: false
+      required: [userId, weekday, startMinute, endMinute, reason]
+      properties:
+        userId: { type: string, format: uuid }
+        weekday: { type: integer, minimum: 1, maximum: 7 }
+        startMinute: { type: integer, minimum: 0, maximum: 1439 }
+        endMinute: { type: integer, minimum: 1, maximum: 1440, description: More than `startMinute` (else 400 `endMinute` / `invalid_value`). }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Kept in the audit log. }
+    AdminCompensationSettings:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387, §10.176.4) Coins are the unit of value.
+      required: [dailyLimitCoins, perGrantMaxCoins, usedTodayCoins, timeZone, updatedAt]
+      properties:
+        dailyLimitCoins: { type: integer, format: int64, minimum: 0 }
+        perGrantMaxCoins: { type: integer, format: int64, minimum: 0 }
+        usedTodayCoins: { type: integer, format: int64, minimum: 0, description: The caller's GRANTED value today. }
+        timeZone: { type: string, description: "The day's zone (`ADMIN_DASHBOARD_TIME_ZONE`)." }
+        updatedAt: { type: [string, 'null'], format: date-time }
+    UpdateAdminCompensationSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [dailyLimitCoins, perGrantMaxCoins, reason, totpCode]
+      properties:
+        dailyLimitCoins: { type: integer, format: int64, minimum: 0, maximum: 1000000000 }
+        perGrantMaxCoins: { type: integer, format: int64, minimum: 0, maximum: 1000000000 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminCompensationKind:
+      type: string
+      enum: [COINS, VIP_DAYS, ITEM]
+    AdminCompensationStatus:
+      type: string
+      enum: [GRANTED, PENDING, APPROVED, REJECTED]
+    CreateAdminCompensationRequest:
+      type: object
+      additionalProperties: false
+      required: [user, kind, reason, totpCode]
+      properties:
+        user: { type: string, minLength: 1, maxLength: 254, description: "The account: id, email, `@username` or username." }
+        kind: { $ref: '#/components/schemas/AdminCompensationKind' }
+        coins: { type: integer, minimum: 1, maximum: 1000000000, description: COINS only. }
+        days: { type: integer, minimum: 1, maximum: 365, description: "VIP_DAYS: 1–365; ITEM: 7, 14 or 30." }
+        tierCode: { type: string, maxLength: 40, description: VIP_DAYS only. }
+        itemCode: { type: string, maxLength: 40, description: "ITEM only: the store item's bag code." }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    ApproveAdminCompensationRequest:
+      type: object
+      additionalProperties: false
+      required: [totpCode]
+      properties:
+        note: { type: string, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminCompensation:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387, §10.176.4)
+      required: [id, staff, user, kind, coins, days, tierCode, itemCode, valueCoins, reason, status, overLimit, decidedBy, decidedAt, decisionNote, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        staff: { oneOf: [{ $ref: '#/components/schemas/AdminPersonRef' }, { type: 'null' }], description: Who granted or asked. }
+        user: { $ref: '#/components/schemas/AdminPersonRef' }
+        kind: { $ref: '#/components/schemas/AdminCompensationKind' }
+        coins: { type: [integer, 'null'], format: int64 }
+        days: { type: [integer, 'null'] }
+        tierCode: { type: [string, 'null'] }
+        itemCode: { type: [string, 'null'] }
+        valueCoins: { type: integer, format: int64, minimum: 1, description: The grant's value in coins (what the limits count). }
+        reason: { type: string }
+        status: { $ref: '#/components/schemas/AdminCompensationStatus' }
+        overLimit: { type: [string, 'null'], enum: [per_grant, daily, null], description: Why it waits for the OWNER. }
+        decidedBy: { oneOf: [{ $ref: '#/components/schemas/AdminPersonRef' }, { type: 'null' }] }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        decisionNote: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    AdminCompensationPage:
+      type: object
+      additionalProperties: false
+      required: [data, total, page, pageSize]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminCompensation' } }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1 }
+    SocialPlatform:
+      type: string
+      description: (v1.139-social, D387) The app draws a generic glyph of its own for each (OTHER and unknown values a link icon).
+      enum: [INSTAGRAM, TIKTOK, X, FACEBOOK, YOUTUBE, SNAPCHAT, TELEGRAM, WHATSAPP, THREADS, LINKEDIN, DISCORD, OTHER]
+    OfficialSocialAccount:
+      type: object
+      additionalProperties: false
+      required: [platform, handle, url]
+      properties:
+        platform: { $ref: '#/components/schemas/SocialPlatform' }
+        handle: { type: string, minLength: 1, maxLength: 64 }
+        url: { type: string, format: uri, maxLength: 512, pattern: '^https://', description: https only. }
+    OfficialSocialAccountList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/OfficialSocialAccount' } }
+    AdminSocialAccount:
+      type: object
+      additionalProperties: false
+      required: [id, platform, handle, url, sortOrder, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        platform: { $ref: '#/components/schemas/SocialPlatform' }
+        handle: { type: string }
+        url: { type: string, pattern: '^https://' }
+        sortOrder: { type: integer, minimum: 0 }
+        updatedAt: { type: string, format: date-time }
+    AdminSocialAccountList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/AdminSocialAccount' } }
+    AdminSocialAccountRequest:
+      type: object
+      additionalProperties: false
+      description: (v1.139-social, D387) Links only — there is no field for a password, token or key.
+      required: [platform, handle, url]
+      properties:
+        platform: { $ref: '#/components/schemas/SocialPlatform' }
+        handle: { type: string, minLength: 1, maxLength: 64 }
+        url: { type: string, minLength: 9, maxLength: 512, description: "https only; no user or password part." }
+    AdminSocialAccountOrderRequest:
+      type: object
+      additionalProperties: false
+      required: [ids]
+      properties:
+        ids: { type: array, maxItems: 20, uniqueItems: true, items: { type: string, format: uuid } }
     AmbassadorReward:
       type: object
-      description: "(v1.140-social, D390, §10.179.6) A level's monthly target reward: NONE; COINS (`amount` coins, ledger `AMBASSADOR_REWARD`); VIP_DAYS (`amount` days of `vipTier`); BAG_ITEM (`itemCode` for `amount` days)."
+      description: "(v1.141-social, D390, §10.179.6) A level's monthly target reward: NONE; COINS (`amount` coins, ledger `AMBASSADOR_REWARD`); VIP_DAYS (`amount` days of `vipTier`); BAG_ITEM (`itemCode` for `amount` days)."
       additionalProperties: false
       required: [kind]
       properties:
@@ -43499,7 +44923,7 @@ components:
         itemCode: { type: string, minLength: 1, maxLength: 64 }
     AmbassadorLevel:
       type: object
-      description: "(v1.140-social, D390, §10.179.6) A level: the month's requirements (referrals that became active, qualifying top-up coins), the commission on qualifying top-ups (basis points) and the monthly target reward. OWNER-edited."
+      description: "(v1.141-social, D390, §10.179.6) A level: the month's requirements (referrals that became active, qualifying top-up coins), the commission on qualifying top-ups (basis points) and the monthly target reward. OWNER-edited."
       additionalProperties: false
       required: [code, minActiveReferrals, minTopupCoins, commissionBps, reward]
       properties:
@@ -43536,7 +44960,7 @@ components:
         motivation: { type: string, minLength: 1, maxLength: 1000 }
     AmbassadorProgramme:
       type: object
-      description: "(v1.140-social, D390, §10.179.2) `getAmbassadorProgramme`."
+      description: "(v1.141-social, D390, §10.179.2) `getAmbassadorProgramme`."
       additionalProperties: false
       required: [enabled, status, canApply, refusal, application, levels, rules]
       properties:
@@ -43560,7 +44984,7 @@ components:
             minActiveTopupCoins: { type: integer, minimum: 0 }
     AmbassadorDashboard:
       type: object
-      description: "(v1.140-social, D390, §10.179.6) `getMyAmbassadorDashboard`. `payoutsHeld`: the OWNER froze the pending rewards or a review is open — nothing is credited until it ends (the reason is never sent). Pending = in their hold; held = past the hold but waiting (frozen, review, the friend not active yet); paid = credited (withdrawable cherries); reversed = taken back after a refund."
+      description: "(v1.141-social, D390, §10.179.6) `getMyAmbassadorDashboard`. `payoutsHeld`: the OWNER froze the pending rewards or a review is open — nothing is credited until it ends (the reason is never sent). Pending = in their hold; held = past the hold but waiting (frozen, review, the friend not active yet); paid = credited (withdrawable cherries); reversed = taken back after a refund."
       additionalProperties: false
       required: [enabled, payoutsHeld, since, code, link, level, nextLevel, month, referrals, commissions, history, recent]
       properties:
@@ -43658,7 +45082,7 @@ components:
         reversedCherries: { type: integer, minimum: 0 }
     AmbassadorSettings:
       type: object
-      description: "(v1.140-social, D390, §10.179.7) Every number of the programme; OWNER only."
+      description: "(v1.141-social, D390, §10.179.7) Every number of the programme; OWNER only."
       additionalProperties: false
       required: [enabled, attributionWindowDays, holdDays, minActiveDays, minActiveTopupCoins, monthlyCapCherries, velocityMaxPerDay, ipClusterMax, ipClusterWindowDays, levels, updatedAt]
       properties:
@@ -43724,7 +45148,7 @@ components:
             activeReferrals: { type: integer, minimum: 0 }
             topupCoins: { type: integer, minimum: 0 }
         commissions:
-          description: Null without `ambassadors.settings` (the OWNER's money).
+          description: Null without `revenue.view` (D387, the OWNER's money).
           oneOf:
             - { $ref: '#/components/schemas/AmbassadorCommissionTotals' }
             - { type: 'null' }

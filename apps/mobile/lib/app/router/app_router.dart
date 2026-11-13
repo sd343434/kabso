@@ -637,7 +637,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.creatorApply,
         builder: (_, _) => const CreatorApplyScreen(),
       ),
-      // v1.140-social (D390): «برنامج سفراء Kabso».
+      // v1.141-social (D390): «برنامج سفراء Kabso».
       GoRoute(
         path: AppRoutes.ambassadors,
         builder: (_, _) => const AmbassadorProgrammeScreen(),

@@ -85,7 +85,11 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.dmNotArchivable: 409,
   ErrorCode.dmGroupFull: 409,
   ErrorCode.dmPinLimit: 409,
-  // v1.140-social (D390).
+  // v1.138-social (D386).
+  ErrorCode.featuredPinLimit: 409,
+  ErrorCode.categoryVerificationPending: 409,
+  ErrorCode.accountCategoryLocked: 403,
+  // v1.141-social (D390).
   ErrorCode.ambassadorApplicationNotAllowed: 409,
   ErrorCode.dmGroupMemberNotAllowed: 403,
   ErrorCode.quipFreeUsed: 409,
@@ -170,6 +174,9 @@ const Map<ErrorCode, int> _statusFor = {
   // v1.133-social (D380).
   ErrorCode.vipProtected: 403,
   ErrorCode.liveStaffRefused: 403,
+  // v1.139-social (D387).
+  ErrorCode.staffGiftRefused: 403,
+  ErrorCode.staffWithdrawalCompanyOnly: 403,
   ErrorCode.staffStepUpRequired: 403,
   ErrorCode.staffTotpNotEnrolled: 409,
   ErrorCode.adminTotpInvalid: 403,
@@ -290,7 +297,11 @@ void main() {
           'DM_NOT_ARCHIVABLE',
           'DM_GROUP_FULL',
           'DM_PIN_LIMIT',
-          // v1.140-social (D390)
+          // v1.138-social (D386)
+          'FEATURED_PIN_LIMIT',
+          'CATEGORY_VERIFICATION_PENDING',
+          'ACCOUNT_CATEGORY_LOCKED',
+          // v1.141-social (D390)
           'AMBASSADOR_APPLICATION_NOT_ALLOWED',
           'DM_GROUP_MEMBER_NOT_ALLOWED',
           'QUIP_FREE_USED',
@@ -381,6 +392,9 @@ void main() {
           // v1.133-social (D380): KICK_MUTE_SHIELD.
           'VIP_PROTECTED',
           'LIVE_STAFF_REFUSED',
+          // v1.139-social (D387).
+          'STAFF_GIFT_REFUSED',
+          'STAFF_WITHDRAWAL_COMPANY_ONLY',
           'STAFF_STEP_UP_REQUIRED',
           'STAFF_TOTP_NOT_ENROLLED',
           'ADMIN_TOTP_INVALID',

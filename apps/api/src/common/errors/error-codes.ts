@@ -93,7 +93,13 @@ export enum ErrorCode {
   DM_GROUP_FULL = 'DM_GROUP_FULL',
   /** v1.137-social (D385, §10.174.4): a 6th pinned chat. */
   DM_PIN_LIMIT = 'DM_PIN_LIMIT',
-  /** v1.140-social (D390, §10.179.2): «برنامج سفراء Kabso» — the caller may not apply now (`details[0].issue`). */
+  /** v1.138-social (D386, §10.175.3): a 7th featured pin. */
+  FEATURED_PIN_LIMIT = 'FEATURED_PIN_LIMIT',
+  /** v1.138-social (D386, §10.175.4): an open «طلب توثيق الفئة» already exists. */
+  CATEGORY_VERIFICATION_PENDING = 'CATEGORY_VERIFICATION_PENDING',
+  /** v1.138-social (D386, §10.175.4): the team locked the account category. */
+  ACCOUNT_CATEGORY_LOCKED = 'ACCOUNT_CATEGORY_LOCKED',
+  /** v1.141-social (D390, §10.179.2): «برنامج سفراء Kabso» — the caller may not apply now (`details[0].issue`). */
   AMBASSADOR_APPLICATION_NOT_ALLOWED = 'AMBASSADOR_APPLICATION_NOT_ALLOWED',
   DM_GROUP_MEMBER_NOT_ALLOWED = 'DM_GROUP_MEMBER_NOT_ALLOWED',
   /** v1.21-live (DRAFT, CP-018): the caller or the other person already has a CP partner. */
@@ -372,6 +378,10 @@ export enum ErrorCode {
    * bullets or take a seat — `details: [{field: 'staff', issue: 'gifts' | 'taps' | 'bullets' | 'seat' | 'hidden_chat'}]`.
    */
   LIVE_STAFF_REFUSED = 'LIVE_STAFF_REFUSED',
+  /** v1.139-social (D387, §10.176.8): a staff account (any panel role) sends no gift on any path. */
+  STAFF_GIFT_REFUSED = 'STAFF_GIFT_REFUSED',
+  /** v1.139-social (D387, §10.176.9): a staff account's cherries leave only through a withdrawal request to the company. */
+  STAFF_WITHDRAWAL_COMPANY_ONLY = 'STAFF_WITHDRAWAL_COMPANY_ONLY',
   /**
    * v1.68-live (DRAFT, D273, §10.96.6): a staff tool needs the step-up — the panel authenticator code in the app
    * (`createStaffStepUp`); none, expired or ended (sign-out, a role revoked, a lockout, a reset authenticator).
@@ -467,6 +477,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.DM_NOT_ARCHIVABLE]: 409,
   [ErrorCode.DM_GROUP_FULL]: 409,
   [ErrorCode.DM_PIN_LIMIT]: 409,
+  [ErrorCode.FEATURED_PIN_LIMIT]: 409,
+  [ErrorCode.CATEGORY_VERIFICATION_PENDING]: 409,
+  [ErrorCode.ACCOUNT_CATEGORY_LOCKED]: 403,
   [ErrorCode.AMBASSADOR_APPLICATION_NOT_ALLOWED]: 409,
   [ErrorCode.DM_GROUP_MEMBER_NOT_ALLOWED]: 403,
   [ErrorCode.CP_ALREADY_PAIRED]: 409,
@@ -581,6 +594,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.STAFF_PROTECTED]: 403,
   [ErrorCode.VIP_PROTECTED]: 403,
   [ErrorCode.LIVE_STAFF_REFUSED]: 403,
+  [ErrorCode.STAFF_GIFT_REFUSED]: 403,
+  [ErrorCode.STAFF_WITHDRAWAL_COMPANY_ONLY]: 403,
   [ErrorCode.STAFF_STEP_UP_REQUIRED]: 403,
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 409,
   [ErrorCode.STAFF_ACCOUNT_LIMITED]: 403,
@@ -648,6 +663,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.DM_NOT_ARCHIVABLE]: 'A message request cannot be archived; accept or delete it.',
   [ErrorCode.DM_GROUP_FULL]: 'This group has reached its member limit.',
   [ErrorCode.DM_PIN_LIMIT]: 'You can pin up to 5 chats. Unpin one first.',
+  [ErrorCode.FEATURED_PIN_LIMIT]: 'You can feature up to 6 posts. Unpin one first.',
+  [ErrorCode.CATEGORY_VERIFICATION_PENDING]: 'Your category verification request is already being reviewed.',
+  [ErrorCode.ACCOUNT_CATEGORY_LOCKED]: 'The Kabso Team locked your account category.',
   [ErrorCode.AMBASSADOR_APPLICATION_NOT_ALLOWED]: 'You cannot apply to the ambassadors programme now.',
   [ErrorCode.DM_GROUP_MEMBER_NOT_ALLOWED]: 'Some of these people cannot be added to a group by you.',
   [ErrorCode.CP_ALREADY_PAIRED]: 'Already in a CP couple.',
@@ -765,6 +783,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.VIP_PROTECTED]:
     "This member's VIP protects them from moderators; only the host or the Kabso Team can.",
   [ErrorCode.LIVE_STAFF_REFUSED]: 'The Kabso Team does not do this in a live.',
+  [ErrorCode.STAFF_GIFT_REFUSED]: 'Kabso Team accounts cannot send gifts.',
+  [ErrorCode.STAFF_WITHDRAWAL_COMPANY_ONLY]:
+    'A Kabso Team account withdraws its cherries only through a withdrawal request to Kabso.',
   [ErrorCode.STAFF_STEP_UP_REQUIRED]: 'Enter your authenticator code to use the staff tools.',
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 'Set up the authenticator in the admin panel first.',
   [ErrorCode.STAFF_ACCOUNT_LIMITED]: 'A Kabso Team account cannot do this.',

@@ -42,6 +42,9 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'COVER_REMOVED',
   // v1.136-social (D384): a moderator removed the VIP animated picture.
   'ANIMATED_AVATAR_REMOVED',
+  // v1.138-social (D386): the team verified / otherwise reviewed the account category (no target).
+  'CATEGORY_VERIFIED',
+  'CATEGORY_REVIEWED',
   // v1.60-social (D191): a moderator warned the person (from the panel's report queue).
   'MODERATION_WARNING',
   // v1.66-social (D198): the data export «تنزيل بياناتي» is ready.
@@ -82,7 +85,7 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'EVENT_PRIZE_WON',
   // v1.101-social (D325): an event for the person's audience started (target the event).
   'EVENT_STARTED',
-  // v1.140-social (D390): «برنامج سفراء Kabso» — the application decided, a level up, a monthly reward (no target).
+  // v1.141-social (D390): «برنامج سفراء Kabso» — the application decided, a level up, a monthly reward (no target).
   'AMBASSADOR_APPLICATION_APPROVED',
   'AMBASSADOR_APPLICATION_REJECTED',
   'AMBASSADOR_LEVEL_UP',
@@ -238,6 +241,9 @@ export class Notifier {
         | 'COVER_REMOVED'
         // v1.136-social (D384): a moderator removed the VIP animated picture (no target).
         | 'ANIMATED_AVATAR_REMOVED'
+        // v1.138-social (D386, §10.175.5): the team verified / otherwise reviewed the category (no target).
+        | 'CATEGORY_VERIFIED'
+        | 'CATEGORY_REVIEWED'
         | 'MODERATION_WARNING'
         | 'DATA_EXPORT_READY'
         // v1.72-social (D208): the team edited the profile (no target).
@@ -248,7 +254,7 @@ export class Notifier {
         | 'KYC_APPROVED'
         | 'KYC_DECLINED'
         | 'KYC_IN_REVIEW'
-        // v1.140-social (D390, §10.179.9): the ambassadors programme (no target; the app opens the programme).
+        // v1.141-social (D390, §10.179.9): the ambassadors programme (no target; the app opens the programme).
         | 'AMBASSADOR_APPLICATION_APPROVED'
         | 'AMBASSADOR_APPLICATION_REJECTED'
         | 'AMBASSADOR_LEVEL_UP'

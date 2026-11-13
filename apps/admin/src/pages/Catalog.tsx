@@ -64,7 +64,8 @@ export interface GiftDto {
   owner?: GiftOwnerDto | null;
   enabled: boolean;
   sends: number;
-  coinsSpent: number;
+  /** v1.139-social (D387, §10.176.2): null without `revenue.view` (OWNER only). */
+  coinsSpent: number | null;
   /** v1.103-social (D338, §10.131): set while archived («المحذوفة», always off). */
   archivedAt: string | null;
   /** v1.103-social (D338): something points at it, so «حذف» archives it (else deletes it for real). */

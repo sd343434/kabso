@@ -95,10 +95,16 @@ export const PROFIT_DEDUCTIONS = [
   'GIFTS',
   'AGENCY_COMMISSIONS',
   'REFERRAL_REWARDS',
+  // v1.141-social (D390, §10.179.10): the ambassadors' commissions in cherries, net of their claw-backs.
+  'AMBASSADOR_COMMISSIONS',
   'TASK_REWARDS',
   'STAFF_COMMISSIONS',
   'TEAM_ADJUSTMENTS',
   'COIN_REWARDS',
+  // v1.139-social (D387, §10.176.4; owner: «نعم ينقص تقرير الربح قيمة هذه العملات»): the VIP_CARE compensations in coins.
+  'STAFF_COMPENSATIONS',
+  // v1.141-social (D390, §10.179.10): the ambassadors' monthly rewards in coins.
+  'AMBASSADOR_REWARDS',
   'CARD_FEES',
 ] as const;
 export type ProfitDeduction = (typeof PROFIT_DEDUCTIONS)[number];
@@ -110,7 +116,10 @@ export type ProfitDeduction = (typeof PROFIT_DEDUCTIONS)[number];
  * and `STORE_PURCHASE` (cherries handed back).
  */
 export const CHERRY_LINES: Readonly<
-  Record<Exclude<ProfitDeduction, 'CARD_FEES' | 'COIN_REWARDS'>, readonly string[]>
+  Record<
+    Exclude<ProfitDeduction, 'CARD_FEES' | 'COIN_REWARDS' | 'STAFF_COMPENSATIONS' | 'AMBASSADOR_REWARDS'>,
+    readonly string[]
+  >
 > = {
   GIFTS: ['GIFT_RECEIVED', 'GIFT_REVERSAL'],
   AGENCY_COMMISSIONS: [
@@ -120,13 +129,8 @@ export const CHERRY_LINES: Readonly<
     'PARENT_COMMISSION_REVERSAL',
     'AGENCY_FORFEIT',
   ],
-  // v1.140-social (D390, §10.179.10): the ambassadors' commissions are referral costs too (net of their claw-backs).
-  REFERRAL_REWARDS: [
-    'REFERRAL_REWARD',
-    'REFERRAL_REVERSAL',
-    'AMBASSADOR_COMMISSION',
-    'AMBASSADOR_COMMISSION_REVERSAL',
-  ],
+  REFERRAL_REWARDS: ['REFERRAL_REWARD', 'REFERRAL_REVERSAL'],
+  AMBASSADOR_COMMISSIONS: ['AMBASSADOR_COMMISSION', 'AMBASSADOR_COMMISSION_REVERSAL'],
   TASK_REWARDS: ['TASK_REWARD', 'HOST_TARGET_REWARD'],
   STAFF_COMMISSIONS: ['STAFF_RECRUIT_COMMISSION'],
   TEAM_ADJUSTMENTS: ['ADMIN_ADJUSTMENT'],
@@ -139,13 +143,7 @@ export const CHERRY_COST_REASONS: readonly string[] = Object.values(CHERRY_LINES
  * COIN_REWARDS: the coins Kabso gives away (event prizes, task and check-in coins), valued conservatively at the lowest
  * price an agent pays Kabso (owner: $120 per 10 000 000 coins, `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION`).
  */
-export const FREE_COIN_REASONS = [
-  'EVENT_PRIZE',
-  'TASK_REWARD',
-  'CHECK_IN_REWARD',
-  // v1.140-social (D390, §10.179.10): an ambassador's monthly target reward in coins.
-  'AMBASSADOR_REWARD',
-] as const;
+export const FREE_COIN_REASONS = ['EVENT_PRIZE', 'TASK_REWARD', 'CHECK_IN_REWARD'] as const;
 
 /**
  * v1.100-social (D312, CONVENTIONS §10.118; owner: «وتُحسب كتكلفة في الربح»): the custom gift owners' coin shares are coins
@@ -153,6 +151,19 @@ export const FREE_COIN_REASONS = [
  * `GIFT_OWNER_ROYALTY_REVERSAL` is negative), at the same conservative coin value.
  */
 export const GIFT_OWNER_COIN_REASONS = ['GIFT_OWNER_ROYALTY', 'GIFT_OWNER_ROYALTY_REVERSAL'] as const;
+
+/**
+ * v1.139-social (D387, §10.176.4; owner: «نعم ينقص تقرير الربح قيمة هذه العملات»): STAFF_COMPENSATIONS — the coins the
+ * VIP care team (or the OWNER) gave as compensation, its own line, valued like COIN_REWARDS (the lowest agent price).
+ * Only the coin kind moves coins; VIP days and store items are not coins and are not counted here.
+ */
+export const STAFF_COMPENSATION_COIN_REASONS = ['STAFF_COMPENSATION'] as const;
+
+/**
+ * v1.141-social (D390, §10.179.10): AMBASSADOR_REWARDS — the coins of the ambassadors' monthly target rewards, its own
+ * line, valued like STAFF_COMPENSATIONS (the lowest agent price). VIP days and bag items are not coins: not counted.
+ */
+export const AMBASSADOR_REWARD_COIN_REASONS = ['AMBASSADOR_REWARD'] as const;
 
 /** Coins' value in US cents at `minorPerMillion` cents per 1 000 000 coins, rounded half up. */
 export function coinMoney(coins: bigint, minorPerMillion: number): bigint {

@@ -16,7 +16,7 @@ import 'package:material_ui/material_ui.dart';
 
 String _n(int v) => KFormat.bidiIsolate(KFormat.grouped(v));
 
-/// v1.140-social (D390, §10.179.6): the ambassador's dashboard — the code and
+/// v1.141-social (D390, §10.179.6): the ambassador's dashboard — the code and
 /// the link with copy and share, the badge and the level with its commission
 /// and the progress to the next one, this month's targets, the referrals, the
 /// commissions (in hold, held, paid, reversed) and the history.

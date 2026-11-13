@@ -1790,7 +1790,7 @@ unused.
 
 ### 11.13 «واتساب» — the official Kabso WhatsApp number (D355) — [IMPLEMENTED, draft contract v1.116-social; off until the owner configures it, never run against Meta]
 
-The staff answer one official Kabso WhatsApp number from the app («أنا» → «واتساب») and the panel («واتساب»)
+The staff answer one official Kabso WhatsApp number from the app («الرسائل» → the pinned «واتساب» circle after «دعم كابسو»; it was «أنا» → «واتساب» until 2026-11-13) and the panel («واتساب»)
 (CONVENTIONS §10.151). It stays **off** until the five settings below are on the server; nothing else needs a deploy.
 Meta's screens and names change often — follow Meta's current wording; the links are Meta's official pages.
 
@@ -4540,18 +4540,105 @@ CONVENTIONS §10.174 (owner 2026-11-12). One migration and one optional setting;
   row and no support chat; an older staff app or panel must not open the inbox while in-app threads exist (their phone
   is null) — none is deployed with D355 yet.
 
-### 5.130 «برنامج سفراء Kabso» — the ambassadors programme (D390; migrations `20270518090000`, `20270518090100`) — [IMPLEMENTED, draft contract v1.140-social; not deployed, not device-tested]
+### 5.128 A profile page per account category (D386; migrations `20270516090000`, `20270516090100`) — [IMPLEMENTED, draft contract v1.138-social; not deployed, not device-tested]
+
+CONVENTIONS §10.175 (owner 2026-11-12). Two migrations and two optional settings; no new secret, no new host.
+
+- **Migration** `20270516090000_category_profiles_enums` (its own transaction, as PostgreSQL requires for new enum values):
+  13 values of `account_category`; `notification_type` `CATEGORY_VERIFIED`, `CATEGORY_REVIEWED`.
+- **Migration** `20270516090100_category_profiles`: `user_profiles.category_verified_at`, `category_verified_by`,
+  `category_locked_at`, `category_locked_by` (all null for existing rows — nobody is verified or locked after deploy;
+  CHECK `user_profiles_category_verified_shape` holds trivially); type `category_request_status`; tables
+  `category_verification_requests` (partial unique index `category_verification_requests_one_pending`) and
+  `profile_featured_pins` (CHECK `profile_featured_pins_position`, unique per person and position). Runtime grants from
+  the default privileges (KL-013; full DML). Small or new tables; the `user_profiles` change only adds nullable columns
+  (no rewrite) and a CHECK and two foreign keys validated against null columns.
+- **Settings:** `RATE_LIMIT_FEATURED_PINS_USER` (default `60/3600`), `RATE_LIMIT_CATEGORY_REQUEST_USER` (default
+  `5/86400`).
+- **Panel:** «طلبات توثيق الفئة» under the users group (`users.control_view` reads, `users.profile_edit` acts — existing
+  capabilities, no role change); the user page's «فئة الحساب» block.
+- **Rollback note:** an older API image ignores the new columns and tables, but it cannot read a profile whose
+  `account_category` holds one of the 13 new values (Prisma rejects an unknown enum value). Before rolling the API back,
+  clear them: `UPDATE user_profiles SET account_category = NULL, category_verified_at = NULL WHERE account_category IN
+  ('QURAN_RECITER', …, 'TRAVELER')` (after an export if needed). The enum values, columns and tables can stay.
+- **Order:** deploy the API image (the migrations run first), then the panel, then ship the APK. An older app shows a
+  new category as nothing and keeps the default page.
+
+### 5.129 The operations staff roles, the shift schedule, compensations and the official accounts (D387; migrations `20270517090000_ops_roles_enums`, `20270517090100_ops_roles`) — [IMPLEMENTED, draft contract v1.139-social; not deployed, not device-tested]
+
+CONVENTIONS §10.176 (owner 2026-11-12). Two migrations; no new setting, secret or host.
+
+- **Migrations** (the usual `migrate` job, as the migration role, in order): `20270517090000_ops_roles_enums` adds the
+  `admin_permission` values `LIVE_OPS`, `TALENT`, `VIP_CARE`, `COMMUNITY` and the `wallet_ledger_reason` value
+  `STAFF_COMPENSATION` (each `ADD VALUE` in its own migration, outside the next one's transaction);
+  `20270517090100_ops_roles` widens `wallet_ledger_reason_sign` (STAFF_COMPENSATION is a credit), creates
+  `staff_schedule_slots`, `staff_compensation_settings` (one row, defaults 50 000 / 10 000 coins),
+  `staff_compensations` and `official_social_accounts` (runtime grants from the default privileges, KL-013), and replaces
+  `kabso_admin_panel_role(...)` so the CLI and the panel can grant the four new roles (each gets its staff ID). No data
+  is migrated: MODERATION keeps its value, so every moderator keeps exactly their access (TRUST_SAFETY is its new name
+  in the panel and the app; `admin-admin grant … TRUST_SAFETY` grants MODERATION).
+- **Behaviour change for the panel (owner: earnings and revenue for the OWNER only):** FINANCE and every non-OWNER role
+  now get 403 from `/admin/dashboard`, `/admin/stats/overview`, `/admin/stats/series`, `/admin/finance/report` and
+  `/admin/store/sales`, and `null` for the agency earnings, the top-up totals, the gift coins spent and the smart
+  targets' profit. FINANCE keeps the amounts of each withdrawal, top-up, card order and case it handles. The list of
+  changed screens is in §10.176.2. Tell the finance team before deploying.
+- **Moved capabilities:** the gift, banner and rocket-price writes and the public website settings now check
+  `gifts.manage`, `banners.manage`, `boosts.manage` and `site.public` (OWNER unchanged; before D387 only the OWNER held
+  `catalog.manage` and `site.settings`, so nobody loses a write).
+- **After deploying:** the OWNER grants the new roles from «الموظفون والصلاحيات» (or `admin-admin grant`), sets the
+  compensation limits in «التعويضات» if the defaults do not fit, enters the 24/7 schedule in «جدول المناوبات» and the
+  official accounts in «حساباتنا الرسمية» (https links only; never a password or token).
+- **Owner follow-up (2026-11-12, §10.176.4):** migration `20270517090300_staff_compensation_profit` adds the partial
+  index `wallet_ledger_staff_compensation_idx` (built without `CONCURRENTLY`; no row has that reason before this
+  release, so it is instant); «الربح» gains the line `STAFF_COMPENSATIONS`.
+- **Owner follow-up (2026-11-12, §10.176.8–9):** migration `20270517090200_staff_withdrawals` adds
+  `cherry_withdrawals.staff_request` (BOOLEAN NOT NULL DEFAULT false: no rewrite; existing rows false). Employees
+  (any panel role except OWNER; owner: «لا غير ممنوع») can no longer send gifts on any path (403 `STAFF_GIFT_REFUSED`) and can no longer
+  sell cherries to a recharge agent (403 `STAFF_WITHDRAWAL_COMPANY_ONLY`); their withdrawal requests go to the OWNER only.
+  Tell the team before deploying: an open agent cherry request with a staff host cannot be confirmed any more.
+- **Not in this release (§10.176.7):** the COMMUNITY broadcast notification and the TALENT training message to every
+  host; the website footer keeps its three fixed links.
+- **Rollback note:** an older API image ignores the new tables, but its Prisma client does not know the four new
+  `admin_permission` values or `STAFF_COMPENSATION`, so a row holding one would fail its reads: before rolling back,
+  revoke the new roles (`admin-admin revoke`). Once a coin compensation was granted, the older image cannot read that
+  person's ledger rows: roll forward instead. The enum values stay.
+- **Order:** deploy the API image (the migrations run first), then the panel, then ship the APK. An older app shows no
+  «تابعنا» and no on-shift badge; it shows no role line for the four new roles.
+
+### 5.130 «سؤال اللغة» — the WhatsApp language question (D388; migration `20270518090000_whatsapp_language`) — [IMPLEMENTED, draft contract v1.140-social; not deployed, not tested against Meta]
+
+CONVENTIONS §10.177 (owner 2026-11-13). One migration and one optional setting; no new secret, no new host.
+
+- **Migration** `20270518090000_whatsapp_language` (the usual `migrate` job, as the migration role): enum `wa_language`;
+  `wa_conversations.language` and `language_asked_at` (nullable, no default: metadata-only, no table rewrite); the new
+  table `wa_staff_languages` (runtime grants from the default privileges, KL-013). Nothing to backfill: every existing
+  conversation has no language and is asked once, on its next message.
+- **Setting:** `WHATSAPP_ASK_LANGUAGE` (default `true`) — the reply-buttons question «العربية / English» on a
+  conversation's first message. Set `false` to stop asking (languages already chosen stay shown); anything but
+  `true` / `false` stops the API at boot.
+- **Meta:** nothing to configure. The question is an interactive reply-buttons message inside the 24-hour window (the
+  customer just wrote), so no template is needed; the answer arrives on the `messages` webhook field already
+  subscribed (§11.13). The confirmation is a plain text in the chosen language.
+- **Panel:** «الموظفون والصلاحيات» → each REPLY / MANAGE staff card has «لغات واتساب» (none set = both). Set them so the
+  new-message pushes of an Arabic or English conversation reach the right staff.
+- **Check after deploy:** from a phone that never wrote to the number, send «مرحبا»: the buttons arrive; tap «English»:
+  the English confirmation arrives and the inbox shows «English» on the conversation.
+- **Rollback:** deploy the previous API image; it ignores the columns and the table (leave them). Set
+  `WHATSAPP_ASK_LANGUAGE=false` instead to stop only the question.
+- **Order:** the API image (the migration runs first), then the panel, then the APK. An older app or panel just shows
+  no language.
+### 5.131 «برنامج سفراء Kabso» — the ambassadors programme (D390; migrations `20270519090000`, `20270519090100`, `20270519090200`, `20270519090300`) — [IMPLEMENTED, draft contract v1.141-social; not deployed, not device-tested]
 
 CONVENTIONS §10.179 (owner's brief via the coordinator, 2026-11-13). Two migrations and one setting; no new secret, no new
 host. **The programme ships OFF**: nothing changes for anyone until the OWNER reviews the proposed defaults and switches
 it on in the panel «السفراء › الإعدادات» (PP-95).
 
 - **Migrations** (the usual `migrate` job, as the migration role, in this order):
-  - `20270518090000_ambassadors_enums` — `cherry_ledger_reason` + `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`;
+  - `20270519090000_ambassadors_enums` — `cherry_ledger_reason` + `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`;
     `wallet_ledger_reason` + `AMBASSADOR_REWARD`; `notification_type` + `AMBASSADOR_APPLICATION_APPROVED`,
     `AMBASSADOR_APPLICATION_REJECTED`, `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED` (its own transaction: an added
     enum value cannot be used in the transaction that adds it).
-  - `20270518090100_ambassadors` — four enums; nine new tables (`ambassador_settings` with its one row, OFF and the
+  - `20270519090100_ambassadors` — four enums; nine new tables (`ambassador_settings` with its one row, OFF and the
     proposed defaults; `ambassadors`, `ambassador_applications`, `ambassador_referrals`, `ambassador_commissions`,
     `ambassador_months`, `ambassador_flags`, `ambassador_campaigns`, `ambassador_campaign_members`) with their CHECKs and
     indexes; the ledgers' sign rules extended in place (`cherry_ledger_reason_sign`, `wallet_ledger_reason_sign`, read
@@ -4559,8 +4646,8 @@ it on in the panel «السفراء › الإعدادات» (PP-95).
     tables: no backfill, no long lock (the two sign-rule CHECKs are re-validated over `cherry_ledger` / `wallet_ledger`
     — a full scan of each, done by every migration that extended them before).
 - **Follow-up migrations** (owner 2026-11-13, «إنهاء العضوية»), after the two above and in this order:
-  `20270518090200_ambassador_end_enums` (`ambassador_status` + ENDED, `notification_type` + AMBASSADOR_MEMBERSHIP_ENDED;
-  its own transaction) and `20270518090300_ambassador_end` (`ambassadors.ended_at` / `ended_reason` / `ended_by_id`, the
+  `20270519090200_ambassador_end_enums` (`ambassador_status` + ENDED, `notification_type` + AMBASSADOR_MEMBERSHIP_ENDED;
+  its own transaction) and `20270519090300_ambassador_end` (`ambassadors.ended_at` / `ended_reason` / `ended_by_id`, the
   CHECKs `ambassadors_shape` and `ambassador_months_shape` re-made — small, empty tables). The settings row is seeded with
   the owner's lower-cost defaults («أ»: 2 / 3 / 4 / 5 %, a 60-day window).
 - **Setting:** `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (default `300`; `0` is refused in production) — the sweeper that

@@ -176,7 +176,8 @@ export class AdminCatalogService {
 
   // ---- gifts ----------------------------------------------------------------------------------------------------
 
-  async gifts() {
+  /** v1.139-social (D387, §10.176.2): `revenue` false → `coinsSpent` null. */
+  async gifts(revenue = true) {
     const [rows, sends, tabs, used, holders] = await Promise.all([
       // v1.100-social (D312): with a custom gift's owner.
       this.prisma.gift.findMany({
@@ -268,7 +269,7 @@ export class AdminCatalogService {
             : null,
           enabled: g.enabled,
           sends: sent.get(g.code)?._count ?? 0,
-          coinsSpent: Number(sent.get(g.code)?._sum.totalCoins ?? 0n),
+          coinsSpent: revenue ? Number(sent.get(g.code)?._sum.totalCoins ?? 0n) : null,
           // v1.103-social (D338, §10.131): archived («المحذوفة») since; whether anything points at it (pieces held or
           // history: then «حذف» archives it, else deletes it for real); the people holding pieces now.
           archivedAt: g.archivedAt?.toISOString() ?? null,

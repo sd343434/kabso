@@ -148,7 +148,7 @@ export class AppModule {
         HostApplicationsModule,
         // v1.74-social (D217): «دعوة الأصدقاء».
         ReferralsModule,
-        // v1.140-social (D390, §10.179): «برنامج سفراء Kabso».
+        // v1.141-social (D390, §10.179): «برنامج سفراء Kabso».
         AmbassadorsModule,
         RecruitsModule,
         // v1.89-social (D290, §10.103): level-raise requests «طلب رفع ليفيل».

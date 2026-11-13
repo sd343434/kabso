@@ -36,6 +36,8 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'hosts', pattern: '/live-hosts' },
   // v1.73-social (D209): «طلبات المضيفين».
   { name: 'hostApplications', pattern: '/host-applications' },
+  // v1.138-social (D386): «طلبات توثيق الفئة».
+  { name: 'categoryRequests', pattern: '/category-requests' },
   { name: 'hostApplication', pattern: '/host-applications/:id' },
   // v1.74-social (D217): «الدعوات».
   { name: 'referrals', pattern: '/referrals' },
@@ -80,7 +82,7 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'myRecruits', pattern: '/my-recruits' },
   { name: 'recruits', pattern: '/recruits' },
   { name: 'creatorApplications', pattern: '/creator-applications' },
-  // v1.140-social (D390): «السفراء».
+  // v1.141-social (D390): «السفراء».
   { name: 'ambassadors', pattern: '/ambassadors' },
   { name: 'ambassador', pattern: '/ambassadors/:id' },
   { name: 'ambassadorApplications', pattern: '/ambassador-applications' },
@@ -96,6 +98,10 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'ownerInbox', pattern: '/owner-inbox' },
   // D301 follow-up (§10.112.10): «التكاليف الثابتة» (OWNER only).
   { name: 'ownerFixedCosts', pattern: '/owner-fixed-costs' },
+  // v1.139-social (D387): «جدول المناوبات», «التعويضات», «حساباتنا الرسمية».
+  { name: 'staffSchedule', pattern: '/staff-schedule' },
+  { name: 'compensations', pattern: '/compensations' },
+  { name: 'socialAccounts', pattern: '/social-accounts' },
 ];
 
 export function matchPath(path: string): Match | null {

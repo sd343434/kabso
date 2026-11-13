@@ -33,17 +33,22 @@ import 'package:material_ui/material_ui.dart';
 };
 
 /// The D389 explainer's text for an ambassador badge («سفير Kabso — المستوى
-/// ذهبي»). TODO(D389): wrap [AmbassadorBadge] in `KBadgeExplainer` with it
-/// when that branch lands (CONVENTIONS §10.179.9).
+/// ذهبي», CONVENTIONS §10.178.2 / §10.179.9).
 String ambassadorBadgeExplainer(AppLocalizations l10n, String level) =>
     l10n.ambBadgeExplainer(l10n.ambLevelName(level));
 
-/// v1.140-social (D390, §10.179.9): the exclusive «سفير Kabso» badge — a
+/// v1.141-social (D390, §10.179.9): the exclusive «سفير Kabso» badge — a
 /// pill in the level's metal with a crest and the level's name. Its spoken
-/// label is «سفير Kabso · {المستوى}». When the D389 badge explainer
-/// (`KBadgeExplainer`) lands, wrap this widget in it (TODO in §10.179.9).
+/// label is «سفير Kabso · {المستوى}». D389: a tap explains it
+/// ([KBadgeExplainer], [ambassadorBadgeExplainer]).
 class AmbassadorBadge extends StatelessWidget {
-  const new({required this.level, super.key, this.large = false, this.height});
+  const new({
+    required this.level,
+    super.key,
+    this.large = false,
+    this.height,
+    this.explain = true,
+  });
 
   final String level;
 
@@ -53,6 +58,9 @@ class AmbassadorBadge extends StatelessWidget {
   /// A fixed height (the profile's and person card's badge rows).
   final double? height;
 
+  /// D389: a tap shows what the badge is (false: only a picture).
+  final bool explain;
+
   static const badgeKey = Key('ambassador.badge');
 
   @override
@@ -61,63 +69,67 @@ class AmbassadorBadge extends StatelessWidget {
     final c = ambassadorLevelColors(level, context.palette);
     final name = l10n.ambLevelName(level);
     final h = height ?? (large ? 30.0 : 22.0);
-    return Semantics(
-      label: l10n.ambBadgeLabel(name),
-      excludeSemantics: true,
-      child: Container(
-        key: badgeKey,
-        height: h,
-        padding: EdgeInsetsDirectional.only(
-          start: large ? 4 : 3,
-          end: large ? KSpacing.md : KSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(h),
-          gradient: LinearGradient(
-            begin: AlignmentDirectional.topStart,
-            end: AlignmentDirectional.bottomEnd,
-            colors: [c.from, c.to],
+    return KBadgeExplainer(
+      message: ambassadorBadgeExplainer(l10n, level),
+      enabled: explain,
+      child: Semantics(
+        label: l10n.ambBadgeLabel(name),
+        excludeSemantics: true,
+        child: Container(
+          key: badgeKey,
+          height: h,
+          padding: EdgeInsetsDirectional.only(
+            start: large ? 4 : 3,
+            end: large ? KSpacing.md : KSpacing.sm,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: c.to.withValues(alpha: 0.35),
-              blurRadius: large ? 10 : 6,
-              offset: const Offset(0, 2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(h),
+            gradient: LinearGradient(
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
+              colors: [c.from, c.to],
             ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: h - 6,
-              height: h - 6,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: c.ink.withValues(alpha: 0.18),
+            boxShadow: [
+              BoxShadow(
+                color: c.to.withValues(alpha: 0.35),
+                blurRadius: large ? 10 : 6,
+                offset: const Offset(0, 2),
               ),
-              child: Icon(
-                Icons.workspace_premium_rounded,
-                size: h - 10,
-                color: c.ink,
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: h - 6,
+                height: h - 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: c.ink.withValues(alpha: 0.18),
+                ),
+                child: Icon(
+                  Icons.workspace_premium_rounded,
+                  size: h - 10,
+                  color: c.ink,
+                ),
               ),
-            ),
-            SizedBox(width: large ? 6 : 4),
-            Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  (large
-                          ? context.textStyles.bodyStrong
-                          : context.textStyles.caption)
-                      .copyWith(
-                        color: c.ink,
-                        fontWeight: FontWeight.w700,
-                        height: 1.1,
-                      ),
-            ),
-          ],
+              SizedBox(width: large ? 6 : 4),
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    (large
+                            ? context.textStyles.bodyStrong
+                            : context.textStyles.caption)
+                        .copyWith(
+                          color: c.ink,
+                          fontWeight: FontWeight.w700,
+                          height: 1.1,
+                        ),
+              ),
+            ],
+          ),
         ),
       ),
     );

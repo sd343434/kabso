@@ -8,7 +8,7 @@ import 'package:kabso_live/features/ambassadors/data/ambassador_repository.dart'
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// v1.140-social (D390, §10.179.9): «برنامج سفراء Kabso» on the invite page —
+/// v1.141-social (D390, §10.179.9): «برنامج سفراء Kabso» on the invite page —
 /// shown only while the programme is on (or to an ambassador), so nothing
 /// changes for anyone before the owner switches it on; Kabso Team accounts
 /// never reach the invite page (D283).

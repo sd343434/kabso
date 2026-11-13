@@ -568,12 +568,15 @@ void main() {
           expect(b.right, lessThanOrEqualTo(width));
           final n = tester.getRect(name);
           expect(b.overlaps(n), isFalse);
+          // D389: the crest alone — no name written on it; the name is
+          // its spoken label.
           expect(
-            find.descendant(
-              of: badge,
-              matching: find.text(l10nFor(language).liveKabsoTeam),
-            ),
-            findsOneWidget,
+            find.descendant(of: badge, matching: find.byType(Text)),
+            findsNothing,
+          );
+          expect(
+            find.bySemanticsLabel(l10nFor(language).liveKabsoTeam),
+            findsWidgets,
           );
         }
 

@@ -197,7 +197,16 @@ enum ErrorCode {
   /// v1.137-social (D385, §10.174.4): a 6th pinned chat.
   dmPinLimit('DM_PIN_LIMIT'),
 
-  /// v1.140-social (D390, §10.179.2): the caller may not apply to the
+  /// v1.138-social (D386, §10.175.3): a 7th featured pin.
+  featuredPinLimit('FEATURED_PIN_LIMIT'),
+
+  /// v1.138-social (D386, §10.175.4): an open «طلب توثيق الفئة» already.
+  categoryVerificationPending('CATEGORY_VERIFICATION_PENDING'),
+
+  /// v1.138-social (D386, §10.175.4): the team locked the category.
+  accountCategoryLocked('ACCOUNT_CATEGORY_LOCKED'),
+
+  /// v1.141-social (D390, §10.179.2): the caller may not apply to the
   /// ambassadors programme now (`details[0].issue`).
   ambassadorApplicationNotAllowed('AMBASSADOR_APPLICATION_NOT_ALLOWED'),
 
@@ -435,6 +444,14 @@ enum ErrorCode {
   /// v1.68-live (D273, §10.96.6, 403): «فريق كابسو» sends no gifts, taps or
   /// bullets in a live and takes no seat; a hidden observer does not chat.
   liveStaffRefused('LIVE_STAFF_REFUSED'),
+
+  /// v1.139-social (D387, §10.176.8, 403): a staff account sends no gift on
+  /// any path (owner: «اي موظف لدينا لا يمكنه ارسال الهدايا»).
+  staffGiftRefused('STAFF_GIFT_REFUSED'),
+
+  /// v1.139-social (D387, §10.176.9, 403): a staff account's cherries leave
+  /// only through a withdrawal request to Kabso (never through an agent).
+  staffWithdrawalCompanyOnly('STAFF_WITHDRAWAL_COMPANY_ONLY'),
 
   /// v1.68-live (D273, §10.96.6, 403): a staff tool needs the step-up (the
   /// panel authenticator code in the app).

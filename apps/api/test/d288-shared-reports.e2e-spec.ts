@@ -510,7 +510,14 @@ describe('D288 shared reports, and no code for the ban and content deletion', { 
       const [row] = await audits('moderation.report.resolve');
       expect(row).toMatchObject({ actorUserId: support.id, targetType: 'post' });
       expect(row!.ip).toBeTruthy();
-      expect(row!.metadata).toEqual({ reportId: id, note: 'Checked, handled with the author', via: 'app' });
+      // v1.139-social (D387, §10.176.6): whether the resolver was on shift (the D260 switch here) and scheduled.
+      expect(row!.metadata).toEqual({
+        reportId: id,
+        note: 'Checked, handled with the author',
+        onShift: true,
+        scheduled: false,
+        via: 'app',
+      });
       // Everyone sees it resolved: gone from OPEN, first in RESOLVED, the counter down, the alerts read.
       const open = await aget(mod, '/moderation/reports');
       expect((open.body.data as { id: string }[]).map((r) => r.id)).not.toContain(id);

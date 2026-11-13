@@ -14,6 +14,7 @@ import 'package:kabso_live/features/posts/application/compose_controller.dart'
 import 'package:kabso_live/features/recharge/application/recharge_providers.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_widgets.dart';
+import 'package:kabso_live/features/staff/application/staff_money_rules.dart';
 import 'package:kabso_live/features/wallet/presentation/me_page_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -41,6 +42,10 @@ class RechargeCherryScreen extends ConsumerWidget {
   static Key blockKey(String id) => Key('recharge.cherry.$id.block');
   static const forAgentKey = Key('recharge.cherry.forAgent');
 
+  /// v1.139-social (D387): a staff account's notice (cherries only through
+  /// a withdrawal request to Kabso).
+  static const staffKey = Key('recharge.cherry.staff');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -51,7 +56,11 @@ class RechargeCherryScreen extends ConsumerWidget {
     };
     final forAgent = job != null;
     final isAgent = me?.agent?.status == RechargeAgentStatus.active || forAgent;
-    final canAsk = job?.mayAct ?? true;
+    // v1.139-social (D387, §10.176.9): a staff account (not selling as an
+    // agent) never sells its cherries to an agent — only a withdrawal
+    // request to Kabso.
+    final staffSeller = !isAgent && ref.watch(isStaffAccountProvider);
+    final canAsk = (job?.mayAct ?? true) && !staffSeller;
     final load = ref.watch(rechargeCherryRequestsProvider);
     return MePage(
       title: forAgent
@@ -101,6 +110,15 @@ class RechargeCherryScreen extends ConsumerWidget {
               l10n.rechargeCherryLockedNote,
             ].join('\n'),
           ),
+        if (staffSeller) ...[
+          const SizedBox(height: KSpacing.sm),
+          RechargeNotice(
+            key: staffKey,
+            icon: Icons.account_balance_rounded,
+            text: l10n.staffCherriesCompanyOnly,
+            warning: true,
+          ),
+        ],
         const SizedBox(height: KSpacing.sm),
         KButton(
           key: newKey,

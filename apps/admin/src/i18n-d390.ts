@@ -1,5 +1,5 @@
 /**
- * D390 (v1.140-social, CONVENTIONS §10.179): «برنامج سفراء كابسو» — the panel's ambassadors pages (the list, an
+ * D390 (v1.141-social, CONVENTIONS §10.179): «برنامج سفراء كابسو» — the panel's ambassadors pages (the list, an
  * ambassador's performance, the applications, the campaigns and the OWNER's settings), merged into i18n.ts. Arabic
  * first; English has the same keys.
  */

@@ -83,6 +83,14 @@ model User {
   staffRegions           AdminStaffRegion[]
   /// v1.73-live (D283c): the official staff ID «Kabso01» given on the first panel role (kept, never reused).
   staffNumber            StaffId?
+  /// v1.139-social (D387): the shift schedule's slots, the compensations granted / received / decided.
+  staffScheduleSlots     StaffScheduleSlot[]        @relation("StaffScheduleSlotPerson")
+  staffScheduleSlotsMade StaffScheduleSlot[]        @relation("StaffScheduleSlotCreator")
+  compensationsGiven     StaffCompensation[]        @relation("StaffCompensationStaff")
+  compensationsReceived  StaffCompensation[]        @relation("StaffCompensationUser")
+  compensationsDecided   StaffCompensation[]        @relation("StaffCompensationDecider")
+  compensationSettings   StaffCompensationSettings[]
+  socialAccountsUpdated  OfficialSocialAccount[]
   liveAssignments        LiveRoomAssignment[]
   liveStaffWatches       LiveRoomStaffWatcher[]
   /// v1.27.6-live (D140): the lives this user watched (statistics only).
@@ -248,6 +256,12 @@ model User {
   dmGroupMemberships     DmGroupMember[]            @relation("DmGroupMemberUser")
   /// v1.137-social (D385, CONVENTIONS §10.174.4): the chats pinned at the top of «الرسائل».
   dmPins                 DmPin[]                    @relation("DmPinUser")
+  /// v1.138-social (D386, §10.175): the featured pins, the category requests, and the verifications / locks the user gave.
+  featuredPins           ProfileFeaturedPin[]
+  categoryRequests       CategoryRequest[]          @relation("CategoryRequestUser")
+  categoryDecisions      CategoryRequest[]          @relation("CategoryRequestDecidedBy")
+  categoriesVerified     UserProfile[]              @relation("CategoryVerifiedBy")
+  categoriesLocked       UserProfile[]              @relation("CategoryLockedBy")
   dmGroupMessagesSent    DmGroupMessage[]           @relation("DmGroupMessageSender")
   // v1.44-social (D166): the Me hub's programs.
   taskClaims             TaskClaim[]
@@ -454,10 +468,19 @@ model UserProfile {
   /// v1.91-social (D292, §10.106): the icon of each tag (a closed set, or `flag:<country>`); empty (rows before
   /// v1.91-social) or one per tag (CHECK `user_profiles_tag_icons_len`).
   tagIcons               String[]             @default([]) @map("tag_icons") @db.VarChar(24)
+  /// v1.138-social (D386, §10.175): the Kabso Team verified the current category (cleared when it changes; CHECK
+  /// `user_profiles_category_verified_shape`: needs a category) and who did it.
+  categoryVerifiedAt     DateTime?            @map("category_verified_at") @db.Timestamptz(3)
+  categoryVerifiedById   String?              @map("category_verified_by") @db.Uuid
+  /// v1.138-social (D386): the team locked the category (`PATCH /me` → 403 `ACCOUNT_CATEGORY_LOCKED`).
+  categoryLockedAt       DateTime?            @map("category_locked_at") @db.Timestamptz(3)
+  categoryLockedById     String?              @map("category_locked_by") @db.Uuid
   createdAt              DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt              DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryVerifiedBy  User?       @relation("CategoryVerifiedBy", fields: [categoryVerifiedById], references: [id], onDelete: SetNull)
+  categoryLockedBy    User?       @relation("CategoryLockedBy", fields: [categoryLockedById], references: [id], onDelete: SetNull)
   avatarMedia         MediaAsset? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: NoAction)
   coverMedia          MediaAsset? @relation("ProfileCover", fields: [coverMediaId], references: [id], onDelete: NoAction)
   animatedAvatarMedia MediaAsset? @relation("ProfileAnimatedAvatar", fields: [animatedAvatarMediaId], references: [id], onDelete: NoAction)
@@ -487,8 +510,75 @@ enum AccountCategory {
   BLOGGER
   PUBLIC_FIGURE
   OTHER
+  /// v1.138-social (D386, §10.175.1): 13 more («نعم وأضف أي فئة مقترحة»).
+  QURAN_RECITER
+  STORYTELLER
+  WRITER
+  JOURNALIST
+  PHOTOGRAPHER
+  ACTOR
+  COMEDIAN
+  CALLIGRAPHER
+  DESIGNER
+  CHEF
+  TEACHER
+  DJ
+  TRAVELER
 
   @@map("account_category")
+}
+
+/// v1.138-social (D386, §10.175.4): a «طلب توثيق الفئة»'s state.
+enum CategoryRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("category_request_status")
+}
+
+/// v1.138-social (D386, §10.175.4): «طلب توثيق الفئة» — one PENDING per person (partial unique index
+/// `category_verification_requests_one_pending`); CHECKs `category_verification_requests_note_len` (1–300) and
+/// `category_verification_requests_decided` (the decision's fields per status).
+model CategoryRequest {
+  id           String                @id @default(uuid(7)) @db.Uuid
+  userId       String                @map("user_id") @db.Uuid
+  /// The category asked for (the account's at the time; a change of category cancels the request).
+  category     AccountCategory
+  status       CategoryRequestStatus @default(PENDING)
+  note         String?               @db.VarChar(300)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt    DateTime?             @map("decided_at") @db.Timestamptz(3)
+  decidedById  String?               @map("decided_by") @db.Uuid
+  /// The team's reason, shown to the person (REJECTED only).
+  rejectReason String?               @map("reject_reason") @db.VarChar(500)
+  /// `user` (the person), `category_changed`, `cleared_by_team` (CANCELLED only).
+  cancelReason String?               @map("cancel_reason") @db.VarChar(32)
+
+  user      User  @relation("CategoryRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("CategoryRequestDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)], map: "category_verification_requests_user_idx")
+  @@index([status, createdAt(sort: Desc)], map: "category_verification_requests_status_idx")
+  @@map("category_verification_requests")
+}
+
+/// v1.138-social (D386, §10.175.3): the featured section's pins — up to 6 of the person's own posts or reels, in order
+/// (`position` 0–5, CHECK `profile_featured_pins_position`; the limit is checked by the API under a per-person lock).
+model ProfileFeaturedPin {
+  userId    String   @map("user_id") @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  position  Int      @db.SmallInt
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId], map: "profile_featured_pins_pkey")
+  @@unique([userId, position], map: "profile_featured_pins_user_position_key")
+  @@index([postId], map: "profile_featured_pins_post_idx")
+  @@map("profile_featured_pins")
 }
 
 /// v1.47-social (D175, CONVENTIONS §10.47): a profile link (https only, normalised by the API).
@@ -1370,7 +1460,10 @@ enum WalletLedgerReason {
   /// transaction), cancelled or could not be delivered.
   VIP_SCHEDULED_GIFT
   VIP_SCHEDULED_GIFT_RELEASE
-  /// v1.140-social (D390, §10.179): an ambassador's monthly target reward in coins (reference `AMB:<user>@<YYYY-MM>`).
+  /// v1.139-social (D387, §10.176.4): a compensation from the VIP care staff (a credit; reference: the
+  /// `staff_compensations` row).
+  STAFF_COMPENSATION
+  /// v1.141-social (D390, §10.179): an ambassador's monthly target reward in coins (reference `AMB:<user>@<YYYY-MM>`).
   AMBASSADOR_REWARD
 
   @@map("wallet_ledger_reason")
@@ -1408,6 +1501,8 @@ model WalletLedgerEntry {
   @@index([userId, createdAt(sort: Desc)], map: "wallet_ledger_user_created_idx")
   /// D301 follow-up (§10.112.10): «الربح» sums the free coins given in a period (migration 20270402090400_owner_profit).
   @@index([createdAt], map: "wallet_ledger_free_coins_idx", where: raw("reason IN ('EVENT_PRIZE'::wallet_ledger_reason, 'TASK_REWARD'::wallet_ledger_reason, 'CHECK_IN_REWARD'::wallet_ledger_reason)"))
+  /// v1.139-social (D387, §10.176.4): «الربح» reads the coin compensations (migration 20270517090300_staff_compensation_profit).
+  @@index([createdAt], map: "wallet_ledger_staff_compensation_idx", where: raw("(reason = 'STAFF_COMPENSATION'::wallet_ledger_reason)"))
   /// v1.100-social (D312): «الربح» reads the custom gift owners' coin shares per day.
   @@index([createdAt], map: "wallet_ledger_gift_owner_idx", where: raw("reason IN ('GIFT_OWNER_ROYALTY'::wallet_ledger_reason, 'GIFT_OWNER_ROYALTY_REVERSAL'::wallet_ledger_reason)"))
   @@map("wallet_ledger")
@@ -1819,6 +1914,12 @@ enum AdminPermission {
   FINANCE
   /// v1.75-live (D285, §10.96.13): «تطوير الأعمال» — recruitment only (a limited staff account, no moderation).
   BD
+  /// v1.139-social (D387, §10.176): the operations roles — «مدير عمليات البث», «مدير الوكالات والمواهب» (extends BD),
+  /// «دعم كبار الداعمين», «المجتمع والفعاليات». TRUST_SAFETY «مراقبة المحتوى والأمان» is `MODERATION` above.
+  LIVE_OPS
+  TALENT
+  VIP_CARE
+  COMMUNITY
 
   @@map("admin_permission")
 }
@@ -2065,6 +2166,8 @@ model Post {
   views         PostView[]
   shares        PostShareEvent[]
   pin           PostPin?
+  /// v1.138-social (D386): the featured-section pins of this post (its author's).
+  featuredPins  ProfileFeaturedPin[]
   /// D301 follow-up: the announcement's notification fan-out (official posts only).
   ownerFanout   OwnerAnnouncementFanout?
   hashtags      PostHashtag[]
@@ -2630,7 +2733,12 @@ enum NotificationType {
   CONTENT_GIFT_RECEIVED
   /// v1.136-social (D384, §10.173.5, system, no target): a moderator removed the VIP animated picture.
   ANIMATED_AVATAR_REMOVED
-  /// v1.140-social (D390, §10.179, system, no target): «برنامج سفراء Kabso» — the application approved / rejected, a
+  /// v1.138-social (D386, §10.175.5, system, no target): the Kabso Team verified the person's account category.
+  CATEGORY_VERIFIED
+  /// v1.138-social (D386, system, no target): the team rejected the request, removed the verification, cleared, locked or
+  /// unlocked the category.
+  CATEGORY_REVIEWED
+  /// v1.141-social (D390, §10.179, system, no target): «برنامج سفراء Kabso» — the application approved / rejected, a
   /// level up after the monthly evaluation, a monthly target reward granted.
   AMBASSADOR_APPLICATION_APPROVED
   AMBASSADOR_APPLICATION_REJECTED
@@ -4961,7 +5069,7 @@ enum CherryLedgerReason {
   /// v1.97-social (D303, §10.114): an event prize in cherries (reference `EVP:<result>`), locked for withdrawal and the
   /// store like TASK_REWARD (§10.46.1).
   EVENT_PRIZE
-  /// v1.140-social (D390, §10.179): an ambassador's commission on a referred person's qualifying top-up (credit,
+  /// v1.141-social (D390, §10.179): an ambassador's commission on a referred person's qualifying top-up (credit,
   /// withdrawable; reference = the `ambassador_commissions` row) and its claw-back after a refund (debit, same reference).
   AMBASSADOR_COMMISSION
   AMBASSADOR_COMMISSION_REVERSAL
@@ -5258,6 +5366,9 @@ model CherryWithdrawal {
   createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
   decidedAt     DateTime?              @map("decided_at") @db.Timestamptz(3)
   decisionNote  String?                @map("decision_note") @db.VarChar(500)
+  /// v1.139-social (D387, §10.176.9): made by a staff account (any panel role at the time) — the company route only;
+  /// the OWNER alone sees and decides it (`withdrawals.staff`).
+  staffRequest  Boolean                @default(false) @map("staff_request")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -7441,6 +7552,8 @@ model VipTier {
   memberships     VipMembership[]
   purchases       VipPurchase[]
   dailyCoinClaims VipDailyCoinClaim[]
+  /// v1.139-social (D387): VIP days given as compensations.
+  compensations   StaffCompensation[]
   /// v1.132-social (D379): the VIP rooms that let in this tier and the ones above it.
   vipRooms        LiveRoom[]
 
@@ -8677,40 +8790,44 @@ enum WaAssignmentAction {
 /// D355: one conversation per customer phone (E.164). `unread_count` counts the customer's messages since the team last
 /// read it; `last_inbound_at` opens Meta's 24-hour customer-service window.
 model WaConversation {
-  id            String               @id @default(uuid(7)) @db.Uuid
+  id              String               @id @default(uuid(7)) @db.Uuid
   /// v1.137-social (D385): null for an IN_APP thread (CHECK `wa_conversations_channel_shape`).
-  phoneE164     String?              @unique(map: "wa_conversations_phone_key") @map("phone_e164") @db.VarChar(16)
-  waId          String?              @map("wa_id") @db.VarChar(32)
-  profileName   String?              @map("profile_name") @db.VarChar(200)
-  status        WaConversationStatus @default(OPEN)
-  assignedToId  String?              @map("assigned_to_id") @db.Uuid
-  assignedAt    DateTime?            @map("assigned_at") @db.Timestamptz(3)
-  unreadCount   Int                  @default(0) @map("unread_count")
-  lastInboundAt DateTime?            @map("last_inbound_at") @db.Timestamptz(3)
-  lastMessageAt DateTime             @default(now()) @map("last_message_at") @db.Timestamptz(3)
-  lastPreview   String?              @map("last_preview") @db.VarChar(120)
-  lastDirection WaDirection?         @map("last_direction")
-  linkedUserId  String?              @map("linked_user_id") @db.Uuid
-  linkedById    String?              @map("linked_by_id") @db.Uuid
-  linkedAt      DateTime?            @map("linked_at") @db.Timestamptz(3)
-  closedAt      DateTime?            @map("closed_at") @db.Timestamptz(3)
-  closedById    String?              @map("closed_by_id") @db.Uuid
+  phoneE164       String?              @unique(map: "wa_conversations_phone_key") @map("phone_e164") @db.VarChar(16)
+  waId            String?              @map("wa_id") @db.VarChar(32)
+  profileName     String?              @map("profile_name") @db.VarChar(200)
+  status          WaConversationStatus @default(OPEN)
+  assignedToId    String?              @map("assigned_to_id") @db.Uuid
+  assignedAt      DateTime?            @map("assigned_at") @db.Timestamptz(3)
+  unreadCount     Int                  @default(0) @map("unread_count")
+  lastInboundAt   DateTime?            @map("last_inbound_at") @db.Timestamptz(3)
+  lastMessageAt   DateTime             @default(now()) @map("last_message_at") @db.Timestamptz(3)
+  lastPreview     String?              @map("last_preview") @db.VarChar(120)
+  lastDirection   WaDirection?         @map("last_direction")
+  linkedUserId    String?              @map("linked_user_id") @db.Uuid
+  linkedById      String?              @map("linked_by_id") @db.Uuid
+  linkedAt        DateTime?            @map("linked_at") @db.Timestamptz(3)
+  closedAt        DateTime?            @map("closed_at") @db.Timestamptz(3)
+  closedById      String?              @map("closed_by_id") @db.Uuid
   /// Set when the linked account was purged (§10.56): the sweeper deletes the conversation and its media.
-  purgeAfter    DateTime?            @map("purge_after") @db.Timestamptz(3)
+  purgeAfter      DateTime?            @map("purge_after") @db.Timestamptz(3)
   /// D366 (v1.123-social, §10.159): the department «القسم» (GENERAL until a transfer moves it; only a transfer does).
-  department    WaDepartment         @default(GENERAL)
+  department      WaDepartment         @default(GENERAL)
   /// v1.134-social (D381, §10.171.3): the linked account held PRIORITY_SUPPORT when it was linked or last wrote —
   /// listed first in the staff inbox.
-  priority      Boolean              @default(false)
+  priority        Boolean              @default(false)
   /// v1.137-social (D385, §10.174): WHATSAPP, or IN_APP «دعم كابسو» (`linked_user_id` is then the account, one thread
   /// per account: `wa_conversations_in_app_user_key`).
-  channel       WaChannel            @default(WHATSAPP)
+  channel         WaChannel            @default(WHATSAPP)
   /// D385: an IN_APP thread — the account read the team's replies up to then (`readSupportThread`).
-  userReadAt    DateTime?            @map("user_read_at") @db.Timestamptz(3)
+  userReadAt      DateTime?            @map("user_read_at") @db.Timestamptz(3)
   /// D385: the team last opened the thread (`markRead`) — the person's «تم الاستلام» becomes read.
-  staffReadAt   DateTime?            @map("staff_read_at") @db.Timestamptz(3)
-  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
+  staffReadAt     DateTime?            @map("staff_read_at") @db.Timestamptz(3)
+  /// v1.140-social (D388, §10.177): the customer's language «اللغة» — null until they answer the language question.
+  language        WaLanguage?
+  /// D388: when the language question was sent (null: never asked; set once — the customer is asked only once).
+  languageAskedAt DateTime?            @map("language_asked_at") @db.Timestamptz(3)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
 
   messages    WaMessage[]
   notes       WaNote[]
@@ -8858,6 +8975,25 @@ enum WaDepartment {
 
 /// D366: one department a staff member belongs to (no row at all: GENERAL). Counts only while the person is at REPLY or
 /// above. Set by `team.manage` only; no foreign key, like every staff id of the module.
+/// v1.140-social (D388, CONVENTIONS §10.177): the WhatsApp languages «اللغة». AR or EN.
+enum WaLanguage {
+  AR
+  EN
+
+  @@map("wa_language")
+}
+
+/// D388: the languages a staff member at REPLY or above speaks (no row: both). Written by `team.manage` only.
+model WaStaffLanguage {
+  userId    String     @map("user_id") @db.Uuid
+  language  WaLanguage
+  setById   String?    @map("set_by_id") @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@id([userId, language], map: "wa_staff_languages_pkey")
+  @@map("wa_staff_languages")
+}
+
 model WaStaffDepartment {
   userId     String       @map("user_id") @db.Uuid
   department WaDepartment
@@ -9039,7 +9175,97 @@ model VipScheduledGift {
   @@map("vip_scheduled_gifts")
 }
 
-// ---- v1.140-social (D390, CONVENTIONS §10.179): «برنامج سفراء Kabso» — the ambassadors programme ------------------
+// ---------------------------------------------------------------------------------------------
+// v1.139-social (DRAFT, D387, CONVENTIONS §10.176) — operations staff roles. Owner: `admin-panel` module
+// (schedule, compensations) and `site-settings` (the official social accounts).
+// ---------------------------------------------------------------------------------------------
+
+/// D387 (§10.176.6): one weekly slot of the shift schedule «جدول المناوبات» — weekday 1 (Monday) … 7 (Sunday), minutes of
+/// the day in LIVE_RANKINGS_TIME_ZONE (D99). CHECK `staff_schedule_slots_shape` (end > start). The API refuses overlaps
+/// per person and people without MODERATION / SUPPORT / VIP_CARE.
+model StaffScheduleSlot {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  weekday     Int      @db.SmallInt
+  startMinute Int      @map("start_minute") @db.SmallInt
+  endMinute   Int      @map("end_minute") @db.SmallInt
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user      User  @relation("StaffScheduleSlotPerson", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("StaffScheduleSlotCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([weekday, startMinute], map: "staff_schedule_slots_day_idx")
+  @@index([userId, weekday, startMinute], map: "staff_schedule_slots_user_idx")
+  @@map("staff_schedule_slots")
+}
+
+/// D387 (§10.176.4): the compensation limits (one row, id 1; CHECK `staff_compensation_settings_one`), in coins.
+model StaffCompensationSettings {
+  id               Int       @id @default(1) @db.SmallInt
+  dailyLimitCoins  BigInt    @default(50000) @map("daily_limit_coins")
+  perGrantMaxCoins BigInt    @default(10000) @map("per_grant_max_coins")
+  updatedAt        DateTime? @map("updated_at") @db.Timestamptz(3)
+  updatedById      String?   @map("updated_by_id") @db.Uuid
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("staff_compensation_settings")
+}
+
+/// D387 (§10.176.4): a compensation by the VIP care staff — COINS (ledger STAFF_COMPENSATION, reference this row),
+/// VIP_DAYS or a store ITEM; `valueCoins` is what the limits count. GRANTED within the limits, else PENDING until the
+/// OWNER approves (APPROVED: granted then) or rejects. CHECKs `staff_compensations_kind_shape`,
+/// `staff_compensations_status_values`, `staff_compensations_decision`.
+model StaffCompensation {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  staffId      String?   @map("staff_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  kind         String    @db.VarChar(10)
+  coins        BigInt?
+  days         Int?
+  vipTierId    String?   @map("vip_tier_id") @db.Uuid
+  itemCode     String?   @map("item_code") @db.VarChar(40)
+  valueCoins   BigInt    @map("value_coins")
+  reason       String    @db.VarChar(500)
+  status       String    @db.VarChar(10)
+  overLimit    String?   @map("over_limit") @db.VarChar(10)
+  decidedById  String?   @map("decided_by_id") @db.Uuid
+  decidedAt    DateTime? @map("decided_at") @db.Timestamptz(3)
+  decisionNote String?   @map("decision_note") @db.VarChar(500)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  staff     User?    @relation("StaffCompensationStaff", fields: [staffId], references: [id], onDelete: SetNull)
+  user      User     @relation("StaffCompensationUser", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User?    @relation("StaffCompensationDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  vipTier   VipTier? @relation(fields: [vipTierId], references: [id], onDelete: Restrict)
+
+  @@index([staffId, createdAt(sort: Desc)], map: "staff_compensations_staff_idx")
+  @@index([status, createdAt(sort: Desc)], map: "staff_compensations_status_idx")
+  @@index([userId], map: "staff_compensations_user_idx")
+  @@map("staff_compensations")
+}
+
+/// D387 (§10.176.5): the app's official social media accounts — links only (https; CHECK
+/// `official_social_accounts_url_https`). Never a password, token or key (D40).
+model OfficialSocialAccount {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  platform    String   @db.VarChar(16)
+  handle      String   @db.VarChar(64)
+  url         String   @db.VarChar(512)
+  sortOrder   Int      @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  updatedById String?  @map("updated_by_id") @db.Uuid
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([sortOrder, id], map: "official_social_accounts_order_idx")
+  @@map("official_social_accounts")
+}
+
+// ---- v1.141-social (D390, CONVENTIONS §10.179): «برنامج سفراء Kabso» — the ambassadors programme ------------------
 // The user ids are plain columns (the foreign keys are in the migration); no relation on `User`, so the programme adds
 // nothing to the other modules' models.
 

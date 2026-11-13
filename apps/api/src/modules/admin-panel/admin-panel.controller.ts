@@ -182,7 +182,7 @@ export class AdminUsersController {
   constructor(private readonly users: AdminUsersService) {}
 
   @Get('dashboard')
-  @RequireCapability('dashboard.view')
+  @RequireCapability('revenue.view')
   dashboard() {
     return this.users.dashboard();
   }
@@ -417,8 +417,9 @@ export class AdminFinanceController {
       cursor?: string;
       limit: number;
     },
+    @CurrentAdmin() admin: AdminContext,
   ) {
-    return this.finance.withdrawals(query);
+    return this.finance.withdrawals(query, admin);
   }
 
   @Post('withdrawals/:withdrawalId/pay')

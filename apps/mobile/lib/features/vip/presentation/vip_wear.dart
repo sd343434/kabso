@@ -3,10 +3,12 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/design_system/components/k_badge_explainer.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
+import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// D258 (the owner's VIP 1 perks, §10.94): what a member wears wherever
@@ -28,8 +30,12 @@ class VipNameBadge extends ConsumerWidget {
     required this.height,
     this.pillHeight,
     this.perk = VipPerks.badge,
+    this.explain = true,
     super.key,
   });
+
+  /// D389: a tap shows what the badge is («عضوية VIP 3»).
+  final bool explain;
 
   final UserVip? vip;
 
@@ -56,6 +62,18 @@ class VipNameBadge extends ConsumerWidget {
         (look.tier != null && !look.has(perk))) {
       return const SizedBox.shrink();
     }
+    // Drawn outside the app's localizations (a bare preview), it is a
+    // picture only.
+    final l10n = Localizations.of<AppLocalizations>(context, AppLocalizations);
+    if (l10n == null) return _art(look);
+    return KBadgeExplainer(
+      message: l10n.badgeExplainVip(look.level),
+      enabled: explain,
+      child: _art(look),
+    );
+  }
+
+  Widget _art(VipLook look) {
     if (look.nameBadgeArt case final art?) {
       return _NameBadgeArt(
         key: badgeKey,

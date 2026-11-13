@@ -295,7 +295,7 @@ export async function attachReferralIn(tx: Tx, input: AttachInput): Promise<Atta
       createdAt: now,
     },
   });
-  // v1.140-social (D390, §10.179.3): an ambassador's referral takes the ambassador track — no D217 inviter reward.
+  // v1.141-social (D390, §10.179.3): an ambassador's referral takes the ambassador track — no D217 inviter reward.
   const ambassadorTrack =
     reject === null &&
     (await ambassadorTrackIn(tx, { referralId, inviterId, inviteeId: input.inviteeUserId, ip, now }));
@@ -397,14 +397,14 @@ export async function referralRechargeIn(
   input: { userId: string; coins: bigint; reason: RechargeLedgerReason; reference: string; now: Date },
   cherriesPerCoin: number,
 ): Promise<string | null> {
-  // v1.140-social (D390, §10.179.5): every qualifying top-up of an ambassador's referral makes a held commission.
+  // v1.141-social (D390, §10.179.5): every qualifying top-up of an ambassador's referral makes a held commission.
   await ambassadorTopupIn(tx, input, cherriesPerCoin, ambassadorTimeZone());
   const [ref] = await tx.$queryRaw<{ id: string; inviter: string; status: ReferralStatus }[]>`
     UPDATE referrals SET first_recharge_at = ${input.now}
      WHERE invitee_user_id = ${input.userId}::uuid AND first_recharge_at IS NULL
     RETURNING id::text AS id, inviter_user_id::text AS inviter, status::text AS status`;
   if (!ref || (ref.status !== 'PENDING' && ref.status !== 'QUALIFIED')) return null;
-  // v1.140-social (D390, §10.179.3): the ambassador's commission replaces the FIRST_RECHARGE reward.
+  // v1.141-social (D390, §10.179.3): the ambassador's commission replaces the FIRST_RECHARGE reward.
   if (await isAmbassadorReferralIn(tx, ref.id)) return null;
   const settings = await referralSettingsIn(tx);
   if (!settings.enabled) return null;
@@ -547,7 +547,7 @@ export async function milestonesIn(tx: Tx, inviterId: string, now: Date): Promis
 }
 
 /**
- * The inviter's QUALIFIED friends that count for the D217 milestones — v1.140-social (D390, §10.179.3): not the
+ * The inviter's QUALIFIED friends that count for the D217 milestones — v1.141-social (D390, §10.179.3): not the
  * referrals on the ambassador track (an ambassador is paid for those by the programme, never twice).
  */
 async function qualifiedFriendsIn(db: Db, inviterId: string): Promise<number> {
@@ -761,7 +761,7 @@ export async function approveReferralIn(
     });
   }
   const toCredit: ReferralReward[] = existing.filter((r) => r.status !== 'CREDITED');
-  // v1.140-social (D390, §10.179.3): an ambassador-track referral never gets a D217 inviter reward, even approved.
+  // v1.141-social (D390, §10.179.3): an ambassador-track referral never gets a D217 inviter reward, even approved.
   const ambassadorTrack = await isAmbassadorReferralIn(tx, referralId);
   for (const m of missing) {
     if (ambassadorTrack && m.userId === referral.inviterUserId) continue;

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 
-/// v1.140-social (D390, CONVENTIONS §10.179): «برنامج سفراء Kabso» — the
+/// v1.141-social (D390, CONVENTIONS §10.179): «برنامج سفراء Kabso» — the
 /// programme page and the application, and the ambassador's dashboard.
 /// Throws an `AppFailure`.
 abstract interface class AmbassadorRepository {

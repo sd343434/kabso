@@ -23,6 +23,9 @@ class StaffScreen extends ConsumerWidget {
   const new({super.key});
 
   static const shiftKey = Key('staff.shift');
+
+  /// v1.139-social (D387): the «في المناوبة الآن» badge (the shift schedule).
+  static const scheduledBadgeKey = Key('staff.scheduledBadge');
   static Key live(String roomId) => Key('staff.live.$roomId');
 
   @override
@@ -48,13 +51,58 @@ class StaffScreen extends ConsumerWidget {
   }
 }
 
+/// A panel role's name. v1.139-social (D387, §10.176.1): MODERATION reads
+/// TRUST_SAFETY «مراقبة المحتوى والأمان»; the four operations roles; an
+/// unknown future role shows its wire value.
 String staffRoleLabel(AppLocalizations l10n, String role) => switch (role) {
   'OWNER' => l10n.staffRoleOwner,
-  'MODERATION' => l10n.staffRoleModeration,
+  'MODERATION' => l10n.staffRoleTrustSafety,
   'SUPPORT' => l10n.staffRoleSupport,
+  'FINANCE' => l10n.staffRoleFinance,
   'BD' => l10n.staffRoleBd,
-  _ => l10n.staffRoleFinance,
+  'LIVE_OPS' => l10n.staffRoleLiveOps,
+  'TALENT' => l10n.staffRoleTalent,
+  'VIP_CARE' => l10n.staffRoleVipCare,
+  'COMMUNITY' => l10n.staffRoleCommunity,
+  _ => role,
 };
+
+/// v1.139-social (D387, §10.176.6): «في المناوبة الآن» — the shift schedule
+/// says the person works now.
+class StaffOnShiftBadge extends StatelessWidget {
+  const new({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final text = context.textStyles;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: KSpacing.sm,
+        vertical: KSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: p.success.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: p.success.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.schedule_rounded, size: 16, color: p.success),
+          const SizedBox(width: KSpacing.xs),
+          Text(
+            context.l10n.staffOnShiftNow,
+            style: text.caption.copyWith(
+              color: p.success,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _Body extends ConsumerWidget {
   const new({required this.status});
@@ -66,12 +114,20 @@ class _Body extends ConsumerWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final text = context.textStyles;
-    final lives = ref.watch(staffLivesProvider);
+    // v1.139-social (D387): only a watch role has «بثوثي» (never read for an
+    // operations role).
+    final lives = status.isStaff
+        ? ref.watch(staffLivesProvider)
+        : const AsyncValue<List<StaffLive>>.data([]);
     // D286 (§10.96.14): opening «بثوثي» is staff work — the server switched
     // the shift on; the switch shows it at once.
-    ref.listen(staffLivesProvider, (_, next) {
-      if (next.hasValue) ref.read(staffStatusProvider.notifier).staffWorked();
-    });
+    if (status.isStaff) {
+      ref.listen(staffLivesProvider, (_, next) {
+        if (next.hasValue) {
+          ref.read(staffStatusProvider.notifier).staffWorked();
+        }
+      });
+    }
 
     Future<void> guard(Future<void> Function() call) async {
       try {
@@ -86,7 +142,7 @@ class _Body extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         await ref.read(staffStatusProvider.notifier).refresh();
-        ref.invalidate(staffLivesProvider);
+        if (status.isStaff) ref.invalidate(staffLivesProvider);
       },
       child: ListView(
         padding: const EdgeInsets.all(KSpacing.lg),
@@ -113,62 +169,85 @@ class _Body extends ConsumerWidget {
           const SizedBox(height: KSpacing.md),
           Wrap(
             spacing: KSpacing.xs,
+            runSpacing: KSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               for (final r in status.roles)
                 Chip(
                   visualDensity: VisualDensity.compact,
                   label: Text(staffRoleLabel(l10n, r)),
                 ),
+              // v1.139-social (D387): the shift schedule says «now».
+              if (status.scheduledShift)
+                const StaffOnShiftBadge(key: StaffScreen.scheduledBadgeKey),
             ],
           ),
+          if (status.scheduledShift)
+            Padding(
+              padding: const EdgeInsets.only(top: KSpacing.xs),
+              child: Text(
+                l10n.staffScheduledHint,
+                style: text.caption.copyWith(color: p.textSecondary),
+              ),
+            ),
           const SizedBox(height: KSpacing.md),
-          // D286: no code — the shift goes on by itself with staff work and
-          // off by hand.
-          SwitchListTile(
-            key: StaffScreen.shiftKey,
-            contentPadding: EdgeInsets.zero,
-            title: Text(l10n.staffShift, style: text.bodyStrong),
-            subtitle: Text(l10n.staffShiftAutoHint),
-            value: status.onShift,
-            onChanged: (on) => unawaited(
-              guard(() async {
-                await ref
-                    .read(staffStatusProvider.notifier)
-                    .setShift(onShift: on);
-                // Only when on: reading «بثوثي» is staff work and would
-                // switch an «off by hand» back on (D286).
-                if (on) ref.invalidate(staffLivesProvider);
-              }),
+          // v1.139-social (D387): an operations role without a watch role
+          // (VIP_CARE, LIVE_OPS, TALENT, COMMUNITY) has no live shift and no
+          // «بثوثي» here — its tools are in the panel.
+          if (!status.isStaff)
+            Text(
+              l10n.staffOpsPanelHint,
+              style: text.body.copyWith(color: p.textSecondary),
+            )
+          else ...[
+            // D286: no code — the shift goes on by itself with staff work and
+            // off by hand.
+            SwitchListTile(
+              key: StaffScreen.shiftKey,
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.staffShift, style: text.bodyStrong),
+              subtitle: Text(l10n.staffShiftAutoHint),
+              value: status.onShift,
+              onChanged: (on) => unawaited(
+                guard(() async {
+                  await ref
+                      .read(staffStatusProvider.notifier)
+                      .setShift(onShift: on);
+                  // Only when on: reading «بثوثي» is staff work and would
+                  // switch an «off by hand» back on (D286).
+                  if (on) ref.invalidate(staffLivesProvider);
+                }),
+              ),
             ),
-          ),
-          const Divider(),
-          Text(l10n.staffMyLives, style: text.title),
-          const SizedBox(height: KSpacing.sm),
-          switch (lives) {
-            // D286: turned off by hand here — no lives (they were handed on),
-            // and no new «بثوثي» read that would switch the shift on again.
-            AsyncData() when !status.onShift => Text(
-              l10n.staffMyLivesOffShift,
-              style: text.body.copyWith(color: p.textTertiary),
+            const Divider(),
+            Text(l10n.staffMyLives, style: text.title),
+            const SizedBox(height: KSpacing.sm),
+            switch (lives) {
+              // D286: turned off by hand here — no lives (they were handed on),
+              // and no new «بثوثي» read that would switch the shift on again.
+              AsyncData() when !status.onShift => Text(
+                l10n.staffMyLivesOffShift,
+                style: text.body.copyWith(color: p.textTertiary),
+              ),
+              AsyncData(:final value) when value.isEmpty => Text(
+                l10n.staffMyLivesEmpty,
+                style: text.body.copyWith(color: p.textTertiary),
+              ),
+              AsyncData(:final value) => Column(
+                children: [for (final l in value) _LiveTile(live: l)],
+              ),
+              AsyncError(:final error) => Text(
+                failureMessage(l10n, toAppFailure(error)),
+                style: text.body.copyWith(color: p.error),
+              ),
+              _ => const Center(child: CircularProgressIndicator()),
+            },
+            const SizedBox(height: KSpacing.lg),
+            Text(
+              l10n.staffAnyLive,
+              style: text.caption.copyWith(color: p.textSecondary),
             ),
-            AsyncData(:final value) when value.isEmpty => Text(
-              l10n.staffMyLivesEmpty,
-              style: text.body.copyWith(color: p.textTertiary),
-            ),
-            AsyncData(:final value) => Column(
-              children: [for (final l in value) _LiveTile(live: l)],
-            ),
-            AsyncError(:final error) => Text(
-              failureMessage(l10n, toAppFailure(error)),
-              style: text.body.copyWith(color: p.error),
-            ),
-            _ => const Center(child: CircularProgressIndicator()),
-          },
-          const SizedBox(height: KSpacing.lg),
-          Text(
-            l10n.staffAnyLive,
-            style: text.caption.copyWith(color: p.textSecondary),
-          ),
+          ],
         ],
       ),
     );

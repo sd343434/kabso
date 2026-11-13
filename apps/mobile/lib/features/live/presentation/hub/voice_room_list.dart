@@ -440,6 +440,7 @@ class VoiceRoomRow extends StatelessWidget {
                                               child: CharmLevelBadge(
                                                 key: levelKey,
                                                 level: level,
+                                                room: true,
                                               ),
                                             ),
                                           if (room.featured)

@@ -18908,6 +18908,411 @@ class AppLocalizationsEn extends AppLocalizations {
       'A «Kabso Support» chat from inside the app — no 24-hour window, no templates; replies are text or a picture.';
 
   @override
+  String get categoryQuranReciter => 'Quran reciter';
+
+  @override
+  String get categoryStoryteller => 'Storyteller';
+
+  @override
+  String get categoryWriter => 'Writer';
+
+  @override
+  String get categoryJournalist => 'Journalist';
+
+  @override
+  String get categoryPhotographer => 'Photographer';
+
+  @override
+  String get categoryActor => 'Actor';
+
+  @override
+  String get categoryComedian => 'Comedian';
+
+  @override
+  String get categoryCalligrapher => 'Calligrapher';
+
+  @override
+  String get categoryDesigner => 'Designer';
+
+  @override
+  String get categoryChef => 'Chef';
+
+  @override
+  String get categoryTeacher => 'Teacher / coach';
+
+  @override
+  String get categoryDj => 'DJ';
+
+  @override
+  String get categoryTraveler => 'Traveler';
+
+  @override
+  String get categoryFamilyMusic => 'Music';
+
+  @override
+  String get categoryFamilyReciter => 'Recitation and stories';
+
+  @override
+  String get categoryFamilyWord => 'Words';
+
+  @override
+  String get categoryFamilyVisual => 'Visual arts';
+
+  @override
+  String get categoryFamilyPerformer => 'Performance and content';
+
+  @override
+  String get categoryFamilySportsGames => 'Sports and games';
+
+  @override
+  String get categoryFamilyLifestyle => 'Lifestyle';
+
+  @override
+  String get categoryFamilyPublic => 'General';
+
+  @override
+  String get featuredWorks => 'My works';
+
+  @override
+  String get featuredRecitations => 'My recitations';
+
+  @override
+  String get featuredStories => 'My stories';
+
+  @override
+  String get featuredPoems => 'My poems';
+
+  @override
+  String get featuredArticles => 'My articles';
+
+  @override
+  String get featuredReports => 'My reports';
+
+  @override
+  String get featuredProgram => 'My show';
+
+  @override
+  String get featuredGames => 'My games';
+
+  @override
+  String get featuredAchievements => 'My achievements';
+
+  @override
+  String get featuredGallery => 'My gallery';
+
+  @override
+  String get featuredMostViewed => 'Most viewed';
+
+  @override
+  String get featuredHighlights => 'Highlights';
+
+  @override
+  String featuredPinIn(String section) {
+    return 'Pin to “$section”';
+  }
+
+  @override
+  String featuredUnpinFrom(String section) {
+    return 'Unpin from “$section”';
+  }
+
+  @override
+  String featuredPinned(String section) {
+    return 'Pinned to “$section”';
+  }
+
+  @override
+  String get featuredUnpinned => 'Unpinned';
+
+  @override
+  String get featuredReorder => 'Reorder';
+
+  @override
+  String get featuredReorderHint => 'Drag to change the order. Up to 6 posts.';
+
+  @override
+  String get featuredReorderSave => 'Save order';
+
+  @override
+  String get featuredEmptyOwn =>
+      'Pin up to 6 of your posts here from a post’s “⋯” menu.';
+
+  @override
+  String get featuredAutoNote =>
+      'Your newest posts — pin the ones you want here';
+
+  @override
+  String get featuredUpcoming => 'Upcoming';
+
+  @override
+  String get featuredPodcast => 'Podcast';
+
+  @override
+  String featuredViews(String count) {
+    return '$count views';
+  }
+
+  @override
+  String get featuredPlay => 'Play';
+
+  @override
+  String get featuredReadMore => 'Read more';
+
+  @override
+  String categoryBadgeVerified(String category) {
+    return 'Verified category: $category';
+  }
+
+  @override
+  String get categoryVerifyRequest => 'Request category verification';
+
+  @override
+  String get categoryVerifyHint =>
+      'Once the Kabso Team verifies your category, your page takes its own look: a colour, a badge and a featured section at the top.';
+
+  @override
+  String get categoryVerifyPending => 'Verification request under review';
+
+  @override
+  String get categoryVerifyCancel => 'Cancel request';
+
+  @override
+  String get categoryVerifyVerified => 'Your category is verified';
+
+  @override
+  String categoryVerifyRejected(String reason) {
+    return 'Your request was not accepted: $reason';
+  }
+
+  @override
+  String get categoryVerifySent =>
+      'Your verification request was sent to the Kabso Team';
+
+  @override
+  String get categoryVerifyChangeWarning =>
+      'Changing the category removes the verification.';
+
+  @override
+  String get categoryLockedNote =>
+      'The Kabso Team locked your account category; it cannot be changed now.';
+
+  @override
+  String get errorFeaturedPinLimit =>
+      'You can feature up to 6 posts. Unpin one first.';
+
+  @override
+  String get errorCategoryVerificationPending =>
+      'You already have a verification request under review.';
+
+  @override
+  String get errorAccountCategoryLocked =>
+      'The Kabso Team locked your account category.';
+
+  @override
+  String get notifCategoryVerified =>
+      'The Kabso Team verified your account category — your page now has its own look';
+
+  @override
+  String get notifCategoryReviewed =>
+      'The Kabso Team reviewed your account category. Open Edit profile for the details';
+
+  @override
+  String get staffRoleTrustSafety => 'Trust & safety';
+
+  @override
+  String get staffRoleLiveOps => 'Live operations manager';
+
+  @override
+  String get staffRoleTalent => 'Agencies & talent manager';
+
+  @override
+  String get staffRoleVipCare => 'VIP care';
+
+  @override
+  String get staffRoleCommunity => 'Community & events';
+
+  @override
+  String get staffOnShiftNow => 'On shift now';
+
+  @override
+  String get staffScheduledHint =>
+      'From the shift schedule in the admin panel.';
+
+  @override
+  String get staffMyRoles => 'My roles';
+
+  @override
+  String get staffRolesAndShift => 'My roles and shift';
+
+  @override
+  String get staffOpsPanelHint => 'Your role\'s tools are in the admin panel.';
+
+  @override
+  String get settingsFollowUs => 'Follow us';
+
+  @override
+  String get socialPlatformInstagram => 'Instagram';
+
+  @override
+  String get socialPlatformTiktok => 'TikTok';
+
+  @override
+  String get socialPlatformX => 'X';
+
+  @override
+  String get socialPlatformFacebook => 'Facebook';
+
+  @override
+  String get socialPlatformYoutube => 'YouTube';
+
+  @override
+  String get socialPlatformSnapchat => 'Snapchat';
+
+  @override
+  String get socialPlatformTelegram => 'Telegram';
+
+  @override
+  String get socialPlatformWhatsapp => 'WhatsApp';
+
+  @override
+  String get socialPlatformThreads => 'Threads';
+
+  @override
+  String get socialPlatformLinkedin => 'LinkedIn';
+
+  @override
+  String get socialPlatformDiscord => 'Discord';
+
+  @override
+  String get socialPlatformOther => 'Other';
+
+  @override
+  String get giftStaffRefused => 'Kabso Team accounts cannot send gifts.';
+
+  @override
+  String get errorStaffGiftRefused => 'Kabso Team accounts cannot send gifts.';
+
+  @override
+  String get staffCherriesCompanyOnly =>
+      'A Kabso Team account withdraws its cherries only through Kabso: request a withdrawal from the cherry wallet. Cherries cannot be sold to an agent.';
+
+  @override
+  String get errorStaffWithdrawalCompanyOnly =>
+      'A Kabso Team account withdraws its cherries only through Kabso.';
+
+  @override
+  String get ownerProfitCompensations => 'VIP care compensations (coins)';
+
+  @override
+  String get badgeExplainKabsoTeam =>
+      'Kabso Team badge — this account is part of Kabso\'s official team';
+
+  @override
+  String badgeExplainWealthLevel(int level) {
+    return 'Wealth level $level';
+  }
+
+  @override
+  String badgeExplainCharmLevel(int level) {
+    return 'Charm level $level';
+  }
+
+  @override
+  String badgeExplainWizardLevel(int level) {
+    return 'Wizard level $level';
+  }
+
+  @override
+  String badgeExplainGamingLevel(int level) {
+    return 'Gaming level $level';
+  }
+
+  @override
+  String badgeExplainRoomLevel(int level) {
+    return 'Room level $level — the host\'s charm level';
+  }
+
+  @override
+  String badgeExplainVip(int tier) {
+    return 'VIP $tier membership';
+  }
+
+  @override
+  String badgeExplainGoldenId(String id) {
+    return 'Golden ID $id — a VIP membership perk';
+  }
+
+  @override
+  String badgeExplainVerification(String kind) {
+    return 'Verified: $kind — granted automatically when the conditions are met';
+  }
+
+  @override
+  String badgeExplainCategory(String category) {
+    return 'Verified category: $category — verified by the Kabso Team';
+  }
+
+  @override
+  String get badgeExplainFounder => 'Founder badge — the founder of Kabso Live';
+
+  @override
+  String badgeExplainRechargeTier(int tier) {
+    return 'Daily recharge badge — tier $tier, shown for 24 hours after a recharge';
+  }
+
+  @override
+  String badgeExplainRechargeAgent(String code) {
+    return 'Official Kabso Live recharge agent — $code';
+  }
+
+  @override
+  String badgeExplainHostAgent(String code) {
+    return 'Kabso Live host agent — $code';
+  }
+
+  @override
+  String badgeExplainItem(String name) {
+    return 'Item badge: $name';
+  }
+
+  @override
+  String get badgeExplainCreatorLive =>
+      'Creator — the host is a Kabso Live content creator';
+
+  @override
+  String get badgeExplainHostTargetGifts => 'The host\'s daily gifts target';
+
+  @override
+  String get badgeExplainHostTargetLucky =>
+      'The host\'s daily lucky-gifts target';
+
+  @override
+  String get badgeExplainHost => 'Host — the owner of this live';
+
+  @override
+  String get badgeExplainModerator =>
+      'Moderator — helps the host run this live';
+
+  @override
+  String get badgeExplainNewcomer => 'New — recently joined Kabso Live';
+
+  @override
+  String badgeExplainFamily(String name, int level) {
+    return 'Family $name — level $level';
+  }
+
+  @override
+  String get waLangAR => 'Arabic';
+
+  @override
+  String get waLangEN => 'English';
+
+  @override
+  String waLangLabel(String language) {
+    return 'Customer language: $language';
+  }
+
+  @override
   String get ambProgrammeTitle => 'Kabso Ambassadors Program';
 
   @override
@@ -19242,4 +19647,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notifAmbassadorEnded =>
       'Your Kabso ambassador membership has ended';
+
+  @override
+  String get ownerProfitAmbassadorCommissions => 'Ambassador commissions';
+
+  @override
+  String get ownerProfitAmbassadorRewards => 'Ambassador rewards (coins)';
 }

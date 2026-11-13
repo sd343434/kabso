@@ -209,6 +209,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'COVER_REMOVED' },
       // v1.136-social (D384): a moderator removed the caller's VIP animated picture (system, no target).
       { type: 'ANIMATED_AVATAR_REMOVED' },
+      // v1.138-social (D386): the team verified / otherwise reviewed the caller's category (system, no target).
+      { type: { in: ['CATEGORY_VERIFIED', 'CATEGORY_REVIEWED'] } },
       // v1.60-social (D191): a moderator warned the caller (system; the post or comment when there is one).
       { type: 'MODERATION_WARNING' },
       // v1.66-social (D198): the caller's data export is ready (system, no target).
@@ -232,7 +234,7 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: { in: ['HOST_APPLICATION_APPROVED', 'HOST_APPLICATION_REJECTED'] } },
       // v1.74-social (D217): the team voided a referral and took its credited cherries back (system, no target).
       { type: 'REFERRAL_REWARD_REVERSED' },
-      // v1.140-social (D390): «برنامج سفراء Kabso» — the application decided, a level up, a monthly reward (system).
+      // v1.141-social (D390): «برنامج سفراء Kabso» — the application decided, a level up, a monthly reward (system).
       {
         type: {
           in: [

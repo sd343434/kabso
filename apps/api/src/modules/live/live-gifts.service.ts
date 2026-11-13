@@ -3,7 +3,7 @@ import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { eventGiftBuyableIn } from '../programs/gift-events.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
-import { refuseWatchStaff } from './live-staff.js';
+import { refuseStaffGift, refuseWatchStaff } from './live-staff.js';
 import { RateLimitService } from '../../common/rate-limit/rate-limit.service.js';
 import { Clock } from '../../common/time/clock.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
@@ -432,6 +432,9 @@ export class LiveGiftsService {
         throw new AppException(ErrorCode.LIVE_CHAT_NOT_IN_ROOM);
       }
     }
+    // v1.139-social (D387, §10.176.8): a staff account sends no gift (owner: «اي موظف لدينا لا يمكنه ارسال الهدايا»).
+    // A watch-staff viewer keeps LIVE_STAFF_REFUSED above (D273); every other staff caller, the host included, here.
+    await refuseStaffGift(this.prisma, callerId);
 
     // D128 (owner): the caller may be among the recipients — the host, or someone seated, gifting
     // themself; a viewer who is not seated is refused below like any recipient who is not seated.
@@ -1097,6 +1100,9 @@ export class LiveGiftsService {
     place: 'DM' | 'CONTENT' = 'DM',
   ): Promise<{ extra: T; coins: number; bagQuantity: number; luckyResult: LuckyGiftResultDto | null }> {
     const content = place === 'CONTENT';
+    // v1.139-social (D387, §10.176.8): a staff account sends no gift (owner: «اي موظف لدينا لا يمكنه ارسال الهدايا»).
+    // Every conversation, post / reel and scheduled-delivery gift comes through here.
+    await refuseStaffGift(this.prisma, callerId);
     const clientId = input.clientId.toLowerCase();
     const gift = await this.prisma.gift.findUnique({
       where: { code: input.giftCode },

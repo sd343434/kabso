@@ -75,6 +75,11 @@ abstract class PublicProfile with _$PublicProfile {
     @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)
     AccountCategory? category,
 
+    /// v1.138-social (D386, §10.175): the Kabso Team verified [category] —
+    /// only then the page takes the category's look and featured section
+    /// (absent from an older server: false, the default look).
+    @Default(false) bool categoryVerified,
+
     /// v1.47-social (D175): the profile links (also on a private profile).
     @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)
     @Default(<ProfileLink>[])
@@ -249,7 +254,7 @@ abstract class PublicProfile with _$PublicProfile {
     )
     AnimatedAvatar? animatedAvatar,
 
-    /// v1.140-social (D390 follow-up, §10.179.9): the exclusive ambassador
+    /// v1.141-social (D390 follow-up, §10.179.9): the exclusive ambassador
     /// badge's level (`PublicProfile.ambassador.level`) — only while the
     /// programme is on and the membership is ACTIVE; null otherwise and from
     /// older servers.
@@ -312,7 +317,7 @@ abstract class FollowState with _$FollowState {
   factory fromJson(Map<String, dynamic> json) => _$FollowStateFromJson(json);
 }
 
-/// v1.140-social (D390): `{level}` → the level code (anything else → null).
+/// v1.141-social (D390): `{level}` → the level code (anything else → null).
 String? ambassadorLevelFromJson(Object? json) => switch (json) {
   {'level': final String level} when level.isNotEmpty => level,
   _ => null,

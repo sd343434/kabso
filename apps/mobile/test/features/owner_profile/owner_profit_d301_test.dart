@@ -167,6 +167,67 @@ void main() {
     expect(p.afterMinor, -18168);
   });
 
+  test('D387: the compensation coins are their own line (owner: «نعم ينقص '
+      'تقرير الربح قيمة هذه العملات»)', () {
+    final p = OwnerProfitPeriod.fromJson(const {
+      'kind': 'DAY',
+      'key': '2026-06-15',
+      'from': '2026-06-15',
+      'to': '2026-06-15',
+      'days': 1,
+      'daysInMonth': 30,
+      'partial': false,
+      'before': {
+        'amountMinor': 15000,
+        'cardChargedMinor': 15000,
+        'refundsMinor': 0,
+        'chargebacksMinor': 0,
+        'agentsMinor': 0,
+      },
+      'deductions': [
+        {
+          'key': 'COIN_REWARDS',
+          'amountMinor': 300,
+          'cherries': null,
+          'coins': 250000,
+          'orders': null,
+        },
+        {
+          'key': 'STAFF_COMPENSATIONS',
+          'amountMinor': 120,
+          'cherries': null,
+          'coins': 100000,
+          'orders': null,
+        },
+      ],
+      'fixedCosts': {'amountMinor': 0, 'items': <Object>[]},
+      'after': {'amountMinor': 14580},
+      'info': {'agentCoins': 0, 'agentCoinsRetailMinor': 0},
+      'otherCurrencies': <Object>[],
+    });
+    expect(p.deductions.map((d) => d.key), [
+      ProfitDeductionKey.coinRewards,
+      ProfitDeductionKey.staffCompensations,
+    ]);
+    expect(p.deductions.last.coins, 100000);
+    expect(p.deductionsMinor, 420);
+    expect(p.afterMinor, 14580);
+    for (final language in AppLanguage.values) {
+      final l10n = lookupAppLocalizations(language.locale);
+      expect(
+        deductionLabel(l10n, ProfitDeductionKey.staffCompensations),
+        l10n.ownerProfitCompensations,
+      );
+    }
+    expect(
+      deductionLabel(
+        lookupAppLocalizations(AppLanguage.ar.locale),
+        ProfitDeductionKey.staffCompensations,
+      ),
+      'تعويضات دعم كبار الداعمين (عملات)',
+    );
+  });
+
   for (final language in AppLanguage.values) {
     final l10n = lookupAppLocalizations(language.locale);
     group('«الربح» (${language.name})', () {

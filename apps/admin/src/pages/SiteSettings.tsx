@@ -11,7 +11,7 @@ import type {
 } from '../types';
 
 export function SiteSettings() {
-  const { t, toast } = useApp();
+  const { t, toast, can } = useApp();
   const { data, error, loading } = useAsync(() => api.get<Settings>('/admin/site-settings'), []);
   const [form, setForm] = useState({ instagram: '', tiktok: '', whatsapp: '', topupEnabled: false, reason: '' });
   const [saveError, setSaveError] = useState<unknown>(null);
@@ -84,7 +84,13 @@ export function SiteSettings() {
           <input id="s-wa" type="text" className="ltr" placeholder="+966…" value={form.whatsapp} onChange={set('whatsapp')} />
         </div>
         <label className="check field">
-          <input type="checkbox" checked={form.topupEnabled} onChange={(e) => setForm((f) => ({ ...f, topupEnabled: e.target.checked }))} />
+          <input
+            type="checkbox"
+            checked={form.topupEnabled}
+            // v1.139-social (D387, §10.176.1): COMMUNITY edits the website (`site.public`); the top-up switch stays
+            // `payments.settings` (OWNER).
+            disabled={!can('payments.settings')}
+            onChange={(e) => setForm((f) => ({ ...f, topupEnabled: e.target.checked }))} />
           {t('topupEnabled')}
         </label>
         <div className="field">
@@ -96,9 +102,14 @@ export function SiteSettings() {
           {t('save')}
         </button>
       </form>
-      <CameraFxCard />
-      <LevelTickerCard />
-      <GlobalStripsCard />
+      {/* v1.139-social (D387): the app-wide settings below stay `site.settings` (OWNER only). */}
+      {can('site.settings') && (
+        <>
+          <CameraFxCard />
+          <LevelTickerCard />
+          <GlobalStripsCard />
+        </>
+      )}
     </>
   );
 }

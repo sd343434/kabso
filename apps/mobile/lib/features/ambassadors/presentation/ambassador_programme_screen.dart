@@ -36,7 +36,7 @@ String ambassadorRewardText(AppLocalizations l10n, AmbassadorReward r) =>
       _ => l10n.ambRewardNone,
     };
 
-/// v1.140-social (D390, §10.179.2): «برنامج سفراء Kabso» — what an
+/// v1.141-social (D390, §10.179.2): «برنامج سفراء Kabso» — what an
 /// ambassador does and gets, the levels and the rules from the server (no
 /// number is hard-coded), then the application form or its status; an
 /// ambassador opens the dashboard. Off: «قريباً» and no form.

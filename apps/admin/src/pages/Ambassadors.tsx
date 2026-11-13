@@ -8,7 +8,7 @@ import { navigate } from '../router';
 import { StatusTabs } from './Applications';
 
 /**
- * «برنامج سفراء كابسو» (v1.140-social, D390, CONVENTIONS §10.179): the panel's ambassadors — the list with the
+ * «برنامج سفراء كابسو» (v1.141-social, D390, CONVENTIONS §10.179): the panel's ambassadors — the list with the
  * performance (`ambassadors.view`; money totals only for the OWNER, `ambassadors.settings`), one ambassador's page
  * (flags, months, friends, commissions; freeze / unfreeze / end a review: OWNER), the applications (approve / reject:
  * `ambassadors.manage`), appoint directly, the campaigns and events, and the OWNER's settings (the switch, every

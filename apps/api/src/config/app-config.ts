@@ -201,6 +201,9 @@ export interface AppConfig {
     readonly dmGroupCreateUser: RateLimitRule;
     /** v1.137-social (D385): messages to «دعم كابسو» (per user). */
     readonly supportSendUser: RateLimitRule;
+    /** v1.138-social (D386): featured-pin writes and «طلب توثيق الفئة» (per user). */
+    readonly featuredPinsUser: RateLimitRule;
+    readonly categoryRequestUser: RateLimitRule;
     /** v1.48-social (D171): bag item sends (per user). */
     readonly bagSendUser: RateLimitRule;
     /** v1.54-social (D185). */
@@ -429,6 +432,8 @@ export interface AppConfig {
     readonly sweepIntervalSeconds: number;
     readonly templateCacheSeconds: number;
     readonly pushGapSeconds: number;
+    /** v1.140-social (D388, §10.177.1): the language question on a conversation's first message. */
+    readonly askLanguage: boolean;
   };
   /** v1.81-social (D245, §10.87): automatic exchange rates (the paid key is in the panel, never here). */
   readonly fx: {
@@ -481,7 +486,7 @@ export interface AppConfig {
     readonly sweepIntervalSeconds: number;
   };
   /**
-   * v1.140-social (D390, CONVENTIONS §10.179): «برنامج سفراء Kabso». Every amount and rule is in `ambassador_settings`
+   * v1.141-social (D390, CONVENTIONS §10.179): «برنامج سفراء Kabso». Every amount and rule is in `ambassador_settings`
    * (the OWNER's panel); only the sweeper's interval is a server setting (0 = off: tests; refused in production).
    */
   readonly ambassadors: {
@@ -829,6 +834,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       dmWriteUser: e.RATE_LIMIT_DM_WRITE_USER,
       dmGroupCreateUser: e.RATE_LIMIT_DM_GROUP_CREATE_USER,
       supportSendUser: e.RATE_LIMIT_SUPPORT_SEND_USER,
+      featuredPinsUser: e.RATE_LIMIT_FEATURED_PINS_USER,
+      categoryRequestUser: e.RATE_LIMIT_CATEGORY_REQUEST_USER,
       bagSendUser: e.RATE_LIMIT_BAG_SEND_USER,
       rechargeSellUser: e.RATE_LIMIT_RECHARGE_SELL_USER,
       rechargeWriteUser: e.RATE_LIMIT_RECHARGE_WRITE_USER,
@@ -1077,6 +1084,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       sweepIntervalSeconds: e.WHATSAPP_SWEEP_INTERVAL_SECONDS,
       templateCacheSeconds: e.WHATSAPP_TEMPLATE_CACHE_SECONDS,
       pushGapSeconds: e.WHATSAPP_PUSH_GAP_SECONDS,
+      askLanguage: e.WHATSAPP_ASK_LANGUAGE,
     },
     adminPanel: {
       totpKey: e.ADMIN_TOTP_KEY ?? null,
