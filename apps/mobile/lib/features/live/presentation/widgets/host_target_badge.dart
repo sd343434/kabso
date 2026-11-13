@@ -18,7 +18,7 @@ class KDailyTargetBadge extends StatelessWidget {
   final HostDailyTarget target;
   final double size;
 
-  /// D388: a tap shows what the badge is.
+  /// D389: a tap shows what the badge is.
   final bool explain;
 
   static Key giftKeyOf(TargetLevel level) =>
@@ -69,7 +69,7 @@ enum HostTargetKind {
 
   new(this.asset);
 
-  /// D388: what the badge is, for its explainer bubble.
+  /// D389: what the badge is, for its explainer bubble.
   String explanation(AppLocalizations l10n) => switch (this) {
     gifts => l10n.badgeExplainHostTargetGifts,
     lucky => l10n.badgeExplainHostTargetLucky,
@@ -92,7 +92,7 @@ class KHostTargetBadge extends StatelessWidget {
   final HostTargetKind kind;
   final double size;
 
-  /// D388: a tap shows what the badge is.
+  /// D389: a tap shows what the badge is.
   final bool explain;
 
   static Key keyOf(HostTargetKind kind) => Key('target.badge.${kind.name}');

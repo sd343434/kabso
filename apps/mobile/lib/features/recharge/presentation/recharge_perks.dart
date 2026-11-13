@@ -47,7 +47,7 @@ class RechargeAgentBadge extends StatelessWidget {
 
   static const badgeKey = Key('recharge.badge');
 
-  /// D388: a tap shows what the badge is.
+  /// D389: a tap shows what the badge is.
   final bool explain;
 
   @override
@@ -291,7 +291,7 @@ class HostAgentBadge extends StatelessWidget {
 
   static const badgeKey = Key('hostAgent.badge');
 
-  /// D388: a tap shows what the badge is.
+  /// D389: a tap shows what the badge is.
   final bool explain;
 
   @override

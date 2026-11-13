@@ -192,7 +192,7 @@ class KLevelEmblem extends StatelessWidget {
   }
 }
 
-/// D388: what a level badge is, for its explainer bubble — the support
+/// D389: what a level badge is, for its explainer bubble — the support
 /// level is the wealth level («مستوى الثروة 25»), attractiveness the charm
 /// level («مستوى الجاذبية 12»).
 String levelBadgeExplanation(
@@ -225,7 +225,7 @@ class KLevelBadge extends StatelessWidget {
   final String? iconKey;
   final double height;
 
-  /// D388: a tap shows what the badge is («مستوى الثروة 25»).
+  /// D389: a tap shows what the badge is («مستوى الثروة 25»).
   final bool explain;
 
   @override

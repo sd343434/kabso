@@ -94,7 +94,7 @@ class VipGoldenIdChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final id = goldenId;
     if (id == null) return const SizedBox.shrink();
-    // D388: a tap says what the golden ID is.
+    // D389: a tap says what the golden ID is.
     return KBadgeExplainer(
       message: context.l10n.badgeExplainGoldenId(id.number),
       child: KStaffIdText(

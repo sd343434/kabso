@@ -14,7 +14,7 @@ abstract final class KabsoTeamColors {
 /// D282 (owner: «اجعلها شارة فريق كابسو بحيث سوف تضع الاسم بالعربي لمن هاتفه
 /// عربي وانجليزي لمن هاتفه انجليزي»): THE «فريق كابسو» badge — the owner's
 /// crest ([asset]; D282c: the red-and-gold crest with Kabi in a headset).
-/// D388 (owner: «فريق كابسو يأخذون شارة لكن الشارة لها شريط ازله»): the
+/// D389 (owner: «فريق كابسو يأخذون شارة لكن الشارة لها شريط ازله»): the
 /// long banner that carried the team's name is gone — the badge is the crest
 /// alone (with the small ribbon scroll under it, part of the emblem), drawn
 /// [height] tall at the crest's own [aspectRatio]. The team's name is no
@@ -39,7 +39,7 @@ class KabsoTeamBadge extends StatelessWidget {
   static const double aspectRatio = 398 / 328;
 
   /// D282b: in a chat line the crest is taller than the line's other
-  /// emblems so it reads — 24 pt in the boxed, inline and VIP rows (D388:
+  /// emblems so it reads — 24 pt in the boxed, inline and VIP rows (D389:
   /// 29 pt wide now, was 53 with the banner) …
   static const double chatHeight = 24;
 
@@ -47,21 +47,21 @@ class KabsoTeamBadge extends StatelessWidget {
   static const double flatChatHeight = 22;
 
   /// D292 / D299i set 44 pt beside the name on the Me hub so the banner's
-  /// name read. D388: with no name to read, 36 pt (44 wide, was 97) — still
+  /// name read. D389: with no name to read, 36 pt (44 wide, was 97) — still
   /// the largest emblem of the row, never squeezed (in a tight row it wraps
   /// to its own line).
   static const double profileHeight = 36;
 
-  /// D299i: the live person card, after the name (D388: 28, was 32).
+  /// D299i: the live person card, after the name (D389: 28, was 32).
   static const double cardHeight = 28;
 
-  /// D299i: before «إعلان رسمي — فريق كابسو» in the composer (D388: 24,
+  /// D299i: before «إعلان رسمي — فريق كابسو» in the composer (D389: 24,
   /// was 28 — the label beside it says the team's name).
   static const double announcementHeight = 24;
 
   final double height;
 
-  /// D388: a tap shows what the badge is (false: a badge drawn as a
+  /// D389: a tap shows what the badge is (false: a badge drawn as a
   /// picture only).
   final bool explain;
 

@@ -133,7 +133,7 @@ class KItemBadgePill extends StatelessWidget {
   final double height;
   final bool iconOnly;
 
-  /// D388: a tap shows what the badge is («شارة العنصر: جديد»).
+  /// D389: a tap shows what the badge is («شارة العنصر: جديد»).
   final bool explain;
 
   static Key keyOf(ItemBadgeCode code, {bool iconOnly = false}) =>

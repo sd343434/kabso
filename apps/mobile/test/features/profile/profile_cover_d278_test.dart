@@ -676,9 +676,9 @@ void main() {
           matching: find.byKey(KabsoTeamBadge.badgeKey),
         );
         expect(badge, findsOneWidget);
-        // D292 / D388: the crest at the profile's height.
+        // D292 / D389: the crest at the profile's height.
         expect(tester.getSize(badge).height, KabsoTeamBadge.profileHeight);
-        // D388: no name written on it; the name is its spoken label.
+        // D389: no name written on it; the name is its spoken label.
         expect(
           find.descendant(of: badge, matching: find.byType(Text)),
           findsNothing,

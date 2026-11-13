@@ -81,7 +81,7 @@ String verificationBadgeKind(AppLocalizations l10n, VerificationBadge b) =>
 /// its white check mark (the OWNER's gold), drawn [size] across (about the
 /// name's line height, vertically centred with it), right after the display
 /// name — the profile header (own and others') and the Me tab's name row.
-/// Every seal carries the same check, so the spoken label and — D388 — the
+/// Every seal carries the same check, so the spoken label and — D389 — the
 /// explainer bubble on a tap say which one: «موثّق: وكيل شحن» / "Verified:
 /// recharge agent". The seal is symmetric, so it reads the same right-to-left.
 class ProfileVerificationBadge extends StatelessWidget {
@@ -94,7 +94,7 @@ class ProfileVerificationBadge extends StatelessWidget {
 
   static const badgeKey = Key('profile.verificationBadge');
 
-  /// D388: a tap shows what the seal is.
+  /// D389: a tap shows what the seal is.
   final bool explain;
 
   /// The badge's size beside a name of [fontSize] (owner 2026-11-06: «نعم
@@ -114,7 +114,7 @@ class ProfileVerificationBadge extends StatelessWidget {
     final label = l10n.verificationBadgeLabel(
       verificationBadgeKind(l10n, badge),
     );
-    // D388: a tap explains the seal (was a long-press tooltip).
+    // D389: a tap explains the seal (was a long-press tooltip).
     return KBadgeExplainer(
       message: l10n.badgeExplainVerification(
         verificationBadgeKind(l10n, badge),

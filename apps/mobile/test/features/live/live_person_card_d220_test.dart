@@ -760,7 +760,7 @@ void main() {
         }
         expect(b.left, greaterThanOrEqualTo(0));
         expect(b.right, lessThanOrEqualTo(360));
-        // D388: the crest alone, its name spoken (not written on it).
+        // D389: the crest alone, its name spoken (not written on it).
         expect(
           find.bySemanticsLabel(l10nFor(language).liveKabsoTeam),
           findsOneWidget,

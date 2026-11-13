@@ -52,7 +52,7 @@ class ProfileLevels extends ConsumerWidget {
             levelNumber: level.levelNumber,
             iconKey: level.iconKey,
             height: badgeHeight,
-            // D388: your own row is the way into «مستوياتي» (it explains
+            // D389: your own row is the way into «مستوياتي» (it explains
             // every level), so its badges keep opening it; on someone
             // else's profile each badge explains itself on a tap.
             explain: onOpen == null,

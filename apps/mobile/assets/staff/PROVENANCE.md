@@ -1,18 +1,18 @@
-# The Kabso Team art: the badge (D282, D282c, D388), the frame, picture, covers and entry car (D283)
+# The Kabso Team art: the badge (D282, D282c, D389), the frame, picture, covers and entry car (D283)
 
 Owner (D282, 2026-11-05): «اجعلها شارة فريق كابسو بحيث سوف تضع الاسم بالعربي لمن هاتفه عربي وانجليزي لمن هاتفه انجليزي».
 Owner (D282c, 2026-11-05): new art that replaces the Kabso Team badge everywhere, for all staff roles
 («بدل شارة فريق كابسو كلها»), with the name in a suitable gold («ولون الخط في داخلها ذهبي مناسب»).
-Owner (D388, 2026-11-13): «فريق كابسو يأخذون شارة لكن الشارة لها شريط ازله» — remove the banner: the badge is the crest alone.
+Owner (D389, 2026-11-13): «فريق كابسو يأخذون شارة لكن الشارة لها شريط ازله» — remove the banner: the badge is the crest alone.
 
 | File | What | Source |
 | ---- | ---- | ------ |
-| `kabso_team_badge.png` | The Kabso Team badge: the red-and-gold crest alone — Kabi in a headset and suit, the crown, the gold laurels and the small red ribbon scroll at the bottom with the crowned shield. 398×328 px RGBA, transparent | D388: cut from the D282c file of this path (720×328, below). The long banner to the right of the crest, and its shadow, were removed: everything right of the laurel leaves' outer edge (a hand-traced outline along the leaves, drawn at 4× and downsampled for an anti-aliased edge) was made transparent, alpha below 16 cleared, and the art trimmed to its bounds (x 0–397 of the 720 px file, full height). No pixel of the crest was repainted or rescaled |
-| *(history)* the D282c file, 720×328 | The crest and a long empty red banner with a gold frame and an end cap on the right | Owner-supplied on 2026-11-05 (1920×819 RGBA WebP, transparent). Pixels with alpha below 16 (faint specks across the canvas) were cleared, the art trimmed to the bounds of what remains (1774×809 from x 68, y 7), then scaled with Lanczos to 720×328 px. Replaced by the crest above (D388); recoverable from git history |
+| `kabso_team_badge.png` | The Kabso Team badge: the red-and-gold crest alone — Kabi in a headset and suit, the crown, the gold laurels and the small red ribbon scroll at the bottom with the crowned shield. 398×328 px RGBA, transparent | D389: cut from the D282c file of this path (720×328, below). The long banner to the right of the crest, and its shadow, were removed: everything right of the laurel leaves' outer edge (a hand-traced outline along the leaves, drawn at 4× and downsampled for an anti-aliased edge) was made transparent, alpha below 16 cleared, and the art trimmed to its bounds (x 0–397 of the 720 px file, full height). No pixel of the crest was repainted or rescaled |
+| *(history)* the D282c file, 720×328 | The crest and a long empty red banner with a gold frame and an end cap on the right | Owner-supplied on 2026-11-05 (1920×819 RGBA WebP, transparent). Pixels with alpha below 16 (faint specks across the canvas) were cleared, the art trimmed to the bounds of what remains (1774×809 from x 68, y 7), then scaled with Lanczos to 720×328 px. Replaced by the crest above (D389); recoverable from git history |
 
 The D282c art replaced the first D282 art (a green crest and banner, owner-supplied the same day), which is no longer in the app.
 
-D388: nothing is written on the badge any more. Until D388 `KabsoTeamBadge` wrote the team's name in the banner; now the
+D389: nothing is written on the badge any more. Until D389 `KabsoTeamBadge` wrote the team's name in the banner; now the
 name is the badge's spoken label («فريق كابسو» / "Kabso Team"), and a tap shows the explainer bubble (`KBadgeExplainer`,
 «شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي»).
 

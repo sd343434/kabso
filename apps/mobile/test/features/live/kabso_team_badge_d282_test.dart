@@ -1,7 +1,7 @@
 // D282 (owner: «اجعلها شارة فريق كابسو بحيث سوف تضع الاسم بالعربي لمن هاتفه
 // عربي وانجليزي لمن هاتفه انجليزي»): the owner's art is THE Kabso Team badge,
 // at its own aspect ratio and never mirrored, before a staff line's name in
-// every chat mode at the line's emblem height. D388 (owner: «فريق كابسو
+// every chat mode at the line's emblem height. D389 (owner: «فريق كابسو
 // يأخذون شارة لكن الشارة لها شريط ازله»): the banner is gone — the badge is
 // the crest alone, with no name written on it; the name is its spoken label.
 
@@ -98,7 +98,7 @@ void main() {
   test('the art is the crest aspect ratio (398 × 328) and in the bundle', () {
     expect(KabsoTeamBadge.aspectRatio, closeTo(1.2134, 0.001));
     expect(const KabsoTeamBadge(height: 21).width, closeTo(25.48, 0.01));
-    // D388: the crest alone (the banner made it 2.2 × its height).
+    // D389: the crest alone (the banner made it 2.2 × its height).
     expect(KabsoTeamBadge.aspectRatio, lessThan(1.5));
   });
 
@@ -116,7 +116,7 @@ void main() {
 
   for (final language in AppLanguage.values) {
     testWidgets('${language.name}: the crest alone — no name written on '
-        'it, the name spoken, the art unmirrored (D388)', (tester) async {
+        'it, the name spoken, the art unmirrored (D389)', (tester) async {
       await pumpGolden(tester, _badge(40), language: language, bare: true);
       final l = l10nFor(language);
       expect(
@@ -127,7 +127,7 @@ void main() {
       final badge = _rect(tester, KabsoTeamBadge.badgeKey);
       expect(badge.height, 40);
       expect(badge.width, closeTo(40 * KabsoTeamBadge.aspectRatio, .01));
-      // D388: no text drawn on the badge (the banner and its name are gone).
+      // D389: no text drawn on the badge (the banner and its name are gone).
       expect(
         find.descendant(
           of: find.byKey(KabsoTeamBadge.badgeKey),

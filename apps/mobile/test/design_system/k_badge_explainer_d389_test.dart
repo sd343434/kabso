@@ -1,5 +1,5 @@
-// D388 (owner: «اجعل عند ضغط عن اي شارة التطبيق يشرح ما هي بصندوق صغير
-// شفاف»; CONVENTIONS §10.177): a tap on any badge shows what it is, in the
+// D389 (owner: «اجعل عند ضغط عن اي شارة التطبيق يشرح ما هي بصندوق صغير
+// شفاف»; CONVENTIONS §10.178): a tap on any badge shows what it is, in the
 // app's language, in a small translucent bubble beside it — gone after 3 s
 // or on a tap outside, kept inside the screen in both directions, and never
 // passing the tap on to the row the badge sits in.
@@ -428,7 +428,7 @@ void main() {
           // The whole screen at @3x (pumpGolden's boundary).
           find.byKey(const ValueKey('golden-boundary')),
           matchesGoldenFile(
-            '../goldens/png/badge_explainer_d388.${language.name}.phone.png',
+            '../goldens/png/badge_explainer_d389.${language.name}.phone.png',
           ),
         );
         await tester.pump(KBadgeExplainer.showFor);

@@ -55,11 +55,11 @@ class CharmLevelBadge extends StatelessWidget {
   final int level;
   final double height;
 
-  /// D388: the badge stands for the room's level (beside a room's name), so
+  /// D389: the badge stands for the room's level (beside a room's name), so
   /// its explainer says «مستوى الغرفة»; else a person's charm level.
   final bool room;
 
-  /// D388: a tap shows what the badge is.
+  /// D389: a tap shows what the badge is.
   final bool explain;
 
   /// D135 (owner: "the charm badge in the chat is bigger than the room

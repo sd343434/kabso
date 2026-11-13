@@ -568,7 +568,7 @@ void main() {
           expect(b.right, lessThanOrEqualTo(width));
           final n = tester.getRect(name);
           expect(b.overlaps(n), isFalse);
-          // D388: the crest alone — no name written on it; the name is
+          // D389: the crest alone — no name written on it; the name is
           // its spoken label.
           expect(
             find.descendant(of: badge, matching: find.byType(Text)),

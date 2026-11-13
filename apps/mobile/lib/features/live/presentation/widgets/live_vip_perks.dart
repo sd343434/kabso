@@ -395,7 +395,7 @@ class LiveVipRoomBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Color(vipColorValue(tier.color));
-    // D388: a tap says who the room is for.
+    // D389: a tap says who the room is for.
     return KBadgeExplainer(
       message: context.l10n.liveVipLockBody(tier.name),
       child: Semantics(

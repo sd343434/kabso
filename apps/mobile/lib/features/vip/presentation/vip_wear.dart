@@ -34,7 +34,7 @@ class VipNameBadge extends ConsumerWidget {
     super.key,
   });
 
-  /// D388: a tap shows what the badge is («عضوية VIP 3»).
+  /// D389: a tap shows what the badge is («عضوية VIP 3»).
   final bool explain;
 
   final UserVip? vip;

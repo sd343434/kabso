@@ -14,7 +14,7 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The founder's red seal, read as «مؤسس Kabso Live» / "Kabso Live
-/// founder" (one label; D388: a tap shows the explainer bubble), on an
+/// founder" (one label; D389: a tap shows the explainer bubble), on an
 /// optional [ring] [ringWidth] wide around it (the widget is then
 /// `size + 2 × ringWidth`).
 class FounderBadge extends StatelessWidget {
@@ -44,7 +44,7 @@ class FounderBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = context.l10n.founderBadgeLabel;
-    // D388: a tap explains the seal (was a long-press tooltip).
+    // D389: a tap explains the seal (was a long-press tooltip).
     return KBadgeExplainer(
       message: context.l10n.badgeExplainFounder,
       child: Semantics(

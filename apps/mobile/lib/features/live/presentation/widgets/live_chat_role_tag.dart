@@ -69,7 +69,7 @@ class LiveChatRoleTag extends StatelessWidget {
         LiveChatTagKind.team => context.l10n.liveKabsoTeam,
       };
 
-  /// D388: what a pill tag is, for its explainer bubble.
+  /// D389: what a pill tag is, for its explainer bubble.
   static String explanationOf(BuildContext context, LiveChatTagKind kind) =>
       switch (kind) {
         LiveChatTagKind.host => context.l10n.badgeExplainHost,

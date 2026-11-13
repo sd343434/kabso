@@ -31882,127 +31882,127 @@ abstract class AppLocalizations {
   /// **'محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.'**
   String get waInAppHint;
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي'**
   String get badgeExplainKabsoTeam;
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'مستوى الثروة {level}'**
   String badgeExplainWealthLevel(int level);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'مستوى الجاذبية {level}'**
   String badgeExplainCharmLevel(int level);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'مستوى الساحر {level}'**
   String badgeExplainWizardLevel(int level);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'مستوى اللعب {level}'**
   String badgeExplainGamingLevel(int level);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'مستوى الغرفة {level} — مستوى جاذبية المضيف'**
   String badgeExplainRoomLevel(int level);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'عضوية VIP {tier}'**
   String badgeExplainVip(int tier);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'آيدي ذهبي {id} — من مزايا عضوية VIP'**
   String badgeExplainGoldenId(String id);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'شارة التوثيق: {kind} — تُمنح تلقائياً عند تحقق الشروط'**
   String badgeExplainVerification(String kind);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'شارة المؤسس — مؤسس Kabso Live'**
   String get badgeExplainFounder;
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'شارة الشحن اليومي — المستوى {tier}، تظهر 24 ساعة بعد الشحن'**
   String badgeExplainRechargeTier(int tier);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'وكيل شحن معتمد في Kabso Live — {code}'**
   String badgeExplainRechargeAgent(String code);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'وكيل مضيفين في Kabso Live — {code}'**
   String badgeExplainHostAgent(String code);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'شارة العنصر: {name}'**
   String badgeExplainItem(String name);
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'صانع محتوى — المضيف صانع محتوى في Kabso Live'**
   String get badgeExplainCreatorLive;
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'هدف الهدايا اليومي للمضيف'**
   String get badgeExplainHostTargetGifts;
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'هدف هدايا الحظ اليومي للمضيف'**
   String get badgeExplainHostTargetLucky;
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'المضيف — صاحب هذا البث'**
   String get badgeExplainHost;
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'مشرف — يساعد المضيف في إدارة هذا البث'**
   String get badgeExplainModerator;
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'جديد — انضم إلى Kabso Live مؤخراً'**
   String get badgeExplainNewcomer;
 
-  /// D388 (§10.177): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
   /// **'عائلة {name} — المستوى {level}'**

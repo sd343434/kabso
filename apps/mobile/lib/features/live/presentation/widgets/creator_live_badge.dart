@@ -14,7 +14,7 @@ class CreatorLiveBadge extends StatelessWidget {
     this.explain = true,
   });
 
-  /// D388: a tap shows what the badge is.
+  /// D389: a tap shows what the badge is.
   final bool explain;
 
   /// D293's creator colour.

@@ -4,7 +4,7 @@
 // a gold rim and a gold brain), right after the display name.
 //
 // Checked: the six variants (icon, colours, rim, the spoken label in Arabic
-// and English, D388's explainer bubble on a tap), the size (≈ 1.2 × the name's
+// and English, D389's explainer bubble on a tap), the size (≈ 1.2 × the name's
 // cap height), the wire values (unknown → none), the profile header (someone
 // else's and the own) in both directions, and the badge row golden
 // (dark / light, ar / en).
@@ -250,7 +250,7 @@ void main() {
       expect(tester.getSize(find.byType(CustomPaint).last), const Size(40, 40));
       // The spoken label, English then Arabic.
       expect(find.bySemanticsLabel(_labels[badge]!.$2), findsOneWidget);
-      // D388: a tap explains the seal (was a long-press tooltip).
+      // D389: a tap explains the seal (was a long-press tooltip).
       await tester.tap(find.byType(ProfileVerificationBadge));
       await tester.pumpAndSettle();
       expect(

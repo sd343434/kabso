@@ -1,5 +1,5 @@
-// D388 (owner: «اجعل عند ضغط عن اي شارة التطبيق يشرح ما هي بصندوق صغير
-// شفاف»; CONVENTIONS §10.177): a tap on any badge shows what it is in a
+// D389 (owner: «اجعل عند ضغط عن اي شارة التطبيق يشرح ما هي بصندوق صغير
+// شفاف»; CONVENTIONS §10.178): a tap on any badge shows what it is in a
 // small translucent box beside it.
 
 import 'dart:async';
@@ -9,7 +9,7 @@ import 'dart:ui' as ui;
 import 'package:kabso_live/design_system/theme/app_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// D388: wraps a badge so a tap on it shows [message] (what the badge is,
+/// D389: wraps a badge so a tap on it shows [message] (what the badge is,
 /// in the app's language) in a small dark-glass bubble next to it.
 ///
 /// - One bubble at a time: opening another closes the first.
@@ -161,7 +161,7 @@ class _KBadgeExplainerState extends State<KBadgeExplainer> {
   }
 }
 
-/// D388: the bubble itself — [message] in white on the dark glass.
+/// D389: the bubble itself — [message] in white on the dark glass.
 class KBadgeExplainerBubble extends StatelessWidget {
   const new({required this.message, super.key});
 
@@ -227,7 +227,7 @@ class KBadgeExplainerBubble extends StatelessWidget {
   }
 }
 
-/// D388: where the bubble goes — centred on the badge ([target]), under it
+/// D389: where the bubble goes — centred on the badge ([target]), under it
 /// when it fits, else above it; always inside the screen less its [safe]
 /// area and [KBadgeExplainer.margin]. Symmetric, so it is the same in both
 /// reading directions.

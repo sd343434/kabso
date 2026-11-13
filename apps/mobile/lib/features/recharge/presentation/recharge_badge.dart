@@ -33,7 +33,7 @@ class RechargeTierBadge extends StatefulWidget {
   final RechargeBadge? badge;
   final double height;
 
-  /// D388: a tap shows what the badge is.
+  /// D389: a tap shows what the badge is.
   final bool explain;
 
   /// Space before the badge (start side) when it shows.

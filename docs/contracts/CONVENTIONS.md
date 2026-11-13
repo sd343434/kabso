@@ -13188,13 +13188,13 @@ The inbox's retention applies (§10.151.8): a thread with no message for `WHATSA
 with its messages, notes, history and the files of the person's pictures and voice clips; an account purge (§10.56)
 deletes its thread the same way. The data export lists the thread with the WhatsApp conversations (`channel`).
 
-### 10.177 The badge explainer, and the Kabso Team badge without its banner *(app only, no contract change — D388)*
+### 10.178 The badge explainer, and the Kabso Team badge without its banner *(app only, no contract change — D389)*
 
-Owner (2026-11-13, board D388): «فريق كابسو يأخذون شارة لكن الشارة لها شريط ازله — واجعل عند ضغط عن اي شارة التطبيق
-يشرح ما هي بصندوق صغير شفاف». Two app-only changes; no API, contract version, data message or database change. (§10.175
-and §10.176 are taken on other branches.)
+Owner (2026-11-13, board D389): «فريق كابسو يأخذون شارة لكن الشارة لها شريط ازله — واجعل عند ضغط عن اي شارة التطبيق
+يشرح ما هي بصندوق صغير شفاف». Two app-only changes; no API, contract version, data message or database change. (§10.175,
+§10.176 and §10.177 are taken on other branches.)
 
-#### 10.177.1 The Kabso Team badge is the crest alone
+#### 10.178.1 The Kabso Team badge is the crest alone
 
 The «فريق كابسو» badge (D282 / D282c, `KabsoTeamBadge`) loses its long red-and-gold banner and the team's name written in
 it: it is the owner's crest alone (Kabi in a headset, the crown, the laurels and the small ribbon scroll at the bottom,
@@ -13205,7 +13205,7 @@ a boxed, inline or VIP chat line and 22 on the host's flat line (still taller th
 Me tab and in the profile's badge row (was 44, sized for the banner's text), 26 on the profile's name line, 28 on the
 person card (was 32), 24 before «إعلان رسمي» (was 28); the staff screens keep 36–40.
 
-#### 10.177.2 A tap on any badge says what it is
+#### 10.178.2 A tap on any badge says what it is
 
 A tap on a badge shows a small translucent bubble beside it (`KBadgeExplainer`, design system): white text on dark glass
 (a 72 % near-black tint over a 12-pt blur, a faint light edge, radius 12), at most 260 pt wide, under the badge or above it
