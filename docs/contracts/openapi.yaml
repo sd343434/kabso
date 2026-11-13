@@ -766,6 +766,18 @@ info:
     `pinDmGroup` / `unpinDmGroup` (`PUT` / `DELETE …/pin`; `DmPin`, `DmPinList`; at most 5, more → 409 `DM_PIN_LIMIT`).
     Server config `RATE_LIMIT_SUPPORT_SEND_USER`. Migration `20270515090000_support_chat_pins`. Additive for the app; the
     staff inbox's `phone` may now be null (an IN_APP thread).
+    **D386 (DRAFT v1.138-social)** a profile page per account category «صفحة حسب فئة الحساب» (CONVENTIONS §10.175; owner
+    2026-11-12): `AccountCategory` gains 13 values (24 in all); `Me.categoryVerified`, `Me.categoryLocked`,
+    `PublicProfile.categoryVerified`. Only a category the Kabso Team verified changes the profile page: tag `users`
+    `getUserFeatured` (`ProfileFeatured`, `FeaturedSection`); tag `me` — featured pins `listMyFeaturedPins`,
+    `setMyFeaturedPins`, `pinFeaturedPost`, `unpinFeaturedPost` (`FeaturedPinList`; at most 6, more → 409
+    `FEATURED_PIN_LIMIT`) and «طلب توثيق الفئة» `getMyCategoryVerification`, `requestCategoryVerification` (409
+    `CATEGORY_VERIFICATION_PENDING`), `cancelCategoryVerification`. `PATCH /me {category}` while the team locked it → 403
+    `ACCOUNT_CATEGORY_LOCKED`; changing the category clears the verification. Panel: `getAdminUserCategory`,
+    `controlAdminUserCategory` (VERIFY · UNVERIFY · CLEAR · LOCK · UNLOCK), `listAdminCategoryRequests`,
+    `approveAdminCategoryRequest`, `rejectAdminCategoryRequest`; notifications `CATEGORY_VERIFIED`, `CATEGORY_REVIEWED`.
+    Server config `RATE_LIMIT_FEATURED_PINS_USER`, `RATE_LIMIT_CATEGORY_REQUEST_USER`. Migrations
+    `20270516090000_category_profiles_enums`, `20270516090100_category_profiles`. Additive.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -1893,7 +1905,7 @@ paths:
                   type: boolean
                   description: v1.47-social (D175). Whether others see the gender on the profile (default false).
                 category:
-                  description: v1.47-social (D175). The account category shown under the name; null clears it.
+                  description: "v1.47-social (D175). The account category shown under the name; null clears it. (v1.138-social, D386) A change clears the team's verification and cancels an open «طلب توثيق الفئة»; while the team locked it, another value → 403 `ACCOUNT_CATEGORY_LOCKED` (nothing of the request is stored)."
                   oneOf:
                     - $ref: '#/components/schemas/AccountCategory'
                     - type: 'null'
@@ -2850,6 +2862,7 @@ paths:
                     profileCard: { code: bunny_royal, assetKey: header_bunny_royal }
                     gender: FEMALE
                     category: SINGER
+                    categoryVerified: true
                     links:
                       - { id: 0192f1d0-7777-7000-8000-000000000009, url: 'https://www.instagram.com/layla.k', label: Instagram, platform: INSTAGRAM }
                     tags: [مطربة, صانعة محتوى, '10👑']
@@ -10404,6 +10417,154 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/featured:
+    get:
+      tags: [users]
+      operationId: getUserFeatured
+      summary: "The featured section at the top of a profile «أعمالي / قصائدي / معرضي …» (v1.138-social, D386)"
+      description: |
+        CONVENTIONS §10.175. Only for an account whose category the Kabso Team **verified** (`categoryVerified`) and
+        that holds no panel role (D367); otherwise `section` is null with no items. `section` follows the category
+        (§10.175.2); `items` are the person's pinned posts and reels (`setMyFeaturedPins`, in their order) the caller
+        may see, or — with none — the newest posts that match the section (`source: AUTO`; MOST_VIEWED: the reels with
+        the most views). PROGRAM (a presenter) lists the upcoming scheduled lives and podcast episodes in `schedule`.
+        The visibility rules of `listUserPosts`: a private account the caller does not follow, or a block either way
+        → 404 (the profile itself stays visible).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The featured section (possibly empty).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileFeatured' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/featured-pins:
+    get:
+      tags: [me]
+      operationId: listMyFeaturedPins
+      summary: "The caller's pinned featured posts, in order (v1.138-social, D386)"
+      description: "CONVENTIONS §10.175.3. A pin whose post was deleted, hidden by the team or is no longer published is dropped (and never counts)."
+      responses:
+        '200':
+          description: The pins.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeaturedPinList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [me]
+      operationId: setMyFeaturedPins
+      summary: "Replace the caller's featured pins: set, reorder or clear (v1.138-social, D386)"
+      description: |
+        CONVENTIONS §10.175.3. `postIds` in the wanted order (0–6; `[]` clears them). Each must be the caller's own
+        published post or reel that is not deleted or hidden; an unknown, someone else's or repeated id → 400
+        `postIds.<i>` / `invalid_value`; more than 6 → 400 `postIds` / `too_many`. 60 / hour per user, shared with the
+        two operations below (§7).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetFeaturedPinsRequest' }
+      responses:
+        '200':
+          description: The pins now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeaturedPinList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/featured-pins/{postId}:
+    put:
+      tags: [me]
+      operationId: pinFeaturedPost
+      summary: "«تثبيت في …»: pin one of the caller's posts or reels at the end of the featured section (v1.138-social, D386)"
+      description: |
+        CONVENTIONS §10.175.3. Idempotent (an already pinned post keeps its place). Not the caller's own published,
+        visible post or reel → 404. A 7th pin → 409 `FEATURED_PIN_LIMIT` (`{field: "pins", issue: "too_many"}`),
+        checked under a per-person lock.
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: The pins now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeaturedPinList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [me]
+      operationId: unpinFeaturedPost
+      summary: "Unpin a featured post (idempotent; v1.138-social, D386)"
+      description: "CONVENTIONS §10.175.3. The others keep their order. A post that is not pinned (or not the caller's) changes nothing."
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: The pins now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeaturedPinList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/category-verification:
+    get:
+      tags: [me]
+      operationId: getMyCategoryVerification
+      summary: "The caller's category verification «توثيق الفئة» and their latest request (v1.138-social, D386)"
+      description: "CONVENTIONS §10.175.4."
+      responses:
+        '200':
+          description: The state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryVerificationStatus' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [me]
+      operationId: requestCategoryVerification
+      summary: "«طلب توثيق الفئة»: ask the Kabso Team to verify the caller's current category (v1.138-social, D386)"
+      description: |
+        CONVENTIONS §10.175.4. Order after auth and the rate limit (5 / day per user, §7): 400 body (`note` ≤ 300 code
+        points, the §6 hygiene) → no category (or a Kabso Team account, whose category is not shown) → 400 `category` /
+        `required` → already verified → 400 `category` / `already_verified` → an open request → 409
+        `CATEGORY_VERIFICATION_PENDING` → 201 with the PENDING request. The panel lists it «طلبات توثيق الفئة».
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryVerificationRequestBody' }
+      responses:
+        '201':
+          description: The request was made.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryVerificationStatus' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [me]
+      operationId: cancelCategoryVerification
+      summary: "Cancel the caller's open verification request (idempotent; v1.138-social, D386)"
+      description: "CONVENTIONS §10.175.4. With no open request nothing changes."
+      responses:
+        '200':
+          description: The state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryVerificationStatus' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/users/{username}/official-posts:
     get:
       tags: [owner]
@@ -17686,6 +17847,139 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/category:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminUserCategory
+      summary: "The account's category, its verification, the lock and the latest request (users.control_view)"
+      description: "(v1.138-social, D386, §10.175.5) The stored category (also for a Kabso Team account, whose profile shows none)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserCategory' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: controlAdminUserCategory
+      summary: "Verify, unverify, clear, lock or unlock the account's category (users.profile_edit; audited; the person is notified)"
+      description: |
+        (v1.138-social, D386, §10.175.5) `VERIFY` the current category (none → 409 `ADMIN_ACTION_REFUSED`
+        `no_category`; an open request is approved with it), `UNVERIFY`, `CLEAR` (the category becomes none, the
+        verification goes, an open request is cancelled), `LOCK` (the person cannot change the category until
+        `UNLOCK`; with none they cannot choose one), `UNLOCK`. An action that changes nothing answers 200 and is not
+        audited. Never on one's own account (409 `ADMIN_ACTION_REFUSED`); a panel admin's account only by an OWNER (403). Audited
+        `admin.user.category` `{action, reason, before, after, via: panel}`; the person gets `CATEGORY_VERIFIED`
+        (VERIFY) or `CATEGORY_REVIEWED` (the others).
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCategoryControlRequest' }
+      responses:
+        '200':
+          description: The state now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserCategory' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/category-requests:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminCategoryRequests
+      summary: "«طلبات توثيق الفئة»: the category verification requests (users.control_view)"
+      description: "(v1.138-social, D386, §10.175.5) `q`: the person's username or email prefix. `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminPage'
+        - $ref: '#/components/parameters/AdminPageSize'
+        - $ref: '#/components/parameters/AdminOrder'
+        - $ref: '#/components/parameters/AdminQ'
+        - $ref: '#/components/parameters/AdminFormat'
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [createdAt, decidedAt], default: createdAt }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/CategoryRequestStatus' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCategoryRequestPage' }
+            text/csv:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/category-requests/{requestId}/approve:
+    post:
+      tags: [admin-panel]
+      operationId: approveAdminCategoryRequest
+      summary: "Approve a pending request: the category is verified (users.profile_edit; audited)"
+      description: "(v1.138-social, D386, §10.175.5) The person gets `CATEGORY_VERIFIED`. Audited `category.request.approve`. 409 `ADMIN_ACTION_REFUSED` when not PENDING (`status` / `not_pending`), the account is not ACTIVE, or it is one's own; 403 for a panel admin's request unless OWNER."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCategoryRequestIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      responses:
+        '200':
+          description: Approved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCategoryRequestRow' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/category-requests/{requestId}/reject:
+    post:
+      tags: [admin-panel]
+      operationId: rejectAdminCategoryRequest
+      summary: "Reject a pending request with a reason the person sees (users.profile_edit; audited)"
+      description: "(v1.138-social, D386, §10.175.5) The person gets `CATEGORY_REVIEWED` and sees the reason in `getMyCategoryVerification`; they may ask again. Audited `category.request.reject`. 409 `ADMIN_ACTION_REFUSED` when not PENDING."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCategoryRequestIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Rejected.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCategoryRequestRow' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/referrals:
     get:
       tags: [admin-panel]
@@ -24362,6 +24656,12 @@ components:
       required: true
       description: (v1.73-social, D209) a «كن مضيفاً مع الإدارة» application.
       schema: { type: string, format: uuid }
+    AdminCategoryRequestIdPath:
+      name: requestId
+      in: path
+      required: true
+      description: (v1.138-social, D386) a «طلب توثيق الفئة». A malformed id is treated as not found (404).
+      schema: { type: string }
     AdminReferralIdPath:
       name: referralId
       in: path
@@ -33620,8 +33920,14 @@ components:
         tokens: { $ref: '#/components/schemas/TokenPair' }
     Me:
       type: object
-      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links, tags, coverUrl, verification, statusEmojiId]
+      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, categoryVerified, categoryLocked, links, tags, coverUrl, verification, statusEmojiId]
       properties:
+        categoryVerified:
+          type: boolean
+          description: "(v1.138-social, D386, §10.175) The Kabso Team verified the caller's current category: the profile takes the category's look (accent, badge with a check, pattern, featured section, tab order). False with no category, and for a Kabso Team account (D367). Changing the category clears it."
+        categoryLocked:
+          type: boolean
+          description: "(v1.138-social, D386, §10.175) The team locked the category: «تعديل الملف» shows it read-only and `PATCH /me {category}` with another value → 403 `ACCOUNT_CATEGORY_LOCKED`."
         kabsoOwner:
           type: boolean
           const: true
@@ -34459,8 +34765,11 @@ components:
         nextCursor: { type: [string, 'null'] }
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe, verification, statusEmojiId]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, categoryVerified, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe, verification, statusEmojiId]
       properties:
+        categoryVerified:
+          type: boolean
+          description: "(v1.138-social, D386, §10.175) The Kabso Team verified this person's category: the profile page takes the category's look and loads `getUserFeatured`. False with no category and for a Kabso Team account (whose `category` is null, D367). An unverified category is only the word under the name, as before."
         animatedAvatar:
           $ref: '#/components/schemas/AnimatedAvatar'
           description: "(v1.136-social, D384, §10.173) The VIP animated cut-out picture — present only while the person holds an active VIP with the ANIMATED_AVATAR perk (inherited) and has set a clip, and never when either of the two blocked the other or for a limited Kabso Team account. The person card shows it in the round photo's place — the same circle, size and position, inside the same ring, VIP frame or bag frame — the head popping a little over the circle's top edge (owner: «اجعلها كأنها بإطار دائري بنفس حجم الإطار السابق»). Absent otherwise (the clip is kept when the VIP ends and shows again on renewal)."
@@ -34696,8 +35005,152 @@ components:
       description: v1.47-social (D175). «ذكر / أنثى / أفضّل عدم الذكر».
     AccountCategory:
       type: string
-      enum: [SINGER, MUSICIAN, POET, PRESENTER, GAMER, CONTENT_CREATOR, ATHLETE, ARTIST, BLOGGER, PUBLIC_FIGURE, OTHER]
-      description: "v1.47-social (D175). Shown under the name: مغنٍّ، موسيقي، شاعر، مقدّم برامج، لاعب ألعاب، صانع محتوى، رياضي، فنان، مدوّن، شخصية عامة، أخرى. The app names them in its own language."
+      enum: [SINGER, MUSICIAN, POET, PRESENTER, GAMER, CONTENT_CREATOR, ATHLETE, ARTIST, BLOGGER, PUBLIC_FIGURE, OTHER, QURAN_RECITER, STORYTELLER, WRITER, JOURNALIST, PHOTOGRAPHER, ACTOR, COMEDIAN, CALLIGRAPHER, DESIGNER, CHEF, TEACHER, DJ, TRAVELER]
+      description: "v1.47-social (D175). Shown under the name: مغنٍّ، موسيقي، شاعر، مقدّم برامج، لاعب ألعاب، صانع محتوى، رياضي، فنان، مدوّن، شخصية عامة، أخرى. The app names them in its own language. (v1.138-social, D386, §10.175) Thirteen more: قارئ قرآن، راوٍ، كاتب، صحفي، مصوّر، ممثل، كوميدي، خطّاط، مصمّم، طاهٍ، معلّم / مدرّب، دي جي، رحّالة. Additive: clients show an unknown value as nothing."
+    FeaturedSection:
+      type: string
+      enum: [WORKS, RECITATIONS, STORIES, POEMS, ARTICLES, REPORTS, PROGRAM, GAMES, ACHIEVEMENTS, GALLERY, MOST_VIEWED, HIGHLIGHTS]
+      description: "(v1.138-social, D386, §10.175.2) The featured section of a verified category's profile: WORKS «أعمالي» (SINGER, MUSICIAN, DJ), RECITATIONS «تلاواتي» (QURAN_RECITER), STORIES «حكاياتي» (STORYTELLER), POEMS «قصائدي» (POET), ARTICLES «مقالاتي» (WRITER, BLOGGER), REPORTS «تقاريري» (JOURNALIST), PROGRAM «برنامجي» (PRESENTER), GAMES «ألعابي» (GAMER), ACHIEVEMENTS «إنجازاتي» (ATHLETE), GALLERY «معرضي» (ARTIST, PHOTOGRAPHER, DESIGNER, CALLIGRAPHER), MOST_VIEWED «الأكثر مشاهدة» (CONTENT_CREATOR, ACTOR, COMEDIAN), HIGHLIGHTS «المميز» (CHEF, TRAVELER, TEACHER). PUBLIC_FIGURE and OTHER have none. Clients draw no section for a value they do not know."
+    ProfileFeatured:
+      type: object
+      description: "(v1.138-social, D386, §10.175.2) The featured section under a profile's header."
+      required: [section, source, items, schedule]
+      properties:
+        section:
+          description: Null when the category is none, not verified, PUBLIC_FIGURE or OTHER, or the account is Kabso Team.
+          oneOf:
+            - $ref: '#/components/schemas/FeaturedSection'
+            - type: 'null'
+        source:
+          type: string
+          enum: [PINNED, AUTO, NONE]
+          description: "PINNED: `items` are the person's pins; AUTO: no pin the caller may see, so the newest matching posts (or, for PROGRAM, only the schedule); NONE: nothing to show."
+        items:
+          type: array
+          maxItems: 6
+          items: { $ref: '#/components/schemas/Post' }
+        schedule:
+          type: array
+          maxItems: 6
+          description: "PROGRAM only (else empty): the person's announced lives and podcast episodes still ahead, soonest first."
+          items: { $ref: '#/components/schemas/LiveScheduleSlot' }
+    FeaturedPinList:
+      type: object
+      description: "(v1.138-social, D386, §10.175.3) The caller's featured pins in order."
+      required: [postIds, max]
+      properties:
+        postIds:
+          type: array
+          maxItems: 6
+          items: { type: string, format: uuid }
+        max: { type: integer, const: 6 }
+    SetFeaturedPinsRequest:
+      type: object
+      additionalProperties: false
+      required: [postIds]
+      properties:
+        postIds:
+          type: array
+          maxItems: 6
+          items: { type: string, format: uuid }
+    CategoryRequestStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+      description: "(v1.138-social, D386) CANCELLED: by the person, by a change of their category, or by the team's CLEAR."
+    CategoryVerificationRequest:
+      type: object
+      description: "(v1.138-social, D386, §10.175.4) A «طلب توثيق الفئة»."
+      required: [id, category, status, createdAt, decidedAt, rejectReason]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/AccountCategory' }
+        status: { $ref: '#/components/schemas/CategoryRequestStatus' }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        rejectReason: { type: [string, 'null'], description: The team's reason (REJECTED only). }
+    CategoryVerificationStatus:
+      type: object
+      description: "(v1.138-social, D386, §10.175.4) The caller's category, whether the team verified it, the lock and the latest request."
+      required: [category, verified, locked, request]
+      properties:
+        category:
+          description: Null for none, and for a Kabso Team account (D367).
+          oneOf:
+            - $ref: '#/components/schemas/AccountCategory'
+            - type: 'null'
+        verified: { type: boolean }
+        locked: { type: boolean, description: "The team locked the category; `PATCH /me` with another `category` → 403 `ACCOUNT_CATEGORY_LOCKED`." }
+        request:
+          description: The open request, else the latest decided or cancelled one; null when none was ever made.
+          oneOf:
+            - $ref: '#/components/schemas/CategoryVerificationRequest'
+            - type: 'null'
+    CategoryVerificationRequestBody:
+      type: object
+      additionalProperties: false
+      properties:
+        note: { type: string, maxLength: 300, description: "Optional, for the team (links to the person's work, …). ≤ 300 code points, §6 hygiene." }
+    AdminCategoryControlRequest:
+      type: object
+      additionalProperties: false
+      required: [action, reason]
+      properties:
+        action: { type: string, enum: [VERIFY, UNVERIFY, CLEAR, LOCK, UNLOCK] }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Kept in the audit log. }
+    AdminUserCategory:
+      type: object
+      description: "(v1.138-social, D386, §10.175.5) An account's stored category and the team's controls."
+      required: [category, verified, verifiedAt, verifiedBy, locked, lockedAt, kabsoTeam, request]
+      properties:
+        category:
+          oneOf:
+            - $ref: '#/components/schemas/AccountCategory'
+            - type: 'null'
+        verified: { type: boolean }
+        verifiedAt: { type: [string, 'null'], format: date-time }
+        verifiedBy:
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+        locked: { type: boolean }
+        lockedAt: { type: [string, 'null'], format: date-time }
+        kabsoTeam: { type: boolean, description: "The account holds a panel role, so its profile shows no category (D367)." }
+        request:
+          oneOf:
+            - $ref: '#/components/schemas/CategoryVerificationRequest'
+            - type: 'null'
+    AdminCategoryRequestRow:
+      type: object
+      description: "(v1.138-social, D386) A row of «طلبات توثيق الفئة»."
+      required: [id, status, category, currentCategory, note, user, createdAt, decidedAt, decidedBy, rejectReason]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/CategoryRequestStatus' }
+        category: { $ref: '#/components/schemas/AccountCategory' }
+        currentCategory:
+          description: The account's category now (null for none).
+          oneOf:
+            - $ref: '#/components/schemas/AccountCategory'
+            - type: 'null'
+        note: { type: [string, 'null'] }
+        user: { $ref: '#/components/schemas/AdminPersonRef' }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        decidedBy:
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+        rejectReason: { type: [string, 'null'] }
+    AdminCategoryRequestPage:
+      type: object
+      required: [data, total, page, pageSize]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminCategoryRequestRow' }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
     ProfileLinkPlatform:
       type: string
       enum: [INSTAGRAM, TIKTOK, YOUTUBE, FACEBOOK, X, WHATSAPP, SNAPCHAT, OTHER]
@@ -37916,8 +38369,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». (v1.127-social, D372) `CONTENT_GIFT_RECEIVED` (actor the sender, target POST: the post or reel; one unread row per post that new senders join, always on, pushed «أرسل لك فلان هدية»): someone sent a gift on your post or reel «هدية الدعم». (v1.136-social, D384) `ANIMATED_AVATAR_REMOVED` (system, no target): a moderator removed your VIP animated picture «صورة متحركة» (§10.173.5); the app opens the VIP page. Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED, CONTENT_GIFT_RECEIVED, ANIMATED_AVATAR_REMOVED]
+      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you (v1.101-social, D325: also a milestone «مرحلة» reached); the app opens the event. (v1.101-social, D325) `EVENT_STARTED` (system, target EVENT, no text): an event for your audience started — once per person and event, to every ACTIVE account of its audience and regions, pushed «بدأت فعالية جديدة، شارك الآن». (v1.127-social, D372) `CONTENT_GIFT_RECEIVED` (actor the sender, target POST: the post or reel; one unread row per post that new senders join, always on, pushed «أرسل لك فلان هدية»): someone sent a gift on your post or reel «هدية الدعم». (v1.136-social, D384) `ANIMATED_AVATAR_REMOVED` (system, no target): a moderator removed your VIP animated picture «صورة متحركة» (§10.173.5); the app opens the VIP page. (v1.138-social, D386) system, no target: `CATEGORY_VERIFIED` (the Kabso Team verified your account category — a request approved or the panel's VERIFY), `CATEGORY_REVIEWED` (the team rejected your request, removed the verification, cleared, locked or unlocked your category; the details are in `getMyCategoryVerification`); the app opens «تعديل الملف». Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT, EVENT_PRIZE_WON, EVENT_STARTED, CONTENT_GIFT_RECEIVED, ANIMATED_AVATAR_REMOVED, CATEGORY_VERIFIED, CATEGORY_REVIEWED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]

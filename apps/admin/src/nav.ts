@@ -31,6 +31,8 @@ export const NAV: NavGroup[] = [
       { to: '/special-usernames', key: 'navSpecialUsernames', icon: 'at', cap: 'programs.view', match: ['specialUsernames'] },
       // v1.90-social (D293): «شارات التوثيق» — the thresholds (OWNER edits; the team reads).
       { to: '/verification-badges', key: 'navVerificationBadges', icon: 'shield', cap: 'verification.view', match: ['verificationBadges'] },
+      // v1.138-social (D386): «طلبات توثيق الفئة» (a verified category changes the person's page in the app).
+      { to: '/category-requests', key: 'navCategoryRequests', icon: 'inbox', cap: 'users.control_view', match: ['categoryRequests'] },
     ],
   },
   {

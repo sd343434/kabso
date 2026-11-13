@@ -15,6 +15,9 @@ import 'package:kabso_live/features/owner_profile/presentation/owner_actions.dar
 import 'package:kabso_live/features/owner_profile/presentation/owner_sections.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
+import 'package:kabso_live/features/profile/category/category_repository.dart';
+import 'package:kabso_live/features/profile/category/category_style.dart';
+import 'package:kabso_live/features/profile/category/featured_section.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
@@ -199,7 +202,9 @@ Future<bool> confirmCancelFollowRequest(
 }
 
 class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
-  ProfileTab _tab = ProfileTab.posts;
+  /// The chosen tab; null → the first of the page's order (D386: a
+  /// verified category may put reels first).
+  ProfileTab? _tab;
 
   /// D278: the cover has scrolled out from under the top bar.
   bool _solid = false;
@@ -398,7 +403,9 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   /// تم الطلب / إلغاء الحظر), «مراسلة» with the send icon, then the header's
   /// chevron ([toggle]: the family / couple / medals tiles). Your own page
   /// gets «تعديل الملف» (+ the chevron). The ⋯ is in the top bar (owner 4).
-  Widget _actions(PublicProfile profile, Widget? toggle) {
+  /// [inner] is the header's context (under the page's D386 category look,
+  /// which colours the primary pill).
+  Widget _actions(PublicProfile profile, Widget? toggle, BuildContext inner) {
     final l10n = context.l10n;
     final quiet = ProfileCoverButtons.pill(context);
     final tail = [
@@ -436,7 +443,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     }
     final main = profile.blockedByMe
         ? ProfileCoverButtons.gradientPill(
-            context: context,
+            context: inner,
             key: PublicProfileScreen.unblockKey,
             onPressed: () => _unblock(profile),
             child: ProfileCoverButtons.label(l10n.safetyUnblock),
@@ -457,7 +464,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             child: ProfileCoverButtons.label(l10n.followRequested),
           )
         : ProfileCoverButtons.gradientPill(
-            context: context,
+            context: inner,
             key: PublicProfileScreen.followKey,
             // D175: a private account gets a follow request (§10.47).
             onPressed: profile.canFollowOrRequest
@@ -582,98 +589,116 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final p = context.palette;
     final locked = profile.locked;
     final hidden = locked || profile.blockedByMe;
-    return NotificationListener<ScrollNotification>(
-      onNotification: _onScroll,
-      child: RefreshIndicator(
-        edgeOffset: MediaQuery.paddingOf(context).top,
-        onRefresh: () {
-          ref
-            ..invalidate(profileGridProvider)
-            ..invalidate(ownerJourneyProvider(widget.username))
-            ..invalidate(ownerOfficialPostsProvider(widget.username));
-          return ref.refresh(publicProfileProvider(widget.username).future);
-        },
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            // D278: the cover runs under the bar; the tabs pin under it.
-            const ProfileCoverBarSpace(),
-            SliverToBoxAdapter(
-              child: ProfileCoverHeader(
-                profile: profile,
-                actions: (_, toggle) => _actions(profile, toggle),
-                // D301: the owner's cover video, in the app's language.
-                coverVideo: ownerCoverVideoFor(context, profile),
-                // D121: the lists; a private account's are its followers'
-                // only, so a locked profile keeps the counts plain.
-                onOpenFollowers: hidden
-                    ? null
-                    : () =>
-                          context.push(AppRoutes.userFollows(profile.username)),
-                onOpenFollowing: hidden
-                    ? null
-                    : () => context.push(
-                        AppRoutes.userFollows(
-                          profile.username,
-                          following: true,
+    // D386 (§10.175): a category the Kabso Team verified gives the page its
+    // look, its featured section and its tab order.
+    final look = CategoryLook.ofProfile(context, profile);
+    final tabs =
+        look?.orderTabs(PublicProfileScreen.tabs) ?? PublicProfileScreen.tabs;
+    final tab = _tab ?? tabs.first;
+    return CategoryLookScope(
+      look: look,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: _onScroll,
+        child: RefreshIndicator(
+          edgeOffset: MediaQuery.paddingOf(context).top,
+          onRefresh: () {
+            ref
+              ..invalidate(profileFeaturedProvider(widget.username))
+              ..invalidate(profileGridProvider)
+              ..invalidate(ownerJourneyProvider(widget.username))
+              ..invalidate(ownerOfficialPostsProvider(widget.username));
+            return ref.refresh(publicProfileProvider(widget.username).future);
+          },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // D278: the cover runs under the bar; the tabs pin under it.
+              const ProfileCoverBarSpace(),
+              SliverToBoxAdapter(
+                child: ProfileCoverHeader(
+                  profile: profile,
+                  actions: (inner, toggle) => _actions(profile, toggle, inner),
+                  // D301: the owner's cover video, in the app's language.
+                  coverVideo: ownerCoverVideoFor(context, profile),
+                  // D121: the lists; a private account's are its followers'
+                  // only, so a locked profile keeps the counts plain.
+                  onOpenFollowers: hidden
+                      ? null
+                      : () => context.push(
+                          AppRoutes.userFollows(profile.username),
                         ),
-                      ),
+                  onOpenFollowing: hidden
+                      ? null
+                      : () => context.push(
+                          AppRoutes.userFollows(
+                            profile.username,
+                            following: true,
+                          ),
+                        ),
+                ),
               ),
-            ),
-            SliverToBoxAdapter(child: ProfileInfoBlock(profile: profile)),
-            // D301: «إعلانات رسمية» and «رحلة Kabso» on the owner's page.
-            if (profile.kabsoOwner && !profile.blockedByMe) ...[
-              SliverToBoxAdapter(
-                child: OwnerProfileSections(profile: profile, own: false),
-              ),
-              // D307 follow-up: the announcements in full after «رحلة
-              // Kabso».
-              OfficialAnnouncementsFeed(username: profile.username, own: false),
-            ],
-            if (profile.blockedByMe)
-              SliverToBoxAdapter(
-                child: Padding(
-                  key: PublicProfileScreen.blockedKey,
-                  padding: const EdgeInsets.symmetric(vertical: KSpacing.xl),
-                  child: KEmptyState(
-                    icon: Icons.block_rounded,
-                    title: l10n.profileBlockedTitle,
-                    message: l10n.profileBlockedBody,
-                    compact: true,
+              SliverToBoxAdapter(child: ProfileInfoBlock(profile: profile)),
+              // D386: the verified category's featured section (the grid's
+              // visibility: not on a locked or blocked page).
+              if (look != null && !hidden && !profile.kabsoOwner)
+                FeaturedSectionSliver(username: profile.username),
+              // D301: «إعلانات رسمية» and «رحلة Kabso» on the owner's page.
+              if (profile.kabsoOwner && !profile.blockedByMe) ...[
+                SliverToBoxAdapter(
+                  child: OwnerProfileSections(profile: profile, own: false),
+                ),
+                // D307 follow-up: the announcements in full after «رحلة
+                // Kabso».
+                OfficialAnnouncementsFeed(
+                  username: profile.username,
+                  own: false,
+                ),
+              ],
+              if (profile.blockedByMe)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    key: PublicProfileScreen.blockedKey,
+                    padding: const EdgeInsets.symmetric(vertical: KSpacing.xl),
+                    child: KEmptyState(
+                      icon: Icons.block_rounded,
+                      title: l10n.profileBlockedTitle,
+                      message: l10n.profileBlockedBody,
+                      compact: true,
+                    ),
+                  ),
+                )
+              else if (locked)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    key: PublicProfileScreen.privateKey,
+                    padding: const EdgeInsets.symmetric(vertical: KSpacing.xl),
+                    child: KEmptyState(
+                      icon: Icons.lock_outline_rounded,
+                      title: l10n.profilePrivateTitle,
+                      message: l10n.profilePrivateBody,
+                      compact: true,
+                    ),
+                  ),
+                )
+              // D307 follow-up (owner: «في صفحة المؤسس لا تحتوي ريلز او بوست
+              // او اي اعادة»): the founder's page ends with «رحلة Kabso».
+              else if (profile.kabsoOwner)
+                const SliverToBoxAdapter(child: SizedBox(height: KSpacing.xl))
+              else ...[
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: ProfileTabsDelegate(
+                    tabs: tabs,
+                    tab: tab,
+                    background: p.background,
+                    text: true,
+                    onSelect: (t) => setState(() => _tab = t),
                   ),
                 ),
-              )
-            else if (locked)
-              SliverToBoxAdapter(
-                child: Padding(
-                  key: PublicProfileScreen.privateKey,
-                  padding: const EdgeInsets.symmetric(vertical: KSpacing.xl),
-                  child: KEmptyState(
-                    icon: Icons.lock_outline_rounded,
-                    title: l10n.profilePrivateTitle,
-                    message: l10n.profilePrivateBody,
-                    compact: true,
-                  ),
-                ),
-              )
-            // D307 follow-up (owner: «في صفحة المؤسس لا تحتوي ريلز او بوست
-            // او اي اعادة»): the founder's page ends with «رحلة Kabso».
-            else if (profile.kabsoOwner)
-              const SliverToBoxAdapter(child: SizedBox(height: KSpacing.xl))
-            else ...[
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: ProfileTabsDelegate(
-                  tabs: PublicProfileScreen.tabs,
-                  tab: _tab,
-                  background: p.background,
-                  text: true,
-                  onSelect: (t) => setState(() => _tab = t),
-                ),
-              ),
-              ProfileGrid(username: profile.username, tab: _tab),
+                ProfileGrid(username: profile.username, tab: tab),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

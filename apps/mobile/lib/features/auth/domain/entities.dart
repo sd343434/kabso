@@ -50,6 +50,12 @@ abstract class User with _$User {
     /// v1.47-social (D175): the account category shown under the name.
     AccountCategory? category,
 
+    /// v1.138-social (D386, §10.175): the Kabso Team verified [category]
+    /// (the profile's own look) / locked it (Edit profile shows it
+    /// read-only).
+    @Default(false) bool categoryVerified,
+    @Default(false) bool categoryLocked,
+
     /// v1.47-social (D175): up to 3 profile links, in order.
     @Default(<ProfileLink>[]) List<ProfileLink> links,
 

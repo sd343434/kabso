@@ -18,6 +18,9 @@ import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.
 import 'package:kabso_live/features/owner_profile/presentation/owner_actions.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_sections.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/profile/category/category_repository.dart';
+import 'package:kabso_live/features/profile/category/category_style.dart';
+import 'package:kabso_live/features/profile/category/featured_section.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
@@ -92,7 +95,23 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  ProfileTab _tab = ProfileTab.posts;
+  /// The chosen tab; null → the first of the page's order (D386).
+  ProfileTab? _tab;
+
+  /// D386 (§10.175): the own page takes the verified category's look (never
+  /// a Kabso Team account's, D367; the founder's page is his own).
+  CategoryLook? _lookOf(User user, {required bool founder}) {
+    final category = user.category;
+    if (category == null || !user.categoryVerified || founder) return null;
+    if (profileHidesCategory(
+      kabsoTeam: user.kabsoTeam,
+      hasStaffIdentity: user.staff != null,
+      hasStaffId: user.staffId != null,
+    )) {
+      return null;
+    }
+    return CategoryLook.forCategory(context, category);
+  }
 
   /// D278: the cover has scrolled out from under the top bar.
   bool _solid = false;
@@ -144,6 +163,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           '${created.year.toString().padLeft(4, '0')}-'
           '${created.month.toString().padLeft(2, '0')}',
       category: user.category,
+      categoryVerified: user.categoryVerified,
       gender: user.showGender ? user.gender : null,
       links: user.links,
       tags: user.tags,
@@ -210,6 +230,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ],
     ];
   }
+
+  CategoryLook? _lookFor(User user) => _lookOf(
+    user,
+    founder:
+        ref.watch(profileStatsProvider(user.username)).value?.kabsoOwner ??
+        false,
+  );
+
+  /// D386: the tabs in the verified category's order.
+  List<ProfileTab> _tabsOf(User user) =>
+      _lookFor(user)?.orderTabs(ProfileTab.values) ?? ProfileTab.values;
+
+  Widget _withLook(User user, Widget child) =>
+      CategoryLookScope(look: _lookFor(user), child: child);
 
   Widget _underBar(Widget child) => Padding(
     padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
@@ -280,58 +314,72 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       body: switch (me) {
         // Keep showing the user while a pull-to-refresh is running.
-        AsyncValue(:final value?) => NotificationListener<ScrollNotification>(
-          onNotification: _onScroll,
-          child: RefreshIndicator(
-            edgeOffset: MediaQuery.paddingOf(context).top,
-            onRefresh: () async {
-              try {
-                ref
-                  ..invalidate(meProvider)
-                  ..invalidate(profileStatsProvider(value.username))
-                  ..invalidate(profileGridProvider)
-                  ..invalidate(ownerDashboardProvider)
-                  ..invalidate(ownerJourneyProvider(value.username))
-                  ..invalidate(ownerOfficialPostsProvider(value.username));
-                await ref.read(meProvider.future);
-              } on Object catch (e) {
-                if (context.mounted) {
-                  KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+        AsyncValue(:final value?) => _withLook(
+          value,
+          NotificationListener<ScrollNotification>(
+            onNotification: _onScroll,
+            child: RefreshIndicator(
+              edgeOffset: MediaQuery.paddingOf(context).top,
+              onRefresh: () async {
+                try {
+                  ref
+                    ..invalidate(meProvider)
+                    ..invalidate(profileStatsProvider(value.username))
+                    ..invalidate(profileFeaturedProvider(value.username))
+                    ..invalidate(myFeaturedPinsProvider)
+                    ..invalidate(profileGridProvider)
+                    ..invalidate(ownerDashboardProvider)
+                    ..invalidate(ownerJourneyProvider(value.username))
+                    ..invalidate(ownerOfficialPostsProvider(value.username));
+                  await ref.read(meProvider.future);
+                } on Object catch (e) {
+                  if (context.mounted) {
+                    KSnack.error(
+                      context,
+                      failureMessage(l10n, toAppFailure(e)),
+                    );
+                  }
                 }
-              }
-            },
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                // D278: the cover runs under the bar; the tabs pin under it.
-                const ProfileCoverBarSpace(),
-                ..._ownHeader(value),
-                // D307 follow-up (owner: «في صفحة المؤسس لا تحتوي ريلز او
-                // بوست او اي اعادة»): the founder's page ends with «رحلة
-                // Kabso» — no tabs, no grid (not even «محفوظات»).
-                if (!(ref
-                        .watch(profileStatsProvider(value.username))
-                        .value
-                        ?.kabsoOwner ??
-                    false)) ...[
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: ProfileTabsDelegate(
-                      tabs: ProfileTab.values,
-                      tab: _tab,
-                      background: p.background,
-                      // Owner (D218, «وحدهما»): the public profile's words,
-                      // plus «محفوظات» (only you see what you saved).
-                      text: true,
-                      onSelect: (t) => setState(() => _tab = t),
+              },
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  // D278: the cover runs under the bar; the tabs pin under it.
+                  const ProfileCoverBarSpace(),
+                  ..._ownHeader(value),
+                  // D386: the verified category's featured section.
+                  FeaturedSectionSliver(username: value.username, own: true),
+                  // D307 follow-up (owner: «في صفحة المؤسس لا تحتوي ريلز او
+                  // بوست او اي اعادة»): the founder's page ends with «رحلة
+                  // Kabso» — no tabs, no grid (not even «محفوظات»).
+                  if (!(ref
+                          .watch(profileStatsProvider(value.username))
+                          .value
+                          ?.kabsoOwner ??
+                      false)) ...[
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: ProfileTabsDelegate(
+                        tabs: _tabsOf(value),
+                        tab: _tab ?? _tabsOf(value).first,
+                        background: p.background,
+                        // Owner (D218, «وحدهما»): the public profile's words,
+                        // plus «محفوظات» (only you see what you saved).
+                        text: true,
+                        onSelect: (t) => setState(() => _tab = t),
+                      ),
                     ),
-                  ),
-                  ProfileGrid(username: value.username, tab: _tab, own: true),
-                ] else
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: KSpacing.xl),
-                  ),
-              ],
+                    ProfileGrid(
+                      username: value.username,
+                      tab: _tab ?? _tabsOf(value).first,
+                      own: true,
+                    ),
+                  ] else
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: KSpacing.xl),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

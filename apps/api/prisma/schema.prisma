@@ -248,6 +248,12 @@ model User {
   dmGroupMemberships     DmGroupMember[]            @relation("DmGroupMemberUser")
   /// v1.137-social (D385, CONVENTIONS §10.174.4): the chats pinned at the top of «الرسائل».
   dmPins                 DmPin[]                    @relation("DmPinUser")
+  /// v1.138-social (D386, §10.175): the featured pins, the category requests, and the verifications / locks the user gave.
+  featuredPins           ProfileFeaturedPin[]
+  categoryRequests       CategoryRequest[]          @relation("CategoryRequestUser")
+  categoryDecisions      CategoryRequest[]          @relation("CategoryRequestDecidedBy")
+  categoriesVerified     UserProfile[]              @relation("CategoryVerifiedBy")
+  categoriesLocked       UserProfile[]              @relation("CategoryLockedBy")
   dmGroupMessagesSent    DmGroupMessage[]           @relation("DmGroupMessageSender")
   // v1.44-social (D166): the Me hub's programs.
   taskClaims             TaskClaim[]
@@ -454,10 +460,19 @@ model UserProfile {
   /// v1.91-social (D292, §10.106): the icon of each tag (a closed set, or `flag:<country>`); empty (rows before
   /// v1.91-social) or one per tag (CHECK `user_profiles_tag_icons_len`).
   tagIcons               String[]             @default([]) @map("tag_icons") @db.VarChar(24)
+  /// v1.138-social (D386, §10.175): the Kabso Team verified the current category (cleared when it changes; CHECK
+  /// `user_profiles_category_verified_shape`: needs a category) and who did it.
+  categoryVerifiedAt     DateTime?            @map("category_verified_at") @db.Timestamptz(3)
+  categoryVerifiedById   String?              @map("category_verified_by") @db.Uuid
+  /// v1.138-social (D386): the team locked the category (`PATCH /me` → 403 `ACCOUNT_CATEGORY_LOCKED`).
+  categoryLockedAt       DateTime?            @map("category_locked_at") @db.Timestamptz(3)
+  categoryLockedById     String?              @map("category_locked_by") @db.Uuid
   createdAt              DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt              DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryVerifiedBy  User?       @relation("CategoryVerifiedBy", fields: [categoryVerifiedById], references: [id], onDelete: SetNull)
+  categoryLockedBy    User?       @relation("CategoryLockedBy", fields: [categoryLockedById], references: [id], onDelete: SetNull)
   avatarMedia         MediaAsset? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: NoAction)
   coverMedia          MediaAsset? @relation("ProfileCover", fields: [coverMediaId], references: [id], onDelete: NoAction)
   animatedAvatarMedia MediaAsset? @relation("ProfileAnimatedAvatar", fields: [animatedAvatarMediaId], references: [id], onDelete: NoAction)
@@ -487,8 +502,75 @@ enum AccountCategory {
   BLOGGER
   PUBLIC_FIGURE
   OTHER
+  /// v1.138-social (D386, §10.175.1): 13 more («نعم وأضف أي فئة مقترحة»).
+  QURAN_RECITER
+  STORYTELLER
+  WRITER
+  JOURNALIST
+  PHOTOGRAPHER
+  ACTOR
+  COMEDIAN
+  CALLIGRAPHER
+  DESIGNER
+  CHEF
+  TEACHER
+  DJ
+  TRAVELER
 
   @@map("account_category")
+}
+
+/// v1.138-social (D386, §10.175.4): a «طلب توثيق الفئة»'s state.
+enum CategoryRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("category_request_status")
+}
+
+/// v1.138-social (D386, §10.175.4): «طلب توثيق الفئة» — one PENDING per person (partial unique index
+/// `category_verification_requests_one_pending`); CHECKs `category_verification_requests_note_len` (1–300) and
+/// `category_verification_requests_decided` (the decision's fields per status).
+model CategoryRequest {
+  id           String                @id @default(uuid(7)) @db.Uuid
+  userId       String                @map("user_id") @db.Uuid
+  /// The category asked for (the account's at the time; a change of category cancels the request).
+  category     AccountCategory
+  status       CategoryRequestStatus @default(PENDING)
+  note         String?               @db.VarChar(300)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt    DateTime?             @map("decided_at") @db.Timestamptz(3)
+  decidedById  String?               @map("decided_by") @db.Uuid
+  /// The team's reason, shown to the person (REJECTED only).
+  rejectReason String?               @map("reject_reason") @db.VarChar(500)
+  /// `user` (the person), `category_changed`, `cleared_by_team` (CANCELLED only).
+  cancelReason String?               @map("cancel_reason") @db.VarChar(32)
+
+  user      User  @relation("CategoryRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("CategoryRequestDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)], map: "category_verification_requests_user_idx")
+  @@index([status, createdAt(sort: Desc)], map: "category_verification_requests_status_idx")
+  @@map("category_verification_requests")
+}
+
+/// v1.138-social (D386, §10.175.3): the featured section's pins — up to 6 of the person's own posts or reels, in order
+/// (`position` 0–5, CHECK `profile_featured_pins_position`; the limit is checked by the API under a per-person lock).
+model ProfileFeaturedPin {
+  userId    String   @map("user_id") @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  position  Int      @db.SmallInt
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId], map: "profile_featured_pins_pkey")
+  @@unique([userId, position], map: "profile_featured_pins_user_position_key")
+  @@index([postId], map: "profile_featured_pins_post_idx")
+  @@map("profile_featured_pins")
 }
 
 /// v1.47-social (D175, CONVENTIONS §10.47): a profile link (https only, normalised by the API).
@@ -2063,6 +2145,8 @@ model Post {
   views         PostView[]
   shares        PostShareEvent[]
   pin           PostPin?
+  /// v1.138-social (D386): the featured-section pins of this post (its author's).
+  featuredPins  ProfileFeaturedPin[]
   /// D301 follow-up: the announcement's notification fan-out (official posts only).
   ownerFanout   OwnerAnnouncementFanout?
   hashtags      PostHashtag[]
@@ -2628,6 +2712,11 @@ enum NotificationType {
   CONTENT_GIFT_RECEIVED
   /// v1.136-social (D384, §10.173.5, system, no target): a moderator removed the VIP animated picture.
   ANIMATED_AVATAR_REMOVED
+  /// v1.138-social (D386, §10.175.5, system, no target): the Kabso Team verified the person's account category.
+  CATEGORY_VERIFIED
+  /// v1.138-social (D386, system, no target): the team rejected the request, removed the verification, cleared, locked or
+  /// unlocked the category.
+  CATEGORY_REVIEWED
 
   @@map("notification_type")
 }

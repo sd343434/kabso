@@ -25,6 +25,20 @@ export const ACCOUNT_CATEGORIES = [
   'BLOGGER',
   'PUBLIC_FIGURE',
   'OTHER',
+  // v1.138-social (D386, §10.175.1): 13 more («نعم وأضف أي فئة مقترحة»).
+  'QURAN_RECITER',
+  'STORYTELLER',
+  'WRITER',
+  'JOURNALIST',
+  'PHOTOGRAPHER',
+  'ACTOR',
+  'COMEDIAN',
+  'CALLIGRAPHER',
+  'DESIGNER',
+  'CHEF',
+  'TEACHER',
+  'DJ',
+  'TRAVELER',
 ] as const;
 export type AccountCategory = (typeof ACCOUNT_CATEGORIES)[number];
 

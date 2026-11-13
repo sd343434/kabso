@@ -20,6 +20,7 @@ import {
   type Gender,
   type ProfileLinkInput,
 } from './profile-fields.js';
+import { categoryChangedIn } from './category-verification.js';
 import { UsersService, type MeDto } from './users.service.js';
 import { refuseLimitedStaff } from '../live/live-staff.js';
 import { vipHoldsPerkIn } from '../vip/vip-perks.js';
@@ -123,12 +124,18 @@ export class ProfileEditService {
           account_category: string | null;
           tags: string[];
           tag_icons: string[];
+          category_locked: boolean;
         }[]
       >`
         SELECT display_name, bio, gender::text AS gender, show_gender, account_category::text AS account_category,
-               tags, tag_icons
+               tags, tag_icons, category_locked_at IS NOT NULL AS category_locked
           FROM user_profiles WHERE user_id = ${userId}::uuid FOR UPDATE`;
       if (!before) return false;
+      // v1.138-social (D386, §10.175.4): a category the team locked cannot change (the same value passes); nothing of
+      // the request is stored.
+      const categoryChanged = input.category !== undefined && input.category !== before.account_category;
+      if (categoryChanged && before.category_locked)
+        throw new AppException(ErrorCode.ACCOUNT_CATEGORY_LOCKED);
       // v1.91-social (D292, §10.106): the icons go with the tags — the ones sent, or (an older app sending only
       // `tags`) each tag keeps the icon it had by its text; a new tag is `default`.
       const beforeIcons = profileTagIconsOf(before.tags, before.tag_icons);
@@ -167,7 +174,11 @@ export class ProfileEditService {
       }
       if (input.showGender !== undefined && input.showGender !== before.show_gender)
         fields.push('showGender');
-      if (input.category !== undefined && input.category !== before.account_category) fields.push('category');
+      if (categoryChanged) {
+        fields.push('category');
+        // v1.138-social (D386): a new category is not verified; an open request for the old one is cancelled.
+        await categoryChangedIn(tx, userId, this.clock.now());
+      }
       if (
         input.tags !== undefined &&
         (input.tags.length !== before.tags.length || input.tags.some((t, i) => t !== before.tags[i]))

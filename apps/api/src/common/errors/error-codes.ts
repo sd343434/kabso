@@ -93,6 +93,12 @@ export enum ErrorCode {
   DM_GROUP_FULL = 'DM_GROUP_FULL',
   /** v1.137-social (D385, §10.174.4): a 6th pinned chat. */
   DM_PIN_LIMIT = 'DM_PIN_LIMIT',
+  /** v1.138-social (D386, §10.175.3): a 7th featured pin. */
+  FEATURED_PIN_LIMIT = 'FEATURED_PIN_LIMIT',
+  /** v1.138-social (D386, §10.175.4): an open «طلب توثيق الفئة» already exists. */
+  CATEGORY_VERIFICATION_PENDING = 'CATEGORY_VERIFICATION_PENDING',
+  /** v1.138-social (D386, §10.175.4): the team locked the account category. */
+  ACCOUNT_CATEGORY_LOCKED = 'ACCOUNT_CATEGORY_LOCKED',
   DM_GROUP_MEMBER_NOT_ALLOWED = 'DM_GROUP_MEMBER_NOT_ALLOWED',
   /** v1.21-live (DRAFT, CP-018): the caller or the other person already has a CP partner. */
   CP_ALREADY_PAIRED = 'CP_ALREADY_PAIRED',
@@ -465,6 +471,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.DM_NOT_ARCHIVABLE]: 409,
   [ErrorCode.DM_GROUP_FULL]: 409,
   [ErrorCode.DM_PIN_LIMIT]: 409,
+  [ErrorCode.FEATURED_PIN_LIMIT]: 409,
+  [ErrorCode.CATEGORY_VERIFICATION_PENDING]: 409,
+  [ErrorCode.ACCOUNT_CATEGORY_LOCKED]: 403,
   [ErrorCode.DM_GROUP_MEMBER_NOT_ALLOWED]: 403,
   [ErrorCode.CP_ALREADY_PAIRED]: 409,
   [ErrorCode.CP_REQUEST_PENDING]: 409,
@@ -645,6 +654,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.DM_NOT_ARCHIVABLE]: 'A message request cannot be archived; accept or delete it.',
   [ErrorCode.DM_GROUP_FULL]: 'This group has reached its member limit.',
   [ErrorCode.DM_PIN_LIMIT]: 'You can pin up to 5 chats. Unpin one first.',
+  [ErrorCode.FEATURED_PIN_LIMIT]: 'You can feature up to 6 posts. Unpin one first.',
+  [ErrorCode.CATEGORY_VERIFICATION_PENDING]: 'Your category verification request is already being reviewed.',
+  [ErrorCode.ACCOUNT_CATEGORY_LOCKED]: 'The Kabso Team locked your account category.',
   [ErrorCode.DM_GROUP_MEMBER_NOT_ALLOWED]: 'Some of these people cannot be added to a group by you.',
   [ErrorCode.CP_ALREADY_PAIRED]: 'Already in a CP couple.',
   [ErrorCode.CP_REQUEST_PENDING]: 'You already have a pending CP request.',

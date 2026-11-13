@@ -70,6 +70,9 @@ describe('POST /auth/register', () => {
       gender: 'UNDISCLOSED',
       showGender: false,
       category: null,
+      // v1.138-social (D386): no category, so nothing verified or locked.
+      categoryVerified: false,
+      categoryLocked: false,
       links: [],
       // v1.85-social (D278b): no profile tags; v1.91-social (D292): so no icons.
       tags: [],

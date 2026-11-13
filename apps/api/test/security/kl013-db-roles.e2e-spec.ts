@@ -844,6 +844,102 @@ describe('D385 pins and the in-app support channel (dm_pins, wa_conversations.ch
   });
 });
 
+describe('D386 category profiles (profile_featured_pins, category_verification_requests) under the KL-013 roles', () => {
+  const user = '0192f1c2-0000-7000-8000-00000000d386';
+  const post = '0192f1c2-0000-7000-8000-0000000d386a';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${user}'`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    for (const table of ['profile_featured_pins', 'category_verification_requests']) {
+      expect(
+        await scalar<string>(
+          runtime,
+          `SELECT pg_get_userbyid(c.relowner)::text AS v FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public' AND c.relname = '${table}'`,
+        ),
+      ).toBe(migrationUser);
+    }
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conname IN ('profile_featured_pins_position', 'category_verification_requests_note_len',
+             'category_verification_requests_decided', 'user_profiles_category_verified_shape')
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual([
+      'category_verification_requests_decided',
+      'category_verification_requests_note_len',
+      'profile_featured_pins_position',
+      'user_profiles_category_verified_shape',
+    ]);
+  });
+
+  it('the runtime role has DML; the CHECKs and the keys hold; DDL and TRUNCATE are refused', async () => {
+    await runtimeExec(
+      `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${user}', 'd386-${suffix}@example.com', 'x', now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO user_profiles (user_id, username, display_name, updated_at) VALUES ('${user}', 'd386_${suffix}', 'D386', now())`,
+    );
+    // A verification needs a category.
+    await expect(
+      runtimeExec(`UPDATE user_profiles SET category_verified_at = now() WHERE user_id = '${user}'`),
+    ).rejects.toThrow(/user_profiles_category_verified_shape/);
+    expect(
+      await runtimeExec(
+        `UPDATE user_profiles SET account_category = 'QURAN_RECITER', category_verified_at = now(), category_locked_at = now() WHERE user_id = '${user}'`,
+      ),
+    ).toBe(1);
+    await runtimeExec(
+      `INSERT INTO posts (id, author_id, published_at, updated_at) VALUES ('${post}', '${user}', now(), now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO profile_featured_pins (user_id, post_id, position) VALUES ('${user}', '${post}', 0)`,
+    );
+    await expect(
+      runtimeExec(`UPDATE profile_featured_pins SET position = 6 WHERE user_id = '${user}'`),
+    ).rejects.toThrow(/profile_featured_pins_position/);
+    await expect(
+      runtimeExec(
+        `INSERT INTO profile_featured_pins (user_id, post_id, position) VALUES ('${user}', '${post}', 1)`,
+      ),
+    ).rejects.toThrow(/profile_featured_pins_pkey/);
+    // One PENDING request per person; a decision carries its fields.
+    await runtimeExec(
+      `INSERT INTO category_verification_requests (id, user_id, category) VALUES ('${randomUUID()}', '${user}', 'QURAN_RECITER')`,
+    );
+    await expect(
+      runtimeExec(
+        `INSERT INTO category_verification_requests (id, user_id, category) VALUES ('${randomUUID()}', '${user}', 'POET')`,
+      ),
+    ).rejects.toThrow(/category_verification_requests_one_pending/);
+    await expect(
+      runtimeExec(
+        `INSERT INTO category_verification_requests (id, user_id, category, status, decided_at) VALUES ('${randomUUID()}', '${user}', 'POET', 'REJECTED', now())`,
+      ),
+    ).rejects.toThrow(/category_verification_requests_decided/);
+    await expect(
+      runtimeExec(
+        `INSERT INTO category_verification_requests (id, user_id, category, status, decided_at, cancel_reason, note) VALUES ('${randomUUID()}', '${user}', 'POET', 'CANCELLED', now(), 'user', '')`,
+      ),
+    ).rejects.toThrow(/category_verification_requests_note_len/);
+    for (const sql of [
+      'TRUNCATE TABLE profile_featured_pins',
+      'TRUNCATE TABLE category_verification_requests',
+      'ALTER TABLE profile_featured_pins DROP CONSTRAINT profile_featured_pins_position',
+      'ALTER TABLE user_profiles DROP CONSTRAINT user_profiles_category_verified_shape',
+      'DROP INDEX category_verification_requests_one_pending',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    expect(await runtimeExec(`DELETE FROM profile_featured_pins WHERE user_id = '${user}'`)).toBe(1);
+    expect(await runtimeExec(`DELETE FROM category_verification_requests WHERE user_id = '${user}'`)).toBe(1);
+  });
+});
+
 describe('D283c staff IDs (staff_ids) under the KL-013 roles', () => {
   const user = '0192f1c2-0000-7000-8000-0000000d283c';
 
