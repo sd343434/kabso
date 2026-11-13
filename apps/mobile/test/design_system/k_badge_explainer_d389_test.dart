@@ -216,11 +216,11 @@ void main() {
     });
   }
 
-  test("the owner's examples, word for word", () {
+  test('the expected copy, word for word', () {
     final ar = l10nFor(AppLanguage.ar);
     expect(
       ar.badgeExplainKabsoTeam,
-      'شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي',
+      'شارة فريق كابسو — هذا الحساب من فريق كابسو الرسمي',
     );
     expect(ar.badgeExplainWealthLevel(25), 'مستوى الثروة 25');
     expect(ar.badgeExplainVip(3), 'عضوية VIP 3');

@@ -31885,7 +31885,7 @@ abstract class AppLocalizations {
   /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
   ///
   /// In ar, this message translates to:
-  /// **'شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي'**
+  /// **'شارة فريق كابسو — هذا الحساب من فريق كابسو الرسمي'**
   String get badgeExplainKabsoTeam;
 
   /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it

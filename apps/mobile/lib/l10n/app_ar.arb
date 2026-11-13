@@ -15821,7 +15821,7 @@
   "@waInApp": {"description": "D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174)."},
   "waInAppHint": "محادثة «دعم كابسو» من داخل التطبيق — بلا نافذة ٢٤ ساعة وبلا قوالب؛ الرد نص أو صورة.",
   "@waInAppHint": {"description": "D385: «دعم كابسو» (the in-app support chat) and the pinned chats at the top of «الرسائل» (CONVENTIONS §10.174)."},
-  "badgeExplainKabsoTeam": "شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي",
+  "badgeExplainKabsoTeam": "شارة فريق كابسو — هذا الحساب من فريق كابسو الرسمي",
   "@badgeExplainKabsoTeam": {"description": "D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it"},
   "badgeExplainWealthLevel": "مستوى الثروة {level}",
   "@badgeExplainWealthLevel": {"description": "D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it", "placeholders": {"level": {"type": "int"}}},
