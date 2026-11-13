@@ -403,7 +403,10 @@ export class AdminFinanceService {
   /** v1.139-social (D387, §10.176.9): a staff member's request — 403 `AUTH_FORBIDDEN` without `withdrawals.staff`. */
   private async assertMayDecide(id: string, ctx: AdminContext): Promise<void> {
     if (ctx.capabilities.includes('withdrawals.staff')) return;
-    const row = await this.prisma.cherryWithdrawal.findUnique({ where: { id }, select: { staffRequest: true } });
+    const row = await this.prisma.cherryWithdrawal.findUnique({
+      where: { id },
+      select: { staffRequest: true },
+    });
     if (row?.staffRequest) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
   }
 
