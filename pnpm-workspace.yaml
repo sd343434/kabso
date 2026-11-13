@@ -1,5 +1,9 @@
 packages:
   - apps/api
+  # v1.60-social (D191): the admin panel's static web app.
+  - apps/admin
+  # v1.57-live (D247): «استوديو البث», the streamer's browser studio (static web app).
+  - apps/studio
 
 # pnpm 10 does not run dependency lifecycle scripts unless allow-listed.
 onlyBuiltDependencies:
@@ -9,8 +13,13 @@ onlyBuiltDependencies:
   - argon2
   - esbuild
   - prisma
+  # v1.5-social (CP-006): libvips prebuilt binaries for image processing.
+  - sharp
 
 # Not needed: optional native watcher (Nest CLI) and resolver (jest) prebuilt binaries.
 ignoredBuiltDependencies:
   - '@parcel/watcher'
   - unrs-resolver
+  # D152 (firebase-admin): optional postinstall checks, not needed to send pushes.
+  - '@firebase/util'
+  - protobufjs

@@ -2,20 +2,82 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/app.dart';
+import 'package:kabso_live/core/media/inline_video.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/join_screen.dart';
+import 'package:kabso_live/features/auth/presentation/register_screen.dart';
+import 'package:kabso_live/features/auth/presentation/splash_video.dart';
+import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
+import 'package:kabso_live/features/kyc/data/kyc_repository.dart';
+import 'package:kabso_live/features/live/data/home_banners_repository.dart';
+import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
+import 'package:kabso_live/features/live/data/live_boost_repository.dart';
+import 'package:kabso_live/features/live/data/live_data_center_repository.dart';
+import 'package:kabso_live/features/live/data/live_gift_repository.dart';
+import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
+import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/data/live_newcomers_repository.dart';
+import 'package:kabso_live/features/live/data/live_program_repository.dart';
+import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
+import 'package:kabso_live/features/live/data/live_sticker_repository.dart';
+import 'package:kabso_live/features/live/data/live_watch_repository.dart';
+import 'package:kabso_live/features/live/data/youtube_player.dart';
+import 'package:kabso_live/features/messages/data/dm_groups_repository.dart';
+import 'package:kabso_live/features/messages/data/dm_repository.dart';
+import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
+import 'package:kabso_live/features/posts/data/media_library.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/privacy/privacy_repository.dart';
+import 'package:kabso_live/features/programs/data/event_announcements_repository.dart';
+import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
+import 'package:kabso_live/features/stories/data/stories_repository.dart';
+import 'package:kabso_live/features/support/data/support_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_dm_groups_repository.dart';
+import 'fake_dm_repository.dart';
+import 'fake_event_announcements_repository.dart';
+import 'fake_home_banners_repository.dart';
+import 'fake_inline_video.dart';
+import 'fake_kyc_repository.dart';
+import 'fake_live_blocked_words_repository.dart';
+import 'fake_live_boost_repository.dart';
+import 'fake_live_data_center_repository.dart';
+import 'fake_live_gift_repository.dart';
+import 'fake_live_host_targets_repository.dart';
+import 'fake_live_media_engine.dart';
+import 'fake_live_newcomers_repository.dart';
+import 'fake_live_pk.dart';
+import 'fake_live_program_repository.dart';
+import 'fake_live_rankings_repository.dart';
 import 'fake_live_repository.dart';
+import 'fake_live_schedule_repository.dart';
+import 'fake_live_sticker_repository.dart';
+import 'fake_live_watch_repository.dart';
+import 'fake_notifications_repository.dart';
+import 'fake_posts_repository.dart';
+import 'fake_privacy_repository.dart';
+import 'fake_recharge_repository.dart';
+import 'fake_splash_video.dart';
+import 'fake_stories_repository.dart';
+import 'fake_support_repository.dart';
+import 'fake_youtube_player.dart';
 
 /// Shared preferences with an explicit language.
-Future<SharedPreferences> testPrefs({String language = 'en'}) {
+Future<SharedPreferences> testPrefs({
+  String language = 'en',
+  Map<String, Object> extra = const {},
+}) {
   SharedPreferences.setMockInitialValues({
     PreferenceKeys.languageCode: language,
+    ...extra,
   });
   return SharedPreferences.getInstance();
 }
@@ -23,21 +85,145 @@ Future<SharedPreferences> testPrefs({String language = 'en'}) {
 /// Pumps the whole app (router, theme, l10n) with [overrides].
 ///
 /// Live discovery talks to [liveRepository] (default: hosting switched
-/// off, the production state today), never to the network.
+/// off, the production state today) and the posts feeds to
+/// [postsRepository] (default: the API with no posts yet), never to the
+/// network. Create's media step never calls the device library plugin.
+/// The launch video (D156) is [splashVideo] (default: a fake that ends as
+/// soon as it plays) and the phone is not silent unless [silentMode] says.
 Future<void> pumpKabsoApp(
   WidgetTester tester, {
   required List<Override> overrides,
   String language = 'en',
+  SplashVideoController Function(String asset)? splashVideo,
+  DeviceSilentMode silentMode = const FakeSilentMode(),
   LiveRepository? liveRepository,
+  PostsRepository? postsRepository,
+  FakeLiveMediaEngine? liveMediaEngine,
+  LiveGiftRepository? liveGiftRepository,
+  DmRepository? dmRepository,
+  DmGroupsRepository? dmGroupsRepository,
+  SupportRepository? supportRepository,
+  DmPinsRepository? dmPinsRepository,
+  LiveBoostRepository? liveBoostRepository,
+  LiveNewcomersRepository? liveNewcomersRepository,
+  LiveDataCenterRepository? liveDataCenterRepository,
+  LiveHostTargetsRepository? liveHostTargetsRepository,
+  LiveProgramRepository? liveProgramRepository,
+  LiveStickerRepository? liveStickerRepository,
+  LiveWatchRepository? liveWatchRepository,
+  FakeYoutubePlayers? youtubePlayers,
+  FakeInlineVideos? inlineVideos,
+  Map<String, Object> prefs = const {},
 }) async {
-  final prefs = await testPrefs(language: language);
+  final preferences = await testPrefs(language: language, extra: prefs);
   await tester.pumpWidget(
     ProviderScope(
       retry: (_, _) => null,
       overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
+        sharedPreferencesProvider.overrideWithValue(preferences),
+        // D340: never the network for the full-screen event announcements.
+        eventAnnouncementsRepositoryProvider.overrideWithValue(
+          FakeEventAnnouncementsRepository(),
+        ),
+        // D185: never the network for the recharge-agent state.
+        rechargeRepositoryProvider.overrideWithValue(FakeRechargeRepository()),
+        // D198: never the network for the legal documents and consents.
+        privacyRepositoryProvider.overrideWithValue(FakePrivacyRepository()),
+        // D227: never Didit (off: the manual ID pictures).
+        kycRepositoryProvider.overrideWithValue(FakeKycRepository()),
+        // D156: never the video plugin (it has no test implementation).
+        splashVideoFactoryProvider.overrideWithValue(
+          splashVideo ?? (_) => FakeSplashVideo(endOnPlay: true),
+        ),
+        // D162: post and reel videos without the plugin either.
+        inlineVideoFactoryProvider.overrideWithValue(
+          (inlineVideos ?? FakeInlineVideos()).call,
+        ),
+        deviceSilentModeProvider.overrideWithValue(silentMode),
         liveRepositoryProvider.overrideWithValue(
           liveRepository ?? FakeLiveRepository(hostingEnabled: false),
+        ),
+        postsRepositoryProvider.overrideWithValue(
+          postsRepository ?? FakePostsRepository(),
+        ),
+        // Never the device plugin: Create offers the system picker.
+        mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
+        // Never a camera or a media server: an in-memory engine.
+        // v1.43-live (D195): never the network for the PK.
+        ...pkTestOverrides(),
+        liveMediaEngineProvider.overrideWithValue(
+          liveMediaEngine == null
+              ? FakeLiveMediaEngine.new
+              : () => liveMediaEngine,
+        ),
+        storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
+        notificationsRepositoryProvider.overrideWithValue(
+          FakeNotificationsRepository(),
+        ),
+        // D124: no promo banners unless a test adds them.
+        homeBannersRepositoryProvider.overrideWithValue(
+          FakeHomeBannersRepository(),
+        ),
+        // CP-016 B: never the network.
+        liveBlockedWordsRepositoryProvider.overrideWithValue(
+          FakeLiveBlockedWordsRepository(),
+        ),
+        liveRankingsRepositoryProvider.overrideWithValue(
+          FakeLiveRankingsRepository(),
+        ),
+        // CP-016 C: never the network.
+        liveScheduleRepositoryProvider.overrideWithValue(
+          FakeLiveScheduleRepository(),
+        ),
+        // D155: never the network (no conversations).
+        dmRepositoryProvider.overrideWithValue(
+          dmRepository ?? FakeDmRepository(),
+        ),
+        // D339: never the network (no groups).
+        dmGroupsRepositoryProvider.overrideWithValue(
+          dmGroupsRepository ?? FakeDmGroupsRepository(),
+        ),
+        // D385: never the network («دعم كابسو» before a message, no pins).
+        supportRepositoryProvider.overrideWithValue(
+          supportRepository ?? FakeSupportRepository(),
+        ),
+        dmPinsRepositoryProvider.overrideWithValue(
+          dmPinsRepository ?? FakeDmPinsRepository(),
+        ),
+        // CP-020: never the network (an empty catalogue, as production).
+        liveGiftRepositoryProvider.overrideWithValue(
+          liveGiftRepository ?? FakeLiveGiftRepository(),
+        ),
+        // D154b: never the network (no featured lives, no cards).
+        liveBoostRepositoryProvider.overrideWithValue(
+          liveBoostRepository ?? FakeLiveBoostRepository(),
+        ),
+        // D154c: never the network (no newcomers).
+        liveNewcomersRepositoryProvider.overrideWithValue(
+          liveNewcomersRepository ?? FakeLiveNewcomersRepository(),
+        ),
+        // D154d: never the network (an empty data center).
+        liveDataCenterRepositoryProvider.overrideWithValue(
+          liveDataCenterRepository ?? FakeLiveDataCenterRepository(),
+        ),
+        // D199: never the network (nobody is a host: no «تارجت» chip).
+        liveHostTargetsRepositoryProvider.overrideWithValue(
+          liveHostTargetsRepository ?? FakeLiveHostTargetsRepository(),
+        ),
+        // D154e: never the network (no program).
+        liveProgramRepositoryProvider.overrideWithValue(
+          liveProgramRepository ?? FakeLiveProgramRepository(),
+        ),
+        // D154h: never the network (no stickers).
+        liveStickerRepositoryProvider.overrideWithValue(
+          liveStickerRepository ?? FakeLiveStickerRepository(),
+        ),
+        // D154i: never the network, never a web view.
+        liveWatchRepositoryProvider.overrideWithValue(
+          liveWatchRepository ?? FakeLiveWatchRepository(),
+        ),
+        youtubePlayerFactoryProvider.overrideWithValue(
+          (youtubePlayers ?? FakeYoutubePlayers()).call,
         ),
         ...overrides,
       ],
@@ -46,12 +232,62 @@ Future<void> pumpKabsoApp(
   );
 }
 
-/// Pumps a single screen inside a themed, localized [MaterialApp].
+/// Signed out, the app opens on the welcome screen (D64): taps "Log in".
+Future<void> openLogin(WidgetTester tester) async {
+  await tapVisible(tester, find.byKey(WelcomeScreen.logInKey));
+  await tester.pumpAndSettle();
+}
+
+/// Signed out, the first launch opens on the welcome screen (D64/D65):
+/// "Let's start" opens the join screen, whose "Create account" opens
+/// register.
+Future<void> openRegister(WidgetTester tester) async {
+  await tapVisible(tester, find.byKey(WelcomeScreen.signUpKey));
+  await tester.pumpAndSettle();
+  await tapVisible(tester, find.byKey(JoinScreen.createKey));
+  await tester.pumpAndSettle();
+}
+
+/// Scrolls [finder] into view, then taps it (D65: the login form sits
+/// under Kabi's face and may start below a small test view).
+Future<void> tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.tap(finder);
+}
+
+/// Pumps a single screen inside a themed, localized [MaterialApp]. Posts
+/// feeds read [postsRepository] (default: an empty [FakePostsRepository]).
 Future<void> pumpScreen(
   WidgetTester tester,
   Widget screen, {
   List<Override> overrides = const [],
   AppLanguage language = AppLanguage.en,
+  PostsRepository? postsRepository,
+  FakeLiveMediaEngine? liveMediaEngine,
+  LiveGiftRepository? liveGiftRepository,
+  LiveBoostRepository? liveBoostRepository,
+  LiveNewcomersRepository? liveNewcomersRepository,
+  LiveDataCenterRepository? liveDataCenterRepository,
+  LiveHostTargetsRepository? liveHostTargetsRepository,
+  LiveProgramRepository? liveProgramRepository,
+  LiveStickerRepository? liveStickerRepository,
+  LiveWatchRepository? liveWatchRepository,
+  LiveRankingsRepository? liveRankingsRepository,
+  FakeYoutubePlayers? youtubePlayers,
+  HomeBannersRepository? homeBannersRepository,
+  DmRepository? dmRepository,
+  DmGroupsRepository? dmGroupsRepository,
+  SupportRepository? supportRepository,
+  DmPinsRepository? dmPinsRepository,
+  FakeInlineVideos? inlineVideos,
+  RechargeRepository? rechargeRepository,
+  FakeLivePkRepository? livePkRepository,
+  FakePkOpponentMedia? pkOpponent,
+  // D305: the strip switches live in the notification settings.
+  FakeNotificationsRepository? notificationsRepository,
+  // D220: the person card is white in light mode, dark in dark mode.
+  Brightness brightness = Brightness.dark,
+  bool disableAnimations = false,
 }) async {
   final prefs = await testPrefs(language: language.name);
   await tester.pumpWidget(
@@ -59,6 +295,98 @@ Future<void> pumpScreen(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        // D340: never the network for the full-screen event announcements.
+        eventAnnouncementsRepositoryProvider.overrideWithValue(
+          FakeEventAnnouncementsRepository(),
+        ),
+        // D185: never the network for the recharge-agent state.
+        rechargeRepositoryProvider.overrideWithValue(
+          rechargeRepository ?? FakeRechargeRepository(),
+        ),
+        // D198: never the network for the legal documents and consents.
+        privacyRepositoryProvider.overrideWithValue(FakePrivacyRepository()),
+        // D227: never Didit (off: the manual ID pictures).
+        kycRepositoryProvider.overrideWithValue(FakeKycRepository()),
+        // D162: post and reel videos without the plugin.
+        inlineVideoFactoryProvider.overrideWithValue(
+          (inlineVideos ?? FakeInlineVideos()).call,
+        ),
+        // Never the network: the posts API with no posts yet.
+        postsRepositoryProvider.overrideWithValue(
+          postsRepository ?? FakePostsRepository(),
+        ),
+        mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
+        // Never a camera or a media server: an in-memory engine.
+        // v1.43-live (D195): never the network for the PK.
+        ...pkOverrides(livePkRepository ?? FakeLivePkRepository(), pkOpponent),
+        liveMediaEngineProvider.overrideWithValue(
+          liveMediaEngine == null
+              ? FakeLiveMediaEngine.new
+              : () => liveMediaEngine,
+        ),
+        storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
+        notificationsRepositoryProvider.overrideWithValue(
+          notificationsRepository ?? FakeNotificationsRepository(),
+        ),
+        // D124: no promo banners unless a test adds them.
+        homeBannersRepositoryProvider.overrideWithValue(
+          homeBannersRepository ?? FakeHomeBannersRepository(),
+        ),
+        // D155: never the network (no conversations).
+        dmRepositoryProvider.overrideWithValue(
+          dmRepository ?? FakeDmRepository(),
+        ),
+        // D339: never the network (no groups).
+        dmGroupsRepositoryProvider.overrideWithValue(
+          dmGroupsRepository ?? FakeDmGroupsRepository(),
+        ),
+        // D385: never the network («دعم كابسو» before a message, no pins).
+        supportRepositoryProvider.overrideWithValue(
+          supportRepository ?? FakeSupportRepository(),
+        ),
+        dmPinsRepositoryProvider.overrideWithValue(
+          dmPinsRepository ?? FakeDmPinsRepository(),
+        ),
+        // CP-020: never the network (an empty catalogue, as production).
+        liveGiftRepositoryProvider.overrideWithValue(
+          liveGiftRepository ?? FakeLiveGiftRepository(),
+        ),
+        // D154b: never the network (no featured lives, no cards).
+        liveBoostRepositoryProvider.overrideWithValue(
+          liveBoostRepository ?? FakeLiveBoostRepository(),
+        ),
+        // D154c: never the network (no newcomers).
+        liveNewcomersRepositoryProvider.overrideWithValue(
+          liveNewcomersRepository ?? FakeLiveNewcomersRepository(),
+        ),
+        // D154d: never the network (an empty data center).
+        liveDataCenterRepositoryProvider.overrideWithValue(
+          liveDataCenterRepository ?? FakeLiveDataCenterRepository(),
+        ),
+        // D199: never the network (nobody is a host: no «تارجت» chip).
+        liveHostTargetsRepositoryProvider.overrideWithValue(
+          liveHostTargetsRepository ?? FakeLiveHostTargetsRepository(),
+        ),
+        // D257: never the network (the viewer's daily rank card reads the
+        // popularity board; an empty board unless a test gives one).
+        liveRankingsRepositoryProvider.overrideWithValue(
+          liveRankingsRepository ?? FakeLiveRankingsRepository(),
+        ),
+        // D154e: never the network (no program).
+        liveProgramRepositoryProvider.overrideWithValue(
+          liveProgramRepository ?? FakeLiveProgramRepository(),
+        ),
+        // D154h: never the network (no stickers).
+        liveStickerRepositoryProvider.overrideWithValue(
+          liveStickerRepository ?? FakeLiveStickerRepository(),
+        ),
+        // D154i: never the network, never a web view.
+        liveWatchRepositoryProvider.overrideWithValue(
+          liveWatchRepository ?? FakeLiveWatchRepository(),
+        ),
+        youtubePlayerFactoryProvider.overrideWithValue(
+          (youtubePlayers ?? FakeYoutubePlayers()).call,
+        ),
         ...overrides,
       ],
       child: MaterialApp(
@@ -68,10 +396,13 @@ Future<void> pumpScreen(
           AppLocalizations.delegate,
           ...GlobalMaterialLocalizations.delegates,
         ],
-        theme: buildAppTheme(
-          brightness: Brightness.dark,
-          locale: language.locale,
-        ),
+        theme: buildAppTheme(brightness: brightness, locale: language.locale),
+        builder: disableAnimations
+            ? (context, app) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(disableAnimations: true),
+                child: app!,
+              )
+            : null,
         home: screen,
       ),
     ),
@@ -80,3 +411,26 @@ Future<void> pumpScreen(
 
 AppLocalizations l10nFor(AppLanguage language) =>
     lookupAppLocalizations(language.locale);
+
+/// D175: Register needs a gender (required at sign-up); picks [gender],
+/// scrolling to it first. D198: also ticks the 18+ / terms statement.
+Future<void> chooseGender(
+  WidgetTester tester, [
+  Gender gender = Gender.undisclosed,
+]) async {
+  final chip = find.byKey(RegisterScreen.genderOptionKey(gender));
+  await tester.ensureVisible(chip);
+  await tester.tap(chip);
+  await tester.pump();
+  // D198: the required 18+ statement and acceptance of the terms (ticked
+  // once; the helper is the one place every sign-up test goes through).
+  final legal = find.byKey(RegisterScreen.legalCheckKey);
+  if (legal.evaluate().isNotEmpty) {
+    final box = tester.widget<Checkbox>(legal);
+    if (box.value != true) {
+      await tester.ensureVisible(legal);
+      await tester.tap(legal);
+      await tester.pump();
+    }
+  }
+}

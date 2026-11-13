@@ -1,3 +1,4 @@
+import 'package:kabso_live/design_system/tokens/component_metrics.dart';
 import 'package:kabso_live/design_system/tokens/tokens.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -184,6 +185,9 @@ ThemeData buildAppTheme({
       subtitleTextStyle: text.caption,
     ),
     dividerTheme: DividerThemeData(color: p.border, space: 1, thickness: 1),
+    bottomSheetTheme: BottomSheetThemeData(
+      constraints: KMetrics.sheetConstraints(),
+    ),
     progressIndicatorTheme: ProgressIndicatorThemeData(color: p.primary),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(

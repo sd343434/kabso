@@ -4,17 +4,18 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' show Tristate;
 
 import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/shell/feed_region.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
-import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/design_system/components/k_default_avatar.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
@@ -54,9 +55,22 @@ List<String?> _cursors(FakeLiveRepository live) => [
   for (final r in live.requests) r.cursor,
 ];
 
-Future<void> _scrollToEnd(WidgetTester tester) async {
-  await tester.drag(find.byType(KLiveCoverCard).first, const Offset(0, -6000));
-  await tester.pumpAndSettle();
+/// Scrolls the Popular grid (D124) by [dy] logical pixels.
+Future<void> _scrollBy(
+  WidgetTester tester,
+  double dy, {
+  bool settle = true,
+}) async {
+  await tester.drag(find.byType(CustomScrollView).first, Offset(0, -dy));
+  settle
+      ? await tester.pumpAndSettle()
+      : await tester.pump(const Duration(milliseconds: 100));
+}
+
+Future<void> _scrollToEnd(WidgetTester tester, {bool settle = true}) async {
+  for (var i = 0; i < 12; i++) {
+    await _scrollBy(tester, 2000, settle: settle);
+  }
 }
 
 Future<void> _lifecycle(WidgetTester tester, List<AppLifecycleState> states) {
@@ -82,29 +96,26 @@ void main() {
     testWidgets('a short first page prefetches the next one by itself', (
       tester,
     ) async {
-      final live = FakeLiveRepository(rooms: _paged(2, size: 4));
+      // 3 streams: 2 remain after the first, so the next page is fetched.
+      final live = FakeLiveRepository(rooms: _paged(2, size: 3));
       await _pump(tester, live);
       expect(_cursors(live), [null, 'c1']);
     });
 
-    testWidgets('a long page prefetches only within 2 viewport heights', (
-      tester,
-    ) async {
-      final live = FakeLiveRepository(rooms: _paged(3));
+    testWidgets('a long page prefetches only when 2 screens or less of '
+        'cards remain', (tester) async {
+      // 40 cards: 20 rows of about 207 dp (D131).
+      final live = FakeLiveRepository(rooms: _paged(3, size: 40));
       await _pump(tester, live);
-      // 20 rooms = 10 rows ≈ 2,530 dp: more than 2 viewports remain.
       expect(_cursors(live), [null]);
-      await tester.drag(
-        find.byType(KLiveCoverCard).first,
-        const Offset(0, -900),
-      );
-      await tester.pumpAndSettle();
+      await _scrollBy(tester, 600);
+      expect(_cursors(live), [null]);
+      await _scrollBy(tester, 2600);
       expect(_cursors(live), [null, 'c1']);
     });
 
-    testWidgets('footer: 2 skeleton cards while the next page loads', (
-      tester,
-    ) async {
+    testWidgets('a progress footer under the grid while the next page '
+        'loads', (tester) async {
       final live = FakeLiveRepository(
         rooms: (r) => r.cursor == null
             ? apiPage(apiRooms(6), nextCursor: 'c1')
@@ -112,26 +123,21 @@ void main() {
       );
       await _pump(tester, live, settle: false);
       await tester.pump();
-      await tester.drag(
-        find.byType(KLiveCoverCard).first,
-        const Offset(0, -6000),
-      );
-      await tester.pump(const Duration(milliseconds: 500));
+      await _scrollToEnd(tester, settle: false);
       expect(_cursors(live), [null, 'c1']);
-      expect(find.byType(KLiveCoverCardSkeleton), findsNWidgets(2));
-      expect(find.byKey(FeedRegion.endOfListKey), findsNothing);
+      expect(find.byKey(LiveHubGrid.loadingMoreKey), findsOneWidget);
+      expect(find.byKey(FeedRegion.loadMoreErrorKey), findsNothing);
     });
 
-    testWidgets('footer error: inline message + Retry; list stays', (
-      tester,
-    ) async {
+    testWidgets('load-more error: inline message + Retry under the grid; '
+        'the cards stay', (tester) async {
       var fail = true;
       final live = FakeLiveRepository(
         rooms: (r) {
           if (r.cursor != null && fail) {
             throw const NetworkFailure.offline();
           }
-          return _paged(2, size: 6)(r);
+          return _paged(2, size: 10)(r);
         },
       );
       await _pump(tester, live);
@@ -145,9 +151,10 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.byType(KLiveCoverCard), findsNWidgets(6));
+      expect(find.byKey(LiveHubGrid.cardKey(9)), findsOneWidget);
       // No automatic retry loop.
       final calls = live.requests.length;
+      await _scrollBy(tester, -400);
       await _scrollToEnd(tester);
       expect(live.requests, hasLength(calls));
 
@@ -158,15 +165,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(FeedRegion.loadMoreErrorKey), findsNothing);
       await _scrollToEnd(tester);
-      expect(find.byKey(FeedRegion.endOfListKey), findsOneWidget);
+      expect(find.byKey(LiveHubGrid.cardKey(19)), findsOneWidget);
     });
 
-    testWidgets('end of list: the caption, no "all caught up"', (tester) async {
+    testWidgets('end of list: no progress footer or error under the grid', (
+      tester,
+    ) async {
       final live = FakeLiveRepository(rooms: (_) => apiPage(apiRooms(6)));
       await _pump(tester, live);
       await _scrollToEnd(tester);
-      expect(find.text(l10n.liveHubListEnd), findsOneWidget);
-      expect(find.byType(KLiveCoverCardSkeleton), findsNothing);
+      expect(find.byKey(LiveHubGrid.loadingMoreKey), findsNothing);
+      expect(find.byKey(FeedRegion.loadMoreErrorKey), findsNothing);
     });
 
     testWidgets('empty list: no end caption', (tester) async {
@@ -176,80 +185,63 @@ void main() {
     });
   });
 
-  group('categories (HL-H3)', () {
+  // D377 (owner 2026-11-12: the live page uses exactly the party page's
+  // tabs): no category menu and no «المميزة» tab on the hub; Popular is
+  // every category (the server keeps `category` and `featured`).
+  group('no category menu, no Featured tab (D377)', () {
     for (final language in AppLanguage.values) {
-      testWidgets('All + server chips, interactive, filter sent '
-          '(${language.name})', (tester) async {
+      testWidgets('the four tabs only; Popular asks for every category and '
+          'a second tap re-fetches it instead of a menu (${language.name})', (
+        tester,
+      ) async {
         final ar = language == AppLanguage.ar;
         final live = FakeLiveRepository(
           categories: apiCategories(ar: ar),
           rooms: (_) => apiPage(apiRooms(4, ar: ar)),
         );
         await _pump(tester, live, language: language);
-        final chips = find.byType(KChip);
-        expect(chips, findsNWidgets(4));
-        expect(
-          find.descendant(of: chips, matching: find.byType(InkWell)),
-          findsNWidgets(4),
-        );
-        final all = find.byKey(const ValueKey('live.chip.all'));
-        final music = find.byKey(const ValueKey('live.chip.music'));
-        // The row starts at the reading start (RTL: from the right).
-        if (ar) {
+        for (final f in LiveHubFilter.values) {
           expect(
-            tester.getCenter(all).dx,
-            greaterThan(tester.getCenter(music).dx),
-          );
-        } else {
-          expect(
-            tester.getCenter(all).dx,
-            lessThan(tester.getCenter(music).dx),
+            find.byKey(LiveHubTopBar.tabKey(f)),
+            f == LiveHubFilter.featured ? findsNothing : findsOneWidget,
           );
         }
-        expect(find.text(ar ? 'موسيقى' : 'Music'), findsOneWidget);
-
-        await tester.tap(music);
-        await tester.pumpAndSettle();
-        expect(live.requests.last.category, 'music');
-        expect(live.requests.last.cursor, isNull);
-        bool selected(Finder f) =>
-            tester
-                .getSemantics(f)
-                .getSemanticsData()
-                .flagsCollection
-                .isSelected ==
-            Tristate.isTrue;
-        expect(selected(music), isTrue);
-        expect(selected(all), isFalse);
-
-        await tester.tap(all);
-        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('liveHub.filter.featured')), findsNothing);
         expect(live.requests.last.category, isNull);
+        expect(live.requests.last.featured, isFalse);
+        final popular = find.byKey(LiveHubTopBar.tabKey(LiveHubFilter.popular));
+        final lists = live.requests.length;
+        await tester.tap(popular);
+        await tester.pumpAndSettle();
+        expect(find.byType(PopupMenuItem<Object>), findsNothing);
+        expect(find.byKey(const Key('liveHub.popularMenu.all')), findsNothing);
+        expect(find.text(ar ? 'موسيقى' : 'Music'), findsNothing);
+        expect(live.requests, hasLength(lists + 1));
+        expect(live.requests.last.category, isNull);
+        // No chevron: Popular is a plain tab.
+        expect(
+          find.descendant(
+            of: popular,
+            matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+          ),
+          findsNothing,
+        );
       });
     }
-
-    testWidgets('no categories: a single non-interactive All', (tester) async {
-      await _pump(tester, FakeLiveRepository());
-      expect(find.byType(KChip), findsOneWidget);
-      expect(
-        find.descendant(of: find.byType(KChip), matching: find.byType(InkWell)),
-        findsNothing,
-      );
-    });
   });
 
   group('freshness (HL-H5)', () {
     testWidgets('re-tapping the selected tab re-fetches it', (tester) async {
       final live = FakeLiveRepository(rooms: (_) => apiPage(apiRooms(2)));
       await _pump(tester, live);
+      final explore = find.byKey(LiveHubTopBar.tabKey(LiveHubFilter.explore));
+      await tester.ensureVisible(explore);
+      await tester.pumpAndSettle();
+      await tester.tap(explore);
+      await tester.pumpAndSettle();
       final configs = live.configCalls;
       final lists = live.requests.length;
-      await tester.tap(
-        find.descendant(
-          of: find.byType(KPrimaryTabs),
-          matching: find.text(l10n.feedTabPopular),
-        ),
-      );
+      await tester.tap(explore);
       await tester.pumpAndSettle();
       expect(live.configCalls, configs + 1);
       expect(live.requests, hasLength(lists + 1));
@@ -279,7 +271,7 @@ void main() {
         now = now.add(const Duration(minutes: 2));
         await _lifecycle(tester, _toForeground);
         expect(live.configCalls, calls + 1);
-        expect(find.byType(KLiveCoverCard), findsNWidgets(2));
+        expect(find.byType(KLiveGridCard), findsWidgets);
       });
     });
 
@@ -300,53 +292,40 @@ void main() {
     });
   });
 
-  group('cards', () {
-    testWidgets('KL-034: API cards are buttons that open their room', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        FakeLiveRepository(rooms: (_) => apiPage(apiRooms(2))),
-      );
-      final card = find.byType(KLiveCoverCard).first;
-      expect(
-        find.descendant(of: card, matching: find.byType(InkWell)),
-        findsOneWidget,
-      );
-      expect(
-        tester.getSemantics(card).getSemanticsData().flagsCollection.isButton,
-        isTrue,
-      );
-      // The card carries the API room id (the route is tested in
-      // live_room_test.dart).
-      expect(tester.widget<KLiveCoverCard>(card).room.roomId, 'room-0');
-    });
-
-    testWidgets('creator identity and "New" from the API room (D39)', (
-      tester,
-    ) async {
+  group('grid (D124)', () {
+    testWidgets('creator identity and the real viewer count from the API '
+        'room (D39; owner 2026-11-08: 0, no «جديد»)', (tester) async {
       await _pump(
         tester,
         FakeLiveRepository(rooms: (_) => apiPage(apiRooms(1))),
       );
-      expect(find.text('Sara'), findsOneWidget); // host displayName
+      final card = find.byType(KLiveGridCard);
+      expect(card, findsOneWidget);
+      // D131 (ref 165): the host's name is announced, the title drawn.
+      expect(
+        find.bySemanticsLabel(
+          RegExp('^Sara, live, 0 viewers, Arabic music night'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Arabic music night'), findsOneWidget);
-      // No cover in v1.3: the host avatar fallback with initials.
       expect(
-        find.descendant(
-          of: find.byType(KLiveCoverCard),
-          matching: find.byType(KAvatar),
-        ),
-        findsOneWidget,
+        find.descendant(of: card, matching: find.text(l10n.liveCardNew)),
+        findsNothing,
       );
       expect(
-        find.descendant(
-          of: find.byType(KLiveCoverCard),
-          matching: find.text(l10n.liveCardNew),
-        ),
+        find.descendant(of: card, matching: find.text('0')),
         findsOneWidget,
       );
-      expect(find.byType(KViewerCountChip), findsNothing);
+      // No cover and no avatar in the fixture: (D337) the owner's default
+      // picture, not the host's initial.
+      expect(find.byKey(KLiveGridCard.defaultAvatarKey), findsOneWidget);
+      expect(
+        find.descendant(of: card, matching: find.byType(KDefaultAvatarImage)),
+        findsOneWidget,
+      );
+      expect(find.descendant(of: card, matching: find.text('S')), findsNothing);
+      expect(tester.widget<KLiveGridCard>(card).room.roomId, 'room-0');
     });
   });
 

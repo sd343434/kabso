@@ -1,0 +1,169 @@
+/**
+ * The bag catalogue (الحقيبة, CP-019, owner D107, CONVENTIONS §10.22). The migration
+ * `20261111090000_bag` seeds exactly these rows; this copy lets a test database (truncated between
+ * suites) be re-seeded and is checked against the migration by a unit test. A new item is a new
+ * migration row plus a row here; a new category is a new `bag_category` value plus a row in
+ * `BAG_CATEGORIES`.
+ */
+export type BagCategory = 'PROFILE_CARD' | 'AVATAR_FRAME' | 'CHAT_BUBBLE' | 'ENTRY_BANNER' | 'ENTRY_EFFECT';
+
+/**
+ * Every stored category, in display order: PROFILE_CARD (D107), AVATAR_FRAME (v1.46-levels, D169: the
+ * frame around the user's photo; the support tier frames); D270 (§10.98): CHAT_BUBBLE, ENTRY_BANNER and ENTRY_EFFECT —
+ * VIP-only kinds in D264, now also sold in the store as real bag items (MIC_WAVE stays VIP-only).
+ */
+export const BAG_CATEGORIES: readonly BagCategory[] = [
+  'PROFILE_CARD',
+  'AVATAR_FRAME',
+  'CHAT_BUBBLE',
+  'ENTRY_BANNER',
+  'ENTRY_EFFECT',
+];
+
+/**
+ * How a user got an item (`bag_item_source`); LEVEL_REWARD (v1.46-levels, D169): given when a level
+ * is reached; `GIFT` (v1.48-social, D171): sent by another user; `HOST_ACTIVE` (v1.55-social, D186):
+ * the active-host frame, kept only while the user is an active agency host.
+ */
+export type BagItemSource =
+  | 'FREE_SIGNUP'
+  | 'BACKFILL'
+  | 'ADMIN'
+  | 'LEVEL_REWARD'
+  | 'GIFT'
+  | 'HOST_ACTIVE'
+  /** D270 (§10.98): bought in the store for oneself (a store gift is a `GIFT` with its giver). */
+  | 'STORE'
+  /** v1.97-social (D303, §10.114.4): an event prize (non-transferable, like a level reward). */
+  | 'EVENT';
+
+/** One day, the unit of a partial send and of an admin grant (§10.45). */
+export const BAG_DAY_MS = 24 * 3600_000;
+/**
+ * Sources whose items cannot be sent (v1.48-social, D171): `LEVEL_REWARD` (D169's support-tier
+ * frames, earned by the person's own level) and `HOST_ACTIVE` (v1.55-social, D186: the active-host
+ * frame, the server's while the host stays active). Free items are not transferable either.
+ */
+export const NON_TRANSFERABLE_SOURCES: ReadonlySet<string> = new Set([
+  'LEVEL_REWARD',
+  'HOST_ACTIVE',
+  'EVENT',
+]);
+
+/**
+ * Whether an owned item may be sent: not free, not a level reward, and (D266, owner: «العناصر الدائمة ايضاً لا
+ * ترسل») not permanent — only an item with an expiry is sent.
+ */
+export function isTransferable(free: boolean, source: string, expiresAt: Date | null): boolean {
+  return !free && !NON_TRANSFERABLE_SOURCES.has(source) && expiresAt !== null;
+}
+
+/** The most days a send or a grant may carry (§10.45). */
+export const BAG_MAX_DAYS = 3650;
+
+export interface BagItemDef {
+  readonly code: string;
+  readonly category: BagCategory;
+  readonly nameAr: string;
+  readonly nameEn: string;
+  /**
+   * The app's asset (`apps/mobile/assets/profile_card/<assetKey>.svga` for a profile card,
+   * `apps/mobile/assets/levels/support_frames/<assetKey>.webp` for a support frame,
+   * `apps/mobile/assets/host_frames/<assetKey>.webp` for an active-host frame).
+   */
+  readonly assetKey: string;
+  readonly sortOrder: number;
+  /** Every new account receives it, and wears the first free one of its category. */
+  readonly free: boolean;
+}
+
+/** The free profile card every account gets (owner D107). */
+export const FREE_PROFILE_CARD = 'bunny_royal';
+
+/** The support tier frames (D169): 21, one per support tier 1–21 (`support-tiers.ts`). */
+export const SUPPORT_FRAME_COUNT = 21;
+
+/** The bag code (and assetKey) of the support frame for tier `n` (1–21). */
+export const supportFrameCode = (n: number): string => `support_frame_${String(n).padStart(2, '0')}`;
+
+const SUPPORT_FRAMES: readonly BagItemDef[] = Array.from({ length: SUPPORT_FRAME_COUNT }, (_, i) => ({
+  code: supportFrameCode(i + 1),
+  category: 'AVATAR_FRAME' as const,
+  nameAr: `إطار الدعم ${String(i + 1)}`,
+  nameEn: `Support frame ${String(i + 1)}`,
+  assetKey: supportFrameCode(i + 1),
+  sortOrder: (i + 1) * 10,
+  free: false,
+}));
+
+/** v1.55-social (D186): the style of the active-host frame (male → blue, female → pink, else chosen). */
+export type HostFrameStyle = 'BLUE' | 'PINK';
+
+/** The bag code (and assetKey) of the active-host frame of `style` (D186). */
+export const HOST_FRAME_CODES: Readonly<Record<HostFrameStyle, string>> = {
+  BLUE: 'host_frame_blue',
+  PINK: 'host_frame_pink',
+};
+
+/** The active-host frames (D186), shown before the support frames. */
+const HOST_FRAMES: readonly BagItemDef[] = [
+  {
+    code: HOST_FRAME_CODES.BLUE,
+    category: 'AVATAR_FRAME',
+    nameAr: 'إطار المضيف الأزرق',
+    nameEn: 'Blue host frame',
+    assetKey: HOST_FRAME_CODES.BLUE,
+    sortOrder: 1,
+    free: false,
+  },
+  {
+    code: HOST_FRAME_CODES.PINK,
+    category: 'AVATAR_FRAME',
+    nameAr: 'إطار المضيف الوردي',
+    nameEn: 'Pink host frame',
+    assetKey: HOST_FRAME_CODES.PINK,
+    sortOrder: 2,
+    free: false,
+  },
+];
+
+export const BAG_CATALOGUE: readonly BagItemDef[] = [
+  {
+    code: 'bunny_royal',
+    category: 'PROFILE_CARD',
+    nameAr: 'الأرنب الملكي',
+    nameEn: 'Royal Bunny',
+    assetKey: 'header_bunny_royal',
+    sortOrder: 10,
+    free: true,
+  },
+  {
+    code: 'kabi_royal',
+    category: 'PROFILE_CARD',
+    nameAr: 'كابي الملكي',
+    nameEn: 'Royal Kabi',
+    assetKey: 'header_kabi_royal',
+    sortOrder: 20,
+    free: false,
+  },
+  {
+    code: 'golden_stags',
+    category: 'PROFILE_CARD',
+    nameAr: 'الغزلان الذهبية',
+    nameEn: 'Golden Stags',
+    assetKey: 'header_golden_stags',
+    sortOrder: 30,
+    free: false,
+  },
+  {
+    code: 'emerald_wings',
+    category: 'PROFILE_CARD',
+    nameAr: 'الأجنحة الزمردية',
+    nameEn: 'Emerald Wings',
+    assetKey: 'header_emerald_wings',
+    sortOrder: 40,
+    free: false,
+  },
+  ...SUPPORT_FRAMES,
+  ...HOST_FRAMES,
+];

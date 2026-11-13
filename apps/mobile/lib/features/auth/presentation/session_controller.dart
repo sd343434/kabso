@@ -1,11 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/locale_sync.dart';
+import 'package:kabso_live/features/debug/demo_data.dart';
+import 'package:kabso_live/features/push/push_permission.dart';
+import 'package:kabso_live/features/push/push_tokens_repository.dart';
 
 /// Global authentication state. Drives the router's redirect guard.
 sealed class AuthState {
@@ -65,6 +70,12 @@ class SessionController extends Notifier<AuthState> {
   /// splash error state).
   Future<void> restore() async {
     state = const AuthRestoring();
+    // D86: with Demo data on (test builds) the demo account is signed in,
+    // without a server or a stored token.
+    if (kDemoAvailable && ref.read(demoModeProvider)) {
+      state = Authenticated(_demoUser());
+      return;
+    }
     try {
       final user = await ref.read(authRepositoryProvider).restoreSession();
       if (!ref.mounted) return;
@@ -98,6 +109,8 @@ class SessionController extends Notifier<AuthState> {
   void signedIn(User user) {
     state = Authenticated(user);
     unawaited(ref.read(localeSyncProvider).afterSignIn(user));
+    // D152: the moment to explain notifications (the shell asks, once).
+    ref.read(pushPromptDueProvider.notifier).due();
   }
 
   /// Replaces the user (e.g. after a fresh `GET /me`).
@@ -108,7 +121,48 @@ class SessionController extends Notifier<AuthState> {
     }
   }
 
+  User _demoUser() =>
+      DemoData.user(ar: ref.read(languageControllerProvider) == AppLanguage.ar);
+
+  /// D86: "Try with demo data" (test builds): Demo data on, signed in as
+  /// the demo account.
+  Future<void> enterDemo() async {
+    if (!kDemoAvailable) return;
+    await ref.read(demoModeProvider.notifier).set(enabled: true);
+    if (!ref.mounted) return;
+    state = Authenticated(_demoUser());
+  }
+
+  /// D86: Demo data off. The demo account signs out; a real session stays.
+  Future<void> exitDemo() async {
+    await ref.read(demoModeProvider.notifier).set(enabled: false);
+    if (!ref.mounted) return;
+    final current = state;
+    if (current is Authenticated && current.user.id == _demoUser().id) {
+      state = const Unauthenticated();
+    }
+  }
+
+  /// v1.62-social (D193): the person asked for their account to be deleted;
+  /// the server already revoked every session and push token, so the local
+  /// session is only cleared. Login explains what happened and how to cancel.
+  Future<void> deletionRequested() async {
+    await ref.read(tokenManagerProvider).clear();
+    if (!ref.mounted) return;
+    state = const Unauthenticated(reason: ErrorCode.accountDeletionPending);
+  }
+
   Future<void> logout() async {
+    final current = state;
+    if (kDemoAvailable &&
+        current is Authenticated &&
+        current.user.id == _demoUser().id) {
+      await exitDemo();
+      return;
+    }
+    // D152: no more pushes to this phone for this account.
+    await unregisterPushToken(ref);
+    if (!ref.mounted) return;
     await ref.read(authRepositoryProvider).logout();
     if (!ref.mounted) return;
     state = const Unauthenticated();

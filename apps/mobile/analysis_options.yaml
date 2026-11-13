@@ -8,6 +8,9 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - lib/l10n/gen/**
+    # D144: local plugins are analyzed in their own package (CI step).
+    - packages/**
+    - web/**
   language:
     strict-casts: true
     strict-inference: true

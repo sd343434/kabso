@@ -37,7 +37,7 @@ const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 describe('POST /auth/register', () => {
   // v1.2: register → 202 (no tokens), register/verify → 201 AuthResponse with a verified email.
   it('register → 202, verify → creates the account and returns AuthResponse', async () => {
-    const payload = newUser({ email: '  Mixed.Case@Example.COM ', username: 'mixed.case_user' });
+    const payload = newUser({ email: '  Mixed.Case@Example.COM ', username: 'mixed_case_user7' });
     const pending = await ctx.http.post('/api/v1/auth/register').send(payload);
     expect(pending.status).toBe(202);
     expect(pending.body).toEqual({ status: 'verification_pending' });
@@ -52,7 +52,7 @@ describe('POST /auth/register', () => {
       id: expect.stringMatching(UUID),
       email: 'mixed.case@example.com',
       emailVerified: true,
-      username: 'mixed.case_user',
+      username: 'mixed_case_user7',
       displayName: 'Test User',
       bio: null,
       avatarUrl: null,
@@ -60,6 +60,26 @@ describe('POST /auth/register', () => {
       role: 'USER',
       isPrivate: false,
       createdAt: expect.stringMatching(ISO),
+      // CP-010: a new account cannot go live until it is granted the hosting permission.
+      canHost: false,
+      // CP-015: no live cover yet.
+      liveCoverUrl: null,
+      // v1.27.1-live (D133): every account starts with no country (none is guessed).
+      country: null,
+      // v1.47-social (D175): the gender chosen at sign-up, private by default; no category or links.
+      gender: 'UNDISCLOSED',
+      showGender: false,
+      category: null,
+      links: [],
+      // v1.85-social (D278b): no profile tags; v1.91-social (D292): so no icons.
+      tags: [],
+      tagIcons: [],
+      // v1.76-social (D218): no profile cover yet.
+      coverUrl: null,
+      // v1.90-social (D293): no verification badge yet.
+      verification: null,
+      // v1.130-social (D376, §10.167): no status emoji «الحالة» yet.
+      statusEmojiId: null,
     });
     const { tokens } = res.body as AuthBody;
     expect(tokens.accessToken.split('.')).toHaveLength(3);
@@ -191,11 +211,16 @@ describe('POST /auth/register', () => {
     ).rejects.toThrow();
   });
 
-  it('rejects reserved usernames with USERNAME_TAKEN', async () => {
-    for (const username of ['admin', 'kabso', 'sup.port']) {
+  it('rejects reserved usernames (v1.28-live, D146: the new rule refuses them first)', async () => {
+    // Every reserved name is letters only, so the D146 rule answers before the reserved list.
+    for (const [username, issue] of [
+      ['admin', 'premium'],
+      ['kabso', 'premium'],
+      ['sup.port', 'invalid_format'],
+    ] as const) {
       const res = await ctx.http.post('/api/v1/auth/register').send(newUser({ username }));
-      expect(res.status).toBe(409);
-      expect(res.body.error.code).toBe('USERNAME_TAKEN');
+      expect(res.status).toBe(400);
+      expect(res.body.error.details).toEqual([{ field: 'username', issue }]);
     }
   });
 });

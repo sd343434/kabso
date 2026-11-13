@@ -1,0 +1,593 @@
+/**
+ * Task Center «مركز المهام» administration from the command line (v1.44-social, D166, CONVENTIONS
+ * §10.41). The default tasks are seeded by migration 20261214100000_me_programs; the team changes their
+ * rewards, targets, names or switches them off here (no app release). Runs as the MIGRATION role
+ * (MIGRATION_DATABASE_URL): on the server
+ * `docker compose --profile jobs run --rm migrate node dist/cli/task-admin.js …`, locally
+ * `pnpm task:admin …`.
+ *
+ *   pnpm task:admin list
+ *   pnpm task:admin seed-defaults   # adds the default tasks, pool and bands that are missing
+ *   pnpm task:admin set <CODE> [--reward <cherries>] [--target <n>] [--enabled true|false]
+ *                   [--name-ar <text>] [--name-en <text>] [--sort <n>]
+ *                   [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>]   # pool templates and weekly tasks
+ *                   [--group <GROUP>]   # pool only
+ *   pnpm task:admin bands
+ *   pnpm task:admin band <1-4> [--min-level <n>] [--count <n>] [--host-count <n>] [--creator-count <n>]
+ *                   [--name-ar <text>] [--name-en <text>]
+ *
+ * v1.50-social (D176): the daily pool. Pool templates (`P_…`) are offered per person: each day a
+ * person gets their band's `--count` tasks (hosts `--host-count` of them host tasks), chosen
+ * deterministically from the person and the day, with the band's target and reward (`--targets`,
+ * `--rewards`, one per band; 0 = not offered in that band). A band starts at `--min-level` (the higher
+ * of the Support and Charm levels). Changes apply from the next day's lists (a day's tasks are fixed
+ * at its first read).
+ *
+ * v1.53-social (D184, owner): every task reward (`--reward`, `--rewards`) is in CHERRIES (the cherry
+ * ledger, reason TASK_REWARD); the migration converted the coin rewards at 1 coin = 10 cherries. Up to
+ * 1 000 000 000 cherries a task.
+ *
+ * v1.57-social (D188, owner): `list` and `set` print the real money next to every reward — cherries at
+ * the payout rate (`CHERRY_PAYOUT_RATE`, owner 1 000 000 = $1.10) — and next to coin-value targets
+ * (gifts sent / received) — coins at the retail price (`COIN_RETAIL_USD_PER_MILLION`, owner $12.50 per
+ * 1 000 000). Read from this process's environment (the server's values; defaults when unset).
+ *
+ * v1.94-social (D297, owner «مهام خاصة بصناع المحتوى، وقيمتها كمهام المضيف»): creator tasks — audience CREATORS,
+ * only for creator-programme members (who never get the HOSTS tasks). The pool group CREATOR (`P_CR_…`, a member gets
+ * `--creator-count` of them first each day) and the weekly `CREATOR_WEEKLY_…` tasks (per band, like the weekly host
+ * tasks). Their values follow the host tasks' and change here like any task (`set … --targets … --rewards …`); they
+ * count toward the same daily and monthly caps. `seed-defaults` adds the missing ones.
+ *
+ * D297 follow-up (owner: «قم بتوليد 300 ألف مهمة لصانع المحتوى و300 ألف مهمة للمضيف … حسب المستوى وتدريجياً»; CONVENTIONS
+ * §10.110.1): the generated catalogue (task-generator.ts, never stored), driven by the person's CHARM level:
+ *
+ *   pnpm task:admin generator status                       # on / off per audience, catalogue sizes
+ *   pnpm task:admin generator on|off CREATORS|HOSTS        # switches the audience's G_… templates (audited)
+ *   pnpm task:admin generator count [--verify]             # ≥ 300 000 per audience (--verify enumerates the codes)
+ *   pnpm task:admin generator sample CREATORS|HOSTS [--level <0-100>] [--n <count>]
+ *   pnpm task:admin generator preview <username> [--day YYYY-MM-DD]   # a person's generated tasks (nothing stored)
+ *
+ * A single template is switched like any task (`set G_CR_REELS_D --enabled false`).
+ *
+ * The daily caps and the check-in coins are server config (`TASK_DAILY_CAP_CHERRIES` for the daily
+ * tasks' cherries, `TASK_DAILY_CAP_COINS` for the check-in's coins, `TASK_CHECK_IN_COINS`,
+ * `TASK_CHECK_IN_STREAK_BONUS_COINS`). A change applies from the next read; a reward already claimed
+ * keeps what it paid. Every change writes an audit_logs row (`task.update`).
+ */
+import 'dotenv/config';
+import { parseArgs } from 'node:util';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../generated/prisma/client.js';
+import { AuditAction } from '../common/audit/audit.service.js';
+import {
+  COIN_VALUE_METRICS,
+  CHERRY_VALUE_METRICS,
+  TASK_POOL_BANDS,
+  TASK_POOL_GROUPS,
+  cherriesUsd,
+  coinsUsd,
+  parsePayoutRate,
+  type TaskMetric,
+} from '../modules/programs/programs-rules.js';
+import {
+  DEFAULT_TASK_POOL_BANDS,
+  bandForLevel,
+  monthlyCapCherries,
+  taskRoleOf,
+} from '../modules/programs/programs-rules.js';
+import { addDays, programWindowsIn } from '../modules/programs/programs-time.js';
+import {
+  GEN_WEEKLY_COUNT,
+  assignGenerated,
+  enumerateGenCodes,
+  genCatalogueCount,
+  genEntriesOf,
+  genTaskAt,
+  genTask,
+  GEN_DEFAULT_STEP,
+  type GenAudience,
+  type GenCaps,
+  type GenTask,
+} from '../modules/programs/task-generator.js';
+import {
+  seedD297TasksIn,
+  seedDefaultTaskPoolIn,
+  seedDefaultTasksIn,
+} from '../modules/programs/programs-seed.js';
+
+function fail(message: string): never {
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
+}
+
+const USAGE = [
+  'Usage: pnpm task:admin list',
+  '       pnpm task:admin seed-defaults',
+  '       pnpm task:admin set <CODE> [--reward <cherries>] [--target <n>] [--enabled true|false]',
+  '         [--name-ar <text>] [--name-en <text>] [--sort <n>]',
+  '         [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>]   (pool templates and weekly tasks)',
+  '         [--group <GROUP>]   (pool templates)',
+  '       pnpm task:admin generator status | on|off CREATORS|HOSTS | count [--verify]',
+  '       pnpm task:admin generator sample CREATORS|HOSTS [--level <0-100>] [--n <count>]',
+  '       pnpm task:admin generator preview <username> [--day YYYY-MM-DD]',
+  '       pnpm task:admin bands',
+  '       pnpm task:admin band <1-4> [--min-level <n>] [--count <n>] [--host-count <n>] [--creator-count <n>]',
+  '         [--name-ar <text>] [--name-en <text>]',
+].join('\n');
+
+/** v1.53-social (D184): the CHECKs of migration 20261231110000_task_cherries. */
+const MAX_REWARD_CHERRIES = 1_000_000_000;
+
+/** v1.57-social (D188): the payout rate and the coins' retail price, as the server reads them. */
+const PAYOUT_RATE = (() => {
+  const raw = process.env.CHERRY_PAYOUT_RATE?.trim() || '1000000:110';
+  return parsePayoutRate(raw) ?? fail('CHERRY_PAYOUT_RATE must be cherries:minor, e.g. 1000000:110.');
+})();
+const COIN_USD_PER_MILLION = (() => {
+  const raw = process.env.COIN_RETAIL_USD_PER_MILLION?.trim() || '12.5';
+  if (!/^(0|[1-9][0-9]{0,6})(\.[0-9]{1,4})?$/.test(raw) || Number(raw) <= 0) {
+    fail('COIN_RETAIL_USD_PER_MILLION must be a positive decimal, e.g. 12.5.');
+  }
+  return Number(raw);
+})();
+
+/** `9000 (≈ $0.0099)`: cherries with their payout value. */
+function cherriesWithUsd(cherries: number): string {
+  return `${String(cherries)} (≈ ${cherriesUsd(cherries, PAYOUT_RATE)})`;
+}
+
+/**
+ * A target, with its retail value when the metric counts coins; v1.69-live (D277): its payout value when it
+ * counts cherries (the host's gifts and lucky targets).
+ */
+function targetWithUsd(target: number, metric: string): string {
+  if (CHERRY_VALUE_METRICS.includes(metric as TaskMetric)) return `${cherriesWithUsd(target)} cherries`;
+  return COIN_VALUE_METRICS.includes(metric as TaskMetric)
+    ? `${String(target)} coins (≈ ${coinsUsd(target, COIN_USD_PER_MILLION)})`
+    : String(target);
+}
+
+/** One line per task: targets and rewards with their real money (D188). */
+function describe(t: {
+  enabled: boolean;
+  code: string;
+  period: string;
+  audience: string;
+  metric: string;
+  pool: boolean;
+  poolGroup: string | null;
+  target: number;
+  rewardCherries: number;
+  bandTargets: number[];
+  bandRewards: number[];
+  sortOrder: number;
+  nameAr: string;
+  nameEn: string;
+}): string {
+  const banded = t.bandTargets.length > 0;
+  const body = banded
+    ? `${t.pool ? `pool ${t.poolGroup ?? '?'}` : 'per band'} targets ${t.bandTargets.map((x) => targetWithUsd(x, t.metric)).join(', ')}` +
+      ` rewards ${t.bandRewards.map(cherriesWithUsd).join(', ')} cherries`
+    : `target ${targetWithUsd(t.target, t.metric)} reward ${cherriesWithUsd(t.rewardCherries)} cherries`;
+  return (
+    `${t.enabled ? '+' : '-'} ${t.code} ${t.period} ${t.audience} ${t.metric} ${body} ` +
+    `sort ${String(t.sortOrder)} «${t.nameAr}» / ${t.nameEn}\n`
+  );
+}
+
+const url = process.env.MIGRATION_DATABASE_URL;
+if (!url) fail('MIGRATION_DATABASE_URL is not set (the migration role changes the tasks).');
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, max: 1 }) });
+
+const OPTIONS = {
+  reward: { type: 'string' },
+  target: { type: 'string' },
+  enabled: { type: 'string' },
+  'name-ar': { type: 'string' },
+  'name-en': { type: 'string' },
+  sort: { type: 'string' },
+  targets: { type: 'string' },
+  rewards: { type: 'string' },
+  group: { type: 'string' },
+} as const;
+
+const BAND_OPTIONS = {
+  'min-level': { type: 'string' },
+  count: { type: 'string' },
+  'host-count': { type: 'string' },
+  'creator-count': { type: 'string' },
+  'name-ar': { type: 'string' },
+  'name-en': { type: 'string' },
+} as const;
+
+/** `1,2,3,4`: one whole number per band (0 = not offered in that band). */
+function perBand(raw: string, option: string, max: number): number[] {
+  const parts = raw.split(',').map((p) => p.trim());
+  if (parts.length !== TASK_POOL_BANDS || parts.some((p) => !/^[0-9]{1,10}$/.test(p) || Number(p) > max)) {
+    fail(
+      `${option} is ${String(TASK_POOL_BANDS)} whole numbers 0–${String(max)}, comma-separated (one per band).`,
+    );
+  }
+  return parts.map(Number);
+}
+
+function wholeNumber(raw: string, option: string, min: number, max: number): number {
+  if (!/^[0-9]{1,10}$/.test(raw) || Number(raw) < min || Number(raw) > max) {
+    fail(`${option} is a whole number ${String(min)}–${String(max)}.`);
+  }
+  return Number(raw);
+}
+
+function name(raw: string, option: string): string {
+  const value = raw.trim();
+  if (value === '' || [...value].length > 80) fail(`${option} is 1–80 characters.`);
+  return value;
+}
+
+async function list(): Promise<void> {
+  const rows = await prisma.taskDefinition.findMany({ orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] });
+  process.stdout.write(
+    `Payout ${String(PAYOUT_RATE.cherries)} cherries = ${String(PAYOUT_RATE.minor)} minor units; ` +
+      `coins $${String(COIN_USD_PER_MILLION)} per 1000000 (retail).\n`,
+  );
+  for (const t of rows) process.stdout.write(describe(t));
+}
+
+async function set(code: string, args: readonly string[]): Promise<void> {
+  let values: Partial<Record<keyof typeof OPTIONS, string>>;
+  try {
+    ({ values } = parseArgs({ args: [...args], options: OPTIONS, strict: true, allowPositionals: false }));
+  } catch (err) {
+    fail(`${err instanceof Error ? err.message : String(err)}\n${USAGE}`);
+  }
+  const task = await prisma.taskDefinition.findUnique({ where: { code: code.toUpperCase() } });
+  if (!task) fail(`No task ${code}.`);
+  const data: {
+    rewardCherries?: number;
+    target?: number;
+    enabled?: boolean;
+    nameAr?: string;
+    nameEn?: string;
+    sortOrder?: number;
+    bandTargets?: number[];
+    bandRewards?: number[];
+    poolGroup?: string;
+  } = {};
+  // v1.57-social (D188 follow-up): a weekly task may also have one target and reward per band.
+  const perBandAllowed = task.pool || task.period === 'WEEKLY';
+  if (values.group !== undefined && !task.pool) fail('--group is for pool templates only.');
+  if ((values.targets !== undefined || values.rewards !== undefined) && !perBandAllowed) {
+    fail('--targets and --rewards are for pool templates and weekly tasks only.');
+  }
+  if (
+    !task.pool &&
+    (values.targets === undefined) !== (values.rewards === undefined) &&
+    task.bandTargets.length === 0
+  ) {
+    fail('A weekly task gets per-band values with both --targets and --rewards.');
+  }
+  const banded = task.pool || task.bandTargets.length > 0 || values.targets !== undefined;
+  if (banded && (values.target !== undefined || values.reward !== undefined)) {
+    fail('This task has --targets and --rewards (one per band), not --target / --reward.');
+  }
+  if (values.targets !== undefined) data.bandTargets = perBand(values.targets, '--targets', 1_000_000_000);
+  if (values.rewards !== undefined)
+    data.bandRewards = perBand(values.rewards, '--rewards', MAX_REWARD_CHERRIES);
+  if (values.group !== undefined) {
+    const group = values.group.toUpperCase();
+    if (!(TASK_POOL_GROUPS as readonly string[]).includes(group))
+      fail(`--group is ${TASK_POOL_GROUPS.join(', ')}.`);
+    data.poolGroup = group;
+  }
+  // A banded row's target / reward mirror its highest band (the CHECK needs ≥ 1).
+  if (data.bandTargets) data.target = Math.max(1, ...data.bandTargets);
+  if (data.bandRewards) data.rewardCherries = Math.max(1, ...data.bandRewards);
+  if (values.reward !== undefined)
+    data.rewardCherries = wholeNumber(values.reward, '--reward', 1, MAX_REWARD_CHERRIES);
+  if (values.target !== undefined) data.target = wholeNumber(values.target, '--target', 1, 1_000_000_000);
+  if (values.sort !== undefined) data.sortOrder = wholeNumber(values.sort, '--sort', 0, 1_000_000);
+  if (values.enabled !== undefined) {
+    if (values.enabled !== 'true' && values.enabled !== 'false') fail('--enabled is true or false.');
+    data.enabled = values.enabled === 'true';
+  }
+  if (values['name-ar'] !== undefined) data.nameAr = name(values['name-ar'], '--name-ar');
+  if (values['name-en'] !== undefined) data.nameEn = name(values['name-en'], '--name-en');
+  if (Object.keys(data).length === 0) fail(`Nothing to change.\n${USAGE}`);
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.taskDefinition.update({ where: { code: task.code }, data });
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.TASK_UPDATE,
+        targetType: 'task',
+        targetId: task.code,
+        metadata: { ...data, via: 'cli' },
+      },
+    });
+    return row;
+  });
+  process.stdout.write(`Task ${task.code} updated.\n${describe(updated)}`);
+}
+
+async function bands(): Promise<void> {
+  const rows = await prisma.taskPoolBand.findMany({ orderBy: { band: 'asc' } });
+  for (const b of rows) {
+    process.stdout.write(
+      `band ${String(b.band)} from level ${String(b.minLevel)}: ${String(b.dailyCount)} tasks a day ` +
+        `(${String(b.hostCount)} host tasks for hosts, ${String(b.creatorCount)} creator tasks for creators) ` +
+        `«${b.nameAr}» / ${b.nameEn}\n`,
+    );
+  }
+}
+
+async function band(raw: string, args: readonly string[]): Promise<void> {
+  let values: Partial<Record<keyof typeof BAND_OPTIONS, string>>;
+  try {
+    ({ values } = parseArgs({
+      args: [...args],
+      options: BAND_OPTIONS,
+      strict: true,
+      allowPositionals: false,
+    }));
+  } catch (err) {
+    fail(`${err instanceof Error ? err.message : String(err)}\n${USAGE}`);
+  }
+  const number = wholeNumber(raw, 'The band', 1, TASK_POOL_BANDS);
+  const row = await prisma.taskPoolBand.findUnique({ where: { band: number } });
+  if (!row) fail(`No band ${String(number)} (run seed-defaults).`);
+  const data: {
+    minLevel?: number;
+    dailyCount?: number;
+    hostCount?: number;
+    creatorCount?: number;
+    nameAr?: string;
+    nameEn?: string;
+  } = {};
+  if (values['min-level'] !== undefined)
+    data.minLevel = wholeNumber(values['min-level'], '--min-level', 0, 200);
+  if (values.count !== undefined) data.dailyCount = wholeNumber(values.count, '--count', 1, 12);
+  if (values['host-count'] !== undefined)
+    data.hostCount = wholeNumber(values['host-count'], '--host-count', 0, 12);
+  if (values['creator-count'] !== undefined)
+    data.creatorCount = wholeNumber(values['creator-count'], '--creator-count', 0, 12);
+  if (values['name-ar'] !== undefined) data.nameAr = name(values['name-ar'], '--name-ar');
+  if (values['name-en'] !== undefined) data.nameEn = name(values['name-en'], '--name-en');
+  if (Object.keys(data).length === 0) fail(`Nothing to change.\n${USAGE}`);
+  if ((data.hostCount ?? row.hostCount) > (data.dailyCount ?? row.dailyCount)) {
+    fail('--host-count cannot be more than --count.');
+  }
+  if ((data.creatorCount ?? row.creatorCount) > (data.dailyCount ?? row.dailyCount)) {
+    fail('--creator-count cannot be more than --count.');
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.taskPoolBand.update({ where: { band: number }, data });
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.TASK_UPDATE,
+        targetType: 'task_band',
+        targetId: String(number),
+        metadata: { ...data, via: 'cli' },
+      },
+    });
+  });
+  process.stdout.write(`Band ${String(number)} updated.\n`);
+}
+
+// ---- D297: the generated catalogue ------------------------------------------------------------------------------
+
+const GEN_OPTIONS = {
+  level: { type: 'string' },
+  n: { type: 'string' },
+  day: { type: 'string' },
+  verify: { type: 'boolean' },
+} as const;
+
+function audienceArg(raw: string | undefined): GenAudience {
+  const a = (raw ?? '').toUpperCase();
+  if (a !== 'CREATORS' && a !== 'HOSTS') fail(`The audience is CREATORS or HOSTS.\n${USAGE}`);
+  return a;
+}
+
+/** The caps a single generated reward is kept within (this process's environment, the server's defaults). */
+function genCaps(): GenCaps {
+  const daily = Number(process.env.TASK_DAILY_CAP_CHERRIES?.trim() || '50000');
+  const minor = Number(process.env.TASK_MONTHLY_CAP_MINOR?.trim() || '500');
+  return {
+    dailyCherries: daily,
+    monthlyCherries: monthlyCapCherries(minor, PAYOUT_RATE.cherries, PAYOUT_RATE.minor),
+  };
+}
+
+function genLine(t: GenTask): string {
+  return (
+    `${t.code} → ${t.template} target ${targetWithUsd(t.target, t.entry.metric)} reward ` +
+    `${cherriesWithUsd(t.rewardCherries)} «${t.nameAr}» / ${t.nameEn}\n`
+  );
+}
+
+async function generator(args: readonly string[]): Promise<void> {
+  const [sub, ...more] = args;
+  let values: { level?: string; n?: string; day?: string; verify?: boolean } = {};
+  let positionals: string[] = [];
+  try {
+    ({ values, positionals } = parseArgs({
+      args: [...more],
+      options: GEN_OPTIONS,
+      strict: true,
+      allowPositionals: true,
+    }));
+  } catch (err) {
+    fail(`${err instanceof Error ? err.message : String(err)}\n${USAGE}`);
+  }
+  const arg = positionals[0];
+  const templates = await prisma.taskDefinition.findMany({
+    where: { code: { startsWith: 'G_' } },
+    select: { code: true, enabled: true, audience: true, period: true },
+  });
+  switch (sub) {
+    case 'status':
+      for (const audience of ['CREATORS', 'HOSTS'] as const) {
+        const mine = templates.filter((t) => t.audience === audience);
+        const on = mine.filter((t) => t.enabled);
+        process.stdout.write(
+          `${audience}: ${on.length > 0 ? 'ON' : 'OFF'} (${String(on.filter((t) => t.period === 'DAILY').length)} daily ` +
+            `and ${String(on.filter((t) => t.period === 'WEEKLY').length)} weekly templates of ${String(mine.length)} on; ` +
+            `${String(GEN_WEEKLY_COUNT[audience])} weekly tasks a week) — catalogue ${String(genCatalogueCount(audience))} tasks\n`,
+        );
+      }
+      return;
+    case 'on':
+    case 'off': {
+      const audience = audienceArg(arg);
+      const enabled = sub === 'on';
+      const codes = templates.filter((t) => t.audience === audience).map((t) => t.code);
+      if (codes.length === 0) fail('No generator templates (run seed-defaults).');
+      await prisma.$transaction(async (tx) => {
+        await tx.taskDefinition.updateMany({ where: { code: { in: codes } }, data: { enabled } });
+        await tx.auditLog.create({
+          data: {
+            action: AuditAction.TASK_UPDATE,
+            targetType: 'task_generator',
+            targetId: audience,
+            metadata: { enabled, templates: codes.length, via: 'cli' },
+          },
+        });
+      });
+      process.stdout.write(
+        `Generator ${enabled ? 'ON' : 'OFF'} for ${audience} (${String(codes.length)} templates); ` +
+          'from the next day (and the next week) for people with no list yet.\n',
+      );
+      return;
+    }
+    case 'count':
+      for (const audience of ['CREATORS', 'HOSTS'] as const) {
+        let line = `${audience}: ${String(genCatalogueCount(audience))} generated tasks`;
+        if (values.verify) {
+          const seen = new Set<string>();
+          for (const code of enumerateGenCodes(audience)) seen.add(code);
+          line += ` (verified: ${String(seen.size)} distinct codes)`;
+        }
+        process.stdout.write(`${line}\n`);
+      }
+      return;
+    case 'sample': {
+      const audience = audienceArg(arg);
+      const n = values.n === undefined ? 10 : wholeNumber(values.n, '--n', 1, 200);
+      if (values.level !== undefined) {
+        const level = wholeNumber(values.level, '--level', 0, 1000);
+        for (const entry of genEntriesOf(audience).slice(0, n))
+          process.stdout.write(genLine(genTask(entry, level, GEN_DEFAULT_STEP, 0, genCaps())));
+        return;
+      }
+      const total = genCatalogueCount(audience);
+      for (let i = 0; i < n; i++) {
+        process.stdout.write(genLine(genTaskAt(audience, Math.floor((i * total) / n) + i, genCaps())));
+      }
+      return;
+    }
+    case 'preview': {
+      if (!arg) fail(USAGE);
+      const profile = await prisma.userProfile.findUnique({
+        where: { username: arg.toLowerCase().replace(/^@/, '') },
+        select: { userId: true },
+      });
+      if (!profile) fail(`No user @${arg}.`);
+      const me = profile.userId;
+      const [roleRow] = await prisma.$queryRaw<{ host: boolean; creator: boolean }[]>`
+        SELECT EXISTS (SELECT 1 FROM live_hosts WHERE user_id = ${me}::uuid) AS host,
+               EXISTS (SELECT 1 FROM creator_members WHERE user_id = ${me}::uuid) AS creator`;
+      const role = taskRoleOf(roleRow?.host ?? false, roleRow?.creator ?? false);
+      const audience: GenAudience | null = role.creator ? 'CREATORS' : role.host ? 'HOSTS' : null;
+      if (audience === null) {
+        process.stdout.write(`@${arg} is neither a creator nor a host: no generated tasks.\n`);
+        return;
+      }
+      const levels = await prisma.$queryRaw<{ code: string; level: number | null }[]>`
+        SELECT c.code, s.current_level AS level FROM user_level_states s
+          JOIN level_categories c ON c.id = s.category_id AND c.is_enabled
+         WHERE s.user_id = ${me}::uuid AND c.code IN ('SUPPORT', 'ATTRACTIVENESS')`;
+      const charm = levels.find((l) => l.code === 'ATTRACTIVENESS')?.level ?? 0;
+      const poolLevel = Math.max(0, ...levels.map((l) => l.level ?? 0));
+      const bandRows = await prisma.taskPoolBand.findMany({ orderBy: { band: 'asc' } });
+      const band = bandForLevel(poolLevel, bandRows.length ? bandRows : DEFAULT_TASK_POOL_BANDS);
+      const zone = process.env.LIVE_RANKINGS_TIME_ZONE?.trim() || 'Asia/Riyadh';
+      const day = values.day ?? (await programWindowsIn(prisma, new Date(), zone)).day.date;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) fail('--day is YYYY-MM-DD.');
+      const week = addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
+      const on = (period: string) =>
+        templates
+          .filter((t) => t.audience === audience && t.enabled && t.period === period)
+          .map((t) => t.code);
+      process.stdout.write(
+        `@${arg}: ${audience}, charm level ${String(charm)}, band ${String(band.band)}; day ${day}, week of ${week}\n`,
+      );
+      const daily = assignGenerated({
+        audience,
+        period: 'DAILY',
+        templates: on('DAILY'),
+        userId: me,
+        periodKey: day,
+        charmLevel: charm,
+        count: audience === 'CREATORS' ? band.creatorCount : band.hostCount,
+        caps: genCaps(),
+      });
+      const weekly = assignGenerated({
+        audience,
+        period: 'WEEKLY',
+        templates: on('WEEKLY'),
+        userId: me,
+        periodKey: week,
+        charmLevel: charm,
+        count: GEN_WEEKLY_COUNT[audience],
+        caps: genCaps(),
+      });
+      process.stdout.write("Daily (before the day's other tasks are known):\n");
+      for (const t of daily) process.stdout.write(`  ${genLine(t)}`);
+      process.stdout.write('Weekly:\n');
+      for (const t of weekly) process.stdout.write(`  ${genLine(t)}`);
+      return;
+    }
+    default:
+      fail(USAGE);
+  }
+}
+
+const [command, first, ...rest] = process.argv.slice(2);
+try {
+  switch (command) {
+    case 'list':
+      if (first !== undefined) fail(USAGE);
+      await list();
+      break;
+    case 'seed-defaults': {
+      if (first !== undefined) fail(USAGE);
+      const added = await seedDefaultTasksIn(prisma);
+      const pool = await seedDefaultTaskPoolIn(prisma);
+      const creator = await seedD297TasksIn(prisma);
+      process.stdout.write(
+        `Added ${String(added)} default task(s), ${String(pool)} pool template(s) and ` +
+          `${String(creator)} D297 task(s).\n`,
+      );
+      break;
+    }
+    case 'generator':
+      if (!first) fail(USAGE);
+      await generator([first, ...rest]);
+      break;
+    case 'bands':
+      if (first !== undefined) fail(USAGE);
+      await bands();
+      break;
+    case 'band':
+      if (!first) fail(USAGE);
+      await band(first, rest);
+      break;
+    case 'set':
+      if (!first) fail(USAGE);
+      await set(first, rest);
+      break;
+    default:
+      fail(command ? `Unknown command ${command}.\n${USAGE}` : USAGE);
+  }
+} finally {
+  await prisma.$disconnect();
+}

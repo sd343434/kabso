@@ -12,7 +12,7 @@ import { Clock } from '../src/common/time/clock.js';
 import { LiveRoomsService } from '../src/modules/live/live-rooms.service.js';
 import { AccountLifecycleService } from '../src/modules/users/profiles/account-lifecycle.service.js';
 import { expectContract, operations } from './helpers/openapi.js';
-import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import { createTestApp, newUser, registerVerified, type TestContext } from './helpers/test-app.js';
 
 class FakeClock extends Clock {
   private ms = Date.now();
@@ -37,6 +37,9 @@ const ISO_Z = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 async function signup(ctx: TestContext, overrides: Partial<Record<string, unknown>> = {}): Promise<TestUser> {
   const { res } = await registerVerified(ctx, overrides);
   expect(res.status).toBe(201);
+  // CP-010 (D93): going live needs the hosting permission. These v1.3 suites are about hosting,
+  // so every account they create may host; kl063-live-video covers the refusal without it.
+  await ctx.prisma.liveHost.create({ data: { userId: res.body.user.id as string, source: 'ADMIN' } });
   return { id: res.body.user.id, username: res.body.user.username, token: res.body.tokens.accessToken };
 }
 
@@ -91,6 +94,95 @@ describe('KL-037 contract coverage', () => {
   it('openapi v1.3 declares exactly the ten new operations implemented here', () => {
     const v13 = operations()
       .filter((o) => /^\/api\/v1\/(live\/|users\/\{username\})/.test(o.path))
+      // v1.4-levels (draft) adds /users/{username}/levels; KL-058 covers it.
+      .filter((o) => o.path !== '/api/v1/users/{username}/levels')
+      // v1.5-social (draft) adds posts, reposts, block and mute under /users/{username}; KL-060
+      // covers them.
+      .filter((o) => !/^\/api\/v1\/users\/\{username\}\/(posts|reposts|block|mute)$/.test(o.path))
+      // CP-008 adds /users/{username}/stories; kl061-stories covers it.
+      .filter((o) => o.path !== '/api/v1/users/{username}/stories')
+      // CP-010 (v1.6-live draft) adds live video operations under /live/; kl063-live-video
+      // covers them with its own exact list. CP-012 (v1.8-live draft) adds tapLiveRoom;
+      // kl065-live-taps covers it. CP-011 (v1.7-live draft) adds the seat operations;
+      // kl064-live-seats covers them with its own exact list.
+      .filter(
+        (o) =>
+          ![
+            'createLiveMediaToken',
+            'updateLiveRoom',
+            'listLiveRoomViewers',
+            'tapLiveRoom',
+            // CP-016 A (v1.13-live draft): the popularity board; kl071-live-rankings covers it.
+            'listLiveRankings',
+            // CP-017 (v1.19-live draft): bullet messages; kl077-wallet-bullets-chat-media covers it.
+            'sendLiveBullet',
+            // CP-020 (v1.23-live draft): live gifts; kl081-live-gifts covers it.
+            'sendLiveGift',
+            // CP-018 (v1.21-live draft): a user's medals; kl079-families-cp-medals covers it.
+            'listUserMedals',
+            // D121 (v1.25.2-live draft): the follow lists; kl086-follow-lists covers them.
+            'listUserFollowers',
+            'listUserFollowing',
+            // D132 (v1.27-live draft): the lucky-gift odds; kl093-lucky-gifts covers it.
+            'getLuckyGiftOdds',
+            // D138 (v1.27.5-live draft): an emoji on one's own seat; kl095-live-seat-emoji covers it.
+            'sendLiveSeatEmoji',
+            // D154 Room Tools (v1.32–v1.38-live drafts), each with its own exact list:
+            // d154-quips, d154-boosts, d154-newcomers, d154-data-center, d154-program,
+            // d154-stickers and d154-watch.
+            'playLiveSound',
+            'getLiveBoostOffers',
+            'buyLiveBoost',
+            'listActiveLiveBoosts',
+            'listLiveRoomBoosts',
+            'listLiveNewcomers',
+            'getMyLiveStats',
+            'getLiveProgram',
+            'setLiveProgram',
+            'listLiveStickerArt',
+            'getLiveStickers',
+            'setLiveStickers',
+            'searchYoutube',
+            'getLiveWatch',
+            'setLiveWatch',
+            'listLiveWatchSuggestions',
+            'suggestLiveWatch',
+            'decideLiveWatchSuggestion',
+            // v1.42-live (D170): the host's presence; d170-host-away covers it.
+            'setLiveHostPresence',
+            // v1.95-social (D301): the owner's journey and official posts; d301-owner-profile covers them.
+            'listUserJourney',
+            'listUserOfficialPosts',
+            // v1.132-social (D379): the VIP pinned message; d379-vip-live-perks covers it.
+            'pinLiveChatMessage',
+            'unpinLiveChatMessage',
+            // v1.133-social (D380): a gift's report and the anonymous-gift refusal; d380-vip-privacy covers them.
+            'reportLiveGift',
+            'blockAnonymousGiftSender',
+            'unblockAnonymousGiftSender',
+          ].includes(o.operationId),
+      )
+      .filter(
+        (o) =>
+          // CP-013 (v1.9-live draft) adds the chat operations; kl067-live-chat covers them.
+          // CP-014 (v1.10-live draft) adds listLiveContributors; kl068-live-room-edit covers it.
+          // v1.20-live (D105) adds kicks and one person's contribution; kl078-live-kicks covers them.
+          // v1.27.6-live (D140) adds the host's statistics; kl096-live-stats covers them.
+          !/^\/api\/v1\/live\/rooms\/\{roomId\}\/(seats|seat-requests|seat-invites|moderators|chat|contributors|kicks|stats)(\/|$)/.test(
+            o.path,
+          ),
+      )
+      .filter(
+        (o) =>
+          // v1.43-live (D195) PK 1 v 1 and v1.44-live (D199) PK Setting: d195-pk and d199-pk-settings cover them;
+          // D199's host targets: d199-host-targets; v1.45-live (D201) the second camera and the recording
+          // indicator: d201-live-tools — each with its own exact list. v1.47-live (D212): the announced
+          // podcasts, d212-podcast. v1.56-live (D213) / v1.57-live (D247): updateLiveStreamer, d213-streamer and
+          // d247-web-studio. v1.114-live (D363): the video podcast's director relay, d363-video-podcast.
+          !/^\/api\/v1\/live\/(rooms\/\{roomId\}\/(pk|second-camera|recording|streamer|podcast)|pk|second-camera|podcasts|hosts\/\{username\}\/targets)(\/|$)/.test(
+            o.path,
+          ),
+      )
       .map((o) => o.operationId)
       .sort();
     expect(v13).toEqual(
@@ -185,6 +277,36 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         hostingEnabled: true,
         heartbeatIntervalSeconds: 15,
         heartbeatStaleAfterSeconds: 45,
+        // CP-011 (v1.7-live): room themes and seat counts per mode.
+        themes: [
+          'classic',
+          'ice-palace',
+          'desert-night',
+          'rose-garden',
+          'sunset-sky',
+          'moon-palace',
+          'ocean-depths',
+          'golden-hall',
+          'game-arena',
+          'heart-garden',
+          'galaxy',
+          // v1.47-live (D212): the podcast backgrounds.
+          'podcast-studio',
+          'podcast-majlis',
+          'podcast-library',
+        ],
+        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20] },
+        // v1.47-live (D212): the podcast setup's choices.
+        podcast: {
+          speakers: 4,
+          topics: ['business', 'tech', 'sports', 'religion', 'society', 'entertainment', 'other'],
+          questionSeconds: [60, 120, 180, 300],
+          defaultQuestionSeconds: 120,
+        },
+        // v1.49-live (D228): the camera effects engine, DeepAR by default.
+        cameraFxEngine: 'DEEPAR',
+        // v1.88-live (D315): no game is on (LIVE_GAMES_ENABLED default false).
+        gamesEnabled: false,
       });
     });
 
@@ -246,6 +368,42 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         status: 'LIVE',
         endedAt: null,
         endReason: null,
+        // CP-010: guests may watch unless the host says otherwise (default true).
+        allowGuests: true,
+        // CP-011 (v1.7-live): a SOLO room has no seats; the default theme.
+        seatCount: null,
+        occupiedSeats: 0,
+        theme: 'classic',
+        // CP-012 (v1.8-live): a new live starts at 0 points.
+        score: 0,
+        cherries: 0,
+        // v1.47-live (D212): not a podcast.
+        podcast: null,
+        // v1.54-live (D241): a new SOLO live is not in a PK.
+        inPk: false,
+        // v1.56-live (D213) / v1.57-live (D247): not a STREAMER, so no layout.
+        streamer: null,
+        // v1.58-live (D246): the only live of its kind is in its top N; the host set no country, so no
+        // `hostCountry` key (roomLevel is below).
+        popular: true,
+        scoreParts: { total: 0, tapPoints: 0, supportPoints: 0, hostCherries: 0, roomCherries: 0 },
+        // CP-013 (v1.9-live): a new live starts with the chat on; the host is never muted.
+        chatEnabled: true,
+        chatMuted: false,
+        // CP-014 (v1.10-live): a new live starts without a topic.
+        topic: null,
+        // CP-016 G (v1.15-live): the host's room number (kl073 covers it).
+        roomNumber: expect.any(Number),
+        // CP-016 D (§10.18): no charm category in this database → no level.
+        roomLevel: null,
+        // v1.20-live (D105): the host is never kicked (kl078 covers kicks).
+        kicked: false,
+        // v1.27.3-live (D136): no wish list yet (kl081 covers it).
+        wishGifts: [],
+        // v1.82-live (D295): the host is not a content creator (d295 covers creators).
+        hostIsCreator: false,
+        // v1.132-social (D379): not a VIP room (d379-vip-live-perks covers them).
+        vipMinTier: null,
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },
@@ -267,7 +425,9 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         [{ title: 'line\nbreak' }, [{ field: 'title', issue: 'invalid_format' }]],
         [{ title: '...' }, [{ field: 'title', issue: 'invalid_format' }]],
         [{ title: 42 }, [{ field: 'title', issue: 'invalid_type' }]],
-        [{ title: 'ok', mode: 'SOLO' }, [{ field: 'mode', issue: 'unknown_field' }]],
+        // CP-011 (v1.7-live) made `mode` a field (SOLO, MULTI, AUDIO); PK cannot be started.
+        [{ title: 'ok', mode: 'PK' }, [{ field: 'mode', issue: 'invalid_value' }]],
+        [{ title: 'ok', foo: 1 }, [{ field: 'foo', issue: 'unknown_field' }]],
         [{ title: 'ok', categorySlug: 'Bad Slug' }, [{ field: 'categorySlug', issue: 'invalid_format' }]],
         [{ title: 'ok', categorySlug: 'unknown-cat' }, [{ field: 'categorySlug', issue: 'invalid_value' }]],
         [{ title: 'ok', categorySlug: 'inactive-cat' }, [{ field: 'categorySlug', issue: 'invalid_value' }]],
@@ -526,7 +686,7 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         const newTab = await allPages(viewer, { tab: 'new' }, limit);
         expect(newTab.ids).toEqual(byNew);
         expect(newTab.pages).toBe(Math.max(1, Math.ceil(9 / limit)));
-        // popular ≡ new while every viewerCount is 0.
+        // popular ≡ new while every room has 0 cherries (v1.86-live, D310, §10.4).
         expect((await allPages(viewer, { tab: 'popular' }, limit)).ids).toEqual(byNew);
         const followed = new Set(created.slice(0, 6).map((r) => r.id));
         expect((await allPages(viewer, { tab: 'following' }, limit)).ids).toEqual(
@@ -534,10 +694,13 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         );
       }
 
-      // popular orders by viewerCount first (fixture: presence does not exist yet in v1.3).
-      await ctx.prisma.liveRoom.update({ where: { id: created[0]!.id }, data: { viewerCount: 5 } });
-      await ctx.prisma.liveRoom.update({ where: { id: created[4]!.id }, data: { viewerCount: 5 } });
-      await ctx.prisma.liveRoom.update({ where: { id: created[8]!.id }, data: { viewerCount: 2 } });
+      // v1.86-live (D310): popular orders by the room cherries first (fixture written directly; d310 covers cherries
+      // reached by gifts). Neither the score (CP-012) nor the viewer count orders it.
+      await ctx.prisma.liveRoom.update({ where: { id: created[0]!.id }, data: { cherries: BigInt(5) } });
+      await ctx.prisma.liveRoom.update({ where: { id: created[4]!.id }, data: { cherries: BigInt(5) } });
+      await ctx.prisma.liveRoom.update({ where: { id: created[8]!.id }, data: { cherries: BigInt(2) } });
+      await ctx.prisma.liveRoom.update({ where: { id: created[2]!.id }, data: { score: BigInt(900) } });
+      await ctx.prisma.liveRoom.update({ where: { id: created[1]!.id }, data: { viewerCount: 50 } });
       const top = [created[4]!, created[0]!].sort(
         (a, b) => b.startedAt - a.startedAt || (a.id < b.id ? 1 : -1),
       );
@@ -551,13 +714,17 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
       }
       const page = await list(viewer, { tab: 'popular', limit: 1 });
       expect(page.body.data[0]).toMatchObject({
-        viewerCount: 5,
+        cherries: 5,
+        score: 0,
+        viewerCount: 0,
         mode: 'SOLO',
         coverUrl: null,
         category: null,
       });
       expect(page.body.data[0].startedAt).toMatch(ISO_Z);
-      await ctx.prisma.liveRoom.updateMany({ data: { viewerCount: 0 } });
+      await ctx.prisma.liveRoom.updateMany({
+        data: { viewerCount: 0, score: BigInt(0), cherries: BigInt(0) },
+      });
     });
 
     it('filters every tab by category; unknown/inactive slug → 200 empty; malformed → 400', async () => {
@@ -777,12 +944,46 @@ describe('KL-037 public profile and follow', () => {
       followerCount: 0,
       followingCount: 0,
       isFollowing: false,
+      // CP-007: the caller's own mute state.
+      isMuted: false,
       isSelf: false,
       liveRoomId: null,
+      live: null,
+      // v1.21-live (CP-018): no family or couple; the catalogue is empty in this database.
+      family: null,
+      cp: null,
+      medals: { owned: 0, total: 0, latest: [], showcase: [], eventBadges: [] }, // v1.97-social (D303): event medals held
+      // v1.22-live (CP-019): the bag catalogue is empty in this database, so nothing is worn.
+      profileCard: null,
+      // v1.47-social (D175): no request pending; gender private by default; no category or links.
+      followRequested: false,
+      gender: null,
+      category: null,
+      links: [],
+      // v1.85-social (D278b): no profile tags; v1.91-social (D292): so no icons.
+      tags: [],
+      tagIcons: [],
+      // v1.54-social (D185): not a recharge agent; v1.55-social (D186): no avatar frame worn;
+      // v1.58-social (D189): not a host agent.
+      rechargeAgent: null,
+      hostAgent: null,
+      avatarFrame: null,
+      // v1.76-social (D218): no cover, no country chosen, the month joined only, not blocked by the caller.
+      coverUrl: null,
+      country: null,
+      joinedMonth: expect.stringMatching(/^\d{4}-\d{2}$/),
+      blockedByMe: false,
+      // v1.90-social (D293): no verification badge (only its type would show, never an amount).
+      verification: null,
+      // v1.77-social (D220): the lifetime totals the user does not hide (nothing received or sent yet).
+      cherriesReceived: 0,
+      coinsSent: 0,
+      // v1.130-social (D376, §10.167): no status emoji «الحالة» worn.
+      statusEmojiId: null,
     });
     const self = await profile(target, target.username);
     expectContract(self, 'getPublicProfile');
-    expect(self.body).toMatchObject({ isSelf: true, isFollowing: false });
+    expect(self.body).toMatchObject({ isSelf: true, isFollowing: false, isMuted: false });
     expect(JSON.stringify(res.body)).not.toMatch(/@|email|ACTIVE|USER|createdAt|locale/);
   });
 
@@ -809,12 +1010,14 @@ describe('KL-037 public profile and follow', () => {
     const deleted = await signup(ctx);
     await ctx.prisma.user.update({ where: { id: suspended.id }, data: { status: 'SUSPENDED' } });
     expect(await ctx.app.get(AccountLifecycleService).softDelete(deleted.id)).toBe(true);
-    const pendingName = `pend${Date.now().toString(36)}`;
+    // D146: a valid regular username (letters and digits, no premium pattern).
+    const pendingName = newUser().username.replace(/^user/, 'pend');
     const reg = await ctx.http.post('/api/v1/auth/register').send({
       email: `${pendingName}@example.com`,
       password: 'correct horse battery staple',
       username: pendingName,
       displayName: 'Pending',
+      gender: 'MALE',
     });
     expect(reg.status).toBe(202);
 
@@ -853,11 +1056,15 @@ describe('KL-037 public profile and follow', () => {
     const star = await signup(ctx);
     const first = await follow(fan, star.username);
     expectContract(first, 'followUser');
-    expect(first.body).toEqual({ isFollowing: true, followerCount: 1 });
+    expect(first.body).toEqual({ isFollowing: true, isRequested: false, followerCount: 1 });
     const repeat = await follow(fan, star.username);
     expectContract(repeat, 'followUser');
-    expect(repeat.body).toEqual({ isFollowing: true, followerCount: 1 });
-    expect((await follow(fan2, star.username)).body).toEqual({ isFollowing: true, followerCount: 2 });
+    expect(repeat.body).toEqual({ isFollowing: true, isRequested: false, followerCount: 1 });
+    expect((await follow(fan2, star.username)).body).toEqual({
+      isFollowing: true,
+      isRequested: false,
+      followerCount: 2,
+    });
     expect(await ctx.prisma.follow.count({ where: { followeeId: star.id } })).toBe(2);
 
     const viewed = await profile(fan, star.username);
@@ -866,10 +1073,10 @@ describe('KL-037 public profile and follow', () => {
 
     const off = await unfollow(fan, star.username);
     expectContract(off, 'unfollowUser');
-    expect(off.body).toEqual({ isFollowing: false, followerCount: 1 });
+    expect(off.body).toEqual({ isFollowing: false, isRequested: false, followerCount: 1 });
     const offAgain = await unfollow(fan, star.username);
     expectContract(offAgain, 'unfollowUser');
-    expect(offAgain.body).toEqual({ isFollowing: false, followerCount: 1 });
+    expect(offAgain.body).toEqual({ isFollowing: false, isRequested: false, followerCount: 1 });
     expect((await profile(fan, star.username)).body.isFollowing).toBe(false);
   });
 
@@ -877,11 +1084,13 @@ describe('KL-037 public profile and follow', () => {
     const fan = await signup(ctx);
     const star = await signup(ctx);
     const results = await Promise.all(Array.from({ length: 8 }, () => follow(fan, star.username)));
-    for (const res of results) expect(res.body).toEqual({ isFollowing: true, followerCount: 1 });
+    for (const res of results)
+      expect(res.body).toEqual({ isFollowing: true, isRequested: false, followerCount: 1 });
     expect(await ctx.prisma.follow.count({ where: { followeeId: star.id } })).toBe(1);
   });
 
-  it('self → 400 username/invalid_value; private target → 403 on PUT, unfollow allowed', async () => {
+  // v1.47-social (D175): a new follow of a private target is a follow request (was 403).
+  it('self → 400 username/invalid_value; private target → a request on PUT, unfollow allowed', async () => {
     const fan = await signup(ctx);
     const priv = await signup(ctx);
     const self = await follow(fan, fan.username);
@@ -898,13 +1107,13 @@ describe('KL-037 public profile and follow', () => {
     expect((await follow(fan, priv.username)).status).toBe(200); // existing follower before going private
     await ctx.prisma.userSettings.update({ where: { userId: priv.id }, data: { isPrivate: true } });
     const newFan = await signup(ctx);
-    const forbidden = await follow(newFan, priv.username);
-    expectContract(forbidden, 'followUser');
-    expectError(forbidden, 403, 'AUTH_FORBIDDEN');
+    const requested = await follow(newFan, priv.username);
+    expectContract(requested, 'followUser');
+    expect(requested.body).toEqual({ isFollowing: false, isRequested: true, followerCount: 1 });
     expect((await profile(newFan, priv.username)).body).toMatchObject({ isPrivate: true, followerCount: 1 });
     const leave = await unfollow(fan, priv.username);
     expectContract(leave, 'unfollowUser');
-    expect(leave.body).toEqual({ isFollowing: false, followerCount: 0 });
+    expect(leave.body).toEqual({ isFollowing: false, isRequested: false, followerCount: 0 });
   });
 
   it('404 for unknown, malformed, suspended and deleted targets', async () => {
@@ -1135,13 +1344,14 @@ describe('KL-037 authentication', () => {
     await ctx?.close();
   });
 
-  it('every v1.3 operation answers 401 AUTH_UNAUTHENTICATED without a token', async () => {
+  // CP-010 (D93): guests may read the live config, the popular and new lists and a room; those
+  // reads are covered in kl063-live-video. Everything else still needs a token, including the
+  // following list.
+  it('every v1.3 operation answers 401 AUTH_UNAUTHENTICATED without a token (except the guest reads)', async () => {
     const calls: [string, () => Promise<{ status: number; body: { error?: { code?: string } } }>][] = [
-      ['getLiveConfig', () => ctx.http.get('/api/v1/live/config')],
       ['listLiveCategories', () => ctx.http.get('/api/v1/live/categories')],
-      ['listLiveRooms', () => ctx.http.get('/api/v1/live/rooms?tab=new')],
+      ['listLiveRooms', () => ctx.http.get('/api/v1/live/rooms?tab=following')],
       ['startLiveRoom', () => ctx.http.post('/api/v1/live/rooms').send({ title: 'x' })],
-      ['getLiveRoom', () => ctx.http.get(`/api/v1/live/rooms/${MISSING_ROOM}`)],
       ['heartbeatLiveRoom', () => ctx.http.post(`/api/v1/live/rooms/${MISSING_ROOM}/heartbeat`)],
       ['endLiveRoom', () => ctx.http.post(`/api/v1/live/rooms/${MISSING_ROOM}/end`)],
       ['getPublicProfile', () => ctx.http.get('/api/v1/users/someone')],

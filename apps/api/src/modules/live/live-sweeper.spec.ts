@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import type { AuditService } from '../../common/audit/audit.service.js';
 import { Clock } from '../../common/time/clock.js';
 import { loadConfig } from '../../config/app-config.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { UsersService } from '../users/users.service.js';
 import type { LiveCategoriesService } from './live-categories.service.js';
+import type { LiveRankingsService } from './live-rankings.service.js';
+import type { LiveScheduleService } from './live-schedule.service.js';
+import type { LiveCapacityGuard } from './live-capacity.js';
 import { errorClassAndCode, LIVE_TX_OPTIONS, LiveRoomsService } from './live-rooms.service.js';
 
 class FixedClock extends Clock {
@@ -27,6 +31,8 @@ function fakeDb(stale: number, onBatch?: () => Promise<void>) {
       const sql = strings.join('?');
       statements.push(sql.replace(/\s+/g, ' ').trim().slice(0, 40));
       if (sql.includes('set_config')) return Promise.resolve([]);
+      // CP-018: the live medals of the hosts of the ended rooms (none in this fake).
+      if (sql.includes('SELECT DISTINCT host_user_id')) return Promise.resolve([]);
       if (sql.includes('FOR UPDATE SKIP LOCKED')) {
         const limit = values.find((v) => typeof v === 'number') as number;
         const n = Math.min(limit, remaining);
@@ -64,6 +70,10 @@ function service(prisma: unknown, batchSize = 10) {
     audit as unknown as AuditService,
     new FixedClock(),
     config,
+    {} as LiveRankingsService,
+    {} as LiveScheduleService,
+    {} as StorageSettingsStore,
+    {} as LiveCapacityGuard,
   );
   return { rooms, audit };
 }

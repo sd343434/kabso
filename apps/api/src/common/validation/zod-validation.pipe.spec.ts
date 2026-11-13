@@ -20,10 +20,17 @@ describe('ZodValidationPipe', () => {
     const out = register.transform({
       email: ' A@B.CO ',
       password: 'password1',
-      username: 'abc',
+      username: 'abc123',
       displayName: ' Name ',
+      gender: 'FEMALE',
     });
-    expect(out).toEqual({ email: 'a@b.co', password: 'password1', username: 'abc', displayName: 'Name' });
+    expect(out).toEqual({
+      email: 'a@b.co',
+      password: 'password1',
+      username: 'abc123',
+      displayName: 'Name',
+      gender: 'FEMALE',
+    });
   });
 
   it('produces { field, issue } details with dotted paths', () => {
@@ -31,7 +38,7 @@ describe('ZodValidationPipe', () => {
       register.transform({
         email: 'x',
         password: 1,
-        username: 'ab',
+        username: 'ab_1',
         displayName: 'x'.repeat(51),
         locale: 'fr',
         device: { platform: 'symbian', extra: 1 },

@@ -3,7 +3,7 @@
 //
 // Production states run the real `LiveRoomScreen` against fake
 // repositories shaped like contract v1.3.1 (what the app shows today):
-//   room.video_unavailable, room.ended, room.loading, room.error.
+//   room.host_away, room.ended, room.loading, room.error.
 // Fixture-only layouts and states (D35: no API exists for them, so they are
 // built from test fixtures and never reachable in production):
 //   room.populated (fixture chat), room.gifts, room.pk.split,
@@ -21,9 +21,12 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
@@ -36,6 +39,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../fixtures/live/live_api_fixtures.dart';
 import '../fixtures/live/live_fixtures.dart';
+import '../helpers/fake_live_media_engine.dart';
+import '../helpers/fake_live_pk.dart';
 import '../helpers/fake_live_repository.dart';
 import '../helpers/fake_profile_repository.dart';
 import '../helpers/golden.dart';
@@ -76,7 +81,14 @@ void main() {
           // precache: decode them outside fake async, then repaint.
           await tester.runAsync(() async {
             final context = tester.element(find.byType(ProviderScope));
-            for (final image in [coverBlue, coverRed, coverGold, avatarImage]) {
+            for (final image in <ImageProvider>[
+              coverBlue,
+              coverRed,
+              coverGold,
+              avatarImage,
+              // D101: the room level badges.
+              for (final tier in CharmTier.values) AssetImage(tier.icon),
+            ]) {
               await precacheImage(image, context, onError: (_, _) {});
             }
           });
@@ -95,14 +107,19 @@ void main() {
           profileRepositoryProvider.overrideWithValue(
             FakeProfileRepository(apiProfile(ar: ar)),
           ),
+          // CP-010: joined, the host not in the media session yet.
+          // v1.43-live (D195): never the network for the PK.
+          ...pkTestOverrides(),
+          liveMediaEngineProvider.overrideWithValue(FakeLiveMediaEngine.new),
+          currentUserProvider.overrideWithValue(null),
         ];
 
         // ---- Production states (real screen, contract-shaped data) ----
 
-        testWidgets('room.video_unavailable ($vp)', (tester) async {
+        testWidgets('room.host_away ($vp)', (tester) async {
           await golden(
             tester,
-            'room.video_unavailable',
+            'room.host_away',
             const LiveRoomScreen(roomId: 'room-0'),
             overrides: api(
               (id) => apiRoom(
@@ -113,6 +130,25 @@ void main() {
                   name: ar ? 'موسيقى' : 'Music',
                 ),
               ),
+            ),
+          );
+        });
+
+        // CP-016 D (D101): the room level badge after the title.
+        testWidgets('room.level ($vp)', (tester) async {
+          await golden(
+            tester,
+            'room.level',
+            const LiveRoomScreen(roomId: 'room-0'),
+            overrides: api(
+              (id) => apiRoom(
+                id: id,
+                ar: ar,
+                category: LiveCategory(
+                  slug: 'music',
+                  name: ar ? 'موسيقى' : 'Music',
+                ),
+              ).copyWith(roomLevel: 25),
             ),
           );
         });

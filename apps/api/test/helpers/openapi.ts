@@ -87,7 +87,15 @@ function undeclared(node: Json, data: unknown, path: string): string[] {
   if (Array.isArray(schema.oneOf)) {
     if (data === null) return [];
     const branches = (schema.oneOf as Json[]).map(resolve);
-    const objectBranch = branches.find((b) => b.type === 'object' || b.properties || b.allOf);
+    const objectBranches = branches.filter((b) => b.type === 'object' || b.properties || b.allOf);
+    // Several object branches (e.g. SearchPage items): check against the one whose required
+    // properties the data has (the validator already proved exactly one branch matches).
+    const objectBranch =
+      objectBranches.length > 1 && data !== null && typeof data === 'object'
+        ? (objectBranches.find((b) =>
+            ((b.required as string[] | undefined) ?? []).every((k) => k in (data as Json)),
+          ) ?? objectBranches[0])
+        : objectBranches[0];
     return objectBranch ? undeclared(objectBranch, data, path) : [];
   }
   if (Array.isArray(data)) {

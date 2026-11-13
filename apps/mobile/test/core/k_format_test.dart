@@ -1,3 +1,5 @@
+import 'dart:ui' show TextDirection;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kabso_live/core/format/k_format.dart';
@@ -72,8 +74,11 @@ void main() {
     }
 
     test('copy matches PHASE1_SCREENS §9.3', () {
-      expect(l10nFor(AppLanguage.en).relativeMinutesAgo(5), '5m ago');
-      expect(l10nFor(AppLanguage.ar).relativeHoursAgo(3), 'منذ 3 س');
+      expect(l10nFor(AppLanguage.en).relativeMinutesAgo(5), '5 minutes ago');
+      expect(l10nFor(AppLanguage.en).relativeDaysAgo(1), '1 day ago');
+      expect(l10nFor(AppLanguage.ar).relativeHoursAgo(3), 'منذ 3 ساعات');
+      expect(l10nFor(AppLanguage.ar).relativeDaysAgo(2), 'منذ يومين');
+      expect(l10nFor(AppLanguage.ar).relativeMinutesAgo(11), 'منذ 11 دقيقة');
     });
   });
 
@@ -126,6 +131,70 @@ void main() {
 
     test('bidiIsolate wraps in FSI … PDI', () {
       expect(KFormat.bidiIsolate('sara'), '\u2068sara\u2069');
+    });
+
+    test('firstStrongDirection: the first letter decides; none → null', () {
+      expect(KFormat.firstStrongDirection('@omar مرحبا'), TextDirection.ltr);
+      expect(KFormat.firstStrongDirection('مرحبا @omar'), TextDirection.rtl);
+      expect(KFormat.firstStrongDirection('  12 #שלום'), TextDirection.rtl);
+      expect(KFormat.firstStrongDirection('😀 123 @'), isNull);
+      expect(KFormat.firstStrongDirection(''), isNull);
+    });
+
+    test('inputDirection: tags aside; tags alone follow their letter', () {
+      expect(KFormat.inputDirection('@sara شكراً'), TextDirection.rtl);
+      expect(KFormat.inputDirection('@sara thanks'), TextDirection.ltr);
+      expect(KFormat.inputDirection('@sara '), TextDirection.ltr);
+      expect(KFormat.inputDirection('#البتراء'), TextDirection.rtl);
+      expect(KFormat.inputDirection('#petra مرحبا'), TextDirection.rtl);
+      expect(KFormat.inputDirection('🙂'), isNull);
+    });
+  });
+
+  group('KFormat.compactLatin (D220: the person card, every language)', () {
+    String bare(int v) =>
+        KFormat.compactLatin(v).replaceAll(RegExp('[\u2066\u2069]'), '');
+
+    test('Latin short forms: tenths cut, ".0" dropped', () {
+      for (final (v, out) in [
+        (0, '0'),
+        (-5, '0'),
+        (999, '999'),
+        (1000, '1K'),
+        (1234, '1.2K'),
+        (5940, '5.9K'),
+        (59400, '59.4K'),
+        (999999, '999.9K'),
+        (1000000, '1M'),
+        (1510000, '1.5M'),
+        (5830000, '5.8M'),
+        (1000000000, '1B'),
+        (2250000000, '2.2B'),
+      ]) {
+        expect(bare(v), out, reason: '$v');
+      }
+    });
+
+    test('isolated left to right (keeps its order in Arabic text)', () {
+      expect(KFormat.compactLatin(1510000), '\u20661.5M\u2069');
+    });
+
+    test('D372: lowercase k / m / b for the gift cherries counter', () {
+      String lower(int v) => KFormat.compactLatin(
+        v,
+        lowercase: true,
+      ).replaceAll(RegExp('[\u2066\u2069]'), '');
+      for (final (v, out) in [
+        (999, '999'),
+        (10100, '10.1k'),
+        (12600000, '12.6m'),
+        (1200000000, '1.2b'),
+        (1000, '1k'),
+      ]) {
+        expect(lower(v), out, reason: '$v');
+      }
+      // The default stays upper case for the person card (D220).
+      expect(bare(10100), '10.1K');
     });
   });
 }

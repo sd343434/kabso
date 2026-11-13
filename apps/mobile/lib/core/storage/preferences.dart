@@ -19,4 +19,39 @@ abstract final class PreferenceKeys {
   /// Set while a `PATCH /me {"locale"}` still has to reach the server
   /// (PHASE1_1_SCREENS §3.4). Not sensitive.
   static const localeSyncPending = 'pref.localeSyncPending';
+
+  /// Set once this installation has shown the welcome screen (D65): later
+  /// signed-out launches go straight to login. Not sensitive.
+  static const welcomeSeen = 'pref.welcomeSeen';
+
+  /// D129: the live hub's last kind filter on this device (`audio` /
+  /// `video`). D131: no longer read or written (the hub lists video lives;
+  /// the party button opens the voice rooms). A value saved by an older
+  /// build is left alone and ignored. Not sensitive.
+  static const liveHubKind = 'pref.liveHubKind';
+
+  /// D240: the country this device's viewer chose for «القريبة» (ISO
+  /// alpha-2; absent: their profile country). Not sensitive.
+  static const liveNearbyCountry = 'pref.liveNearbyCountry';
+
+  /// D145d: the app's sound effects on (default) or off. Not sensitive.
+  static const soundEffects = 'pref.soundEffects';
+
+  /// D152: the notification permission's rationale was shown once (it is
+  /// never shown by itself again; Settings offers it). Not sensitive.
+  static const pushPermissionAsked = 'pref.pushPermissionAsked';
+
+  /// D217: this install's random id (`DeviceInfo.installId`, the referral
+  /// device check). Wiped on uninstall. Not sensitive.
+  static const installId = 'pref.installId';
+
+  /// D228: the developer override of the camera effects engine on this
+  /// phone (`DEEPAR` / `FREE`; absent: the server's choice). Read and
+  /// written only in debug/profile builds. Not sensitive.
+  static const debugCameraFxEngine = 'debug.cameraFxEngine';
+
+  /// D213: the streamer live's camera-bubble corner last chosen on this
+  /// phone (`TOP_LEFT`…; absent: top left), the next streamer live's
+  /// starting corner. Not sensitive.
+  static const streamerCorner = 'pref.live.streamerCorner';
 }

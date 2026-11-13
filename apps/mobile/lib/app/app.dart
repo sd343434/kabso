@@ -1,7 +1,13 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/app/router/app_router.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
+import 'package:kabso_live/features/programs/presentation/event_announcement.dart';
+import 'package:kabso_live/features/push/push_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -10,11 +16,26 @@ class KabsoApp extends ConsumerWidget {
 
   static const supportedLocales = [Locale('ar'), Locale('en')];
 
+  /// Debug builds only: `--dart-define=KABSO_EMULATE_PHONE_INSETS=true`
+  /// gives a web build iPhone-class safe-area insets (47 top, 34 bottom) so
+  /// captures show the room real phones leave for the status bar.
+  static const bool _emulatePhoneInsets =
+      !kReleaseMode && bool.fromEnvironment('KABSO_EMULATE_PHONE_INSETS');
+
+  /// The emulated top inset: 47 by default; 59 for a Dynamic Island phone
+  /// (`--dart-define=KABSO_EMULATE_TOP_INSET=59`, reference captures).
+  static const int _emulatedTopInset = int.fromEnvironment(
+    'KABSO_EMULATE_TOP_INSET',
+    defaultValue: 47,
+  );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final locale = ref.watch(languageControllerProvider).locale;
     final themeMode = ref.watch(themeModeControllerProvider);
+    // D152: pushes (token, foreground sounds, taps); starts once.
+    unawaited(ref.watch(pushControllerProvider).start());
 
     return MaterialApp.router(
       onGenerateTitle: (context) => context.l10n.appTitle,
@@ -31,6 +52,29 @@ class KabsoApp extends ConsumerWidget {
       darkTheme: buildAppTheme(brightness: Brightness.dark, locale: locale),
       themeAnimationDuration: KMotion.base,
       themeAnimationCurve: KMotion.standard,
+      builder: (context, child) {
+        // D94: a minimized live floats over every screen.
+        Widget app = Stack(
+          children: [
+            child!,
+            LiveMiniWindow(router: router),
+            // D340: full-screen event announcements (outside lives).
+            EventAnnouncementGate(router: router),
+          ],
+        );
+        if (_emulatePhoneInsets) {
+          final insets = EdgeInsets.only(
+            top: _emulatedTopInset.toDouble(),
+            bottom: 34,
+          );
+          app = MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(padding: insets, viewPadding: insets),
+            child: app,
+          );
+        }
+        return app;
+      },
     );
   }
 }

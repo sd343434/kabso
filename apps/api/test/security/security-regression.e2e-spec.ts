@@ -16,11 +16,16 @@ import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/app.setup.js';
 import { ConfigValidationError, loadConfig } from '../../src/config/app-config.js';
 import { AuthController } from '../../src/modules/auth/auth.controller.js';
-import { IS_PUBLIC_KEY } from '../../src/modules/auth/public.decorator.js';
+import { IS_OPTIONAL_AUTH_KEY, IS_PUBLIC_KEY } from '../../src/modules/auth/public.decorator.js';
 import { HealthController } from '../../src/modules/health/health.controller.js';
+import { HomeController } from '../../src/modules/home/home.controller.js';
 import { MAIL_SENDER } from '../../src/modules/mail/mail-sender.js';
 import { UsersController } from '../../src/modules/users/users.controller.js';
-import { LiveController } from '../../src/modules/live/live.controller.js';
+import {
+  AdminLiveController,
+  LiveController,
+  LiveMediaWebhookController,
+} from '../../src/modules/live/live.controller.js';
 import { FollowsController } from '../../src/modules/social/follows.controller.js';
 import { PublicProfileController } from '../../src/modules/users/profiles/public-profile.controller.js';
 import {
@@ -43,12 +48,55 @@ const PUBLIC_ALLOWLIST = [
   // Contract v1.2 (KL-019): verify-first registration adds two public routes.
   'POST /api/v1/auth/register/verify',
   'POST /api/v1/auth/register/resend',
+  // v1.108-social (D343, §10.142): the sign-up code's live check (says only INVITE / SUPERVISOR; per-IP limit).
+  'POST /api/v1/auth/signup-code/check',
   'POST /api/v1/auth/login',
   'POST /api/v1/auth/refresh',
   'POST /api/v1/auth/email/verify',
   'POST /api/v1/auth/password/forgot',
   'POST /api/v1/auth/password/reset',
   'GET /api/v1/users/username-availability',
+  // CP-010: the media server's webhook; its signature over the raw body is the authentication
+  // (pinned below: an unsigned or wrongly signed call is 401).
+  'POST /internal/livekit/webhook',
+].sort();
+
+/**
+ * CP-010 (D93): the only routes that also serve guests (`@OptionalAuth()`): without an
+ * `Authorization` header they answer; with an invalid token they are 401 like every route.
+ */
+const OPTIONAL_AUTH_ALLOWLIST = [
+  'GET /api/v1/live/config',
+  'GET /api/v1/live/rooms',
+  'GET /api/v1/live/rooms/:roomId',
+  'POST /api/v1/live/rooms/:roomId/media-token',
+  // CP-011: who is on which seat (guests read it like the room).
+  'GET /api/v1/live/rooms/:roomId/seats',
+  // CP-013: the last chat messages (guests read them when the room allows guests).
+  'GET /api/v1/live/rooms/:roomId/chat',
+  // CP-014: the Contribution list (guests read it when the room allows guests).
+  'GET /api/v1/live/rooms/:roomId/contributors',
+  // v1.20-live (D105): one person's points in a live (same access as the list).
+  'GET /api/v1/live/rooms/:roomId/contributors/:username',
+  // CP-016 A: the public popularity board (guests read it like the hub, per IP).
+  'GET /api/v1/live/rankings',
+  // v1.23.2-live (D109): who is watching (guests read it when the room allows guests).
+  'GET /api/v1/live/rooms/:roomId/viewers',
+  // v1.33-live (D154b): the featured («مميز») lives of the hub, read like the hub.
+  'GET /api/v1/live/boosts/active',
+  // v1.36-live (D154e): a live's program (guests read it like the room).
+  'GET /api/v1/live/rooms/:roomId/program',
+  // v1.37-live (D154h): the stickers on a live (guests see them like the picture).
+  'GET /api/v1/live/rooms/:roomId/stickers',
+  // v1.38-live (D154i): what the live watches together (guests follow it like the picture).
+  'GET /api/v1/live/rooms/:roomId/watch',
+  // v1.39-live (D173): the in-room promo banners (`placement=room`; `home` stays 401 without a
+  // token), so a guest watching a live sees them too.
+  'GET /api/v1/home/banners',
+  // v1.47-live (D212, §10.69): the hub's announced podcast episodes, read like the hub (security review
+  // int7b: per-IP guest bucket, block-filtered for a signed-in caller, ACTIVE hosting hosts only, UserSummary
+  // without email, 7 days / at most 20, no parameters).
+  'GET /api/v1/live/podcasts/scheduled',
 ].sort();
 
 interface RouteInfo {
@@ -56,6 +104,7 @@ interface RouteInfo {
   readonly method: string;
   readonly path: string;
   readonly isPublic: boolean;
+  readonly isOptional: boolean;
 }
 
 function join(...parts: string[]): string {
@@ -79,9 +128,11 @@ function declaredRoutes(controllers: readonly (abstract new (...args: never[]) =
       const methodId = Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod | undefined;
       if (sub === undefined || methodId === undefined) continue;
       const method = RequestMethod[methodId];
-      const path = controller === HealthController ? join(base, sub) : join('api/v1', base, sub);
+      const unversioned = controller === HealthController || controller === LiveMediaWebhookController;
+      const path = unversioned ? join(base, sub) : join('api/v1', base, sub);
       const isPublic = classPublic || Reflect.getMetadata(IS_PUBLIC_KEY, handler) === true;
-      routes.push({ key: `${method} ${path}`, method, path, isPublic });
+      const isOptional = Reflect.getMetadata(IS_OPTIONAL_AUTH_KEY, handler) === true;
+      routes.push({ key: `${method} ${path}`, method, path, isPublic, isOptional });
     }
   }
   return routes;
@@ -95,6 +146,11 @@ const CONTROLLERS = [
   LiveController,
   FollowsController,
   PublicProfileController,
+  // CP-010 (KL-063): admin hosting permission and the media server's webhook.
+  AdminLiveController,
+  LiveMediaWebhookController,
+  // v1.39-live (D173): the promo banners (guests read the in-room ones).
+  HomeController,
 ] as const;
 
 describe('KL-007 security regression', () => {
@@ -129,8 +185,32 @@ describe('KL-007 security regression', () => {
       ).toEqual(PUBLIC_ALLOWLIST);
     });
 
+    it('only the allow-listed routes also serve guests (@OptionalAuth)', () => {
+      expect(
+        declaredRoutes(CONTROLLERS)
+          .filter((r) => r.isOptional)
+          .map((r) => r.key)
+          .sort(),
+      ).toEqual(OPTIONAL_AUTH_ALLOWLIST);
+    });
+
+    it('guest routes still refuse an invalid token (401), and the webhook an unsigned call', async () => {
+      for (const route of declaredRoutes(CONTROLLERS).filter((r) => r.isOptional)) {
+        const path = route.path.replace(/:[A-Za-z]+/g, '0192f1c2-0000-7000-8000-000000000000');
+        const res = await ctx.http[route.method.toLowerCase() as 'get' | 'post'](path)
+          .set('Authorization', 'Bearer not.a.token')
+          .send({});
+        expect({ route: route.key, status: res.status }).toEqual({ route: route.key, status: 401 });
+      }
+      const webhook = await ctx.http
+        .post('/internal/livekit/webhook')
+        .set('Content-Type', 'application/webhook+json')
+        .send('{"event":"room_finished","room":{"name":"x"}}');
+      expect(webhook.status).toBe(401);
+    });
+
     it('every non-public route answers 401 AUTH_UNAUTHENTICATED without a token', async () => {
-      const protectedRoutes = declaredRoutes(CONTROLLERS).filter((r) => !r.isPublic);
+      const protectedRoutes = declaredRoutes(CONTROLLERS).filter((r) => !r.isPublic && !r.isOptional);
       expect(protectedRoutes.length).toBeGreaterThanOrEqual(5);
       for (const route of protectedRoutes) {
         const path = route.path.replace(/:[A-Za-z]+/g, '0192f1c2-0000-7000-8000-000000000000');

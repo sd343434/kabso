@@ -81,7 +81,8 @@ class LanguageController extends Notifier<AppLanguage> {
 final languageControllerProvider =
     NotifierProvider<LanguageController, AppLanguage>(LanguageController.new);
 
-/// User-selected theme mode. Dark is the default; "system" follows the OS.
+/// User-selected theme mode. Until the user picks one, the app follows the
+/// device (light or dark; D68).
 class ThemeModeController extends Notifier<ThemeMode> {
   @override
   ThemeMode build() {
@@ -89,7 +90,7 @@ class ThemeModeController extends Notifier<ThemeMode> {
     final stored = prefs.getString(PreferenceKeys.themeMode);
     return ThemeMode.values.firstWhere(
       (m) => m.name == stored,
-      orElse: () => ThemeMode.dark,
+      orElse: () => ThemeMode.system,
     );
   }
 
@@ -103,3 +104,26 @@ class ThemeModeController extends Notifier<ThemeMode> {
 
 final themeModeControllerProvider =
     NotifierProvider<ThemeModeController, ThemeMode>(ThemeModeController.new);
+
+/// D145d: the app's sound effects (the MAX X taps and wins; owner: «bind it
+/// to a user setting»). On until the person turns them off in Settings;
+/// kept on this device.
+class SoundEffectsController extends Notifier<bool> {
+  @override
+  bool build() =>
+      ref
+          .watch(sharedPreferencesProvider)
+          .getBool(PreferenceKeys.soundEffects) ??
+      true;
+
+  Future<void> set({required bool on}) async {
+    state = on;
+    await ref
+        .read(sharedPreferencesProvider)
+        .setBool(PreferenceKeys.soundEffects, on);
+  }
+}
+
+final soundEffectsProvider = NotifierProvider<SoundEffectsController, bool>(
+  SoundEffectsController.new,
+);

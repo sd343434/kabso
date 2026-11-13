@@ -15,6 +15,7 @@ import 'package:kabso_live/features/auth/presentation/registration_flow.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/auth_widgets.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/code_field.dart';
+import 'package:kabso_live/features/auth/presentation/widgets/device_limit_notice.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -292,7 +293,14 @@ class _RegisterCodeScreenState extends ConsumerState<RegisterCodeScreen> {
                 until: _resendBlockedUntil,
                 builder: (context, left) => _status(context, l10n, left),
               ),
-              if (_failure != null) ...[
+              if (_failure?.code == ErrorCode.deviceAccountLimit) ...[
+                // D223: the device reached its limit meanwhile.
+                const SizedBox(height: KSpacing.lg),
+                DeviceLimitNotice(
+                  failure: _failure!,
+                  onLogIn: () => _logIn(draft.email),
+                ),
+              ] else if (_failure != null) ...[
                 const SizedBox(height: KSpacing.lg),
                 FailureBanner(failure: _failure!, remaining: remaining),
               ],

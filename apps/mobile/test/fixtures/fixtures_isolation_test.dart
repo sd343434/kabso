@@ -37,7 +37,12 @@ void main() {
       'viewerCountSamples',
       'hubRooms(',
       'feedPosts(',
+      'feedReels(',
+      'feedStories(',
       'fixtureNow',
+      // D384 (test/fixtures/vip/cutout_d384_fixtures.dart).
+      'syntheticCutout',
+      'paintSyntheticBust(',
       // KL-038 (test/fixtures/live/live_api_fixtures.dart,
       // test/helpers/fake_live_repository.dart).
       'apiRooms(',
@@ -53,6 +58,62 @@ void main() {
       'apiProfile(',
       'roomNotFound',
       'FakeProfileRepository',
+      // CP-018 (test/fixtures/bonds/bonds_api_fixtures.dart,
+      // test/helpers/fake_bonds_repositories.dart).
+      'familyJson(',
+      'familyCardJson(',
+      'cpCoupleJson(',
+      'cpRequestJson(',
+      'medalJson(',
+      'FakeFamiliesRepository',
+      'FakeCpRepository',
+      'FakeMedalsRepository',
+      'testMedals(',
+      // D291 (test/fixtures/medals/medals_d291_fixtures.dart).
+      'd291Medals(',
+      'd291MedalJson(',
+      'd291WealthCode',
+      'd291WealthThresholds',
+      'wealthValue(',
+      'd291LuckyCode',
+      'd291LuckyThresholds',
+      'luckyValue(',
+      'd291NothingEarned(',
+      // D300 (test/fixtures/medals/medals_d300_fixtures.dart).
+      'd300Medals(',
+      'd300SchoolJson(',
+      'd300DaresJson(',
+      'd300SchoolCode',
+      'd300DaresCode',
+      'd300SchoolThresholds',
+      'd300DaresThresholds',
+      'd300SchoolValues(',
+      'd300DaresValue(',
+      // D382 (test/fixtures/notifications/notifications_d382_fixtures.dart).
+      'd382Now',
+      'd382Notifications(',
+      // CP-021 (the CP space fixtures).
+      'cpTasksJson(',
+      'cpPrivilegesJson(',
+      'cpCouplePublicJson(',
+      'cpConfessionJson(',
+      'cpRankingsJson(',
+      'cpGiftWallJson(',
+      // CP-019 (test/fixtures/bag/bag_api_fixtures.dart,
+      // test/helpers/fake_bag_repository.dart).
+      'bagCatalogueItemJson(',
+      'bagItemJson(',
+      'bagEquippedJson(',
+      'bagTransferJson(',
+      'FakeBagRepository',
+      // CP-020 (test/fixtures/live/live_gift_fixtures.dart,
+      // test/helpers/fake_live_gift_repository.dart).
+      'giftCatalogueJson(',
+      'giftBagItemJson(',
+      'liveGiftJson(',
+      'liveGiftResultJson(',
+      'giftFixtureCodes',
+      'FakeLiveGiftRepository',
       'pkSides(',
       'pkSupporterNames',
       'guestSeats(',
@@ -134,7 +195,17 @@ void main() {
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
         if (line.trimLeft().startsWith('//')) continue;
-        if (literal.hasMatch(line) || price.hasMatch(line)) {
+        // D204: the recharge order's price is mapped from the API
+        // (`RechargePrice` in openapi `RechargeOrderQuote` / `RechargeOrder`),
+        // not a fixture; only that file's `fromJson` mapping is allowed.
+        final apiPrice =
+            file.path.endsWith(
+              'recharge/data/recharge_orders_repository.dart',
+            ) &&
+            line.trim() ==
+                "price: RechargePrice.fromJson(json['price']! "
+                    'as Map<String, dynamic>),';
+        if (literal.hasMatch(line) || (price.hasMatch(line) && !apiPrice)) {
           offenders.add('${file.path}:${i + 1}: ${line.trim()}');
         }
       }
@@ -153,10 +224,26 @@ void main() {
       'liveRoomReconnecting',
       'liveRoomCameraOff',
       'KViewerStrip(names',
-      'onShare:',
-      'onComment:',
     ]) {
       expect(room, isNot(contains(fixtureOnly)), reason: fixtureOnly);
+    }
+    // The action bar's share and comment are fixture-only (no room chat
+    // contract yet). The audio room's share copies the real invite, like the
+    // host's (live_room_test covers it), so only the action bar is checked.
+    // D131: the viewer bar (KViewerBar) replaced it in the room; any use
+    // left must still not offer them.
+    final bar = RegExp(r'KRoomActionBar\(');
+    for (final call in bar.allMatches(room)) {
+      var depth = 0;
+      var end = call.end - 1;
+      do {
+        if (room[end] == '(') depth++;
+        if (room[end] == ')') depth--;
+        end++;
+      } while (depth > 0);
+      final args = room.substring(call.start, end);
+      expect(args, isNot(contains('onShare:')), reason: args);
+      expect(args, isNot(contains('onComment:')), reason: args);
     }
   });
 }

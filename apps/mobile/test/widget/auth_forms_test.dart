@@ -39,21 +39,26 @@ void main() {
 
     testWidgets('empty submit shows required messages', (tester) async {
       await pump(tester, const LoginScreen());
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
 
       expect(find.text(l10n.validationRequired), findsNWidgets(2));
     });
 
-    testWidgets('identifier shorter than 3 chars is rejected', (tester) async {
+    testWidgets('D146: a 1-character username is a valid identifier; blank '
+        'is required', (tester) async {
       await pump(tester, const LoginScreen());
-      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'ab');
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), '   ');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
+      expect(find.text(l10n.validationRequired), findsOneWidget);
 
-      expect(find.text(l10n.validationTooShort(3)), findsOneWidget);
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), '7');
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
+      await tester.pump();
       expect(find.text(l10n.validationRequired), findsNothing);
+      expect(find.text(l10n.validationTooShort(3)), findsNothing);
     });
 
     testWidgets('503 under load shows the busy message with Retry-After', (
@@ -67,9 +72,9 @@ void main() {
         retryAfter: Duration(seconds: 5),
       );
       await pump(tester, const LoginScreen());
-      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla_22');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       await tester.pump();
 
@@ -87,9 +92,9 @@ void main() {
         retryAfter: Duration(seconds: 65),
       );
       await pump(tester, const LoginScreen());
-      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla_22');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       await tester.pump();
       expect(repo.loginCalls, 1);
@@ -98,8 +103,9 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(find.text(l10n.errorRateLimitedRetryIn('1:04')), findsOneWidget);
 
-      // Disabled: tapping does not submit again.
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      // Disabled: tapping does not submit again. (D64: Kabi's stage and the
+      // error banner push the button below the 800×600 test view.)
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       expect(repo.loginCalls, 1);
 
@@ -107,7 +113,7 @@ void main() {
       expect(find.text(l10n.errorRateLimited), findsOneWidget);
 
       repo.loginFailure = null;
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       expect(repo.loginCalls, 2);
     });
@@ -121,9 +127,9 @@ void main() {
         requestId: '0192f1c2-aaaa-7bbb-8ccc-1234567890ab',
       );
       await pump(tester, const LoginScreen());
-      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla_22');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       await tester.pump();
 
@@ -144,9 +150,9 @@ void main() {
         requestId: 'req-1',
       );
       await pump(tester, const LoginScreen());
-      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla_22');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       await tester.pump();
       expect(find.byType(SelectableText), findsNothing);
@@ -160,9 +166,9 @@ void main() {
         statusCode: 401,
       );
       await pump(tester, const LoginScreen());
-      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla_22');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       await tester.pump();
 
@@ -173,7 +179,7 @@ void main() {
     testWidgets('Arabic: RTL and Arabic validation copy', (tester) async {
       final ar = l10nFor(AppLanguage.ar);
       await pump(tester, const LoginScreen(), language: AppLanguage.ar);
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
 
       expect(find.text(ar.validationRequired), findsNWidgets(2));
@@ -189,7 +195,10 @@ void main() {
 
     testWidgets('checking → available', (tester) async {
       await pump(tester, const RegisterScreen());
-      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+      await tester.enterText(
+        find.byKey(RegisterScreen.usernameKey),
+        'layla_22',
+      );
       await tester.pump();
 
       expect(find.text(l10n.usernameChecking), findsOneWidget);
@@ -198,21 +207,21 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pump();
 
-      expect(find.text(l10n.usernameAvailable('layla')), findsOneWidget);
-      expect(repo.availabilityChecks, ['layla']);
+      expect(find.text(l10n.usernameAvailable('layla_22')), findsOneWidget);
+      expect(repo.availabilityChecks, ['layla_22']);
     });
 
     testWidgets('checking → taken', (tester) async {
-      repo.takenUsernames = {'admin'};
+      repo.takenUsernames = {'admin_1'};
       await pump(tester, const RegisterScreen());
-      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'admin');
+      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'admin_1');
       await tester.pump();
       expect(find.text(l10n.usernameChecking), findsOneWidget);
 
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pump();
 
-      expect(find.text(l10n.usernameTaken('admin')), findsOneWidget);
+      expect(find.text(l10n.usernameTaken('admin_1')), findsOneWidget);
     });
 
     testWidgets('typing quickly only checks the last value', (tester) async {
@@ -222,21 +231,21 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       await tester.enterText(field, 'layl');
       await tester.pump(const Duration(milliseconds: 100));
-      await tester.enterText(field, 'layla');
+      await tester.enterText(field, 'layla_22');
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pump();
 
-      expect(repo.availabilityChecks, ['layla']);
+      expect(repo.availabilityChecks, ['layla_22']);
     });
 
     testWidgets('input is lowercased; invalid names are not sent', (
       tester,
     ) async {
       await pump(tester, const RegisterScreen());
-      await tester.enterText(find.byKey(RegisterScreen.usernameKey), '_Bad');
+      await tester.enterText(find.byKey(RegisterScreen.usernameKey), '_Bad12');
       await tester.pump(const Duration(milliseconds: 350));
 
-      expect(find.text('_bad'), findsOneWidget);
+      expect(find.text('_bad12'), findsOneWidget);
       expect(find.text(l10n.usernameChecking), findsNothing);
       expect(repo.availabilityChecks, isEmpty);
       // `invalid` state: the specific reason, live.
@@ -250,9 +259,11 @@ void main() {
     });
 
     for (final (input, expected) in [
-      ('a-b', 'badChars'),
-      ('ab', 'tooShort'),
-      ('abc.', 'badEdges'),
+      ('a-b123', 'badChars'),
+      ('ab_1', 'tooShort'),
+      ('abc12_', 'badEdges'),
+      ('abc_def', 'lettersAndDigits'),
+      ('7777', 'premium'),
     ]) {
       testWidgets('invalid state reason for "$input" ($expected)', (
         tester,
@@ -263,6 +274,8 @@ void main() {
         final text = switch (expected) {
           'badChars' => l10n.usernameBadChars,
           'tooShort' => l10n.usernameTooShort,
+          'lettersAndDigits' => l10n.usernameLettersAndDigits,
+          'premium' => l10n.usernamePremium,
           _ => l10n.usernameBadEdges,
         };
         expect(find.text(text), findsOneWidget);
@@ -276,12 +289,16 @@ void main() {
       repo.availabilityFailure = const NetworkFailure.offline();
       await pump(tester, const RegisterScreen());
       await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
-      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+      await tester.enterText(
+        find.byKey(RegisterScreen.usernameKey),
+        'layla_22',
+      );
       await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
       await tester.enterText(
         find.byKey(RegisterScreen.passwordKey),
         'pa55word!',
       );
+      await chooseGender(tester);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pump();
       expect(find.text(l10n.usernameCheckFailed), findsOneWidget);
@@ -345,7 +362,10 @@ void main() {
       );
       await pump(tester, const RegisterScreen());
       await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
-      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+      await tester.enterText(
+        find.byKey(RegisterScreen.usernameKey),
+        'layla_22',
+      );
       await tester.enterText(
         find.byKey(RegisterScreen.displayNameKey),
         'Kabso Official',
@@ -354,6 +374,7 @@ void main() {
         find.byKey(RegisterScreen.passwordKey),
         'pa55word!',
       );
+      await chooseGender(tester);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
       await tester.tap(find.byKey(RegisterScreen.submitKey));
@@ -368,12 +389,16 @@ void main() {
 
     Future<void> fillAndSubmit(WidgetTester tester) async {
       await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
-      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+      await tester.enterText(
+        find.byKey(RegisterScreen.usernameKey),
+        'layla_22',
+      );
       await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
       await tester.enterText(
         find.byKey(RegisterScreen.passwordKey),
         'pa55word!',
       );
+      await chooseGender(tester);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
       await tester.tap(find.byKey(RegisterScreen.submitKey));

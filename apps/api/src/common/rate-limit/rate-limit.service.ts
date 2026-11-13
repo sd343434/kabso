@@ -33,6 +33,26 @@ end
 return count
 `;
 
+/**
+ * At most one event per interval (CP-013 counting rules): when the last recorded time is less than
+ * the interval before `now`, returns the milliseconds still to wait; otherwise records `now` and
+ * returns 0. Times come from the caller's clock (ARGV[1]), so a fake clock drives it in tests; the
+ * key's own expiry (ARGV[3]) only bounds memory.
+ */
+const INTERVAL_SCRIPT = `
+local now = tonumber(ARGV[1])
+local interval = tonumber(ARGV[2])
+local last = redis.call('GET', KEYS[1])
+if last then
+  local elapsed = now - tonumber(last)
+  if elapsed >= 0 and elapsed < interval then
+    return interval - elapsed
+  end
+end
+redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[3])
+return 0
+`;
+
 export interface RateLimitResult {
   readonly allowed: boolean;
   readonly count: number;
@@ -96,6 +116,28 @@ export class RateLimitService {
   async refund(bucket: string, subject: string): Promise<void> {
     try {
       await this.redis.eval(REFUND_SCRIPT, 1, this.keyFor(bucket, subject));
+    } catch (err) {
+      this.logger.error({ error: safeErrorLog(err), bucket }, 'Rate limiter unavailable');
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * One event per `intervalMs` for `subject` in `bucket`, measured on `nowMs` (the caller's clock):
+   * 0 when this event is allowed (and recorded), else the milliseconds until the next one is.
+   * Fails closed (503) like every limiter call.
+   */
+  async interval(bucket: string, subject: string, nowMs: number, intervalMs: number): Promise<number> {
+    try {
+      const reply = await this.redis.eval(
+        INTERVAL_SCRIPT,
+        1,
+        this.keyFor(bucket, subject),
+        String(Math.floor(nowMs)),
+        String(intervalMs),
+        String(intervalMs + 60_000),
+      );
+      return Number(reply);
     } catch (err) {
       this.logger.error({ error: safeErrorLog(err), bucket }, 'Rate limiter unavailable');
       throw new AppException(ErrorCode.SERVICE_UNAVAILABLE);

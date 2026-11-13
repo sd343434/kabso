@@ -487,6 +487,9 @@ Screen states: Loading → Skeleton of 3 ListTiles; Error → ErrorState; Offlin
 `offline` (no cache for sessions — security data must be fresh). Pull-to-refresh supported.
 No "revoke all" in Phase 1 (no endpoint; tell users to use password reset to sign out
 everywhere — `sessionsAllHint`).
+*D226 (v1.79-social, CONVENTIONS §10.76):* «تسجيل الخروج من كل الأجهزة الأخرى» is added — a red text
+button under the list (and under the two-session preview in Settings) while another session exists → dialog
+with the password → `revokeOtherSessions` → list refreshed, snackbar with the count.
 
 ### 9.4 Logout
 
@@ -540,8 +543,10 @@ delete refresh token from secure storage + clear in-memory state → Login with 
 | `logoutConfirm` | Log out | تسجيل الخروج |
 | `logoutDone` | You've logged out | تم تسجيل خروجك |
 
-Relative-time strings (`relativeTime`, Latin digits): en `just now`, `{n}m ago`, `{n}h ago`,
-`{n}d ago`; ar `الآن`, `منذ {n} د`, `منذ {n} س`, `منذ {n} ي`. Beyond 7 days, use the absolute
+Relative-time strings (`relativeTime`, Latin digits), written in full (D47): en `just now`,
+`{n} minute(s) ago`, `{n} hour(s) ago`, `{n} day(s) ago`; ar `الآن` and Arabic plural forms
+(`منذ دقيقة`, `منذ دقيقتين`, `منذ {n} دقائق`, `منذ {n} دقيقة`; likewise ساعة/ساعتين/ساعات and
+يوم/يومين/أيام/يومًا). Beyond 7 days, use the absolute
 date. In `sessionsLastActive`, "just now" maps to `sessionsActiveNow`.
 
 ---

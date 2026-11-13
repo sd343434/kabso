@@ -1,14 +1,250 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
+import 'package:kabso_live/core/demo/demo_mode.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
+import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
+import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart';
+import 'package:kabso_live/features/stories/application/stories_controller.dart';
+import 'package:kabso_live/features/stories/domain/story_models.dart';
+import 'package:material_ui/material_ui.dart';
 
-/// Home feed items for one tab.
-///
-/// There is no feed API yet (following Phase 2, posts Phase 3, short video
-/// Phase 5) and contracts are frozen for the design sprint (D34/D35), so
-/// production returns [FeedUnavailable] for every tab — never sample posts.
-/// Tests and the debug gallery supply fixtures by overriding this provider
-/// (or by rendering `HomeFeedBody` directly).
-final FutureProviderFamily<FeedLoad<FeedPostData>, FeedTab> homeFeedProvider =
-    FutureProvider.family((ref, tab) => const FeedUnavailable<FeedPostData>());
+/// The two modes of the Reels shell tab (D52): Posts (default) and Reels,
+/// switched by the header button next to Create.
+enum HomeTab {
+  posts,
+  reels;
+
+  static const HomeTab initial = posts;
+
+  HomeTab get other => this == posts ? reels : posts;
+}
+
+/// The two feeds of each mode (D53), chosen with the header tabs: Trending
+/// (default; works for a new account that follows no one) and Following.
+enum HomeFeed {
+  trending,
+  following;
+
+  static const HomeFeed initial = trending;
+}
+
+// Posts come from the real API (v1.5-social, CONVENTIONS §11.3) through
+// [postsFeedProvider], stories from CP-008 and (v1.41-social, D162) reels
+// from `GET /feed/reels` through [reelsFeedProvider] — never sample
+// content. Tests and the debug previews supply fixtures by overriding these
+// providers; D86: test builds with Demo data on get labelled test data.
+// They are not auto-disposed: switching modes never re-fetches.
+
+/// Posts: the feed of photo and text posts, per [HomeFeed], with its
+/// pagination footer state. Load more through [postsFeedProvider].
+final FutureProviderFamily<FeedLoad<FeedPostData>, HomeFeed> homePostsProvider =
+    FutureProvider.family<FeedLoad<FeedPostData>, HomeFeed>((ref, feed) async {
+      if (watchDemo(ref)) return DemoData.posts(feed, ar: DemoData.arabic(ref));
+      final page = await ref.watch(postsFeedProvider(feed).future);
+      final edits = ref.watch(postEditsProvider);
+      return FeedItems(
+        [
+          for (final post in page.items)
+            feedPostOf(edits[post.id] ?? post, repostedBy: post.repostedBy),
+        ],
+        hasMore: page.hasMore,
+        loadingMore: page.loadingMore,
+        loadMoreError: page.loadMoreError,
+      );
+    });
+
+/// v1.76-social (D218): the posts page's only feed — `GET /feed/posts?
+/// tab=mixed` (1 Following : 2 Trending, CONVENTIONS §10.73.1), paged by
+/// [mixedPostsFeedProvider].
+final FutureProvider<FeedLoad<FeedPostData>> homeMixedPostsProvider =
+    FutureProvider((ref) async {
+      if (watchDemo(ref)) {
+        return DemoData.posts(HomeFeed.trending, ar: DemoData.arabic(ref));
+      }
+      final page = await ref.watch(mixedPostsFeedProvider.future);
+      final edits = ref.watch(postEditsProvider);
+      return FeedItems(
+        [
+          for (final post in page.items)
+            feedPostOf(edits[post.id] ?? post, repostedBy: post.repostedBy),
+        ],
+        hasMore: page.hasMore,
+        loadingMore: page.loadingMore,
+        loadMoreError: page.loadMoreError,
+      );
+    });
+
+/// D218: the followed accounts that are live now (`GET /live/rooms?tab=
+/// following`, the first page), host id → room id, for the stories tray's
+/// «LIVE» pill. Empty when the list fails: a pill is never guessed.
+final FutureProvider<Map<String, ({String roomId, UserSummary host})>>
+followedLiveNowProvider = FutureProvider((ref) async {
+  ref.watch(currentUserProvider.select((u) => u?.id));
+  try {
+    final page = await ref
+        .watch(liveRepositoryProvider)
+        .listRooms(tab: LiveRoomsTab.following, limit: storyTrayLimit);
+    return {
+      for (final room in page.data)
+        room.host.id: (roomId: room.id, host: room.host),
+    };
+  } on Object {
+    return const {};
+  }
+});
+
+/// Stories above the posts (CP-008, `GET /feed/stories`): the caller's
+/// own entry first — their stories, or "Your story" to add one — then
+/// (D218) the followed accounts that are live now (a «LIVE» pill; a tap
+/// opens the room), then the followed accounts with active stories, unseen
+/// first. A failed tray loads as unavailable: it never hides the posts.
+/// D218 (owner: «Hide the tray when it is empty»): a tray with nothing but
+/// an empty «قصتك» is empty.
+final FutureProvider<FeedLoad<FeedStoryData>> homeStoriesProvider =
+    FutureProvider((ref) async {
+      if (watchDemo(ref)) return DemoData.stories(ar: DemoData.arabic(ref));
+      final me = ref.watch(currentUserProvider);
+      final List<StoryTrayItem> tray;
+      try {
+        tray = await ref.watch(storyTrayProvider.future);
+      } on Object {
+        return const FeedUnavailable<FeedStoryData>();
+      }
+      final live = await ref.watch(followedLiveNowProvider.future);
+      FeedStoryData entry(StoryTrayItem i) => FeedStoryData(
+        authorName: i.user.displayName.isEmpty
+            ? i.user.username
+            : i.user.displayName,
+        authorAvatar: switch (i.user.avatarUrl) {
+          final url? => NetworkImage(url),
+          null => null,
+        },
+        seen: !i.hasUnseen,
+        username: i.user.username,
+        vip: i.user.vip,
+        isSelf: i.user.id == me?.id,
+        liveRoomId: i.user.id == me?.id ? null : live[i.user.id]?.roomId,
+      );
+      final storyUsers = {for (final i in tray) i.user.id};
+      final liveOnly = [
+        for (final MapEntry(key: id, value: l) in live.entries)
+          if (id != me?.id && !storyUsers.contains(id))
+            FeedStoryData(
+              authorName: l.host.displayName.isEmpty
+                  ? l.host.username
+                  : l.host.displayName,
+              authorAvatar: switch (l.host.avatarUrl) {
+                final url? => NetworkImage(url),
+                null => null,
+              },
+              username: l.host.username,
+              hasStory: false,
+              liveRoomId: l.roomId,
+            ),
+      ];
+      final own = [
+        for (final i in tray)
+          if (i.user.id == me?.id) entry(i),
+      ];
+      final items = [
+        if (own.isNotEmpty)
+          ...own
+        else if (me != null)
+          FeedStoryData(
+            authorName: me.displayName.isEmpty ? me.username : me.displayName,
+            authorAvatar: switch (me.avatarUrl) {
+              final url? => NetworkImage(url),
+              null => null,
+            },
+            username: me.username,
+            isSelf: true,
+            hasStory: false,
+          ),
+        // D218: who is live now first (also those with stories), then the
+        // rest of the tray in its order.
+        for (final i in tray)
+          if (i.user.id != me?.id && live.containsKey(i.user.id)) entry(i),
+        ...liveOnly,
+        for (final i in tray)
+          if (i.user.id != me?.id && !live.containsKey(i.user.id)) entry(i),
+      ];
+      // Nothing to watch: no own story, no followed story, nobody live.
+      final empty = items.every((s) => s.isSelf && !s.hasStory);
+      return FeedItems(empty ? const <FeedStoryData>[] : items);
+    });
+
+/// Reels: full-screen vertical short videos (D162: the real reels feed).
+/// v1.92-social (D294, CONVENTIONS §10.107): the reels page's only feed —
+/// `GET /feed/reels?tab=mixed` (1 Following : 2 Trending of reels), paged by
+/// [mixedReelsFeedProvider]. It replaced D202's Following · For You · Nearby.
+final FutureProvider<FeedLoad<FeedReelData>> homeMixedReelsProvider =
+    FutureProvider((ref) async {
+      if (watchDemo(ref)) {
+        return DemoData.reels(HomeFeed.trending, ar: DemoData.arabic(ref));
+      }
+      final page = await ref.watch(mixedReelsFeedProvider.future);
+      final edits = ref.watch(postEditsProvider);
+      return FeedItems(
+        [
+          for (final post in page.items)
+            if ((edits[post.id] ?? post).video != null)
+              feedReelOf(edits[post.id] ?? post),
+        ],
+        hasMore: page.hasMore,
+        loadingMore: page.loadingMore,
+        loadMoreError: page.loadMoreError,
+      );
+    });
+
+/// A reel ([Post] with `format: REEL`) as Moments' pager shows it.
+FeedReelData feedReelOf(Post post) {
+  final video = post.video!;
+  return FeedReelData(
+    postId: post.id,
+    authorId: post.author.id,
+    authorPremium: post.author.premiumTier != null,
+    authorVerification: post.author.verification,
+    authorVip: post.author.vip,
+    liked: post.viewerHasLiked,
+    saved: post.viewerHasSaved,
+    hashtags: {for (final t in post.hashtags) t.toLowerCase()},
+    mentions: {for (final m in post.mentions) m.username.toLowerCase()},
+    premiumMentions: {
+      for (final m in post.mentions)
+        if (m.premiumTier != null) m.username.toLowerCase(),
+    },
+    commentsOpen:
+        post.isSelf ||
+        (post.commentsEnabled && post.whoCanComment != WhoCanComment.nobody),
+    authorName: post.author.displayName.isEmpty
+        ? post.author.username
+        : post.author.displayName,
+    authorUsername: post.author.username,
+    authorAvatar: switch (post.author.avatarUrl) {
+      final url? => NetworkImage(url),
+      null => null,
+    },
+    postedAt: post.publishedAt ?? post.createdAt,
+    caption: post.text,
+    cover: NetworkImage(video.coverUrl),
+    videoUrl: video.url,
+    aspect: video.aspect,
+    likes: post.likeCount,
+    comments: post.commentCount,
+    shares: post.shareCount,
+    isSelf: post.isSelf,
+    pendingModeration: post.pendingModeration,
+    announcement: post.announcement,
+    // D372 «هدية الدعم».
+    giftCherries: post.giftCherries,
+    giftTo: post.giftable ? post.author : null,
+  );
+}

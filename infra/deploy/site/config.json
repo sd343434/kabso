@@ -1,0 +1,29 @@
+{
+  "companyLegalName": "Kigofi LLC",
+  "address": "30 N Gould St #7354, Sheridan, WY 82801, USA",
+  "country": "United States",
+  "governingLaw": "Wyoming, USA",
+  "supportEmail": "info@kabsolive.com",
+  "minAge": 18,
+  "legalReviewed": false,
+  "lastUpdated": "2026-10-31",
+  "euRepresentative": "",
+  "hostingProvider": "",
+  "emailProvider": "",
+  "documents": {
+    "terms": {
+      "version": "2026-11-01",
+      "effective": ""
+    },
+    "privacy": {
+      "version": "2026-11-01",
+      "effective": ""
+    }
+  },
+  "apps": {
+    "androidPackage": "com.kabso.kabso_live",
+    "playListed": false,
+    "appStoreUrl": "",
+    "apkUrl": "https://live.kabsolive.com/app/"
+  }
+}

@@ -1,0 +1,254 @@
+package com.kabso.kabso_streamer
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/** D213: the streamer's plain-Kotlin rules (the JVM, no device). */
+class StreamerRulesTest {
+    @Test
+    fun gameIsAddedUnderTheVoice() {
+        val voice = floatArrayOf(1000f, -2000f, 0f)
+        val game = floatArrayOf(500f, 500f, 100f)
+        StreamerRules.mix(voice, 3, micMuted = false, game = game, gameFrames = 3, gameMuted = false)
+        assertEquals(1000f + 400f, voice[0], 0.01f)
+        assertEquals(-2000f + 400f, voice[1], 0.01f)
+        assertEquals(80f, voice[2], 0.01f)
+    }
+
+    @Test
+    fun micAndGameMuteSeparately() {
+        val voice = floatArrayOf(1000f, 1000f)
+        val game = floatArrayOf(500f, 500f)
+        StreamerRules.mix(voice, 2, micMuted = true, game = game, gameFrames = 2, gameMuted = false)
+        assertEquals(400f, voice[0], 0.01f) // the game alone
+        val voice2 = floatArrayOf(1000f, 1000f)
+        StreamerRules.mix(voice2, 2, micMuted = false, game = game, gameFrames = 2, gameMuted = true)
+        assertEquals(1000f, voice2[0], 0.01f) // the voice alone
+        val voice3 = floatArrayOf(1000f, 1000f)
+        StreamerRules.mix(voice3, 2, micMuted = true, game = game, gameFrames = 2, gameMuted = true)
+        assertEquals(0f, voice3[1], 0f) // silence
+    }
+
+    @Test
+    fun missingGameSamplesAreSilence() {
+        val voice = floatArrayOf(10f, 10f, 10f)
+        val game = floatArrayOf(1000f, 9999f, 9999f) // stale tail must not be used
+        StreamerRules.mix(voice, 3, micMuted = false, game = game, gameFrames = 1, gameMuted = false)
+        assertEquals(10f + 800f, voice[0], 0.01f)
+        assertEquals(10f, voice[1], 0f)
+        assertEquals(10f, voice[2], 0f)
+    }
+
+    @Test
+    fun loudMixesAreLimitedNeverWrapped() {
+        val voice = floatArrayOf(30000f, -30000f)
+        val game = floatArrayOf(30000f, -30000f)
+        val peak = StreamerRules.mix(voice, 2, false, game, 2, false)
+        assertTrue(voice[0] <= StreamerRules.FULL_SCALE)
+        assertTrue(voice[0] > 26000f)
+        assertTrue(voice[1] >= -StreamerRules.FULL_SCALE)
+        assertTrue(peak <= StreamerRules.FULL_SCALE)
+        assertEquals(1000f, StreamerRules.limit(1000f), 0f)
+    }
+
+    @Test
+    fun phoneCallModesAndRotation() {
+        assertTrue(StreamerRules.isPhoneCall(1)) // ringing
+        assertTrue(StreamerRules.isPhoneCall(2)) // in call
+        assertTrue(StreamerRules.isPhoneCall(4)) // call screening
+        assertFalse(StreamerRules.isPhoneCall(0)) // normal
+        assertFalse(StreamerRules.isPhoneCall(3)) // our own VoIP live
+        assertFalse(StreamerRules.isLandscape(0))
+        assertTrue(StreamerRules.isLandscape(1))
+        assertFalse(StreamerRules.isLandscape(2))
+        assertTrue(StreamerRules.isLandscape(3))
+    }
+
+    @Test
+    fun ringDropsTheOldestWhenFull() {
+        val ring = FloatRing(4)
+        ring.write(floatArrayOf(1f, 2f, 3f), 3)
+        assertEquals(3, ring.available())
+        ring.write(floatArrayOf(4f, 5f), 2)
+        val out = FloatArray(4)
+        val n = ring.poll(out, 4)
+        assertEquals(3, n)
+        assertEquals(listOf(3f, 4f, 5f), out.take(n))
+        assertEquals(0, ring.poll(out, 4))
+    }
+
+    // flutter_webrtc's shapes, private fields with the same names.
+    class Projection
+
+    class Capturer(private val mediaProjection: Projection?) {
+        override fun toString() = "$mediaProjection"
+    }
+
+    class Camera
+
+    open class Info(@JvmField val capturer: Any?)
+
+    class InfoEx(capturer: Any?) : Info(capturer)
+
+    class GetUserMedia(private val mVideoCapturers: Map<String, Info>) {
+        override fun toString() = "$mVideoCapturers"
+    }
+
+    class Handler(private val getUserMediaImpl: GetUserMedia?) {
+        override fun toString() = "$getUserMediaImpl"
+    }
+
+    class Plugin(private val methodCallHandler: Handler?) {
+        override fun toString() = "$methodCallHandler"
+    }
+
+    @Test
+    fun findsTheScreenCapturersProjection() {
+        val p = Projection()
+        val plugin =
+            Plugin(Handler(GetUserMedia(linkedMapOf("cam" to InfoEx(Camera()), "screen" to InfoEx(Capturer(p))))))
+        assertSame(p, StreamerRules.findProjection(plugin, Projection::class.java))
+    }
+
+    @Test
+    fun noProjectionWhenAStepIsMissing() {
+        assertNull(StreamerRules.findProjection(Plugin(null), Projection::class.java))
+        assertNull(StreamerRules.findProjection(Plugin(Handler(null)), Projection::class.java))
+        val stopped = Plugin(Handler(GetUserMedia(mapOf("screen" to InfoEx(Capturer(null))))))
+        assertNull(StreamerRules.findProjection(stopped, Projection::class.java))
+        assertNull(StreamerRules.findProjection(Any(), Projection::class.java))
+        assertNull(StreamerRules.findProjection(null, Projection::class.java))
+    }
+
+    @Test
+    fun headsetsAreTheEarOutputsOnly() {
+        // Wired headset / headphones, Bluetooth SCO / A2DP, USB, hearing aid, BLE headset.
+        for (t in intArrayOf(3, 4, 7, 8, 22, 23, 26)) assertTrue(StreamerRules.anyHeadset(intArrayOf(2, t)))
+        // The phone's earpiece (1) and speaker (2), HDMI (9), a BLE speaker (27).
+        assertFalse(StreamerRules.anyHeadset(intArrayOf(1, 2, 9, 27)))
+        assertFalse(StreamerRules.anyHeadset(intArrayOf()))
+    }
+
+    // D262: flutter_webrtc's consent holder (a private Intent field).
+    open class Data
+
+    class ProjectionIntent : Data()
+
+    open class UserMediaBase {
+        private var mediaProjectionData: ProjectionIntent? = null
+
+        fun data() = mediaProjectionData
+    }
+
+    class ConsentUserMedia : UserMediaBase()
+
+    class ConsentHandler(private val getUserMediaImpl: Any?) {
+        override fun toString() = "$getUserMediaImpl"
+    }
+
+    class ConsentPlugin(private val methodCallHandler: ConsentHandler?) {
+        override fun toString() = "$methodCallHandler"
+    }
+
+    @Test
+    fun consentIsHandedToFlutterWebrtc() {
+        val media = ConsentUserMedia()
+        val data = ProjectionIntent()
+        assertTrue(StreamerRules.putConsent(ConsentPlugin(ConsentHandler(media)), data))
+        assertSame(data, media.data())
+    }
+
+    @Test
+    fun consentIsNotHandedWhenTheShapeDiffers() {
+        val data = ProjectionIntent()
+        assertFalse(StreamerRules.putConsent(null, data))
+        assertFalse(StreamerRules.putConsent(ConsentPlugin(null), data))
+        assertFalse(StreamerRules.putConsent(ConsentPlugin(ConsentHandler(Any())), data))
+        // The field exists but does not take this type.
+        val media = ConsentUserMedia()
+        assertFalse(StreamerRules.putConsent(ConsentPlugin(ConsentHandler(media)), Data()))
+        assertNull(media.data())
+    }
+
+    @Test
+    fun wholeScreenConsentFromAndroid14() {
+        // D262b: Android 14+ asks for the entire screen only (no «single app»).
+        assertTrue(StreamerRules.wholeDisplayConsent(34, fullScreenOnly = true))
+        assertTrue(StreamerRules.wholeDisplayConsent(36, fullScreenOnly = true))
+        // Older Android: the plain intent (no MediaProjectionConfig there).
+        assertFalse(StreamerRules.wholeDisplayConsent(33, fullScreenOnly = true))
+        assertFalse(StreamerRules.wholeDisplayConsent(23, fullScreenOnly = true))
+        // Asked without it: the plain intent everywhere.
+        assertFalse(StreamerRules.wholeDisplayConsent(35, fullScreenOnly = false))
+    }
+
+    @Test
+    fun consentOutcomes() {
+        assertEquals("granted" to null, StreamerRules.consentOutcome(-1, hasData = true, elapsedMs = 50))
+        assertEquals("failed" to "no_data", StreamerRules.consentOutcome(-1, hasData = false, elapsedMs = 3000))
+        // Cancelled at once: the dialog never showed.
+        assertEquals("failed" to "instant_cancel", StreamerRules.consentOutcome(0, hasData = false, elapsedMs = 12))
+        assertEquals("failed" to "instant_cancel", StreamerRules.consentOutcome(0, hasData = true, elapsedMs = 399))
+        // A person said no.
+        assertEquals("refused" to null, StreamerRules.consentOutcome(0, hasData = false, elapsedMs = 400))
+        assertEquals("refused" to null, StreamerRules.consentOutcome(0, hasData = false, elapsedMs = 8000))
+    }
+
+    // D346: the capture starts only with a fresh consent and, on Android 10+,
+    // the live's foreground service in the foreground.
+    @Test
+    fun captureStartsOnlyWhenItCanSucceed() {
+        // Android 14 with everything in place.
+        assertNull(StreamerRules.captureBlocker(34, serviceForeground = true, consentHanded = true, consentUsed = false))
+        // The service was lost (flutter_foreground_task stopped it): Android 10+ refuses the projection.
+        for (sdk in intArrayOf(29, 33, 34, 35, 36)) {
+            assertEquals(
+                "no_service",
+                StreamerRules.captureBlocker(sdk, serviceForeground = false, consentHanded = true, consentUsed = false),
+            )
+        }
+        // Android 9 and below need no service.
+        assertNull(StreamerRules.captureBlocker(28, serviceForeground = false, consentHanded = true, consentUsed = false))
+        // The consent is spent: Android 14 forbids reusing it.
+        assertEquals(
+            "consent_used",
+            StreamerRules.captureBlocker(34, serviceForeground = true, consentHanded = true, consentUsed = true),
+        )
+        // Our consent never reached flutter_webrtc (it would ask with its own dialog).
+        assertEquals(
+            "no_consent",
+            StreamerRules.captureBlocker(34, serviceForeground = true, consentHanded = false, consentUsed = false),
+        )
+        assertEquals(
+            "unsupported_os",
+            StreamerRules.captureBlocker(19, serviceForeground = true, consentHanded = true, consentUsed = false),
+        )
+    }
+
+    @Test
+    fun consentHandedIsReadBack() {
+        val media = ConsentUserMedia()
+        val plugin = ConsentPlugin(ConsentHandler(media))
+        assertFalse(StreamerRules.consentHanded(plugin))
+        assertTrue(StreamerRules.putConsent(plugin, ProjectionIntent()))
+        assertTrue(StreamerRules.consentHanded(plugin))
+        assertFalse(StreamerRules.consentHanded(null))
+        assertFalse(StreamerRules.consentHanded(ConsentPlugin(ConsentHandler(Any()))))
+    }
+
+    @Test
+    fun serviceTypesAreNamed() {
+        // microphone | mediaPlayback | mediaProjection | camera (D213's streamer service).
+        assertEquals(
+            listOf("camera", "microphone", "mediaPlayback", "mediaProjection"),
+            StreamerRules.serviceTypeNames(0x80 or 0x02 or 0x20 or 0x40),
+        )
+        assertEquals(listOf("microphone", "mediaPlayback"), StreamerRules.serviceTypeNames(0x82))
+        assertEquals(listOf("manifest"), StreamerRules.serviceTypeNames(-1))
+        assertEquals(emptyList<String>(), StreamerRules.serviceTypeNames(0))
+    }
+}

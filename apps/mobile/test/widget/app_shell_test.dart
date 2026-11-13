@@ -7,6 +7,14 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
+import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
+import 'package:kabso_live/features/create/create_menu_sheet.dart';
+import 'package:kabso_live/features/create/create_screen.dart';
+import 'package:kabso_live/features/home/feed_screen.dart';
+import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/live/voice_rooms_screen.dart';
+import 'package:kabso_live/features/profile/edit_profile_screen.dart';
+import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:material_ui/material_ui.dart';
@@ -16,11 +24,12 @@ import '../helpers/fake_http_adapter.dart';
 import '../helpers/fakes.dart';
 import '../helpers/pump_app.dart';
 
+// D322: Live · Party · Moments · Messages · Me (no Create tab).
 const _navKeys = [
   Key('nav.home'),
-  Key('nav.discover'),
-  Key('nav.create'),
-  Key('nav.live'),
+  Key('nav.party'),
+  Key('nav.reels'),
+  Key('nav.messages'),
   Key('nav.profile'),
 ];
 
@@ -53,22 +62,50 @@ void main() {
       for (final key in _navKeys) {
         expect(find.byKey(key), findsOneWidget);
       }
-      expect(find.text(l10n.homePopularUnavailableTitle), findsOneWidget);
+      // Home is the live hub (D48).
+      expect(find.text(l10n.liveHubPopularUnavailableTitle), findsOneWidget);
 
       final expected = {
-        const Key('nav.discover'): l10n.discoverComingTitle,
-        const Key('nav.create'): l10n.createComingTitle,
-        const Key('nav.live'): l10n.liveHubPopularUnavailableTitle,
-        const Key('nav.home'): l10n.homePopularUnavailableTitle,
+        // D155: Messages is the real list (no conversations yet); Discover
+        // left the bar (D86).
+        const Key('nav.messages'): l10n.conversationsEmptyTitle,
+        // D322: «الحفلة», the voice rooms (hosting off in the fake).
+        const Key('nav.party'): l10n.liveVoiceRoomsTitle,
+        // KL-060: the posts API with no posts yet.
+        const Key('nav.reels'): l10n.homeEmptyTitle,
+        const Key('nav.home'): l10n.liveHubPopularUnavailableTitle,
       };
       for (final MapEntry(:key, :value) in expected.entries) {
         await tester.tap(find.byKey(key));
         await tester.pumpAndSettle();
+        if (key == const Key('nav.party')) {
+          expect(find.byType(VoiceRoomsScreen), findsOneWidget);
+          expect(find.bySemanticsLabel(value), findsWidgets, reason: '$key');
+          continue;
+        }
         expect(find.text(value), findsOneWidget, reason: '$key');
       }
+      // D322: Create is reached from Moments' «+» (the menu's «منشور»);
+      // full screen (owner's reference): no bottom bar; Close returns to
+      // Moments.
+      await tester.tap(find.byKey(const Key('nav.reels')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(FeedScreen.createKey));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(CreateMenuSheet.choiceKey(CreateChoice.post)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.createTitle), findsOneWidget);
+      expect(find.byKey(const Key('nav.home')), findsNothing);
+      await tester.tap(find.byKey(CreateScreen.closeKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('nav.home')), findsOneWidget);
+      expect(find.text(l10n.homeEmptyTitle), findsOneWidget);
     });
 
-    testWidgets('profile tab shows the user from GET /me', (tester) async {
+    testWidgets('Me tab: the hub shows the user from GET /me; its photo '
+        'opens the profile (D163)', (tester) async {
       await pumpSignedIn(tester);
       await tester.pumpAndSettle();
 
@@ -76,21 +113,31 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.getMeCalls, greaterThanOrEqualTo(1));
+      expect(find.byType(MeHubScreen), findsOneWidget);
       expect(find.text('Layla From Me'), findsOneWidget);
       expect(find.text('Stored Layla'), findsNothing);
-      // TopBar title and the body line both show @username (§5.4).
+
+      // D163: the photo opens the profile, pushed above the tabs.
+      await tester.tap(find.byKey(MeHubScreen.avatarKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(ProfileScreen), findsOneWidget);
+      expect(find.byKey(const Key('nav.profile')), findsNothing);
+      expect(find.text('Layla From Me'), findsOneWidget);
+      // The TopBar title shows @username (§5.4); the body shows the name
+      // (D57).
       expect(
         tester.widget<Text>(find.byKey(const Key('profile.title'))).data,
-        '@layla.k',
-      );
-      expect(
-        tester.widget<Text>(find.byKey(const Key('profile.username'))).data,
         '@layla.k',
       );
       // v1.2 §0: no verify banner / "Not verified" UI, even though this
       // fake user has emailVerified=false.
       expect(find.byKey(const Key('profile.emailStatus')), findsNothing);
       expect(find.byKey(ProfileScreen.settingsButtonKey), findsOneWidget);
+
+      // D58: "Edit profile" opens the (read-only) edit screen.
+      await tester.tap(find.byKey(ProfileScreen.editButtonKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(EditProfileScreen), findsOneWidget);
     });
 
     testWidgets('settings: language switch to Arabic and logout', (
@@ -100,11 +147,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('nav.profile')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ProfileScreen.settingsButtonKey));
+      // D163: Settings is on the Me hub.
+      await tester.tap(find.byKey(MeHubScreen.settingsKey));
       await tester.pumpAndSettle();
       expect(find.byType(SettingsScreen), findsOneWidget);
 
-      await tester.tap(find.text('العربية'));
+      // D226: one switch, English → العربية.
+      await tester.tap(find.byKey(SettingsScreen.languageKey));
       await tester.pumpAndSettle();
       final ar = l10nFor(AppLanguage.ar);
       expect(find.text(ar.settingsTitle), findsOneWidget);
@@ -117,13 +166,17 @@ void main() {
         find.byKey(SettingsScreen.logoutKey),
         200,
       );
+      // D142: the tile can stop just under the screen's edge; bring it in.
+      await tester.ensureVisible(find.byKey(SettingsScreen.logoutKey));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(SettingsScreen.logoutKey));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('settings.logout.confirm')));
       await tester.pumpAndSettle();
 
       expect(repo.logoutCalls, 1);
-      expect(find.byType(LoginScreen), findsOneWidget);
+      // D64: signing out lands on the welcome screen.
+      expect(find.byType(WelcomeScreen), findsOneWidget);
     });
   });
 
@@ -146,7 +199,7 @@ void main() {
           for (final k in _navKeys) tester.getCenter(find.byKey(k)).dx,
         ];
         if (dir == TextDirection.rtl) {
-          // Home at the right edge, Profile at the left; Create centered.
+          // Home at the right edge, Profile at the left.
           expect(tester.getCenter(home).dx, greaterThan(400));
           expect(tester.getCenter(profile).dx, lessThan(400));
           expect(
@@ -179,7 +232,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.byType(WelcomeScreen), findsOneWidget);
       expect(http.requests, isEmpty);
     });
 
@@ -206,10 +259,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('nav.home')), findsOneWidget);
-      expect(
-        find.text(l10nFor(AppLanguage.en).homePopularUnavailableTitle),
-        findsOne,
-      );
+      // Home is the live hub (D48).
+      expect(find.byType(LiveScreen), findsOne);
     });
 
     testWidgets('suspended account: refresh 403 ACCOUNT_SUSPENDED clears the '

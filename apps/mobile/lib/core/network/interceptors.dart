@@ -131,6 +131,29 @@ class AuthInterceptor extends Interceptor {
   }
 }
 
+/// v1.66-social (D198, §10.61.2): a 428 `CONSENT_REQUIRED` from any call
+/// tells the app to show the consent screen (`onConsentRequired`); the error
+/// still reaches the caller.
+class ConsentRequiredInterceptor extends Interceptor {
+  new({required this._onConsentRequired});
+
+  final void Function() _onConsentRequired;
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final response = err.response;
+    if (response?.statusCode == 428) {
+      final failure = parseErrorEnvelope(
+        response!.data,
+        statusCode: response.statusCode,
+        headers: response.headers,
+      );
+      if (failure?.code == ErrorCode.consentRequired) _onConsentRequired();
+    }
+    handler.next(err);
+  }
+}
+
 /// Logs method, path, status, duration and request id. Never logs headers or
 /// bodies (they may contain credentials).
 class SafeLoggingInterceptor extends Interceptor {

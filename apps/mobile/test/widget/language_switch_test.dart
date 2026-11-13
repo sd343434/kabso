@@ -37,6 +37,7 @@ void main() {
       'typed fields and persists the choice', (tester) async {
     await pumpApp(tester);
     await tester.pumpAndSettle();
+    await openLogin(tester);
     final en = l10nFor(AppLanguage.en);
     final ar = l10nFor(AppLanguage.ar);
 
@@ -48,7 +49,8 @@ void main() {
     await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
     await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
 
-    await tester.tap(chip);
+    // D65: the switch scrolls with the login page.
+    await tapVisible(tester, chip);
     await tester.pumpAndSettle();
 
     expect(dirOf(tester, LoginScreen), TextDirection.rtl);
@@ -63,7 +65,8 @@ void main() {
     expect(prefs.getString(PreferenceKeys.languageCode), 'ar');
 
     // And back.
-    await tester.tap(chip);
+    // D65: the switch scrolls with the login page.
+    await tapVisible(tester, chip);
     await tester.pumpAndSettle();
     expect(dirOf(tester, LoginScreen), TextDirection.ltr);
     expect(prefs.getString(PreferenceKeys.languageCode), 'en');
@@ -76,9 +79,8 @@ void main() {
     await tester.pumpAndSettle();
     final en = l10nFor(AppLanguage.en);
     final ar = l10nFor(AppLanguage.ar);
-    await tester.ensureVisible(find.text(en.loginCreateAccount));
-    await tester.tap(find.text(en.loginCreateAccount));
-    await tester.pumpAndSettle();
+    // D64: signed out, the app opens on welcome; open register.
+    await openRegister(tester);
 
     await tester.enterText(find.byKey(RegisterScreen.emailKey), 'nope');
     await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
@@ -108,7 +110,7 @@ void main() {
     );
     await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
     await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-    await tester.tap(find.byKey(LoginScreen.submitKey));
+    await tapVisible(tester, find.byKey(LoginScreen.submitKey));
     await tester.pump();
 
     final chip = tester.widget<ActionChip>(

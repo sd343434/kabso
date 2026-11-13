@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/auth/domain/auth_repository.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
@@ -62,6 +63,10 @@ class FakeAuthRepository implements AuthRepository {
   AppFailure? registerFailure;
   AppFailure? availabilityFailure;
   int loginCalls = 0;
+
+  /// D302: the identifier of each login call (an email, a username or a
+  /// staff ID).
+  final List<String> loginIdentifiers = [];
   int registerCalls = 0;
   Set<String> takenUsernames;
   Duration availabilityDelay;
@@ -69,6 +74,8 @@ class FakeAuthRepository implements AuthRepository {
   final List<String> availabilityChecks = [];
 
   /// Locales sent with `register`.
+  /// D175: the gender each register sent (required at sign-up).
+  final List<Gender> registerGenders = [];
   final List<String> registerLocales = [];
 
   /// Codes sent to `register/verify`; failures are consumed in order.
@@ -95,10 +102,17 @@ class FakeAuthRepository implements AuthRepository {
     required String password,
   }) async {
     loginCalls++;
+    loginIdentifiers.add(identifier);
     final failure = loginFailure;
     if (failure != null) throw failure;
     return me;
   }
+
+  /// D198: the `legal` block of each register call.
+  final List<Map<String, dynamic>?> registerLegal = [];
+
+  /// D217: the invite code of each register call.
+  final List<String?> registerReferralCodes = [];
 
   @override
   Future<void> register({
@@ -106,10 +120,16 @@ class FakeAuthRepository implements AuthRepository {
     required String password,
     required String username,
     required String displayName,
+    required Gender gender,
     required String locale,
+    Map<String, dynamic>? legal,
+    String? referralCode,
   }) async {
     registerCalls++;
     registerLocales.add(locale);
+    registerLegal.add(legal);
+    registerReferralCodes.add(referralCode);
+    registerGenders.add(gender);
     final failure = registerFailure;
     if (failure != null) throw failure;
   }
@@ -138,6 +158,18 @@ class FakeAuthRepository implements AuthRepository {
     final failure = updateLocaleFailure;
     if (failure != null) throw failure;
     return me = me.copyWith(locale: locale);
+  }
+
+  /// Countries sent with `PATCH /me` (D133).
+  final List<String?> countryUpdates = [];
+  AppFailure? updateCountryFailure;
+
+  @override
+  Future<User> updateCountry(String? country) async {
+    countryUpdates.add(country);
+    final failure = updateCountryFailure;
+    if (failure != null) throw failure;
+    return me = me.copyWith(country: country);
   }
 
   @override
@@ -173,4 +205,10 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> revokeSession(String sessionId) async {}
+
+  /// D226: what [revokeOtherSessions] answers by default.
+  int revokeOthersResult = 0;
+
+  @override
+  Future<int> revokeOtherSessions(String password) async => revokeOthersResult;
 }

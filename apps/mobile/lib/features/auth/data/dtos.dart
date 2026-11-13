@@ -1,8 +1,13 @@
 // Wire DTOs matching docs/contracts/openapi.yaml exactly.
 
 import 'package:json_annotation/json_annotation.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
+import 'package:kabso_live/core/models/special_username.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/network/auth_tokens.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
+import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 
 part 'dtos.g.dart';
 
@@ -21,6 +26,23 @@ class MeDto {
     required this.createdAt,
     this.bio,
     this.avatarUrl,
+    this.canHost = false,
+    this.liveCoverUrl,
+    this.country,
+    this.premiumTier,
+    this.gender,
+    this.showGender = false,
+    this.category,
+    this.links = const [],
+    this.tags = const [],
+    this.tagIcons = const [],
+    this.specialUsername,
+    this.coverUrl,
+    this.kabsoTeam = false,
+    this.staff,
+    this.staffId,
+    this.verification,
+    this.statusEmojiId,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -37,6 +59,90 @@ class MeDto {
   final bool isPrivate;
   final DateTime createdAt;
 
+  /// CP-010: may go live. Absent in a user cached before v1.6 → false.
+  @JsonKey(defaultValue: false)
+  final bool canHost;
+
+  /// CP-015: the host's live cover (640 px square), or null.
+  final String? liveCoverUrl;
+
+  /// v1.27.1-live (D133): ISO 3166-1 alpha-2, or null.
+  final String? country;
+
+  /// v1.28-live (D146): the premium username's tier; absent for a regular one.
+  @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)
+  final PremiumTier? premiumTier;
+
+  /// v1.47-social (D175): null until chosen (accounts made before v1.47).
+  @JsonKey(fromJson: genderFromJson, toJson: genderToJson)
+  final Gender? gender;
+
+  /// v1.47-social (D175): others see the gender. Absent in a user cached
+  /// before v1.47 → false.
+  @JsonKey(defaultValue: false)
+  final bool showGender;
+
+  /// v1.47-social (D175): the account category, or null.
+  @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)
+  final AccountCategory? category;
+
+  /// v1.47-social (D175): the profile links, in order.
+  @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)
+  final List<ProfileLink> links;
+
+  /// v1.85-social (D278b, §10.99): the profile tags «منشنات», in order.
+  final List<String> tags;
+
+  /// v1.91-social (D292, §10.106): the icon of each tag (`ProfileTagIcon`
+  /// keys, one per tag; empty from an older server).
+  final List<String> tagIcons;
+
+  /// v1.54-social (D185, §10.48.1): the caller's active special username
+  /// (with the base username — only ever in the caller's own `Me`).
+  @JsonKey(
+    fromJson: specialUsernameFromJson,
+    toJson: specialUsernameToJson,
+    includeIfNull: false,
+  )
+  final SpecialUsername? specialUsername;
+
+  /// v1.76-social (D218, §10.73.3): the profile cover, or null.
+  final String? coverUrl;
+
+  /// v1.68-live (D273, §10.96.6): the account holds OWNER, MODERATION or
+  /// SUPPORT — «فريق كابسو» in every live and the Me tab's staff entry.
+  @JsonKey(defaultValue: false)
+  final bool kabsoTeam;
+
+  /// v1.72-live (D283, §10.96.10): a limited Kabso Team account — the
+  /// staff-only Me tab; null for everyone else.
+  @JsonKey(
+    fromJson: staffIdentityFromJson,
+    toJson: staffIdentityToJson,
+    includeIfNull: false,
+  )
+  final KabsoStaffIdentity? staff;
+
+  /// v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while
+  /// the account holds a panel role (the OWNER too); shown instead of the
+  /// @username. Null for everyone else.
+  @JsonKey(includeIfNull: false)
+  final String? staffId;
+
+  /// v1.90-social (D293, §10.105): the automatic verification badge beside
+  /// the name, or null (also from older servers and for unknown values).
+  @JsonKey(
+    fromJson: verificationBadgeFromJson,
+    toJson: verificationBadgeToJson,
+    includeIfNull: false,
+  )
+  final VerificationBadge? verification;
+
+  /// v1.130-social (D376, §10.167): «الحالة» — the status emoji the user
+  /// wears over the picture (`<pack>.<emoji>`), or null.
+  @JsonKey(includeIfNull: false)
+  final String? statusEmojiId;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -51,6 +157,23 @@ class MeDto {
     role: role == 'ADMIN' ? UserRole.admin : UserRole.user,
     isPrivate: isPrivate,
     createdAt: createdAt,
+    canHost: canHost,
+    liveCoverUrl: liveCoverUrl,
+    country: country,
+    premiumTier: premiumTier,
+    gender: gender,
+    showGender: showGender,
+    category: category,
+    links: links,
+    tags: tags,
+    tagIcons: tagIcons,
+    specialUsername: specialUsername,
+    coverUrl: coverUrl,
+    kabsoTeam: kabsoTeam,
+    staff: staff,
+    staffId: staffId,
+    verification: verification,
+    statusEmojiId: statusEmojiId,
   );
 }
 
@@ -71,7 +194,14 @@ class AuthResponseDto {
 /// `DeviceInfo`
 @JsonSerializable(includeIfNull: false)
 class DeviceInfoDto {
-  const new({this.name, this.platform, this.appVersion});
+  const new({
+    this.name,
+    this.platform,
+    this.appVersion,
+    this.installId,
+    this.deviceKey,
+    this.installSource,
+  });
 
   factory fromJson(Map<String, dynamic> json) => _$DeviceInfoDtoFromJson(json);
 
@@ -80,6 +210,45 @@ class DeviceInfoDto {
   /// `android | ios | web | other`
   final String? platform;
   final String? appVersion;
+
+  /// v1.74-social (D217): this install's random id (the referral device
+  /// check; `installIdProvider`).
+  final String? installId;
+
+  /// v1.78-social (D223): the salted SHA-256 of the phone's stable device id
+  /// (`deviceKeySourceProvider`), sent with a sign-up — at most 2 accounts
+  /// are created per device — and, v1.60-live (D250), with a sign-in (a
+  /// device the team banned is refused).
+  final String? deviceKey;
+
+  /// v1.112-social (int21, §10.143.3): `PLAY | APP_STORE | SIDELOAD` — where
+  /// the app was installed from (`installSourceReaderProvider`); the server
+  /// offers «الشحن من الموقع» by it.
+  final String? installSource;
+
+  /// This device info with [key] as its `deviceKey` (null keeps none).
+  DeviceInfoDto withDeviceKey(String? key) => key == null
+      ? this
+      : DeviceInfoDto(
+          name: name,
+          platform: platform,
+          appVersion: appVersion,
+          installId: installId,
+          deviceKey: key,
+          installSource: installSource,
+        );
+
+  /// This device info with [source] as its `installSource` (null keeps none).
+  DeviceInfoDto withInstallSource(String? source) => source == null
+      ? this
+      : DeviceInfoDto(
+          name: name,
+          platform: platform,
+          appVersion: appVersion,
+          installId: installId,
+          deviceKey: deviceKey,
+          installSource: source,
+        );
 
   Map<String, dynamic> toJson() => _$DeviceInfoDtoToJson(this);
 }
@@ -107,8 +276,11 @@ class RegisterRequestDto {
     required this.password,
     required this.username,
     required this.displayName,
+    required this.gender,
     this.locale,
     this.device,
+    this.legal,
+    this.referralCode,
   });
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -119,9 +291,20 @@ class RegisterRequestDto {
   final String username;
   final String displayName;
 
+  /// v1.47-social (D175): required (`MALE | FEMALE | UNDISCLOSED`).
+  final String gender;
+
   /// `ar | en`
   final String? locale;
   final DeviceInfoDto? device;
+
+  /// v1.66-social (D198) `RegistrationLegal`: `{ageConfirmed: true,
+  /// termsVersion?, privacyVersion?}` — the 18+ statement and the versions
+  /// of the terms and the privacy policy shown at sign-up.
+  final Map<String, dynamic>? legal;
+
+  /// v1.74-social (D217): the invite code typed at sign-up (optional).
+  final String? referralCode;
 
   Map<String, dynamic> toJson() => _$RegisterRequestDtoToJson(this);
 }

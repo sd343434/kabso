@@ -1,0 +1,240 @@
+// Wire models of the bag API (docs/contracts/openapi.yaml v1.22-live DRAFT,
+// tag `bag`, CP-019; CONVENTIONS §10.22; v1.48-social, D171, §10.45).
+
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
+
+part 'bag_models.freezed.dart';
+part 'bag_models.g.dart';
+
+/// `BagCategory`: the categories this app knows. The server adds more
+/// later; items of a category the app does not know are ignored (§10.22).
+enum BagCategory {
+  /// The decoration on the profile card's header (D264: or the VIP card
+  /// art; one worn per kind).
+  profileCard('PROFILE_CARD'),
+
+  /// D169 / D186: the frame drawn around the person's photo (the support
+  /// tier frames, the active-host frames; D264: the VIP frame).
+  avatarFrame('AVATAR_FRAME'),
+
+  /// v1.65-live (D264, §10.97): VIP items — the chat bubble, the entry
+  /// banner, the entry car (ENTRY_EFFECT) and the mic wave. D270 (§10.98):
+  /// the store sells bubbles, banners and cars too (the mic wave stays
+  /// VIP-only). Shown only while owned.
+  chatBubble('CHAT_BUBBLE', always: false),
+  entryBanner('ENTRY_BANNER', always: false),
+  entryEffect('ENTRY_EFFECT', always: false),
+  micWave('MIC_WAVE', always: false);
+
+  new(this.wire, {this.always = true});
+
+  /// The exact string used on the wire.
+  final String wire;
+
+  /// Whether «قيد الاستخدام» shows its slot when nothing of it is owned.
+  final bool always;
+
+  /// The category named [wire], or null when the app does not know it.
+  static BagCategory? fromWire(String? wire) =>
+      values.where((c) => c.wire == wire).firstOrNull;
+}
+
+/// `BagItemSource` values the app words (D171); others are shown without a
+/// source line.
+abstract final class BagSource {
+  static const freeSignup = 'FREE_SIGNUP';
+  static const backfill = 'BACKFILL';
+  static const admin = 'ADMIN';
+  static const gift = 'GIFT';
+
+  /// D169: support-tier frames, permanent, not sendable.
+  static const levelReward = 'LEVEL_REWARD';
+
+  /// D186: the active-host frame, kept while the host stays active; not
+  /// sendable.
+  static const hostActive = 'HOST_ACTIVE';
+
+  /// D270 (§10.98): bought in the store for oneself (a store gift is a
+  /// [gift] with its giver). Timed, so sendable.
+  static const purchase = 'STORE';
+
+  /// v1.65-live (D264): a VIP member's tier item, there while the
+  /// membership is active ([BagItem.vip]); never sent.
+  static const vip = 'VIP';
+}
+
+/// `BagItemVip` (v1.65-live, D264, §10.97): the membership a VIP item comes
+/// from ([tierName], [color] `#RRGGBB`) and the perk's art.
+@freezed
+abstract class BagItemVip with _$BagItemVip {
+  const factory({
+    required String tier,
+    required String tierName,
+    required String color,
+    required String perk,
+    String? animation,
+    String? still,
+  }) = _BagItemVip;
+
+  factory fromJson(Map<String, dynamic> json) => _$BagItemVipFromJson(json);
+}
+
+/// `BagTransfer` (`POST /me/bag/transfers`, D171): an item sent; [remaining]
+/// is the caller's item after a partial send (null after a whole one).
+@freezed
+abstract class BagTransfer with _$BagTransfer {
+  const factory({
+    required String id,
+    required String code,
+    required String category,
+    required String name,
+    required UserSummary recipient,
+    required bool whole,
+    int? durationSeconds,
+    BagItem? remaining,
+  }) = _BagTransfer;
+
+  factory fromJson(Map<String, dynamic> json) => _$BagTransferFromJson(json);
+}
+
+/// `ProfileCard`: the profile card a user wears, on `PublicProfile`.
+@freezed
+abstract class ProfileCard with _$ProfileCard {
+  const factory({required String code, required String assetKey}) =
+      _ProfileCard;
+
+  factory fromJson(Map<String, dynamic> json) => _$ProfileCardFromJson(json);
+}
+
+/// `BagCatalogueItem`: one item of the catalogue. [name] follows the app
+/// language; [category] is the wire value (see [BagCategory.fromWire]).
+@freezed
+abstract class BagCatalogueItem with _$BagCatalogueItem {
+  const factory({
+    required String code,
+    required String category,
+    required String name,
+    required String assetKey,
+    required int sortOrder,
+    required bool free,
+
+    /// D270 (§10.98): a store item's hosted art.
+    @JsonKey(fromJson: StoreArt.fromJson, toJson: storeArtToJson) StoreArt? art,
+  }) = _BagCatalogueItem;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$BagCatalogueItemFromJson(json);
+}
+
+/// `BagItem`: an item the caller owns. [source] is opaque (more values come
+/// later, see [BagSource]); [equipped] is true for at most one item per
+/// category. v1.48-social (D171): [expiresAt] (null = permanent; the
+/// server never lists an expired item), [giftedBy] (the sender of a
+/// `GIFT`, when they may be shown) and [transferable]. v1.65-live (D264):
+/// [vip] on a VIP member's tier item (source `VIP`; its [expiresAt] is the
+/// membership's end).
+@freezed
+abstract class BagItem with _$BagItem {
+  const factory({
+    required String code,
+    required String category,
+    required String name,
+    required String assetKey,
+    required DateTime acquiredAt,
+    required String source,
+    required bool equipped,
+    DateTime? expiresAt,
+    UserSummary? giftedBy,
+    @Default(false) bool transferable,
+    BagItemVip? vip,
+
+    /// D270 (§10.98): a store item's hosted art (still + SVGA / MP4).
+    @JsonKey(fromJson: StoreArt.fromJson, toJson: storeArtToJson) StoreArt? art,
+  }) = _BagItem;
+
+  factory fromJson(Map<String, dynamic> json) => _$BagItemFromJson(json);
+}
+
+/// `BagEquippedItem`: the item worn in a category.
+@freezed
+abstract class BagEquippedItem with _$BagEquippedItem {
+  const factory({
+    required String code,
+    required String name,
+    required String assetKey,
+
+    /// D270 (§10.98): a store item's hosted art.
+    @JsonKey(fromJson: StoreArt.fromJson, toJson: storeArtToJson) StoreArt? art,
+  }) = _BagEquippedItem;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$BagEquippedItemFromJson(json);
+}
+
+/// `BagEquipped` (`PUT /me/bag/equipped`): what the caller wears in
+/// [category] now; [equipped] null = nothing.
+@freezed
+abstract class BagEquipped with _$BagEquipped {
+  const factory({required String category, BagEquippedItem? equipped}) =
+      _BagEquipped;
+
+  factory fromJson(Map<String, dynamic> json) => _$BagEquippedFromJson(json);
+}
+
+/// `HostFrameStyle` (v1.55-social, D186): the active-host frame's colour.
+enum HostFrameStyle {
+  blue('BLUE', 'host_frame_blue'),
+  pink('PINK', 'host_frame_pink');
+
+  new(this.wire, this.assetKey);
+
+  /// The exact string used on the wire.
+  final String wire;
+
+  /// The frame's bag code and `assetKey`.
+  final String assetKey;
+
+  static HostFrameStyle? fromWire(String? wire) =>
+      values.where((s) => s.wire == wire).firstOrNull;
+}
+
+/// `HostFrameItem`: the `HOST_ACTIVE` frame the caller owns now.
+@freezed
+abstract class HostFrameItem with _$HostFrameItem {
+  const factory({
+    required String code,
+    required String assetKey,
+    required bool equipped,
+  }) = _HostFrameItem;
+
+  factory fromJson(Map<String, dynamic> json) => _$HostFrameItemFromJson(json);
+}
+
+/// `HostFrame` (`GET /me/host-frame`, v1.55-social, D186, §10.49): the
+/// caller's active-host frame — whether they are an agency host and active
+/// now, the style ([style] null until a host without a stated gender
+/// chooses), whether they choose ([canChoose]) and the frame owned now.
+@freezed
+abstract class HostFrame with _$HostFrame {
+  const factory({
+    required bool agencyHost,
+    required bool active,
+    required int liveDays,
+    required int liveSeconds,
+    required bool canChoose,
+    String? style,
+    String? styleFrom,
+    HostFrameItem? frame,
+  }) = _HostFrame;
+
+  const new _();
+
+  factory fromJson(Map<String, dynamic> json) => _$HostFrameFromJson(json);
+
+  /// The style as the app knows it.
+  HostFrameStyle? get styleValue => HostFrameStyle.fromWire(style);
+
+  /// An active host who picks the colour and has not yet: the bag asks.
+  bool get needsChoice => active && canChoose && styleValue == null;
+}

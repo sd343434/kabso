@@ -1,0 +1,518 @@
+import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/network/error_mapper.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/home/application/home_feed_provider.dart';
+import 'package:kabso_live/features/posts/application/my_posts_controller.dart';
+import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
+import 'package:kabso_live/features/posts/data/media_repository.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/posts/data/video_source.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart';
+import 'package:material_ui/material_ui.dart';
+
+/// At most 10 photos per post (`CreatePostRequest.mediaIds`).
+const int maxPostPhotos = 10;
+
+/// Text limits of a post (CONVENTIONS §11.2), checked again by the server.
+const int maxPostText = 2200;
+const int maxLocationText = 80;
+
+/// A scheduled post publishes between 5 minutes and 30 days ahead
+/// (CONVENTIONS §11.2).
+const Duration minScheduleLead = Duration(minutes: 5);
+const Duration maxScheduleLead = Duration(days: 30);
+
+/// Whether [at] is a time the server takes for a scheduled post, judged
+/// at [now] (a minute of margin for the request).
+bool isSchedulable(DateTime at, DateTime now) =>
+    !at.isBefore(now.add(minScheduleLead + const Duration(minutes: 1))) &&
+    !at.isAfter(now.add(maxScheduleLead));
+
+/// Picks photos from the device library.
+abstract interface class PhotoPicker {
+  /// Up to [max] photos as bytes; empty when cancelled.
+  Future<List<Uint8List>> pickPhotos(int max);
+}
+
+/// [PhotoPicker] on `image_picker`'s system picker. Asking for a bounded
+/// size and a quality makes the platform re-encode, so iOS HEIC photos
+/// arrive as JPEG (the API refuses HEIC, §11.1).
+class ImagePickerPhotos implements PhotoPicker {
+  new([ImagePicker? picker]) : _picker = picker ?? ImagePicker();
+
+  final ImagePicker _picker;
+
+  @override
+  Future<List<Uint8List>> pickPhotos(int max) async {
+    if (max <= 0) return const [];
+    final files = await _picker.pickMultiImage(
+      maxWidth: 2160,
+      maxHeight: 2160,
+      imageQuality: 90,
+      limit: max > 1 ? max : null,
+    );
+    return [for (final f in files.take(max)) await f.readAsBytes()];
+  }
+}
+
+final photoPickerProvider = Provider<PhotoPicker>((ref) => ImagePickerPhotos());
+
+/// One photo of the draft; [assetId] once uploaded (kept across retries:
+/// an asset stays attachable for 24 hours, §11.1).
+@immutable
+class ComposePhoto {
+  const new({
+    required this.localId,
+    required this.bytes,
+    required this.contentType,
+    this.assetId,
+    this.sourceId,
+  });
+
+  final int localId;
+  final Uint8List bytes;
+  final String contentType;
+  final String? assetId;
+
+  /// The device-library photo it came from (`null` for the system picker).
+  final String? sourceId;
+
+  ComposePhoto uploaded(String id) => ComposePhoto(
+    localId: localId,
+    bytes: bytes,
+    contentType: contentType,
+    assetId: id,
+    sourceId: sourceId,
+  );
+}
+
+/// Why picked photos were left out ([mixed]: the draft holds a video, D162).
+enum PhotoRejection { unsupportedType, tooLarge, tooMany, mixed }
+
+/// D162: the draft's video; [assetId] once uploaded (kept across retries).
+@immutable
+class ComposeVideo {
+  const new({required this.video, this.assetId});
+
+  final PickedVideo video;
+  final String? assetId;
+}
+
+enum ComposePhase { editing, uploading, publishing }
+
+@immutable
+class ComposeState {
+  const new({
+    this.photos = const [],
+    this.video,
+    this.phase = ComposePhase.editing,
+    this.uploaded = 0,
+    this.progress = 0,
+    this.failure,
+    this.rejections = const {},
+    this.settings = const PostSettingsDraft(),
+    this.retrying = false,
+  });
+
+  /// D333: the connection dropped; the upload waits to try again by itself.
+  final bool retrying;
+
+  final List<ComposePhoto> photos;
+
+  /// D162: one video instead of photos (a post holds one or the other).
+  final ComposeVideo? video;
+
+  /// The video upload's progress (0–1) while [phase] is uploading.
+  final double progress;
+
+  bool get hasMedia => photos.isNotEmpty || video != null;
+  final ComposePhase phase;
+
+  /// Photos uploaded so far in this attempt (progress "n of m").
+  final int uploaded;
+
+  /// Why the last publish failed (shown with Retry).
+  final AppFailure? failure;
+
+  /// Why some of the last picked photos were left out.
+  final Set<PhotoRejection> rejections;
+
+  /// Comments and like count settings (Advanced settings).
+  final PostSettingsDraft settings;
+
+  bool get busy => phase != ComposePhase.editing;
+
+  ComposeState copyWith({
+    List<ComposePhoto>? photos,
+    ComposeVideo? video,
+    bool clearVideo = false,
+    ComposePhase? phase,
+    int? uploaded,
+    double? progress,
+    AppFailure? failure,
+    bool clearFailure = false,
+    Set<PhotoRejection>? rejections,
+    PostSettingsDraft? settings,
+    bool? retrying,
+  }) => ComposeState(
+    retrying: retrying ?? false,
+    photos: photos ?? this.photos,
+    video: clearVideo ? null : (video ?? this.video),
+    phase: phase ?? this.phase,
+    uploaded: uploaded ?? this.uploaded,
+    progress: progress ?? this.progress,
+    failure: clearFailure ? null : (failure ?? this.failure),
+    rejections: rejections ?? this.rejections,
+    settings: settings ?? this.settings,
+  );
+}
+
+/// A random UUID v4 (the `Idempotency-Key` of a draft).
+String newIdempotencyKey([Random? random]) {
+  final r = random ?? Random.secure();
+  final b = List<int>.generate(16, (_) => r.nextInt(256));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  final hex = [for (final x in b) x.toRadixString(16).padLeft(2, '0')].join();
+  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+      '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+}
+
+/// The Create screen's draft (v1.5-social): photos are checked on the device
+/// (type from the bytes, size, count), uploaded one by one when publishing,
+/// then the post is created with an `Idempotency-Key`. A retry of the same
+/// content reuses the key (so a lost response never makes two posts) and
+/// skips photos already uploaded; changed content gets a new key.
+class ComposeController extends Notifier<ComposeState> {
+  int _nextId = 0;
+  String? _key;
+  String? _keyFor;
+
+  @override
+  ComposeState build() => const ComposeState();
+
+  /// Adds picked photos that the API can take; returns what was left out.
+  Set<PhotoRejection> addPhotos(List<Uint8List> picked) {
+    final rejected = <PhotoRejection>{};
+    final photos = [...state.photos];
+    for (final bytes in picked) {
+      final type = sniffImageType(bytes);
+      if (state.video != null) {
+        rejected.add(PhotoRejection.mixed);
+      } else if (type == null) {
+        rejected.add(PhotoRejection.unsupportedType);
+      } else if (bytes.length > maxPhotoBytes) {
+        rejected.add(PhotoRejection.tooLarge);
+      } else if (photos.length >= maxPostPhotos) {
+        rejected.add(PhotoRejection.tooMany);
+      } else {
+        photos.add(
+          ComposePhoto(localId: _nextId++, bytes: bytes, contentType: type),
+        );
+      }
+    }
+    state = state.copyWith(
+      photos: List.unmodifiable(photos),
+      rejections: rejected,
+      clearFailure: true,
+    );
+    return rejected;
+  }
+
+  /// Adds the library photo [sourceId] (picked in the media step); the
+  /// reason when it is left out.
+  PhotoRejection? addLibraryPhoto(String sourceId, Uint8List bytes) {
+    if (state.busy) return null;
+    if (state.photos.any((p) => p.sourceId == sourceId)) return null;
+    final type = sniffImageType(bytes);
+    final rejection = state.video != null
+        ? PhotoRejection.mixed
+        : type == null
+        ? PhotoRejection.unsupportedType
+        : bytes.length > maxPhotoBytes
+        ? PhotoRejection.tooLarge
+        : state.photos.length >= maxPostPhotos
+        ? PhotoRejection.tooMany
+        : null;
+    state = state.copyWith(
+      photos: rejection != null
+          ? null
+          : List.unmodifiable([
+              ...state.photos,
+              ComposePhoto(
+                localId: _nextId++,
+                bytes: bytes,
+                contentType: type!,
+                sourceId: sourceId,
+              ),
+            ]),
+      rejections: {?rejection},
+      clearFailure: true,
+    );
+    return rejection;
+  }
+
+  /// D162: makes [video] the draft's media (a post video: ≤ 90 s since D168,
+  /// ≤ 200 MiB); the reason when it can't be (photos already chosen, or a
+  /// limit).
+  VideoRejection? setVideo(PickedVideo video) {
+    if (state.busy) return null;
+    if (state.photos.isNotEmpty) return VideoRejection.mixed;
+    final rejection = checkVideo(video, reel: false);
+    if (rejection != null) return rejection;
+    state = state.copyWith(
+      video: ComposeVideo(video: video),
+      clearFailure: true,
+    );
+    return null;
+  }
+
+  /// Removes the draft's video.
+  void removeVideo() {
+    if (state.busy || state.video == null) return;
+    state = state.copyWith(clearVideo: true, clearFailure: true);
+  }
+
+  /// Removes the photo that came from the library photo [sourceId].
+  void removeLibraryPhoto(String sourceId) {
+    for (final p in state.photos) {
+      if (p.sourceId == sourceId) return removePhoto(p.localId);
+    }
+  }
+
+  void removePhoto(int localId) {
+    if (state.busy) return;
+    state = state.copyWith(
+      photos: List.unmodifiable([
+        for (final p in state.photos)
+          if (p.localId != localId) p,
+      ]),
+      clearFailure: true,
+    );
+  }
+
+  /// D333: the photo [localId] edited on the device (crop, turn, look):
+  /// its new bytes replace the old ones and it uploads again.
+  void replacePhoto(int localId, Uint8List bytes) {
+    if (state.busy) return;
+    final type = sniffImageType(bytes);
+    if (type == null || bytes.length > maxPhotoBytes) return;
+    state = state.copyWith(
+      photos: List.unmodifiable([
+        for (final p in state.photos)
+          if (p.localId == localId)
+            ComposePhoto(
+              localId: p.localId,
+              bytes: bytes,
+              contentType: type,
+              sourceId: p.sourceId,
+            )
+          else
+            p,
+      ]),
+      clearFailure: true,
+    );
+  }
+
+  /// Moves the photo at [from] to [to] (indices in the current order; the
+  /// post keeps this order).
+  void movePhoto(int from, int to) {
+    if (state.busy || from == to) return;
+    final photos = [...state.photos];
+    if (from < 0 || from >= photos.length) return;
+    final photo = photos.removeAt(from);
+    photos.insert(to.clamp(0, photos.length), photo);
+    state = state.copyWith(photos: List.unmodifiable(photos));
+  }
+
+  void setSettings(PostSettingsDraft settings) {
+    if (state.busy) return;
+    state = state.copyWith(settings: settings, clearFailure: true);
+  }
+
+  /// Publishes the draft — or, with [status], saves it as a `DRAFT` or
+  /// schedules it (`SCHEDULED` at [publishAt]); the created post, or
+  /// `null` on failure (then [ComposeState.failure] says why and the draft
+  /// is kept).
+  Future<Post?> publish({
+    required String text,
+    required String location,
+    String status = 'PUBLISHED',
+    DateTime? publishAt,
+  }) async {
+    if (state.busy) return null;
+    final caption = text.trim();
+    final place = location.trim();
+    if (caption.isEmpty && !state.hasMedia) return null;
+    _last = (text: text, location: location, status: status, at: publishAt);
+    // D333: the upload runs on after Create is left; a lost connection is
+    // retried by itself ([retryDelays]) — the media already uploaded and the
+    // idempotency key are kept, so a retry never makes two posts.
+    for (var attempt = 0; ; attempt++) {
+      try {
+        final post = await _attempt(caption, place, status, publishAt);
+        if (post != null) {
+          _last = null;
+          ref
+              .read(composeOutcomeProvider.notifier)
+              .done(ComposeOutcome(post, status: status, publishAt: publishAt));
+        }
+        return post;
+      } on Object catch (e) {
+        if (!ref.mounted) return null;
+        final failure = toAppFailure(e);
+        if (failure is NetworkFailure && attempt < retryDelays.length) {
+          state = state.copyWith(retrying: true);
+          await Future<void>.delayed(retryDelays[attempt]);
+          if (!ref.mounted) return null;
+          continue;
+        }
+        state = state.copyWith(phase: ComposePhase.editing, failure: failure);
+        return null;
+      }
+    }
+  }
+
+  /// D333: the waits before each automatic retry after a lost connection
+  /// (none in widget tests unless a test sets them).
+  static List<Duration> retryDelays = const [
+    Duration(seconds: 2),
+    Duration(seconds: 5),
+    Duration(seconds: 10),
+  ];
+
+  ({String text, String location, String status, DateTime? at})? _last;
+
+  /// D333: a failed upload can be retried (from the upload bar) with what
+  /// was shared.
+  bool get canRetry => _last != null && !state.busy && state.failure != null;
+
+  /// D333: tries the last share again (the upload bar's Retry).
+  Future<Post?> retry() async {
+    final last = _last;
+    if (last == null) return null;
+    return await publish(
+      text: last.text,
+      location: last.location,
+      status: last.status,
+      publishAt: last.at,
+    );
+  }
+
+  Future<Post?> _attempt(
+    String caption,
+    String place,
+    String status,
+    DateTime? publishAt,
+  ) async {
+    state = state.copyWith(
+      phase: ComposePhase.uploading,
+      uploaded: state.photos.where((p) => p.assetId != null).length,
+      progress: 0,
+      clearFailure: true,
+    );
+    {
+      final media = ref.read(mediaRepositoryProvider);
+      if (state.video case ComposeVideo(:final video, assetId: null)) {
+        final asset = await media.uploadVideo(
+          video,
+          reel: false,
+          onProgress: (p) {
+            if (ref.mounted) state = state.copyWith(progress: p);
+          },
+        );
+        if (!ref.mounted) return null;
+        state = state.copyWith(
+          video: ComposeVideo(video: video, assetId: asset.id),
+          progress: 1,
+        );
+      }
+      for (final photo in state.photos) {
+        if (photo.assetId != null) continue;
+        final asset = await media.uploadPhoto(photo.bytes, photo.contentType);
+        if (!ref.mounted) return null;
+        state = state.copyWith(
+          photos: List.unmodifiable(
+            state.photos.map(
+              (p) => p.localId == photo.localId ? p.uploaded(asset.id) : p,
+            ),
+          ),
+          uploaded: state.uploaded + 1,
+        );
+      }
+      state = state.copyWith(phase: ComposePhase.publishing);
+      final mediaIds = [
+        for (final p in state.photos) p.assetId!,
+        ?state.video?.assetId,
+      ];
+      final content =
+          '$caption\u0000$place\u0000${mediaIds.join(',')}'
+          '\u0000${state.settings.toJson()}\u0000$status'
+          '\u0000${publishAt?.toUtc().toIso8601String()}';
+      if (_keyFor != content) {
+        _key = newIdempotencyKey();
+        _keyFor = content;
+      }
+      final post = await ref
+          .read(postsRepositoryProvider)
+          .createPost(
+            idempotencyKey: _key!,
+            text: caption,
+            mediaIds: mediaIds,
+            location: place,
+            settings: state.settings,
+            status: status,
+            publishAt: status == 'SCHEDULED' ? publishAt : null,
+            // v1.72-live (D283): a Kabso Team account posts announcements only.
+            announcement: ref.read(currentUserProvider)?.staff != null,
+          );
+      if (!ref.mounted) return post;
+      // A new draft starts clean; the feeds show the new post.
+      _key = null;
+      _keyFor = null;
+      state = const ComposeState();
+      if (status == 'PUBLISHED') {
+        for (final feed in HomeFeed.values) {
+          ref.invalidate(postsFeedProvider(feed));
+        }
+      } else {
+        ref.invalidate(myPostsProvider);
+      }
+      return post;
+    }
+  }
+}
+
+/// D333: a share that went through (the upload bar's «تم النشر» and its
+/// View button).
+@immutable
+class ComposeOutcome {
+  const new(this.post, {required this.status, this.publishAt});
+
+  final Post post;
+  final String status;
+  final DateTime? publishAt;
+}
+
+/// D333: the last share that went through, until the upload bar shows it.
+class ComposeOutcomes extends Notifier<ComposeOutcome?> {
+  @override
+  ComposeOutcome? build() => null;
+
+  // A named step of the share flow, not a property.
+  // ignore: use_setters_to_change_properties
+  void done(ComposeOutcome outcome) => state = outcome;
+
+  void clear() => state = null;
+}
+
+final composeOutcomeProvider =
+    NotifierProvider<ComposeOutcomes, ComposeOutcome?>(ComposeOutcomes.new);
+
+final composeControllerProvider =
+    NotifierProvider<ComposeController, ComposeState>(ComposeController.new);

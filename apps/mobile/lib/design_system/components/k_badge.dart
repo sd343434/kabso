@@ -1,4 +1,5 @@
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/design_system/components/k_cherry.dart';
 import 'package:kabso_live/design_system/theme/app_theme.dart';
 import 'package:kabso_live/design_system/tokens/component_metrics.dart';
 import 'package:kabso_live/design_system/tokens/tokens.dart';
@@ -143,6 +144,53 @@ class KViewerCountChip extends StatelessWidget {
               const SizedBox(width: KSpacing.xs),
               Text(
                 KFormat.compact(count, l10n),
+                maxLines: 1,
+                textScaler: TextScaler.noScaling,
+                style: _badgeText(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A live's points (CP-012): the points mark (D259: [KPointsIcon], never the
+/// cherry) and the short count on
+/// `scrim`, the same size as [KViewerCountChip].
+class KScoreChip extends StatelessWidget {
+  const new({required this.score, super.key});
+
+  final int score;
+
+  /// The points accent (warm orange, legible on `scrim`).
+  static const flame = Color(0xFFFFA43A);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final formatted = KFormat.compact(score, l10n);
+    return Semantics(
+      label: l10n.liveScore(score, formatted),
+      container: true,
+      child: ExcludeSemantics(
+        child: Container(
+          height: KMetrics.badgeHeight,
+          padding: const EdgeInsetsDirectional.symmetric(
+            horizontal: KSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: KPalette.dark.scrim,
+            borderRadius: BorderRadius.circular(KRadius.pill),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const KPointsIcon(size: KMetrics.iconXs),
+              const SizedBox(width: KSpacing.xxs),
+              Text(
+                formatted,
                 maxLines: 1,
                 textScaler: TextScaler.noScaling,
                 style: _badgeText(context),

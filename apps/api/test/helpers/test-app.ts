@@ -1,5 +1,8 @@
+import { LIVE_MEDIA_PROVIDER } from '../../src/modules/live/media/live-media.provider.js';
+import { MemoryLiveMedia } from './memory-live-media.js';
 import 'reflect-metadata';
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -10,7 +13,9 @@ import { configureApp } from '../../src/app.setup.js';
 import { loadConfig, type AppConfig } from '../../src/config/app-config.js';
 import {
   MAIL_SENDER,
+  type AccountDeletionMail,
   type AccountExistsMail,
+  type DataExportReadyMail,
   type MailLocale,
   type MailSender,
   type RegistrationCodeMail,
@@ -20,7 +25,14 @@ import { PrismaClient } from '../../src/generated/prisma/client.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
 import { BackgroundTasks } from '../../src/common/background/background-tasks.js';
 
-export type CapturedKind = 'verify' | 'reset' | 'code' | 'account_exists';
+export type CapturedKind =
+  | 'verify'
+  | 'reset'
+  | 'code'
+  | 'account_exists'
+  | 'deletion_requested'
+  | 'deletion_cancelled'
+  | 'data_export_ready';
 
 /** Every captured mail; fields that do not apply to a kind are empty strings. */
 export interface CapturedMail {
@@ -73,6 +85,31 @@ export class CapturingMailSender implements MailSender {
       token: '',
       link: '',
       code: '',
+    });
+    return Promise.resolve();
+  }
+
+  /** D193: the account-deletion notices (`code` carries the purge date, YYYY-MM-DD, of a `requested` one). */
+  sendAccountDeletionNotice(mail: AccountDeletionMail): Promise<void> {
+    this.sent.push({
+      kind: mail.kind === 'requested' ? 'deletion_requested' : 'deletion_cancelled',
+      to: mail.to,
+      locale: mail.locale,
+      token: '',
+      link: '',
+      code: mail.purgeAfter?.toISOString().slice(0, 10) ?? '',
+    });
+    return Promise.resolve();
+  }
+
+  sendDataExportReady(mail: DataExportReadyMail): Promise<void> {
+    this.sent.push({
+      kind: 'data_export_ready',
+      to: mail.to,
+      locale: mail.locale,
+      token: '',
+      link: '',
+      code: mail.expiresAt.toISOString().slice(0, 10),
     });
     return Promise.resolve();
   }
@@ -149,10 +186,103 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_LIVE_START_DAY_USER: GENEROUS,
     RATE_LIMIT_LIVE_HEARTBEAT_USER: GENEROUS,
     RATE_LIMIT_LIVE_END_USER: GENEROUS,
+    // CP-010 (KL-063)
+    RATE_LIMIT_LIVE_MEDIA_TOKEN_USER: GENEROUS,
+    RATE_LIMIT_LIVE_MEDIA_TOKEN_GUEST_IP: GENEROUS,
+    RATE_LIMIT_LIVE_UPDATE_USER: GENEROUS,
+    RATE_LIMIT_LIVE_COVER_USER: GENEROUS,
+    RATE_LIMIT_AVATAR_USER: GENEROUS,
+    RATE_LIMIT_LIVE_BLOCKED_WORDS_USER: GENEROUS,
+    RATE_LIMIT_LIVE_GUEST_READ_IP: GENEROUS,
+    // CP-011 (KL-064)
+    RATE_LIMIT_LIVE_SEAT_ASK_USER: GENEROUS,
+    RATE_LIMIT_LIVE_SEAT_ACTION_USER: GENEROUS,
+    RATE_LIMIT_LIVE_QUESTION_VOTE_USER: GENEROUS,
+    RATE_LIMIT_LIVE_PODCAST_DIRECTOR_USER: GENEROUS,
+    RATE_LIMIT_LIVE_SEATS_READ_USER: GENEROUS,
+    // CP-012 (KL-065)
+    RATE_LIMIT_LIVE_TAPS_USER: GENEROUS,
+    // CP-013 (KL-067)
+    RATE_LIMIT_LIVE_CHAT_USER: GENEROUS,
+    // CP-018 (KL-079)
+    RATE_LIMIT_FAMILY_WRITE_USER: GENEROUS,
+    RATE_LIMIT_CP_WRITE_USER: GENEROUS,
+    RATE_LIMIT_CP_GIFT_USER: GENEROUS,
+    RATE_LIMIT_CP_SPACE_WRITE_USER: GENEROUS,
+    RATE_LIMIT_CP_CONFESSION_USER: GENEROUS,
+    // A LiveKit identity for signing tokens; the media server itself is the in-memory fake
+    // (createTestApp) unless a spec passes the real adapter.
+    LIVEKIT_URL: 'ws://127.0.0.1:7880',
+    LIVEKIT_API_KEY: 'devkey',
+    LIVEKIT_API_SECRET: 'secret',
     RATE_LIMIT_FOLLOW_HOUR_USER: GENEROUS,
     RATE_LIMIT_FOLLOW_DAY_USER: GENEROUS,
+    // v1.5-social (KL-060)
+    RATE_LIMIT_MEDIA_UPLOAD_USER: GENEROUS,
+    RATE_LIMIT_POST_CREATE_HOUR_USER: GENEROUS,
+    RATE_LIMIT_POST_CREATE_DAY_USER: GENEROUS,
+    RATE_LIMIT_COMMENT_USER: GENEROUS,
+    RATE_LIMIT_LIKE_USER: GENEROUS,
+    RATE_LIMIT_REPOST_USER: GENEROUS,
+    RATE_LIMIT_SHARE_USER: GENEROUS,
+    RATE_LIMIT_VIEWS_USER: GENEROUS,
+    RATE_LIMIT_STORY_CREATE_USER: GENEROUS,
+    RATE_LIMIT_STORY_SEEN_USER: GENEROUS,
+    RATE_LIMIT_NOTIFICATIONS_READ_USER: GENEROUS,
+    RATE_LIMIT_FEED_USER: GENEROUS,
+    RATE_LIMIT_SEARCH_USER: GENEROUS,
+    RATE_LIMIT_BLOCK_USER: GENEROUS,
+    RATE_LIMIT_REPORT_USER: GENEROUS,
+    // No background workers in tests: specs call MediaService.sweep() / the publisher directly.
+    MEDIA_SWEEP_INTERVAL_SECONDS: '0',
+    POSTS_PUBLISH_INTERVAL_SECONDS: '0',
+    NOTIFICATIONS_SWEEP_INTERVAL_SECONDS: '0',
+    BONDS_SWEEP_INTERVAL_SECONDS: '0',
+    // D146: specs call PremiumUsernamesService.sweep() with a fake clock.
+    PREMIUM_USERNAME_SWEEP_INTERVAL_SECONDS: '0',
+    RATE_LIMIT_PREMIUM_RENT_USER: GENEROUS,
+    RATE_LIMIT_USERNAME_CHANGE_USER: GENEROUS,
+    // D147: specs call SearchTrendsService.sweep() directly.
+    SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS: '0',
+    RATE_LIMIT_SEARCH_RECORD_USER: GENEROUS,
+    // D152: no push outbox timer in tests (specs call NotificationPushDispatcher.dispatchOnce());
+    // FIREBASE_CREDENTIALS_FILE is never set, so the real sender is off.
+    PUSH_DISPATCH_INTERVAL_MS: '0',
+    // D155: specs call DmSweeper.sweep() with a fake clock; the DM limits are tested by their spec.
+    DM_SWEEP_INTERVAL_SECONDS: '0',
+    SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS: '0',
+    // D193: specs call AccountDeletionSweeper.sweep() with a later time.
+    ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS: '0',
+    // v1.74-social (D217): the referral sweeper runs only when a test calls it.
+    REFERRAL_SWEEP_INTERVAL_SECONDS: '0',
+    RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS: '0',
+    VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS: '0',
+    // D300: the content-creator medals' sweeper runs only when a test calls it.
+    MEDAL_CREATOR_SWEEP_INTERVAL_SECONDS: '0',
+    RATE_LIMIT_ACCOUNT_DELETION_USER: GENEROUS,
+    // D198: specs call DataExportsService.sweep() / build directly.
+    DATA_EXPORT_SWEEP_INTERVAL_SECONDS: '0',
+    RATE_LIMIT_DATA_EXPORT_USER: GENEROUS,
+    RATE_LIMIT_DATA_EXPORT_DOWNLOAD_USER: GENEROUS,
+    // D204: the recharge-order expiry sweeper (tests call it directly).
+    RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS: '0',
+    // D245: no exchange-rate poller in tests (specs call FxRatesService.runIfDue / refresh against a stub feed).
+    FX_POLL_TICK_SECONDS: '0',
+    FX_FREE_URL: 'http://127.0.0.1:9/fx-disabled',
+    BAG_SWEEP_INTERVAL_SECONDS: '0',
+    RATE_LIMIT_DM_SEND_USER: GENEROUS,
+    RATE_LIMIT_DM_REQUEST_USER: GENEROUS,
+    RATE_LIMIT_DM_WRITE_USER: GENEROUS,
+    RATE_LIMIT_DM_GROUP_CREATE_USER: GENEROUS,
+    RATE_LIMIT_SUPPORT_SEND_USER: GENEROUS,
+    // D166: specs call EventsService.sweep() with a fake clock.
+    EVENTS_SWEEP_INTERVAL_SECONDS: '0',
+    // D179: specs call AgencyService.evaluateRanks() with a fake clock.
+    AGENCY_SWEEP_INTERVAL_SECONDS: '0',
     // No background sweeper in tests: specs call LiveRoomsService.sweepStale() with a fake clock.
     LIVE_SWEEP_INTERVAL_SECONDS: '0',
+    // v1.43-live (D195): the PK tick is run by hand in tests (FakeClock).
+    PK_TICK_MS: '0',
     ...overrides,
   });
 }
@@ -174,12 +304,29 @@ export async function withMigrationClient<T>(fn: (client: PrismaClient) => Promi
 }
 
 /**
+ * v1.46-live (D207): the gift categories the migrations seed (`20270127090000_gift_categories`, D312's
+ * `20270408090200_custom_gifts`), put back after every
+ * reset — gifts reference them, as on a real database.
+ */
+export const SEED_GIFT_CATEGORIES_SQL = `
+  INSERT INTO gift_categories (code, kind, name_ar, name_en, sort_order) VALUES
+    ('POPULAR', 'NORMAL', 'شائعة', 'Popular', 10),
+    ('EVENT', 'NORMAL', 'مناسبات', 'Events', 20),
+    ('FUN', 'NORMAL', 'مرح', 'Fun', 30),
+    ('LUCKY', 'LUCKY', 'الحظ', 'Lucky', 40),
+    ('QUIPS', 'QUIPS', 'إفيهات', 'Quips', 50),
+    -- v1.100-social (D312): «مُخصَّص», seeded by 20270408090200_custom_gifts.
+    ('CUSTOM', 'CUSTOM', 'مُخصَّص', 'Custom', 60)
+  ON CONFLICT (code) DO NOTHING`;
+
+/**
  * Removes every table row (the e2e database is dedicated to tests). Every application table is
- * truncated, so tables added by later migrations are covered without editing this list.
+ * truncated, so tables added by later migrations are covered without editing this list; the seeded
+ * gift categories (D207) and the referral settings row (D217) are put back.
  */
 export async function resetDatabase(): Promise<void> {
-  await withMigrationClient((client) =>
-    client.$executeRawUnsafe(`
+  await withMigrationClient(async (client) => {
+    await client.$executeRawUnsafe(`
       DO $$
       DECLARE tables text;
       BEGIN
@@ -190,9 +337,76 @@ export async function resetDatabase(): Promise<void> {
           EXECUTE 'TRUNCATE TABLE ' || tables || ' CASCADE';
         END IF;
       END
-      $$`),
-  );
+      $$`);
+    await client.$executeRawUnsafe(SEED_GIFT_CATEGORIES_SQL);
+    // v1.74-social (D217): the referral settings' one row (its defaults), inserted by its migration.
+    await client.$executeRawUnsafe(`INSERT INTO referral_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
+    // v1.75-live (D285): the recruit shares' one row (the owner's defaults), inserted by its migration.
+    await client.$executeRawUnsafe(
+      `INSERT INTO staff_recruit_settings (id) VALUES (1) ON CONFLICT DO NOTHING`,
+    );
+    // v1.82-social (D252): VIP 1 and its six perks, as its migration seeds them (art URLs NULL — all
+    // VIP art is hosted and uploaded from the admin panel; nothing is bundled). Put back after the
+    // TRUNCATE so the e2e database matches a freshly migrated one. Two calls: $executeRawUnsafe runs
+    // one statement per call (the query protocol rejects several commands in one prepared statement).
+    await client.$executeRawUnsafe(SEED_VIP_TIER_SQL);
+    await client.$executeRawUnsafe(SEED_VIP_PERKS_SQL);
+    // v1.89-social (D290): the level-raise weights' one row and the source apps, as their migration seeds them.
+    await client.$executeRawUnsafe(`INSERT INTO level_raise_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
+    await client.$executeRawUnsafe(seedLevelRaiseAppsSql());
+    // v1.90-social (D293): the verification badges' thresholds row (the owner's defaults), inserted by its migration.
+    await client.$executeRawUnsafe(
+      `INSERT INTO verification_badge_settings (id) VALUES (1) ON CONFLICT DO NOTHING`,
+    );
+    // v1.130-social (D376): the owner's «المميزة» status pack price, inserted by its migration.
+    await client.$executeRawUnsafe(
+      `INSERT INTO status_pack_offers (pack_id, days, coins) VALUES ('premium', 30, 100000) ON CONFLICT DO NOTHING`,
+    );
+  });
 }
+
+/**
+ * v1.89-social (D290): the source apps' INSERT of migration `20270324090100_level_raise`, read from the migration
+ * itself so the e2e database matches a freshly migrated one without a second copy of the data.
+ */
+export function seedLevelRaiseAppsSql(): string {
+  const sql = readFileSync(
+    new URL('../../prisma/migrations/20270324090100_level_raise/migration.sql', import.meta.url),
+    'utf8',
+  );
+  const start = sql.indexOf('INSERT INTO "level_raise_source_apps"');
+  if (start < 0) throw new Error('level_raise_source_apps seed not found in its migration');
+  return sql.slice(start, sql.indexOf(';\n', start) + 1);
+}
+
+/**
+ * The VIP 1 tier, mirroring migration `20270305090100_vip` (art NULL). D252. v1.126-social (D370): its points price,
+ * as `20270430090000_recharge_points` sets it.
+ */
+export const SEED_VIP_TIER_SQL = `
+  INSERT INTO vip_tiers (id, code, name_ar, name_en, sort_order, color, name_color, price_coins, points_price, duration_days, enabled)
+    VALUES ('01a25200-0000-7000-8000-000000000001', 'VIP_1', 'في آي بي 1', 'VIP 1', 1, '#2E8B3D', '#FFC928', 1000000, 2000000, 30, true)
+    ON CONFLICT (id) DO NOTHING`;
+
+/**
+ * VIP 1's perks, mirroring migrations `20270305090100_vip` (six, art NULL; D252) and `20270306090000_vip_perks` (the
+ * owner's other six with their amounts; D258); `value` as `20270503090000_vip_perk_catalogue` copies it (D374).
+ */
+export const SEED_VIP_PERKS_SQL = `
+  INSERT INTO vip_tier_perks (id, tier_id, code, title_ar, title_en, sort_order, enabled, amount, value) VALUES
+    ('01a25200-0000-7000-8000-0000000000a1', '01a25200-0000-7000-8000-000000000001', 'BADGE', 'الشارة', 'Badge', 0, true, NULL, NULL),
+    ('01a25200-0000-7000-8000-0000000000a2', '01a25200-0000-7000-8000-000000000001', 'AVATAR_FRAME', 'إطار الصورة', 'Avatar frame', 1, true, NULL, NULL),
+    ('01a25200-0000-7000-8000-0000000000a3', '01a25200-0000-7000-8000-000000000001', 'PROFILE_CARD', 'إطار البطاقة', 'Profile card', 2, true, NULL, NULL),
+    ('01a25200-0000-7000-8000-0000000000a4', '01a25200-0000-7000-8000-000000000001', 'ENTRY_BANNER', 'لافتة الدخول', 'Entry banner', 3, true, NULL, NULL),
+    ('01a25200-0000-7000-8000-0000000000a5', '01a25200-0000-7000-8000-000000000001', 'CHAT_BUBBLE', 'إطار الرسائل', 'Message frame', 4, true, NULL, NULL),
+    ('01a25200-0000-7000-8000-0000000000a6', '01a25200-0000-7000-8000-000000000001', 'ENTRY_EFFECT', 'مؤثر الدخول', 'Entry effect', 5, true, NULL, NULL),
+    ('01a25200-0000-7000-8000-0000000000a7', '01a25200-0000-7000-8000-000000000001', 'CHAT_NAME_COLOR', 'لون الاسم', 'Name colour', 6, true, NULL, NULL),
+    ('01a25200-0000-7000-8000-0000000000a8', '01a25200-0000-7000-8000-000000000001', 'MIC_WAVE', 'موجة المايك', 'Mic wave', 7, true, NULL, NULL),
+    ('01a25200-0000-7000-8000-0000000000a9', '01a25200-0000-7000-8000-000000000001', 'DAILY_BULLET', 'رسائل عامة مجانية', 'Free public messages', 8, true, 3, '3'::jsonb),
+    ('01a25200-0000-7000-8000-0000000000aa', '01a25200-0000-7000-8000-000000000001', 'PROFILE_VISITORS', 'من زار ملفي', 'Profile visitors', 9, true, NULL, NULL),
+    ('01a25200-0000-7000-8000-0000000000ab', '01a25200-0000-7000-8000-000000000001', 'DAILY_COINS', 'عملات يومية', 'Daily coins', 10, true, NULL, NULL),
+    ('01a25200-0000-7000-8000-0000000000ac', '01a25200-0000-7000-8000-000000000001', 'LEVEL_SPEEDUP', 'تسريع المستوى', 'Level speed-up', 11, true, 1, '1'::jsonb)
+    ON CONFLICT (id) DO NOTHING`;
 
 async function deleteRedisKeys(url: string, prefix: string): Promise<void> {
   const redis = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1 });
@@ -223,7 +437,11 @@ export async function createTestApp(
   let builder = Test.createTestingModule({ imports: [AppModule.register(config)] })
     .overrideProvider(MAIL_SENDER)
     .useValue(mail);
-  for (const override of providerOverrides) {
+  // CP-010: never a real media server unless a spec passes one (the in-memory fake by default).
+  const overridesWithMedia = providerOverrides.some((o) => o.token === LIVE_MEDIA_PROVIDER)
+    ? providerOverrides
+    : [{ token: LIVE_MEDIA_PROVIDER, value: new MemoryLiveMedia() }, ...providerOverrides];
+  for (const override of overridesWithMedia) {
     builder = builder.overrideProvider(override.token).useValue(override.value);
   }
   const moduleRef = await builder.compile();
@@ -286,12 +504,18 @@ let counter = 0;
 /** Unique, contract-valid registration payload. */
 export function newUser(overrides: Partial<Record<string, unknown>> = {}) {
   counter += 1;
-  const suffix = `${Date.now().toString(36)}${counter}`;
+  // D146: never a premium pattern (a run of three equal characters makes a name premium).
+  let name = `user${Date.now().toString(36)}${counter}`;
+  while (/(.)\1\1/.test(name))
+    name = name.replace(/(.)\1\1/, (_m, c: string) => `${c}${c}${c === 'q' ? 'v' : 'q'}`);
+  const suffix = name.slice(4);
   return {
     email: `user${suffix}@example.com`,
     password: 'correct horse battery staple',
     username: `user${suffix}`,
     displayName: 'Test User',
+    // v1.47-social (D175): required at sign-up.
+    gender: 'UNDISCLOSED',
     locale: 'en',
     device: { name: 'Pixel 9', platform: 'android', appVersion: '1.0.0' },
     ...overrides,

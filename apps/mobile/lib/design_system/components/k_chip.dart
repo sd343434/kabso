@@ -7,7 +7,8 @@ import 'package:material_ui/material_ui.dart';
 /// primary tabs (categories) and, later, gift quantities.
 ///
 /// 32 dp visual, `pill` radius, inside a 48 dp hit area. Selected: `primary`
-/// fill with `onPrimary` text; unselected: `surfaceRaised` with
+/// fill with `onPrimary` text; unselected: `surfaceRaised` (dark) or
+/// `surfaceOverlay` (light, D68) with
 /// `textPrimary`. Announced as a selectable option in a mutually exclusive
 /// group.
 ///
@@ -35,7 +36,13 @@ class KChip extends StatelessWidget {
       height: KMetrics.chipHeight,
       padding: const EdgeInsetsDirectional.symmetric(horizontal: KSpacing.md),
       decoration: BoxDecoration(
-        color: selected ? p.primary : p.surfaceRaised,
+        // In the light theme `surfaceRaised` is the page white, so an
+        // unselected chip takes `surfaceOverlay` to stay visible (D68).
+        color: selected
+            ? p.primary
+            : Theme.of(context).brightness == Brightness.light
+            ? p.surfaceOverlay
+            : p.surfaceRaised,
         borderRadius: BorderRadius.circular(KRadius.pill),
       ),
       child: Center(

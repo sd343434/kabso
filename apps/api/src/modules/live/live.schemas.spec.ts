@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { type Prisma } from '../../generated/prisma/client.js';
 import { keysetAfter, orderBy } from './live-rooms.service.js';
-import { isUuid, listLiveRoomsQuerySchema, liveTitleIssue, startLiveRoomSchema } from './live.schemas.js';
+import {
+  isUuid,
+  listLiveRoomsQuerySchema,
+  liveTitleIssue,
+  MAX_WISH_GIFTS,
+  startLiveRoomSchema,
+  updateLiveRoomSchema,
+} from './live.schemas.js';
 
 /** Builds strings from code points, so invisible characters stay visible in this file. */
 const cp = (...points: number[]) => String.fromCodePoint(...points);
@@ -68,11 +75,53 @@ describe('live-room title (CONVENTIONS §10.3)', () => {
     expect(parsed.title).toBe(`Caf${cp(0xe9)} night`);
   });
 
-  it('has no mode field and a strict body', () => {
-    const result = startLiveRoomSchema.safeParse({ title: 'ok', mode: 'SOLO' }, { reportInput: true });
+  // CP-011 (v1.7-live) added `mode`, `seatCount` and `theme`; the body stays strict.
+  it('has a strict body', () => {
+    const result = startLiveRoomSchema.safeParse({ title: 'ok', foo: 1 }, { reportInput: true });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(zodErrorToDetails(result.error)).toEqual([{ field: 'mode', issue: 'unknown_field' }]);
+      expect(zodErrorToDetails(result.error)).toEqual([{ field: 'foo', issue: 'unknown_field' }]);
+    }
+  });
+
+  it('CP-011: mode, seatCount (per mode, host tile included) and theme', () => {
+    const details = (body: unknown) => {
+      const result = startLiveRoomSchema.safeParse(body, { reportInput: true });
+      return result.success ? [] : zodErrorToDetails(result.error);
+    };
+    for (const body of [
+      { title: 'ok', mode: 'SOLO' },
+      { title: 'ok', mode: 'AUDIO', seatCount: 5 },
+      { title: 'ok', mode: 'AUDIO', seatCount: 10 },
+      { title: 'ok', mode: 'AUDIO', seatCount: 15 },
+      { title: 'ok', mode: 'AUDIO', seatCount: 20 },
+      { title: 'ok', mode: 'AUDIO', seatCount: 20, theme: 'rose-garden' },
+      { title: 'ok', theme: 'classic' },
+    ]) {
+      expect({ body, details: details(body) }).toEqual({ body, details: [] });
+    }
+    const cases: [unknown, { field: string; issue: string }[]][] = [
+      [{ title: 'ok', mode: 'PK' }, [{ field: 'mode', issue: 'invalid_value' }]],
+      // v1.116-live (D369, §10.162): MULTI is retired — refused like PK, whatever the seat count.
+      [{ title: 'ok', mode: 'MULTI', seatCount: 4 }, [{ field: 'mode', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'MULTI', seatCount: 12 }, [{ field: 'mode', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'AUDIO' }, [{ field: 'seatCount', issue: 'required' }]],
+      [{ title: 'ok', mode: 'AUDIO', seatCount: 4 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'AUDIO', seatCount: 7 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      // D103: the former AUDIO sizes 6 and 9 (D100) and 13 (before D100) are gone; 5 / 10 / 15 /
+      // 20 are AUDIO only. D123: 25 is gone too.
+      [{ title: 'ok', mode: 'AUDIO', seatCount: 25 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'AUDIO', seatCount: 6 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'AUDIO', seatCount: 9 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'AUDIO', seatCount: 13 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'AUDIO', seatCount: 12 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', seatCount: 4 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'AUDIO', seatCount: '5' }, [{ field: 'seatCount', issue: 'invalid_type' }]],
+      [{ title: 'ok', theme: 'Bad Theme' }, [{ field: 'theme', issue: 'invalid_format' }]],
+      [{ title: 'ok', theme: 'not-a-theme' }, [{ field: 'theme', issue: 'invalid_value' }]],
+    ];
+    for (const [body, expected] of cases) {
+      expect({ body, details: details(body) }).toEqual({ body, details: expected });
     }
   });
 
@@ -134,22 +183,44 @@ describe('GET /live/rooms query', () => {
 
 describe('list ordering (CONVENTIONS §10.4)', () => {
   const text = (sql: Prisma.Sql) => sql.sql.replace(/\s+/g, ' ').trim();
-  const position = { viewerCount: 7, startedAt: new Date('2026-10-16T19:00:00.000Z'), id: 'room-id' };
+  const position = { score: 7, startedAt: new Date('2026-10-16T19:00:00.000Z'), id: 'room-id' };
 
-  it('popular = viewerCount desc, startedAt desc, id desc; new/following = startedAt desc, id desc', () => {
-    expect(text(orderBy('popular'))).toBe('r.viewer_count DESC, r.started_at DESC, r.id DESC');
+  it('popular = the room cherries desc (v1.86-live, D310; was the score), startedAt desc, id desc; new/following = startedAt desc, id desc', () => {
+    expect(text(orderBy('popular'))).toBe('r.cherries DESC, r.started_at DESC, r.id DESC');
     expect(text(orderBy('new'))).toBe('r.started_at DESC, r.id DESC');
     expect(text(orderBy('following'))).toBe('r.started_at DESC, r.id DESC');
   });
 
   it('keyset continues strictly after the last row with the same key columns as the order', () => {
     const popular = keysetAfter('popular', position);
-    expect(text(popular)).toBe('(r.viewer_count, r.started_at, r.id) < (?::int, ?::timestamptz, ?::uuid)');
-    expect(popular.values).toEqual([7, '2026-10-16T19:00:00.000Z', 'room-id']);
+    expect(text(popular)).toBe('(r.cherries, r.started_at, r.id) < (?::bigint, ?::timestamptz, ?::uuid)');
+    expect(popular.values).toEqual(['7', '2026-10-16T19:00:00.000Z', 'room-id']);
     for (const tab of ['new', 'following'] as const) {
       const sql = keysetAfter(tab, position);
       expect(text(sql)).toBe('(r.started_at, r.id) < (?::timestamptz, ?::uuid)');
       expect(sql.values).toEqual(['2026-10-16T19:00:00.000Z', 'room-id']);
     }
+  });
+});
+
+describe('D136 wishGifts (v1.27.3-live, §10.29)', () => {
+  const issues = (body: unknown) => {
+    const r = updateLiveRoomSchema.safeParse(body, { reportInput: true });
+    return r.success ? [] : zodErrorToDetails(r.error);
+  };
+
+  it('takes up to 4 distinct gift codes, [] empties the list', () => {
+    expect(issues({ wishGifts: [] })).toEqual([]);
+    expect(issues({ wishGifts: ['rose', 'crown', 'cake', 'kabi_dance'] })).toEqual([]);
+    expect(startLiveRoomSchema.safeParse({ title: 'Hi', wishGifts: ['rose'] }).success).toBe(true);
+  });
+
+  it('refuses more than 4, a repeated code and a malformed code', () => {
+    expect(issues({ wishGifts: ['a1', 'a2', 'a3', 'a4', 'a5'] })).toEqual([
+      { field: 'wishGifts', issue: 'too_many' },
+    ]);
+    expect(issues({ wishGifts: ['rose', 'rose'] })).toEqual([{ field: 'wishGifts', issue: 'invalid_value' }]);
+    expect(issues({ wishGifts: ['Bad!'] })).toEqual([{ field: 'wishGifts.0', issue: 'invalid_format' }]);
+    expect(MAX_WISH_GIFTS).toBe(4);
   });
 });

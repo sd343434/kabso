@@ -149,8 +149,8 @@ UI component boundaries & meaningful icons ≥ 3:1. **FAIL** = below 4.5:1 for b
 
 | Script | Family | Weights bundled | Notes |
 | ------ | ------ | --------------- | ----- |
-| Arabic | `IBM Plex Sans Arabic` (OFL-1.1) | 400, 600, 700 | Used whenever the app locale is `ar`, with Inter as `fontFamilyFallback` for Latin runs |
-| Latin | `Inter` (OFL-1.1) | 400, 600, 700 | Used when locale is `en`, with Plex Arabic as fallback for Arabic runs (user names, captions) |
+| Arabic | `Noto Sans Arabic` (OFL-1.1; D255, owner: «اريد نفس خط bigo live», supersedes D47's Readex Pro) | 400, 500, 600, 700 | Used whenever the app locale is `ar`, with Roboto as `fontFamilyFallback` for Latin runs (digits, hashtags, names) |
+| Latin | `Roboto` (OFL-1.1; D255, Bigo's face on Android; supersedes Inter) | 400, 500 (600 draws Roboto Medium, as Android does), 700 | Used when locale is `en`, with Noto Sans Arabic as fallback for Arabic runs |
 
 Both bundled as assets (no runtime download). Mixed-script strings (Arabic caption with an
 English hashtag) render correctly through the fallback chain — do not split into spans manually.
@@ -169,7 +169,7 @@ English hashtag) render correctly through the fallback chain — do not split in
 
 Rules:
 
-- **Arabic line height**: Plex Sans Arabic has tall marks; with the token heights, `label` 1.3
+- **Arabic line height**: Arabic marks are tall (measured on IBM Plex Sans Arabic, kept for Readex Pro); with the token heights, `label` 1.3
   and `title` 1.3 can clip diacritics in single-line boxes. Never constrain text boxes to an
   exact height; size containers from padding + text. See §12 proposal (`arabicHeightDelta`).
 - **No letter-spacing on Arabic** (breaks joining). Latin `label` may use +0.1 px. No italics in
@@ -518,6 +518,37 @@ Anatomy: height 56 + top inset · leading slot (back IconButton — flips — or
 | `modal` | Close (×) at start, title centred, text action at end ("Save") |
 
 States: action buttons follow IconButton states; title never interactive.
+
+**Profile cover (D278, D278b).** The own and the public profile open on a full-bleed cover
+picture, `0.42 ×` the screen height (≈ 358 dp on 393 × 852), drawn from the very top under the
+status bar and the `transparent` TopBar — the page's own buttons (back, ⋯ / drafts, settings) on
+40 dp `live.glass` circles, white; the bar turns `background` with the @username once the cover has
+scrolled away, and the tabs pin under it. D278d: the picture ends with a **clean straight edge**
+(no fade, no scrim) and the photo with its frame sits **wholly inside it**, `sm` above its bottom
+edge at the reading start (a thin white ring around a plain photo; the picture grows only if a short
+screen leaves no room under the top buttons). D278c: under the picture is the **page itself**
+(`background`: white in light, black in dark), in the theme's colours. It carries, top to bottom: the photo in the frames' common box
+the **name row**
+(name 20 / 700, the VIP badge right after it, our badges, then the level badges, wrapping); the
+@username; the **numbers** — Followers, Following, «الكرز المستلم», «الكوينز المرسلة» (the person
+card's: short Latin numbers, equal columns, thin dividers; a hidden one is left out); the 44 dp
+action row — **Follow** in `brand.red500` (radius `sm`) with square chat (`inbox` icon) and ⋯
+(chevron) outlined buttons, or «تعديل الملف» in the same quiet
+style (the page's fill, `borderStrong` outline, `textPrimary`); the **tags** «منشنات» as chips
+(D279b: `brand.red500` at 7 % fill — `red400` at 14 % in dark — with a 0.5 dp hairline of the
+same hue, text `red600` — a light pink `#FFA3A8` in dark; radius `xs`, 12.5 / 600) on **at most two lines**, the rest as a «+n» chip;
+the **links** (`primary`, as elsewhere). Only the top buttons stay on `live.glass` circles over the
+picture; the VIP name colour and badges are unchanged. No cover: the brand red gradient, with the
+photo blurred (σ 24) over it when there is one.
+
+**Live now pill (D279b; replaces D279's card).** While the profile's owner is live (and not
+blocked), a small pill on the cover at the **bottom-end corner, opposite the photo**, level with
+the photo's middle, 16 dp from the edge: 28 dp tall (text scale clamped at 1.3), radius `pill`,
+`brand.red400 → red600` with a 1.5 dp white outline and a soft shadow; a white dot (pulses three
+times when shown; still with reduced motion), the live icon (a microphone for voice rooms),
+«مباشر» (`caption` 700), a thin divider, the viewers icon and the count (`compactLatin`). A
+48 dp touch area opens the room (the live ring's route; your own room on your own profile). The
+screen reader hears «في بث الآن» (own: «أنت في بث الآن»), «مباشر منذ 1س 17د», viewers · score.
 
 ### 9.8 Tabs — `KTabs`
 

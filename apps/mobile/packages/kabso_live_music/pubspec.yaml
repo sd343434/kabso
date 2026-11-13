@@ -1,0 +1,29 @@
+name: kabso_live_music
+description: >-
+  Kabso Live's background music for a host's live (D201): decodes an audio file
+  the host picked and mixes it into the host's own published microphone on
+  flutter_webrtc's capture post-processing (after echo cancelling and noise
+  suppression), at a chosen level and lowered while the host speaks. Also the
+  system file picker for audio files (no storage permission). Android only;
+  other platforms are refused in Dart with the reason.
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.5
+  flutter: ">=3.47.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The mixer registers on flutter_webrtc's native AudioProcessingController
+  # (Android `capturePostProcessing`). Pinned to the app's version: it relies on
+  # that exact native API.
+  flutter_webrtc: 1.6.2+hotfix.4
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.kabso.kabso_live_music
+        pluginClass: KabsoLiveMusicPlugin

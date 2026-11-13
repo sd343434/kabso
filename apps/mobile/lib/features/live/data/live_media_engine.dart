@@ -1,0 +1,1655 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
+
+import 'package:clock/clock.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
+import 'package:kabso_camera_fx/kabso_camera_fx.dart';
+import 'package:kabso_live/core/logging/app_logger.dart';
+import 'package:kabso_live/features/live/application/streamer_diagnostics.dart';
+import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
+import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
+import 'package:kabso_live/features/live/data/beauty/live_camera_fx.dart';
+import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
+import 'package:kabso_live/features/live/data/live_camera_gate.dart';
+import 'package:kabso_live/features/live/data/live_media_extras.dart';
+import 'package:kabso_live/features/live/data/live_voice_recorder.dart';
+import 'package:kabso_live/features/live/data/streamer/live_screen_share.dart';
+import 'package:kabso_live/features/live/domain/live_chat.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_pk.dart';
+import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:material_ui/material_ui.dart';
+
+/// Thrown by [LiveMediaEngine.startPreview].
+class LiveCaptureException implements Exception {
+  const new(this.problem);
+
+  final LiveCaptureProblem problem;
+
+  @override
+  String toString() => 'LiveCaptureException(${problem.name})';
+}
+
+/// D160: the camera delivered less than 1080p after switching to
+/// [LiveVideoQuality.high] (the quality went back to what it was).
+class LiveHdUnsupportedException implements Exception {
+  const new();
+
+  @override
+  String toString() => 'LiveHdUnsupportedException()';
+}
+
+/// Why the camera or microphone could not start.
+enum LiveCaptureProblem {
+  /// The person refused access (or the system blocks it).
+  denied,
+
+  /// No camera or microphone was found, or it is in use.
+  unavailable,
+
+  /// D144a: refused for good — only the app's settings can allow it (the
+  /// system will not ask again).
+  blocked,
+}
+
+/// D154g «الجودة»: the host's published picture. [normal] is LiveKit's
+/// default (720p, simulcast); [smooth] captures 480p at 15 fps for a weak
+/// connection. D160: [high] captures 1080p at 30 fps with simulcast layers
+/// 1080 / 720 / 360 — offered only where this camera captures 1080p
+/// ([LiveMediaEngine.hdCapture]) and the uplink is not measured too slow
+/// ([LiveMediaEngine.uplink]). No 2K (owner: not recommended).
+enum LiveVideoQuality { smooth, normal, high }
+
+/// D154g: this phone's connection to the media server, as LiveKit rates it.
+enum LiveConnectionQuality { unknown, excellent, good, poor, lost }
+
+/// D160: the host's uplink as the publisher measures it (WebRTC's available
+/// outgoing bitrate on the media connection), sustained over
+/// [UplinkMeter.window].
+enum LiveUplink {
+  /// Not measured yet (the preview, the first seconds, or no such stat on
+  /// this platform): 1080p may be tried; it falls back by itself.
+  unmeasured,
+
+  /// At least [UplinkMeter.enoughBps] for the whole window.
+  sufficient,
+
+  /// Below it for the whole window: 1080p is not offered now.
+  insufficient,
+}
+
+/// D160: turns available-outgoing-bitrate samples into a [LiveUplink]: a
+/// verdict needs [window] in a row on one side of [enoughBps]; mixed samples
+/// keep the last verdict.
+class UplinkMeter {
+  static const enoughBps = 4000000;
+  static const window = Duration(seconds: 10);
+
+  LiveUplink _state = LiveUplink.unmeasured;
+  DateTime? _aboveSince;
+  DateTime? _belowSince;
+  int? _lastBps;
+
+  LiveUplink get state => _state;
+
+  /// The last sample, in bits per second.
+  int? get lastBps => _lastBps;
+
+  /// A sample at [now]; null (no stat) changes nothing.
+  LiveUplink feed(int? bps, DateTime now) {
+    if (bps == null) return _state;
+    _lastBps = bps;
+    if (bps >= enoughBps) {
+      _belowSince = null;
+      _aboveSince ??= now;
+      if (now.difference(_aboveSince!) >= window) {
+        _state = LiveUplink.sufficient;
+      }
+    } else {
+      _aboveSince = null;
+      _belowSince ??= now;
+      if (now.difference(_belowSince!) >= window) {
+        _state = LiveUplink.insufficient;
+      }
+    }
+    return _state;
+  }
+
+  void reset() {
+    _state = LiveUplink.unmeasured;
+    _aboveSince = null;
+    _belowSince = null;
+    _lastBps = null;
+  }
+}
+
+/// D160: whether a camera track's settings (flutter_webrtc: the capture
+/// format the phone picked; the web: what the browser reports) are 1080p
+/// or more, in either orientation.
+bool liveCaptures1080(Map<String, dynamic> settings) {
+  final w = settings['width'];
+  final h = settings['height'];
+  if (w is! num || h is! num) return false;
+  final long = w > h ? w : h;
+  final short = w > h ? h : w;
+  return long >= 1920 && short >= 1080;
+}
+
+/// D160: one simulcast layer's encoding: how much smaller than the capture,
+/// its bitrate cap and frame rate.
+typedef LiveLayerEncoding = ({
+  double scaleDown,
+  int maxBitrate,
+  int maxFramerate,
+});
+
+/// D160: the sender's layer [rid] (`f` full, `h` half, `q` quarter — or
+/// null: one layer) at [quality]. [LiveVideoQuality.high] publishes
+/// 1080p / 720p / 360p; the others LiveKit's 720p defaults (720 / 360 /
+/// 180, as D154g published them).
+LiveLayerEncoding liveLayerEncoding(LiveVideoQuality quality, String? rid) =>
+    switch ((quality, rid)) {
+      (LiveVideoQuality.high, 'q') => (
+        scaleDown: 3,
+        maxBitrate: 450000,
+        maxFramerate: 20,
+      ),
+      (LiveVideoQuality.high, 'h') => (
+        scaleDown: 1.5,
+        maxBitrate: 1700000,
+        maxFramerate: 30,
+      ),
+      (LiveVideoQuality.high, _) => (
+        scaleDown: 1,
+        maxBitrate: 3000000,
+        maxFramerate: 30,
+      ),
+      (_, 'q') => (scaleDown: 4, maxBitrate: 160000, maxFramerate: 15),
+      (_, 'h') => (scaleDown: 2, maxBitrate: 450000, maxFramerate: 20),
+      (_, _) => (scaleDown: 1, maxBitrate: 1700000, maxFramerate: 30),
+    };
+
+/// D210: the steps of [LiveMediaEngine.publish] — joining the media room,
+/// then publishing the camera and the microphone (the core of going live).
+enum LivePublishStage { connect, video, audio }
+
+/// D210: [LiveMediaEngine.publish] failed at [stage] with [cause]; the
+/// go-live failure's «تفاصيل» names both, so a device report says exactly
+/// which step broke and with what.
+class LivePublishException implements Exception {
+  const new(this.stage, this.cause);
+
+  final LivePublishStage stage;
+  final Object cause;
+
+  @override
+  String toString() =>
+      'LivePublishException(${stage.name}: ${cause.runtimeType})';
+}
+
+/// Runs [step] as [stage]: its failure is rethrown as a
+/// [LivePublishException] (with the original stack).
+Future<T> livePublishStage<T>(
+  LivePublishStage stage,
+  Future<T> Function() step,
+) async {
+  try {
+    return await step();
+  } on LivePublishException {
+    rethrow;
+  } on Object catch (e, stack) {
+    Error.throwWithStackTrace(LivePublishException(stage, e), stack);
+  }
+}
+
+/// The camera, microphone and media session of the person going live
+/// (CP-010, LiveKit, D3), behind an interface so screens and tests do not
+/// depend on the device or the media server. As a [LiveVoiceMic] it frees
+/// the published microphone while a chat voice clip records (CP-017).
+abstract interface class LiveMediaEngine implements LiveVoiceMic {
+  /// Starts the camera (front by default, unless [video] is false: audio
+  /// rooms) and the microphone for the preview. Throws a
+  /// [LiveCaptureException] when they cannot start. Calling it again with
+  /// another [video] switches.
+  Future<void> startPreview({bool video = true});
+
+  /// Whether the camera is part of the preview.
+  bool get videoEnabled;
+
+  /// D154g: the camera's quality now ([LiveVideoQuality.normal] at first).
+  LiveVideoQuality get videoQuality;
+
+  /// D154g: captures the camera at [quality] (the published track too).
+  /// Throws a [LiveCaptureException] when the camera cannot restart (the
+  /// quality stays as it was).
+  Future<void> setVideoQuality(LiveVideoQuality quality);
+
+  /// D154g: this phone's connection, as the media server rates it.
+  LiveConnectionQuality get connectionQuality;
+
+  /// D160: whether the camera on now captures 1080p (checked when the
+  /// camera first starts; false until then and for a camera not checked).
+  bool get hdCapture;
+
+  /// D160: the uplink while publishing ([LiveUplink.unmeasured] before).
+  LiveUplink get uplink;
+
+  /// Whether beauty (skin smoothing, brightening) works on this device
+  /// (D94).
+  bool get beautySupported;
+
+  /// Whether Magic's colour filters reach the published picture here (D143;
+  /// D144: Android too).
+  bool get filtersSupported;
+
+  /// Whether Magic's AR effects can run here (D144).
+  LiveArSupport get arEffects;
+
+  /// D228: the camera effects engine (DeepAR or the free one) on this
+  /// device's processor; [LiveFxEngine.deepAr] where there is none.
+  LiveFxEngine get fxEngine;
+
+  /// D228: switches the effects engine (the server's `cameraFxEngine`, or
+  /// the debug override); what was picked carries over. A no-op where there
+  /// is no camera processor.
+  Future<void> setFxEngine(LiveFxEngine engine);
+
+  /// D144a: the picked AR effect's state on the device — DeepAR switches
+  /// it off by itself (and says why) rather than freeze the picture.
+  ValueListenable<LiveArStatus> get arStatus;
+
+  /// D144a: the camera processor's state and counters for the non-release
+  /// diagnostics overlay; null where there is no processor.
+  Future<KabsoCameraFxDiagnostics?> arDiagnostics();
+
+  /// Beauty on the camera picture, before and while live: what of it this
+  /// device supports (skin, colour filter, AR effect).
+  Future<void> setBeauty(LiveBeauty beauty);
+
+  /// Voice processing on the microphone (D94 audio settings): noise
+  /// reduction, and enhancement (echo cancelling and level balancing).
+  Future<void> setVoice({required bool noiseReduction, required bool enhance});
+
+  /// The camera picture (cover-fit, mirrored for the front camera), or
+  /// `null` before [startPreview] succeeded.
+  Widget? preview();
+
+  bool get frontCamera;
+
+  Future<void> flipCamera();
+
+  /// D143 fill light with the back camera: whether the running camera has
+  /// a torch (phones' back cameras; never on the web). `false` before
+  /// [startPreview] or when the platform cannot tell.
+  Future<bool> hasTorch();
+
+  /// Turns the running camera's torch on or off (WebRTC's capture track,
+  /// Android Camera2 / iOS AVCaptureDevice). Throws where there is none.
+  /// The camera turns it off when it stops or flips.
+  Future<void> setTorch({required bool on});
+
+  bool get micEnabled;
+
+  Future<void> setMicEnabled({required bool enabled});
+
+  /// D123: pauses the published camera while the app is in the background
+  /// (Android blocks the camera there; the microphone goes on) and resumes
+  /// it on return. Nothing without a camera.
+  Future<void> setVideoPaused({required bool paused});
+
+  /// D174a: whether the published camera is paused now (a seated guest
+  /// turned it off, or the app is in the background).
+  bool get videoPaused;
+
+  /// Joins the room's media session with [access] and publishes what is
+  /// running (camera and microphone, or the microphone alone).
+  Future<void> publish(LiveMediaAccess access);
+
+  /// Leaves the session (if any) and turns the camera and microphone off.
+  Future<void> stop();
+
+  // ---- the session (CP-010 viewers, CP-011 seats) -----------------------
+
+  /// Joins the room's media session with [access] without publishing
+  /// (viewers, guests). A seated guest then calls [publishLocal].
+  Future<void> join(LiveMediaAccess access);
+
+  /// Whether the media server lets this participant publish now (seated).
+  bool get canPublish;
+
+  /// Starts the camera ([video]) and microphone and publishes them (a
+  /// seated guest, CP-011). Throws a [LiveCaptureException].
+  Future<void> publishLocal({required bool video});
+
+  /// Stops publishing and turns the camera and microphone off (off the
+  /// seat); the session stays joined.
+  Future<void> unpublishLocal();
+
+  /// The video of the participant [identity] (a user id), or `null`.
+  Widget? remoteVideo(String identity);
+
+  /// Whether [identity] is in the session now.
+  bool isPresent(String identity);
+
+  /// D170: whether [identity] is in the session with a camera track that is
+  /// muted — a host whose app is in the background (the phone stopped the
+  /// camera). Viewers then see "the host will be right back".
+  bool videoMuted(String identity);
+
+  /// The identities speaking now (the local one included).
+  Set<String> get speaking;
+
+  /// `seatsVersion` from the media room's metadata (CP-011 §10.9).
+  int? get seatsVersion;
+
+  /// The room score from the media room's metadata (CP-012 §10.10).
+  int? get score;
+
+  /// D259 (§10.95): the live's real host cherries from the media room's
+  /// metadata (`hostCherries`, left out at 0); null before any metadata.
+  int? get hostCherries;
+
+  /// D310 (§10.116): the room's cherries (host and seated guests) from the
+  /// media room's metadata (`roomCherries`, left out at 0); null before any
+  /// metadata and from an older server (the pill then uses [hostCherries]).
+  int? get roomCherries;
+
+  /// `roomInfoVersion` from the media room's metadata (CP-014 §10.12): the
+  /// title, category or topic changed.
+  int? get roomInfoVersion;
+
+  /// Room ids of seat invitations addressed to this participant.
+  Stream<String> get seatInvites;
+
+  /// CP-013: the server's chat data messages in the room (§10.11).
+  Stream<LiveChatEvent> get chatEvents;
+
+  /// v1.43-live (D195, §10.58): the server's `pk` data messages in the room
+  /// (the match for both rooms; invitations and queue ends for the host).
+  Stream<PkEvent> get pkEvents;
+
+  /// v1.114-live (D363, §10.157): the server's `podcast` data messages in
+  /// the room (the director's shots, question upvotes).
+  Stream<PodcastEvent> get podcastEvents;
+
+  /// v1.114-live (D363 scope extension): who may receive this phone's
+  /// camera and microphone — [onlyIdentity] only (a backstage guest's
+  /// self-check, seen by the host), or everyone (null). Enforced by the
+  /// media server for this participant's tracks.
+  Future<void> restrictSubscribers(String? onlyIdentity);
+
+  /// Notifies on any session change: participants, tracks, speakers,
+  /// metadata, permissions, connection.
+  Listenable get changes;
+
+  bool get connected;
+
+  /// v1.20-live (§10.20): the media server removed this participant (the
+  /// LiveKit disconnect reason "participant removed": a kick).
+  bool get removed;
+}
+
+class _Changes extends ChangeNotifier {
+  void ping() => notifyListeners();
+}
+
+/// [LiveMediaEngine] on `livekit_client` (its defaults: 720p, simulcast).
+/// D201: also the live tools' attributes and the clip recorder.
+class LiveKitMediaEngine
+    implements
+        LiveMediaEngine,
+        LiveParticipantAttributes,
+        LiveClipCapture,
+        LivePlaybackControls,
+        LiveSessionLink,
+        LiveSoftVideoPause,
+        LiveScreenShare {
+  lk.LocalVideoTrack? _video;
+  lk.LocalAudioTrack? _audio;
+  lk.Room? _room;
+  BeautyPipeline? _beautyPipeline;
+
+  /// D144: Android's native camera processor (colour filters, DeepAR).
+  final LiveCameraFx _fx = LiveCameraFx();
+  LiveBeauty _beauty = const LiveBeauty();
+  bool _front = true;
+  bool _mic = true;
+  bool _noiseReduction = true;
+  bool _enhance = true;
+  lk.EventsListener<lk.RoomEvent>? _listener;
+  final _changes = _Changes();
+  final _invites = StreamController<String>.broadcast();
+  final _chat = StreamController<LiveChatEvent>.broadcast();
+  final _pk = StreamController<PkEvent>.broadcast();
+  final _podcast = StreamController<PodcastEvent>.broadcast();
+  Set<String> _speaking = const {};
+  int? _seatsVersion;
+  int? _score;
+  int? _hostCherries;
+  int? _roomCherries;
+  int? _roomInfoVersion;
+  bool _removed = false;
+
+  /// D243: the session closed for good (LiveKit's final disconnect; never
+  /// set while it reconnects).
+  bool _closed = false;
+
+  @override
+  bool get sessionClosed => _closed;
+
+  /// D213: the streamer's screen track (the host) and the room's `streamer`
+  /// messages and metadata version (everyone).
+  lk.LocalVideoTrack? _screen;
+  final _streamer = StreamController<LiveStreamerEvent>.broadcast();
+  int? _streamerVersion;
+
+  /// CP-017: the published microphone is paused for a voice clip.
+  bool _clipHold = false;
+
+  @override
+  bool get videoEnabled => _video != null;
+
+  LiveVideoQuality _quality = LiveVideoQuality.normal;
+  LiveConnectionQuality _connection = LiveConnectionQuality.unknown;
+
+  @override
+  LiveVideoQuality get videoQuality => _quality;
+
+  @override
+  LiveConnectionQuality get connectionQuality => _connection;
+
+  /// D160: whether each camera (true: the front one) captures 1080p, once
+  /// checked.
+  final Map<bool, bool> _hd = {};
+  final UplinkMeter _uplink = UplinkMeter();
+  Timer? _uplinkTimer;
+  bool _sampling = false;
+
+  @override
+  bool get hdCapture => _hd[_front] ?? false;
+
+  @override
+  LiveUplink get uplink => _uplink.state;
+
+  /// D160: asks one camera (`front` or the back one) for 1080p at 30 fps
+  /// on its own (before the preview's track opens it) and reads the format
+  /// it gets —
+  /// flutter_webrtc reports the capture format the phone picked (Android
+  /// Camera2's closest output size, iOS's selected format), the web what
+  /// the browser delivers. Null: it could not tell. A seam for tests.
+  @visibleForTesting
+  static Future<bool?> Function({required bool front}) hdProbe = _probeHd;
+
+  static Future<bool?> _probeHd({required bool front}) async {
+    final stream = await rtc.navigator.mediaDevices.getUserMedia({
+      'audio': false,
+      'video': {
+        'facingMode': front ? 'user' : 'environment',
+        'width': 1920,
+        'height': 1080,
+        'frameRate': 30,
+      },
+    });
+    try {
+      final tracks = stream.getVideoTracks();
+      if (tracks.isEmpty) return null;
+      return liveCaptures1080(tracks.first.getSettings());
+    } finally {
+      for (final track in stream.getTracks()) {
+        await track.stop();
+      }
+      await stream.dispose();
+    }
+  }
+
+  Future<void> _checkHd() async {
+    if (_hd.containsKey(_front)) return;
+    try {
+      final hd = await hdProbe(front: _front);
+      if (hd != null) _hd[_front] = hd;
+    } on Object {
+      // Unknown: 1080p is not offered for this camera.
+    }
+  }
+
+  /// The capture of [quality] (null: LiveKit's default, 720p).
+  static lk.VideoParameters? _paramsOf(LiveVideoQuality quality) =>
+      switch (quality) {
+        LiveVideoQuality.smooth => const lk.VideoParameters(
+          dimensions: lk.VideoDimensions(854, 480),
+          encoding: lk.VideoEncoding(maxBitrate: 600000, maxFramerate: 15),
+        ),
+        LiveVideoQuality.normal => null,
+        LiveVideoQuality.high => lk.VideoParametersPresets.h1080_169,
+      };
+
+  /// D160: publishing at 1080p — 1080 / 720 / 360 simulcast layers, 30 fps.
+  static const _hdPublish = lk.VideoPublishOptions(
+    videoEncoding: lk.VideoEncoding(maxBitrate: 3000000, maxFramerate: 30),
+    videoSimulcastLayers: [
+      lk.VideoParametersPresets.h360_169,
+      lk.VideoParametersPresets.h720_169,
+    ],
+  );
+
+  /// D160: the published layers follow the quality (LiveKit computes them
+  /// once, at publish, for the capture of then): to and from 1080p each
+  /// layer's scale, bitrate cap and frame rate are set on the sender (the
+  /// viewers keep the same track: no republish, no gap).
+  Future<void> _applyEncodings(lk.LocalVideoTrack video) async {
+    final sender = video.sender;
+    if (sender == null) return;
+    final params = sender.parameters;
+    final encodings = params.encodings;
+    if (encodings == null || encodings.isEmpty) return;
+    for (final e in encodings) {
+      final layer = liveLayerEncoding(
+        _quality,
+        encodings.length == 1 ? null : e.rid,
+      );
+      e
+        ..scaleResolutionDownBy = layer.scaleDown
+        ..maxBitrate = layer.maxBitrate
+        ..maxFramerate = layer.maxFramerate;
+    }
+    params.encodings = encodings;
+    await sender.setParameters(params);
+  }
+
+  /// D160: the uplink every 2 s while publishing — WebRTC's
+  /// `availableOutgoingBitrate` of the media connection's active candidate
+  /// pair, from the camera sender's stats.
+  void _startUplink() {
+    _uplinkTimer?.cancel();
+    _uplink.reset();
+    _uplinkTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => unawaited(_sampleUplink()),
+    );
+  }
+
+  Future<void> _sampleUplink() async {
+    final sender = _video?.sender;
+    if (sender == null || _sampling) return;
+    _sampling = true;
+    try {
+      int? best;
+      for (final report in await sender.getStats()) {
+        if (report.type != 'candidate-pair') continue;
+        final values = report.values;
+        final active =
+            values['nominated'] == true || values['state'] == 'succeeded';
+        final raw = values['availableOutgoingBitrate'];
+        final bps = raw is num ? raw : num.tryParse('$raw');
+        if (!active || bps == null) continue;
+        best = math.max(best ?? 0, bps.toInt());
+      }
+      final before = _uplink.state;
+      if (_uplink.feed(best, clock.now()) != before) _changes.ping();
+    } on Object {
+      // No stats this time.
+    } finally {
+      _sampling = false;
+    }
+  }
+
+  lk.CameraCaptureOptions _cameraOptions() {
+    final params = _paramsOf(_quality);
+    final position = _front ? lk.CameraPosition.front : lk.CameraPosition.back;
+    return params == null
+        ? lk.CameraCaptureOptions(cameraPosition: position)
+        : lk.CameraCaptureOptions(
+            cameraPosition: position,
+            params: params,
+            maxFrameRate: params.encoding?.maxFramerate.toDouble(),
+          );
+  }
+
+  @override
+  Future<void> setVideoQuality(LiveVideoQuality quality) async {
+    if (quality == _quality) return;
+    final before = _quality;
+    if (quality == LiveVideoQuality.high && !hdCapture) {
+      throw const LiveHdUnsupportedException();
+    }
+    try {
+      await _capture(quality, before);
+      // D160: what the camera really delivers (it may pick less).
+      final video = _video;
+      if (quality == LiveVideoQuality.high &&
+          video != null &&
+          !liveCaptures1080(video.mediaStreamTrack.getSettings())) {
+        _hd[_front] = false;
+        await _capture(before, quality);
+        throw const LiveHdUnsupportedException();
+      }
+    } on LiveHdUnsupportedException {
+      rethrow;
+    } on Object {
+      _quality = before;
+      throw const LiveCaptureException(LiveCaptureProblem.unavailable);
+    } finally {
+      _changes.ping();
+    }
+  }
+
+  /// Restarts the camera at [quality] (published: the same track and
+  /// sender; previewing: a new track).
+  Future<void> _capture(LiveVideoQuality quality, LiveVideoQuality from) async {
+    _quality = quality;
+    final video = _video;
+    if (video != null && video.sender != null) {
+      await video.restartTrack(_cameraOptions());
+      if (quality == LiveVideoQuality.high || from == LiveVideoQuality.high) {
+        await _applyEncodings(video);
+      }
+      await _attachFx();
+    } else if (video != null) {
+      // Previewing: a new camera track at the new quality.
+      await _stopVideo();
+      await startPreview();
+    }
+  }
+
+  @override
+  bool get beautySupported => kIsWeb;
+
+  @override
+  bool get filtersSupported => kIsWeb || _fx.filtersSupported;
+
+  @override
+  LiveArSupport get arEffects => _fx.effects;
+
+  @override
+  LiveFxEngine get fxEngine => _fx.engine;
+
+  @override
+  Future<void> setFxEngine(LiveFxEngine engine) =>
+      kIsWeb ? Future.value() : _fx.setEngine(engine);
+
+  @override
+  ValueListenable<LiveArStatus> get arStatus => _fx.status;
+
+  @override
+  Future<KabsoCameraFxDiagnostics?> arDiagnostics() =>
+      kIsWeb ? Future.value() : _fx.diagnostics();
+
+  @override
+  Future<void> setBeauty(LiveBeauty beauty) async {
+    _beauty = beauty;
+    _beautyPipeline?.update(beauty);
+    await _fx.update(beauty);
+  }
+
+  /// D144: the native processor follows the camera track; LiveKit gives the
+  /// track a new native id whenever it restarts it (unmute after a pause).
+  Future<void> _attachFx() async {
+    final video = _video;
+    if (video == null || kIsWeb) return;
+    await _fx.attach(video.mediaStreamTrack.id ?? '');
+  }
+
+  /// Opens the camera; a seam for tests.
+  @visibleForTesting
+  static Future<lk.LocalVideoTrack> Function(lk.CameraCaptureOptions options)
+  createCamera = lk.LocalVideoTrack.createCameraTrack;
+
+  /// D215: opens the microphone; a seam for tests.
+  @visibleForTesting
+  static Future<lk.LocalAudioTrack> Function(lk.AudioCaptureOptions options)
+  createMicrophone = lk.LocalAudioTrack.create;
+
+  /// D215: a new media room; a seam for tests.
+  @visibleForTesting
+  static lk.Room Function() createRoom = lk.Room.new;
+
+  Future<void>? _previewing;
+
+  /// D144b: one start at a time per engine. Two overlapping starts both saw
+  /// no camera and both opened one: the second came back as a shared track
+  /// the camera processor never sees ([LiveCameraGate]), the first leaked.
+  @override
+  Future<void> startPreview({bool video = true}) async {
+    for (var running = _previewing; running != null; running = _previewing) {
+      try {
+        await running;
+      } on Object {
+        // Its own caller hears about it.
+      }
+    }
+    final run = _startPreview(video: video);
+    _previewing = run;
+    try {
+      await run;
+    } finally {
+      if (identical(_previewing, run)) _previewing = null;
+    }
+  }
+
+  Future<void> _startPreview({required bool video}) async {
+    try {
+      if (video && _video == null) {
+        // D144b: never while another camera (the last go-live's) is still
+        // being stopped — it would make this one a shared track.
+        await LiveCameraGate.idle();
+        // D160: whether this camera captures 1080p, before it opens.
+        await _checkHd();
+        final camera = await createCamera(_cameraOptions());
+        _video = camera;
+        final pipeline = BeautyPipeline.create();
+        if (pipeline != null) {
+          pipeline.update(_beauty);
+          await pipeline.attach(camera);
+          _beautyPipeline = pipeline;
+        }
+        await camera.start();
+        await _attachFx();
+      } else if (!video && _video != null) {
+        await _stopVideo();
+      }
+      // D215: the preview's microphone track is never muted — LiveKit's
+      // mute of a track not yet published stops and disposes its capture,
+      // and publishing that track then failed («GL-publish:audio»). A muted
+      // host's choice is applied when the track is published ([_publishMic]).
+      _audio ??= await createMicrophone(_audioOptions);
+    } on Object catch (e) {
+      await stop();
+      final text = e.toString().toLowerCase();
+      throw LiveCaptureException(
+        text.contains('notallowed') ||
+                text.contains('permission') ||
+                text.contains('denied')
+            ? LiveCaptureProblem.denied
+            : LiveCaptureProblem.unavailable,
+      );
+    }
+  }
+
+  lk.AudioCaptureOptions get _audioOptions => lk.AudioCaptureOptions(
+    noiseSuppression: _noiseReduction,
+    echoCancellation: _enhance,
+    autoGainControl: _enhance,
+  );
+
+  @override
+  Future<void> setVoice({
+    required bool noiseReduction,
+    required bool enhance,
+  }) async {
+    _noiseReduction = noiseReduction;
+    _enhance = enhance;
+    final audio = _audio;
+    if (audio == null) return;
+    if (audio.sender != null) {
+      // Published: restart in place with the new processing.
+      await audio.restartTrack(_audioOptions);
+      return;
+    }
+    // Preview only: a new microphone track with the new processing (never
+    // muted before it is published, D215).
+    _audio = null;
+    await audio.stop();
+    await audio.dispose();
+    _audio = await createMicrophone(_audioOptions);
+  }
+
+  @override
+  Widget? preview() {
+    final video = _video;
+    if (video == null) return null;
+    final processed = _beautyPipeline?.preview(mirror: _front);
+    if (processed != null) return processed;
+    return lk.VideoTrackRenderer(
+      video,
+      fit: lk.VideoViewFit.cover,
+      mirrorMode: _front
+          ? lk.VideoViewMirrorMode.mirror
+          : lk.VideoViewMirrorMode.off,
+    );
+  }
+
+  @override
+  bool get frontCamera => _front;
+
+  /// D141 (owner's phone: Flip only mirrored the picture). On Android and
+  /// iOS the capture itself switches between the front and back cameras in
+  /// place (`Helper.switchCamera`: the same track, so the preview and — once
+  /// published — the viewers follow without a new track); the answer says
+  /// which camera is on, and the preview mirrors only the front one. The
+  /// web restarts the track with the other camera (LiveKit). The capture
+  /// options follow, so a later restart keeps the camera.
+  @override
+  Future<void> flipCamera() async {
+    final video = _video;
+    final want = !_front;
+    if (video == null) {
+      _front = want;
+      _changes.ping();
+      return;
+    }
+    final position = want ? lk.CameraPosition.front : lk.CameraPosition.back;
+    if (kIsWeb) {
+      await video.setCameraPosition(position);
+      _front = want;
+    } else {
+      final front = await cameraSwitch(video.mediaStreamTrack);
+      _front = front ?? want;
+      final options = video.currentOptions;
+      if (options is lk.CameraCaptureOptions) {
+        video.currentOptions = options.copyWith(
+          cameraPosition: _front
+              ? lk.CameraPosition.front
+              : lk.CameraPosition.back,
+        );
+      }
+    }
+    // D160: the other camera may not capture 1080p.
+    if (_quality == LiveVideoQuality.high && !hdCapture) {
+      try {
+        await setVideoQuality(LiveVideoQuality.normal);
+      } on Object {
+        // The camera keeps what it has.
+      }
+    }
+    _changes.ping();
+  }
+
+  /// Switches a native camera track to the other camera; the answer is
+  /// whether the front camera is now on (null: unknown). A seam for tests.
+  ///
+  /// D251c: on Android the camera fx plugin flips first
+  /// ([KabsoCameraFlipper.flip]): flutter_webrtc's own switch picks the
+  /// target from one plugin-wide facing flag (rewritten by every
+  /// getUserMedia, the HD probe included) and fails at once, every time,
+  /// once the camera session was lost (the frozen second camera). The
+  /// plugin flips from the track's real camera and reopens a lost session
+  /// without stopping anything. The same track carries on, so the effects
+  /// and the mute / away state stay. flutter_webrtc's switch is the
+  /// fallback where the plugin is missing or finds no capturer.
+  @visibleForTesting
+  static Future<bool?> Function(rtc.MediaStreamTrack track) cameraSwitch =
+      (track) async {
+        final id = track.id ?? '';
+        final flipper = KabsoCameraFlipper();
+        if (flipper.isSupported && id.isNotEmpty) {
+          try {
+            final flip = await flipper.flip(id);
+            if (flip != null) {
+              lastFlipPath = flip.state == null
+                  ? flip.path
+                  : '${flip.path} state=${flip.state}';
+              return flip.front;
+            }
+          } on PlatformException catch (e) {
+            // Only a missing capturer is worth flutter_webrtc's own try.
+            if (!(e.message ?? '').contains('why=no-capturer')) rethrow;
+          }
+        }
+        final front = await rtc.Helper.switchCamera(track);
+        lastFlipPath = 'helper';
+        return front;
+      };
+
+  /// D251c: how the last native flip went, for the second camera's log:
+  /// `switch` / `restart` (the camera fx plugin, with the camera's state
+  /// before, e.g. `restart state=DISCONNECTED`) or `helper` (flutter_webrtc).
+  /// Fixed words only; null before any flip.
+  static String? lastFlipPath;
+
+  @override
+  Future<bool> hasTorch() async {
+    final video = _video;
+    if (video == null || kIsWeb) return false;
+    try {
+      return await video.mediaStreamTrack.hasTorch();
+    } on Object {
+      return false;
+    }
+  }
+
+  @override
+  Future<void> setTorch({required bool on}) async {
+    final video = _video;
+    if (video == null) return;
+    await video.mediaStreamTrack.setTorch(on);
+  }
+
+  @override
+  bool get micEnabled => _mic;
+
+  @override
+  Future<void> setMicEnabled({required bool enabled}) async {
+    _mic = enabled;
+    // D225: the room redraws its mic badges (a speaker's own seat).
+    _changes.ping();
+    final audio = _audio;
+    // While a voice clip records, the choice applies when it ends.
+    if (audio == null || _clipHold) return;
+    if (audio.sender == null) {
+      // D215: not published yet (the setup screen): nothing is sent, so
+      // only the choice is kept — [_publishMic] applies it. A track muted
+      // the old way (its capture stopped) is replaced by a fresh one.
+      if (audio.muted) {
+        _audio = null;
+        await audio.dispose();
+        _audio = await createMicrophone(_audioOptions);
+      }
+      return;
+    }
+    if (enabled) {
+      await audio.unmute();
+    } else {
+      await audio.mute();
+    }
+  }
+
+  /// D215: publishes the microphone as the host chose it. Off: the track is
+  /// started and disabled first (silent from its first frame), published,
+  /// then muted the LiveKit way (the others see the microphone off; the
+  /// capture stops) — turning it on later restarts it on the same sender.
+  /// A failure is a real one and is thrown (the «GL-publish:audio» line).
+  Future<void> _publishMic(lk.LocalParticipant local) async {
+    var audio = _audio;
+    if (audio == null) throw StateError('startPreview() first');
+    if (audio.muted) {
+      // Its capture was stopped by a mute before publishing: a fresh one.
+      _audio = null;
+      await audio.dispose();
+      audio = await createMicrophone(_audioOptions);
+      _audio = audio;
+    }
+    final off = !_mic;
+    if (off) {
+      await audio.start();
+      await audio.disable();
+    }
+    await local.publishAudioTrack(audio);
+    if (off) await audio.mute();
+  }
+
+  @override
+  bool get videoPaused => _video?.muted ?? false;
+
+  @override
+  Future<void> setVideoPaused({required bool paused}) async {
+    final video = _video;
+    if (video == null || video.muted == paused) return;
+    // Muting stops the capture (the others see the camera off); unmuting
+    // starts it again.
+    if (paused) {
+      await video.mute();
+    } else {
+      await video.unmute();
+      await _attachFx();
+    }
+    _changes.ping();
+  }
+
+  /// D251: see [LiveSoftVideoPause] — never `trackDispose` / `getUserMedia`
+  /// on an app lifecycle change.
+  @override
+  Future<void> setVideoAway({required bool away}) async {
+    final video = _video;
+    if (video == null || video.muted == away) return;
+    if (away) {
+      // Disabled and signalled muted; the capture keeps running.
+      await video.mute(stopOnMute: false);
+      // The native track stays enabled: flutter_webrtc restarts only
+      // enabled cameras when the activity resumes (before Dart hears it).
+      if (!kIsWeb) video.mediaStreamTrack.enabled = true;
+    } else {
+      await video.unmute(stopOnMute: false);
+    }
+    _changes.ping();
+  }
+
+  @override
+  /// CP-017: on Android, WebRTC's capture and the clip recorder cannot both
+  /// hear the microphone (the clip came out silent). Muting the track tells
+  /// the others (their usual muted state) and stops it; detaching it from
+  /// the sender stops the send stream, so WebRTC closes its capture and the
+  /// recorder gets the microphone. [resumeAfterClip] unmutes, which
+  /// restarts the track and attaches it again.
+  @override
+  Future<bool> pauseForClip() async {
+    final audio = _audio;
+    final sender = audio?.sender;
+    if (audio == null || sender == null || _clipHold) return false;
+    _clipHold = true;
+    try {
+      if (!audio.muted) await audio.mute();
+      await sender.replaceTrack(null);
+    } on Object {
+      await resumeAfterClip();
+      throw const LiveCaptureException(LiveCaptureProblem.unavailable);
+    }
+    return true;
+  }
+
+  @override
+  Future<void> resumeAfterClip() async {
+    if (!_clipHold) return;
+    _clipHold = false;
+    final audio = _audio;
+    if (audio == null || audio.sender == null) return;
+    // Back as the person left it: on again only if it was on. A muted
+    // track stays detached; turning the mic on restarts and attaches it.
+    if (_mic) await audio.unmute();
+    _changes.ping();
+  }
+
+  @override
+  Future<void> publish(LiveMediaAccess access) async {
+    final video = _video;
+    if (_audio == null) throw StateError('startPreview() first');
+    // D210: each step says which one failed (the go-live «تفاصيل» line).
+    final room = await livePublishStage(
+      LivePublishStage.connect,
+      () => _connect(access),
+    );
+    if (video != null) {
+      await livePublishStage(
+        LivePublishStage.video,
+        () => room.localParticipant!.publishVideoTrack(
+          video,
+          publishOptions: _quality == LiveVideoQuality.high ? _hdPublish : null,
+        ),
+      );
+      // The uplink indicator is optional: it never fails the publish.
+      try {
+        _startUplink();
+      } on Object catch (e) {
+        AppLogger.warning('live: uplink stats off (${e.runtimeType})');
+      }
+    }
+    await livePublishStage(
+      LivePublishStage.audio,
+      () => _publishMic(room.localParticipant!),
+    );
+  }
+
+  Future<lk.Room> _connect(LiveMediaAccess access) async {
+    final room = createRoom();
+    _room = room;
+    _removed = false;
+    _closed = false;
+    _listen(room);
+    await room.connect(access.url, access.token);
+    _readMetadata(room.metadata);
+    _changes.ping();
+    return room;
+  }
+
+  void _listen(lk.Room room) {
+    _listener = room.createListener()
+      ..on<lk.RoomMetadataChangedEvent>((e) {
+        _readMetadata(e.metadata);
+        _changes.ping();
+      })
+      // D154g: this phone's connection quality (the host's indicator).
+      ..on<lk.ParticipantConnectionQualityUpdatedEvent>((e) {
+        if (e.participant is! lk.LocalParticipant) return;
+        _connection = switch (e.connectionQuality) {
+          lk.ConnectionQuality.excellent => LiveConnectionQuality.excellent,
+          lk.ConnectionQuality.good => LiveConnectionQuality.good,
+          lk.ConnectionQuality.poor => LiveConnectionQuality.poor,
+          lk.ConnectionQuality.lost => LiveConnectionQuality.lost,
+          lk.ConnectionQuality.unknown => LiveConnectionQuality.unknown,
+        };
+        _changes.ping();
+      })
+      ..on<lk.ActiveSpeakersChangedEvent>((e) {
+        _speaking = {for (final p in e.speakers) p.identity};
+        _changes.ping();
+      })
+      ..on<lk.DataReceivedEvent>((e) {
+        try {
+          final message = jsonDecode(utf8.decode(e.data));
+          // v1.56-live (D213): a streamer's layout changed.
+          if (e.topic == 'streamer') {
+            final streamer = LiveStreamerEvent.parse(message);
+            if (streamer != null) {
+              _streamer.add(streamer);
+              _changes.ping();
+            }
+            return;
+          }
+          // v1.114-live (D363): a video podcast's director and votes.
+          if (e.topic == 'podcast') {
+            final podcast = PodcastEvent.parse(message);
+            if (podcast != null) _podcast.add(podcast);
+            return;
+          }
+          if (message is Map && message['type'] == 'seat-invite') {
+            final roomId = message['roomId'];
+            if (roomId is String) _invites.add(roomId);
+            return;
+          }
+          // v1.43-live (D195): PK matches, invitations and queue ends.
+          if (e.topic == 'pk' ||
+              (message is Map && '${message['type']}'.startsWith('pk-'))) {
+            final pk = PkEvent.parse(message);
+            if (pk != null) _pk.add(pk);
+            return;
+          }
+          final chat = LiveChatEvent.parse(message);
+          if (chat != null) _chat.add(chat);
+        } on FormatException {
+          // Not ours.
+        }
+      })
+      ..on<lk.ParticipantConnectedEvent>((_) => _changes.ping())
+      ..on<lk.ParticipantDisconnectedEvent>((_) => _changes.ping())
+      ..on<lk.TrackSubscribedEvent>((_) {
+        // D225: a track that starts later plays as the viewer set it.
+        unawaited(_applyPlayback());
+        _changes.ping();
+      })
+      ..on<lk.TrackPublishedEvent>((_) => unawaited(_applyPlayback()))
+      ..on<lk.TrackUnsubscribedEvent>((_) => _changes.ping())
+      ..on<lk.TrackMutedEvent>((_) => _changes.ping())
+      ..on<lk.TrackUnmutedEvent>((_) => _changes.ping())
+      ..on<lk.ParticipantPermissionsUpdatedEvent>((_) => _changes.ping())
+      // D201: the second camera's main feed, the host's recording.
+      ..on<lk.ParticipantAttributesChanged>((_) => _changes.ping())
+      // D243: reconnecting (a network blip) is told, never an end.
+      ..on<lk.RoomReconnectingEvent>((_) => _changes.ping())
+      ..on<lk.RoomResumingEvent>((_) => _changes.ping())
+      ..on<lk.RoomReconnectedEvent>((_) => _changes.ping())
+      ..on<lk.RoomDisconnectedEvent>((e) {
+        if (e.reason == lk.DisconnectReason.participantRemoved) {
+          _removed = true;
+        }
+        // LiveKit holds this event back while it reconnects: this is final.
+        _closed = true;
+        _changes.ping();
+      });
+  }
+
+  void _readMetadata(String? metadata) {
+    if (metadata == null || metadata.isEmpty) return;
+    try {
+      final value = jsonDecode(metadata);
+      if (value is Map && value['seatsVersion'] is int) {
+        _seatsVersion = value['seatsVersion'] as int;
+      }
+      if (value is Map && value['score'] is int) {
+        _score = value['score'] as int;
+        // D259: the key is left out at 0 (and by an older server).
+        _hostCherries = value['hostCherries'] is int
+            ? value['hostCherries'] as int
+            : 0;
+        // D310: left out at 0; an older server never sends it, so it stays
+        // null until a server that does has written it once.
+        if (value['roomCherries'] is int) {
+          _roomCherries = value['roomCherries'] as int;
+        } else if (_roomCherries != null) {
+          _roomCherries = 0;
+        }
+      }
+      if (value is Map && value['roomInfoVersion'] is int) {
+        _roomInfoVersion = value['roomInfoVersion'] as int;
+      }
+      if (value is Map && value['streamerVersion'] is int) {
+        _streamerVersion = value['streamerVersion'] as int;
+      }
+    } on FormatException {
+      // Not ours.
+    }
+  }
+
+  @override
+  Future<void> join(LiveMediaAccess access) async {
+    if (_room != null) return;
+    await _connect(access);
+  }
+
+  @override
+  bool get canPublish =>
+      _room?.localParticipant?.permissions.canPublish ?? false;
+
+  @override
+  Future<void> publishLocal({required bool video}) async {
+    await startPreview(video: video);
+    final local = _room?.localParticipant;
+    if (local == null) return;
+    final camera = _video;
+    if (camera != null && local.videoTrackPublications.isEmpty) {
+      await local.publishVideoTrack(camera);
+    }
+    if (_audio != null && local.audioTrackPublications.isEmpty) {
+      await _publishMic(local);
+    }
+    _changes.ping();
+  }
+
+  @override
+  Future<void> unpublishLocal() async {
+    _clipHold = false;
+    await _room?.localParticipant?.unpublishAllTracks();
+    await _stopVideo();
+    final audio = _audio;
+    _audio = null;
+    await audio?.stop();
+    await audio?.dispose();
+    _changes.ping();
+  }
+
+  /// D225: the viewer's own volume (0–1) and data saver, applied to every
+  /// remote track (now and as they arrive).
+  double _playbackVolume = 1;
+  bool _receiveVideo = true;
+
+  @override
+  Future<void> setPlaybackVolume(double volume) async {
+    _playbackVolume = volume.clamp(0, 1).toDouble();
+    await _applyPlayback();
+  }
+
+  @override
+  Future<void> setReceiveVideo({required bool receive}) async {
+    _receiveVideo = receive;
+    await _applyPlayback();
+    _changes.ping();
+  }
+
+  Future<void> _applyPlayback() async {
+    final room = _room;
+    if (room == null) return;
+    for (final participant in room.remoteParticipants.values) {
+      for (final publication in participant.audioTrackPublications) {
+        final track = publication.track;
+        if (track == null) continue;
+        try {
+          if (_playbackVolume <= 0) {
+            await track.disable();
+          } else {
+            await track.enable();
+            // The web plays remote audio through its own element; native
+            // WebRTC takes a per-track volume.
+            if (!kIsWeb) {
+              await rtc.Helper.setVolume(
+                _playbackVolume,
+                track.mediaStreamTrack,
+              );
+            }
+          }
+        } on Object catch (e) {
+          AppLogger.warning('live: playback volume (${e.runtimeType})');
+        }
+      }
+      for (final publication in participant.videoTrackPublications) {
+        try {
+          if (_receiveVideo && !publication.enabled) {
+            await publication.enable();
+          } else if (!_receiveVideo && publication.enabled) {
+            await publication.disable();
+          }
+        } on Object catch (e) {
+          AppLogger.warning('live: data saver (${e.runtimeType})');
+        }
+      }
+    }
+  }
+
+  @override
+  Widget? remoteVideo(String identity) {
+    final participant = _room?.remoteParticipants[identity];
+    if (participant == null) return null;
+    // D225: the data saver shows no video (the picture stands in).
+    if (!_receiveVideo) return null;
+    for (final publication in participant.videoTrackPublications) {
+      // D213: a streamer's screen is not the camera picture.
+      if (publication.source == lk.TrackSource.screenShareVideo) continue;
+      final track = publication.track;
+      if (track != null && !publication.muted) {
+        return lk.VideoTrackRenderer(track, fit: lk.VideoViewFit.cover);
+      }
+    }
+    return null;
+  }
+
+  // ---- D213: the streamer's screen -----------------------------------------
+
+  /// 720p at 30 fps (games move): ~2.5 Mbps, no simulcast layers below it.
+  static const _screenParams = lk.VideoParameters(
+    dimensions: lk.VideoDimensionsPresets.h720_169,
+    encoding: lk.VideoEncoding(maxBitrate: 2500 * 1000, maxFramerate: 30),
+  );
+
+  @override
+  Future<void> publishScreen() async {
+    final local = _room?.localParticipant;
+    if (local == null) throw StateError('publish() first');
+    if (_screen != null) return;
+    // D346: the capture and the publish fail with their own step, so the
+    // host is told which (and the report names it).
+    final lk.LocalVideoTrack track;
+    try {
+      track = await lk.LocalVideoTrack.createScreenShareTrack(
+        const lk.ScreenShareCaptureOptions(
+          maxFrameRate: 30,
+          params: _screenParams,
+        ),
+      );
+    } on Object catch (e) {
+      throw StreamerStartException(StreamerFailure.of(StreamerStep.capture, e));
+    }
+    try {
+      await local.publishVideoTrack(
+        track,
+        publishOptions: const lk.VideoPublishOptions(
+          name: 'screen',
+          videoEncoding: lk.VideoEncoding(
+            maxBitrate: 2500 * 1000,
+            maxFramerate: 30,
+          ),
+          simulcast: false,
+        ),
+      );
+    } on Object catch (e) {
+      await track.stop();
+      await track.dispose();
+      throw StreamerStartException(StreamerFailure.of(StreamerStep.publish, e));
+    }
+    _screen = track;
+    _changes.ping();
+  }
+
+  @override
+  Future<void> unpublishScreen() async {
+    final track = _screen;
+    _screen = null;
+    if (track == null) return;
+    final sid = track.sid;
+    if (sid != null) {
+      try {
+        await _room?.localParticipant?.removePublishedTrack(sid);
+      } on Object {
+        // The session is going away anyway.
+      }
+    }
+    await track.stop();
+    await track.dispose();
+    _changes.ping();
+  }
+
+  @override
+  bool get screenPublished => _screen != null;
+
+  @override
+  bool get screenPaused => _screen?.muted ?? false;
+
+  @override
+  Future<void> setScreenPaused({required bool paused}) async {
+    final track = _screen;
+    if (track == null || track.muted == paused) return;
+    // stopOnMute false: Android 14 gives one capture per consent, so the
+    // capture keeps running and only the sending stops.
+    if (paused) {
+      await track.mute(stopOnMute: false);
+    } else {
+      await track.unmute(stopOnMute: false);
+    }
+    _changes.ping();
+  }
+
+  lk.TrackPublication? _remoteScreenOf(String identity) {
+    final participant = _room?.remoteParticipants[identity];
+    if (participant == null) return null;
+    for (final publication in participant.videoTrackPublications) {
+      if (publication.source == lk.TrackSource.screenShareVideo) {
+        return publication;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Widget? remoteScreen(String identity) {
+    if (!_receiveVideo) return null;
+    final publication = _remoteScreenOf(identity);
+    final track = publication?.track;
+    if (publication == null || track is! lk.VideoTrack || publication.muted) {
+      return null;
+    }
+    // Fitted inside the box (the room letterboxes a landscape game).
+    return lk.VideoTrackRenderer(track);
+  }
+
+  @override
+  bool hasRemoteScreen(String identity) => _remoteScreenOf(identity) != null;
+
+  @override
+  bool remoteScreenPaused(String identity) =>
+      _remoteScreenOf(identity)?.muted ?? false;
+
+  @override
+  Widget? remoteCamera(String identity) => remoteVideo(identity);
+
+  /// D247: the host's camera publication (not the screen), or null.
+  lk.TrackPublication? _remoteCameraOf(String identity) {
+    final participant = _room?.remoteParticipants[identity];
+    if (participant == null) return null;
+    for (final publication in participant.videoTrackPublications) {
+      if (publication.source == lk.TrackSource.screenShareVideo) continue;
+      return publication;
+    }
+    return null;
+  }
+
+  @override
+  Widget? remoteCameraPicture(String identity) {
+    if (!_receiveVideo) return null;
+    final publication = _remoteCameraOf(identity);
+    final track = publication?.track;
+    if (publication == null || track is! lk.VideoTrack || publication.muted) {
+      return null;
+    }
+    // Fitted inside the box, like the screen (OBS sends the whole scene).
+    return lk.VideoTrackRenderer(track);
+  }
+
+  @override
+  bool remoteCameraPaused(String identity) =>
+      _remoteCameraOf(identity)?.muted ?? false;
+
+  @override
+  Stream<LiveStreamerEvent> get streamerEvents => _streamer.stream;
+
+  @override
+  int? get streamerVersion => _streamerVersion;
+
+  @override
+  Map<String, String> attributesOf(String identity) =>
+      _room?.remoteParticipants[identity]?.attributes ?? const {};
+
+  rtc.MediaRecorder? _clip;
+
+  @override
+  LiveClipUnsupported? get clipUnsupported {
+    if (kIsWeb) return LiveClipUnsupported.web;
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return LiveClipUnsupported.ios;
+    }
+    if (_video == null) return LiveClipUnsupported.noCamera;
+    return null;
+  }
+
+  @override
+  Future<void> startClip(String path) async {
+    final video = _video;
+    if (video == null || _clip != null) throw StateError('no camera');
+    final recorder = rtc.MediaRecorder();
+    await recorder.start(
+      path,
+      videoTrack: video.mediaStreamTrack,
+      audioChannel: rtc.RecorderAudioChannel.INPUT,
+    );
+    _clip = recorder;
+  }
+
+  @override
+  Future<void> stopClip() async {
+    final recorder = _clip;
+    _clip = null;
+    await recorder?.stop();
+  }
+
+  @override
+  Future<Uint8List?> cameraStill() async {
+    final video = _video;
+    if (video == null || kIsWeb) return null;
+    try {
+      final frame = await video.mediaStreamTrack.captureFrame();
+      return frame.asUint8List();
+    } on Object {
+      return null;
+    }
+  }
+
+  @override
+  bool isPresent(String identity) =>
+      _room?.remoteParticipants.containsKey(identity) ?? false;
+
+  @override
+  bool videoMuted(String identity) {
+    final videos = [
+      // D213: the camera only (a streamer's screen pauses on its own).
+      for (final p
+          in _room?.remoteParticipants[identity]?.videoTrackPublications ??
+              const <lk.RemoteTrackPublication>[])
+        if (p.source != lk.TrackSource.screenShareVideo) p,
+    ];
+    return videos.isNotEmpty && videos.every((p) => p.muted);
+  }
+
+  @override
+  Set<String> get speaking => _speaking;
+
+  @override
+  int? get seatsVersion => _seatsVersion;
+
+  @override
+  int? get score => _score;
+
+  @override
+  int? get hostCherries => _hostCherries;
+
+  @override
+  int? get roomCherries => _roomCherries;
+
+  @override
+  int? get roomInfoVersion => _roomInfoVersion;
+
+  @override
+  Stream<String> get seatInvites => _invites.stream;
+
+  @override
+  Stream<LiveChatEvent> get chatEvents => _chat.stream;
+
+  @override
+  Stream<PkEvent> get pkEvents => _pk.stream;
+
+  @override
+  Stream<PodcastEvent> get podcastEvents => _podcast.stream;
+
+  @override
+  Future<void> restrictSubscribers(String? onlyIdentity) async {
+    final local = _room?.localParticipant;
+    if (local == null) return;
+    local.setTrackSubscriptionPermissions(
+      allParticipantsAllowed: onlyIdentity == null,
+      trackPermissions: [
+        if (onlyIdentity != null)
+          lk.ParticipantTrackPermission(onlyIdentity, true, null),
+      ],
+    );
+  }
+
+  @override
+  Listenable get changes => _changes;
+
+  @override
+  bool get connected => _room?.connectionState == lk.ConnectionState.connected;
+
+  @override
+  bool get removed => _removed;
+
+  @override
+  Future<void> stop() {
+    // D144b: the camera's stop is known to [LiveCameraGate] at once, before
+    // the room is left — the next go-live's camera waits for it.
+    final camera = _video == null ? null : Completer<void>();
+    if (camera != null) {
+      unawaited(LiveCameraGate.stopping(() => camera.future));
+    }
+    return _stop(camera);
+  }
+
+  Future<void> _stop(Completer<void>? camera) async {
+    // D201: a clip still recording ends with the session.
+    final clip = _clip;
+    _clip = null;
+    try {
+      await clip?.stop();
+    } on Object {
+      // Nothing to keep.
+    }
+    _uplinkTimer?.cancel();
+    _uplinkTimer = null;
+    _uplink.reset();
+    final listener = _listener;
+    _listener = null;
+    final room = _room;
+    _room = null;
+    final audio = _audio;
+    _audio = null;
+    _clipHold = false;
+    // D213: the screen capture ends with the session.
+    final screen = _screen;
+    _screen = null;
+    try {
+      await screen?.stop();
+      await screen?.dispose();
+    } on Object {
+      // Nothing to keep.
+    }
+    try {
+      await listener?.dispose();
+      await room?.disconnect();
+      await room?.dispose();
+    } finally {
+      // D144b: the camera always stops, also when leaving the room failed —
+      // a leaked camera made every later one a shared track.
+      try {
+        await _stopVideo();
+      } finally {
+        camera?.complete();
+      }
+      await audio?.stop();
+      await audio?.dispose();
+    }
+  }
+
+  Future<void> _stopVideo() => LiveCameraGate.stopping(_stopVideoNow);
+
+  Future<void> _stopVideoNow() async {
+    final video = _video;
+    final pipeline = _beautyPipeline;
+    _video = null;
+    _beautyPipeline = null;
+    await pipeline?.dispose();
+    await _fx.release();
+    await video?.stop();
+    await video?.dispose();
+  }
+}
+
+/// A fresh engine per go-live (the screen and the host session share it).
+final Provider<LiveMediaEngine Function()> liveMediaEngineProvider =
+    Provider<LiveMediaEngine Function()>((_) => LiveKitMediaEngine.new);

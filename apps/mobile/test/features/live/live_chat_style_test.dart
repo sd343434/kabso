@@ -1,0 +1,708 @@
+// D119 (owner: "make the chat text like this"; reference screenshot,
+// third-party, kept out of git, look only): live chat messages show the
+// author's picture at the reading start, then the name, a row of the
+// badges the data has (role, charm and support levels, family) and the text
+// in a rounded bubble. System lines (joins, the rules notice) stay compact.
+// Contract v1.24.3-live: `LiveChatMessage.authorBadges`.
+
+import 'dart:math' as math;
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/domain/live_chat.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/safety/safety_repository.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../../fixtures/live/live_api_fixtures.dart';
+import '../../helpers/fake_live_media_engine.dart';
+import '../../helpers/fake_live_repository.dart';
+import '../../helpers/fake_profile_repository.dart';
+import '../../helpers/fake_safety_repository.dart';
+import '../../helpers/fakes.dart';
+import '../../helpers/golden.dart';
+import '../../helpers/pump_app.dart';
+
+const _huda = UserSummary(
+  id: 'u-huda',
+  username: 'huda',
+  displayName: 'Huda',
+  avatarUrl: null,
+);
+
+/// A mixed-direction name (Arabic with Latin and digits).
+const _mixed = UserSummary(
+  id: 'u-mixed',
+  username: 'noor',
+  displayName: 'نور Star 99',
+  avatarUrl: null,
+);
+
+const _full = LiveChatAuthorBadges(
+  charmLevel: 32,
+  supportLevel: 12,
+  family: LiveChatAuthorFamily(name: 'Kabso Stars', level: 4),
+);
+
+LiveChatEntry _entry(
+  String id,
+  String text, {
+  UserSummary author = _huda,
+  LiveChatRole role = LiveChatRole.viewer,
+  LiveChatAuthorBadges? badges,
+  bool cpBubble = false,
+  LiveChatKind kind = LiveChatKind.text,
+}) => LiveChatEntry(
+  id: id,
+  roomId: 'room-0',
+  author: author,
+  authorRole: role,
+  text: text,
+  createdAt: DateTime.utc(2026, 10, 26, 20),
+  cpBubble: cpBubble,
+  authorBadges: badges,
+  kind: kind,
+  media: kind == LiveChatKind.voice
+      ? const LiveChatMedia(
+          id: 'media-v1',
+          url: 'https://m.test/v1',
+          thumbUrl: 'https://m.test/v1',
+          durationMs: 7000,
+        )
+      : null,
+  expiresAt: kind == LiveChatKind.voice
+      ? DateTime.utc(2026, 10, 26, 20, 1)
+      : null,
+);
+
+LiveSeats _seats() => LiveSeats(
+  roomId: 'room-0',
+  mode: LiveRoomMode.audio,
+  version: 1,
+  seatCount: 10,
+  seats: [
+    for (var i = 1; i < 10; i++)
+      LiveSeat(index: i, state: LiveSeatState.empty, user: null),
+  ],
+  moderators: const [],
+  mine: const LiveSeatsMine(
+    role: LiveSeatRole.viewer,
+    seatIndex: null,
+    request: null,
+    invite: null,
+  ),
+);
+
+Future<FakeLiveMediaEngine> _room(
+  WidgetTester tester, {
+  AppLanguage language = AppLanguage.en,
+  bool audio = true,
+  GoldenViewport viewport = GoldenViewport.phone,
+}) async {
+  final engine = FakeLiveMediaEngine()..present.add('user-0');
+  setViewport(tester, viewport);
+  final repo = FakeLiveRepository(
+    room: (id) => audio
+        ? apiRoom(id: id).copyWith(mode: LiveRoomMode.audio, seatCount: 10)
+        : apiRoom(id: id),
+  );
+  if (audio) repo.seatState = _seats();
+  await pumpScreen(
+    tester,
+    const LiveRoomScreen(roomId: 'room-0'),
+    language: language,
+    liveMediaEngine: engine,
+    overrides: [
+      liveRepositoryProvider.overrideWithValue(repo),
+      profileRepositoryProvider.overrideWithValue(
+        FakeProfileRepository(apiProfile(ar: language == AppLanguage.ar)),
+      ),
+      safetyRepositoryProvider.overrideWithValue(FakeSafetyRepository()),
+      currentUserProvider.overrideWithValue(testUser()),
+    ],
+  );
+  await tester.pumpAndSettle();
+  return engine;
+}
+
+Future<void> _leave(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
+}
+
+Finder _line(String key) => find.byKey(LiveRoomChatLines.lineKey(key));
+
+/// D230: 0 while the chat's top edge fades (more lines above), else 1.
+double _fadeAlpha(WidgetTester tester) =>
+    LiveChatScroll.debugFading(tester.state(find.byType(LiveChatScroll)))
+    ? 0
+    : 1;
+Finder _in(String key, Finder finder) =>
+    find.descendant(of: _line(key), matching: finder);
+
+void main() {
+  final en = l10nFor(AppLanguage.en);
+
+  group('authorBadges (contract v1.24.3-live)', () {
+    final json = <String, dynamic>{
+      'id': 'm1',
+      'roomId': 'room-0',
+      'author': {
+        'id': 'u-huda',
+        'username': 'huda',
+        'displayName': 'Huda',
+        'avatarUrl': null,
+      },
+      'authorRole': 'VIEWER',
+      'kind': 'TEXT',
+      'text': 'hi',
+      'media': null,
+      'expiresAt': null,
+      'createdAt': '2026-10-26T20:00:00.000Z',
+      'cpBubble': false,
+    };
+
+    test('read; null fields and an older server mean no badges', () {
+      expect(LiveChatEntry.fromJson(json).authorBadges, isNull);
+      final read = LiveChatEntry.fromJson({
+        ...json,
+        'authorBadges': {
+          'charmLevel': 32,
+          'supportLevel': null,
+          'family': {'name': 'نجوم', 'level': 4},
+        },
+      }).authorBadges;
+      expect(read?.charmLevel, 32);
+      expect(read?.supportLevel, isNull);
+      expect(read?.family, const LiveChatAuthorFamily(name: 'نجوم', level: 4));
+      expect(
+        LiveChatEntry.fromJson({
+          ...json,
+          'authorBadges': {
+            'charmLevel': null,
+            'supportLevel': null,
+            'family': null,
+          },
+        }).authorBadges,
+        const LiveChatAuthorBadges(),
+      );
+    });
+  });
+
+  for (final language in AppLanguage.values) {
+    final rtl = language == AppLanguage.ar;
+    group('layout (${language.name})', () {
+      testWidgets('D131 video live (ref 158): one row, no picture; the badges '
+          'then the name and the text inline, at the reading start', (
+        tester,
+      ) async {
+        final engine = await _room(tester, language: language, audio: false);
+        engine.chat.add(LiveChatReceived(_entry('m1', 'hello', badges: _full)));
+        await tester.pumpAndSettle();
+        expect(
+          _in('m:m1', find.byKey(LiveChatAuthoredLine.avatarKey)),
+          findsNothing,
+        );
+        final row = tester.getRect(
+          _in('m:m1', find.byKey(LiveChatInlineRow.rowKey)),
+        );
+        final badges = tester.getRect(
+          _in('m:m1', find.byType(LiveChatBadgeRow)),
+        );
+        final list = tester.getRect(find.byKey(LiveRoomChatLines.listKey));
+        expect(row.contains(badges.center), isTrue);
+        // D257 (the viewer's reference; supersedes D234b's name row then
+        // text): one flowing line — the name at the row's reading start,
+        // inside its padding, the badges after it on the same line, then
+        // «:» and the text.
+        final name = tester.getRect(
+          _in('m:m1', find.byKey(LiveChatFlatLine.nameKey)),
+        );
+        expect(
+          rtl
+              ? (row.right - name.right - KFlatChat.padding.start).abs() < 1.5
+              : (name.left - row.left - KFlatChat.padding.start).abs() < 1.5,
+          isTrue,
+        );
+        expect(
+          rtl
+              ? badges.right <= name.left + 0.5
+              : badges.left >= name.right - 0.5,
+          isTrue,
+        );
+        expect((badges.center.dy - name.center.dy).abs(), lessThan(1.5));
+        expect(
+          rtl
+              ? (list.right - row.right).abs() < 1
+              : (row.left - list.left).abs() < 1,
+          isTrue,
+        );
+        expect(find.text('\u2068Huda\u2069'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: _line('m:m1'),
+            matching: find.textContaining('hello', findRichText: true),
+          ),
+          findsWidgets,
+        );
+        expect(tester.takeException(), isNull);
+        await _leave(tester);
+      });
+      for (final audio in [true]) {
+        testWidgets('${audio ? 'audio room' : 'video live'}: picture at the '
+            'reading start, then name, badges and bubble', (tester) async {
+          final engine = await _room(tester, language: language, audio: audio);
+          engine.chat.add(
+            LiveChatReceived(_entry('m1', 'hello', badges: _full)),
+          );
+          await tester.pumpAndSettle();
+          final avatar = tester.getRect(
+            _in('m:m1', find.byKey(LiveChatAuthoredLine.avatarKey)),
+          );
+          final name = tester.getRect(
+            _in('m:m1', find.byKey(LiveChatAuthoredLine.nameKey)),
+          );
+          final badges = tester.getRect(
+            _in('m:m1', find.byType(LiveChatBadgeRow)),
+          );
+          final bubble = tester.getRect(
+            _in('m:m1', find.byKey(LiveChatAuthoredLine.bubbleKey)),
+          );
+          expect(avatar.width, LiveChatAuthoredLine.avatar);
+          // Top-aligned: the name row starts near the picture's top.
+          expect(
+            (badges.top - avatar.top - LiveChatAuthoredLine.nameTop).abs(),
+            lessThanOrEqualTo(1),
+          );
+          // D234b: the badges beside the name (one line), then the bubble.
+          expect((badges.center.dy - name.center.dy).abs(), lessThan(1.5));
+          expect(
+            rtl ? badges.right <= name.left : badges.left >= name.right,
+            isTrue,
+          );
+          expect(bubble.top, greaterThanOrEqualTo(badges.bottom));
+          // The column sits after the picture in reading order.
+          for (final r in [name, badges, bubble]) {
+            expect(
+              rtl ? r.right <= avatar.left : r.left >= avatar.right,
+              isTrue,
+              reason: '$r vs $avatar',
+            );
+          }
+          // One box around the whole line (owner): the picture at its
+          // reading start, inside the padding; the box at the chat's start.
+          final list = tester.getRect(find.byKey(LiveRoomChatLines.listKey));
+          final box = tester.getRect(
+            _in('m:m1', find.byKey(LiveChatAuthoredLine.boxKey)),
+          );
+          for (final r in [avatar, name, badges, bubble]) {
+            expect(
+              box.contains(r.topLeft) &&
+                  box.contains(r.bottomRight - const Offset(0.01, 0.01)),
+              isTrue,
+              reason: '$r in $box',
+            );
+          }
+          expect(
+            rtl
+                ? (list.right - box.right).abs() < 1 &&
+                      (box.right -
+                                  avatar.right -
+                                  LiveChatAuthoredLine.boxPadding.start)
+                              .abs() <
+                          1
+                : (box.left - list.left).abs() < 1 &&
+                      (avatar.left -
+                                  box.left -
+                                  LiveChatAuthoredLine.boxPadding.start)
+                              .abs() <
+                          1,
+            isTrue,
+          );
+          expect(
+            _in('m:m1', find.text('\u2068Kabso Stars\u2069')),
+            findsOneWidget,
+          );
+          expect(tester.takeException(), isNull);
+          await _leave(tester);
+        });
+      }
+    });
+  }
+
+  testWidgets('badges only with data: none, some, all; host tag', (
+    tester,
+  ) async {
+    final engine = await _room(tester);
+    engine.chat
+      ..add(LiveChatReceived(_entry('m1', 'old server')))
+      ..add(
+        LiveChatReceived(
+          _entry('m2', 'no levels', badges: const LiveChatAuthorBadges()),
+        ),
+      )
+      ..add(
+        LiveChatReceived(
+          _entry(
+            'm3',
+            'charm only',
+            badges: const LiveChatAuthorBadges(charmLevel: 5),
+          ),
+        ),
+      )
+      ..add(
+        LiveChatReceived(
+          _entry('m4', 'all', badges: _full, role: LiveChatRole.host),
+        ),
+      );
+    await tester.pumpAndSettle();
+    for (final key in ['m:m1', 'm:m2']) {
+      expect(_in(key, find.byType(LiveChatBadgeRow)), findsNothing);
+      expect(_in(key, find.byKey(LiveChatAuthoredLine.avatarKey)), findsOne);
+    }
+    expect(_in('m:m3', find.byKey(LiveChatBadgeRow.charmKey)), findsOne);
+    expect(_in('m:m3', find.byKey(LiveChatBadgeRow.supportKey)), findsNothing);
+    expect(_in('m:m3', find.byKey(LiveChatBadgeRow.familyKey)), findsNothing);
+    for (final key in [
+      LiveChatBadgeRow.roleKey,
+      LiveChatBadgeRow.charmKey,
+      LiveChatBadgeRow.supportKey,
+      LiveChatBadgeRow.familyKey,
+    ]) {
+      expect(_in('m:m4', find.byKey(key)), findsOne);
+    }
+    expect(_in('m:m4', find.text(en.liveChatHostBadge)), findsOne);
+    // The screen reader hears the badges with the line.
+    expect(
+      find.bySemanticsLabel(
+        [
+          en.liveChatLineLabel('Huda', 'all'),
+          en.liveChatCharmLabel(32),
+          en.liveChatSupportLabel(12),
+          en.liveChatFamilyLabel('\u2068Kabso Stars\u2069', 4),
+        ].join('. '),
+      ),
+      findsOne,
+    );
+    // No badges: the bubble comes right under the name.
+    final name = tester.getRect(
+      _in('m:m2', find.byKey(LiveChatAuthoredLine.nameKey)),
+    );
+    final bubble = tester.getRect(
+      _in('m:m2', find.byKey(LiveChatAuthoredLine.bubbleKey)),
+    );
+    expect(bubble.top - name.bottom, lessThanOrEqualTo(6));
+    await _leave(tester);
+  });
+
+  testWidgets('the CP bubble keeps its pink style in the same layout', (
+    tester,
+  ) async {
+    final engine = await _room(tester);
+    engine.chat
+      ..add(LiveChatReceived(_entry('m1', 'hello', badges: _full)))
+      ..add(
+        LiveChatReceived(_entry('m2', 'hello', badges: _full, cpBubble: true)),
+      );
+    await tester.pumpAndSettle();
+    final cp = _in('m:m2', find.byKey(LiveCpChatBubble.bubbleKey));
+    expect(cp, findsOne);
+    expect(_in('m:m1', find.byKey(LiveCpChatBubble.bubbleKey)), findsNothing);
+    expect(_in('m:m2', find.byKey(LiveRoomChatLines.cpHeartKey)), findsOne);
+    expect(_in('m:m2', find.byKey(LiveChatAuthoredLine.avatarKey)), findsOne);
+    // Same size as a plain line; the pink is the whole line's box (owner:
+    // one box around the person and what they sent).
+    expect(tester.getSize(_line('m:m2')), tester.getSize(_line('m:m1')));
+    final pink = tester.getRect(cp);
+    for (final key in [
+      LiveChatAuthoredLine.avatarKey,
+      LiveChatAuthoredLine.nameKey,
+      LiveChatAuthoredLine.bubbleKey,
+    ]) {
+      final r = tester.getRect(_in('m:m2', find.byKey(key)));
+      expect(pink.contains(r.center), isTrue);
+    }
+    expect(
+      tester.getRect(_in('m:m2', find.byKey(LiveChatAuthoredLine.boxKey))),
+      pink,
+    );
+    await _leave(tester);
+  });
+
+  testWidgets('a voice clip fits the same layout; long press opens the '
+      'message actions', (tester) async {
+    final engine = await _room(tester);
+    engine.chat.add(
+      LiveChatReceived(
+        _entry('v1', '', badges: _full, kind: LiveChatKind.voice),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final pill = _in('m:v1', find.byKey(LiveVoiceClipPill.keyFor('media-v1')));
+    expect(pill, findsOne);
+    expect(_in('m:v1', find.byKey(LiveChatAuthoredLine.avatarKey)), findsOne);
+    expect(_in('m:v1', find.byKey(LiveChatBadgeRow.familyKey)), findsOne);
+    expect(
+      find.descendant(
+        of: _in('m:v1', find.byKey(LiveChatAuthoredLine.bubbleKey)),
+        matching: pill,
+      ),
+      findsOne,
+    );
+    await tester.longPress(
+      _in('m:v1', find.byKey(LiveChatAuthoredLine.nameKey)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('liveChat.action.profile')), findsOne);
+    await _leave(tester);
+  });
+
+  for (final audio in [true, false]) {
+    testWidgets('D236 (owner, every category; was D212): the rules line '
+        'shows on entering and stays as a line when messages arrive, rising '
+        'above them; no "no messages" line (${audio ? 'audio' : 'video'})', (
+      tester,
+    ) async {
+      final engine = await _room(tester, audio: audio);
+      final notice = find.byKey(LiveRoomChatLines.noticeKey);
+      expect(notice, findsOne);
+      expect(find.textContaining('No messages yet'), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(LiveRoomChatLines.listKey),
+          matching: notice,
+        ),
+        findsOne,
+      );
+      // A join is not writing: the rules line stays.
+      engine.chat.add(const LiveChatJoined(_huda));
+      await tester.pump();
+      expect(notice, findsOne);
+      engine.chat.add(LiveChatReceived(_entry('n0', 'message 0')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(notice, findsOne);
+      expect(_line('m:n0'), findsOne);
+      // Not pinned: the new message is under it (the newest at the bottom).
+      expect(
+        tester.getRect(_line('m:n0')).top,
+        greaterThanOrEqualTo(tester.getRect(notice).bottom - 0.5),
+      );
+      await _leave(tester);
+    });
+  }
+
+  testWidgets("D230 (owner's device, was D199's top start): in the video "
+      'live the rules line is the BOTTOM line of the chat, unfaded; '
+      'messages come under it; D236: it stays while typing', (tester) async {
+    final engine = await _room(tester, audio: false);
+    final notice = find.byKey(LiveRoomChatLines.noticeKey);
+    final list = find.byKey(LiveRoomChatLines.listKey);
+    expect(
+      tester.getRect(notice).bottom,
+      closeTo(tester.getRect(list).bottom, 1),
+    );
+    // A short chat: no fade at the top edge.
+    expect(_fadeAlpha(tester), 1);
+    engine.chat.add(LiveChatReceived(_entry('t0', 'hello')));
+    await tester.pump();
+    await tester.pump();
+    // D236: keyboard up — the rules line is a line like the others (not
+    // hidden); the message under it.
+    tester.view.viewInsets = FakeViewPadding(
+      bottom: 300 * tester.view.devicePixelRatio,
+    );
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pump();
+    expect(notice, findsOne);
+    expect(_line('m:t0'), findsOne);
+    expect(
+      tester.getRect(_line('m:t0')).top,
+      greaterThanOrEqualTo(tester.getRect(notice).bottom - 0.5),
+    );
+    await _leave(tester);
+  });
+
+  test('D135: the see-through rules line reads at 4.5:1 or more over the '
+      'brightest backgrounds tested (a bright video frame, the bright room '
+      'themes) and on dark ones', () {
+    double contrast(Color a, Color b) {
+      final la = a.computeLuminance();
+      final lb = b.computeLuminance();
+      return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+    }
+
+    // Mean colour under the chat area: ref 158's bright video frame, the
+    // bright themes' lower half (sunset-sky, heart-garden, moon-palace,
+    // ocean-depths), black and the classic navy.
+    for (final (under, bright) in const [
+      (Color(0xFF9B8D87), false),
+      (Color(0xFFAD7467), true),
+      (Color(0xFFBC414D), true),
+      (Color(0xFF8C6D87), true),
+      (Color(0xFF4165AD), true),
+      (Color(0xFF000000), false),
+      (Color(0xFF0A1220), false),
+    ]) {
+      final box = Color.alphaBlend(
+        bright ? LiveRoomRulesNotice.fillBright : LiveRoomRulesNotice.fill,
+        under,
+      );
+      expect(
+        contrast(LiveRoomRulesNotice.textColor, box),
+        greaterThanOrEqualTo(4.5),
+        reason: '$under',
+      );
+      expect(
+        contrast(LiveRoomRulesNotice.icon, box),
+        greaterThanOrEqualTo(3),
+        reason: '$under',
+      );
+    }
+    // The fill stays see-through (owner: "a transparent background").
+    expect(LiveRoomRulesNotice.fill.a, lessThan(0.45));
+    expect(LiveRoomRulesNotice.fillBright.a, lessThan(0.45));
+    expect(LiveRoomRulesNotice.isBrightTheme('sunset-sky'), isTrue);
+    expect(LiveRoomRulesNotice.isBrightTheme('classic'), isFalse);
+  });
+
+  testWidgets('system lines stay compact: the rules notice and a join have '
+      'no picture; D212: each join is its own line', (tester) async {
+    final engine = await _room(tester);
+    engine.chat.add(const LiveChatJoined(_huda));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byKey(LiveRoomChatLines.noticeKey), findsOne);
+    expect(
+      find.descendant(
+        of: find.byKey(LiveRoomChatLines.listKey),
+        matching: find.byKey(LiveChatAuthoredLine.avatarKey),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(LiveRoomChatLines.listKey),
+        matching: find.byType(LiveChatJoinBubble),
+      ),
+      findsOne,
+    );
+    await _leave(tester);
+  });
+
+  for (final language in AppLanguage.values) {
+    testWidgets('D212: joins are lines in order, the newest at the bottom, '
+        'by the shown gender (${language.name})', (tester) async {
+      final l10n = l10nFor(language);
+      final engine = await _room(tester, language: language);
+      engine.chat
+        ..add(LiveChatReceived(_entry('m1', 'hello', badges: _full)))
+        ..add(const LiveChatJoined(_huda, gender: LiveJoinGender.female))
+        ..add(const LiveChatJoined(_mixed));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final first = find.textContaining(
+        l10n.chatJoinedFemale('\u2068Huda\u2069'),
+        findRichText: true,
+      );
+      final second = find.textContaining(
+        l10n.chatJoined('\u2068نور Star 99\u2069'),
+        findRichText: true,
+      );
+      expect(first, findsOne);
+      expect(second, findsOne);
+      expect(
+        tester.getRect(second).top,
+        greaterThan(tester.getRect(first).top),
+      );
+      // Lines stay (no 4 s strip any more).
+      await tester.pump(const Duration(seconds: 5));
+      expect(first, findsOne);
+      await _leave(tester);
+    });
+  }
+
+  testWidgets('the picture and the name open the person card; the bubble '
+      'opens the actions', (tester) async {
+    final engine = await _room(tester);
+    engine.chat.add(LiveChatReceived(_entry('m1', 'hello', badges: _full)));
+    await tester.pumpAndSettle();
+    await tester.tap(_in('m:m1', find.byKey(LiveChatAuthoredLine.avatarKey)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('room.userCard.profile')), findsOne);
+    expect(find.byKey(const Key('liveChat.action.profile')), findsNothing);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+    await tester.tap(_in('m:m1', find.byKey(LiveChatAuthoredLine.nameKey)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('room.userCard.profile')), findsOne);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      _in('m:m1', find.textContaining('hello', findRichText: true)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('liveChat.action.profile')), findsOne);
+    expect(find.byKey(const Key('liveChat.action.report')), findsOne);
+    await _leave(tester);
+  });
+
+  for (final language in AppLanguage.values) {
+    testWidgets('360 × 800, text scale 2, a long mixed-direction name and a '
+        'long message (${language.name})', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      // The video live: the audio room's own header does not fit 360 pt at
+      // text scale 2 yet (not the chat; reported separately).
+      final engine = await _room(
+        tester,
+        language: language,
+        audio: false,
+        viewport: GoldenViewport.android,
+      );
+      engine.chat
+        ..add(
+          LiveChatReceived(
+            _entry(
+              'm1',
+              'A long message that wraps over several lines in the bubble '
+                  'and never runs off the screen',
+              author: const UserSummary(
+                id: 'u-long',
+                username: 'longname',
+                displayName:
+                    'A very very long display name that cannot fit on one line',
+                avatarUrl: null,
+              ),
+              badges: _full,
+            ),
+          ),
+        )
+        ..add(LiveChatReceived(_entry('m2', 'مرحبا hi 2026', author: _mixed)));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final screen = tester.getRect(find.byType(LiveRoomScreen));
+      // D131: rows wrap inside the chat's width (81 %, at most 318.5 pt).
+      for (final key in ['m:m1', 'm:m2']) {
+        final row = tester.getRect(
+          _in(key, find.byKey(LiveChatInlineRow.rowKey)),
+        );
+        expect(row.left, greaterThanOrEqualTo(screen.left));
+        expect(row.right, lessThanOrEqualTo(screen.right));
+        expect(row.width, lessThanOrEqualTo(360 * 0.81 + 0.5));
+      }
+      // The name is isolated from the layout's direction (D230: its own
+      // line).
+      expect(_in('m:m2', find.text('\u2068نور Star 99\u2069')), findsOneWidget);
+      await _leave(tester);
+    });
+  }
+}

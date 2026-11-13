@@ -31,8 +31,11 @@ export class RateLimitGuard implements CanActivate {
     if (this.reflector.getAllAndOverride<boolean>(SKIP_RATE_LIMIT_KEY, targets)) return true;
 
     const req = context.switchToHttp().getRequest<AppRequest>();
-    const specs =
-      this.reflector.getAllAndOverride<RateLimitSpec[] | undefined>(RATE_LIMITS_KEY, targets) ?? [];
+    const specs = (
+      this.reflector.getAllAndOverride<RateLimitSpec[] | undefined>(RATE_LIMITS_KEY, targets) ?? []
+    ).filter(
+      (spec) => spec.appliesTo === undefined || (spec.appliesTo === 'user') === (req.auth !== undefined),
+    );
 
     for (const spec of specs) {
       try {

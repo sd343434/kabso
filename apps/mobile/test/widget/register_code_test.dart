@@ -51,16 +51,16 @@ void main() {
     );
     await tester.pumpAndSettle();
     final l10n = l10nFor(language);
-    await tester.ensureVisible(find.text(l10n.loginCreateAccount));
-    await tester.tap(find.text(l10n.loginCreateAccount));
-    await tester.pumpAndSettle();
+    // D64: signed out, the app opens on welcome; open register.
+    await openRegister(tester);
     await tester.enterText(
       find.byKey(RegisterScreen.emailKey),
       ' Layla@Example.com ',
     );
-    await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+    await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla_22');
     await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'ليلى');
     await tester.enterText(find.byKey(RegisterScreen.passwordKey), 'pa55word!');
+    await chooseGender(tester);
     await tester.pump();
     await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
     await tester.tap(find.byKey(RegisterScreen.submitKey));
@@ -313,8 +313,8 @@ void main() {
     expect(find.byType(RegisterScreen), findsOneWidget);
     expect(find.byType(RegisterCodeScreen), findsNothing);
     expect(find.text(l10n.errUsernameTakenDuringVerify), findsOneWidget);
-    expect(find.text(l10n.usernameTaken('layla')), findsOneWidget);
-    expect(find.text('layla'), findsOneWidget, reason: 'form kept');
+    expect(find.text(l10n.usernameTaken('layla_22')), findsOneWidget);
+    expect(find.text('layla_22'), findsOneWidget, reason: 'form kept');
   });
 
   testWidgets('"Change email" returns to a filled Register form', (
@@ -326,7 +326,7 @@ void main() {
     expect(find.byType(RegisterScreen), findsOneWidget);
     // The form keeps what was typed (normalization happens on submit).
     expect(find.text(' Layla@Example.com '), findsOneWidget);
-    expect(find.text('layla'), findsOneWidget);
+    expect(find.text('layla_22'), findsOneWidget);
   });
 
   testWidgets('"Log in" goes to Login with the email prefilled', (
@@ -352,13 +352,15 @@ void main() {
       ],
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text(l10nFor(AppLanguage.en).loginCreateAccount));
-    await tester.pumpAndSettle();
+    await openRegister(tester);
     await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
-    await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+    await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla_22');
     await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
     await tester.enterText(find.byKey(RegisterScreen.passwordKey), 'pa55word!');
-    // Switch to Arabic on the Register screen, then submit.
+    await chooseGender(tester);
+    // Switch to Arabic on the Register screen, then submit. (D64: the
+    // switch sits on Kabi's stage, which scrolls with the form.)
+    await tester.ensureVisible(find.byKey(AuthLanguageSwitch.switchKey));
     await tester.tap(find.byKey(AuthLanguageSwitch.switchKey));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
@@ -515,19 +517,22 @@ void main() {
       );
       await tester.pumpAndSettle();
       final l10n = l10nFor(AppLanguage.en);
-      await tester.ensureVisible(find.text(l10n.loginCreateAccount));
-      await tester.tap(find.text(l10n.loginCreateAccount));
-      await tester.pumpAndSettle();
+      // D64: signed out, the app opens on welcome; open register.
+      await openRegister(tester);
       await tester.enterText(
         find.byKey(RegisterScreen.emailKey),
         'layla@example.com',
       );
-      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+      await tester.enterText(
+        find.byKey(RegisterScreen.usernameKey),
+        'layla_22',
+      );
       await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'ليلى');
       await tester.enterText(
         find.byKey(RegisterScreen.passwordKey),
         'pa55word!',
       );
+      await chooseGender(tester);
       await tester.pump();
       await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
       await tester.tap(find.byKey(RegisterScreen.submitKey));

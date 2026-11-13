@@ -7,19 +7,627 @@
 | B1 | Live streaming provider credentials (LiveKit Cloud API key/secret or a self-hosted LiveKit server) | Phase 6–7 cannot be verified end-to-end | Choose LiveKit Cloud vs self-host; provide keys via secret manager |
 | B2 | Email delivery (SMTP or provider) | Verification/reset emails only logged in dev | Provider + sending domain (SPF/DKIM) |
 | B3 | SMS provider for phone registration | Phone sign-up not implemented (email only) | Provider choice + budget |
-| B4 | Firebase project (FCM) + APNs key | Push notifications (Phase 9) | Firebase project, Apple developer account |
+| B4 | ~~Firebase project (FCM)~~ (done: `kabso-27b19`, D152) + APNs key | Android push implemented (D152); **iOS push** still waits | Apple Developer account and an APNs key (.p8) |
 | B5 | Coin purchases: Apple IAP / Google Play Billing products, legal review of virtual currency & creator payouts per region | Phase 8 real money stays disabled | Commercial/legal sign-off, store product setup |
 | B6 | Android SDK / Xcode not available in this cloud environment | No APK/IPA build or device test here; CI must run them | macOS runner / signing assets |
 | B7 | App identity: final bundle id / application id (current placeholder in `apps/mobile`: `com.kabso.kabso_live`), domain, privacy/terms URLs, support contact | Store submission | Owner-provided values |
 | B9 | Registration reveals whether an email is registered (`EMAIL_TAKEN`) | Account enumeration via sign-up | **Decided (D24): not acceptable.** Verify-first registration specified in contract v1.2, implementation KL-019; real delivery needs B2 |
 | B11 | CAPTCHA / step-up provider for login abuse (SEC-023 residual) | Account-bucket 429 can link an email to a public username | Provider choice (e.g. hCaptcha, Turnstile, App Attest/Play Integrity) before public launch |
 | B10 | Least-privilege runtime DB role (SEC-011) | Implemented in KL-013 (`466b66b`) and verified by A7 in KL-007f: PASS WITH CONDITIONS. KL7F-01/02/09 must be fixed in KL-013b before the first deployment | Nothing from you; engineering follow-up KL-013b |
-| B12 | Media storage credentials (owner chose Cloudflare R2, D45) | Avatar and cover uploads stay disabled (`MEDIA_UPLOADS_ENABLED=false`) | R2 account, bucket, custom domain, API token via the secret manager; cost approval |
+| B12 | Media storage credentials (owner chose Cloudflare R2, D45) | Avatar, cover and post photo uploads stay disabled (`MEDIA_UPLOADS_ENABLED=false`); the upload code exists (KL-060) and is verified against an S3-compatible test server | R2 account, bucket, custom domain, API token via the secret manager; cost approval *(D222: the R2 account, the two buckets, the custom domain and the token can now be entered and turned on by the OWNER in the admin panel «التخزين (R2 / S3)» — DEPLOYMENT §5.40; still needed: the account and the token themselves.)* |
 | B13 | Image moderation provider; legal duty for illegal content (e.g. CSAM detection and reporting) | Uploaded images are visible only to their owner | Provider choice (e.g. Rekognition, SafeSearch, Hive) + legal review before public launch |
-| B8 | Brand assets (logo, app icon) | App uses a text wordmark placeholder | Official Kabso Live assets |
+| B8 | Brand assets (logo, app icon) | **Logo resolved (2026-11-09):** the owner's official logo (mascot + «Kabso Live» wordmark, horizontal and stacked, light and dark-background versions) is in `apps/mobile/assets/brand/` (PROVENANCE.md); used first in the KL-352 event-page block footer. Screens that still draw `KLogo` (the text placeholder) move to it as they are touched | App icon: confirm whether the current launcher icon is final |
 
 ## Current limitations (Phase 1)
 
 - Only email + password authentication. Social sign-in and phone auth are not implemented.
 - Tabs other than authentication show explicit "coming in Phase N" states; no feature data yet.
 - Docker Compose file is provided but was not executed in the authoring environment (no daemon).
+
+## Social content API (v1.5-social draft, KL-060 / CP-006 M1)
+
+- Posts with images stay `PENDING` (author-only) until a moderation provider is chosen (B13); they
+  are absent from feeds, search and other people's grids.
+- Trending and hashtag `top` score weights are server-side constants (`TRENDING_WEIGHTS`), not
+  environment settings; personalised ranking is M5.
+- The Following feed is computed per request from follows and reposts (no fan-out table); fine
+  for launch volumes, to be revisited with real traffic.
+- Views are counted synchronously per batch (the contract allows ≤ 1 min lag; no queue yet).
+- Ranked lists (Trending, hashtag `top`) keep a 10-minute snapshot of ≤ 500 ids per caller in
+  Redis; ranked search (users, hashtags) is offset-paged and stops after 500 results.
+- A `USER` report actioned with `REMOVE_TARGET` records the decision only; suspension stays a
+  separate admin tool. There is no admin web panel for the queue yet (API only).
+- Counters (`like_count`, `comment_count`, …) are kept in the same transaction as their rows;
+  a hard deletion of a user (FK cascade) does not adjust the counters of other users' posts.
+- Live video (CP-010, D93, L1): the hosting permission is admin-granted until host agencies
+  and identity checks exist (L1b), so going live stays switched off in production until then.
+  No live chat, gifts, guests on stage or PK yet (L2–L5); no recording or replays. Development
+  runs a local LiveKit server; production needs LiveKit Cloud keys (B1).
+- Notifications (CP-009, D92): the badge refreshes by polling (on foreground and every 60 s), not
+  live. Since D152 Android phones also get pushes (FCM) once the server has the Firebase key and
+  the APK was built with `google-services.json`; iOS pushes wait for APNs (B4); live-room chat is
+  never pushed; private conversations do not exist yet (D86), so the only pushed chat is the
+  family chat. Not verified on a device yet (delivery, sounds, the Android 13+ prompt).
+- Stories (CP-008, D91): story photos are shown to others at once, without a moderation hold
+  (owner decision); harmful ones are handled by reports and expire after 24 hours.
+- Stories: deleting or removing a story is soft; its photo files stay in object storage (as for
+  deleted posts) until a purge job exists. Video stories (M2) and replies (M7) are not built.
+- App (KL-060 E1–E4): outside sharing is not offered, so `POST /posts/{id}/shares` is unused and
+  the share count is display-only; sharing needs post links on a web domain (CP-006 Q7, M7).
+- App: views are recorded best effort — a batch that fails is dropped, and views still waiting
+  when the app is killed (not just sent to the background) are lost.
+- App: a text field takes its direction from its first letter outside `@handles` and `#tags`
+  (a reply's lone `@handle` reads left to right); in a field that also holds Arabic, a Latin
+  `@handle` still shows its `@` on the right while editing (posted text is displayed with the
+  handle isolated).
+
+## Me hub programs (v1.44-social draft, D166, CP-024 approved with defaults)
+
+- **Recharge is still blocked on B5.** The wallet's «شحن العملات» grid shows the packages from server
+  config `WALLET_RECHARGE_PACKAGES`; the defaults (D203) are the website's amounts at $12.50 per
+  1 000 000 coins (100 000 $1.25 … 50 000 000 $625). The button stays disabled with
+  «قريباً»; there is no purchase endpoint. No support banner is shown (no support destination exists).
+- **Values the owner can change without a release** (server config or the admin CLIs): the tasks and
+  their rewards (`task-admin`), the daily cap 50, check-in 5 + 20 on day 7, SVIP thresholds
+  50 000 / 150 000 / 400 000 in 30 days, status 30 days, the 24-hour prize review, events
+  (`event-admin`).
+- **Owner art needed:** the SVIP emblem (the app shows a Kabso gold/red icon composition), SVIP badge,
+  frames and entry effects, event banners (an https URL per event; a token gradient otherwise), the
+  Task Center header art (the level emblem is used).
+- **SVIP perks are not built yet** (badge, frame, coloured chat name, entry banner, daily bullet, entry
+  effect, viewer-list priority, monthly bag gift): `GET /me/svip` lists them with `available: false`
+  and the app shows each as «قريباً». SVIP points redemption (anti-mute / unban) is not offered.
+- **Task Center:** coins only (no XP — level points are coin value, CP-005). «Share a live room» is not
+  offered (a share is a link copied on the phone; the server cannot see it). The monthly benefits block
+  of the reference is omitted (no monthly benefit exists). Weekly host tasks are outside the daily cap.
+  A live's watch time counts for the day it was first joined.
+- **Event Center:** events are created only with the `event-admin` CLI (no admin web page);
+  `TAPS_RECEIVED` counts the taps of lives *started* in the event's window; an event with no
+  configured events shows empty lists.
+- **Purchase VIP** (CP-024 §3) is built by D252 (below).
+- Not verified on a device.
+
+## Recharge orders with escrow (v1.69-social draft, D204)
+
+- **No money is handled in the app.** The buyer pays the agent outside Kabso (mobile wallet, bank, cash …); the app
+  only records the agent's payment details, the buyer's «قمت بالإرسال» with a screenshot, and freezes / moves
+  **coins**. Kabso cannot see, verify, reverse or refund the money itself; a dispute is decided by the team on the
+  chat's evidence (screenshots, the buyer's screen video kept outside the app).
+- A screenshot can be faked; the protection notice asks the buyer to keep a screen video, but the app does not
+  record, upload or check videos (pictures only in the chat).
+- PAID orders never resolve by themselves: an agent who never answers keeps the coins frozen until the buyer opens a
+  dispute (after 15 minutes) and the team decides.
+- The chat's pictures and transfer screenshots are kept with the order (evidence) — there is no retention period or
+  purge yet (owner question).
+- Exchange rates are entered by hand by OWNER / FINANCE (no rate feed); a country without a rate is priced in USD.
+- Pushes: one notification row per order and person, moved up by each event (not one per chat message); a push for a
+  quick second event may be held back by the per-notification push throttle.
+- An agent suspended while an order is open keeps it: the buyer can still be paid by «استلمت» or a dispute decision;
+  new details cannot be sent.
+- Not verified on a device (camera / gallery pick of the screenshot, pushes, the countdown on a real phone).
+
+## «كن مضيفاً مع الإدارة» — hosting directly with the team (v1.73-social draft, D209)
+
+- **No retention purge** of the applications' ID pictures and date of birth (rejected or cancelled ones included): they
+  stay for the team until the account is deleted (then purged). Owner/legal to set a period, as for D206.
+- The ID check and the age are **not automated**: the date of birth is the person's statement (no OCR, liveness or
+  face match); the team compares it with the ID picture.
+- Revoking a direct host later (`revokeAdminLiveHost`) leaves the application APPROVED and lets the person apply again
+  at once (no cooldown after a revocation).
+- A pending application is cancelled when the person joins or opens an agency; an agency the **team** creates for them
+  (`economy-admin agency-create`) does not cancel it — the approval then refuses («now in an agency»).
+- The panel's decision needs no authenticator code (owner: it moves no money); the pictures are OWNER + SUPPORT only,
+  MODERATION reads the fields (including the contact and the date of birth) — owner to confirm.
+- The rate limit's 429 for `applyForHosting` is configured but not covered by an e2e test (the suite raises the limit).
+- The host rules are a short fixed text in the app (not a versioned legal document); the acceptance time is kept.
+- Not verified on a device (the date picker, camera / gallery pickers were exercised with fakes only).
+
+## «افتح وكالة» — self-opened agencies (v1.70-social draft, D206)
+
+- **No retention purge** of the agency applications' ID pictures yet (D185's recharge applications have one): they stay
+  for the team until the account is deleted (then the contact, bio and pictures are purged). Owner/legal to set a period.
+- The ID check is **not automated**: no OCR, liveness or face match — the agency opens at once and the team reviews
+  the pictures in the panel when it wants (and may close the agency).
+- A host counts as activated only for a live **they hosted** (`live_rooms.host_user_id`); being a guest on someone
+  else's seat does not count. Gifts are counted from the cherry ledger (`GIFT_RECEIVED` not reversed), any source.
+- The panel's probation actions are OWNER only (`agencies.probation`); the application view is OWNER and SUPPORT.
+- The rate limit's 429 for `openAgency` is configured but not covered by an e2e test (the suite raises the limit).
+- The in-app closing notification says «خلال فترة التجربة» (the app has no probation days in the notification); the
+  push sentence names the days.
+- Not verified on a device (the form's camera / gallery pickers and the share sheet were exercised with fakes only).
+
+## Gift categories and gift files in the admin panel (D207, v1.46-live / v1.71-social draft)
+
+- **Uploads need the media bucket.** The panel stores gift files in the API's S3/R2 bucket like every other upload;
+  without `S3_*` settings (the server today, B12 / PP-28) uploading answers 503, and since «صورة الهدية» is required,
+  no gift can be created in the panel there (`gift-admin add` without `--image` still can). No other storage exists.
+- **MP4 effects are checked, not decoded.** The server reads the MP4's boxes (H.264 sample entry, size, length); the API
+  image has no ffprobe/ffmpeg. A file whose boxes are valid but whose frames are broken passes and is skipped by the
+  app when it cannot play it. Side-by-side detection is a size rule (width ≥ 1.8 × height); the admin can override it.
+- **Side-by-side alpha needs Impeller.** The app composites it with a fragment shader through `ImageFilter.shader`,
+  which runs only on Impeller (Flutter's default on Android and iOS). Where it is not available (or the shader fails to
+  load) a transparent MP4 effect is skipped — the gift's picture in the strip is all that shows; the MP3 still plays.
+  Not verified on a device (no device or emulator in this environment): the shader's orientation on OpenGLES and the
+  video_player texture under `ImageFiltered` need a check on a real Android and iPhone.
+- **Sound.** An MP4's own audio track plays only when the gift has no MP3; the MP3 (and since D207 an SVGA's embedded
+  sound too) plays only while «المؤثرات الصوتية» is on and the live's local sound switch is not muted. On iOS the video
+  player adds `mixWithOthers` to the live's audio session (its category is only upgraded, never replaced).
+- **The panel's SVGA preview** draws the movie's bitmaps frame by frame (a small built-in reader); vector shapes,
+  mattes and the embedded audio are not previewed (the app shows them).
+- **Special categories** (LUCKY, QUIPS) can be renamed, reordered and given an icon, never turned off or deleted;
+  gifts cannot be moved into them when deleting a category. A category added in the panel uses the POPULAR host share
+  (`GIFT_HOST_SHARE_PERCENTS` has no entry for it).
+- **Orphaned files.** A file uploaded in the form and then not saved (or replaced later) stays in the bucket, as with
+  the CLI. Nothing deletes unused gift files yet.
+- **Older apps** see only the five seeded categories (by code, with their own names) and cannot play MP4 / MP3.
+
+## Admin account controls (v1.72-social draft, D208)
+
+- **Lock vs ban:** a lock is temporary and never changes `users.status`; the ban stays the permanent SUSPENDED status.
+  A banned account cannot be locked; unbanning does not end a running lock.
+- **Reasons are shown to the person** for locks and restrictions (log-in refusal, notification). The dialogs say so;
+  the team must write them for the user.
+- **Temporary password:** shown once in the panel; the team hands it over outside the app (no SMS / email of it).
+- **Email change:** no notice is mailed to the OLD address (only the verification to the new one).
+- **Username change by the team:** the old username is held for the person 30 days (`ADMIN_USERNAME_RENAME_HOLD_DAYS`)
+  as a GRACE special-username row, so it also appears in the panel's special-usernames list during that time.
+- **Deletion by the team** uses D193's grace period: the person can still cancel it by logging in (as with
+  `account-admin request`). Whether a team deletion should be cancellable is an owner question.
+- **Comments** removed by the team cannot be restored (only posts, reels and stories can).
+- **Daily cap** counts the amounts of one admin's adjustments per `ADMIN_DASHBOARD_TIME_ZONE` day; the CLI has no cap.
+- **Timeline query:** `listAdminUserAudit` matches the team's content actions through the audit row's
+  `metadata.authorId` (no index on it); fine at today's sizes, to revisit with a large audit log.
+- **CLI lock:** a live the person hosts ends by the sweeper, not at once.
+- **App:** the four new notification types (`ACCOUNT_RESTRICTED`, `ACCOUNT_RESTRICTION_LIFTED`, `BALANCE_ADJUSTED`,
+  `PROFILE_EDITED_BY_TEAM`) are not rendered by this build of the app (it ignores unknown types; their push texts
+  exist server-side, not checked end to end). The locked-account message, the restriction messages and the «كلمة مرور جديدة» screen are done.
+- Not verified on a device or on the server.
+
+## Live categories and the podcast live (v1.47-live draft, D212)
+
+- **«بث ستريمر»** (phone screen share): built in D213 (see «بث ستريمر» below); iOS still says «قريباً على آيفون».
+- **Guests picked in the podcast setup** are invited onto a speaker seat only once they are in the live (seat
+  invitations travel on the room's data channel); there is no push or DM invitation yet.
+- **Timed questions** end within one reconciliation run (≤ 15 s) on the server, or at once when the speaker's app is
+  open (it leaves the seat itself). The countdown is the speaker's phone clock against the server's `demoteAt`.
+- **Raised hands in the listeners row** are the hands of people in the first page of viewers (the room's viewer
+  preview); a hand beyond it counts in the host's sheet but has no badge in the row.
+- **No podcast recording** (owner: not now).
+- **«ذكّرني»** follows the host (the CP-016 C reminder goes to followers 15 minutes before); a private host's follow is a
+  request, so no reminder until it is accepted.
+- **Join lines:** the server sends at most one per 200 ms per room; a burst above 5 a second loses lines (recharge
+  and host agents' joins are never dropped). Gender comes only from people who show it on their profile.
+- Not verified on a device (LiveKit active speaker, mic permissions, the sweeper's demotion on a real server).
+
+## «بث ستريمر»: the streamer live (v1.56-live draft, D213)
+
+- **Not tested on a real phone.** The screen capture (MediaProjection), the game sound (AudioPlaybackCapture), the
+  foreground-service types, the notification's toggles, FLAG_SECURE and the reflection that finds the capture's
+  MediaProjection inside flutter_webrtc 1.6.2+hotfix.4 were written and their plain rules unit-tested (JVM), but the
+  Android build (`flutter build apk --debug`) could not run where they were written (Maven Central answered 429 and the
+  shared disk filled) — so the plugin's Kotlin, the manifest merge and the service types are **not compile-checked**
+  and nothing ran on a device. A build and a device test are required before the owner announces it.
+- **iOS:** no streamer hosting — the go-live tab says «قريباً على آيفون» (a ReplayKit broadcast extension is not built).
+  iPhone viewers watch normally. The web offers no hosting either.
+- **Game sound:** Android 10+ only (below: the microphone only, said in the setup). Apps that forbid capture
+  (`allowAudioPlaybackCapture="false"`, many games and every DRM/media app that opts out) come out **silent** — Android
+  reports no error, so the app says «بعض الألعاب تمنع التقاط صوتها» up front. Voice-call apps are never captured.
+- **Protected (DRM) video** (Netflix-like apps, some games' cut-scenes) is **black** in the screen capture; the
+  system decides, the app cannot.
+- **Echo:** the game sound is captured digitally AND reaches the microphone through the phone's speaker (WebRTC's echo
+  canceller only knows the live's own playback): headphones avoid a doubled game sound. Not measured. D213b: while
+  the game sound is on, the setup and the on-air stage (once per live, until the host goes to the game) say «استخدم
+  سماعات حتى لا يُسمع صوت اللعبة مرتين»; it is hidden when `AudioManager.getDevices` lists a wired, USB, Bluetooth
+  (SCO / A2DP / BLE) headset or a hearing aid — A2DP is also a car or a Bluetooth speaker, which hides it too.
+- **Notification:** Android shows at most 3 actions — «إنهاء», the microphone and the camera bubble; the game sound's
+  mute is in the app's stage (owner question). No floating bubble over other apps (`SYSTEM_ALERT_WINDOW` is not used).
+- **Pauses:** the screen pauses for viewers («الشاشة متوقفة مؤقتاً») while Kabso is in front (privacy: chat, wallet and
+  messages are never streamed; the window is also FLAG_SECURE, which blocks the host's own screenshots in Kabso while
+  streaming), during a phone call (`AudioManager` mode, polled each second — a ring can show for up to a second) and
+  while the screen is off. Notifications that pop up over the game ARE streamed (Android 15+ hides sensitive ones).
+- **Stopped from the system** (Android 14's status-bar chip): the screen track ends; the host shares again with a new
+  consent («شارك الشاشة من جديد») — Android 14 allows one capture per consent.
+- **Orientation:** the host's display rotation is sent to viewers (`PUT …/streamer`); viewers letterbox a landscape
+  picture with a nominal 19.5:9 box for the bubble's corner (a 16:9 phone's picture has slim bars inside it).
+- **No PK, no guest seats, no second camera** for a streamer (PK stays SOLO; the camera is already the bubble).
+- **Older apps** see a STREAMER as a solo live showing the host's camera (they ignore the screen track).
+- **Bandwidth:** 720p30 at ~2.5 Mbps for the screen plus the camera — heavier than a solo live on weak networks.
+
+## «دعوة الأصدقاء» — referral rewards in cherries (v1.74-social draft, D217)
+
+- **Amounts are defaults to confirm** (owner gave none): inviter 20 000 cherries per sign-up (≈ $0.02 at the default
+  payout rate), friend 0, 5 % of the first recharge, milestones 1 / 5 / 15 → 50 000 / 300 000 / 1 000 000, 20
+  sign-up rewards a day per inviter, held 24 h, a code may be entered 7 days after sign-up, self-IP window 24 h. The
+  programme is **on** after the migration; switch it off in the panel («إعدادات الدعوات») or with
+  `referral-admin settings --set enabled=false --reason …` before the owner confirms, if wanted.
+- **Device id:** the server had no device id before D217. `DeviceInfo.installId` is a random id the app keeps per
+  install (shared preferences): uninstalling the app gives a new one, and older apps send none — then only the
+  mailbox, IP and daily-cap rules apply. Not a hardware id.
+- **Same-IP rule:** an invitee on the inviter's IP (seen within 24 h) is REJECTED. Mobile carriers share IPs (CGNAT)
+  and families share Wi-Fi, so real friends can be refused; the team can approve them. Whether to keep the rule on is
+  an owner question (`selfIpWindowHours` 0 turns it off).
+- **No phone rule:** Kabso has no phone numbers.
+- **Voiding after crediting** (owner 2026-11-01): the team's «إلغاء» takes the credited cherries back at once
+  (`REFERRAL_REVERSAL`). A balance that does not cover it goes below 0 (a debt, like a gift reversal's); the app shows
+  the negative balance and the history row, but has no special message about the debt — a withdrawal simply answers
+  «insufficient cherries» until it is earned back. Milestone bonuses the inviter no longer reaches are taken back too;
+  whether the owner wants that is to confirm.
+- **Deep links:** the app has no deep-link package; the link `/i/<code>` opens the website, which shows the code to copy.
+  The sign-up field is not pre-filled from the link.
+- **No notifications** for a friend who joined or a reward credited (the page and the cherry history show them).
+- **The ticker** shows masked names of people who got a reward in the last 30 days, regardless of their privacy
+  settings (only the masked name and the amount).
+- **Data export (D198)** does not include the referral rows yet.
+- **Not verified on a device or on the server.** The Flutter tests ran (full suite) and the page has goldens and
+  @3x test captures (fake data), not device captures.
+
+## Media storage from the admin panel «التخزين (R2 / S3)» (v1.75-social draft, D222)
+
+- **No real R2 call was made.** The round trip, the uploads, the cross-bucket copy and «not public» were verified with
+  the production adapter (AWS SDK v3) against a local S3-compatible test server (`test/helpers/fake-s3.ts`) and against
+  moto 5.2 (`S3_TEST_ENDPOINT`); Cloudflare R2 itself (its public r2.dev / custom-domain serving, a token limited to two
+  buckets, a CopyObject between the two buckets of one account) is not verified here.
+- **Changing a bucket or the public URL does not move stored files.** Media saved earlier keep their keys; their URLs
+  are built from the public base URL in force now, so after a switch of public bucket or domain the old files are not
+  found unless copied (with rclone or the R2 dashboard) to the new bucket. Choose the buckets and the domain once.
+- **An upload slot signed just before a change of the PRIVATE bucket** (or of the account / keys) puts its bytes into
+  the old bucket; its `complete` then looks in the new one and answers 422 `MEDIA_INVALID` (the app asks to try
+  again). A change of the public bucket only is safe (shown by the e2e). Calls already running finish on their client.
+- **Another API instance** sees a change within 5 s (the cache), on its next request.
+- **The CLIs that touch files** (`gift-admin`, `banner-admin`, `profile-admin`, `host-admin`, `recharge-admin`,
+  `account-admin`, `privacy-admin`) still use the env `S3_*` (one bucket) only, not the panel's settings.
+- **No upload-size settings** in the section: the limits stay the API's constants (images 15 MiB, voice 1 MiB, videos
+  per D162); the brief allowed them only if a config existed, and none does.
+- **The env layout is one bucket.** Only the panel's settings have a separate private bucket; on the env fallback the
+  `uploads/` and `private/` prefixes stay in the one bucket under the §5.3 rule (only `media/` may be public — which R2's
+  bucket-wide public access cannot express: with R2, use the panel's two buckets).
+- **The admin panel's capture** of the section used the local test server as «S3 متوافق» (an R2 account id cannot be
+  tested offline); the R2 form itself was rendered and filled but not tested.
+
+## Live settings per live type (D225, client only)
+
+- **The host's camera off** mutes the published camera track (as a seated guest's, D174a). Viewers see the host's
+  picture, but with the D170 «المضيف سيعود قريباً» line: the app cannot tell a camera turned off from a host whose
+  app is in the background without a server signal (a participant attribute), which does not exist yet. The live is
+  not ended for it (no away report is sent).
+- **«كتم الجميع»** is one `POST …/seats/{index}/mute` per taken seat (no bulk endpoint): each one is checked and
+  logged by the server as a seat action. A seat that fails is said once; the others stay muted.
+- **YouTube** is hidden in every mode but the audio room on the client; the server still accepts a watch session in
+  any mode (there is no per-mode flag in `/live/config`).
+- **The viewer's sound and volume** (`LivePlaybackControls`) use `RemoteAudioTrack.disable()` for 0 and flutter_webrtc's
+  `Helper.setVolume` on Android/iOS (the web has mute only; the slider's partial volume is not applied there).
+- **Data saver** disables the received video publications of this live's own connection; a PK opponent's video
+  (a second connection) is still received.
+- **«التسجيل»** in the voice rooms stays an honest «قريباً».
+- The AUDIO host bar keeps its «قريباً» PK button (D225b, owner): its mic is a tile in ≡ (and the «إعدادات البث» row),
+  not on the bar, so the bar fits 393 and 360 dp; a podcast has no PK by the owner's decision (its bar has the mic).
+- Not verified on a device (remote volume, the data saver, the camera off seen by viewers).
+
+## The social redesign (v1.76-social draft, D218)
+
+- **Feed mix.** `tab=mixed` merges the newest 500 Following entries with Trending's 500-entry snapshot; past those
+  1 000 entries the feed ends (pull to refresh starts a new snapshot). Visibility is re-checked per page (posts that
+  became invisible leave the page; new posts wait for the next snapshot).
+- **The posts page has one feed.** The Trending / Following tabs left Posts (the owner's top bar); the API keeps both
+  tabs and the reels page keeps Following · For You · Nearby.
+- **«مقترح لك»** means «you do not follow the author» (`Post.viewerFollowsAuthor` false), not a recommendation model.
+- **Stories tray LIVE pills** come from the first page of `GET /live/rooms?tab=following` (up to 50 followed hosts
+  live now); a host beyond it gets no pill. The tray hides when it has no story and nobody live (owner: «Hide the
+  tray when it is empty»), so an account without stories and without live friends sees no «قصتك» there — the
+  Create button still adds a story.
+- **Story replies** go to the author's DMs as plain text («❤️» for the heart) with no reference to the story; the DM
+  rules apply (the app shows the server's refusal).
+- **Profile cover:** no crop step (the picture is uploaded whole and covers the banner); no report reason specific to
+  covers (a report of the user covers it); the panel's «حذف صورة الغلاف» shows for every user and answers «no cover»
+  when there is none (the panel's user view does not carry the cover yet).
+- **Country and «انضم في»** are public on the profile from this version (the owner asked for the row); there is no
+  switch to hide the country yet.
+- **No verification badge** (owner: decided later).
+- Not verified on a device (the keyboard over the story reply, the cover under the status bar on notched phones).
+
+
+## At most 2 accounts created per device (v1.78-social draft, D223)
+
+- **The id can change or be faked.** Android `ANDROID_ID` survives a reinstall and «clear data» but changes on a
+  **factory reset** (and differs per app-signing key and per Android user profile); the iOS Keychain id survives a
+  reinstall but not **erasing the iPhone** (it is `ThisDeviceOnly`, so a backup restored to another phone gets a new
+  one). A **rooted or jailbroken** phone, an emulator or a modified app can send any value. The rule raises the cost of
+  mass sign-ups; it does not stop a determined person.
+- **No device key, no count.** A sign-up from the website, from an app older than D223, or from a client that omits
+  `device.deviceKey` is allowed and not counted (owner brief: «No device id → allowed»). The limit only binds the
+  current apps.
+- **Not verified on a real phone.** The channel code (`MainActivity.kt`, `AppDelegate.swift`) was not run here (no
+  Android device or emulator, no macOS / Xcode in this environment); that ANDROID_ID stays the same across a reinstall
+  and that the Keychain item survives deleting the app come from the platform documentation, not from a test. The Dart
+  side is covered by tests with a mocked channel only.
+- **The copy names 2.** «لا يمكن إنشاء أكثر من حسابين…» is the owner's text for the default; a device with an exception
+  (or a changed `SIGNUP_MAX_ACCOUNTS_PER_DEVICE`) gets the number from the error's detail with ICU plurals.
+- **Shared phones.** A family sharing one phone can create only 2 accounts on it; an OWNER can raise the limit for
+  that device in the panel (user page → «الجهاز»). Accounts made before D223 have no device and never count.
+- **Rotating the key resets the counts.** Changing `SIGNUP_DEVICE_KEY` (or `RATE_LIMIT_KEY_SECRET` while it is unset)
+  makes every device start again from 0.
+
+## Identity verification with Didit «تأكيد الهوية» (v1.80-kyc draft, D227)
+
+- **No real Didit call was made, no real key used.** Every test fakes Didit behind its port (`DIDIT_API_FACTORY`,
+  `test/helpers/fake-didit.ts`); the production client (`didit-api.ts`) was only checked against a local HTTP stub for
+  the request shapes and the error mapping. A real account, key, workflow, webhook delivery, retention setting and the
+  hosted flow on a phone are not verified.
+- **docs.didit.me could not be opened from the build environment** (the network policy refused the host); Didit's
+  documentation was read through the Context7 documentation index of docs.didit.me (2026-11-01). Assumptions taken
+  from it, to confirm on the first real run:
+  - the decision webhook signs `X-Signature-V2` = HMAC-SHA-256 of the JSON re-encoded with recursively sorted keys,
+    compact separators and Unicode not escaped (and `X-Signature` over the raw bytes); `X-Timestamp` is Unix seconds.
+    A Python-style float form (e.g. `1e-07`) could encode differently from JavaScript's — the raw-bytes signature then
+    still matches. `X-Signature-Simple` (envelope only) is refused on purpose.
+  - the webhook body carries `event_id` (reused on retries), `webhook_type` (`status.updated`), `session_id`,
+    `status`, `created_at` / `timestamp` (seconds) and, once decided, `decision` with `id_verifications[]` holding
+    `first_name`, `last_name`, `full_name`, `date_of_birth` (YYYY-MM-DD), `issuing_state` (alpha-3) and
+    `document_number` (else `personal_number`); the reasons are the items' `warnings[].risk`.
+  - `GET /v3/workflows/` lists the application's workflows (`results[]` with `workflow_id` / `uuid`, `status`
+    `published`, `is_archived`); used only by «اختبار الاتصال».
+  - Didit returns the unfinished session again for the same `vendor_data` on the same workflow (we send the user id).
+  - the console's menu names (Settings › API & Webhooks, App Settings › Data, Workflows) in the owner's guide.
+- **Didit's Flutter SDK is not used.** `didit_sdk` 4.11.0 (pub.dev, MIT, publisher didit.me) wraps Didit's native iOS
+  and Android SDKs (a Maven artifact and a CocoaPod of unknown size, NFC and camera code); the brief asks to ask before
+  a heavy dependency, so the app opens Didit's hosted flow in the in-app WebView (`webview_flutter`, already a
+  dependency), which Didit documents for mobile apps. Before opening it the app asks for the camera through the same
+  system prompt a live uses (`flutter_webrtc` `getUserMedia`, released at once) so the WebView can pass it on; on a
+  device where that fails, «فتح في المتصفح» opens the flow in the browser and the step refreshes when the app returns.
+  Not tested on a device.
+- **The images are never stored.** The team sees them in Didit's console (the link opens the console's home; the
+  session number is shown to search for it — the console's per-session URL is not documented) or through «عرض الصور»,
+  which fetches Didit's decision now and shows its presigned links (they expire within minutes; each fetch is audited).
+- **The account purge deletes our record only.** Didit keeps its copy for the retention the OWNER sets in Didit's
+  console (the guide suggests 1 year); no automatic `DELETE /v3/session/{id}/delete/` call is made on a purge (the
+  docs show two different delete paths; to add once confirmed).
+- **A check that counts.** An APPROVED check counts for an application when it was made for it or ran on the same
+  workflow as that application now; with one workflow for all (the default) one approval serves the three
+  applications. A check approved by Didit but under 18 by the document (or without a readable date of birth) is stored
+  DECLINED; the person may retry within the daily limit. An approved check is never revoked by us later except by
+  Didit's own later event (a reviewer's change, `Kyc Expired`).
+- **No previous webhook secret.** Unlike the Stripe section, a new webhook secret replaces the old one at once:
+  deliveries signed with the old one in the minutes after a change are refused (401) and Didit retries them twice.
+- **The decision to gate recharge agents at the first top-up** (the activation) leaves agents already ACTIVE before
+  D227 untouched; later top-ups of an active agent are not gated.
+- **Notifications open «الوكالة»** for all three results (there is no target); a recharge-agent applicant opens their
+  form from «وكيل الشحن».
+- **The app's tests and captures are headless** (fakes): the WebView itself, the camera prompt and the browser
+  fallback are not exercised by any test.
+
+## The free camera effects engine beside DeepAR (v1.49-live draft, D228)
+
+- **Never run on a phone.** No Android device or emulator here, and the full APK was not built in this environment
+  (disk shared and short; see the board row). What ran: the plugin's Kotlin compiled against the real DeepAR 5.6.22,
+  WebRTC 150.7871.01, ML Kit segmentation-selfie 16.0.0-beta6 and MediaPipe tasks-vision 1.1.1 classes; the JVM tests;
+  the GLSL compiled in WebGL 1 (GLSL ES 1.00, SwiftShader) with the warp checked pixel by pixel against the Kotlin
+  twin. **Unverified:** frame rate (target 30 fps at 720p), the real per-frame GPU time and the 40 ms budget, picture
+  quality of the blur edge and the beauty, memory, heat/battery, front/back camera orientation of the mask and the
+  landmarks, the face model download on mobile data, R8/ProGuard in a release build (consumer keep rules were added for
+  MediaPipe; ML Kit ships its own).
+- **Lag on fast movement.** Segmentation and landmarks run asynchronously on a 256-px copy (every other frame when the
+  phone keeps up); the frame drawn uses the latest result, one or two frames old. The slimming/eye warp can trail a
+  quickly moving face; the masks are smoothed over time on purpose.
+- **Slow phones.** A frame whose GPU work is not done in 40 ms goes out raw; 3 slow frames in a row → 30 frames raw;
+  3 such back-offs without 90 good frames between them → the effect switches off (`too_slow`, Magic says why).
+- **Usage metrics to Google.** ML Kit and MediaPipe send Google their own usage/performance metrics (never the
+  picture). Not turned off. Owner approved disclosing it (2026-11-01): the privacy policy text has the line (§2 and
+  §5 of `infra/deploy/site/privacy.html`, ar + en), **not yet published as a new version** (the owner publishes);
+  the Play Data safety answers are PP-39 — the Google pages behind them could not be opened from the authoring
+  environment and must be re-read when the form is filled.
+- **APK size:** about +36 MB of native code per ABI (arm64, uncompressed, ~12 MB compressed; approved by the owner
+  2026-11-01); see docs/DEPLOYMENT.md §9.2.
+- **One engine for every host.** The server switch is global; the per-phone override exists only in debug/profile
+  builds. iOS is unchanged (no camera processor there yet).
+
+- **DeepAR in the privacy policy (owner approved 2026-11-01).** `privacy.html` §2 and §5 now name DeepAR
+  (I Love Ice Cream Ltd., UK). *Verified:* DeepAR's FAQ (docs.deepar.ai/faq, read 2026-11-01) — camera processing on
+  the device, not stored on its servers; non-personal device data (app ID, screen resolution, OS version, a random
+  seed, date) kept for licence validation and MAU, "not restricted to" that list; the company name from deepar.ai's
+  privacy notice and docs footer; in the 5.6.22 AAR, a Java `sendRequest` HTTP POST and, in `libnative-lib.so`, the
+  Google Analytics Measurement Protocol endpoint with DeepAR's tracking ID `UA-109020681-1` (`AnalyticsAndroid::
+  trackApp/trackEvent`). *Not verified:* what DeepAR actually sends at run time (no device, no traffic capture),
+  whether the analytics events still fire (Universal Analytics is retired by Google) and what they contain, and the
+  exact licence-validation request. The policy is therefore worded conservatively ("such as …", "contains code that
+  sends usage events"); confirm by capturing the phone's traffic with DeepAR on before the policy version is
+  published. DeepAR's own privacy notice covers only its website, not SDK end users — ask DeepAR for a DPA / SDK data
+  statement. Note: the D144 comment in `KabsoCameraFxPlugin.kt` says DeepAR validates its licence "through a WebView";
+  no WebView use appears in the SDK's Java classes (the comment is left as it is; not re-tested).
+
+- **Effects after the live's foreground service starts (the D232 finding).** The service's second FlutterEngine
+  overwrites flutter_webrtc's static `sharedSingleton` with an instance that has no tracks, so `kabso_camera_fx`
+  could not find the host's camera track after a live started (effects, DeepAR, the free engine and the colour
+  filters silently not applied, or a re-attach after unmute / a quality change failing). Fixed the same way as
+  D232's music plugin: `attach` asks the flutter_webrtc of the plugin's own engine first, then the singleton
+  (`OwnEngineFirst`, JVM-tested). The stages' EGL context comes from flutter_webrtc's process-wide `EglUtils`, which
+  the second engine does not replace. **Device must confirm:** go live, wait for the foreground notification, then
+  pick a colour filter, DeepAR blur and the free engine's blur/beauty — and mute/unmute the camera (re-attach) —
+  and check the effect appears on a viewer's phone; the FX overlay's `camera` count must keep rising.
+
+### Removing the free engine (if the owner does not like it)
+
+1. `apps/mobile/packages/kabso_camera_fx/android/`: delete `src/main/kotlin/com/kabso/kabso_camera_fx/FreeFxStage.kt`,
+   `FreeFxGl.kt`, `FreeFxRules.kt` and `src/test/kotlin/com/kabso/kabso_camera_fx/FreeFxRulesTest.kt`; in
+   `build.gradle` remove the two `implementation` lines (`com.google.mlkit:segmentation-selfie`,
+   `com.google.mediapipe:tasks-vision`) and set `minSdkVersion` back to 23 if wanted; in `proguard-rules.pro` remove the
+   D228 block; in `CameraFxProcessor.kt` remove `Engine`, `freeFx`, `setEngine`, `setFreeFx` and the `when` in
+   `onFrame` (back to `deepAr::process`); in `KabsoCameraFxPlugin.kt` remove `setEngine` / `setFreeFx` and the
+   `engine` / `freeFx` fields; in `THIRD_PARTY_NOTICES.md` remove the D228 section.
+2. Plugin Dart (`lib/kabso_camera_fx.dart`): remove `KabsoCameraFxEngine`, `KabsoFreeFx`, `setEngine`, `setFreeFx` and
+   the D228 diagnostics fields; their tests in `test/kabso_camera_fx_test.dart` (group «D228 free engine»).
+3. App: delete `lib/features/live/data/beauty/live_fx_engine.dart`,
+   `lib/features/live/application/live_fx_engine_providers.dart`, `test/features/live/free_fx_d228_test.dart`; remove
+   `LiveBeauty.free`, `LiveMediaEngine.fxEngine/setFxEngine` (+ `LiveKitMediaEngine`, `FakeLiveMediaEngine`),
+   `LiveCameraFx.setEngine/_syncFree`, `LiveHostController.setFreeBeauty/setFxEngine`, the `listenManual` in
+   `go_live_screen.dart`, Magic's `fxEngine/freeBeauty/onFreeBeauty` and `_FreeBeautySection` in `go_live_parts.dart`,
+   the overlay's override chips and `_freeLines` in `live_fx_diagnostics.dart`, `PreferenceKeys.debugCameraFxEngine`,
+   the `liveFreeBeauty*` / `liveEffectsEngineFree` strings (keep `liveEffectUnavailableSlow` only if wanted), and
+   `LiveConfig.cameraFxEngine` (regenerate with build_runner); the fakes' `setEngine/setFreeFx`.
+4. API/admin (optional — DEEPAR is the default, so leaving them is harmless): `src/modules/site-settings/camera-fx.rules.ts`
+   (+ spec), `AdminCameraFxController`, `SiteSettingsService.getCameraFx/updateCameraFx`, `LiveConfigDto.cameraFxEngine`
+   in `live-rooms.service.ts`, `test/d228-camera-fx.e2e-spec.ts` and the line in `kl037`; the panel card in
+   `apps/admin/src/pages/SiteSettings.tsx`, `src/i18n-d228.ts`, `test/camera-fx.test.tsx`; the contract
+   (`CameraFxEngine`, `CameraFxSettings`, `UpdateCameraFxRequest`, the two operations, the `LiveConfig` field,
+   CONVENTIONS §10.79) through a contract change; a new migration may delete the `cameraFxEngine` row and restore the
+   CHECK.
+5. Privacy and store: remove the camera-effects paragraph and the Google (ML Kit / MediaPipe) processor line from
+   `infra/deploy/site/privacy.html` (publish as a new version) and drop PP-39 / its Data safety answers.
+6. On phones: the downloaded model (`files/kabso_camera_fx/face_landmarker.task`, 3.6 MB) is deleted with the app's
+   data; an update that removes the engine leaves it until then (harmless).
+
+
+## «PK أحكام»: dares after a PK (v1.50-live draft, D229)
+
+- **No verification of the dare itself.** The winner's «نُفّذ ✅» / «لم يُنفّذ ❌» is the only check (owner's flow);
+  nothing looks at the video. A winner can mark a done dare «لم يُنفّذ» (−3 for the loser): the verdict is final and
+  audited, and the team can only see it in the audit log (there is no appeal or undo in v1).
+- **Owner-confirmable assumptions:** no answer from the loser within 30 s counts as «رفض» (−3); no verdict from the
+  winner by the timer's end counts as «نُفّذ»; the winner's End before the loser answered cancels the dare (no points),
+  after accepting counts as done; a dare follows any result with a winner (forfeit and disconnect too), with or without
+  the «effective PK» threshold; points (+3 / +1 / 0) follow the record and need an «effective PK»; PK points may go
+  below 0; Auto Match always waits for a normal PK.
+- **The library is generated, not hand-written line by line.** 20 000 dares (6 600 easy, 6 600 medium, 6 800 hard; nine
+  categories) are composed by `prisma/seed/pk-dares/generate.ts` from about 1 000 hand-written Arabic / English
+  phrases in 20 templates; no two dares of a template share two of their three parts, and the checker found no
+  exact or near duplicate (Jaccard ≥ 0.8). Many still read alike (the same template with different parts), and some
+  combinations are odd (a «whisper» style on a dance). Read the 60-dare sample sheet; the panel can disable or edit
+  any dare, and the reports disable them automatically.
+- **The safety checker is a blocklist plus rules**, not a model: it cannot judge meaning. It blocks words, not
+  ideas (a dare can be unsafe without a blocked word), and it is strict enough to refuse some harmless texts (e.g.
+  «عنوان» = a title, «دفع» = pushing). Gender-neutral Arabic is checked only for the pronouns «أنتَ / أنتِ»; the rest
+  comes from writing the blocks as verbal nouns. A manual sample (60) was read for this delivery, not all 20 000.
+- **The Arabic is Modern Standard, written without diacritics**; a few dares mix registers. The English is a
+  translation of the same dare, not an independent text.
+- **«Hard» dares involving the winner** (imitate how the winner talks, draw the winner's face, questions from the
+  winner) were accepted by the owner; they stay within the rules but depend on the winner being kind.
+- **No per-viewer translation beyond Arabic / English**: other app languages fall back to English.
+- **An older app** shows a DARES invitation as a normal PK and cannot answer a dare (it then counts as refused after
+  30 s); ship the app before announcing the type.
+- Not verified on a device or with real LiveKit (the draw animation and the banner in the second room).
+
+## Automatic exchange rates (v1.81-social draft, D245)
+
+- **The free feed is daily.** ExchangeRate-API's open-access data changes once a day (the API reads it hourly), so a
+  local price can be up to a day behind the market. Minute updates need the OWNER's paid provider (§10.87.4).
+- **Attribution.** The free feed's terms ask for «Rates By Exchange Rate API» (linked) where its rates are shown. The
+  panel shows it; the app's recharge screen does not yet. If the provider
+  requires it in the app too, add the line to the order screen (API: `AdminFxStatus.attribution`; not in
+  `RechargePrice`). The terms were not re-read online during D245 (no network from the build session).
+- **Stale → USD only**, not «تقريبي»: after 48 h without fresh data a country shows the USD price only.
+- **A held value** (jump > 50 %) is not used until the team accepts it; if nobody does, that currency falls back to
+  USD only once its last good value is 48 h old. Large real devaluations therefore need a person.
+- **Rates are display prices.** The buyer pays the agent outside the app; the local amount is informative and stored
+  with the order at creation.
+- **No fallback between sources.** While a paid provider is on and failing, the server backs off on it (up to 1 h)
+  instead of switching to the free feed; the panel shows the error.
+- **Countries outside ISO 3166-1** that the app may still accept (AC, DG, EA, IC, TA, …) have no currency in the table:
+  USD only unless a manual rate is set.
+- Not verified against the real providers (tests use a local stub; the request shapes follow their public docs as
+  known on 2026-11-02).
+
+## Live moderation from the panel «مراقبة البث» (v1.60-live draft, D250)
+
+- **A device ban is not a person ban.** It holds D223's device id: a **factory reset** (Android) or erasing the iPhone
+  gives a new id; a **rooted / jailbroken** phone, an emulator or a modified app can send any value; the **website and
+  apps older than this version** send no id at sign-in, so a banned person can still sign in and go live from them (the
+  panel's dialog and the device-ban list say so). Combine it with «تعليق الحساب» when the account itself must stop.
+- **Only devices already seen.** A ban covers the account's sign-up device and the devices its sessions signed in with
+  from this version on (at most 20). Older sessions carry no device. A host whose account has no known device cannot be
+  device-banned (409 `no_device`).
+- **Shared phones.** Everyone signing in from a banned phone is refused (any account) and signed out when the ban is
+  made — by design (the owner asked for the device); an OWNER or MODERATION lifts a wrong ban from «الأجهزة المحظورة».
+- **The push may not arrive.** A suspension or a device ban signs the host out and drops the push tokens in the same
+  step, so the push with the reason can be lost; the sign-in screen then shows the end and the reason, and the inbox row
+  is there after signing in. The push carries the reason (owner: «ليصل إشعار للمضيف بالسبب») — on a lock screen.
+- **Report snapshot = the chat lines kept.** «آخر رسائل الدردشة قبل البلاغ» is read from the live's stored chat at
+  review time (no copy at report time): a message the author's account deletion removed is gone.
+- **Reports of the host during the live count for it.** Older apps report the host as a user from the live's menu; such
+  reports made since the live started are part of the live's open reports and are closed with its action or dismissal.
+- **Previews and LAN tests.** The panel plays at most 6 card previews at once; a busy grid shows covers with a play
+  button. In the capture environment Chromium needed `--disable-features=WebRtcHideLocalIpsWithMdns` to reach a LiveKit
+  on the same VM (a real network does not); the video in the captures is a **synthetic test pattern** from a local
+  LiveKit 1.9.1, not a real live.
+- **Not verified:** a real phone (the report sheet, the messages, the notification), the panel on the server against
+  the production LiveKit (CSP, autoplay of sound), push delivery.
+
+## Purchase VIP «شراء VIP» (v1.82-social draft, D252 / D252b v2)
+
+- **Design (D252b v2, reference `REFERENCE_vip_design_v2`):** the screen matches the owner's new reference layout in
+  composition — a centred «VIP» app bar (no store icon), a horizontal tier tab row (VIP1…VIPn, the selected one gold with
+  a short gold underline, the others muted), the selected tier's large centred BADGE, a gold crown divider, category
+  section headers with a count («التعريف» / «امتياز حصري», the reference's «Identification (6/6)»), a 3-column perks grid
+  (each cell a thumbnail, a bold title and a one-line grey subtitle, a lock for «قريباً»), and a sticky bar with the
+  coins price / length at the start and the gold activate button at the end — in Kabso's dark purple + gold identity,
+  RTL-correct. (An earlier v1 layout — a curved tier arc, hanging crest banners, status/upgrade bars and a store entry —
+  was replaced.) The reference's third-party ornate art (crest, gold frames, winged crown) is **not** copied: the badge
+  and perk art are the owner's own uploaded SVGA, and the crown divider is drawn in code.
+- **Perk categories without a schema change:** the grid's two sections are grouped by perk code — the privilege perks
+  (`DAILY_BULLET`, `VIEWER_LIST_PRIORITY`, `MONTHLY_GIFT`) go under «امتياز حصري», everything else under «التعريف»; the
+  per-section count shows the tier's included perks (`n/n`). An admin-set category field is a possible follow-up. Adding
+  perks stays row-only.
+- **VIP 1 is seeded** enabled (1 000 000 coins / 30 days) with its six perks (badge, avatar frame, profile card, entry
+  banner, message bubble, entry effect); the art URLs are **null** until the owner uploads them (a placeholder shows
+  meanwhile). Other tiers are added from the panel. The owner changes the price and uploads the art from the panel.
+- **Art is hosted, not bundled.** Each tier's badge and each perk carry a hosted https SVGA URL + still URL + intrinsic
+  size. Nothing is committed to the app (the entry-effect SVGA alone is 13 MB), so the binary stays light. The live app
+  fetches and loops the SVGA (buffer-decode, the gifts `animationUrl` pattern, D126) and shows the still until it decodes;
+  widget tests and screenshots show the still.
+- **Admin art is set by URL for now.** The VIP panel page takes a hosted https URL (and size) per badge / perk; an
+  **in-panel binary upload** of the SVGA + still (reusing the gift-upload object storage, D207/D222) is the remaining
+  follow-up and needs the media storage (R2 / S3) configured.
+- **Perks built so far (D258 / D374):** eleven perks work (`VIP_BUILT_PERKS`, derived from the perk catalogue since
+  D374: `BADGE`, `AVATAR_FRAME`, `CHAT_NAME_COLOR`, `PROFILE_CARD`, `ENTRY_BANNER`, `ENTRY_EFFECT`, `CHAT_BUBBLE`,
+  `MIC_WAVE`, `DAILY_BULLET`, `PROFILE_VISITORS`, `LEVEL_SPEEDUP`). The other thirty-one catalogue perks (the owner's
+  D374 list) can be picked and valued per tier in the panel but are listed «قريباً» and do nothing until a later branch
+  builds each. `DAILY_COINS` was removed by the owner (D374). (This line said `VIP_BUILT_PERKS` was empty — true at D252
+  only.)
+- **Upgrade** charges the full price of the higher tier and does not carry over the days left of the lower one (no
+  pro-rata); a lower tier cannot be bought while a higher one is active.
+- **No reminder** before a membership ends (renewal is manual).
+- The tier tabs are evenly spaced across the width; fine for the handful of tiers expected (the reference shows five).
+  With many more tiers a scrolling tab strip is a later refinement.
+- The app bar keeps the page's own name «شراء VIP» (the reference's bare «VIP»); the composition otherwise matches.
+- Not verified on a device.
+
+## «رمز الدعوة أو رمز المشرف» and the «new person» rule (v1.108-social draft, D343)
+
+- **The device half needs a device key.** A sign-up from the website or an app older than D223 has no device id, so
+  `DEVICE_HAD_ACCOUNT` cannot apply; a factory reset, erasing an iPhone, a rooted phone or an emulator gives a new id.
+  The mailbox half still runs (alias-folded like D217), but a genuinely different mailbox on a reset phone counts as new.
+  There is deliberately no IP / user-agent matching (owner: privacy).
+- **Accounts older than D343** get their mailbox mark from the referral sweeper (500 per run): until then an alias of
+  such an account is not recognised. A mailbox purged before the migration left no mark (its address was already gone).
+- **Deferred attribution only through Google Play.** The Play Install Referrer carries the code only when the app is
+  installed from the Play listing reached through the link (`config.json` `apps.playListed`); the direct APK and iOS
+  rely on «نسخ الرمز» on the page and «لصق الرمز» in the app (no silent clipboard read, by design). There is no app link
+  (`/i/<code>` does not open an installed app). The Android channel and the library are not built or device-tested here
+  (no Android SDK in this environment).
+- **Agency invite codes are not accepted at sign-up** (they attach an existing host to an agency, D179).
+
+## Coins from the stores «الشراء من المتجر» (v1.110-social draft, D345)
+
+- **Not tested against a real store.** Google Play's and Apple's APIs are behind ports; the tests use fakes and a
+  throwaway certificate chain shaped like Apple's. The first real sandbox purchase on each store is a release gate (PP-80).
+- **A refund ban is per account and per device**, with D250's device limits: a factory reset, a reinstall that loses the
+  iOS Keychain item, or a rooted / jailbroken phone gives a new device id. Every device seen for the account is banned
+  (sign-ups and the sessions' history, at most 100); a device the account never used is not.
+- **Apple's consumption information** is Apple's current `ConsumptionRequest` (consumption percentage, delivery,
+  refund preference «DECLINE», no sample). The older fields the owner listed (account tenure, play time, lifetime
+  dollars, user status) are Apple's V1 body, now documented for the Advanced Commerce API only; they are computed and
+  kept with the request for the team but not sent. There is no reliable «play time» metric; it is stored as undeclared.
+- **Google has no consumption API**; Google decides refunds and only tells us afterwards (voided purchases ≤ 30 days back,
+  polled daily; RTDN only triggers a poll).
+- **A Google void the team made in Play Console** takes the coins back without a ban (the API cannot tell a goodwill
+  refund from a mistaken one); Apple's `REFUND_REVERSED` and `REFUND_DECLINED` are recorded, nothing changes
+  automatically.
+- **Host cherries** earned from coins that were later refunded are not taken back automatically (as §10.53); the
+  purchase's FIFO detail is kept for the team.
+- **«شراء واحد لكل حساب وجهاز»** is checked before the store sheet; a purchase racing it is not credited on Google
+  (Google refunds the unacknowledged purchase within 3 days) but is credited on Apple (flagged), which cannot refund
+  automatically.
+- **Restored (re-delivered) transactions** are verified while the wallet is open, not at app start.
+- **Store builds no longer show «الشحن من الموقع»** (int21, §10.143.3): the link is offered only to the install sources
+  in `TOPUP_APP_LINK_SOURCES` (default SIDELOAD, the direct APK). The source is what the app reports (installer package
+  on Android, always the App Store on iOS): a modified APK could claim otherwise — a display rule for store review, not
+  a security boundary. An app older than this build shows no link until updated. Store-policy review stays in PP-35 /
+  PP-80.

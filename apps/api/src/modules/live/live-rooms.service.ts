@@ -1,4 +1,6 @@
 import { performance } from 'node:perf_hooks';
+import { readCameraFxEngine, type CameraFxEngine } from '../site-settings/camera-fx.rules.js';
+import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { AuditAction, AuditService, type AuditEntry } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -11,49 +13,367 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
+import { availableWishCodes, wishGiftsOf, type LiveWishGiftDto } from './live-wishes.js';
+import { LiveRankingsService } from './live-rankings.service.js';
+import { LiveScheduleService } from './live-schedule.service.js';
 import { LiveCategoriesService, localizedCategory, type LiveCategoryDto } from './live-categories.service.js';
-import { cursorScope, LiveCursorCodec, type CursorPosition, type LiveTab } from './live-cursor.js';
-import { isUuid, startLiveRoomSchema, type ListLiveRoomsQuery } from './live.schemas.js';
+import {
+  cursorScope,
+  liveKindSql,
+  LiveCursorCodec,
+  type CursorMerge,
+  type CursorPosition,
+  type GroupPosition,
+  type LiveTab,
+} from './live-cursor.js';
+import { awardLiveMedalsForRoomsIn } from '../medals/medal-awards.js';
+import { activeRechargeBadge, type RechargeBadgeDto } from '../recharge/recharge-badges.js';
+import { activeVipOf } from '../posts/post-views.js';
+import { storeWearOf, type StoreWearDto } from '../store/store-rules.js';
+import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
+import {
+  DEFAULT_LIVE_THEME,
+  DEFAULT_PODCAST_QUESTION_SECONDS,
+  DEFAULT_PODCAST_THEME,
+  DEFAULT_STREAMER_CORNER,
+  type StreamerCorner,
+  type StreamerMain,
+  type StreamerOrientation,
+  PODCAST_QUESTION_SECONDS,
+  PODCAST_SEAT_COUNT,
+  PODCAST_TOPICS,
+  hostPresenceSchema,
+  isUuid,
+  LIVE_SEAT_COUNTS,
+  LIVE_THEMES,
+  startLiveRoomSchema,
+  type ListLiveRoomsQuery,
+} from './live.schemas.js';
+import { activeDeviceBanOf, deviceBannedError } from '../auth/device-bans.js';
+import { assertNotRestricted } from '../users/account-control.js';
+import { refuseLimitedStaff, watchStaffSql } from './live-staff.js';
+import { founderSql } from '../owner-profile/founder-levels.js';
+import { LiveCapacityGuard } from './live-capacity.js';
+import type { VerificationBadgeValue } from '../verification/verification-rules.js';
+import { statusPackOf, visibleStatusEmoji } from '../status-emoji/status-emoji-catalogue.js';
+import { isTeamAvatarUrl } from './staff-avatar.js';
+import { vipLivePerkIn } from '../vip/vip-live-perks.js';
 
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
 
 /** `UserSummary`: never contains an email. */
+
+/** v1.56-social (D187): the host's daily recharge badge while it shows (`UserSummary.rechargeBadge`). */
+function rechargeBadgeOf(row: RoomRow): { rechargeBadge?: RechargeBadgeDto } {
+  if (row.badge_tier === null || row.badge_until === null || row.host_status !== 'ACTIVE') return {};
+  const badge = activeRechargeBadge({ tier: row.badge_tier, until: row.badge_until }, new Date());
+  return badge ? { rechargeBadge: badge } : {};
+}
+
+/** D265 (§10.94.3): the host's active VIP (`UserSummary.vip`, with D264's `off`), as every other summary. */
+function hostVipOf(row: RoomRow): { vip?: NonNullable<ReturnType<typeof activeVipOf>> } {
+  const m = row.host_vip;
+  if (!m) return {};
+  const vip = activeVipOf(
+    {
+      status: row.host_status,
+      vipMembership: {
+        expiresAt: new Date(m.expiresAt),
+        offPerks: m.offPerks ?? [],
+        tier: { code: m.code, sortOrder: m.sortOrder, color: m.color },
+      },
+    },
+    new Date(),
+    row.host_worn ?? [],
+  );
+  return vip ? { vip } : {};
+}
+
+/** v1.130-social (D376, §10.167): the host's status emoji (`UserSummary.statusEmojiId`), as every other summary. */
+function hostStatusEmojiOf(row: RoomRow): { statusEmojiId?: string } {
+  const id = row.host_status_emoji_id ?? null;
+  if (id === null || row.host_status !== 'ACTIVE' || isTeamAvatarUrl(row.avatar_url)) return {};
+  const pack = statusPackOf(id);
+  const until = row.host_status_pack_until ?? null;
+  const shown = visibleStatusEmoji(
+    id,
+    pack !== null && until !== null ? [{ packId: pack, expiresAt: new Date(until) }] : [],
+    new Date(),
+  );
+  return shown ? { statusEmojiId: shown } : {};
+}
+
+/** D270 (§10.98): the store items the host wears (`UserSummary.wear`), as every other summary. */
+function hostWearOf(row: RoomRow): { wear?: StoreWearDto } {
+  if (!row.host_wear || row.host_status !== 'ACTIVE') return {};
+  const wear = storeWearOf(
+    row.host_wear.map((w) => ({
+      category: w.category,
+      itemCode: w.code,
+      expiresAt: w.expiresAt === null ? null : new Date(w.expiresAt),
+      item: { storeItem: w },
+    })),
+    new Date(),
+  );
+  return wear ? { wear } : {};
+}
+
+/**
+ * What every path that ends rooms does in its transaction: guests leave their seats (CP-011) and,
+ * v1.21-live (CP-018), the hosts get their live medals (FIRST_LIVE, live hours).
+ */
+async function roomsEndedIn(
+  tx: Prisma.TransactionClient,
+  roomIds: readonly string[],
+  now: Date,
+): Promise<void> {
+  await clearEndedRoomSeatsIn(tx, roomIds, now);
+  await awardLiveMedalsForRoomsIn(tx, roomIds, now);
+}
+
 export interface UserSummaryDto {
   id: string;
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  /** v1.28-live (D146): the tier of the user's premium username; absent for a regular one. */
+  premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER';
+  /** v1.54-social (D185, §10.48): present only while the user is an ACTIVE recharge agent (the badge). */
+  rechargeAgent?: { code: string };
+  /** v1.58-social (D189, §10.52): present only while the user is a host agent (not suspended; the badge). */
+  hostAgent?: { code: string };
+  /** v1.55-social (D186, §10.49): present only while the user wears an avatar frame. */
+  avatarFrame?: { code: string; assetKey: string };
+  /** v1.56-social (D187, §10.50): present only while the user's daily recharge badge is showing. */
+  rechargeBadge?: RechargeBadgeDto;
+  /**
+   * v1.83-social (D258, §10.94): present only while the user holds an active VIP membership — the tier's code, rank
+   * (`VipTier.sortOrder`, 1 = lowest) and colour; the app takes the perks and their art from `GET /vip/tiers`.
+   */
+  /** v1.65-live (D264): `off` — the VIP items the member took off in the bag (absent when none). */
+  /** v1.131-social (D378, §10.168.5): `signature` — the member's ANIMATED_SIGNATURE text (absent when none). */
+  vip?: { tier: string; rank: number; color: string; off?: string[]; signature?: string };
+  /** D270 (§10.98): the store items the user wears now, by kind (absent when none). */
+  wear?: StoreWearDto;
+  /**
+   * v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while the user holds a panel role (OWNER too) with an
+   * active account — the apps show it where they show the @username; absent otherwise.
+   */
+  staffId?: string;
+  /**
+   * v1.131-social (D378, §10.168.4): the golden ID «آيدي ذهبي» the user holds now (HELD, its end in the future) with an
+   * active account — the apps show it as a gold ID chip; absent otherwise.
+   */
+  goldenId?: { number: string; class: string };
+  /**
+   * v1.90-social (D293, §10.105): the automatic verification badge «شارة التوثيق» beside the name — only its type,
+   * present only while the user holds one (an active account; the stored `user_verification_badges` row).
+   */
+  verification?: VerificationBadgeValue;
+  /**
+   * v1.130-social (D376, §10.167): «الحالة» — the status emoji worn over the picture (`<pack>.<emoji>`), present only
+   * while the user wears one the server shows (a store pack's only while the pack is held; an active account).
+   */
+  statusEmojiId?: string;
+  /**
+   * v1.133-social (D380, §10.170): true (else absent) on the stand-in «مجهول» shown instead of a VIP member — a board's
+   * row with RANKING_ANONYMOUS on, the sender of an ANONYMOUS_GIFT (`anonymousUserSummary`): a random id, no picture,
+   * no badges; the apps show their own «مجهول» and open nothing on a tap.
+   */
+  anonymous?: true;
 }
 
-export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI';
-export type LiveRoomEndReason = 'HOST_ENDED' | 'HEARTBEAT_TIMEOUT' | 'HOST_SUSPENDED' | 'ADMIN';
+export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER';
+
+/**
+ * v1.70-live (D279, §10.5.1): `ProfileLive` — the profile's «في بث الآن» card: the live's room, title, mode, start,
+ * viewers now and score (the same numbers as the room's `LiveRoomSummary`).
+ */
+export interface ProfileLiveDto {
+  roomId: string;
+  title: string;
+  mode: LiveRoomMode;
+  startedAt: string;
+  viewerCount: number;
+  score: number;
+}
+export type LiveRoomEndReason =
+  | 'HOST_ENDED'
+  | 'HEARTBEAT_TIMEOUT'
+  | 'HOST_SUSPENDED'
+  | 'ADMIN'
+  /** v1.42-live (D170, §10.44): a video live's host stayed away (background, camera off) too long. */
+  | 'HOST_AWAY_TIMEOUT';
 
 export interface LiveRoomSummaryDto {
   id: string;
   title: string;
+  /** CP-014: the live's topic, or null. */
+  topic: string | null;
   mode: LiveRoomMode;
   viewerCount: number;
   startedAt: string;
   coverUrl: string | null;
   category: LiveCategoryDto | null;
   host: UserSummaryDto;
+  /** CP-011: tiles (host included) of a MULTI or AUDIO room; null for SOLO. */
+  seatCount: number | null;
+  /** CP-011: guests seated now. */
+  occupiedSeats: number;
+  /** CP-011: a slug of `LiveConfig.themes`. */
+  theme: string;
+  /** CP-012: the live's points (taps + support). v1.86-live (D310): no longer the `popular` order (points only). */
+  score: number;
+  /**
+   * v1.86-live (D310, §10.116): the room's cherries — what the host AND the seated guests were credited for this live's
+   * gifts; `popular` orders by it and the hub chip shows it with the cherry.
+   */
+  cherries: number;
+  /** v1.47-live (D212, §10.69): the episode facts of a PODCAST live; null for other modes. */
+  podcast: LivePodcastDto | null;
+  /**
+   * v1.54-live (D241, §10.84): the room is in a PK now — an open D195 match (CONNECTED, BATTLE or RESULT,
+   * its dare included) or the legacy `mode = 'PK'`. A real battle keeps the rooms SOLO.
+   */
+  inPk: boolean;
+  /**
+   * v1.58-live (D246, §10.89): the host's charm level (CP-016 D, the room level; null while the charm
+   * category is unavailable) — the cards' «Lv.N».
+   */
+  roomLevel: number | null;
+  /**
+   * v1.58-live (D246, §10.89): «رائج» — among the first `LIVE_POPULAR_TOP_N` lives of its kind (audio,
+   * podcast, multi, video) in the `popular` order, now.
+   */
+  popular: boolean;
+  /** v1.58-live (D246, §10.89): the host's profile country (ISO 3166-1 alpha-2); absent when none. */
+  hostCountry?: string;
+  /** v1.56-live (D213, §10.86): a STREAMER's screen orientation and camera bubble; null otherwise. */
+  streamer: LiveStreamerDto | null;
+  /**
+   * v1.82-live (D295, §10.108): the host is a content creator «صانع محتوى» (a creator-programme member) — the purple
+   * badge on the card and in the room. Public (the programme membership is public, like the D293 seal).
+   */
+  hostIsCreator: boolean;
+  /**
+   * v1.132-social (D379, §10.169): a VIP room «غرفة VIP خاصة» — only VIP members of this tier or a higher one enter
+   * (the cards and the room show the lock); null: open to all.
+   */
+  vipMinTier: LiveVipMinTierDto | null;
+}
+
+/** v1.132-social (D379): `LiveVipMinTier`. */
+export interface LiveVipMinTierDto {
+  code: string;
+  name: string;
+  color: string;
+}
+
+/** v1.56-live (D213, §10.86): `LiveStreamer`. */
+export interface LiveStreamerDto {
+  orientation: StreamerOrientation;
+  cameraOverlay: { visible: boolean; corner: StreamerCorner };
+  /** v1.57-live (D247, §10.88): the main picture — the screen (with the bubble) or the camera alone. */
+  main: StreamerMain;
+  /** Increases on every change (the media metadata's `streamerVersion`, the `streamer` message). */
+  version: number;
+}
+
+/** A speaker of a podcast as the hub card shows it (avatar stack and names). */
+export interface LivePodcastSpeakerDto {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+/** v1.47-live (D212): `LivePodcast`. */
+export interface LivePodcastDto {
+  /** Per host: 1 for the host's first podcast episode, then 2, 3, … */
+  episodeNumber: number;
+  /** A slug of `PODCAST_TOPICS`. */
+  topic: string;
+  /** Listeners may raise a hand. */
+  questionsOpen: boolean;
+  /** An accepted hand's speaking time (60, 120, 180, 300 s); null = no limit. */
+  questionSeconds: number | null;
+  /** The seated speakers (not the host), in seat order (at most 3). */
+  speakers: LivePodcastSpeakerDto[];
+  /** v1.114-live (D363, §10.157): a video podcast (the host and the speakers on camera). */
+  video: boolean;
+}
+
+/** `LiveScore` (CP-012). */
+export interface LiveScoreDto {
+  total: number;
+  tapPoints: number;
+  supportPoints: number;
+  /** v1.63-live (D259, §10.95): the cherries the host's balance was credited for this live's gifts. */
+  hostCherries: number;
+  /**
+   * v1.86-live (D310, §10.116): the room's cherries — what the host AND the seated guests were credited for this live's
+   * gifts (the room's ranking value; the host pill shows it).
+   */
+  roomCherries: number;
 }
 
 export interface LiveRoomDto extends LiveRoomSummaryDto {
   status: 'LIVE' | 'ENDED';
   endedAt: string | null;
   endReason: LiveRoomEndReason | null;
+  /** CP-010: people without an account may watch. */
+  allowGuests: boolean;
+  /** CP-012: the score and its parts. */
+  scoreParts: LiveScoreDto;
+  /** CP-013: false when the host turned the chat off. */
+  chatEnabled: boolean;
+  /** CP-013: the caller is muted in this live's chat (false for guests). */
+  chatMuted: boolean;
+  /** v1.20-live (D105): the caller was kicked out of this live (false for guests). */
+  kicked: boolean;
+  /** CP-016 G: the host's public room number (null without the hosting permission). */
+  roomNumber: number | null;
+  /** v1.27.3-live (D136, §10.29): the host's wish list, as shown. */
+  wishGifts: LiveWishGiftDto[];
 }
 
 export interface LiveRoomPageDto {
   data: LiveRoomSummaryDto[];
   page: { nextCursor: string | null; hasMore: boolean };
+  /** v1.27.1-live (D133): only on `scope=nearby` responses. */
+  emptyReason?: 'COUNTRY_NOT_SET' | null;
 }
 
 export interface LiveConfigDto {
   hostingEnabled: boolean;
   heartbeatIntervalSeconds: number;
   heartbeatStaleAfterSeconds: number;
+  /** CP-011: accepted room themes, in display order (the first is the default). */
+  themes: string[];
+  /** CP-011: allowed seat counts per mode (host tile included). */
+  seatCounts: { MULTI: number[]; AUDIO: number[] };
+  /** v1.47-live (D212, §10.69): the podcast setup's choices. */
+  podcast: {
+    /** Speakers including the host. */
+    speakers: number;
+    topics: string[];
+    questionSeconds: number[];
+    defaultQuestionSeconds: number;
+  };
+  /** v1.49-live (D228, §10.79): the Android camera effects engine, `DEEPAR` (default) or `FREE`. */
+  cameraFxEngine: CameraFxEngine;
+  /** v1.88-live (D315, §10.120): at least one game is on — the «مجنون اللعب» board's tab shows only then. */
+  gamesEnabled: boolean;
+}
+
+/**
+ * CP-014 (§10.12): what the host's `PATCH` asks to change. A field left out is unchanged;
+ * `category: null` and `topic: null` remove them. The category has been checked to be active.
+ */
+export interface RoomInfoEdit {
+  readonly title?: string;
+  readonly category?: { readonly id: string; readonly slug: string } | null;
+  readonly topic?: string | null;
 }
 
 /** Request facts recorded in the audit trail. */
@@ -64,9 +384,11 @@ export interface RequestMeta {
 
 // ---- Persistence -------------------------------------------------------------------------------
 
-interface RoomRow {
+export interface RoomRow {
   id: string;
   title: string;
+  /** CP-014: the live's topic (null = none). */
+  topic: string | null;
   mode: LiveRoomMode;
   status: 'LIVE' | 'ENDED';
   viewer_count: number;
@@ -75,14 +397,107 @@ interface RoomRow {
   ended_at: Date | null;
   end_reason: LiveRoomEndReason | null;
   cover_url: string | null;
+  allow_guests: boolean;
+  seat_count: number | null;
+  theme: string;
+  seats_version: number;
+  /** CP-012: `live_rooms.score` and its parts (`live_room_scores`; 0 without a row). */
+  score: bigint;
+  tap_points: bigint;
+  support_points: bigint;
+  /** v1.63-live (D259): `live_room_scores.host_cherries` (0 without a row). */
+  host_cherries: bigint;
+  /** v1.86-live (D310): `live_rooms.cherries` — the room's cherries (host and seated guests), the popular key. */
+  cherries: bigint;
+  occupied_seats: number;
+  /** CP-013: the host's chat switch. */
+  chat_enabled: boolean;
+  /** CP-013: the reader is muted in this live's chat (room detail only; false otherwise). */
+  chat_muted?: boolean;
+  /** v1.20-live (D105): the reader was kicked out of this live (room detail only; false otherwise). */
+  kicked?: boolean;
   host_user_id: string;
   host_status: string;
+  /** v1.82-live (D295, §10.108): the host is a creator-programme member now. */
+  host_is_creator: boolean;
   username: string;
   display_name: string;
   avatar_url: string | null;
+  /** v1.28-live (D146). */
+  premium_tier: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER' | null;
+  /** v1.54-social (D185): the host's recharge-agent code while ACTIVE, else null. */
+  agent_code: string | null;
+  /** v1.58-social (D189): the host's host-agent code while not suspended, else null. */
+  host_agent_code: string | null;
+  /** v1.90-social (D293): the host's verification badge, else null. */
+  host_verification: VerificationBadgeValue | null;
+  /** v1.130-social (D376): the host's status emoji, and the end of the store pack it belongs to (null: none held). */
+  host_status_emoji_id?: string | null;
+  host_status_pack_until?: Date | null;
+  /** v1.55-social (D186): the avatar frame the host wears now, else null. */
+  host_frame_code: string | null;
+  host_frame_asset: string | null;
+  /** v1.56-social (D187): the host's daily recharge badge row (null for none or for any recharge agent). */
+  badge_tier: number | null;
+  badge_until: Date | null;
+  /** D265: the host's VIP membership now (its tier, end and taken-off perks), else null. */
+  host_vip: {
+    code: string;
+    sortOrder: number;
+    color: string;
+    expiresAt: string;
+    offPerks: string[] | null;
+  } | null;
+  /** D265 (D264's `off`): the categories of the bag items the host wears now. */
+  host_worn: string[] | null;
+  /** v1.132-social (D379): a VIP room's lowest tier let in (its rank), else null. */
+  vip_min_tier: { code: string; sortOrder: number; color: string; nameAr: string; nameEn: string } | null;
+  /** D270 (§10.98): the store items the host wears now (category, code, end and art), else null. */
+  host_wear:
+    | {
+        category: string;
+        code: string;
+        expiresAt: string | null;
+        still: string | null;
+        animation: string | null;
+        animationFormat: 'SVGA' | 'MP4' | null;
+        animationAlpha: 'NONE' | 'SIDE_BY_SIDE' | null;
+        artWidth: number | null;
+        artHeight: number | null;
+        /** v1.128-social (D373): the entry car's display. */
+        entryDisplay: 'FULL_SCREEN' | 'HALF_SCREEN';
+      }[]
+    | null;
   category_slug: string | null;
   category_name_ar: string | null;
   category_name_en: string | null;
+  /** CP-016 G: the host's room number (null without the hosting permission). */
+  room_number: number | null;
+  room_level: number | null;
+  /** v1.27.3-live (D136): the wish list's gift codes. */
+  wish_gifts: string[];
+  /** v1.47-live (D212): PODCAST fields (null / true for other modes). */
+  episode_number: number | null;
+  podcast_topic: string | null;
+  questions_open: boolean;
+  question_seconds: number | null;
+  /** v1.114-live (D363): a video podcast (always false outside PODCAST). */
+  podcast_video: boolean;
+  /** v1.47-live (D212): a PODCAST's seated speakers (JSON, seat order); null for other modes. */
+  podcast_speakers: LivePodcastSpeakerDto[] | null;
+  /** v1.54-live (D241): an open PK match has this room on either side. */
+  in_pk: boolean;
+  /** v1.56-live (D213): STREAMER fields (null for other modes). */
+  streamer_orientation: string | null;
+  streamer_camera_visible: boolean | null;
+  streamer_camera_corner: string | null;
+  /** v1.57-live (D247): `SCREEN` / `CAMERA` (STREAMER only). */
+  streamer_main: string | null;
+  streamer_version: number;
+  /** v1.58-live (D246): the host's profile country, or null. */
+  host_country: string | null;
+  /** v1.58-live (D246): in the top `LIVE_POPULAR_TOP_N` of its kind now (`popularSql`). */
+  popular: boolean;
 }
 
 /**
@@ -91,16 +506,188 @@ interface RoomRow {
  * read-only exceptions to module table ownership (DB_PHASE2_DISCOVERY §1): the list must filter
  * and paginate in the database.
  */
-const ROOM_SELECT = Prisma.sql`
-  SELECT r.id::text AS id, r.title, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
+/**
+ * CP-016 D (§10.18): the host's charm (ATTRACTIVENESS) level, null while the category is
+ * unavailable. The same rule as the levels read side (`summaryDto`): the highest level of the
+ * published ladder the points reach (plus carried points, D194), or the level kept from that same
+ * version if higher.
+ */
+// v1.121-social (D361, §10.156): null in the founder's lives (he shows no level, the room cards no «Lv.N»).
+const ROOM_LEVEL_SQL = Prisma.sql`(
+         SELECT CASE WHEN ${founderSql(Prisma.sql`r.host_user_id`)} THEN NULL
+                     WHEN lc.is_enabled AND lc.published_version_id IS NOT NULL THEN
+                  GREATEST(
+                    (SELECT max(ld.level_number) FROM level_definitions ld
+                      WHERE ld.version_id = lc.published_version_id
+                        AND ld.required_points <= COALESCE(ls.total_points, 0)
+                            + CASE WHEN ls.version_id = lc.published_version_id THEN ls.carried_points ELSE 0 END),
+                    CASE WHEN ls.version_id = lc.published_version_id THEN ls.current_level END)
+                END
+           FROM level_categories lc
+           LEFT JOIN user_level_states ls ON ls.category_id = lc.id AND ls.user_id = r.host_user_id
+          WHERE lc.code = 'ATTRACTIVENESS')`;
+
+const ROOM_COLUMNS = Prisma.sql`
+         r.id::text AS id, r.title, r.topic, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
          r.started_at, r.last_heartbeat_at, r.ended_at, r.end_reason::text AS end_reason, r.cover_url,
-         r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
-         p.display_name, p.avatar_url, c.slug AS category_slug, c.name_ar AS category_name_ar,
-         c.name_en AS category_name_en
+         r.allow_guests, r.seat_count::int AS seat_count, r.theme, r.seats_version, r.score, r.cherries,
+         COALESCE(sc.tap_points, 0)::bigint AS tap_points,
+         COALESCE(sc.support_points, 0)::bigint AS support_points,
+         COALESCE(sc.host_cherries, 0)::bigint AS host_cherries,
+         (SELECT count(*)::int FROM live_room_seats s
+           WHERE s.room_id = r.id AND s.user_id IS NOT NULL) AS occupied_seats,
+         r.host_user_id::text AS host_user_id, u.status::text AS host_status,
+         EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = r.host_user_id) AS host_is_creator, p.username,
+         p.display_name, p.avatar_url, p.premium_tier::text AS premium_tier,
+         p.country_code::text AS host_country,
+         (SELECT ra.code FROM recharge_agents ra WHERE ra.user_id = r.host_user_id AND ra.status = 'ACTIVE') AS agent_code,
+         (SELECT ag.host_code FROM agencies ag
+           WHERE ag.owner_user_id = r.host_user_id AND ag.suspended_at IS NULL
+             AND ag.status = 'OPEN'::agency_status) AS host_agent_code,
+         (SELECT vb.badge::text FROM user_verification_badges vb
+           WHERE vb.user_id = r.host_user_id) AS host_verification,
+         u.status_emoji_id AS host_status_emoji_id,
+         (SELECT sp.expires_at FROM user_status_packs sp
+           WHERE sp.user_id = r.host_user_id
+             AND sp.pack_id = split_part(u.status_emoji_id, '.', 1)) AS host_status_pack_until,
+         (SELECT b.item_code FROM user_bag_items b
+           WHERE b.user_id = r.host_user_id AND b.category = 'AVATAR_FRAME' AND b.equipped
+             AND (b.expires_at IS NULL OR b.expires_at > now())
+             AND NOT EXISTS (SELECT 1 FROM store_items si WHERE si.bag_code = b.item_code)) AS host_frame_code,
+         (SELECT i.asset_key FROM user_bag_items b JOIN bag_items i ON i.code = b.item_code
+           WHERE b.user_id = r.host_user_id AND b.category = 'AVATAR_FRAME' AND b.equipped
+             AND (b.expires_at IS NULL OR b.expires_at > now())
+             AND NOT EXISTS (SELECT 1 FROM store_items si WHERE si.bag_code = b.item_code)) AS host_frame_asset,
+         (SELECT json_agg(json_build_object('category', b.category::text, 'code', b.item_code,
+                                            'expiresAt', b.expires_at, 'still', si.still,
+                                            'animation', si.animation, 'animationFormat', si.animation_format::text,
+                                            'animationAlpha', si.animation_alpha::text,
+                                            'artWidth', si.art_width, 'artHeight', si.art_height,
+                                            'entryDisplay', si.entry_display::text))
+            FROM user_bag_items b JOIN store_items si ON si.bag_code = b.item_code
+           WHERE b.user_id = r.host_user_id AND b.equipped
+             AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_wear,
+         (SELECT rb.badge_tier::int FROM recharge_badges rb WHERE rb.user_id = r.host_user_id
+             AND NOT EXISTS (SELECT 1 FROM recharge_agents ra2 WHERE ra2.user_id = r.host_user_id)) AS badge_tier,
+         (SELECT rb.badge_until FROM recharge_badges rb WHERE rb.user_id = r.host_user_id) AS badge_until,
+         (SELECT json_build_object('code', vt.code, 'sortOrder', vt.sort_order, 'color', vt.color,
+                                   'expiresAt', vm.expires_at, 'offPerks', vm.off_perks)
+            FROM vip_memberships vm JOIN vip_tiers vt ON vt.id = vm.tier_id
+           WHERE vm.user_id = r.host_user_id AND vm.expires_at > now()) AS host_vip,
+         (SELECT array_agg(b.category::text) FROM user_bag_items b
+           WHERE b.user_id = r.host_user_id AND b.equipped
+             AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_worn,
+         (SELECT json_build_object('code', vmt.code, 'sortOrder', vmt.sort_order, 'color', vmt.color,
+                                   'nameAr', vmt.name_ar, 'nameEn', vmt.name_en)
+            FROM vip_tiers vmt WHERE vmt.id = r.vip_min_tier_id) AS vip_min_tier,
+         c.slug AS category_slug, c.name_ar AS category_name_ar,
+         c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
+         r.wish_gifts, r.episode_number, r.podcast_topic, r.questions_open,
+         r.question_seconds::int AS question_seconds, r.podcast_video,
+         EXISTS (SELECT 1 FROM pk_matches pm WHERE pm.status <> 'CLOSED'::pk_match_status
+                   AND (pm.room_a_id = r.id OR pm.room_b_id = r.id)) AS in_pk,
+         CASE WHEN r.mode = 'PODCAST'::live_room_mode THEN (
+           SELECT COALESCE(json_agg(json_build_object('id', s2.user_id::text, 'username', spp.username,
+                    'displayName', spp.display_name, 'avatarUrl', spp.avatar_url) ORDER BY s2.seat_index), '[]'::json)
+             FROM live_room_seats s2
+             JOIN users sp ON sp.id = s2.user_id AND sp.status = 'ACTIVE'
+             JOIN user_profiles spp ON spp.user_id = s2.user_id
+            WHERE s2.room_id = r.id AND s2.user_id IS NOT NULL AND NOT s2.backstage) END AS podcast_speakers,
+         r.streamer_orientation, r.streamer_camera_visible, r.streamer_camera_corner, r.streamer_main,
+         r.streamer_version`;
+
+const ROOM_FROM = Prisma.sql`
     FROM live_rooms r
     JOIN users u ON u.id = r.host_user_id
     JOIN user_profiles p ON p.user_id = r.host_user_id
-    LEFT JOIN live_categories c ON c.id = r.category_id`;
+    LEFT JOIN live_categories c ON c.id = r.category_id
+    LEFT JOIN live_room_scores sc ON sc.room_id = r.id
+    LEFT JOIN live_hosts lh ON lh.user_id = r.host_user_id`;
+
+/**
+ * v1.58-live (D246, §10.89): the kind a live counts in for «رائج» — the party page's kinds and the
+ * hub's video (SOLO and PK; D213's STREAMER is a video live too). v1.115-live (D368, §10.161): a live video podcast
+ * counts with the video lives (0); an audio podcast keeps its own kind (2).
+ */
+function popularKindSql(alias: string): Prisma.Sql {
+  const mode = Prisma.raw(`${alias}.mode`);
+  const video = Prisma.raw(`${alias}.podcast_video`);
+  return Prisma.sql`CASE WHEN ${mode} = 'AUDIO'::live_room_mode THEN 1
+                         WHEN ${mode} = 'PODCAST'::live_room_mode AND NOT ${video} THEN 2
+                         WHEN ${mode} = 'MULTI'::live_room_mode THEN 3 ELSE 0 END`;
+}
+
+/**
+ * v1.58-live (D246, §10.89): `r` is «رائج» — among the first `topN` listable lives (LIVE, fresh, ACTIVE
+ * host) of its kind in the `popular` order (cherries — v1.86-live, D310 —, startedAt, id, all desc; the same as the
+ * tab). An
+ * uncorrelated subquery: PostgreSQL computes the set once per statement (a hashed subplan), never per
+ * row. Global (the same for every viewer), so blocks do not change it.
+ */
+function popularSql(cutoff: Date, topN: number): Prisma.Sql {
+  return Prisma.sql`(r.id IN (
+           SELECT t.id FROM (
+             SELECT r2.id, row_number() OVER (
+                      PARTITION BY ${popularKindSql('r2')}
+                      ORDER BY r2.cherries DESC, r2.started_at DESC, r2.id DESC) AS rn
+               FROM live_rooms r2
+               JOIN users u2 ON u2.id = r2.host_user_id
+              WHERE r2.status = 'LIVE' AND u2.status = 'ACTIVE'
+                AND r2.last_heartbeat_at > ${ts(cutoff)}::timestamptz) t
+            WHERE t.rn <= ${topN}::int))`;
+}
+
+/**
+ * v1.56-live (D213, §10.86): a STREAMER row's `LiveStreamer`; null for other modes. v1.57-live (D247, §10.88):
+ * `main` (a row read before the column existed counts as `SCREEN`, the only layout D213 had).
+ */
+export function streamerOf(row: {
+  mode: string;
+  streamer_orientation: string | null;
+  streamer_camera_visible: boolean | null;
+  streamer_camera_corner: string | null;
+  streamer_main?: string | null;
+  streamer_version: number;
+}): LiveStreamerDto | null {
+  if (
+    row.mode !== 'STREAMER' ||
+    row.streamer_orientation === null ||
+    row.streamer_camera_visible === null ||
+    row.streamer_camera_corner === null
+  ) {
+    return null;
+  }
+  return {
+    orientation: row.streamer_orientation as StreamerOrientation,
+    cameraOverlay: {
+      visible: row.streamer_camera_visible,
+      corner: row.streamer_camera_corner as StreamerCorner,
+    },
+    main: row.streamer_main === 'CAMERA' ? 'CAMERA' : 'SCREEN',
+    version: row.streamer_version,
+  };
+}
+
+/** CP-013: whether `viewerId` is muted in the room's chat (a guest never is). */
+function chatMutedSql(viewerId: string | null): Prisma.Sql {
+  if (viewerId === null) return Prisma.sql`FALSE`;
+  // v1.68-live (D273, §10.96.7): «فريق كابسو» is never chat-muted in a live.
+  return Prisma.sql`(EXISTS (SELECT 1 FROM live_chat_mutes m
+                    WHERE m.room_id = r.id AND m.user_id = ${viewerId}::uuid) AND NOT ${watchStaffSql(viewerId)})`;
+}
+
+/** v1.20-live (D105): the reader was kicked out of the room (false for a guest). */
+function kickedSql(viewerId: string | null): Prisma.Sql {
+  if (viewerId === null) return Prisma.sql`FALSE`;
+  // v1.68-live (D273, §10.96.7): «فريق كابسو» is never kept out of a live.
+  return Prisma.sql`(EXISTS (SELECT 1 FROM live_room_kicks k
+                    WHERE k.room_id = r.id AND k.user_id = ${viewerId}::uuid) AND NOT ${watchStaffSql(viewerId)})`;
+}
+
+/** CP-013 (owner D96): chat messages and mutes are kept 30 days after their room ended. */
+export const LIVE_CHAT_RETENTION_MS = 30 * 24 * 3600_000;
+const CHAT_RETENTION_BATCH = 1_000;
+const CHAT_RETENTION_MAX_BATCHES = 20;
 
 const ONE_LIVE_PER_HOST_INDEX = 'live_rooms_one_live_per_host';
 
@@ -111,6 +698,11 @@ const ONE_LIVE_PER_HOST_INDEX = 'live_rooms_one_live_per_host';
  */
 export const LIVE_TX_OPTIONS = { maxWait: 5_000, timeout: 10_000 } as const;
 const LIVE_STATEMENT_TIMEOUT_MS = 8_000;
+
+/** Sets the live statement timeout (SEC-035) for the rest of the transaction `tx`. */
+export async function setLiveStatementTimeout(tx: Prisma.TransactionClient): Promise<void> {
+  await tx.$queryRaw`SELECT set_config('statement_timeout', ${String(LIVE_STATEMENT_TIMEOUT_MS)}, true)`;
+}
 
 /** Per-run budget of the sweeper (SEC-035): whichever is reached first ends the run. */
 export const SWEEP_MAX_BATCHES_PER_RUN = 100;
@@ -154,26 +746,53 @@ function ts(date: Date): string {
 }
 
 /**
- * ORDER BY of a tab (CONVENTIONS §10.4): `popular` = viewerCount, startedAt, id (all desc);
+ * ORDER BY of a tab (CONVENTIONS §10.4): `popular` = the room's cherries (v1.86-live, D310, §10.116; was the
+ * CP-012 score), startedAt, id (all desc);
  * `new` and `following` = startedAt, id (desc). `id` is always the final tiebreak, so the order
  * is total and keyset pages neither repeat nor skip rows of an unchanged result set.
  */
 export function orderBy(tab: LiveTab): Prisma.Sql {
   return tab === 'popular'
-    ? Prisma.sql`r.viewer_count DESC, r.started_at DESC, r.id DESC`
+    ? Prisma.sql`r.cherries DESC, r.started_at DESC, r.id DESC`
     : Prisma.sql`r.started_at DESC, r.id DESC`;
+}
+
+/**
+ * v1.27.1-live (D133): `featured=true` orders by feature rank ascending, then like `popular`, on
+ * every tab (v1.86-live, D310: the room's cherries, not the score); rows strictly after `position` in that order.
+ */
+export const FEATURED_ORDER = Prisma.sql`fh.rank ASC, r.cherries DESC, r.started_at DESC, r.id DESC`;
+
+export function featuredKeysetAfter(position: CursorPosition): Prisma.Sql {
+  const startedAt = ts(position.startedAt);
+  const rank = position.rank ?? 0;
+  return Prisma.sql`(fh.rank > ${rank}::int OR (fh.rank = ${rank}::int AND (r.cherries, r.started_at, r.id) < (${String(position.score)}::bigint, ${startedAt}::timestamptz, ${position.id}::uuid)))`;
 }
 
 /** Rows strictly after `position` in the tab's order (row-value comparison, all keys desc). */
 export function keysetAfter(tab: LiveTab, position: CursorPosition): Prisma.Sql {
   const startedAt = ts(position.startedAt);
   return tab === 'popular'
-    ? Prisma.sql`(r.viewer_count, r.started_at, r.id) < (${position.viewerCount}::int, ${startedAt}::timestamptz, ${position.id}::uuid)`
+    ? Prisma.sql`(r.cherries, r.started_at, r.id) < (${String(position.score)}::bigint, ${startedAt}::timestamptz, ${position.id}::uuid)`
     : Prisma.sql`(r.started_at, r.id) < (${startedAt}::timestamptz, ${position.id}::uuid)`;
 }
 
 function notFound(): AppException {
   return new AppException(ErrorCode.NOT_FOUND);
+}
+
+/**
+ * CP-010 (§10.8): rooms of hosts the viewer blocked, or who blocked the viewer, are hidden.
+ * Guests (no account) have no blocks.
+ */
+function notBlockedSql(viewerId: string | null): Prisma.Sql {
+  if (viewerId === null) return Prisma.sql`TRUE`;
+  // v1.68-live (D273, §10.96.7): a block (either way) never keeps «فريق كابسو» from finding or entering a live; it
+  // still applies to DMs, follows and the rest of the app.
+  return Prisma.sql`(NOT EXISTS (SELECT 1 FROM user_blocks b
+                    WHERE (b.blocker_id = ${viewerId}::uuid AND b.blocked_id = r.host_user_id)
+                       OR (b.blocker_id = r.host_user_id AND b.blocked_id = ${viewerId}::uuid))
+                     OR ${watchStaffSql(viewerId)})`;
 }
 
 /**
@@ -196,6 +815,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   private readonly cursors: LiveCursorCodec;
   private sweepTimer: NodeJS.Timeout | undefined;
   private sweepInFlight: Promise<SweepResult> | null = null;
+  private retentionInFlight: Promise<unknown> | null = null;
   private stopped = false;
 
   constructor(
@@ -205,6 +825,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     private readonly audit: AuditService,
     private readonly clock: Clock,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly rankings: LiveRankingsService,
+    private readonly schedule: LiveScheduleService,
+    private readonly storageSettings: StorageSettingsStore,
+    // v1.113-live (D351, §10.148): the capacity guard «حد الامتلاء» (off unless LIVE_CAPACITY_MAX_ROOMS > 0).
+    private readonly capacity: LiveCapacityGuard,
   ) {
     this.cursors = new LiveCursorCodec(config.live.cursorKey);
   }
@@ -218,6 +843,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     if (this.sweepTimer) clearTimeout(this.sweepTimer);
     // Let a running batch commit before Prisma disconnects.
     await this.sweepInFlight?.catch(() => undefined);
+    await this.retentionInFlight?.catch(() => undefined);
   }
 
   /**
@@ -242,17 +868,70 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             'Stale live-room sweep failed',
           ),
         )
+        // v1.42-live (D170): then video lives whose host has been away too long (its failure is
+        // logged and does not hold back the retention sweeps).
+        .then(() => (this.stopped ? 0 : this.sweepHostAway()))
+        .catch((err: unknown) =>
+          this.logger.error(
+            { ...errorClassAndCode(err), error: safeErrorLog(err) },
+            'Host-away live-room sweep failed',
+          ),
+        )
+        .then(() => {
+          if (this.stopped) return undefined;
+          // CP-016 C: the schedule reminders first (they are due now; a failure is logged and
+          // does not hold back the retention sweeps). Then CP-013 chat retention, CP-016 A hourly
+          // board points older than 15 days and CP-016 C slots 30 days past their start.
+          this.retentionInFlight = this.schedule
+            .sendReminders()
+            .catch((err: unknown) =>
+              this.logger.error(
+                { ...errorClassAndCode(err), error: safeErrorLog(err) },
+                'Live schedule reminders failed',
+              ),
+            )
+            .then(() => this.sweepChatRetention())
+            .then(() => this.rankings.sweepRetention())
+            .then(() => this.schedule.sweepRetention())
+            .then(() => undefined)
+            .finally(() => {
+              this.retentionInFlight = null;
+            });
+          return this.retentionInFlight;
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            { ...errorClassAndCode(err), error: safeErrorLog(err) },
+            'Live chat retention sweep failed',
+          ),
+        )
         .finally(() => this.scheduleSweep());
     }, this.config.live.sweepIntervalSeconds * 1000);
     this.sweepTimer.unref();
   }
 
-  getConfig(): LiveConfigDto {
+  async getConfig(): Promise<LiveConfigDto> {
     return {
       hostingEnabled: this.config.live.hostingEnabled,
       heartbeatIntervalSeconds: this.config.live.heartbeatIntervalSeconds,
       heartbeatStaleAfterSeconds: this.config.live.heartbeatStaleSeconds,
+      themes: [...LIVE_THEMES],
+      seatCounts: { MULTI: [...LIVE_SEAT_COUNTS.MULTI], AUDIO: [...LIVE_SEAT_COUNTS.AUDIO] },
+      podcast: {
+        speakers: PODCAST_SEAT_COUNT,
+        topics: [...PODCAST_TOPICS],
+        questionSeconds: [...PODCAST_QUESTION_SECONDS],
+        defaultQuestionSeconds: DEFAULT_PODCAST_QUESTION_SECONDS,
+      },
+      // D228: the OWNER's switch (a `site_settings` row; DEEPAR when absent or unreadable).
+      cameraFxEngine: await readCameraFxEngine(this.prisma),
+      gamesEnabled: this.config.live.gamesEnabled,
     };
+  }
+
+  /** v1.58-live (D246): the «رائج» column of a room statement, as of now. */
+  private popularColumn(): Prisma.Sql {
+    return popularSql(this.cutoff(this.clock.now()), this.config.live.popularTopN);
   }
 
   private cutoff(now: Date): Date {
@@ -266,7 +945,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   // ---- Stale handling --------------------------------------------------------------------------
 
   private async setStatementTimeout(tx: Prisma.TransactionClient): Promise<void> {
-    await tx.$queryRaw`SELECT set_config('statement_timeout', ${String(LIVE_STATEMENT_TIMEOUT_MS)}, true)`;
+    await setLiveStatementTimeout(tx);
   }
 
   /** Audits `live.room.timeout` for the rooms a statement just ended. */
@@ -299,6 +978,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
        WHERE status = 'LIVE' AND last_heartbeat_at <= ${ts(this.cutoff(now))}::timestamptz AND ${scope}
    RETURNING id::text AS id, host_user_id::text AS host_user_id`;
     await this.auditTimeouts(tx, rows);
+    await roomsEndedIn(
+      tx,
+      rows.map((row) => row.id),
+      now,
+    );
     return rows.length;
   }
 
@@ -340,6 +1024,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
            AND status = 'LIVE' AND last_heartbeat_at <= ${cutoff}::timestamptz
      RETURNING id::text AS id, host_user_id::text AS host_user_id`;
       await this.auditTimeouts(tx, rows);
+      await roomsEndedIn(
+        tx,
+        rows.map((row) => row.id),
+        now,
+      );
       return locked.length;
     }, LIVE_TX_OPTIONS);
   }
@@ -380,6 +1069,114 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * CP-013 retention (owner D96, CONVENTIONS §10.11): chat messages (deleted ones included),
+   * chat mutes and (v1.20-live) kicks of rooms that ended more than 30 days before `now` are removed, in bounded batches,
+   * except messages an OPEN report points at (they stay until the report is closed). Runs after
+   * each stale-room sweep. Returns the rows removed.
+   */
+  async sweepChatRetention(
+    now: Date = this.clock.now(),
+  ): Promise<{ messages: number; mutes: number; kicks: number }> {
+    const cutoff = ts(new Date(now.getTime() - LIVE_CHAT_RETENTION_MS));
+    let messages = 0;
+    let mutes = 0;
+    for (let batch = 0; batch < CHAT_RETENTION_MAX_BATCHES; batch += 1) {
+      const removed = await this.prisma.$executeRaw`
+        DELETE FROM live_chat_messages
+         WHERE id IN (
+           SELECT m.id FROM live_chat_messages m JOIN live_rooms r ON r.id = m.room_id
+            WHERE r.status = 'ENDED' AND r.ended_at < ${cutoff}::timestamptz
+              AND NOT EXISTS (SELECT 1 FROM reports p
+                               WHERE p.target_live_chat_message_id = m.id AND p.status = 'OPEN')
+            LIMIT ${CHAT_RETENTION_BATCH})`;
+      messages += removed;
+      if (removed < CHAT_RETENTION_BATCH) break;
+    }
+    for (let batch = 0; batch < CHAT_RETENTION_MAX_BATCHES; batch += 1) {
+      const removed = await this.prisma.$executeRaw`
+        DELETE FROM live_chat_mutes
+         WHERE (room_id, user_id) IN (
+           SELECT x.room_id, x.user_id FROM live_chat_mutes x JOIN live_rooms r ON r.id = x.room_id
+            WHERE r.status = 'ENDED' AND r.ended_at < ${cutoff}::timestamptz
+            LIMIT ${CHAT_RETENTION_BATCH})`;
+      mutes += removed;
+      if (removed < CHAT_RETENTION_BATCH) break;
+    }
+    // v1.20-live (D105, §10.20): kicks follow the chat mutes.
+    let kicks = 0;
+    for (let batch = 0; batch < CHAT_RETENTION_MAX_BATCHES; batch += 1) {
+      const removed = await this.prisma.$executeRaw`
+        DELETE FROM live_room_kicks
+         WHERE (room_id, user_id) IN (
+           SELECT x.room_id, x.user_id FROM live_room_kicks x JOIN live_rooms r ON r.id = x.room_id
+            WHERE r.status = 'ENDED' AND r.ended_at < ${cutoff}::timestamptz
+            LIMIT ${CHAT_RETENTION_BATCH})`;
+      kicks += removed;
+      if (removed < CHAT_RETENTION_BATCH) break;
+    }
+    return { messages, mutes, kicks };
+  }
+
+  /**
+   * v1.42-live (D170, CONVENTIONS §10.44): ends the video (SOLO / MULTI) LIVE rooms whose host has
+   * been away (`host_away_since`) for at least LIVE_HOST_AWAY_TIMEOUT_SECONDS, with
+   * HOST_AWAY_TIMEOUT and `ended_at` = the moment the limit was reached, auditing `live.room.end`
+   * (reason HOST_AWAY_TIMEOUT) — in bounded batches, each its own transaction, like the stale
+   * sweep. Stale rooms are left to the heartbeat rule (HEARTBEAT_TIMEOUT). The media session is
+   * closed by the media reconciliation, as for a timeout. Returns the number of rooms ended.
+   */
+  async sweepHostAway(): Promise<number> {
+    const batchSize = this.config.live.sweepBatchSize;
+    const timeout = this.config.live.hostAwayTimeoutSeconds;
+    let ended = 0;
+    for (let batch = 0; batch < SWEEP_MAX_BATCHES_PER_RUN && !this.stopped; batch += 1) {
+      const now = this.clock.now();
+      const awayCutoff = ts(new Date(now.getTime() - timeout * 1000));
+      const staleCutoff = ts(this.cutoff(now));
+      const locked = await this.prisma.$transaction(async (tx) => {
+        await this.setStatementTimeout(tx);
+        const ids = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id::text AS id FROM live_rooms
+           WHERE status = 'LIVE' AND host_away_since IS NOT NULL
+             AND host_away_since <= ${awayCutoff}::timestamptz
+             AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode, 'STREAMER'::live_room_mode) AND last_heartbeat_at > ${staleCutoff}::timestamptz
+           ORDER BY host_away_since
+           LIMIT ${batchSize}
+             FOR UPDATE SKIP LOCKED`;
+        if (ids.length === 0) return 0;
+        const rows = await tx.$queryRaw<{ id: string; host_user_id: string }[]>`
+          UPDATE live_rooms
+             SET status = 'ENDED', end_reason = 'HOST_AWAY_TIMEOUT',
+                 ended_at = host_away_since + make_interval(secs => ${timeout}::int),
+                 updated_at = ${ts(now)}::timestamptz
+           WHERE id = ANY(${ids.map((row) => row.id)}::uuid[])
+             AND status = 'LIVE' AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode, 'STREAMER'::live_room_mode)
+             AND host_away_since IS NOT NULL AND host_away_since <= ${awayCutoff}::timestamptz
+             AND last_heartbeat_at > ${staleCutoff}::timestamptz
+       RETURNING id::text AS id, host_user_id::text AS host_user_id`;
+        await this.audit.recordManyIn(
+          tx,
+          rows.map((row): AuditEntry => ({
+            action: AuditAction.LIVE_ROOM_END,
+            targetType: 'live_room',
+            targetId: row.id,
+            metadata: { reason: 'HOST_AWAY_TIMEOUT', hostUserId: row.host_user_id },
+          })),
+        );
+        await roomsEndedIn(
+          tx,
+          rows.map((row) => row.id),
+          now,
+        );
+        ended += rows.length;
+        return ids.length;
+      }, LIVE_TX_OPTIONS);
+      if (locked < batchSize) break;
+    }
+    return ended;
+  }
+
   /** One sweeper run with the default budget; returns the number of rooms it ended. */
   async sweepStale(): Promise<number> {
     return (await this.runSweep()).ended;
@@ -391,6 +1188,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     return {
       id: row.id,
       title: row.title,
+      topic: row.topic,
       mode: row.mode,
       viewerCount: row.viewer_count,
       startedAt: row.started_at.toISOString(),
@@ -411,38 +1209,190 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         username: row.username,
         displayName: row.display_name,
         avatarUrl: row.avatar_url,
+        ...(row.premium_tier ? { premiumTier: row.premium_tier } : {}),
+        ...(row.agent_code && row.host_status === 'ACTIVE'
+          ? { rechargeAgent: { code: row.agent_code } }
+          : {}),
+        ...(row.host_agent_code && row.host_status === 'ACTIVE'
+          ? { hostAgent: { code: row.host_agent_code } }
+          : {}),
+        // v1.90-social (D293): the verification badge (only its type).
+        ...(row.host_verification && row.host_status === 'ACTIVE'
+          ? { verification: row.host_verification }
+          : {}),
+        // v1.130-social (D376, §10.167): the host's status emoji, as every other summary.
+        ...hostStatusEmojiOf(row),
+        ...(row.host_frame_code && row.host_frame_asset
+          ? { avatarFrame: { code: row.host_frame_code, assetKey: row.host_frame_asset } }
+          : {}),
+        ...rechargeBadgeOf(row),
+        // D265 (v1.83-social, §10.94): the host's VIP like every other summary (their seat's frame, their card).
+        ...hostVipOf(row),
+        ...hostWearOf(row),
       },
+      seatCount: row.seat_count,
+      occupiedSeats: row.occupied_seats,
+      theme: row.theme,
+      score: Number(row.score),
+      cherries: Number(row.cherries),
+      podcast:
+        row.mode === 'PODCAST' && row.episode_number !== null && row.podcast_topic !== null
+          ? {
+              episodeNumber: row.episode_number,
+              topic: row.podcast_topic,
+              questionsOpen: row.questions_open,
+              questionSeconds: row.question_seconds,
+              speakers: row.podcast_speakers ?? [],
+              video: row.podcast_video,
+            }
+          : null,
+      inPk: row.in_pk || row.mode === 'PK',
+      streamer: streamerOf(row),
+      roomLevel: row.room_level,
+      popular: row.popular,
+      hostIsCreator: row.host_is_creator === true,
+      vipMinTier: row.vip_min_tier
+        ? {
+            code: row.vip_min_tier.code,
+            name: lang === 'ar' ? row.vip_min_tier.nameAr : row.vip_min_tier.nameEn,
+            color: row.vip_min_tier.color,
+          }
+        : null,
+      ...(row.host_country ? { hostCountry: row.host_country } : {}),
     };
   }
 
-  private toRoom(row: RoomRow, lang: ContentLanguage): LiveRoomDto {
+  /**
+   * v1.132-social (D379, §10.169): entering a VIP room «غرفة VIP خاصة» — the host, and a member whose active VIP tier
+   * ranks at or above the room's; every one else (guests too) → 403 LIVE_VIP_ONLY `vipMinTier` (its code). The staff's
+   * watch (moderation) never comes here (the callers let it in first). Open rooms: nothing.
+   */
+  async assertVipEntry(row: RoomRow, callerId: string | null): Promise<void> {
+    const min = row.vip_min_tier;
+    if (!min || callerId === row.host_user_id) return;
+    if (callerId !== null) {
+      const m = await this.prisma.vipMembership.findUnique({
+        where: { userId: callerId },
+        select: { expiresAt: true, tier: { select: { sortOrder: true } } },
+      });
+      if (m && m.expiresAt.getTime() > this.clock.now().getTime() && m.tier.sortOrder >= min.sortOrder)
+        return;
+    }
+    throw new AppException(ErrorCode.LIVE_VIP_ONLY, undefined, [{ field: 'vipMinTier', issue: min.code }]);
+  }
+
+  /**
+   * v1.132-social (D379): the tier a VIP room created by [callerId] lets in from — [code] must name a tier, and rank at
+   * or below the cap of the caller's VIP_ROOM perk (its value, a tier code; not set: the caller's own tier). No perk →
+   * 409 VIP_UNAVAILABLE `perk` `no_perk`; an unknown tier → 400 `vipMinTier` `not_found`; above the cap → 400
+   * `vipMinTier` `out_of_range`.
+   */
+  private async vipRoomTierId(callerId: string, code: string, now: Date): Promise<string> {
+    const perk = await vipLivePerkIn(this.prisma, callerId, 'VIP_ROOM', now);
+    if (!perk)
+      throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [{ field: 'perk', issue: 'no_perk' }]);
+    const tier = await this.prisma.vipTier.findUnique({
+      where: { code },
+      select: { id: true, sortOrder: true },
+    });
+    if (!tier) throw AppException.validation([{ field: 'vipMinTier', issue: 'not_found' }]);
+    const capCode = typeof perk.value === 'string' ? perk.value : perk.tierCode;
+    const cap =
+      capCode === perk.tierCode
+        ? perk.rank
+        : ((await this.prisma.vipTier.findUnique({ where: { code: capCode }, select: { sortOrder: true } }))
+            ?.sortOrder ?? perk.rank);
+    if (tier.sortOrder > cap) throw AppException.validation([{ field: 'vipMinTier', issue: 'out_of_range' }]);
+    return tier.id;
+  }
+
+  private async toRoom(row: RoomRow, lang: ContentLanguage): Promise<LiveRoomDto> {
+    const wishGifts = await wishGiftsOf(this.prisma, {
+      roomId: row.id,
+      hostId: row.host_user_id,
+      codes: row.wish_gifts,
+      lang,
+      publicBaseUrl: this.storageSettings.current().publicBaseUrl,
+      luckyEnabled: this.config.lucky.enabled,
+    });
     return {
       ...this.toSummary(row, lang),
       status: row.status,
       endedAt: row.ended_at?.toISOString() ?? null,
       endReason: row.end_reason,
+      allowGuests: row.allow_guests,
+      scoreParts: {
+        total: Number(row.score),
+        tapPoints: Number(row.tap_points),
+        supportPoints: Number(row.support_points),
+        hostCherries: Number(row.host_cherries),
+        roomCherries: Number(row.cherries),
+      },
+      chatEnabled: row.chat_enabled,
+      chatMuted: row.chat_muted ?? false,
+      kicked: row.kicked ?? false,
+      roomNumber: row.room_number,
+      wishGifts,
     };
   }
 
-  private async selectRoom(roomId: string): Promise<RoomRow | null> {
-    const rows = await this.prisma.$queryRaw<RoomRow[]>`${ROOM_SELECT} WHERE r.id = ${roomId}::uuid`;
+  private async selectRoom(roomId: string, viewerId: string | null = null): Promise<RoomRow | null> {
+    const rows = await this.prisma.$queryRaw<RoomRow[]>`
+      SELECT ${ROOM_COLUMNS}, ${chatMutedSql(viewerId)} AS chat_muted, ${kickedSql(viewerId)} AS kicked,
+             ${this.popularColumn()} AS popular
+             ${ROOM_FROM}
+       WHERE r.id = ${roomId}::uuid AND ${notBlockedSql(viewerId)}`;
     return rows[0] ?? null;
   }
 
   /**
    * `GET /live/rooms` (§10.4): LIVE, fresh, ACTIVE host; keyset pagination with a signed cursor.
    * Stale rooms are filtered out by the freshness predicate; the list performs no writes (§10.2).
+   * CP-010: a guest (`callerId` null) may list `popular` and `new` (`following` → 401); rooms
+   * across a block are hidden from a signed-in caller.
    */
   async listRooms(
-    callerId: string,
+    callerId: string | null,
     query: ListLiveRoomsQuery,
     lang: ContentLanguage,
   ): Promise<LiveRoomPageDto> {
-    const scope = cursorScope(query.tab, query.category, callerId);
+    // v1.53-live (D240): an explicit `country` needs no token and wins over `scope=nearby`.
+    if (
+      callerId === null &&
+      (query.tab === 'following' || (query.scope === 'nearby' && query.country === undefined))
+    ) {
+      throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+    }
+    // v1.27.1-live (D133): nearby = the caller's own country; none set → an honest empty page.
+    let nearbyCountry: string | null = query.country ?? null;
+    if (query.scope === 'nearby' && nearbyCountry === null) {
+      const profile = await this.prisma.userProfile.findUnique({
+        where: { userId: callerId ?? '' },
+        select: { countryCode: true },
+      });
+      nearbyCountry = profile?.countryCode ?? null;
+      if (nearbyCountry === null) {
+        if (query.cursor !== undefined)
+          throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
+        return { data: [], page: { nextCursor: null, hasMore: false }, emptyReason: 'COUNTRY_NOT_SET' };
+      }
+    }
+    const featured = query.featured === true;
+    const scope = cursorScope(query.tab, query.category, callerId ?? 'guest', query.kind, {
+      nearbyCountry,
+      featured,
+    });
+    // v1.82-live (D295, §10.108): Popular, New / Explore and Nearby (any category / kind) interleave one host's live
+    // and one creator's live; Following and Featured keep their single order.
+    const merged = query.tab !== 'following' && !featured;
     let position: CursorPosition | null = null;
     if (query.cursor !== undefined) {
       position = this.cursors.decode(query.cursor, scope);
-      if (!position) throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
+      // `x` (the merge) only on the interleaved lists. A cursor without it on those lists (issued before v1.82-live,
+      // the single order of §10.4) stays valid — same signature, scope and SEC-038 bounds as before — and continues
+      // BOTH groups after its position, starting with a host (§10.108.3).
+      if (!position || (!merged && position.merge !== undefined))
+        throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
     }
 
     // Reads filter stale rooms and write nothing (SEC-035): the freshness predicate below is what
@@ -452,6 +1402,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       Prisma.sql`r.status = 'LIVE'`,
       Prisma.sql`r.last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz`,
       Prisma.sql`u.status = 'ACTIVE'`,
+      notBlockedSql(callerId),
     ];
     if (query.category !== undefined) {
       // Unknown or inactive slug → no category id → empty list (200), §10.4.
@@ -459,18 +1410,43 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         Prisma.sql`r.category_id = (SELECT id FROM live_categories WHERE slug = ${query.category} AND is_active)`,
       );
     }
+    // v1.26.4-live (D129) / v1.27.1-live (D133): the kind's rooms. v1.115-live (D368, §10.161): a live video podcast
+    // is a camera live of the main hub (`solo`, `video`), not of the party page (`party_all`). v1.116-live (D369,
+    // §10.162): a MULTI room is in no list, with or without a kind (`multi` lists nothing).
+    conditions.push(liveKindSql(query.kind));
+    if (nearbyCountry !== null) conditions.push(Prisma.sql`p.country_code = ${nearbyCountry}`);
     if (query.tab === 'following') {
       conditions.push(
-        Prisma.sql`EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${callerId}::uuid AND f.followee_id = r.host_user_id)`,
+        Prisma.sql`EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${callerId ?? ''}::uuid AND f.followee_id = r.host_user_id)`,
       );
     }
-    if (position) conditions.push(keysetAfter(query.tab, position));
+    if (merged) {
+      const legacy: GroupPosition | null = position
+        ? { score: position.score, startedAt: position.startedAt, id: position.id }
+        : null;
+      const merge: CursorMerge | null =
+        position === null ? null : (position.merge ?? { host: legacy, creator: legacy, last: 'C' });
+      return this.mergedPage(query, scope, conditions, merge, now, lang);
+    }
+    if (position)
+      conditions.push(featured ? featuredKeysetAfter(position) : keysetAfter(query.tab, position));
 
-    const rows = await this.prisma.$queryRaw<RoomRow[]>`
-      ${ROOM_SELECT}
-       WHERE ${Prisma.join(conditions, ' AND ')}
-       ORDER BY ${orderBy(query.tab)}
-       LIMIT ${query.limit + 1}`;
+    // v1.27.1-live (D133): featured = hosts featured now (`until` not passed), by rank first.
+    const rows = featured
+      ? await this.prisma.$queryRaw<(RoomRow & { feature_rank: number })[]>`
+          SELECT ${ROOM_COLUMNS}, fh.rank AS feature_rank, ${popularSql(this.cutoff(now), this.config.live.popularTopN)} AS popular
+                 ${ROOM_FROM}
+            JOIN live_featured_hosts fh ON fh.user_id = r.host_user_id
+                 AND (fh.until IS NULL OR fh.until > ${ts(now)}::timestamptz)
+           WHERE ${Prisma.join(conditions, ' AND ')}
+           ORDER BY ${FEATURED_ORDER}
+           LIMIT ${query.limit + 1}`
+      : await this.prisma.$queryRaw<RoomRow[]>`
+          SELECT ${ROOM_COLUMNS}, ${popularSql(this.cutoff(now), this.config.live.popularTopN)} AS popular
+                 ${ROOM_FROM}
+           WHERE ${Prisma.join(conditions, ' AND ')}
+           ORDER BY ${orderBy(query.tab)}
+           LIMIT ${query.limit + 1}`;
 
     const hasMore = rows.length > query.limit;
     const page = rows.slice(0, query.limit);
@@ -481,30 +1457,141 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         nextCursor:
           hasMore && last
             ? this.cursors.encode(scope, {
-                viewerCount: last.viewer_count,
+                score: Number(last.cherries),
                 startedAt: last.started_at,
                 id: last.id,
+                ...('feature_rank' in last ? { rank: Number(last.feature_rank) } : {}),
               })
             : null,
         hasMore,
       },
+      ...(query.scope === 'nearby' ? { emptyReason: null } : {}),
     };
   }
 
   /**
-   * `GET /live/rooms/{roomId}`: also ENDED rooms. Nonexistent, malformed and non-ACTIVE-host
-   * rooms are the same 404. A stale LIVE room is ended (that single room) and returned as ENDED.
+   * v1.82-live (D295, owner, CONVENTIONS §10.108): the 1 : 1 interleave — one host's live, then one creator's live,
+   * alternating, each group in the tab's own order (Popular: score, startedAt, id; New: startedAt, id); when a group runs
+   * out the other continues alone. Each group is its own keyset query; the cursor carries both groups' last positions
+   * and the group of the last row taken, so the merged sequence over an unchanged set of rooms neither repeats nor
+   * skips a room across pages (drift between pages behaves as §10.4 says for any list).
    */
-  async getRoom(roomId: string, lang: ContentLanguage): Promise<LiveRoomDto> {
+  private async mergedPage(
+    query: ListLiveRoomsQuery,
+    scope: ReturnType<typeof cursorScope>,
+    conditions: readonly Prisma.Sql[],
+    merge: CursorMerge | null,
+    now: Date,
+    lang: ContentLanguage,
+  ): Promise<LiveRoomPageDto> {
+    const creatorSql = Prisma.sql`EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = r.host_user_id)`;
+    const group = async (creator: boolean, after: GroupPosition | null): Promise<RoomRow[]> => {
+      const where = [...conditions, creator ? creatorSql : Prisma.sql`NOT ${creatorSql}`];
+      if (after) where.push(keysetAfter(query.tab, after));
+      return this.prisma.$queryRaw<RoomRow[]>`
+        SELECT ${ROOM_COLUMNS}, ${popularSql(this.cutoff(now), this.config.live.popularTopN)} AS popular
+               ${ROOM_FROM}
+         WHERE ${Prisma.join(where, ' AND ')}
+         ORDER BY ${orderBy(query.tab)}
+         LIMIT ${query.limit + 1}`;
+    };
+    const [hosts, creators] = await Promise.all([
+      group(false, merge?.host ?? null),
+      group(true, merge?.creator ?? null),
+    ]);
+    const page: RoomRow[] = [];
+    let hi = 0;
+    let ci = 0;
+    let next: 'H' | 'C' = merge ? (merge.last === 'H' ? 'C' : 'H') : 'H';
+    let last: 'H' | 'C' = merge?.last ?? 'C';
+    let hostPos: GroupPosition | null = merge?.host ?? null;
+    let creatorPos: GroupPosition | null = merge?.creator ?? null;
+    const pos = (r: RoomRow): GroupPosition => ({
+      score: Number(r.cherries),
+      startedAt: r.started_at,
+      id: r.id,
+    });
+    while (page.length < query.limit) {
+      const hasH = hi < hosts.length;
+      const hasC = ci < creators.length;
+      if (!hasH && !hasC) break;
+      const take: 'H' | 'C' = next === 'H' ? (hasH ? 'H' : 'C') : hasC ? 'C' : 'H';
+      if (take === 'H') {
+        const r = hosts[hi++]!;
+        page.push(r);
+        hostPos = pos(r);
+      } else {
+        const r = creators[ci++]!;
+        page.push(r);
+        creatorPos = pos(r);
+      }
+      last = take;
+      next = take === 'H' ? 'C' : 'H';
+    }
+    const hasMore = hi < hosts.length || ci < creators.length;
+    const tail = page.at(-1);
+    return {
+      data: page.map((row) => this.toSummary(row, lang)),
+      page: {
+        nextCursor:
+          hasMore && tail
+            ? this.cursors.encode(scope, {
+                ...pos(tail),
+                merge: { host: hostPos, creator: creatorPos, last },
+              })
+            : null,
+        hasMore,
+      },
+      ...(query.scope === 'nearby' ? { emptyReason: null } : {}),
+    };
+  }
+
+  /**
+   * v1.33-live (D154b): the summaries of the rooms in `roomIds` that are LIVE and fresh now, with an
+   * ACTIVE host and no block with `viewerId` (the traffic-card slots of `GET /live/boosts/active`).
+   * v1.116-live (D369, §10.162): never a (retired) MULTI room.
+   */
+  async liveSummaries(
+    roomIds: readonly string[],
+    viewerId: string | null,
+    lang: ContentLanguage,
+  ): Promise<Map<string, LiveRoomSummaryDto>> {
+    if (roomIds.length === 0) return new Map();
+    const now = this.clock.now();
+    const rows = await this.prisma.$queryRaw<RoomRow[]>`
+      SELECT ${ROOM_COLUMNS}, ${popularSql(this.cutoff(now), this.config.live.popularTopN)} AS popular
+             ${ROOM_FROM}
+       WHERE r.id = ANY(${[...roomIds]}::uuid[]) AND r.status = 'LIVE' AND ${liveKindSql(undefined)}
+         AND r.last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
+         AND u.status = 'ACTIVE' AND ${notBlockedSql(viewerId)}`;
+    return new Map(rows.map((row) => [row.id, this.toSummary(row, lang)]));
+  }
+
+  /**
+   * `GET /live/rooms/{roomId}`: also ENDED rooms. Nonexistent, malformed and non-ACTIVE-host
+   * rooms are the same 404, and so (CP-010) is a room across a block with `viewerId`. A stale
+   * LIVE room is ended (that single room) and returned as ENDED. `viewerId` null: a guest.
+   */
+  async getRoom(roomId: string, lang: ContentLanguage, viewerId: string | null = null): Promise<LiveRoomDto> {
+    return this.toRoom(await this.visibleRow(roomId, viewerId), lang);
+  }
+
+  /** The room row as {@link getRoom} sees it (stale rooms ended first), else 404. */
+  async visibleRow(roomId: string, viewerId: string | null): Promise<RoomRow> {
     if (!isUuid(roomId)) throw notFound();
-    let row = await this.selectRoom(roomId);
+    let row = await this.selectRoom(roomId, viewerId);
     if (!row || row.host_status !== 'ACTIVE') throw notFound();
     const now = this.clock.now();
     if (row.status === 'LIVE' && !this.isFresh(row.last_heartbeat_at, now)) {
       await this.endStaleOne(Prisma.sql`id = ${roomId}::uuid`, now);
-      row = await this.selectRoom(roomId);
+      row = await this.selectRoom(roomId, viewerId);
       if (!row || row.host_status !== 'ACTIVE') throw notFound();
     }
+    return row;
+  }
+
+  /** The room DTO of a row from {@link visibleRow}. */
+  roomDto(row: RoomRow, lang: ContentLanguage): Promise<LiveRoomDto> {
     return this.toRoom(row, lang);
   }
 
@@ -525,6 +1612,54 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     return null;
   }
 
+  /**
+   * v1.70-live (D279, §10.5.1): `PublicProfile.liveRoomId` (as {@link freshLiveRoomIdOf}) and `PublicProfile.live`,
+   * the facts of the profile's «في بث الآن» card. `live` is null whenever `liveRoomId` is, and also across a block
+   * either way with [viewerId] (CP-010: the room itself is hidden then; «فريق كابسو» excepted, as for entering).
+   */
+  async profileLiveOf(
+    hostUserId: string,
+    viewerId: string,
+  ): Promise<{ liveRoomId: string | null; live: ProfileLiveDto | null }> {
+    const rows = await this.prisma.$queryRaw<
+      {
+        id: string;
+        title: string;
+        mode: LiveRoomMode;
+        started_at: Date;
+        last_heartbeat_at: Date;
+        viewer_count: number;
+        score: bigint;
+        visible: boolean;
+      }[]
+    >`
+      SELECT r.id, r.title, r.mode::text AS mode, r.started_at, r.last_heartbeat_at, r.viewer_count, r.score,
+             ${notBlockedSql(viewerId)} AS visible
+        FROM live_rooms r
+       WHERE r.host_user_id = ${hostUserId}::uuid AND r.status = 'LIVE'
+       LIMIT 1`;
+    const room = rows[0];
+    if (!room) return { liveRoomId: null, live: null };
+    const now = this.clock.now();
+    if (!this.isFresh(room.last_heartbeat_at, now)) {
+      await this.endStaleOne(Prisma.sql`id = ${room.id}::uuid`, now);
+      return { liveRoomId: null, live: null };
+    }
+    return {
+      liveRoomId: room.id,
+      live: room.visible
+        ? {
+            roomId: room.id,
+            title: room.title,
+            mode: room.mode,
+            startedAt: room.started_at.toISOString(),
+            viewerCount: room.viewer_count,
+            score: Number(room.score),
+          }
+        : null,
+    };
+  }
+
   // ---- Host lifecycle --------------------------------------------------------------------------
 
   private assertHostingEnabled(): void {
@@ -536,24 +1671,72 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
    * verified email → active category → one LIVE room per host. The caller's stale LIVE room is
    * ended in the same transaction; a fresh one (or a parallel winner) → 409.
    */
+  /** v1.60-live (D250): 403 DEVICE_BANNED (audited `auth.device_banned` {stage: live}) for a banned session device. */
+  private async refuseBannedDevice(callerId: string, sessionId: string, meta: RequestMeta): Promise<void> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { deviceHash: true },
+    });
+    const ban = await activeDeviceBanOf(this.prisma, [session?.deviceHash]);
+    if (!ban) return;
+    await this.audit.record({
+      action: AuditAction.DEVICE_BAN_REFUSED,
+      actorUserId: callerId,
+      targetType: 'device_ban',
+      targetId: ban.id,
+      metadata: { stage: 'live' },
+      ip: meta.ip,
+      requestId: meta.requestId,
+    });
+    throw deviceBannedError(ban);
+  }
+
   async startRoom(
     callerId: string,
     body: unknown,
     lang: ContentLanguage,
-    meta: RequestMeta,
+    meta: RequestMeta & { readonly sessionId?: string | null },
   ): Promise<LiveRoomDto> {
     this.assertHostingEnabled();
+    // v1.72-live (D283, §10.96.10): a Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) never goes live —
+    // every mode (solo, audio, podcast, streamer) comes through here (403 STAFF_ACCOUNT_LIMITED `live`).
+    await refuseLimitedStaff(this.prisma, callerId, 'live');
+    // CP-010 (§10.8): the hosting permission, checked right after the hosting switch.
+    if ((await this.prisma.liveHost.count({ where: { userId: callerId } })) === 0) {
+      throw new AppException(ErrorCode.LIVE_HOSTING_NOT_ALLOWED);
+    }
+    // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
+    await assertNotRestricted(this.prisma, callerId, 'NO_LIVE');
+    // v1.60-live (D250, §10.91): the device the caller signed in with, banned by the team (403 DEVICE_BANNED).
+    if (meta.sessionId) await this.refuseBannedDevice(callerId, meta.sessionId, meta);
     const parsed = startLiveRoomSchema.safeParse(body, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;
 
     if (!(await this.users.isEmailVerified(callerId))) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+    // v1.132-social (D379, §10.169): a VIP room's lowest tier, within the host's VIP_ROOM perk.
+    const vipMinTierId =
+      input.vipMinTier === undefined
+        ? null
+        : await this.vipRoomTierId(callerId, input.vipMinTier, this.clock.now());
 
     let categoryId: string | null = null;
     if (input.categorySlug !== undefined) {
       categoryId = await this.categories.findActiveId(input.categorySlug);
       if (!categoryId) throw AppException.validation([{ field: 'categorySlug', issue: 'invalid_value' }]);
     }
+    // v1.27.3-live (D136): the wish list given, else the host's last live's.
+    if (input.wishGifts !== undefined) await this.assertWishable(input.wishGifts);
+    const wishGifts =
+      input.wishGifts ??
+      (
+        await this.prisma.liveRoom.findFirst({
+          where: { hostUserId: callerId },
+          orderBy: { startedAt: 'desc' },
+          select: { wishGifts: true },
+        })
+      )?.wishGifts ??
+      [];
 
     const now = this.clock.now();
     let roomId: string;
@@ -567,6 +1750,39 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
         }
         await this.endStaleIn(tx, Prisma.sql`host_user_id = ${callerId}::uuid`, now);
+        // CP-015: the host's live cover at go-live, read under a share lock so a concurrent cover
+        // change waits and then also updates this room.
+        const [host] = await tx.$queryRaw<{ cover_url: string | null }[]>`
+          SELECT cover_url FROM live_hosts WHERE user_id = ${callerId}::uuid FOR SHARE`;
+        if (!host) throw new AppException(ErrorCode.LIVE_HOSTING_NOT_ALLOWED);
+        const mode = input.mode ?? 'SOLO';
+        // v1.113-live (D351, §10.148): the capacity guard, last before the insert (every earlier refusal keeps its
+        // own answer). With the guard on it holds the cluster-wide advisory lock until this transaction ends, so
+        // concurrent go-lives cannot overshoot the ceiling; off (the default) it does nothing.
+        // v1.114-live (D363, §10.157): a video podcast weighs as a video live.
+        const podcastVideo = mode === 'PODCAST' && input.podcast?.video === true;
+        await this.capacity.assertFits(tx, callerId, mode, this.cutoff(now), now, podcastVideo);
+        // v1.47-live (D212, §10.69): a podcast episode is numbered per host (the host's lives are
+        // serialized by the user lock above and the one-live-per-host index).
+        const podcast =
+          mode === 'PODCAST' && input.podcast
+            ? {
+                episodeNumber:
+                  ((
+                    await tx.liveRoom.aggregate({
+                      where: { hostUserId: callerId, mode: 'PODCAST' },
+                      _max: { episodeNumber: true },
+                    })
+                  )._max.episodeNumber ?? 0) + 1,
+                podcastTopic: input.podcast.topic,
+                questionsOpen: input.podcast.questionsOpen ?? true,
+                questionSeconds:
+                  input.podcast.questionSeconds === undefined
+                    ? DEFAULT_PODCAST_QUESTION_SECONDS
+                    : input.podcast.questionSeconds,
+                podcastVideo,
+              }
+            : null;
         const room = await tx.liveRoom.create({
           data: {
             hostUserId: callerId,
@@ -574,15 +1790,58 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             categoryId,
             startedAt: now,
             lastHeartbeatAt: now,
+            // v1.132-social (D379): a VIP room never lets guests in (they hold no VIP).
+            allowGuests: vipMinTierId !== null ? false : (input.allowGuests ?? true),
+            vipMinTierId,
+            // CP-011: the mode, its seat count (validated with the mode) and the theme.
+            mode,
+            seatCount: mode === 'PODCAST' ? PODCAST_SEAT_COUNT : (input.seatCount ?? null),
+            theme: input.theme ?? (mode === 'PODCAST' ? DEFAULT_PODCAST_THEME : DEFAULT_LIVE_THEME),
+            ...(podcast ?? {}),
+            // v1.56-live (D213, §10.86): the screen starts as the host chose (portrait, bubble shown).
+            ...(mode === 'STREAMER'
+              ? {
+                  streamerOrientation: input.streamer?.orientation ?? 'PORTRAIT',
+                  streamerCameraVisible: input.streamer?.cameraOverlay?.visible ?? true,
+                  streamerCameraCorner: input.streamer?.cameraOverlay?.corner ?? DEFAULT_STREAMER_CORNER,
+                  // v1.57-live (D247, §10.88): the web studio's "camera only" (OBS) starts with CAMERA.
+                  streamerMain: input.streamer?.main ?? 'SCREEN',
+                }
+              : {}),
+            coverUrl: host.cover_url,
+            wishGifts: [...wishGifts],
           },
           select: { id: true },
         });
+        // v1.114-live (D363, scope extension): the episode's segments prepared at setup (video podcasts only).
+        const segments = podcastVideo ? (input.podcast?.segments ?? []) : [];
+        if (segments.length > 0) {
+          await tx.livePodcastStudio.create({
+            data: {
+              roomId: room.id,
+              segments: segments.map((g) => ({ title: g.title, minutes: g.minutes ?? null })),
+              updatedAt: now,
+            },
+          });
+        }
         await this.audit.recordIn(tx, {
           action: AuditAction.LIVE_ROOM_START,
           actorUserId: callerId,
           targetType: 'live_room',
           targetId: room.id,
-          metadata: { categorySlug: input.categorySlug ?? null },
+          metadata: {
+            categorySlug: input.categorySlug ?? null,
+            mode,
+            seatCount: input.seatCount ?? null,
+            ...(input.vipMinTier !== undefined ? { vipMinTier: input.vipMinTier } : {}),
+            ...(podcast
+              ? {
+                  episodeNumber: podcast.episodeNumber,
+                  podcastTopic: podcast.podcastTopic,
+                  ...(podcastVideo ? { podcastVideo: true } : {}),
+                }
+              : {}),
+          },
           ip: meta.ip,
           requestId: meta.requestId,
         });
@@ -629,6 +1888,40 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * v1.42-live (D170, CONVENTIONS §10.44): `POST /live/rooms/{roomId}/host-presence` `{away}`. The
+   * host's app reports going to the background (the camera stops: `away: true`) and coming back
+   * (`away: false`). In a video (SOLO / MULTI) room `away: true` starts the away time once (a repeat
+   * keeps the first time, so the 5 minutes are continuous) and `away: false` clears it; an AUDIO
+   * room never stores it (the host keeps talking in the background). Same checks as the heartbeat:
+   * hosting off → 503; not the host / no such room → 404; ended (or stale, which ends it) → 409.
+   */
+  async setHostPresence(callerId: string, roomId: string, body: unknown): Promise<void> {
+    this.assertHostingEnabled();
+    if (!isUuid(roomId)) throw notFound();
+    const parsed = hostPresenceSchema.safeParse(body);
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const { away } = parsed.data;
+    const now = this.clock.now();
+    const updated = await this.prisma.$executeRaw`
+      UPDATE live_rooms
+         SET host_away_since = CASE
+               WHEN ${away}::boolean AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode, 'STREAMER'::live_room_mode)
+                 THEN COALESCE(host_away_since, ${ts(now)}::timestamptz)
+               ELSE NULL END
+       WHERE id = ${roomId}::uuid AND host_user_id = ${callerId}::uuid AND status = 'LIVE'
+         AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz`;
+    if (updated === 1) return;
+
+    const room = await this.prisma.liveRoom.findFirst({
+      where: { id: roomId, hostUserId: callerId },
+      select: { status: true },
+    });
+    if (!room) throw notFound(); // not the host, or no such room: never reveal ownership
+    if (room.status === 'LIVE') await this.endStaleOne(Prisma.sql`id = ${roomId}::uuid`, now);
+    throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+  }
+
+  /**
    * `POST /live/rooms/{roomId}/end` (§10.3): host only, idempotent, allowed while hosting is
    * disabled. An already ENDED room keeps its original reason and time. A LIVE room that is already
    * stale has, as far as every reader is concerned, timed out; it is ended as HEARTBEAT_TIMEOUT.
@@ -656,6 +1949,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
            AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
      RETURNING id::text AS id`;
       if (ended.length === 1) {
+        await roomsEndedIn(tx, [roomId], now);
         await this.audit.recordIn(tx, {
           action: AuditAction.LIVE_ROOM_END,
           actorUserId: callerId,
@@ -670,6 +1964,121 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     const row = await this.selectRoom(roomId);
     if (!row) throw notFound();
     return this.toRoom(row, lang);
+  }
+
+  /** v1.27.3-live (D136): 400 `wishGifts` / `invalid_value` unless every code can be wished now. */
+  async assertWishable(codes: readonly string[]): Promise<void> {
+    const ok = await availableWishCodes(this.prisma, codes, this.config.lucky.enabled);
+    if (codes.some((code) => !ok.has(code))) {
+      throw AppException.validation([{ field: 'wishGifts', issue: 'invalid_value' }]);
+    }
+  }
+
+  /**
+   * v1.27.3-live (D136, §10.29): sets the wish list of the host's LIVE room. A real change moves the
+   * room info version (everyone re-reads the room) and is audited (`live.room.edit`); returns
+   * whether it changed. Not the host or no such room → 404; ended → 409.
+   */
+  async setWishes(
+    hostId: string,
+    roomId: string,
+    codes: readonly string[],
+    meta: RequestMeta,
+  ): Promise<boolean> {
+    if (!isUuid(roomId)) throw notFound();
+    await this.assertWishable(codes);
+    return this.prisma.$transaction(async (tx) => {
+      await this.setStatementTimeout(tx);
+      const [room] = await tx.$queryRaw<{ wish_gifts: string[]; status: string }[]>`
+        SELECT wish_gifts, status::text AS status FROM live_rooms
+         WHERE id = ${roomId}::uuid AND host_user_id = ${hostId}::uuid
+           FOR NO KEY UPDATE`;
+      if (!room) throw notFound();
+      if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+      if (room.wish_gifts.length === codes.length && room.wish_gifts.every((c, i) => c === codes[i])) {
+        return false;
+      }
+      const updated = await tx.liveRoom.update({
+        where: { id: roomId },
+        data: { wishGifts: [...codes], infoVersion: { increment: 1 } },
+        select: { infoVersion: true },
+      });
+      await this.audit.recordIn(tx, {
+        action: AuditAction.LIVE_ROOM_EDIT,
+        actorUserId: hostId,
+        targetType: 'live_room',
+        targetId: roomId,
+        metadata: { fields: ['wishGifts'], wishGifts: [...codes], infoVersion: updated.infoVersion },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      return true;
+    }, LIVE_TX_OPTIONS);
+  }
+
+  /**
+   * CP-014 (§10.12): edits the title, category and topic of the host's LIVE room. A field equal to
+   * the stored value is not a change. When something changed, `info_version` increases in the same
+   * transaction (the room row is locked, so concurrent edits each get their own version) and
+   * `live.room.edit` is audited with the names of the changed fields (and the new category slug,
+   * never the text). Returns the new info version, or null when nothing changed. Not the host → 404;
+   * ended meanwhile → 409.
+   */
+  async editInfo(
+    hostId: string,
+    roomId: string,
+    edit: RoomInfoEdit,
+    meta: RequestMeta,
+  ): Promise<number | null> {
+    if (!isUuid(roomId)) throw notFound();
+    return this.prisma.$transaction(async (tx) => {
+      await this.setStatementTimeout(tx);
+      const [room] = await tx.$queryRaw<
+        { title: string; category_id: string | null; topic: string | null; status: string }[]
+      >`
+        SELECT title, category_id::text AS category_id, topic, status::text AS status
+          FROM live_rooms
+         WHERE id = ${roomId}::uuid AND host_user_id = ${hostId}::uuid
+           FOR NO KEY UPDATE`;
+      if (!room) throw notFound();
+      if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+
+      const fields: ('title' | 'categorySlug' | 'topic')[] = [];
+      const data: Prisma.LiveRoomUpdateInput = {};
+      if (edit.title !== undefined && edit.title !== room.title) {
+        fields.push('title');
+        data.title = edit.title;
+      }
+      if (edit.category !== undefined && (edit.category?.id ?? null) !== room.category_id) {
+        fields.push('categorySlug');
+        data.category = edit.category === null ? { disconnect: true } : { connect: { id: edit.category.id } };
+      }
+      if (edit.topic !== undefined && edit.topic !== room.topic) {
+        fields.push('topic');
+        data.topic = edit.topic;
+      }
+      if (fields.length === 0) return null;
+
+      const updated = await tx.liveRoom.update({
+        where: { id: roomId },
+        data: { ...data, infoVersion: { increment: 1 } },
+        select: { infoVersion: true },
+      });
+      await this.audit.recordIn(tx, {
+        action: AuditAction.LIVE_ROOM_EDIT,
+        actorUserId: hostId,
+        targetType: 'live_room',
+        targetId: roomId,
+        metadata: {
+          fields,
+          ...(fields.includes('categorySlug') ? { categorySlug: edit.category?.slug ?? null } : {}),
+          infoVersion: updated.infoVersion,
+        },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      return updated.infoVersion;
+    }, LIVE_TX_OPTIONS);
   }
 
   /**
@@ -688,6 +2097,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
        WHERE host_user_id = ${hostUserId}::uuid AND status = 'LIVE'
          AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
    RETURNING id::text AS id`;
+    await roomsEndedIn(
+      tx,
+      ended.map((row) => row.id),
+      now,
+    );
     await this.audit.recordManyIn(
       tx,
       ended.map((row): AuditEntry => ({
@@ -697,5 +2111,46 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         metadata: { reason: 'HOST_SUSPENDED', hostUserId },
       })),
     );
+  }
+
+  /**
+   * CP-011 (§10.9): a suspended or deleted account loses its seats, pending seat requests and
+   * invitations and moderator roles in every LIVE room, inside the caller's transaction. The media
+   * permission and room metadata are re-applied by the sweeper's reconciliation.
+   */
+  async releaseSeatsOfUserIn(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+    await releaseUserIn(tx, userId, this.clock.now(), { moderator: true });
+  }
+
+  /**
+   * CP-010: an admin ends a LIVE room (report action) with `ADMIN`, inside the caller's
+   * transaction, audited by the caller (scope: one room, or the host's room when the hosting
+   * permission is revoked). A stale room is ended as HEARTBEAT_TIMEOUT instead. Returns the ids
+   * this call ended with `ADMIN`.
+   */
+  async endByAdminIn(
+    tx: Prisma.TransactionClient,
+    scope: { roomId: string } | { hostUserId: string },
+  ): Promise<string[]> {
+    const now = this.clock.now();
+    const where =
+      'roomId' in scope
+        ? Prisma.sql`id = ${scope.roomId}::uuid`
+        : Prisma.sql`host_user_id = ${scope.hostUserId}::uuid`;
+    await this.endStaleIn(tx, where, now);
+    const ended = await tx.$queryRaw<{ id: string }[]>`
+      UPDATE live_rooms
+         SET status = 'ENDED', end_reason = 'ADMIN',
+             ended_at = GREATEST(${ts(now)}::timestamptz, last_heartbeat_at),
+             updated_at = ${ts(now)}::timestamptz
+       WHERE ${where} AND status = 'LIVE'
+         AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
+   RETURNING id::text AS id`;
+    await roomsEndedIn(
+      tx,
+      ended.map((row) => row.id),
+      now,
+    );
+    return ended.map((row) => row.id);
   }
 }

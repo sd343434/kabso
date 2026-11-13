@@ -1,8 +1,20 @@
 import 'dart:async';
+import 'dart:math' as math;
 
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' show Bidi;
+import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -35,6 +47,16 @@ class KLiveRoomScaffold extends StatelessWidget {
     this.actionBar,
     this.cover,
     this.overlay,
+    this.trailing,
+    this.sideStart,
+    this.sidePromo,
+    this.sideEnd,
+    this.chatEnd,
+    this.dock,
+    this.stageEdgeToEdge = false,
+    this.onChatTop,
+    this.closeButtonKey = closeKey,
+    this.closeLabel,
   });
 
   final Widget? video;
@@ -51,6 +73,74 @@ class KLiveRoomScaffold extends StatelessWidget {
   final Widget? cover;
   final Widget? overlay;
 
+  /// D131 (host): a button between [viewers] and ✕ (minimize).
+  final Widget? trailing;
+
+  /// D136: the wish list card, floating at the reading start (left middle).
+  final Widget? sideStart;
+
+  /// D137/D141: the promo box, in the same column right above the wish
+  /// list.
+  final Widget? sidePromo;
+
+  /// D253 (the host's reference): a card at the top end under the second
+  /// row (the «Host Tasks» card), [sideEndInset] from the end and
+  /// [sideEndTop] under the header row's top (ref: 8.9 pt from the edge,
+  /// 74.3 pt under the header row at 393 pt).
+  final Widget? sideEnd;
+  static const double sideEndInset = 8.9;
+  static const double sideEndTop = 74.3;
+  static const sideEndKey = Key('room.sideEnd');
+
+  /// D145a: beside the chat at the end, bottom-aligned over the bar's quick
+  /// replies (the lucky combo): the chat narrows for it, so it covers
+  /// neither the chat nor the quick replies.
+  final Widget? chatEnd;
+
+  /// D238 (owner: «اجعل صندوق اصغر ويظهر في الاسفل»): a small card docked
+  /// at the bottom of the chat area, right above [actionBar] (the PK dare),
+  /// [dockSide] from the screen's sides like the leave prompt. It covers
+  /// the chat, never the stage or the bar; on the keyboard it rides up with
+  /// the bar, and scrolls when the room left for it is shorter than it.
+  final Widget? dock;
+
+  /// D238b (owner, ref 332: «شاشة الخصمين هناك فراغ من الجانبين ازلهم»):
+  /// [stage] spans the screen's whole width (the PK videos), no side
+  /// margins.
+  final bool stageEdgeToEdge;
+
+  /// D238: the leave prompt's side margin (`KLiveDialogFrame`).
+  static const double dockSide = 18.3;
+  static const dockKey = Key('room.dock');
+
+  /// The room column's start inset (every row but an edge-to-edge stage).
+  static Widget _start(Widget child) => Padding(
+    padding: const EdgeInsetsDirectional.only(start: KSpacing.sm),
+    child: child,
+  );
+
+  /// ✕'s key and spoken label (the host's ✕ ends the live).
+  /// D145c: told the chat's top on the screen when it moves (the gift
+  /// strips keep above the chat text).
+  final ValueChanged<double>? onChatTop;
+
+  final Key closeButtonKey;
+  final String? closeLabel;
+
+  static const closeKey = Key('room.close');
+
+  /// The header row's top for a top inset of [inset]. D135 (owner: "leave
+  /// the phone's status bar free"); D141 (owner: "the top bar must sit
+  /// lower"): the visible pill starts [KMetrics.liveHeaderGap] under the
+  /// inset — the same gap as the audio room's card — and the 48 pt row
+  /// centres it, so the row starts half the difference higher.
+  static double headerTop(double inset) => math.max(
+    0,
+    inset +
+        KMetrics.liveHeaderGap -
+        (KSizes.minTouchTarget - KMetrics.hostPillHeight) / 2,
+  );
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -62,6 +152,11 @@ class KLiveRoomScaffold extends StatelessWidget {
     final actionBar = this.actionBar;
     final chatCap =
         MediaQuery.sizeOf(context).height * KMetrics.chatMaxHeightFactor;
+    // D141 (owner: "the keyboard covers the chat box"): the room's column
+    // ends on the keyboard (the live screens do not resize); a screen that
+    // resizes has already taken the keyboard out of the media query.
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final inset = MediaQuery.paddingOf(context).top;
     return KLiveSurface(
       child: Material(
         color: KPalette.dark.background,
@@ -71,70 +166,295 @@ class KLiveRoomScaffold extends StatelessWidget {
             video ?? const KLiveVideoPlaceholder(),
             const _LegibilityGradients(),
             SafeArea(
+              top: false,
+              // Over the keyboard the bar sits right on it.
+              bottom: keyboard == 0,
               child: Padding(
-                padding: const EdgeInsets.all(KSpacing.sm),
+                // D135: the header row below the status bar ([headerTop]),
+                // the bar on the bottom safe edge (above the home
+                // indicator or the navigation bar) or on the keyboard.
+                // D238b: the start inset is per child (`_start`), so the PK
+                // stage can go edge to edge.
+                padding: EdgeInsetsDirectional.only(
+                  top: headerTop(inset),
+                  bottom: keyboard,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Align(
-                            alignment: AlignmentDirectional.centerStart,
-                            child: header,
+                    _start(
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: header,
+                            ),
                           ),
-                        ),
-                        if (viewers != null) ...[
-                          const SizedBox(width: KSpacing.xs),
-                          viewers,
+                          if (viewers != null) ...[
+                            const SizedBox(width: KSpacing.xs),
+                            viewers,
+                          ],
+                          // Ref 158: a bare ✕ (10.6 pt ink); its centre 24 pt
+                          // from the end (ref 18.3) to keep a 48 pt target.
+                          ?trailing,
+                          KRoomIconButton(
+                            key: closeButtonKey,
+                            icon: Icons.close,
+                            label: closeLabel ?? l10n.liveClose,
+                            onPressed: onClose,
+                            iconSize: 19,
+                            bare: true,
+                          ),
                         ],
-                        KRoomIconButton(
-                          icon: Icons.close,
-                          label: l10n.liveClose,
-                          onPressed: onClose,
-                          visualSize: KMetrics.closeVisual,
-                          iconSize: KMetrics.closeIcon,
-                        ),
-                      ],
+                      ),
                     ),
                     if (roomInfo != null)
-                      Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: roomInfo,
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          start: KSpacing.sm,
+                          end: KSpacing.sm,
+                        ),
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: roomInfo,
+                        ),
                       ),
                     if (statusChip != null) ...[
                       const SizedBox(height: KSpacing.sm),
-                      Center(child: statusChip),
+                      _start(Center(child: statusChip)),
                     ],
                     if (stage != null) ...[
                       const SizedBox(height: KSpacing.sm),
-                      stage,
+                      Padding(
+                        // D238b: edge to edge — the column's start inset is
+                        // per child ([_start]), so the stage can skip it.
+                        padding: stageEdgeToEdge
+                            ? EdgeInsets.zero
+                            : const EdgeInsetsDirectional.only(
+                                start: KSpacing.sm,
+                                end: KSpacing.sm,
+                              ),
+                        child: stage,
+                      ),
                     ],
                     const SizedBox(height: KSpacing.sm),
                     Expanded(
-                      child: chat == null
-                          ? const SizedBox.shrink()
-                          : Align(
-                              alignment: AlignmentDirectional.bottomStart,
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(maxHeight: chatCap),
-                                child: chat,
+                      child: _start(
+                        _WithDock(
+                          dock: dock,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                child: chat == null
+                                    ? const SizedBox.shrink()
+                                    : Align(
+                                        alignment:
+                                            AlignmentDirectional.bottomStart,
+                                        child: ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            maxHeight: chatCap,
+                                          ),
+                                          child: KTopReporter(
+                                            onTop: onChatTop,
+                                            child: chat,
+                                          ),
+                                        ),
+                                      ),
                               ),
-                            ),
+                              if (chatEnd case final end?) ...[
+                                const SizedBox(width: KSpacing.xs),
+                                Padding(
+                                  padding: const EdgeInsetsDirectional.only(
+                                    end: KSpacing.xs,
+                                  ),
+                                  child: end,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                     if (actionBar != null) ...[
                       const SizedBox(height: KSpacing.sm),
-                      actionBar,
+                      // Ref 158: the last circle 7.2 pt from the end (its
+                      // 48 pt target reaches 0.6 pt further).
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          start: KSpacing.sm,
+                          end: 0.6,
+                        ),
+                        child: actionBar,
+                      ),
                     ],
                   ],
                 ),
               ),
             ),
+            // D136/D137/D141: one column at the reading start — the promo
+            // box right above the wish note (the promo grows upwards from
+            // the note's top, so the note never moves). While the keyboard
+            // is up the room is short: they step aside for the chat.
+            if (sideStart case final side? when keyboard == 0)
+              PositionedDirectional(
+                start: KLiveSideCards.wishStart,
+                top: inset + KLiveSideCards.wishTop,
+                child: side,
+              ),
+            // D199 (owner, ref 275): the promo cards just under the
+            // room-info row at the reading start.
+            if (sidePromo case final side? when keyboard == 0)
+              PositionedDirectional(
+                start: KSpacing.sm,
+                top: KLiveSideCards.promoUnderInfoTop(headerTop(inset)),
+                child: side,
+              ),
+            if (sideEnd case final side? when keyboard == 0)
+              PositionedDirectional(
+                key: sideEndKey,
+                end: sideEndInset,
+                top: headerTop(inset) + sideEndTop,
+                child: side,
+              ),
             ?cover,
             ?overlay,
           ],
         ),
       ),
+    );
+  }
+}
+
+/// D141 (owner: "show the host's username, not the room number"): the
+/// host's `@username` beside their name (the video pill) or under the room
+/// title (the audio room card); a tap copies it and says «تم النسخ». The
+/// room number stays in the API (share links, support) — it is just not
+/// shown here any more.
+class KLiveUsernameTag extends StatelessWidget {
+  const new({
+    required this.username,
+    super.key,
+    this.fontSize = 10,
+    this.premiumTier,
+  });
+
+  final String username;
+  final double fontSize;
+
+  /// D146: a premium username shows the owner's special-ID badge instead of
+  /// the plain text (the tier comes from the server).
+  final PremiumTier? premiumTier;
+
+  static const tagKey = Key('live.usernameTag');
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    // D158: a premium username has no «@» (shown, read and copied).
+    final shown = KHandle.plain(username, premiumTier: premiumTier);
+    if (premiumTier case final tier?) {
+      return Semantics(
+        button: true,
+        label: '$shown. ${l10n.liveRoomIdCopyHint}',
+        excludeSemantics: true,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 1),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: KSpecialUsername(
+              key: tagKey,
+              username: username,
+              tier: tier,
+              height: fontSize * 1.7,
+              onTap: () {
+                unawaited(Clipboard.setData(ClipboardData(text: shown)));
+                KSnack.info(context, l10n.liveUsernameCopied);
+              },
+            ),
+          ),
+        ),
+      );
+    }
+    return Semantics(
+      button: true,
+      label: '$shown. ${l10n.liveRoomIdCopyHint}',
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: tagKey,
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          unawaited(Clipboard.setData(ClipboardData(text: shown)));
+          KSnack.info(context, l10n.liveUsernameCopied);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  KFormat.bidiIsolate(shown),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.caption.copyWith(
+                    fontSize: fontSize,
+                    height: 1.2,
+                    color: const Color(0xD9FFFFFF),
+                    fontWeight: FontWeight.w600,
+                    shadows: KLiveColors.glassShadow,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 3),
+              Icon(
+                Icons.copy_rounded,
+                size: fontSize,
+                color: const Color(0xD9FFFFFF),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// D238: [child] (the chat row) with [dock] over its bottom — the leave
+/// prompt's side margins (the room's column already starts [KSpacing.sm]
+/// in), its height capped to the chat area (scrolling inside it, the
+/// buttons first).
+class _WithDock extends StatelessWidget {
+  const new({required this.dock, required this.child});
+
+  final Widget? dock;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final dock = this.dock;
+    if (dock == null) return child;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        PositionedDirectional(
+          start: KLiveRoomScaffold.dockSide - KSpacing.sm,
+          end: KLiveRoomScaffold.dockSide,
+          top: 0,
+          bottom: 0,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: SingleChildScrollView(
+              key: KLiveRoomScaffold.dockKey,
+              reverse: true,
+              child: dock,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -194,19 +514,18 @@ class KLiveVideoPlaceholder extends StatelessWidget {
   /// Centred content (the honest "video unavailable" message, camera off).
   final Widget? child;
 
+  /// D199: the video area without a picture.
+  static const black = Color(0xFF000000);
+
   @override
   Widget build(BuildContext context) {
     const p = KPalette.dark;
     return Semantics(
       label: context.l10n.liveVideoPlaceholder,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [p.surfaceOverlay, p.background],
-          ),
-        ),
+      // D199 (owner, ref 275): no picture is plain black, as a camera that
+      // is off looks (host and viewers alike).
+      child: ColoredBox(
+        color: KLiveVideoPlaceholder.black,
         child: Center(
           child:
               child ??
@@ -221,36 +540,146 @@ class KLiveVideoPlaceholder extends StatelessWidget {
   }
 }
 
-/// Host header (G-08, HL-L2): avatar, name, an optional second line (only
-/// with API data) and the follow chip, on a 40 dp scrim pill.
+/// Host header (G-08, HL-L2; D131 measured on ref 158): a 31 pt stadium on
+/// the scrim with the host's 26.6 pt picture, the name (11 sp bold) and a
+/// second line, and at the end the follow capsule.
 ///
-/// Follow: a 28 dp `primary` "+ Follow" chip while [following] is false and
-/// [onFollow] is set. When [following] turns true the chip shows a check for
+/// Second line: [lines] take turns every [lineTime] with a fade (the first
+/// stays with reduce motion); else [subtitle]; else one line.
+///
+/// Follow: a 31.5 × 23.8 pt brand-red capsule with a white "+" (announced
+/// "Follow") while [following] is false and [onFollow] is set. When
+/// [following] turns true it shows a check for
 /// `KMetrics.followConfirmDuration`, then fades out (instant with reduce
-/// motion). If the follow is rolled back, the chip returns. With
-/// [onFollow] `null` there is no follow control (state unknown, yourself,
-/// or a private account).
+/// motion). If the follow is rolled back, the capsule returns. With
+/// [onFollow] `null` there is no follow control (state unknown, yourself).
+///
+/// D175 (owner): on a private account Follow sends a request; while
+/// [requested] the capsule shows an hourglass (announced «تم الطلب») and a
+/// tap runs [onCancelRequest] (which asks first).
 class KHostPill extends StatefulWidget {
   const new({
     required this.hostName,
     super.key,
     this.avatar,
     this.subtitle,
+    this.lines = const [],
     this.following = false,
     this.onFollow,
+    this.requested = false,
+    this.onCancelRequest,
     this.onTap,
+    this.username,
+    this.premiumTier,
+    this.agentCode,
+    this.hostAgentCode,
+    this.rechargeBadge,
+    this.hostIsCreator = false,
   });
+
+  /// v1.82-live (D295): the host is a content creator — the purple «صانع
+  /// محتوى» badge after the name.
+  final bool hostIsCreator;
+
+  /// v1.54-social (D185): the host's recharge-agent code while ACTIVE (the
+  /// badge after the name).
+  final String? agentCode;
+
+  /// v1.58-social (D189): the host's host-agent code (its badge too).
+  final String? hostAgentCode;
+
+  /// v1.56-social (D187): the host's daily recharge badge while it shows.
+  final RechargeBadge? rechargeBadge;
+
+  /// D141 (owner, replaces D135's room ID): the host's `@username` beside
+  /// the name; a tap copies it ([KLiveUsernameTag]).
+  final String? username;
+
+  /// D146: the host's premium username tier (the special-ID badge).
+  final PremiumTier? premiumTier;
+
+  /// The visible stadium (D141: its top is [KMetrics.liveHeaderGap] under
+  /// the status bar in every room).
+  static const pillKey = Key('hostPill.pill');
 
   final String hostName;
   final ImageProvider? avatar;
 
   /// Second line (e.g. the follower count); `null` → one line.
   final String? subtitle;
+
+  /// D131: second lines shown in turn (e.g. this live's points, then its
+  /// taps); they win over [subtitle].
+  final List<Widget> lines;
   final bool following;
   final VoidCallback? onFollow;
 
+  /// D175: a follow request to this private host is pending.
+  final bool requested;
+  final VoidCallback? onCancelRequest;
+
   /// Opens the host's profile sheet; `null` → the pill is not a button.
   final VoidCallback? onTap;
+
+  /// How long each of [lines] shows.
+  static const lineTime = Duration(seconds: 3);
+
+  /// Owner (2026-11-02): the follow capsule is the brand red (was ref 158's
+  /// cyan `#23E1DA` → `#0BD6E1`): `color.brand.red500` → `red600`, so the
+  /// white "+" is ≥ 4.79:1 on every point (a lighter `#FF2A35` stop would
+  /// be 3.73:1).
+  static const List<Color> followGradient = [
+    KBrandColors.red500,
+    KBrandColors.red600,
+  ];
+
+  /// Ref 158: the points line's yellow.
+  static const points = Color(0xFFF5C542);
+
+  /// D141: 30 pt (ref 158's 26.6 pt, enlarged with the pill).
+  static const avatarSize = 30.0;
+  static const lineKey = Key('hostPill.line');
+
+  /// D131's second lines — the cherries the host earned in this live (D259:
+  /// the real cherries, `LiveScore.hostCherries`; the score is points and
+  /// never shown with the cherry), then its taps with a heart when known.
+  /// D232: every live category's pill (the audio room and the podcast too)
+  /// shows the same lines.
+  static List<Widget> pointLines(
+    BuildContext context, {
+    required int cherries,
+    int? taps,
+    Key? scoreKey,
+    Key? tapsKey,
+  }) {
+    final l10n = context.l10n;
+    return [
+      Semantics(
+        label: l10n.liveHostPillCherries(KFormat.grouped(cherries)),
+        excludeSemantics: true,
+        child: KHostPillLine(
+          key: scoreKey,
+          icon: const KCherryIcon(size: 11),
+          text: KFormat.grouped(cherries),
+        ),
+      ),
+      if (taps != null)
+        Semantics(
+          label: l10n.liveHostPillTaps(KFormat.grouped(taps)),
+          excludeSemantics: true,
+          child: KHostPillLine(
+            key: tapsKey,
+            icon: const Icon(
+              Icons.favorite_rounded,
+              size: 11,
+              color: Color(0xFFFF6B9A),
+            ),
+            text: KFormat.grouped(taps),
+            color: const Color(0xFFFFFFFF),
+          ),
+        ),
+    ];
+  }
 
   @override
   State<KHostPill> createState() => _KHostPillState();
@@ -259,10 +688,34 @@ class KHostPill extends StatefulWidget {
 class _KHostPillState extends State<KHostPill> {
   bool _confirming = false;
   Timer? _timer;
+  Timer? _lines;
+  int _line = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncLines();
+  }
+
+  void _syncLines() {
+    if (widget.lines.length < 2) {
+      _lines?.cancel();
+      _lines = null;
+      _line = 0;
+      return;
+    }
+    _lines ??= Timer.periodic(KHostPill.lineTime, (_) {
+      if (!mounted) return;
+      if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return;
+      setState(() => _line = (_line + 1) % widget.lines.length);
+    });
+  }
 
   @override
   void didUpdateWidget(KHostPill oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _syncLines();
+    if (_line >= widget.lines.length) _line = 0;
     if (!oldWidget.following && widget.following) {
       _timer?.cancel();
       _confirming = true;
@@ -278,6 +731,7 @@ class _KHostPillState extends State<KHostPill> {
   @override
   void dispose() {
     _timer?.cancel();
+    _lines?.cancel();
     super.dispose();
   }
 
@@ -291,7 +745,15 @@ class _KHostPillState extends State<KHostPill> {
     final subtitle = widget.subtitle;
     final onFollow = widget.onFollow;
     final Widget chip;
-    if (!widget.following && onFollow != null) {
+    final onCancel = widget.onCancelRequest;
+    if (widget.requested && onCancel != null) {
+      chip = _FollowChip(
+        key: const ValueKey('requested'),
+        label: l10n.followRequested,
+        requested: true,
+        onTap: onCancel,
+      );
+    } else if (!widget.following && onFollow != null) {
       chip = _FollowChip(
         key: const ValueKey('follow'),
         label: l10n.liveFollow,
@@ -306,68 +768,145 @@ class _KHostPillState extends State<KHostPill> {
     } else {
       chip = const SizedBox.shrink(key: ValueKey('none'));
     }
+    final hasChip =
+        widget.requested && onCancel != null ||
+        !widget.following && onFollow != null ||
+        _confirming;
+    final lines = widget.lines;
+    final second = lines.isNotEmpty
+        ? AnimatedSwitcher(
+            duration: KMotion.of(context, KMotion.base),
+            layoutBuilder: (current, previous) => Stack(
+              alignment: AlignmentDirectional.centerStart,
+              children: [...previous, ?current],
+            ),
+            child: KeyedSubtree(
+              key: ValueKey(_line),
+              child: lines[_line.clamp(0, lines.length - 1)],
+            ),
+          )
+        : subtitle == null
+        ? null
+        : Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textScaler: scaler,
+            // White, not textSecondary: secondary grey on the scrim over a
+            // white frame is 4.2:1 (below 4.5).
+            style: text.caption.copyWith(
+              color: p.textPrimary,
+              fontSize: 10,
+              height: 1.2,
+            ),
+          );
 
     final body = Container(
       constraints: const BoxConstraints(minHeight: KMetrics.hostPillHeight),
-      padding: const EdgeInsetsDirectional.only(
-        start: KSpacing.xs,
-        end: KSpacing.xs,
-      ),
+      padding: const EdgeInsetsDirectional.only(start: 2.2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           KAvatar(
             name: widget.hostName,
             image: widget.avatar,
-            size: KSizes.avatarSm,
+            size: KHostPill.avatarSize,
           ),
-          const SizedBox(width: KSpacing.sm),
+          const SizedBox(width: 5),
           Flexible(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.hostName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textScaler: scaler,
-                  style: text.label.copyWith(color: p.textPrimary),
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: scaler),
+              child: DefaultTextStyle.merge(
+                style: text.caption.copyWith(
+                  color: p.textPrimary,
+                  fontSize: 10,
+                  height: 1.2,
                 ),
-                if (subtitle != null)
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textScaler: scaler,
-                    // White, not textSecondary: secondary grey on the scrim
-                    // over a white frame is 4.2:1 (below 4.5).
-                    style: text.caption.copyWith(color: p.textPrimary),
-                  ),
-              ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          flex: 3,
+                          child: Text(
+                            widget.hostName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.label.copyWith(
+                              color: p.textPrimary,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              height: 1.2,
+                              shadows: KLiveColors.glassShadow,
+                            ),
+                          ),
+                        ),
+                        RechargeAgentInlineBadge(
+                          code: widget.agentCode,
+                          hostCode: widget.hostAgentCode,
+                          height: inlineAgentBadgeHeight(12.5),
+                          gap: 3,
+                        ),
+                        // D187 (owner): the daily recharge badge.
+                        RechargeTierBadge(
+                          badge: widget.rechargeBadge,
+                          height: inlineAgentBadgeHeight(12.5),
+                          gap: 3,
+                        ),
+                        // v1.82-live (D295): a content creator's live.
+                        if (widget.hostIsCreator) ...[
+                          const SizedBox(width: 3),
+                          const CreatorLiveBadge(compact: true),
+                        ],
+                        if (widget.username case final name?) ...[
+                          const SizedBox(width: 5),
+                          // The name keeps most of the room when it is
+                          // short (a narrow phone, large text).
+                          Flexible(
+                            flex: 2,
+                            child: KLiveUsernameTag(
+                              username: name,
+                              premiumTier: widget.premiumTier,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (second != null)
+                      KeyedSubtree(key: KHostPill.lineKey, child: second),
+                  ],
+                ),
+              ),
             ),
           ),
-          AnimatedSwitcher(
-            duration: KMotion.of(context, KMotion.base),
-            child: chip,
+          // The capsule's room; the capsule and its 48 pt target are laid
+          // over it (below), so the pill stays 31 pt tall.
+          SizedBox(
+            width: hasChip
+                ? KSpacing.xs + KMetrics.followChipWidth + 5.3
+                : KSpacing.md,
           ),
-          const SizedBox(width: KSpacing.xs),
         ],
       ),
     );
 
     final onTap = widget.onTap;
     final pill = Material(
-      color: p.scrim,
+      key: KHostPill.pillKey,
+      // D135: the lighter glass.
+      color: KLiveColors.glass,
       shape: const StadiumBorder(),
       clipBehavior: Clip.antiAlias,
       child: onTap == null ? body : InkWell(onTap: onTap, child: body),
     );
-    return Semantics(
+    final host = Semantics(
       container: true,
       button: onTap != null,
       label: onTap != null ? l10n.liveRoomHostSemantics(widget.hostName) : null,
-      // The visual pill is 40 dp; the hit area keeps 48 dp.
+      // The visual pill is 31 dp; the hit area keeps 48 dp.
       child: onTap == null
           ? pill
           : GestureDetector(
@@ -381,51 +920,65 @@ class _KHostPillState extends State<KHostPill> {
               ),
             ),
     );
+    // The follow capsule over the pill's end, in a 48 × 48 pt target.
+    return Stack(
+      alignment: AlignmentDirectional.centerEnd,
+      children: [
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
+          child: Center(heightFactor: 1, widthFactor: 1, child: host),
+        ),
+        PositionedDirectional(
+          end: 5.3 + KMetrics.followChipWidth / 2 - KSizes.minTouchTarget / 2,
+          child: AnimatedSwitcher(
+            duration: KMotion.of(context, KMotion.base),
+            child: chip,
+          ),
+        ),
+      ],
+    );
   }
 }
 
-/// 28 dp follow chip inside a 48 dp hit area.
+/// The follow capsule (ref 158: 31.5 × 23.8 pt, brand red, a white "+", 5.3 pt
+/// from the pill's end) inside a 48 dp hit area that overflows the pill.
 class _FollowChip extends StatelessWidget {
   const new({
     required this.label,
     super.key,
     this.onTap,
     this.following = false,
+    this.requested = false,
   });
 
   final String label;
   final VoidCallback? onTap;
   final bool following;
 
+  /// D175: a pending follow request (an hourglass on a grey capsule).
+  final bool requested;
+
   @override
   Widget build(BuildContext context) {
     const p = KPalette.dark;
     final visual = Container(
+      width: KMetrics.followChipWidth,
       height: KMetrics.followChipHeight,
-      padding: EdgeInsetsDirectional.symmetric(
-        horizontal: following ? KSpacing.xs : KSpacing.sm,
-      ),
       decoration: BoxDecoration(
-        color: p.primary,
+        gradient: requested
+            ? null
+            : const LinearGradient(colors: KHostPill.followGradient),
+        color: requested ? const Color(0x66FFFFFF) : null,
         borderRadius: BorderRadius.circular(KRadius.pill),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            following ? Icons.check_rounded : Icons.add_rounded,
-            size: KMetrics.iconSm,
-            color: p.onPrimary,
-          ),
-          if (!following) ...[
-            const SizedBox(width: KSpacing.xxs),
-            Text(
-              label,
-              textScaler: TextScaler.noScaling,
-              style: context.textStyles.label.copyWith(color: p.onPrimary),
-            ),
-          ],
-        ],
+      child: Icon(
+        requested
+            ? Icons.hourglass_top_rounded
+            : following
+            ? Icons.check_rounded
+            : Icons.add_rounded,
+        size: requested ? 14 : 16,
+        color: p.onPrimary,
       ),
     );
     return Semantics(
@@ -434,20 +987,49 @@ class _FollowChip extends StatelessWidget {
       toggled: following,
       label: label,
       child: ExcludeSemantics(
-        child: InkResponse(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: onTap,
-          radius: KSizes.minTouchTarget / 2,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: KSizes.minTouchTarget,
-              minWidth: KSizes.minTouchTarget,
-            ),
-            child: Center(widthFactor: 1, child: visual),
+          child: SizedBox.square(
+            dimension: KSizes.minTouchTarget,
+            child: Center(child: visual),
           ),
         ),
       ),
     );
   }
+}
+
+/// A host pill line: an icon and a count (D131: this live's points with
+/// the cherry, or its taps with a heart).
+class KHostPillLine extends StatelessWidget {
+  const new({required this.icon, required this.text, super.key, this.color});
+
+  final Widget icon;
+  final String text;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      icon,
+      const SizedBox(width: 2),
+      Flexible(
+        child: Text(
+          KFormat.bidiIsolate(text),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: color ?? KHostPill.points,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            height: 1.2,
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 /// Loading stand-in for [KHostPill].
@@ -478,10 +1060,14 @@ class KHostPillSkeleton extends StatelessWidget {
 /// chips under the host pill. Each text is laid out in its own script
 /// direction (an Arabic title in an English UI and the reverse).
 class KRoomInfoRow extends StatelessWidget {
-  const new({required this.title, super.key, this.category});
+  const new({required this.title, super.key, this.category, this.level});
 
   final String title;
   final String? category;
+
+  /// CP-016 D (D101): the room level (the host's charm level) after the
+  /// title; none while the charm levels are unavailable.
+  final int? level;
 
   @override
   Widget build(BuildContext context) {
@@ -492,6 +1078,10 @@ class KRoomInfoRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Flexible(child: _InfoChip(text: title)),
+          if (level case final level?) ...[
+            const SizedBox(width: KSpacing.xs),
+            CharmLevelBadge(level: level, height: 16),
+          ],
           if (category != null && category.isNotEmpty) ...[
             const SizedBox(width: KSpacing.xs),
             Flexible(
@@ -690,6 +1280,7 @@ class KRoomIconButton extends StatelessWidget {
     this.color,
     this.visualSize = KMetrics.roomIconVisual,
     this.iconSize = KMetrics.iconMd,
+    this.bare = false,
   });
 
   final IconData icon;
@@ -698,6 +1289,9 @@ class KRoomIconButton extends StatelessWidget {
   final Color? color;
   final double visualSize;
   final double iconSize;
+
+  /// D131: the icon alone (a soft shadow, no circle), e.g. the room's ✕.
+  final bool bare;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -717,14 +1311,19 @@ class KRoomIconButton extends StatelessWidget {
               child: Container(
                 width: visualSize,
                 height: visualSize,
-                decoration: BoxDecoration(
-                  color: KPalette.dark.scrim,
-                  shape: BoxShape.circle,
-                ),
+                decoration: bare
+                    ? null
+                    : BoxDecoration(
+                        color: KPalette.dark.scrim,
+                        shape: BoxShape.circle,
+                      ),
                 child: Icon(
                   icon,
                   size: iconSize,
                   color: color ?? KPalette.dark.textPrimary,
+                  shadows: bare
+                      ? const [Shadow(color: Color(0x66000000), blurRadius: 3)]
+                      : null,
                 ),
               ),
             ),
@@ -733,4 +1332,49 @@ class KRoomIconButton extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// D145c: tells [onTop] its child's top on the screen after a frame in
+/// which it was painted at a new place (nothing when [onTop] is null).
+class KTopReporter extends SingleChildRenderObjectWidget {
+  const new({required this.onTop, super.child, super.key});
+
+  final ValueChanged<double>? onTop;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      RenderTopReporter(onTop);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    RenderTopReporter renderObject,
+  ) {
+    renderObject.onTop = onTop;
+  }
+}
+
+/// The render object of [KTopReporter].
+class RenderTopReporter extends RenderProxyBox {
+  new(this.onTop);
+
+  ValueChanged<double>? onTop;
+  double? _last;
+  bool _scheduled = false;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    super.paint(context, offset);
+    if (onTop == null || _scheduled) return;
+    _scheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduled = false;
+      final onTop = this.onTop;
+      if (onTop == null || !attached || !hasSize) return;
+      final top = localToGlobal(Offset.zero).dy;
+      if (top == _last) return;
+      _last = top;
+      onTop(top);
+    });
+  }
 }

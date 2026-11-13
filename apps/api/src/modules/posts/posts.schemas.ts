@@ -1,0 +1,210 @@
+import { z } from 'zod';
+import { normalizeContentText, type ContentTextLimits } from './content-text.js';
+
+// Request schemas mirror docs/contracts/openapi.yaml v1.5-social (strict objects: unknown fields
+// fail with `unknown_field`). Text rules: CONVENTIONS §11.2.
+
+export const POST_TEXT_LIMITS: ContentTextLimits = {
+  maxCodePoints: 2200,
+  maxLineBreaks: 30,
+  allowEmpty: true,
+};
+export const LOCATION_LIMITS: ContentTextLimits = { maxCodePoints: 80, maxLineBreaks: 0, allowEmpty: false };
+export const MAX_POST_MEDIA = 10;
+
+/** Free content text: raw length is bounded first (no unbounded work), then normalized. */
+const contentText = (limits: ContentTextLimits, rawMax: number) =>
+  z
+    .string()
+    .max(rawMax)
+    .transform((raw, ctx) => {
+      const result = normalizeContentText(raw, limits);
+      if ('issue' in result) {
+        ctx.addIssue({ code: 'custom', message: result.issue, params: { issue: result.issue } });
+        return z.NEVER;
+      }
+      return result.value;
+    });
+
+export const postTextSchema = contentText(POST_TEXT_LIMITS, 8800);
+export const locationSchema = contentText(LOCATION_LIMITS, 320).nullable();
+
+export const WHO_CAN_COMMENT = ['EVERYONE', 'FOLLOWERS', 'NOBODY'] as const;
+
+export const postSettingsPatchSchema = z
+  .strictObject({
+    commentsEnabled: z.boolean().optional(),
+    whoCanComment: z.enum(WHO_CAN_COMMENT).optional(),
+    hideLikeCount: z.boolean().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });
+
+const statusSchema = z.enum(['DRAFT', 'SCHEDULED', 'PUBLISHED']);
+
+/** `CreatePostRequest`. Cross-field rules (text or media, publishAt) are checked by the service. */
+export const createPostSchema = z.strictObject({
+  text: postTextSchema.optional(),
+  mediaIds: z.array(z.uuid()).max(MAX_POST_MEDIA).optional(),
+  location: locationSchema.optional(),
+  status: statusSchema.optional(),
+  publishAt: z.iso.datetime({ offset: true }).optional(),
+  settings: postSettingsPatchSchema.optional(),
+  /** v1.41-social (D162): `REEL` takes exactly one `REEL_VIDEO`. */
+  format: z.enum(['POST', 'REEL']).optional(),
+  /**
+   * v1.72-live (D283, §10.96.10): an official announcement «إعلان رسمي — فريق كابسو» — the Kabso Team only, and a
+   * limited staff account must send `true`.
+   */
+  announcement: z.boolean().optional(),
+});
+export type CreatePostInput = z.output<typeof createPostSchema>;
+
+/** `UpdatePostRequest`: at least one field. */
+export const updatePostSchema = z
+  .strictObject({
+    text: postTextSchema.optional(),
+    location: locationSchema.optional(),
+    status: statusSchema.optional(),
+    publishAt: z.iso.datetime({ offset: true }).optional(),
+    settings: postSettingsPatchSchema.optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });
+export type UpdatePostInput = z.output<typeof updatePostSchema>;
+
+/** `limit`: integer 1–50, default 20 (CONVENTIONS §5). */
+export const limitSchema = z
+  .string()
+  .regex(/^\d{1,4}$/)
+  .transform(Number)
+  .pipe(z.number().int().min(1).max(50));
+
+export const pageQuerySchema = z.strictObject({
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type PageQuery = z.output<typeof pageQuerySchema>;
+
+/** `GET /posts/{postId}/comments` (v1.122-social adds `sort`, §10.158): `RELEVANT` (default) or `NEWEST`. */
+export const commentListQuerySchema = z.strictObject({
+  sort: z
+    .enum(['RELEVANT', 'NEWEST'])
+    .optional()
+    .transform((v) => v ?? 'RELEVANT'),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type CommentListQuery = z.output<typeof commentListQuerySchema>;
+
+export const myPostsQuerySchema = z.strictObject({
+  status: z.string().pipe(z.enum(['DRAFT', 'SCHEDULED'])),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type MyPostsQuery = z.output<typeof myPostsQuerySchema>;
+
+/** `RecordViewsRequest`: 1–50 items. */
+export const recordViewsSchema = z.strictObject({
+  items: z
+    .array(
+      z.strictObject({
+        postId: z.uuid(),
+        watchedMs: z.number().int().min(0).max(3_600_000),
+      }),
+    )
+    .min(1)
+    .max(50),
+});
+
+/** v1.76-social (D218, CONVENTIONS §10.73): `mixed` — 1 Following : 2 Trending, the app's home feed. */
+export const feedQuerySchema = z.strictObject({
+  tab: z.string().pipe(z.enum(['following', 'trending', 'mixed'])),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type FeedQuery = z.output<typeof feedQuerySchema>;
+
+/**
+ * v1.68-social (D202): `GET /feed/reels` also takes `tab=nearby` (reels of authors from the caller's own
+ * country, CONVENTIONS §11.15). `GET /feed/posts` has following | trending | (D218) mixed instead.
+ * v1.92-social (D294, CONVENTIONS §10.107): `GET /feed/reels` also takes `mixed` — 1 Following : 2 Trending
+ * of reels, the posts home feed's rule (§10.73.1); the app's reels page lists it alone.
+ */
+export const reelsFeedQuerySchema = z.strictObject({
+  tab: z.string().pipe(z.enum(['following', 'trending', 'nearby', 'mixed'])),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type ReelsFeedQuery = z.output<typeof reelsFeedQuerySchema>;
+
+/** v1.41-social (D162): which posts a feed lists (`/feed/posts`: POST; `/feed/reels`: REEL). */
+export type FeedFormat = 'POST' | 'REEL';
+
+export const COMMENT_TEXT_LIMITS: ContentTextLimits = {
+  maxCodePoints: 500,
+  maxLineBreaks: 5,
+  allowEmpty: false,
+};
+
+/** `CreateCommentRequest`. */
+export const createCommentSchema = z.strictObject({
+  text: contentText(COMMENT_TEXT_LIMITS, 2000),
+  parentId: z.uuid().optional(),
+});
+export type CreateCommentInput = z.output<typeof createCommentSchema>;
+
+export const hashtagPostsQuerySchema = z.strictObject({
+  sort: z
+    .string()
+    .pipe(z.enum(['top', 'recent']))
+    .optional()
+    .transform((v) => v ?? 'recent'),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type HashtagPostsQuery = z.output<typeof hashtagPostsQuerySchema>;
+
+/** `q`: 1–64 code points after NFC and trim; one leading `@` or `#` is ignored; no controls. */
+const searchTextSchema = z
+  .string()
+  .max(256)
+  .transform((raw, ctx) => {
+    const value = raw.normalize('NFC').trim().replace(/^[@#]/, '').trim();
+    const length = [...value].length;
+    const issue =
+      length === 0
+        ? 'too_short'
+        : length > 64
+          ? 'too_long'
+          : /[\p{Cc}\p{Cf}]/u.test(value)
+            ? 'invalid_format'
+            : null;
+    if (issue) {
+      ctx.addIssue({ code: 'custom', message: issue, params: { issue } });
+      return z.NEVER;
+    }
+    return value;
+  });
+
+export const searchQuerySchema = z.strictObject({
+  q: searchTextSchema,
+  type: z.string().pipe(z.enum(['users', 'hashtags', 'posts'])),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type SearchQuery = z.output<typeof searchQuerySchema>;
+
+/** v1.29-live (D147): `POST /search/queries` — a search the person submitted (§11.11). */
+export const recordSearchQuerySchema = z.strictObject({ q: searchTextSchema });
+export type RecordSearchQuery = z.output<typeof recordSearchQuerySchema>;
+
+/** D147: `GET /search/trending-hashtags?limit` — 1–20 (default 20). */
+export const trendingHashtagsQuerySchema = z.strictObject({
+  limit: z
+    .string()
+    .regex(/^[1-9][0-9]?$/)
+    .transform(Number)
+    .pipe(z.number().int().min(1).max(20))
+    .optional()
+    .transform((v) => v ?? 20),
+});
+export type TrendingHashtagsQuery = z.output<typeof trendingHashtagsQuerySchema>;

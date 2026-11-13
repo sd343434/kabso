@@ -1,0 +1,95 @@
+# Kabso Live — LiveKit media node config TEMPLATE (D350). render-config.sh fills ${...} from media.env and writes
+# /etc/kabso-media/livekit.yaml. It holds NO secret: the key pair reaches LiveKit as LIVEKIT_KEYS from livekit.env
+# (livekit-server --keys [$LIVEKIT_KEYS]). Every key below is in LiveKit's config-sample.yaml / pkg/config/config.go
+# at v1.13.11; the server is started with this file in a local check (docs/infrastructure/LIVEKIT_SINGLE_NODE_DEPLOYMENT.md §9).
+
+# Signalling + RoomService (HTTP/WebSocket). Never exposed: Caddy-L4 terminates TLS for wss://${MEDIA_DOMAIN} on 443
+# and dials 127.0.0.1:7880. LiveKit also opens prometheus.port on these same addresses (pkg/service/server.go), so
+# a private (vSwitch) address added in Phase 2 exposes 7880 and 6789 there; ufw limits both to MONITORING_IPS / the
+# app server.
+port: 7880
+bind_addresses:
+${BIND_ADDRESSES_YAML}
+
+rtc:
+  # ICE/TCP fallback (VPNs, networks without UDP). Must be reachable directly, not behind TLS.
+  tcp_port: ${RTC_TCP_PORT}
+  # ICE/UDP mux over a small range: LiveKit recommends "a range of ports greater or equal to the number of vCPUs"
+  # for udp_port (config-sample.yaml). EX44 = 20 threads → 7882-7901. port_range_start/end must stay unset.
+  udp_port: ${RTC_UDP_PORT}
+  # The EX44's public IPv4 is configured on its NIC (no NAT), so it is set explicitly instead of discovered by STUN
+  # at start-up; use_external_ip must be false for node_ip to take effect (config-sample.yaml).
+  use_external_ip: false
+  node_ip: ${NODE_IP}
+  # Only advertise the public address: with host networking docker0 / bridge addresses would otherwise become
+  # (useless) host candidates.
+  ips:
+    includes:
+      - ${NODE_IP}/32
+  # Defaults kept: congestion_control on, allow_tcp_fallback true (falls back to ICE/TCP and TURN/TLS when UDP is
+  # unstable).
+
+# Embedded TURN (UDP + TLS). Only clients that already hold a signal connection get credentials (deployment docs);
+# credentials expire after ttl_seconds (default 300, v1.12.0+).
+turn:
+  enabled: true
+  # Own hostname and certificate ("a separate TURN domain and SSL cert will be needed", deployment docs).
+  domain: ${TURN_DOMAIN}
+  # LiveKit always advertises TURN/TLS as turns:<domain>:443 (pkg/service/roommanager.go, iceServersForParticipant),
+  # whatever tls_port is. Caddy-L4 owns 443, terminates TLS for SNI ${TURN_DOMAIN} with its own certificate and
+  # forwards plain TCP to 127.0.0.1:5349 with a PROXY v2 header carrying the client address.
+  tls_port: 5349
+  external_tls: true
+  proxy_protocol: true
+  proxy_protocol_trusted_cidrs:
+    - 127.0.0.0/8
+    - ::1/128
+  # TURN/UDP. 443/udp passes networks that only allow QUIC/HTTPS ports ("recommended to 443 if not running
+  # HTTP3/QUIC server", config-sample.yaml); this node runs no HTTP/3. 3478 is the alternative (TURN_UDP_PORT).
+  udp_port: ${TURN_UDP_PORT}
+  # Relay sockets, kept clear of the ICE mux range. Relay traffic to the SFU goes to this node's own address (lo).
+  relay_range_start: 30000
+  relay_range_end: 40000
+  # Default since v1.12.0: TURN refuses to relay to private / loopback / link-local peers. Left as is.
+
+# Metrics on :6789/metrics of bind_addresses only (the deprecated prometheus_port key was removed in v1.13.x).
+prometheus:
+  port: 6789
+
+# Webhook to the API, signed by LiveKit with webhook.api_key (a JWT in Authorization carrying the body's sha256).
+# Rendered empty when LIVEKIT_WEBHOOK_URL is empty (validation before cut-over posts nowhere).
+${WEBHOOK_YAML}
+
+logging:
+  level: ${LIVEKIT_LOG_LEVEL}
+  json: true
+  # Sampling off in Phase 1 (every line kept while validating); consider true in production.
+  sample: false
+
+room:
+  auto_create: true
+  # The API's room is created by the host's first join; keep it 5 min if nobody joins, 20 s after the last leaves.
+  empty_timeout: 300
+  departure_timeout: 20
+  # Upper bound per room (viewers are hidden participants and still count). One 1 Gbit node carries roughly
+  # 350–400 viewers at 2 Mbit/s (ESTIMATE, PRODUCTION_COST_MODEL.md §2), so this only stops a runaway room.
+  max_participants: ${ROOM_MAX_PARTICIPANTS}
+
+# Node limits. When one is reached LiveKit refuses NEW participants even in existing rooms
+# (pkg/service/roomallocator.go: ErrNodeLimitReached). -1 / 0 = off. Phase 1 keeps them off to find the real
+# ceiling in the load test; set them from SINGLE_NODE_CAPACITY_RESULTS.md before production.
+limit:
+  num_tracks: ${LIMIT_NUM_TRACKS}
+  bytes_per_sec: ${LIMIT_BYTES_PER_SEC}
+
+# Region tag (used by the regionaware selector in a later phase; harmless on one node).
+region: ${LIVEKIT_REGION}
+
+# Phase 2 (distributed): uncomment, point at the dedicated LiveKit Redis on the app server's private address
+# (NOT the app's Redis), and add a node selector. Redis password via REDIS_PASSWORD in livekit.env.
+# redis:
+#   address: 10.0.0.2:6380
+# node_selector:
+#   kind: sysload
+#   sort_by: sysload
+#   sysload_limit: 0.7

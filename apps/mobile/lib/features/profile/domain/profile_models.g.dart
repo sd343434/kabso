@@ -19,6 +19,59 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       isFollowing: json['isFollowing'] as bool,
       isSelf: json['isSelf'] as bool,
       liveRoomId: json['liveRoomId'] as String?,
+      live: json['live'] == null
+          ? null
+          : ProfileLive.fromJson(json['live'] as Map<String, dynamic>),
+      isMuted: json['isMuted'] as bool? ?? false,
+      premiumTier: premiumTierFromJson(json['premiumTier']),
+      family: json['family'] == null
+          ? null
+          : ProfileFamily.fromJson(json['family'] as Map<String, dynamic>),
+      cp: json['cp'] == null
+          ? null
+          : ProfileCp.fromJson(json['cp'] as Map<String, dynamic>),
+      medals: json['medals'] == null
+          ? const ProfileMedals()
+          : ProfileMedals.fromJson(json['medals'] as Map<String, dynamic>),
+      profileCard: json['profileCard'] == null
+          ? null
+          : ProfileCard.fromJson(json['profileCard'] as Map<String, dynamic>),
+      followRequested: json['followRequested'] as bool? ?? false,
+      gender: genderFromJson(json['gender']),
+      category: accountCategoryFromJson(json['category']),
+      links: json['links'] == null
+          ? const <ProfileLink>[]
+          : profileLinksFromJson(json['links']),
+      tags:
+          (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+          const <String>[],
+      tagIcons:
+          (json['tagIcons'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
+      rechargeAgentCode: rechargeAgentCodeFromJson(json['rechargeAgent']),
+      hostAgentCode: rechargeAgentCodeFromJson(json['hostAgent']),
+      verification: verificationBadgeFromJson(json['verification']),
+      statusEmojiId: json['statusEmojiId'] as String?,
+      avatarFrame: avatarFrameFromJson(json['avatarFrame']),
+      rechargeBadge: rechargeBadgeFromJson(json['rechargeBadge']),
+      vip: userVipFromJson(userVipWithWear(json, 'vip')),
+      coverUrl: json['coverUrl'] as String?,
+      country: json['country'] as String?,
+      joinedMonth: json['joinedMonth'] as String?,
+      blockedByMe: json['blockedByMe'] as bool? ?? false,
+      cherriesReceived: (json['cherriesReceived'] as num?)?.toInt(),
+      coinsSent: (json['coinsSent'] as num?)?.toInt(),
+      kabsoTeam: json['kabsoTeam'] as bool? ?? false,
+      staff: staffIdentityFromJson(json['staff']),
+      staffId: json['staffId'] as String?,
+      goldenId: userGoldenIdFromJson(json['goldenId']),
+      kabsoOwner: json['kabsoOwner'] as bool? ?? false,
+      coverVideo: ownerCoverVideoFromJson(json['coverVideo']),
+      ownerBio: ownerBioFromJson(json['ownerBio']),
+      founderFeedbackCount: (json['founderFeedbackCount'] as num?)?.toInt(),
+      animatedAvatar: animatedAvatarFromJson(json['animatedAvatar']),
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -34,15 +87,86 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'isFollowing': instance.isFollowing,
       'isSelf': instance.isSelf,
       'liveRoomId': instance.liveRoomId,
+      'live': instance.live,
+      'isMuted': instance.isMuted,
+      'premiumTier': premiumTierToJson(instance.premiumTier),
+      'family': instance.family,
+      'cp': instance.cp,
+      'medals': instance.medals,
+      'profileCard': instance.profileCard,
+      'followRequested': instance.followRequested,
+      'gender': genderToJson(instance.gender),
+      'category': accountCategoryToJson(instance.category),
+      'links': profileLinksToJson(instance.links),
+      'tags': instance.tags,
+      'tagIcons': instance.tagIcons,
+      'rechargeAgent': ?rechargeAgentCodeToJson(instance.rechargeAgentCode),
+      'hostAgent': ?rechargeAgentCodeToJson(instance.hostAgentCode),
+      'verification': ?verificationBadgeToJson(instance.verification),
+      'statusEmojiId': ?instance.statusEmojiId,
+      'avatarFrame': ?avatarFrameToJson(instance.avatarFrame),
+      'rechargeBadge': ?rechargeBadgeToJson(instance.rechargeBadge),
+      'vip': ?userVipToJson(instance.vip),
+      'coverUrl': instance.coverUrl,
+      'country': instance.country,
+      'joinedMonth': instance.joinedMonth,
+      'blockedByMe': instance.blockedByMe,
+      'cherriesReceived': ?instance.cherriesReceived,
+      'coinsSent': ?instance.coinsSent,
+      'kabsoTeam': instance.kabsoTeam,
+      'staff': ?staffIdentityToJson(instance.staff),
+      'staffId': ?instance.staffId,
+      'goldenId': ?userGoldenIdToJson(instance.goldenId),
+      'kabsoOwner': instance.kabsoOwner,
+      'coverVideo': ?ownerCoverVideoToJson(instance.coverVideo),
+      'ownerBio': ?ownerBioToJson(instance.ownerBio),
+      'founderFeedbackCount': ?instance.founderFeedbackCount,
+      'animatedAvatar': ?animatedAvatarToJson(instance.animatedAvatar),
     };
+
+_ProfileLive _$ProfileLiveFromJson(Map<String, dynamic> json) => _ProfileLive(
+  roomId: json['roomId'] as String,
+  startedAt: DateTime.parse(json['startedAt'] as String),
+  title: json['title'] as String? ?? '',
+  mode:
+      $enumDecodeNullable(
+        _$LiveRoomModeEnumMap,
+        json['mode'],
+        unknownValue: LiveRoomMode.solo,
+      ) ??
+      LiveRoomMode.solo,
+  viewerCount: (json['viewerCount'] as num?)?.toInt() ?? 0,
+  score: (json['score'] as num?)?.toInt() ?? 0,
+);
+
+Map<String, dynamic> _$ProfileLiveToJson(_ProfileLive instance) =>
+    <String, dynamic>{
+      'roomId': instance.roomId,
+      'startedAt': instance.startedAt.toIso8601String(),
+      'title': instance.title,
+      'mode': _$LiveRoomModeEnumMap[instance.mode]!,
+      'viewerCount': instance.viewerCount,
+      'score': instance.score,
+    };
+
+const _$LiveRoomModeEnumMap = {
+  LiveRoomMode.solo: 'SOLO',
+  LiveRoomMode.pk: 'PK',
+  LiveRoomMode.multi: 'MULTI',
+  LiveRoomMode.audio: 'AUDIO',
+  LiveRoomMode.podcast: 'PODCAST',
+  LiveRoomMode.streamer: 'STREAMER',
+};
 
 _FollowState _$FollowStateFromJson(Map<String, dynamic> json) => _FollowState(
   isFollowing: json['isFollowing'] as bool,
   followerCount: (json['followerCount'] as num).toInt(),
+  isRequested: json['isRequested'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$FollowStateToJson(_FollowState instance) =>
     <String, dynamic>{
       'isFollowing': instance.isFollowing,
       'followerCount': instance.followerCount,
+      'isRequested': instance.isRequested,
     };

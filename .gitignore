@@ -39,3 +39,17 @@ Thumbs.db
 
 # D40: reference screenshots never committed while the repository is public
 /design/references/
+
+# v1.60-social (D191): the admin panel's static build on the server (infra/deploy/build-admin.sh) and Playwright output.
+infra/deploy/admin/
+apps/admin/test-results/
+apps/admin/playwright-report/
+# v1.57-live (D247): «استوديو البث»'s static build on the server (infra/deploy/build-studio.sh) and Playwright output.
+infra/deploy/studio/
+apps/studio/test-results/
+apps/studio/playwright-report/
+
+# D330: the staging APK mirror on the server (infra/deploy/mirror-apk.sh).
+infra/deploy/app/
+# D356: the event page preview bundle on the server (infra/deploy/mirror-event-preview.sh).
+infra/deploy/event-preview/

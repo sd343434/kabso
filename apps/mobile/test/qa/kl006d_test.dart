@@ -9,6 +9,7 @@ import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/app_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
@@ -47,10 +48,14 @@ class _PendingRepo extends FakeAuthRepository {
     required String password,
     required String username,
     required String displayName,
+    required Gender gender,
     required String locale,
+    Map<String, dynamic>? legal,
+    String? referralCode,
   }) async {
     registerCalls++;
     registerLocales.add(locale);
+    registerGenders.add(gender);
     if (registerCalls > 1) throw _usernameTaken;
   }
 }
@@ -227,12 +232,16 @@ void main() {
         }
 
         await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
-        await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+        await tester.enterText(
+          find.byKey(RegisterScreen.usernameKey),
+          'layla_22',
+        );
         await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
         await tester.enterText(
           find.byKey(RegisterScreen.passwordKey),
           'pa55word!',
         );
+        await chooseGender(tester);
         await tester.pump();
         await submit();
         expect(find.byType(RegisterCodeScreen), findsOneWidget);
@@ -283,12 +292,16 @@ void main() {
           tester.element(find.byType(RegisterScreen)),
         );
         await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
-        await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+        await tester.enterText(
+          find.byKey(RegisterScreen.usernameKey),
+          'layla_22',
+        );
         await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
         await tester.enterText(
           find.byKey(RegisterScreen.passwordKey),
           'pa55word!',
         );
+        await chooseGender(tester);
         await tester.pump();
         for (var i = 0; i < 2; i++) {
           await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));

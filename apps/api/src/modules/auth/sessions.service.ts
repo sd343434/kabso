@@ -4,7 +4,8 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import type { DeviceInfo } from './auth.schemas.js';
+import type { DeviceInfo, InstallSource } from './auth.schemas.js';
+import { deviceHashOf, deviceHmacKey } from './device-signups.js';
 import { formatRefreshToken, generateSecret, hashesEqual, parseRefreshToken, sha256Hex } from './tokens.js';
 
 export enum RevokedReason {
@@ -12,6 +13,10 @@ export enum RevokedReason {
   USER_REVOKED = 'USER_REVOKED',
   REFRESH_REUSE = 'REFRESH_REUSE',
   PASSWORD_RESET = 'PASSWORD_RESET',
+  /** v1.62-social (D193): the person asked for their account to be deleted (signed out everywhere). */
+  ACCOUNT_DELETION = 'ACCOUNT_DELETION',
+  /** v1.65-social (D197): signed out by the team from the admin panel (reason in the audit row). */
+  ADMIN_REVOKED = 'ADMIN_REVOKED',
 }
 
 export interface SessionClient {
@@ -69,6 +74,18 @@ export class SessionsService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
+  /** v1.60-live (D250): D223's HMAC key of the device keys (the session keeps the device it signed in with). */
+  private deviceKeyCache: Buffer | null = null;
+
+  /** v1.60-live (D250): the stored HMAC of a device key (null: none sent). */
+  deviceHashOf(deviceKey: string | null | undefined): string | null {
+    if (!deviceKey) return null;
+    this.deviceKeyCache ??= deviceHmacKey(
+      this.config.registration.deviceKey ?? this.config.rateLimitKeySecret,
+    );
+    return deviceHashOf(this.deviceKeyCache, deviceKey);
+  }
+
   async create(
     tx: Prisma.TransactionClient | PrismaService,
     userId: string,
@@ -88,6 +105,12 @@ export class SessionsService {
         deviceName: client.device?.name || null,
         platform: client.device?.platform ?? null,
         appVersion: client.device?.appVersion || null,
+        // v1.74-social (D217): the app's install id, for the referral device checks.
+        installId: client.device?.installId ?? null,
+        // v1.60-live (D250, §10.91): the device it signed in with, as D223's HMAC (a device ban ends it).
+        deviceHash: this.deviceHashOf(client.device?.deviceKey),
+        // v1.112-social (§10.143.3): where the app was installed from (the website link is offered by it).
+        installSource: client.device?.installSource ?? null,
         ip: client.ip?.slice(0, 64) ?? null,
         userAgent: client.userAgent,
         createdAt: now,
@@ -111,7 +134,12 @@ export class SessionsService {
    * (REFRESH_REUSE, contract v1.2 SEC-022); a secret never issued for the session is refused
    * without revoking (SEC-001).
    */
-  async rotate(refreshToken: string, now: Date = new Date()): Promise<RotationOutcome> {
+  async rotate(
+    refreshToken: string,
+    now: Date = new Date(),
+    /** v1.112-social (§10.143.3): the app's install source, written when given (else the stored one is kept). */
+    installSource: InstallSource | null = null,
+  ): Promise<RotationOutcome> {
     const parsed = parseRefreshToken(refreshToken);
     if (!parsed) throw new AppException(ErrorCode.AUTH_REFRESH_INVALID);
 
@@ -151,6 +179,7 @@ export class SessionsService {
         data: { revokedAt: now, revokedReason: RevokedReason.REFRESH_REUSE },
       });
       if (revoked.count === 0) throw new AppException(ErrorCode.AUTH_REFRESH_INVALID);
+      await this.dropPushToken({ sessionId: session.id });
       return {
         kind: 'reuse',
         userId: session.userId,
@@ -182,7 +211,8 @@ export class SessionsService {
             (array_prepend(${presentedHash}::char(64), COALESCE("rotated_refresh_token_hashes", '{}')))[1:${ROTATED_HISTORY_SIZE}::int],
           "rotation_counter" = "rotation_counter" + 1,
           "last_used_at" = ${now},
-          "expires_at" = ${expiresAt}
+          "expires_at" = ${expiresAt},
+          "install_source" = COALESCE(${installSource}::varchar, "install_source")
       WHERE "id" = ${session.id}::uuid
         AND "refresh_token_hash" = ${presentedHash}
         AND "revoked_at" IS NULL`;
@@ -233,7 +263,40 @@ export class SessionsService {
       where: { id: sessionId, userId, revokedAt: null },
       data: { revokedAt: now, revokedReason: reason },
     });
+    await this.dropPushToken({ sessionId, userId });
     return result.count > 0;
+  }
+
+  /**
+   * v1.30-live (D152, §11.12): a revoked session gets no more pushes — its device token goes with
+   * it (the push module's `device_tokens`; sending also skips ended sessions).
+   */
+  private async dropPushToken(
+    where: { sessionId: string; userId?: string } | { userId: string },
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<void> {
+    await tx.deviceToken.deleteMany({ where });
+  }
+
+  /**
+   * v1.79-social (D226, §10.76): ends every live session of [userId] except [currentSessionId], with their push
+   * tokens. Their access tokens fail at once (the guard checks the session) and their refresh tokens answer
+   * `AUTH_REFRESH_INVALID`. Returns how many were ended.
+   */
+  async revokeOthers(
+    userId: string,
+    currentSessionId: string,
+    reason: RevokedReason,
+    now: Date = new Date(),
+  ): Promise<number> {
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.session.updateMany({
+        where: { userId, revokedAt: null, id: { not: currentSessionId } },
+        data: { revokedAt: now, revokedReason: reason },
+      });
+      await tx.deviceToken.deleteMany({ where: { userId, sessionId: { not: currentSessionId } } });
+      return result.count;
+    });
   }
 
   async revokeAllForUser(
@@ -246,6 +309,7 @@ export class SessionsService {
       where: { userId, revokedAt: null },
       data: { revokedAt: now, revokedReason: reason },
     });
+    await this.dropPushToken({ userId }, tx);
     return result.count;
   }
 

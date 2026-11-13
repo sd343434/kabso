@@ -14,6 +14,7 @@ on:
   push:
     branches:
       - main
+      - staging # the server deploys this branch once CI is green (deploy-image.yml)
       - "claude/**"
   workflow_dispatch:
 
@@ -62,6 +63,8 @@ jobs:
       api: ${{ steps.filter.outputs.api == 'true' || github.event_name == 'workflow_dispatch' }}
       mobile: ${{ steps.filter.outputs.mobile == 'true' || github.event_name == 'workflow_dispatch' }}
       contracts: ${{ steps.filter.outputs.contracts == 'true' || github.event_name == 'workflow_dispatch' }}
+      admin: ${{ steps.filter.outputs.admin == 'true' || github.event_name == 'workflow_dispatch' }}
+      studio: ${{ steps.filter.outputs.studio == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -81,6 +84,20 @@ jobs:
               - "apps/mobile/**"
               - "docs/contracts/design-tokens.json"
               - ".github/workflows/ci.yml"
+            admin:
+              - "apps/admin/**"
+              - "apps/mobile/assets/fonts/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
+              - ".github/workflows/ci.yml"
+            studio:
+              - "apps/studio/**"
+              - "apps/mobile/assets/fonts/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
+              - ".github/workflows/ci.yml"
             contracts:
               - "docs/contracts/**"
               - "redocly.yaml"
@@ -92,7 +109,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 60
     services:
       postgres:
         # postgres:16.15-alpine (multi-arch index digest, resolved 2026-10-15)
@@ -177,6 +194,11 @@ jobs:
       - name: Apply migrations (migrate deploy, migration role)
         run: pnpm --filter ./apps/api prisma:migrate:deploy
       - name: Lint
+        # Type-aware lint loads the whole TS program (~2 900 files, the generated Prisma client of 180 models
+        # included) and peaks at ~3.3 GB RSS, above Node's default old-space limit (2.2 GB measured on a
+        # 15 GB machine; the 16 GB runner is alike): OOM without this. This step only.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm --filter ./apps/api lint
       - name: Format check
         run: pnpm --filter ./apps/api format:check
@@ -194,6 +216,74 @@ jobs:
           pnpm --filter ./apps/api test:e2e
       - name: Build
         run: pnpm --filter ./apps/api build
+
+  # v1.60-social (D191): the admin panel's static web app — fast checks only (the Playwright smoke runs locally
+  # against a seeded API, apps/admin/e2e/smoke.spec.ts).
+  admin:
+    name: Admin panel (typecheck, lint, test, build)
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CI: "true"
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          cache: true
+          cache_dependency_path: pnpm-lock.yaml
+      - name: Install dependencies (admin only)
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter @kabso/admin
+      - name: Typecheck
+        run: pnpm --filter @kabso/admin typecheck
+      - name: Lint
+        run: pnpm --filter @kabso/admin lint
+      - name: Unit tests
+        run: pnpm --filter @kabso/admin test
+      - name: Build
+        run: pnpm --filter @kabso/admin build
+
+  # v1.57-live (D247): «استوديو البث», the streamer's browser studio — the same fast checks as the admin panel (the
+  # Playwright run with fake media and a LiveKit server is local: apps/studio/e2e, against test/smoke/studio.smoke.ts).
+  studio:
+    name: Studio (typecheck, lint, test, build)
+    needs: changes
+    if: needs.changes.outputs.studio == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CI: "true"
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          cache: true
+          cache_dependency_path: pnpm-lock.yaml
+      - name: Install dependencies (studio only)
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter @kabso/studio
+      - name: Typecheck
+        run: pnpm --filter @kabso/studio typecheck
+      - name: Lint
+        run: pnpm --filter @kabso/studio lint
+      - name: Unit tests
+        run: pnpm --filter @kabso/studio test
+      - name: Build
+        run: pnpm --filter @kabso/studio build
 
   mobile:
     name: Mobile (codegen drift, format, analyze, test)
@@ -236,6 +326,15 @@ jobs:
         run: flutter analyze
       - name: Test
         run: flutter test
+      # D144: the local camera plugin is its own package (excluded from the
+      # app's analysis above).
+      - name: kabso_camera_fx — analyze and test
+        working-directory: apps/mobile/packages/kabso_camera_fx
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze
+          flutter test
 
   android:
     name: Android debug APK
@@ -269,8 +368,45 @@ jobs:
         run: flutter doctor -v
       - name: Pub get (lockfile enforced)
         run: flutter pub get --enforce-lockfile
+      # D152: Firebase's Android config (push) from the repository secret,
+      # through env only (never echoed). The file is git-ignored and exists
+      # only in this runner. Without the secret (forks, pull requests from
+      # forks) nothing is written: Gradle skips the google-services plugin and
+      # the APK builds and runs with push off.
+      - name: Write google-services.json (push)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "GOOGLE_SERVICES_JSON is not set: building without push."
+            exit 0
+          fi
+          umask 077
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          # Valid JSON with a client for this app's package (else the
+          # google-services plugin fails later with a less clear message).
+          jq -e '[.client[]?.client_info.android_client_info.package_name]
+            | index("com.kabso.kabso_live") != null' \
+            android/app/google-services.json > /dev/null
+          echo "google-services.json written (push on)."
+      # D144: DeepAR's licence key from the repository secret, through env
+      # only (never echoed; GitHub masks it). Without the secret (forks, a
+      # fresh clone) the value is empty: the APK still builds and Magic shows
+      # Effects as unavailable.
       - name: Build debug APK
-        run: flutter build apk --debug
+        env:
+          DEEPAR_LICENSE_ANDROID: ${{ secrets.DEEPAR_LICENSE_ANDROID }}
+        run: flutter build apk --debug --dart-define=DEEPAR_LICENSE_ANDROID="$DEEPAR_LICENSE_ANDROID"
+      # D144a: the camera plugin's JVM tests (the DeepAR stage's frame rules,
+      # FrameGate.kt), in the Gradle project the APK build just set up.
+      - name: kabso_camera_fx — Kotlin unit tests
+        working-directory: apps/mobile/android
+        run: ./gradlew :kabso_camera_fx:testDebugUnitTest
+      # D262: the streamer plugin's JVM tests (StreamerRules.kt: the mixer,
+      # the screen-capture consent's outcome and its hand-over to flutter_webrtc).
+      - name: kabso_streamer — Kotlin unit tests
+        working-directory: apps/mobile/android
+        run: ./gradlew :kabso_streamer:testDebugUnitTest
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kabso-live-debug-apk
@@ -330,6 +466,19 @@ jobs:
           REDOCLY_SUPPRESS_UPDATE_NOTICE: "true"
         run: tools/redocly/node_modules/.bin/redocly lint docs/contracts/openapi.yaml --format=github-actions
 
+  # D198: kabsolive.com has no tracking cookies or analytics, so it needs no consent banner. Adding analytics, a pixel
+  # or any cookie requires a consent banner and a new privacy-policy version first (scripts/check-site-no-tracking.sh).
+  site:
+    name: Website privacy (no trackers without a consent banner)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: No trackers, cookies or third-party scripts on kabsolive.com
+        run: scripts/check-site-no-tracking.sh
+
   secrets:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-24.04
@@ -350,10 +499,83 @@ jobs:
       - name: Scan git history
         run: '"$RUNNER_TEMP/gitleaks" git --redact --no-banner --verbose --exit-code 1 .'
 
+  # D356 (CONVENTIONS §10.152, docs/DEPLOYMENT.md §11.14): the event page preview bundle — the app's real Flutter event
+  # page built for the web (lib/preview_main.dart; never part of the APK), which the panel's design step embeds at
+  # /event-preview/. Built with the pinned Flutter, then smoke-tested in headless Chromium against the built panel
+  # (apps/admin/e2e-preview: the bundle answers «ready», draws a posted design, reports a bad message; the design step
+  # follows the fields and falls back to the sketch). The archive + manifest are this run's artifact; on `staging`
+  # `event-preview-release` publishes them for the server's mirror-event-preview.sh.
+  event-preview:
+    name: Event page preview (Flutter web bundle + Chromium smoke)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true' || needs.changes.outputs.admin == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+      - name: Pub get (lockfile enforced)
+        working-directory: apps/mobile
+        run: flutter pub get --enforce-lockfile
+      - name: Build the preview bundle
+        run: apps/mobile/tool/build_event_preview.sh "$RUNNER_TEMP/event-preview"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          cache: true
+          cache_dependency_path: pnpm-lock.yaml
+      - name: Install dependencies (admin only)
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter @kabso/admin
+      - name: Build the panel
+        run: pnpm --filter @kabso/admin build
+      - name: Install Chromium (Playwright)
+        run: pnpm --filter @kabso/admin exec playwright install --with-deps chromium
+      - name: Smoke test (headless Chromium)
+        run: >-
+          EVENT_PREVIEW_DIR="$RUNNER_TEMP/event-preview"
+          pnpm --filter @kabso/admin exec playwright test -c playwright.preview.config.ts event-preview
+      - name: Package the bundle
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/event-preview-out"
+          mkdir -p "$dir"
+          tar -czf "$dir/kabso-event-preview.tar.gz" -C "$RUNNER_TEMP/event-preview" .
+          size=$(stat -c %s "$dir/kabso-event-preview.tar.gz")
+          # mirror-event-preview.sh refuses anything outside 3 MB … 120 MB; fail here first.
+          [ "$size" -gt 3000000 ] && [ "$size" -lt 120000000 ]
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "protocol=2"
+            echo "sha256=$(sha256sum "$dir/kabso-event-preview.tar.gz" | cut -d' ' -f1)"
+            echo "size=$size"
+            echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "run=$GITHUB_RUN_ID"
+          } > "$dir/kabso-event-preview.txt"
+          cat "$dir/kabso-event-preview.txt"
+          du -sh "$RUNNER_TEMP/event-preview"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kabso-event-preview
+          path: ${{ runner.temp }}/event-preview-out/
+          retention-days: 14
+          if-no-files-found: error
+
   ci-ok:
     name: CI OK
     if: always()
-    needs: [changes, api, mobile, android, ios, contracts, secrets]
+    needs: [changes, api, admin, studio, mobile, android, ios, contracts, secrets, site, event-preview]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -384,3 +606,234 @@ jobs:
             exit 1
           fi
           echo "All ${total} jobs succeeded or were skipped."
+
+  # KL-069 (docs/DEPLOYMENT.md §11): after a green run on a push to `staging`, publish the API
+  # image the server's kabso-update timer deploys. Lives in this workflow (not a workflow_run
+  # trigger, which only fires from the default branch) and uses the job's own GITHUB_TOKEN; no
+  # secret is added. The `kabso-api` package must be public once so the server pulls without one.
+  deploy-image:
+    name: Publish the API image (staging)
+    needs: [ci-ok]
+    # A skipped job anywhere upstream (e.g. iOS when nothing mobile changed) would skip this job
+    # too without an explicit status check, so gate on ci-ok's own result.
+    if: >-
+      !cancelled() && needs.ci-ok.result == 'success' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/kabso-api"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          docker build -f apps/api/Dockerfile \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            -t "$image:sha-${GITHUB_SHA}" -t "$image:staging" .
+      - name: Smoke test (starts, refuses an empty configuration, ships the Prisma CLI)
+        run: |
+          set +e
+          out="$(docker run --rm -e NODE_ENV=production "$IMAGE:sha-${GITHUB_SHA}" 2>&1)"
+          code=$?
+          set -e
+          echo "$out" | head -20
+          [ "$code" -ne 0 ] && grep -q "DATABASE_URL" <<<"$out"
+          docker run --rm --entrypoint node_modules/.bin/prisma "$IMAGE:sha-${GITHUB_SHA}" --version
+      - name: Push
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:sha-${GITHUB_SHA}"
+          docker push "$IMAGE:staging"
+          docker logout ghcr.io
+
+  # KL-069: the test APK for the staging server (https://api.kabsolive.com), built from the same
+  # commit the server deploys, after a green run. Profile mode: installable without a release
+  # keystore; demo data stays off unless switched on in a test build (D86). arm64-v8a only
+  # (--split-per-abi --target-platform android-arm64: every phone the owner tests on; no
+  # universal APK is built for staging). D330: the `staging-apk-release` job below publishes it
+  # to the rolling `staging-latest` release, which the server mirrors at
+  # https://live.kabsolive.com/app/ (docs/DEPLOYMENT.md §11.8); the run artifact stays as a backup.
+  staging-apk:
+    name: Staging test APK (arm64)
+    needs: [ci-ok]
+    if: >-
+      !cancelled() && needs.ci-ok.result == 'success' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            apps/mobile/android/*.gradle*
+            apps/mobile/android/**/gradle-wrapper.properties
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+      - name: Pub get (lockfile enforced)
+        run: flutter pub get --enforce-lockfile
+      # D152: Firebase's Android config (push) from the repository secret,
+      # through env only (never echoed); git-ignored, exists only in this
+      # runner. Without the secret the APK builds with push off.
+      - name: Write google-services.json (push)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "GOOGLE_SERVICES_JSON is not set: building without push."
+            exit 0
+          fi
+          umask 077
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          jq -e '[.client[]?.client_info.android_client_info.package_name]
+            | index("com.kabso.kabso_live") != null' \
+            android/app/google-services.json > /dev/null
+          echo "google-services.json written (push on)."
+      - name: Build the staging APK
+        # D144: the DeepAR key comes only from the repository secret (empty → effects off).
+        env:
+          DEEPAR_LICENSE_ANDROID: ${{ secrets.DEEPAR_LICENSE_ANDROID }}
+        run: >-
+          flutter build apk --profile --split-per-abi --target-platform android-arm64
+          --dart-define=API_BASE_URL=https://api.kabsolive.com
+          "--dart-define=APP_VERSION=0.1.0-staging+${GITHUB_SHA::7}"
+          --dart-define=DEEPAR_LICENSE_ANDROID="$DEEPAR_LICENSE_ANDROID"
+      - name: Name the APK
+        run: |
+          out=build/app/outputs/flutter-apk
+          mv "$out/app-arm64-v8a-profile.apk" "$out/kabso-live-staging-arm64.apk"
+          ls -l "$out/kabso-live-staging-arm64.apk"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kabso-live-staging-arm64-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/kabso-live-staging-arm64.apk
+          retention-days: 14
+          if-no-files-found: error
+
+  # D330 (docs/DEPLOYMENT.md §11.8): a fast, stable, login-free link for the staging APK. Publishes
+  # the artifact above as the assets `kabso-staging.apk` + `kabso-staging.txt` (commit, version,
+  # sha256, size) of the rolling prerelease `staging-latest`, replaced on every green push to
+  # `staging`. The repository is public (D40), so GitHub's CDN serves the assets without a login;
+  # the server's update.sh (mirror-apk.sh) copies them to https://live.kabsolive.com/app/. Only this
+  # job holds `contents: write` (the build job above, with its third-party actions and Gradle
+  # downloads, keeps the read-only token); it runs no checkout and no third-party action, only the
+  # runner's `gh`. No secret is added.
+  staging-apk-release:
+    name: Publish the staging APK (staging-latest)
+    needs: [staging-apk]
+    if: >-
+      !cancelled() && needs.staging-apk.result == 'success' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # create/edit the release, move its tag, replace its assets
+      actions: read # gh run download (this run's artifact)
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: staging-latest
+    steps:
+      - name: Download this run's APK
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/apk"
+          gh run download "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" \
+            -n kabso-live-staging-arm64-apk -D "$dir"
+          cp "$dir/kabso-live-staging-arm64.apk" "$dir/kabso-staging.apk"
+          size=$(stat -c %s "$dir/kabso-staging.apk")
+          # mirror-apk.sh refuses anything outside 10 MB … 400 MB; fail here first.
+          [ "$size" -gt 10000000 ] && [ "$size" -lt 400000000 ]
+          [ "$(head -c 4 "$dir/kabso-staging.apk" | od -An -tx1 | tr -d ' ')" = "504b0304" ]
+          sha=$(sha256sum "$dir/kabso-staging.apk" | cut -d' ' -f1)
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "version=0.1.0-staging+${GITHUB_SHA::7}"
+            echo "sha256=$sha"
+            echo "size=$size"
+            echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "run=$GITHUB_RUN_ID"
+          } > "$dir/kabso-staging.txt"
+          cat "$dir/kabso-staging.txt"
+          echo "DIR=$dir" >> "$GITHUB_ENV"
+      - name: Publish to the staging-latest prerelease
+        run: |
+          set -euo pipefail
+          notes="Staging test APK (arm64-v8a, profile build) of ${GITHUB_SHA}, API https://api.kabsolive.com.
+          Not a store build. Replaced on every green push to \`staging\`.
+          Fast mirror: https://live.kabsolive.com/app/ — details: kabso-staging.txt (sha256)."
+          # Move the rolling tag to this commit when it exists (an API ref update; it triggers no
+          # workflow); on the first run `gh release create` creates it.
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" \
+            -f sha="$GITHUB_SHA" -F force=true >/dev/null 2>&1 || echo "tag $TAG not there yet"
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --prerelease --latest=false \
+              --title "Kabso Live staging (${GITHUB_SHA::7})" --notes "$notes"
+          else
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --prerelease --latest=false \
+              --title "Kabso Live staging (${GITHUB_SHA::7})" --notes "$notes"
+          fi
+          # The APK first, then the manifest; the mirror checks the sha256, so a half-replaced
+          # pair is skipped until the next timer run.
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "$DIR/kabso-staging.apk"
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "$DIR/kabso-staging.txt"
+          echo "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/kabso-staging.apk"
+
+  # D356 (docs/DEPLOYMENT.md §11.14): publishes the event page preview bundle of a green `staging` push as the assets
+  # kabso-event-preview.tar.gz + kabso-event-preview.txt of the rolling prerelease `staging-latest` (with the staging
+  # APK, D330), which the server's mirror-event-preview.sh serves at https://admin.<domain>/event-preview/. Like
+  # `staging-apk-release`: only this job holds `contents: write`; no checkout, no third-party action, only `gh`.
+  event-preview-release:
+    name: Publish the event page preview (staging-latest)
+    needs: [ci-ok, event-preview]
+    if: >-
+      !cancelled() && needs.ci-ok.result == 'success' && needs.event-preview.result == 'success' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the release when the APK job has not yet, replace its assets
+      actions: read # gh run download (this run's artifact)
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: staging-latest
+    steps:
+      - name: Download this run's bundle
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/event-preview"
+          gh run download "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" -n kabso-event-preview -D "$dir"
+          grep -qx "commit=$GITHUB_SHA" "$dir/kabso-event-preview.txt"
+          echo "DIR=$dir" >> "$GITHUB_ENV"
+      - name: Publish to the staging-latest prerelease
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
+              --title "Kabso Live staging (${GITHUB_SHA::7})" --notes "Staging builds, replaced on every green push to \`staging\`."
+          fi
+          # The archive first, then the manifest; the mirror checks the sha256, so a half-replaced pair is skipped
+          # until the next timer run.
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "$DIR/kabso-event-preview.tar.gz"
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "$DIR/kabso-event-preview.txt"
+          echo "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/kabso-event-preview.txt"

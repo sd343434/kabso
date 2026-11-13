@@ -22,7 +22,7 @@ class ComingSoonTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: titleWidget ?? Text(title)),
+      appBar: KAppBar(title: titleWidget ?? Text(title)),
       body: KEmptyState(icon: icon, title: headline, message: message),
     );
   }

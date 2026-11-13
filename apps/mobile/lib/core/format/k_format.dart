@@ -1,4 +1,6 @@
-import 'package:intl/intl.dart';
+import 'dart:ui' show TextDirection;
+
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:kabso_live/l10n/l10n.dart';
 
 /// The single place that formats numbers, dates and durations for display.
@@ -10,6 +12,10 @@ abstract final class KFormat {
   static String date(DateTime value, String localeTag) =>
       _latin(DateFormat('d MMM y', localeTag)).format(value.toLocal());
 
+  /// Time of day, e.g. en "10:02 AM", ar "10:02 ص" (Latin digits).
+  static String time(DateTime value, String localeTag) =>
+      _latin(DateFormat.jm(localeTag)).format(value.toLocal());
+
   /// Countdown `m:ss` (or `h:mm:ss` from one hour), e.g. "4:05".
   static String countdown(Duration value) {
     final total = value.isNegative ? 0 : value.inSeconds;
@@ -18,6 +24,42 @@ abstract final class KFormat {
     final s = total % 60;
     String two(int n) => n.toString().padLeft(2, '0');
     return h > 0 ? '$h:${two(m)}:${two(s)}' : '$m:${two(s)}';
+  }
+
+  /// D279: an elapsed time in hours and minutes, e.g. ar «1س 17د», en
+  /// "1h 17m"; under an hour only the minutes («17د», "17m"; 0 under a
+  /// minute). Negative values are 0.
+  static String hoursMinutes(Duration value, AppLocalizations l10n) {
+    final total = value.isNegative ? 0 : value.inMinutes;
+    final h = total ~/ 60;
+    final m = total % 60;
+    return h > 0
+        ? l10n.profileLiveHoursMinutes(h, m)
+        : l10n.profileLiveMinutes(m);
+  }
+
+  /// D336: [relative] in its compact form («5د», "5m"; «3س», "3h";
+  /// «2ي», "2d") for the Messages tab's rows and story cards; `null` under
+  /// a minute; beyond 7 days a short date — "28 Oct" in the same year,
+  /// "28/10/25" otherwise.
+  static String? relativeShort(
+    DateTime value,
+    DateTime now,
+    AppLocalizations l10n,
+    String localeTag,
+  ) {
+    final diff = now.difference(value);
+    if (diff.inMinutes < 1) return null;
+    if (diff.inHours < 1) return l10n.relativeShortMinutes(diff.inMinutes);
+    if (diff.inDays < 1) return l10n.relativeShortHours(diff.inHours);
+    if (diff.inDays <= 7) return l10n.relativeShortDays(diff.inDays);
+    final local = value.toLocal();
+    return _latin(
+      DateFormat(
+        local.year == now.toLocal().year ? 'd MMM' : 'd/M/yy',
+        localeTag,
+      ),
+    ).format(local);
   }
 
   /// Relative time for "last active" (PHASE1_SCREENS §9.3): `null` means
@@ -49,10 +91,47 @@ abstract final class KFormat {
     return out.toString();
   }
 
+  /// v1.50-live (D229): a signed count for PK points, "+3", "0", "−3" (a
+  /// real minus sign, left to right in Arabic too).
+  static String signed(int value) {
+    final body = grouped(value.abs());
+    final text = value > 0
+        ? '+$body'
+        : value < 0
+        ? '\u2212$body'
+        : body;
+    return '\u2066$text\u2069';
+  }
+
   /// Compact counter (DESIGN_SYSTEM §3.3): exact with grouping below 10,000;
   /// above that one decimal, **floored** (never overstated), trailing ".0"
   /// dropped, suffix from the ARB (`K`/`M`/`B`, `ألف`/`مليون`/`مليار` after a
   /// no-break space). Negative values are shown as 0.
+  /// D220 (owner): the person card's short Latin numbers in every language —
+  /// 999, 1.2K, 59.4K, 1.5M, 1B (tenths cut, never rounded up; a trailing
+  /// ".0" dropped) — wrapped in a left-to-right isolate so they keep their
+  /// order inside Arabic text. Other screens keep [compact].
+  /// D372 (owner: «10.1k / 12.6m / 1.2b»): [lowercase] gives k / m / b, for
+  /// a post's or reel's gift cherries counter in every language.
+  static String compactLatin(int value, {bool lowercase = false}) {
+    final v = value < 0 ? 0 : value;
+    final String text;
+    if (v < 1000) {
+      text = '$v';
+    } else {
+      final (divisor, suffix) = switch (v) {
+        >= 1000000000 => (1000000000, lowercase ? 'b' : 'B'),
+        >= 1000000 => (1000000, lowercase ? 'm' : 'M'),
+        _ => (1000, lowercase ? 'k' : 'K'),
+      };
+      final tenths = v * 10 ~/ divisor;
+      final whole = tenths ~/ 10;
+      final decimal = tenths % 10;
+      text = decimal == 0 ? '$whole$suffix' : '$whole.$decimal$suffix';
+    }
+    return '\u2066$text\u2069';
+  }
+
   static String compact(int value, AppLocalizations l10n) {
     if (value < 10000) return grouped(value < 0 ? 0 : value);
     final (divisor, suffix) = switch (value) {
@@ -70,6 +149,35 @@ abstract final class KFormat {
   /// so a name in the other script does not reorder the sentence around it
   /// (DESIGN_SYSTEM §3.4).
   static String bidiIsolate(String value) => '\u2068$value\u2069';
+
+  /// The direction of [text]'s first letter (like HTML `dir="auto"`), or
+  /// `null` when it has none (then the ambient direction applies). A text
+  /// field uses [inputDirection].
+  static TextDirection? firstStrongDirection(String text) {
+    final m = _strong.firstMatch(text);
+    if (m == null) return null;
+    return m.group(1) != null ? TextDirection.rtl : TextDirection.ltr;
+  }
+
+  /// The direction for a text field holding [text]: its first letter
+  /// outside `@handles` and `#tags` decides, so an Arabic sentence that
+  /// starts with a mention stays right to left; text made of tags alone
+  /// (a reply's `@handle `) follows their first letter. `null` when there
+  /// is no letter (the ambient direction applies).
+  static TextDirection? inputDirection(String text) =>
+      firstStrongDirection(text.replaceAll(_entity, ' ')) ??
+      firstStrongDirection(text);
+
+  static final RegExp _entity = RegExp(
+    r'(?<![\p{L}\p{N}_])[@#][\p{L}\p{M}\p{N}_.]+',
+    unicode: true,
+  );
+
+  static final RegExp _strong = RegExp(
+    r'(\p{Script=Arabic}|\p{Script=Hebrew}|\p{Script=Syriac}|'
+    r'\p{Script=Thaana}|\p{Script=Nko})|\p{L}',
+    unicode: true,
+  );
 
   static DateFormat _latin(DateFormat format) =>
       format..useNativeDigits = false;

@@ -1,3 +1,4 @@
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 
 /// Authentication and session operations.
@@ -18,7 +19,12 @@ abstract interface class AuthRepository {
     required String password,
     required String username,
     required String displayName,
+    required Gender gender,
     required String locale,
+    Map<String, dynamic>? legal,
+
+    /// v1.74-social (D217): an invite code typed at sign-up (optional).
+    String? referralCode,
   });
 
   /// `POST /auth/register/verify` → 201: creates the account and stores the
@@ -34,6 +40,10 @@ abstract interface class AuthRepository {
   /// `PATCH /me {"locale"}` (v1.2): persists the user's language choice.
   Future<User> updateLocale(String locale);
 
+  /// `PATCH /me {"country"}` (v1.27.1-live, D133): the person's own
+  /// country (ISO 3166-1 alpha-2), or null to clear it.
+  Future<User> updateCountry(String? country);
+
   /// Revokes the current session on the server (best effort) and always
   /// clears the local session.
   Future<void> logout();
@@ -48,4 +58,9 @@ abstract interface class AuthRepository {
   Future<List<Session>> listSessions();
 
   Future<void> revokeSession(String sessionId);
+
+  /// v1.79-social (D226): ends every other session of the caller
+  /// (`POST /auth/sessions/revoke-others`, the password re-checked; 403
+  /// `REAUTH_FAILED` when wrong). Returns how many were ended.
+  Future<int> revokeOtherSessions(String password);
 }

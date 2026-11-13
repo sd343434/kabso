@@ -4,9 +4,6 @@
 d29d958c4d2520fe59bfac671add0efbe2361056:apps/api/src/modules/auth/access-token.service.spec.ts:generic-api-key:9
 d29d958c4d2520fe59bfac671add0efbe2361056:apps/api/src/config/app-config.spec.ts:generic-api-key:7
 
-# Ported from staging (7135e4e, b3a7946) for PR #16, whose base predates them. CI's `gitleaks git` scans
-# every fetched ref, so these staging commits are scanned on this branch too. Verified 2026-11-06 against
-# the source at each commit: all three values are asset names, not secrets. Exact fingerprints only.
 # Owner-approved exception (2026-10-26, CP-018): two medal icon keys in the medal catalogue
 # ('medal_live_hours_10', 'medal_live_hours_100') matched generic-api-key by their shape. They are
 # asset names, not secrets. The lines now carry gitleaks:allow, so later edits are not flagged.
@@ -15,3 +12,23 @@ d29d958c4d2520fe59bfac671add0efbe2361056:apps/api/src/config/app-config.spec.ts:
 # Owner-approved exception pattern (D258, 2026-11-04): a test gift's asset key ('gift_d258_rose') in the D258 e2e matched
 # generic-api-key by its shape. It is an asset name, not a secret; the line now carries gitleaks:allow.
 8f0b333032fc9c61ce43c4c45134a85f427c5e2b:apps/api/test/d258-vip-daily.e2e-spec.ts:generic-api-key:170
+# Same exception pattern (D340, integration int20): the D340 e2e's test gift asset key ('gift_d340_rose') matched
+# generic-api-key by its shape. It is an asset name, not a secret; the line now carries gitleaks:allow.
+a0a187076ebef26251c8cb8181218f3712b331f6:apps/api/test/d340-event-announcements.e2e-spec.ts:generic-api-key:148
+# The same line as seen through the int20 merge commits' diffs (gitleaks git --log-opts="-m …").
+3767565a7ce4206627bb99fa4d302044625e8c3c:apps/api/test/d340-event-announcements.e2e-spec.ts:generic-api-key:148
+3aa81907a0cc5ff7100e5c8a5008e46842cc45f9:apps/api/test/d340-event-announcements.e2e-spec.ts:generic-api-key:148
+# Same exception pattern (D349, integration int22): the D349 unit spec's quip art key ('quips/jordan') matched
+# generic-api-key by its shape. It is an asset name, not a secret; the line now carries gitleaks:allow.
+201f9995276dbe4cfa35bccbe25b3bd2aada61d6:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+# The same line as seen through the int22 merge commits' diffs (gitleaks git --log-opts="-m …").
+b861685c7a3ec1b1f941921f3f05a5214b06a8d6:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+116f8b598bd63f591e12daa8aa5cfcca4faa5697:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+cb6a01cbf824de23434924f02442d5a517efce42:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+80be062f333bd7d6dc9ca3b8b4c821ee84b8eacd:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+a1a67abd78a47b7ed2e5936f161ef9f0c0dc9754:apps/api/src/modules/gifts/quips.spec.ts:generic-api-key:92
+# Same exception pattern (D359, integration int22): the D359 e2e's test gift asset key ('gift_d359_rose') matched
+# generic-api-key by its shape. It is an asset name, not a secret; the line now carries gitleaks:allow.
+6ea08e530fcfeb72be964353a3366c07f292e02b:apps/api/test/d359-event-banners.e2e-spec.ts:generic-api-key:134
+# The same line as seen through the int22 merge commit's diff (gitleaks git --log-opts="-m …").
+a70a876d0acb2b334490e71ef104e39f310a8a81:apps/api/test/d359-event-banners.e2e-spec.ts:generic-api-key:134

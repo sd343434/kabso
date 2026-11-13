@@ -81,7 +81,7 @@
   },
   "typography": {
     "fontFamilyLatin": "Inter",
-    "fontFamilyArabic": "IBM Plex Sans Arabic",
+    "fontFamilyArabic": "Readex Pro",
     "fontLicense": "Both OFL-1.1; bundle as assets (no runtime font download).",
     "scale": {
       "display": {
@@ -140,5 +140,5 @@
     "liveCardAspect": 0.75,
     "giftGridColumns": 4
   },
-  "$version": "1.1"
+  "$version": "1.2"
 }

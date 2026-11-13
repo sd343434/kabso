@@ -6,6 +6,8 @@
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/tokens/tokens.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
+import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -209,20 +211,25 @@ Widget fakeVideoFrame() => DecoratedBox(
 /// `withClock(Clock.fixed(fixtureNow), …)` so relative times are stable.
 final DateTime fixtureNow = DateTime.utc(2026, 10, 16, 9);
 
-/// A populated Home feed tab (KL-033): text, photo and text + photo posts,
-/// mixed scripts.
+/// A populated Posts feed (KL-033/D52): text + photo with counts, text
+/// only without counts, and a video cover with counts; mixed scripts.
 List<FeedPostData> feedPosts(AppLanguage language) {
   final ar = language == AppLanguage.ar;
   return [
     FeedPostData(
       authorName: ar ? 'سارة' : 'Sara',
       authorAvatar: avatarImage,
+      authorUsername: 'sara',
+      isFollowingAuthor: false,
       postedAt: fixtureNow.subtract(const Duration(minutes: 12)),
       text: ar
           ? 'أول تجربة لي مع العود الليلة، شكرًا لكل من حضر البث'
           : 'First time on the oud tonight, thanks to everyone who joined',
       media: coverRed,
       mediaAspect: 4 / 3,
+      likes: 105,
+      comments: 15,
+      shares: 50,
     ),
     FeedPostData(
       authorName: ar ? 'Omar' : 'عمر',
@@ -235,6 +242,61 @@ List<FeedPostData> feedPosts(AppLanguage language) {
       postedAt: fixtureNow.subtract(const Duration(seconds: 20)),
       media: coverGold,
       mediaAspect: 1,
+      isVideo: true,
+      likes: 12400,
+      comments: 312,
+      shares: 45,
+    ),
+  ];
+}
+
+/// Reels (D47/D53): cover frames only (no playback), mixed scripts; the
+/// first has counts and an author to follow, the second an author already
+/// followed, the third no follow data.
+List<FeedReelData> feedReels(AppLanguage language) {
+  final ar = language == AppLanguage.ar;
+  return [
+    FeedReelData(
+      authorName: ar ? 'ليلى' : 'Layla',
+      authorAvatar: avatarImage,
+      postedAt: fixtureNow.subtract(const Duration(days: 2)),
+      caption: ar
+          ? 'جولة مسائية في وسط البلد، والموسيقى من بث الأمس #كبسو'
+          : "An evening walk downtown, music from last night's stream #kabso",
+      cover: coverBlue,
+      authorUsername: 'layla',
+      isFollowingAuthor: false,
+      likes: 432000,
+      comments: 1230,
+      shares: 980,
+    ),
+    FeedReelData(
+      authorName: ar ? 'Sami' : 'سامي',
+      authorUsername: 'sami',
+      isFollowingAuthor: true,
+      postedAt: fixtureNow.subtract(const Duration(hours: 5)),
+      caption: ar ? 'Quick tour' : 'جولة سريعة',
+      cover: coverRed,
+    ),
+    FeedReelData(
+      authorName: ar ? 'هند' : 'Hind',
+      postedAt: fixtureNow.subtract(const Duration(minutes: 1)),
+      cover: coverGold,
+    ),
+  ];
+}
+
+/// The stories tray above the posts (D52): unseen first, one seen, mixed
+/// scripts, one without a photo (initial fallback).
+List<FeedStoryData> feedStories(AppLanguage language) {
+  final ar = language == AppLanguage.ar;
+  return [
+    FeedStoryData(authorName: ar ? 'سارة' : 'Sara', authorAvatar: avatarImage),
+    FeedStoryData(authorName: ar ? 'Omar' : 'عمر'),
+    FeedStoryData(
+      authorName: ar ? 'نور الهدى عبد الرحمن' : 'Nour Al-Huda Abdulrahman',
+      authorAvatar: avatarImage,
+      seen: true,
     ),
   ];
 }

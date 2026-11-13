@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!--
+  D356 (CONVENTIONS §10.152): the shell of the event page preview bundle the admin panel embeds
+  (`flutter build web -t lib/preview_main.dart --base-href /event-preview/`). The only web build of
+  apps/mobile; the phone app does not use this file. No inline script (the panel's CSP), no CDN
+  (built with --no-web-resources-cdn).
+-->
+<html lang="ar">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Kabso Live — event page preview</title>
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

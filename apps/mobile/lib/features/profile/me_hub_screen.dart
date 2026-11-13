@@ -1,0 +1,1271 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
+import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/network/error_mapper.dart';
+import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
+import 'package:kabso_live/features/levels/application/levels_providers.dart';
+import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
+import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
+import 'package:kabso_live/features/owner_profile/presentation/announcement_composer.dart';
+import 'package:kabso_live/features/owner_profile/presentation/journey_editor.dart';
+import 'package:kabso_live/features/owner_profile/presentation/official_posts_screen.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_bio_editor.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_cover_video_editor.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_profit.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_sections.dart';
+import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
+import 'package:kabso_live/features/referrals/application/referral_providers.dart';
+import 'package:kabso_live/features/staff/application/staff_providers.dart';
+import 'package:kabso_live/features/staff/domain/staff_identity.dart';
+import 'package:kabso_live/features/staff/presentation/staff_official_bio.dart';
+import 'package:kabso_live/features/staff/presentation/staff_reports_screen.dart';
+import 'package:kabso_live/features/vip/application/vip_providers.dart';
+import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
+import 'package:kabso_live/features/whatsapp/application/wa_providers.dart';
+import 'package:kabso_live/features/whatsapp/presentation/wa_screens.dart';
+import 'package:kabso_live/l10n/l10n.dart';
+import 'package:material_ui/material_ui.dart';
+
+/// Me hub geometry (D163). Measured on the owner's reference at 430 × 932
+/// lp (DPR 2.1465, an estimate from the Dynamic Island; spec in the D163
+/// notes); sizes snap to the Kabso scale where it is within 1 lp.
+abstract final class KMeHub {
+  /// The top-end actions' row: D142's gap under the status bar, then
+  /// 44-lp targets (the reference centres its icons 18 lp under the inset;
+  /// the gap puts ours 14 lp lower, the photo stays where it is).
+  static const double actionBox = 44;
+  static const double actionIcon = 26;
+
+  /// The photo's box (the reference's framed photo is 98.8 × 96 lp).
+  static const double avatarBox = 96;
+  static const double avatar = KSizes.avatarLg;
+
+  /// The photo inside Kabso's heart frame (CP-021): a 68-lp photo makes a
+  /// 98.6-lp frame, the reference's framed width.
+  static const double framedAvatar = 68;
+
+  /// From the actions to the photo, and from the photo to the name.
+  static const double avatarTop = 7;
+  static const double nameTop = 8;
+  static const double nameSize = 18;
+
+  /// From the name to the counts, and the counts' numbers.
+  static const double statsTop = 42;
+  static const double statSize = 20;
+
+  /// The four cards: side inset 16, gap 8, 75.5 lp tall, 40-lp icon disc.
+  static const double cardsTop = 14;
+  static const double cardHeight = 76;
+  static const double cardGap = KSpacing.sm;
+  static const double cardRadius = KRadius.sm;
+  static const double cardIcon = 40;
+  static const double cardLabelSize = 12;
+
+  /// The list: 50-lp rows, a 28-lp icon disc at the start inset, the title
+  /// 54 lp from the edge, 8-lp grey bands with 8 lp above and below.
+  static const double rowsTop = 16;
+  static const double rowHeight = 50;
+  static const double rowIcon = 28;
+  static const double rowTitleGap = 10;
+  static const double rowTitleSize = 16;
+  static const double band = KSpacing.sm;
+
+  /// The faded look of a feature that is not built yet (as Room Tools).
+  static const double soonOpacity = 0.45;
+}
+
+/// The hub's destinations; tests and captures find them by [key].
+enum MeHubItem {
+  levels,
+  vip,
+  family,
+  store,
+  earn,
+  creatorCenter,
+  agency,
+  recharge,
+  eventCenter,
+  wallet,
+  bag,
+  taskCenter,
+  medals,
+  ranking,
+  relationship,
+  premium;
+
+  Key get key => Key('meHub.item.$name');
+}
+
+/// The Me tab (D163, owner): the person's features in one place, in the
+/// layout of the owner's reference (a Bigo-style "Me" page) with Kabso's
+/// colours and icons. The photo and the name open the profile
+/// ([AppRoutes.myProfile]); the counts open the follow lists. Every button
+/// of a feature Kabso has opens its real screen; the ones not built yet are
+/// shown faded with a "Soon" tag and do nothing (no stand-in screens).
+/// D164: Wallet, Earn money and Creator Center open their real screens.
+/// D166: Event Center, SVIP and Task Center too (CP-024 approved with
+/// defaults). D252: Purchase VIP opens its screen (tiers from the panel).
+///
+/// Data: `GET /me`, `GET /users/{username}` (counts, family, relationship,
+/// medals), `GET /me/levels` and `GET /wallet/me`. The API has no friends
+/// count, so the counts are Following and Fans (followers) only.
+class MeHubScreen extends ConsumerWidget {
+  const new({super.key});
+
+  static const settingsKey = Key('meHub.settings');
+
+  /// D168 (owner): the profile page (posts, reels, reposts, saved) opens
+  /// from this icon beside Settings; the «المنشورات» row is gone.
+  static const profileKey = Key('meHub.profile');
+  static const notificationsKey = Key('meHub.notifications');
+  static const avatarKey = Key('meHub.avatar');
+  static const nameKey = Key('meHub.name');
+
+  /// D187: the daily recharge badge beside the name.
+  static const rechargeBadgeKey = Key('meHub.rechargeBadge');
+
+  /// D293: the automatic verification badge after the name.
+  static const verificationBadgeKey = Key('meHub.verificationBadge');
+  static const followingKey = Key('meHub.stat.following');
+  static const fansKey = Key('meHub.stat.fans');
+  static const cardsKey = Key('meHub.cards');
+
+  /// v1.68-live (D273): «فريق كابسو» — staff accounts only.
+  static const kabsoTeamKey = Key('meHub.kabsoTeam');
+
+  /// D307 follow-up: «لوحة المؤسس» — the app owner only.
+  static const founderDashboardKey = Key('meHub.founderDashboard');
+
+  /// D307 follow-up: the founder's control rows.
+  static const founderProfitKey = Key('meHub.founder.profit');
+  static const founderCostsKey = Key('meHub.founder.costs');
+  static const founderOfficialKey = Key('meHub.founder.official');
+  static const founderAnnounceKey = Key('meHub.founder.announce');
+  static const founderJourneyKey = Key('meHub.founder.journey');
+  static const founderBioKey = Key('meHub.founder.bio');
+  static const founderVideoKey = Key('meHub.founder.video');
+
+  /// D283: the staff-only Me tab's rows and line.
+  static const staffAnnouncementKey = Key('meHub.staff.announcement');
+  static const staffAnnouncementReelKey = Key('meHub.staff.announcementReel');
+  static const staffSettingsKey = Key('meHub.staff.settings');
+
+  /// v1.75-live (D285): «استقطاباتي» and «أرباحي» (MODERATION / BD).
+  static const staffRecruitsKey = Key('meHub.staff.recruits');
+  static const staffEarningsKey = Key('meHub.staff.earnings');
+
+  /// v1.78-live (D288): «بلاغات» — the shared report queue (MODERATION /
+  /// SUPPORT), with the unresolved count at the row's end.
+  static const staffReportsKey = Key('meHub.staff.reports');
+
+  /// v1.116-social (D355): «واتساب».
+  static const staffWhatsAppKey = Key('meHub.staff.whatsapp');
+
+  /// v1.89-social (D290): «طلب رفع ليفيل» (MODERATION / SUPPORT).
+  static const staffLevelRaiseKey = Key('meHub.staff.levelRaise');
+  static const soonKey = Key('meHub.soon');
+
+  /// D283c: the official staff ID «ID: Kabso01» under the name.
+  static const staffIdKey = Key('meHub.staffId');
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final me = ref.watch(meProvider);
+    final user = me.value ?? ref.watch(currentUserProvider);
+    final username = user?.username;
+    final statsLoad = username == null
+        ? null
+        : ref.watch(profileStatsProvider(username));
+    final stats = statsLoad?.value;
+    final coins = ref.watch(liveCoinsProvider).value;
+    // D258: my active VIP (its tier and colour; the look from the catalogue).
+    final myVip = switch (ref.watch(myVipProvider).value) {
+      final VipMembership m => UserVip(
+        tier: m.tierCode,
+        rank: 0,
+        color: m.tierColor,
+      ),
+      null => null,
+    };
+
+    Future<void> refresh() async {
+      try {
+        ref
+          ..invalidate(meProvider)
+          ..invalidate(profileLevelsProvider(null))
+          ..invalidate(liveCoinsProvider);
+        if (username != null) ref.invalidate(profileStatsProvider(username));
+        await ref.read(meProvider.future);
+      } on Object catch (e) {
+        if (context.mounted) {
+          KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+        }
+      }
+    }
+
+    void push(String location) => unawaited(context.push(location));
+    void openProfile() => push(AppRoutes.myProfile);
+
+    final family = stats?.family;
+    final cp = stats?.cp;
+    final medals = stats?.medals;
+    // v1.72-live (D283, owner: «اجعل لوحة الادارة والمشرفين تكون في أنا بحيث
+    // ميزات المستخدمين والمضيفين والوكلاء لا يظهر للمشرفين والادارة»): a Kabso
+    // Team account's Me tab is its profile header, «فريق كابسو», the
+    // announcement composer and settings only.
+    final staff = user?.staff;
+    // D307 follow-up (owner: «اعدادات خاصة بالمؤسس، تحكم كامل، بدون ازرار
+    // فعاليات ومحفظة، كل هذا لا يحتاجها المؤسس»): the app owner's Me tab is
+    // his control centre — «لوحة المؤسس» and his own tools, «فريق كابسو»
+    // and the settings (the gear); no cards, no user / host / agent rows.
+    final founder = ref.watch(isKabsoOwnerProvider);
+
+    final cards = staff != null || founder
+        ? const <Widget>[]
+        : [
+            _HubCard(
+              item: MeHubItem.levels,
+              icon: Icons.diamond_rounded,
+              hue: p.primary,
+              label: l10n.meHubLevels,
+              onTap: () => push(AppRoutes.levels),
+            ),
+            _HubCard(
+              item: MeHubItem.vip,
+              icon: Icons.workspace_premium_rounded,
+              hue: _Hues.gold,
+              label: l10n.meHubVip,
+              // D252: «شراء VIP» (tiers from the admin panel).
+              onTap: () => push(AppRoutes.vip),
+            ),
+            _HubCard(
+              item: MeHubItem.family,
+              icon: Icons.shield_rounded,
+              hue: _Hues.orange,
+              label: family?.name ?? l10n.liveUserFamily,
+              onTap: () => push(
+                family == null
+                    ? AppRoutes.families
+                    : AppRoutes.family(family.id),
+              ),
+            ),
+            // D267 (owner): «المتجر» takes the earn card's place; D270: built.
+            _HubCard(
+              item: MeHubItem.store,
+              icon: Icons.storefront_rounded,
+              hue: _Hues.blue,
+              label: l10n.meHubStore,
+              onTap: () => push(AppRoutes.store),
+            ),
+          ];
+
+    final teamRow = [
+      _HubRow(
+        rowKey: kabsoTeamKey,
+        icon: Icons.verified_user_rounded,
+        hue: KabsoTeamColors.end,
+        title: l10n.liveKabsoTeam,
+        value: l10n.staffMyLives,
+        onTap: () => push(AppRoutes.staff),
+      ),
+    ];
+    final founderGroups = <List<Widget>>[
+      [
+        Padding(
+          key: founderDashboardKey,
+          padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+          child: FounderDashboardCard(profile: stats),
+        ),
+      ],
+      // v1.116-social (D355): «واتساب» — the official number's inbox.
+      [_StaffWhatsAppRow(onTap: () => push(AppRoutes.staffWhatsApp))],
+      [
+        _HubRow(
+          rowKey: founderProfitKey,
+          icon: Icons.trending_up_rounded,
+          hue: p.primary,
+          title: l10n.ownerProfitTitle,
+          onTap: () => unawaited(showOwnerProfitSheet(context)),
+        ),
+        _HubRow(
+          rowKey: founderCostsKey,
+          icon: Icons.receipt_long_rounded,
+          hue: _Hues.orange,
+          title: l10n.ownerCostsManage,
+          onTap: () => unawaited(showFixedCostsEditor(context)),
+        ),
+        _HubRow(
+          rowKey: founderOfficialKey,
+          icon: Icons.push_pin_rounded,
+          hue: p.primary,
+          title: l10n.ownerOfficialTitle,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => OfficialPostsScreen(username: username ?? ''),
+            ),
+          ),
+        ),
+        _HubRow(
+          rowKey: founderAnnounceKey,
+          icon: Icons.campaign_rounded,
+          hue: _Hues.pink,
+          title: l10n.ownerAnnouncementNew,
+          onTap: () => unawaited(
+            showAnnouncementComposer(context, username: username ?? ''),
+          ),
+        ),
+        _HubRow(
+          rowKey: founderJourneyKey,
+          icon: Icons.rocket_launch_rounded,
+          hue: _Hues.teal,
+          title: l10n.ownerJourneyTitle,
+          onTap: () =>
+              unawaited(showJourneyEditor(context, username: username ?? '')),
+        ),
+        _HubRow(
+          rowKey: founderBioKey,
+          icon: Icons.edit_note_rounded,
+          hue: _Hues.blue,
+          title: l10n.ownerBioTitle,
+          onTap: () => unawaited(
+            showOwnerBioEditor(
+              context,
+              username: username ?? '',
+              bio: stats?.ownerBio,
+            ),
+          ),
+        ),
+        _HubRow(
+          rowKey: founderVideoKey,
+          icon: Icons.videocam_rounded,
+          hue: _Hues.gold,
+          title: l10n.ownerCoverVideoTitle,
+          onTap: () => unawaited(
+            showOwnerCoverVideoEditor(context, username: username ?? ''),
+          ),
+        ),
+      ],
+      if (user?.kabsoTeam ?? false) teamRow,
+    ];
+    final groups = founder
+        ? founderGroups
+        : staff != null
+        ? <List<Widget>>[
+            // D273's panel on the phone (watch roles; FINANCE has none).
+            if (user?.kabsoTeam ?? false) teamRow,
+            // v1.78-live (D288, owner: «ان البلاغ يصل كل المشرفين والدعم»):
+            // «بلاغات», the shared queue, for the moderators and the support.
+            if (staff.role == StaffLineRole.moderation ||
+                staff.role == StaffLineRole.support)
+              [_StaffReportsRow(onTap: () => push(AppRoutes.staffReports))],
+            // v1.116-social (D355): «واتساب» — the official number's inbox.
+            // v1.120-social (D360, §10.155): shown by the staff member's
+            // WhatsApp level (VIEW and above), the D355 roles until known.
+            if (switch (ref.watch(waAccessProvider)) {
+              null =>
+                staff.role == StaffLineRole.moderation ||
+                    staff.role == StaffLineRole.support,
+              final WaAccess a => a != WaAccess.none,
+            })
+              [_StaffWhatsAppRow(onTap: () => push(AppRoutes.staffWhatsApp))],
+            // v1.75-live (D285): the recruiters' own recruits and earnings.
+            if (staff.role == StaffLineRole.moderation ||
+                staff.role == StaffLineRole.bd)
+              [
+                _HubRow(
+                  rowKey: staffRecruitsKey,
+                  icon: Icons.handshake_rounded,
+                  hue: _Hues.teal,
+                  title: l10n.staffMyRecruits,
+                  onTap: () => push(AppRoutes.staffRecruits),
+                ),
+                _HubRow(
+                  rowKey: staffEarningsKey,
+                  icon: Icons.savings_rounded,
+                  hue: _Hues.gold,
+                  title: l10n.staffMyEarnings,
+                  onTap: () => push(AppRoutes.staffEarnings),
+                ),
+              ],
+            // v1.89-social (D290): level-raise requests for supporters
+            // recruited from other apps.
+            if (staff.role == StaffLineRole.moderation ||
+                staff.role == StaffLineRole.support)
+              [
+                _HubRow(
+                  rowKey: staffLevelRaiseKey,
+                  icon: Icons.trending_up_rounded,
+                  hue: _Hues.orange,
+                  title: l10n.lrMeRow,
+                  onTap: () => push(AppRoutes.staffLevelRaises),
+                ),
+              ],
+            [
+              _HubRow(
+                rowKey: staffAnnouncementKey,
+                icon: Icons.campaign_rounded,
+                hue: p.primary,
+                title: l10n.meStaffAnnouncement,
+                onTap: () => push(AppRoutes.create),
+              ),
+              _HubRow(
+                rowKey: staffAnnouncementReelKey,
+                icon: Icons.movie_creation_rounded,
+                hue: p.primary,
+                title: l10n.meStaffAnnouncementReel,
+                onTap: () => push(AppRoutes.newReel),
+              ),
+            ],
+            [
+              _HubRow(
+                rowKey: staffSettingsKey,
+                icon: Icons.settings_rounded,
+                hue: _Hues.teal,
+                title: l10n.settingsTitle,
+                onTap: () => push(AppRoutes.settings),
+              ),
+            ],
+          ]
+        : <List<Widget>>[
+            // v1.68-live (D273, owner: «المناوبة من الهاتف»): the staff's
+            // shift and «بثوثي» (D286: no code) — only for an account holding a
+            // watch role.
+            if (user?.kabsoTeam ?? false) teamRow,
+            [
+              _HubRow(
+                item: MeHubItem.creatorCenter,
+                icon: Icons.insights_rounded,
+                hue: _Hues.teal,
+                title: l10n.meHubCreatorCenter,
+                onTap: () => push(AppRoutes.creatorCenter),
+              ),
+              // D179: host agencies (join by code; the agent's dashboard).
+              _HubRow(
+                item: MeHubItem.agency,
+                icon: Icons.groups_rounded,
+                hue: _Hues.pink,
+                title: l10n.meHubAgency,
+                onTap: () => push(AppRoutes.agency),
+              ),
+              // D185: recharge agents «وكيل الشحن» (apply, the agent's
+              // dashboard, the directory).
+              _HubRow(
+                item: MeHubItem.recharge,
+                icon: Icons.storefront_rounded,
+                hue: _Hues.pink,
+                title: l10n.rechargeTitle,
+                onTap: () => push(AppRoutes.recharge),
+              ),
+              _HubRow(
+                item: MeHubItem.eventCenter,
+                icon: Icons.campaign_rounded,
+                hue: _Hues.teal,
+                title: l10n.meHubEventCenter,
+                onTap: () => push(AppRoutes.eventCenter),
+              ),
+            ],
+            [
+              // D164: the wallet screen (balance and coin history); recharge
+              // stays "Soon" inside it (no purchases yet, B5).
+              _HubRow(
+                item: MeHubItem.wallet,
+                icon: Icons.account_balance_wallet_rounded,
+                hue: _Hues.pink,
+                title: l10n.meHubWallet,
+                value: coins == null ? null : KFormat.grouped(coins),
+                valueLabel: coins == null
+                    ? null
+                    : l10n.meHubCoins(KFormat.grouped(coins)),
+                valueArt: KabsoArt.coin,
+                onTap: () => push(AppRoutes.wallet),
+              ),
+              _HubRow(
+                item: MeHubItem.bag,
+                icon: Icons.backpack_rounded,
+                hue: _Hues.gold,
+                title: l10n.meHubItemBag,
+                onTap: () => push(AppRoutes.bag),
+              ),
+            ],
+            [
+              // D267 (owner): «اربح المال» in SVIP's place (SVIP is not
+              // needed).
+              _HubRow(
+                item: MeHubItem.earn,
+                icon: Icons.payments_rounded,
+                hue: _Hues.blue,
+                title: l10n.meHubEarn,
+                // D217 (owner): «اربح المال» opens «دعوة صديق»; the cherry
+                // wallet when the programme was found off (the invite page also
+                // gives way to it when it finds the programme off).
+                onTap: () => push(
+                  ref.read(referralEnabledProvider) == false
+                      ? AppRoutes.walletCherries
+                      : AppRoutes.inviteFriends,
+                ),
+              ),
+              _HubRow(
+                item: MeHubItem.taskCenter,
+                icon: Icons.task_alt_rounded,
+                hue: _Hues.gold,
+                title: l10n.meHubTaskCenter,
+                onTap: () => push(AppRoutes.taskCenter),
+              ),
+              _HubRow(
+                item: MeHubItem.medals,
+                icon: Icons.emoji_events_rounded,
+                hue: _Hues.orange,
+                title: l10n.medalsTitle,
+                // Nothing until the catalogue is known (no "0 of 0").
+                value: medals == null || medals.total == 0
+                    ? null
+                    : l10n.medalsOwned(medals.owned, medals.total),
+                onTap: () => push(AppRoutes.medals),
+              ),
+              _HubRow(
+                item: MeHubItem.ranking,
+                icon: Icons.leaderboard_rounded,
+                hue: _Hues.teal,
+                title: l10n.meHubRanking,
+                onTap: () => unawaited(showLiveRankings(context)),
+              ),
+            ],
+            [
+              _HubRow(
+                item: MeHubItem.relationship,
+                icon: Icons.favorite_rounded,
+                hue: p.primary,
+                title: l10n.cpTitle,
+                value: cp == null
+                    ? null
+                    : (cp.partner.displayName.isEmpty
+                          ? cp.partner.username
+                          : cp.partner.displayName),
+                onTap: () =>
+                    push(cp != null ? AppRoutes.cpSpace : AppRoutes.cp),
+              ),
+              _HubRow(
+                item: MeHubItem.premium,
+                icon: Icons.alternate_email_rounded,
+                hue: _Hues.blue,
+                title: l10n.premiumTitle,
+                onTap: () => push(AppRoutes.premium),
+              ),
+            ],
+          ];
+
+    final top = MediaQuery.paddingOf(context).top;
+    final header = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.lerp(p.background, p.primary, 0.10)!,
+            Color.lerp(p.background, p.primary, 0.04)!,
+            p.background,
+          ],
+          stops: const [0, 0.55, 1],
+        ),
+      ),
+      // D142: the actions start the status bar gap under the inset.
+      child: KTopSafeArea(
+        child: Column(
+          children: [
+            SizedBox(
+              height: KMeHub.actionBox,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _ActionIcon(
+                    key: profileKey,
+                    asset: AppIcons.grid,
+                    tooltip: l10n.meHubMyProfile,
+                    onTap: openProfile,
+                    labelled: true,
+                  ),
+                  _ActionIcon(
+                    key: settingsKey,
+                    asset: AppIcons.settings,
+                    tooltip: l10n.settingsTitle,
+                    onTap: () => push(AppRoutes.settings),
+                  ),
+                  _ActionIcon(
+                    key: notificationsKey,
+                    asset: AppIcons.bell,
+                    tooltip: l10n.notificationsTitle,
+                    onTap: () => push(AppRoutes.notifications),
+                  ),
+                  const SizedBox(width: KSpacing.xxs),
+                ],
+              ),
+            ),
+            const SizedBox(height: KMeHub.avatarTop),
+            Semantics(
+              key: avatarKey,
+              button: true,
+              label: l10n.meHubOpenProfile,
+              excludeSemantics: true,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: openProfile,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: KMeHub.avatarBox,
+                  ),
+                  child: Center(
+                    // D283: the team picture in the locked team frame.
+                    child: staff != null
+                        ? const KabsoTeamAvatar.boxed(box: KMeHub.avatarBox)
+                        : cpWearsSpecialFrame(cp)
+                        ? CpSpecialFrameAvatar(
+                            width: CpSpecialFrameAvatar.widthForAvatar(
+                              KMeHub.framedAvatar,
+                            ),
+                            name: user?.displayName ?? '',
+                            imageUrl: user?.avatarUrl,
+                          )
+                        : KAvatar(
+                            name: user?.displayName ?? '',
+                            imageUrl: user?.avatarUrl,
+                            size: KMeHub.avatar,
+                          ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: KMeHub.nameTop),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: KSpacing.sm,
+                runSpacing: KSpacing.xs,
+                children: [
+                  if (user == null)
+                    const KSkeleton(width: 120)
+                  else
+                    Semantics(
+                      button: true,
+                      hint: l10n.meHubOpenProfile,
+                      child: GestureDetector(
+                        key: nameKey,
+                        onTap: openProfile,
+                        // D258: my VIP name's gold (CHAT_NAME_COLOR).
+                        child: VipNameShimmer(
+                          vip: myVip,
+                          child: Text(
+                            user.displayName.isEmpty
+                                ? KHandle.id(
+                                    user.username,
+                                    staffId: user.staffId,
+                                  )
+                                : user.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: context.textStyles.title.copyWith(
+                              color: p.textPrimary,
+                              fontSize: KMeHub.nameSize,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  // D293: my automatic verification badge right after the
+                  // name.
+                  // D357: never the OWNER seal beside the founder's name.
+                  if (shownVerification(user?.verification) case final badge?)
+                    ProfileVerificationBadge(
+                      key: verificationBadgeKey,
+                      badge: badge,
+                      size: ProfileVerificationBadge.sizeForFont(
+                        KMeHub.nameSize,
+                      ),
+                    ),
+                  // D258: my VIP badge while my membership is active —
+                  // D268 (owner): right after the name.
+                  if (myVip != null && staff == null)
+                    VipNameBadge(vip: myVip, height: 22),
+                  // D283: the Kabso Team badge instead of levels.
+                  if (staff != null)
+                    // D292 / D299i: large enough for its name to read (44 pt;
+                    // the wrap puts it on its own line when the row is full).
+                    const KabsoTeamBadge(height: KabsoTeamBadge.profileHeight)
+                  // D361 (§10.156; owner: «المؤسس ليس له ليفيل»): no level
+                  // card for the founder — decision: hidden (his levels page
+                  // shows the neutral state instead).
+                  else if (!founder)
+                    // D163: the level badge beside the name.
+                    ProfileLevels(
+                      onOpen: () => push(AppRoutes.levels),
+                      padding: EdgeInsetsDirectional.zero,
+                    ),
+                  // D187: the daily recharge badge beside it while it shows.
+                  if (staff == null && rechargeBadgeShows(stats?.rechargeBadge))
+                    RechargeTierBadge(
+                      key: rechargeBadgeKey,
+                      badge: stats?.rechargeBadge,
+                      height: 26,
+                    ),
+                ],
+              ),
+            ),
+            // D283c: the official staff ID «ID: Kabso01» (the OWNER too).
+            if (user?.staffId case final id?) ...[
+              const SizedBox(height: KSpacing.xxs),
+              // D299h: the gold special-ID pill, «Kabso01», read as the
+              // official staff ID.
+              KStaffIdText(
+                id,
+                key: staffIdKey,
+                alignment: Alignment.center,
+                semanticHint: l10n.profileStaffIdHint,
+                // D299l: the gold tier's full motion on the Me tab.
+                effects: KSpecialIdEffects.full,
+              ),
+            ],
+            // D283d (owner): «مشرف للوطن العربي» only in the official bio
+            // card's header (D283b), not under the name / ID.
+            const SizedBox(height: KMeHub.statsTop),
+            Row(
+              children: [
+                _Stat(
+                  key: followingKey,
+                  value: stats?.followingCount,
+                  failed: statsLoad?.hasError ?? false,
+                  label: l10n.profileFollowingCount,
+                  hint: l10n.profileOpenFollowing,
+                  onTap: username == null
+                      ? null
+                      : () => push(
+                          AppRoutes.userFollows(username, following: true),
+                        ),
+                ),
+                _Stat(
+                  key: fansKey,
+                  value: stats?.followerCount,
+                  failed: statsLoad?.hasError ?? false,
+                  label: l10n.meHubFans,
+                  hint: l10n.profileOpenFollowers,
+                  onTap: username == null
+                      ? null
+                      : () => push(AppRoutes.userFollows(username)),
+                ),
+              ],
+            ),
+            // D283b: the official bio card under the stats.
+            if (staff != null) ...[
+              const SizedBox(height: KMeHub.cardsTop),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+                child: StaffOfficialBio(staff: staff),
+              ),
+            ],
+            if (cards.isNotEmpty) ...[
+              const SizedBox(height: KMeHub.cardsTop),
+              Padding(
+                key: cardsKey,
+                padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+                // Equal heights when a large text size grows one card.
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final (i, card) in cards.indexed) ...[
+                        if (i > 0) const SizedBox(width: KMeHub.cardGap),
+                        Expanded(child: card),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+
+    return Scaffold(
+      backgroundColor: p.background,
+      body: RefreshIndicator(
+        onRefresh: refresh,
+        edgeOffset: top,
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: KSpacing.lg),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            header,
+            const SizedBox(height: KMeHub.rowsTop),
+            for (final (i, group) in groups.indexed) ...[
+              if (i > 0) ...[
+                const SizedBox(height: KMeHub.band),
+                ColoredBox(
+                  color: p.surface,
+                  child: const SizedBox(height: KMeHub.band),
+                ),
+                const SizedBox(height: KMeHub.band),
+              ],
+              ...group,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Card and icon hues: Kabso's palette tones (gold = `KBrandColors.gold`,
+/// the rest the status tones), chosen per feature like the reference's four
+/// tinted cards.
+abstract final class _Hues {
+  static const gold = Color(0xFFE0A21B);
+  static const orange = Color(0xFFF5A623);
+  static const blue = Color(0xFF4DA3FF);
+  static const teal = Color(0xFF14B8A6);
+  static const pink = Color(0xFFFF3B6B);
+}
+
+class _ActionIcon extends StatelessWidget {
+  const new({
+    required this.asset,
+    required this.tooltip,
+    required this.onTap,
+    super.key,
+    this.labelled = false,
+  });
+
+  final String asset;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  /// D168: screen readers get [tooltip] as the button's label (once, not
+  /// also as a tooltip); the long-press tooltip still shows.
+  final bool labelled;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = IconButton(
+      tooltip: tooltip,
+      onPressed: onTap,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(
+        width: KMeHub.actionBox,
+        height: KMeHub.actionBox,
+      ),
+      icon: AppIcon(
+        asset,
+        size: KMeHub.actionIcon,
+        color: context.palette.textPrimary,
+      ),
+    );
+    if (!labelled) return button;
+    return Semantics(
+      button: true,
+      enabled: true,
+      label: tooltip,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: button,
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const new({
+    required this.value,
+    required this.failed,
+    required this.label,
+    required this.hint,
+    required this.onTap,
+    super.key,
+  });
+
+  final int? value;
+  final bool failed;
+  final String label;
+  final String hint;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    final value = this.value;
+    return Expanded(
+      child: Semantics(
+        button: onTap != null,
+        hint: onTap == null ? null : hint,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(KRadius.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: KSpacing.xs),
+            child: Column(
+              children: [
+                if (value == null && !failed)
+                  const KSkeleton(width: KSpacing.xl, height: KMeHub.statSize)
+                else
+                  Text(
+                    value == null ? '–' : KFormat.compact(value, context.l10n),
+                    maxLines: 1,
+                    style: t.title.copyWith(
+                      color: p.textPrimary,
+                      fontSize: KMeHub.statSize,
+                      fontWeight: FontWeight.w700,
+                      height: 1.25,
+                    ),
+                  ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.label.copyWith(
+                    color: p.textTertiary,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The small "Soon" tag of a feature that is not built yet (also on the
+/// wallet's recharge and the earnings' withdraw buttons, D164).
+class MeHubSoonTag extends StatelessWidget {
+  const new({super.key = MeHubScreen.soonKey});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: KSpacing.xs + KSpacing.xxs,
+        vertical: 1,
+      ),
+      decoration: BoxDecoration(
+        color: p.surfaceOverlay,
+        borderRadius: BorderRadius.circular(KRadius.pill),
+      ),
+      child: Text(
+        context.l10n.liveSoon,
+        maxLines: 1,
+        style: context.textStyles.caption.copyWith(
+          color: p.textSecondary,
+          fontSize: 10,
+          height: 1.3,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+/// One of the four cards under the counts: an icon disc over a label, on a
+/// tint of [hue]. Without [onTap] the feature is not built: faded, "Soon".
+class _HubCard extends StatelessWidget {
+  const new({
+    required this.item,
+    required this.icon,
+    required this.hue,
+    required this.label,
+    this.onTap,
+  });
+
+  final MeHubItem item;
+  final IconData icon;
+  final Color hue;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final soon = onTap == null;
+    final face = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 6),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color.lerp(hue, const Color(0xFFFFFFFF), 0.25)!, hue],
+            ),
+          ),
+          child: SizedBox.square(
+            dimension: KMeHub.cardIcon,
+            child: Icon(icon, size: 24, color: const Color(0xFFFFFFFF)),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            KSpacing.xs,
+            0,
+            KSpacing.xs,
+            KSpacing.xs,
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: context.textStyles.label.copyWith(
+              color: Color.lerp(hue, p.textPrimary, 0.25),
+              fontSize: KMeHub.cardLabelSize,
+            ),
+          ),
+        ),
+      ],
+    );
+    return Semantics(
+      key: item.key,
+      button: true,
+      enabled: !soon,
+      label: soon ? context.l10n.meHubSoonItem(label) : label,
+      excludeSemantics: true,
+      child: Material(
+        color: Color.alphaBlend(hue.withValues(alpha: 0.12), p.background),
+        borderRadius: BorderRadius.circular(KMeHub.cardRadius),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(KMeHub.cardRadius),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: KMeHub.cardHeight),
+            child: soon
+                ? Stack(
+                    children: [
+                      Opacity(opacity: KMeHub.soonOpacity, child: face),
+                      const PositionedDirectional(
+                        top: KSpacing.xs,
+                        end: KSpacing.xs,
+                        child: MeHubSoonTag(),
+                      ),
+                    ],
+                  )
+                : face,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One row of the list: a round tinted icon, the title, an optional value
+/// and a chevron. Without [onTap] the feature is not built: faded, "Soon"
+/// in place of the chevron (a real [value], like the coin balance, still
+/// shows).
+class _HubRow extends StatelessWidget {
+  const new({
+    required this.icon,
+    required this.hue,
+    required this.title,
+    this.item,
+    this.rowKey,
+    this.value,
+    this.valueLabel,
+    this.valueArt,
+    this.onTap,
+    this.trailing,
+  });
+
+  final MeHubItem? item;
+
+  /// D288: a widget at the row's end, before the chevron (the «بلاغات»
+  /// count).
+  final Widget? trailing;
+
+  /// D273: a row that is not a [MeHubItem] (the staff entry).
+  final Key? rowKey;
+  final IconData icon;
+  final Color hue;
+  final String title;
+  final String? value;
+  final String? valueLabel;
+  final KabsoArt? valueArt;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    final soon = onTap == null;
+    final value = this.value;
+    final lead = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: hue.withValues(alpha: 0.18),
+          ),
+          child: SizedBox.square(
+            dimension: KMeHub.rowIcon,
+            child: Center(
+              child: DecoratedBox(
+                decoration: BoxDecoration(shape: BoxShape.circle, color: hue),
+                child: SizedBox.square(
+                  dimension: KMeHub.rowIcon - 6,
+                  child: Icon(icon, size: 14, color: const Color(0xFFFFFFFF)),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: KMeHub.rowTitleGap),
+      ],
+    );
+    final label = [
+      if (soon) context.l10n.meHubSoonItem(title) else title,
+      ?(valueLabel ?? value),
+    ].join(', ');
+    return Semantics(
+      key: rowKey ?? item?.key,
+      button: true,
+      enabled: !soon,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: KMeHub.rowHeight,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: KSpacing.lg,
+              end: KSpacing.md,
+            ),
+            child: Row(
+              children: [
+                Opacity(opacity: soon ? KMeHub.soonOpacity : 1, child: lead),
+                Expanded(
+                  child: Opacity(
+                    opacity: soon ? KMeHub.soonOpacity : 1,
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.bodyStrong.copyWith(
+                        color: p.textPrimary,
+                        fontSize: KMeHub.rowTitleSize,
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                ),
+                if (value != null) ...[
+                  const SizedBox(width: KSpacing.sm),
+                  if (valueArt case final art?) ...[
+                    KabsoArtIcon(art, size: KMetrics.iconSm),
+                    const SizedBox(width: KSpacing.xxs),
+                  ],
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 140),
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.body.copyWith(color: p.textTertiary),
+                    ),
+                  ),
+                ],
+                if (trailing case final w?) ...[
+                  const SizedBox(width: KSpacing.sm),
+                  w,
+                ],
+                const SizedBox(width: KSpacing.xs),
+                if (soon)
+                  const MeHubSoonTag()
+                else
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: KMetrics.iconMd,
+                    color: p.textTertiary,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// v1.78-live (D288, §10.101): the staff Me tab's «بلاغات» row — the shared
+/// report queue, with the unresolved count at its end (hidden at 0, «99+»),
+/// read while the row is on screen (and refreshed every minute, after «تم
+/// حله» and when a `STAFF_REPORT_NEW` push arrives).
+/// v1.116-social (D355, §10.151): «واتساب» with the conversations waiting
+/// for the caller (theirs and the unassigned ones). Hidden while the server
+/// says WhatsApp is off; an error keeps the row (the inbox says why).
+class _StaffWhatsAppRow extends ConsumerWidget {
+  const new({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final summary = ref.watch(waSummaryProvider).value;
+    // D385: on while the in-app «دعم كابسو» threads are served too.
+    if (summary != null && !summary.served) return const SizedBox.shrink();
+    final count = summary?.badge ?? 0;
+    return _HubRow(
+      rowKey: MeHubScreen.staffWhatsAppKey,
+      icon: Icons.chat_rounded,
+      hue: _Hues.teal,
+      title: l10n.waRow,
+      valueLabel: count > 0 ? l10n.waRowBadge(count) : null,
+      trailing: WaCountBadge(count: count),
+      onTap: onTap,
+    );
+  }
+}
+
+class _StaffReportsRow extends ConsumerWidget {
+  const new({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final count = ref.watch(staffOpenReportsProvider).value ?? 0;
+    return _HubRow(
+      rowKey: MeHubScreen.staffReportsKey,
+      icon: Icons.flag_rounded,
+      hue: KBrandColors.red600,
+      title: l10n.staffSharedReports,
+      valueLabel: count > 0 ? l10n.staffSharedReportsBadge(count) : null,
+      trailing: StaffReportsCountBadge(count: count),
+      onTap: onTap,
+    );
+  }
+}

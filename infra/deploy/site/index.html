@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kabso Live — قريباً</title>
+<meta name="description" content="كابسو لايف — بث مباشر، ريلز وبودكاست. عائلة كابسو تجهّز للبث الكبير… قريباً.">
+<meta name="theme-color" content="#0F0F0F">
+<link rel="canonical" href="https://kabsolive.com/">
+<link rel="alternate" hreflang="ar" href="https://kabsolive.com/">
+<link rel="alternate" hreflang="en" href="https://kabsolive.com/?lang=en">
+<link rel="alternate" hreflang="x-default" href="https://kabsolive.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Kabso Live">
+<meta property="og:url" content="https://kabsolive.com/">
+<meta property="og:title" content="Kabso Live — قريباً">
+<meta property="og:description" content="عائلة كابسو تجهّز للبث الكبير… قريباً">
+<meta property="og:locale" content="ar_AR">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:image" content="https://kabsolive.com/assets/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="عائلة كابسو — قريباً">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://kabsolive.com/assets/og-image.jpg">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preload" as="image" href="/assets/logo.webp" type="image/webp">
+<link rel="preload" as="font" href="/assets/fonts/cairo-arabic.woff2" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/fonts.css">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/common.js"></script>
+<script src="/assets/home.js" defer></script>
+</head>
+<body>
+<div class="bg"></div>
+<header>
+ <div class="brand"><img class="mark" src="/assets/logo.webp" alt="Kabso" width="127" height="160"><div class="wm"><b>KABSO</b><small>Live &amp; Podcast</small></div></div>
+ <div class="hr">
+  <a class="chip topup" data-topup href="/topup" hidden data-i18n="topup">شحن العملات</a>
+  <button class="chip lang" type="button" data-lang-toggle data-i18n="toggle" data-i18n-aria="toggleLabel" aria-label="Switch to English">EN</button>
+  <div class="live"><i></i>ON AIR SOON</div>
+ </div>
+</header>
+<main class="txt">
+ <h1 class="in"><span data-i18n="h1">قريباً</span></h1>
+ <div class="sub in d1" data-i18n-html="sub"><b>عائلة كابسو</b> تجهّز للبث الكبير…</div>
+ <div class="en in d2" data-i18n="tagline">Coming soon · Live · Reels · Podcast</div>
+ <div class="in d3">
+  <form class="wl" id="wl" novalidate>
+   <input id="wl-email" type="email" name="email" inputmode="email" autocomplete="email" maxlength="254" required dir="ltr" data-i18n-placeholder="email" data-i18n-aria="emailLabel" placeholder="بريدك الإلكتروني" aria-label="بريدك الإلكتروني لنبلغك عند الإطلاق" aria-describedby="wl-msg">
+   <button id="wl-send" type="submit" data-i18n="notify">أبلغني عند الإطلاق</button>
+  </form>
+  <p class="wlmsg" id="wl-msg" role="status" aria-live="polite"></p>
+  <div class="badges" id="badges">
+   <span class="badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.7-1-2.7-4.1zM13.9 5c.7-.9 1.2-2 1.1-3.2-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.1 1.1.1 2.3-.6 3-1.5z"/></svg>App Store <i data-i18n="soonOn">قريباً</i></span>
+   <span class="badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.6 1.8 13.5 12 3.6 22.2c-.4-.2-.6-.6-.6-1.1V2.9c0-.5.2-.9.6-1.1zM17 8.4l-3.5 3.6 3.5 3.6 4-2.3c.9-.5.9-2 0-2.5zM3.6 22.2 13.5 12l3.5 3.6-11.6 6.7c-.6.3-1.3.3-1.8-.1zM3.6 1.8c.5-.4 1.2-.4 1.8-.1L17 8.4 13.5 12z" opacity=".9"/></svg>Google Play <i data-i18n="soonOn">قريباً</i></span>
+  </div>
+ </div>
+</main>
+<div class="floor"></div><div class="spot" id="spot"></div>
+<div id="stage"></div>
+<canvas id="fx"></canvas>
+<footer>
+ <nav class="legal" aria-label="Legal">
+  <a data-internal="/privacy" href="/privacy" data-i18n="privacy">الخصوصية</a>
+  <a data-internal="/terms" href="/terms" data-i18n="terms">الشروط</a>
+  <a data-internal="/contact" href="/contact" data-i18n="contact">تواصل معنا</a>
+  <a data-internal="/studio" href="/studio" data-i18n="studio">استوديو البث</a>
+ </nav>
+ <div class="socials" data-socials hidden></div>
+ <div class="copy">© <span data-year>2026</span> Kabso Live · kabsolive.com</div>
+</footer>
+<audio id="voice" src="/assets/king-voice.mp3" preload="none"></audio>
+</body>
+</html>

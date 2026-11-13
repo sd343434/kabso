@@ -1,0 +1,560 @@
+import { STORE_REFUND_BAN_REFUSAL } from '../auth/device-bans.js';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import type { AdminVia } from '../../common/audit/admin-actor.js';
+import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
+import { AppException } from '../../common/errors/app-exception.js';
+import { ErrorCode } from '../../common/errors/error-codes.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
+import { safeErrorLog } from '../../logging/redact-text.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { taskCherryLockIn } from '../economy/cherry-ledger.js';
+import { isUuid } from '../live/live.schemas.js';
+import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
+import { dayStart } from '../recharge/recharge-rules.js';
+import { removeAvatarByAdminIn, removeCoverByAdminIn } from '../users/avatar-admin.js';
+import { removeAnimatedAvatarByAdminIn } from '../users/animated-avatar.js';
+import { AccountLifecycleService } from '../users/profiles/account-lifecycle.service.js';
+import { profileStatsTotals } from '../users/profiles/profile-stats.js';
+import {
+  endSpecialIn,
+  grantSpecialIn,
+  resolveUserIdByUsername,
+  SpecialUsernameError,
+} from '../users/special-usernames.js';
+import { parseStaffId } from '../users/staff-ids.js';
+import { normalizeEmail, normalizeUsername } from '../users/username.js';
+import type { AdminContext } from './admin-auth.service.js';
+import { can, isPanelRole } from './admin-permissions.js';
+
+export function viaOf(ctx: AdminContext): AdminVia {
+  return { via: ctx.via ?? 'panel', actorUserId: ctx.userId, ip: ctx.ip, requestId: ctx.requestId };
+}
+
+export function refused(message: string, issue?: string, field = 'kyc'): AppException {
+  // v1.80-kyc (D227): a refusal with a machine-readable reason (`kyc_required`) carries it as the first detail.
+  // v1.66-live (D271): the team's rules carry theirs under `field: 'rule'` (`team_last_owner` …).
+  return new AppException(ErrorCode.ADMIN_ACTION_REFUSED, message, issue ? [{ field, issue }] : undefined);
+}
+
+export interface AdminUserRowDto {
+  id: string;
+  username: string;
+  displayName: string;
+  email: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_DELETION' | 'DELETED';
+  avatarUrl: string | null;
+  createdAt: string;
+}
+
+export interface LedgerRowDto {
+  id: string;
+  delta: number;
+  balanceAfter: number;
+  reason: string;
+  createdAt: string;
+}
+
+const ROW_SELECT = {
+  id: true,
+  email: true,
+  status: true,
+  createdAt: true,
+  profile: { select: { username: true, displayName: true, avatarUrl: true } },
+} as const;
+
+type RowUser = {
+  id: string;
+  email: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_DELETION' | 'DELETED';
+  createdAt: Date;
+  profile: { username: string; displayName: string; avatarUrl: string | null } | null;
+};
+
+function rowDto(u: RowUser): AdminUserRowDto {
+  return {
+    id: u.id,
+    username: u.profile?.username ?? '',
+    displayName: u.profile?.displayName ?? '',
+    email: u.email,
+    status: u.status,
+    avatarUrl: u.profile?.avatarUrl ?? null,
+    createdAt: u.createdAt.toISOString(),
+  };
+}
+
+/**
+ * The start of the dashboard's «today»: midnight of `now`'s day in `zone` (ADMIN_DASHBOARD_TIME_ZONE, owner
+ * 2026-10-31: the Asia/Riyadh day, not UTC). The same rule as the recharge badges' day (`dayStart`).
+ */
+export function dashboardDayStart(now: Date, zone: string): Date {
+  return dayStart(now, zone);
+}
+
+/**
+ * The panel's home and users sections (v1.60-social, D191, CONVENTIONS §10.54.5): real aggregates, the user search
+ * (shown, base or special username, email or id), a user's profile (audited view: it shows the base username and
+ * balances), and the actions — ban/unban through AccountLifecycleService, the profile photo through `avatar-admin`
+ * (the `profile-admin` rule) and special usernames through `special-usernames` (the `username-admin` rule).
+ */
+@Injectable()
+export class AdminUsersService {
+  private readonly logger = new Logger(AdminUsersService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly lifecycle: AccountLifecycleService,
+    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+  ) {}
+
+  async dashboard(now = new Date()) {
+    const since = dashboardDayStart(now, this.config.adminPanel.dashboardTimeZone);
+    const [newUsers, sold, gifts, lives, apps, withdrawals, reports] = await Promise.all([
+      this.prisma.user.count({ where: { createdAt: { gte: since } } }),
+      this.prisma.rechargeSale.aggregate({
+        where: { createdAt: { gte: since } },
+        _sum: { coins: true },
+        _count: true,
+      }),
+      this.prisma.liveGift.aggregate({
+        where: { createdAt: { gte: since } },
+        _sum: { totalCoins: true },
+        _count: true,
+      }),
+      this.prisma.liveRoom.count({ where: { status: 'LIVE' } }),
+      this.prisma.rechargeAgentApplication.count({ where: { status: 'PENDING' } }),
+      this.prisma.cherryWithdrawal.count({ where: { status: 'PENDING' } }),
+      this.prisma.report.count({ where: { status: 'OPEN' } }),
+    ]);
+    return {
+      since: since.toISOString(),
+      today: {
+        newUsers,
+        agentCoinsSold: Number(sold._sum.coins ?? 0n),
+        agentSales: sold._count,
+        giftsSent: gifts._count,
+        giftCoins: Number(gifts._sum.totalCoins ?? 0n),
+      },
+      livesNow: lives,
+      pending: { rechargeApplications: apps, withdrawals, reports },
+    };
+  }
+
+  async search(q: string, limit: number): Promise<{ data: AdminUserRowDto[] }> {
+    const value = q.trim();
+    if (isUuid(value)) {
+      const u = await this.prisma.user.findUnique({ where: { id: value.toLowerCase() }, select: ROW_SELECT });
+      return { data: u ? [rowDto(u)] : [] };
+    }
+    if (value.includes('@') && !value.startsWith('@')) {
+      const rows = await this.prisma.user.findMany({
+        where: { email: { startsWith: normalizeEmail(value) } },
+        orderBy: { email: 'asc' },
+        take: limit,
+        select: ROW_SELECT,
+      });
+      return { data: rows.map(rowDto) };
+    }
+    const name = normalizeUsername(value).replace(/^@/, '');
+    // v1.73-live (D283c, §10.96.12): a staff ID «Kabso01» finds its holder (kept after a revoke too) first.
+    const staffNumber = parseStaffId(value);
+    const staff =
+      staffNumber === null
+        ? null
+        : ((
+            await this.prisma.staffId.findUnique({ where: { number: staffNumber }, select: { userId: true } })
+          )?.userId ?? null);
+    const exact = await resolveUserIdByUsername(this.prisma, name);
+    const special = await this.prisma.specialUsername.findMany({
+      where: { OR: [{ username: name }, { baseUsername: name }] },
+      select: { userId: true },
+      take: 10,
+    });
+    const prefix = await this.prisma.userProfile.findMany({
+      where: { username: { startsWith: name } },
+      orderBy: { username: 'asc' },
+      take: limit,
+      select: { userId: true },
+    });
+    const ids = [
+      ...new Set([staff, exact, ...special.map((s) => s.userId), ...prefix.map((p) => p.userId)]),
+    ].filter((x): x is string => x !== null);
+    const users = await this.prisma.user.findMany({ where: { id: { in: ids } }, select: ROW_SELECT });
+    const byId = new Map(users.map((u) => [u.id, u]));
+    return {
+      data: ids
+        .map((id) => byId.get(id))
+        .filter((u): u is NonNullable<typeof u> => u !== undefined)
+        .slice(0, limit)
+        .map(rowDto),
+    };
+  }
+
+  /** A user's profile for the panel; every view is audited (it shows the base username and, by role, balances). */
+  async detail(id: string, ctx: AdminContext) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        ...ROW_SELECT,
+        role: true,
+        lastActiveAt: true,
+        profile: {
+          select: {
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            countryCode: true,
+            bio: true,
+            // v1.136-social (D384, §10.173.5): the VIP animated picture, for review.
+            animatedAvatarUrl: true,
+          },
+        },
+        adminPermissions: { select: { permission: true } },
+        // v1.90-social (D293, §10.105): the automatic verification badge.
+        verificationBadge: { select: { badge: true, since: true, computedAt: true } },
+      },
+    });
+    if (!user) throw new AppException(ErrorCode.NOT_FOUND);
+    const withBalances = can(ctx.roles, 'users.balances');
+    const withLedger = can(ctx.roles, 'users.ledger');
+    const [special, agent, agency, agencyHost, openReports, recentReports] = await Promise.all([
+      this.prisma.specialUsername.findFirst({
+        where: { userId: id, status: 'ACTIVE' },
+        select: { username: true, baseUsername: true, source: true, expiresAt: true },
+      }),
+      this.prisma.rechargeAgent.findUnique({
+        where: { userId: id },
+        select: { status: true, code: true, stockCoins: true, dailyCherryCap: true, suspendReason: true },
+      }),
+      this.prisma.agency.findFirst({
+        where: { ownerUserId: id },
+        select: { inviteCode: true, hostCode: true, rank: true, suspendedAt: true },
+      }),
+      this.prisma.agencyHost.findFirst({
+        where: { hostUserId: id, status: 'ACTIVE' },
+        select: { status: true, agency: { select: { inviteCode: true } } },
+      }),
+      this.prisma.report.count({ where: { targetUserId: id, status: 'OPEN' } }),
+      this.prisma.report.findMany({
+        where: { targetUserId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: { id: true, reason: true, status: true, createdAt: true, targetType: true },
+      }),
+    ]);
+    // v1.77-social (D220, §10.74): the lifetime totals of the person card, whatever the user hides from others.
+    let balances: {
+      coins: number;
+      cherries: number;
+      lockedTaskCherries: number;
+      cherriesReceived: number;
+      coinsSent: number;
+      rechargePoints: number;
+    } | null = null;
+    let ledger: {
+      coins: LedgerRowDto[];
+      cherries: LedgerRowDto[];
+      rechargePoints: LedgerRowDto[];
+    } | null = null;
+    if (withBalances) {
+      const [wallet, cherryWallet, lock, coins, cherries, totals, points, pointRows] = await Promise.all([
+        this.prisma.wallet.findUnique({ where: { userId: id }, select: { coins: true } }),
+        this.prisma.cherryWallet.findUnique({ where: { userId: id }, select: { cherries: true } }),
+        taskCherryLockIn(this.prisma, id, this.config.economy),
+        this.prisma.walletLedgerEntry.findMany({
+          where: { userId: id },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 20,
+        }),
+        this.prisma.cherryLedgerEntry.findMany({
+          where: { userId: id },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 20,
+        }),
+        profileStatsTotals(this.prisma, id),
+        // v1.126-social (D370, §10.163): «نقاط الشحن».
+        this.prisma.rechargePointsBalance.findUnique({ where: { userId: id }, select: { points: true } }),
+        this.prisma.rechargePointsEntry.findMany({
+          where: { userId: id },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 20,
+        }),
+      ]);
+      balances = {
+        coins: Number(wallet?.coins ?? 0n),
+        cherries: Number(cherryWallet?.cherries ?? 0n),
+        lockedTaskCherries: Number(lock.lockedCherries),
+        cherriesReceived: totals.cherriesReceived ?? 0,
+        coinsSent: totals.coinsSent ?? 0,
+        rechargePoints: Number(points?.points ?? 0n),
+      };
+      const row = (r: {
+        id: string;
+        delta: bigint;
+        balanceAfter: bigint;
+        reason: string;
+        createdAt: Date;
+      }) => ({
+        id: r.id,
+        delta: Number(r.delta),
+        balanceAfter: Number(r.balanceAfter),
+        reason: r.reason,
+        createdAt: r.createdAt.toISOString(),
+      });
+      if (withLedger) {
+        ledger = { coins: coins.map(row), cherries: cherries.map(row), rechargePoints: pointRows.map(row) };
+      }
+    }
+    await this.audit.record({
+      action: AuditAction.ADMIN_USER_VIEW,
+      actorUserId: ctx.userId,
+      targetType: 'user',
+      targetId: id,
+      metadata: { balances: withBalances, ledger: withLedger, via: 'panel' },
+      ip: ctx.ip,
+      requestId: ctx.requestId,
+    });
+    return {
+      user: {
+        ...rowDto(user),
+        role: user.role,
+        lastActiveAt: user.lastActiveAt?.toISOString() ?? null,
+        countryCode: user.profile?.countryCode ?? null,
+        bio: user.profile?.bio ?? null,
+        baseUsername: special?.baseUsername ?? user.profile?.username ?? '',
+        ...(user.profile?.animatedAvatarUrl ? { animatedAvatarUrl: user.profile.animatedAvatarUrl } : {}),
+      },
+      specialUsername: special
+        ? {
+            username: special.username,
+            source: special.source,
+            expiresAt: special.expiresAt?.toISOString() ?? null,
+          }
+        : null,
+      adminRoles:
+        user.role === 'ADMIN' ? user.adminPermissions.map((p) => p.permission).filter(isPanelRole) : [],
+      balances,
+      ledger,
+      rechargeAgent: agent
+        ? {
+            status: agent.status,
+            code: agent.code,
+            stockCoins: Number(agent.stockCoins),
+            dailyCherryCap: agent.dailyCherryCap === null ? null : Number(agent.dailyCherryCap),
+            suspendReason: agent.suspendReason,
+          }
+        : null,
+      hostAgent: agency
+        ? {
+            inviteCode: agency.inviteCode,
+            hostCode: agency.hostCode,
+            rank: agency.rank,
+            suspended: agency.suspendedAt !== null,
+          }
+        : null,
+      agencyHost: agencyHost
+        ? { agencyInviteCode: agencyHost.agency.inviteCode, status: agencyHost.status }
+        : null,
+      // v1.90-social (D293, §10.105): the badge shown beside the name, when it was granted and last confirmed.
+      verification: user.verificationBadge
+        ? {
+            badge: user.verificationBadge.badge,
+            since: user.verificationBadge.since.toISOString(),
+            computedAt: user.verificationBadge.computedAt.toISOString(),
+          }
+        : null,
+      reports: {
+        open: openReports,
+        recent: recentReports.map((r) => ({
+          id: r.id,
+          reason: r.reason,
+          status: r.status,
+          targetType: r.targetType,
+          createdAt: r.createdAt.toISOString(),
+        })),
+      },
+    };
+  }
+
+  private async target(id: string, ctx: AdminContext) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        role: true,
+        profile: { select: { username: true } },
+        adminPermissions: { select: { permission: true } },
+      },
+    });
+    if (!user) throw new AppException(ErrorCode.NOT_FOUND);
+    if (user.id === ctx.userId) throw refused('You cannot do this to your own account.');
+    const isAdmin = user.role === 'ADMIN' && user.adminPermissions.some((p) => isPanelRole(p.permission));
+    if (isAdmin && !ctx.roles.includes('OWNER')) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+    return user;
+  }
+
+  /** Ban «حظر»: ACTIVE → SUSPENDED with every side effect of AccountLifecycleService (live ended, seats freed …). */
+  async ban(id: string, reason: string, ctx: AdminContext): Promise<{ status: 'SUSPENDED' }> {
+    await this.target(id, ctx);
+    // v1.72-social (D208) asked for the authenticator code again; v1.78-live (D288, owner «يلغي»): no code — the role
+    // and capability (`users.ban`, read on every request), the panel's rate limit and this audit row protect it.
+    await this.prisma.$transaction(async (tx) => {
+      if (!(await this.lifecycle.suspendIn(tx, id))) throw refused('The account is not ACTIVE.');
+      await this.audit.recordIn(tx, {
+        action: AuditAction.ADMIN_USER_BAN,
+        actorUserId: ctx.userId,
+        targetType: 'user',
+        targetId: id,
+        metadata: { reason, before: 'ACTIVE', after: 'SUSPENDED', via: 'panel' },
+        ip: ctx.ip,
+        requestId: ctx.requestId,
+      });
+    });
+    return { status: 'SUSPENDED' };
+  }
+
+  async unban(id: string, reason: string, ctx: AdminContext): Promise<{ status: 'ACTIVE' }> {
+    await this.target(id, ctx);
+    // v1.110-social (D345, §10.144.4): a store-refund ban is lifted only by the OWNER from «مشتريات المتجر».
+    const refundBan = await this.prisma.iapRefundBan.findFirst({
+      where: { userId: id, accountBanned: true, accountLiftedAt: null },
+      select: { id: true },
+    });
+    if (refundBan) throw refused(STORE_REFUND_BAN_REFUSAL);
+    await this.prisma.$transaction(async (tx) => {
+      if (!(await this.lifecycle.unsuspendIn(tx, id))) throw refused('The account is not SUSPENDED.');
+      await this.audit.recordIn(tx, {
+        action: AuditAction.ADMIN_USER_UNBAN,
+        actorUserId: ctx.userId,
+        targetType: 'user',
+        targetId: id,
+        metadata: { reason, before: 'SUSPENDED', after: 'ACTIVE', via: 'panel' },
+        ip: ctx.ip,
+        requestId: ctx.requestId,
+      });
+    });
+    return { status: 'ACTIVE' };
+  }
+
+  /** The `profile-admin remove-avatar` rule: the photo goes, the user is told, its files are deleted after. */
+  async removeAvatar(id: string, reason: string, ctx: AdminContext): Promise<{ removed: boolean }> {
+    const user = await this.target(id, ctx);
+    const username = user.profile?.username;
+    if (!username) throw new AppException(ErrorCode.NOT_FOUND);
+    const result = await this.prisma.$transaction((tx) =>
+      removeAvatarByAdminIn(tx, username, reason, viaOf(ctx)),
+    );
+    if (result.outcome === 'unknown_user') throw new AppException(ErrorCode.NOT_FOUND);
+    if (result.outcome === 'no_photo') throw refused('The user has no profile photo.');
+    if (result.objectKeys.length > 0) {
+      try {
+        await this.storage.delete(result.objectKeys);
+      } catch (err) {
+        // The photo is already gone from the profile; the orphaned files are only a storage cost.
+        this.logger.warn({ error: safeErrorLog(err), userId: id }, 'Avatar files could not be deleted');
+      }
+    }
+    return { removed: true };
+  }
+
+  /**
+   * v1.76-social (D218, §10.73.3): the `profile-admin remove-cover` rule — the cover goes (the Kabso gradient
+   * shows), the user is told (`COVER_REMOVED`), its files are deleted after.
+   */
+  async removeCover(id: string, reason: string, ctx: AdminContext): Promise<{ removed: boolean }> {
+    const user = await this.target(id, ctx);
+    const username = user.profile?.username;
+    if (!username) throw new AppException(ErrorCode.NOT_FOUND);
+    const result = await this.prisma.$transaction((tx) =>
+      removeCoverByAdminIn(tx, username, reason, viaOf(ctx)),
+    );
+    if (result.outcome === 'unknown_user') throw new AppException(ErrorCode.NOT_FOUND);
+    if (result.outcome === 'no_cover') throw refused('The user has no profile cover.');
+    try {
+      await this.storage.delete(result.objectKeys);
+    } catch (err) {
+      // The cover is already gone from the profile; the orphaned files are only a storage cost.
+      this.logger.warn({ error: safeErrorLog(err), userId: id }, 'Cover files could not be deleted');
+    }
+    return { removed: true };
+  }
+
+  /**
+   * v1.136-social (D384, §10.173.5): «حذف الصورة المتحركة» — the VIP animated picture goes (the person card shows the
+   * round photo), the user is told (`ANIMATED_AVATAR_REMOVED`), its files are deleted after.
+   */
+  async removeAnimatedAvatar(id: string, reason: string, ctx: AdminContext): Promise<{ removed: boolean }> {
+    await this.target(id, ctx);
+    const result = await this.prisma.$transaction((tx) =>
+      removeAnimatedAvatarByAdminIn(tx, id, reason, viaOf(ctx)),
+    );
+    if (result.outcome === 'unknown_user') throw new AppException(ErrorCode.NOT_FOUND);
+    if (result.outcome === 'none') throw refused('The user has no animated picture.');
+    try {
+      await this.storage.delete(result.objectKeys);
+    } catch (err) {
+      // The clip is already gone from the profile; the orphaned files are only a storage cost.
+      this.logger.warn(
+        { error: safeErrorLog(err), userId: id },
+        'Animated picture files could not be deleted',
+      );
+    }
+    return { removed: true };
+  }
+
+  /** The `username-admin gift` rule (ADMIN_GIFT, for N days or permanently). */
+  async giftSpecial(
+    id: string,
+    body: { username: string; days?: number | undefined; permanent?: true | undefined; reason: string },
+    ctx: AdminContext,
+  ): Promise<{ username: string; baseUsername: string; expiresAt: string | null }> {
+    await this.target(id, ctx);
+    const now = new Date();
+    const name = normalizeUsername(body.username).replace(/^@/, '');
+    const expiresAt = body.days === undefined ? null : new Date(now.getTime() + body.days * 86_400_000);
+    try {
+      const row = await this.prisma.$transaction((tx) =>
+        grantSpecialIn(
+          tx,
+          id,
+          name,
+          {
+            source: 'ADMIN_GIFT',
+            expiresAt,
+            reason: body.reason,
+            actorUserId: ctx.userId,
+            via: 'panel',
+            ip: ctx.ip,
+          },
+          now,
+          this.config.specialUsernames.graceDays,
+        ),
+      );
+      return {
+        username: row.username,
+        baseUsername: row.baseUsername,
+        expiresAt: row.expiresAt?.toISOString() ?? null,
+      };
+    } catch (err) {
+      if (err instanceof SpecialUsernameError) throw refused(err.message);
+      throw err;
+    }
+  }
+
+  /** The `username-admin revoke` rule: the own username is shown again; the special one stays reserved for them. */
+  async revokeSpecial(id: string, reason: string, ctx: AdminContext): Promise<{ revoked: true }> {
+    await this.target(id, ctx);
+    const ended = await this.prisma.$transaction((tx) =>
+      endSpecialIn(tx, id, 'REVOKED', new Date(), this.config.specialUsernames.graceDays, {
+        actorUserId: ctx.userId,
+        via: 'panel',
+        note: reason,
+        ip: ctx.ip,
+      }),
+    );
+    if (!ended) throw refused('The user has no active special username.');
+    return { revoked: true };
+  }
+}

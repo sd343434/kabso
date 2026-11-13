@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,16 +7,23 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
+import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
+import 'package:kabso_live/features/auth/data/signup_code.dart';
 import 'package:kabso_live/features/auth/domain/auth_failures.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/registration_flow.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/auth_widgets.dart';
+import 'package:kabso_live/features/auth/presentation/widgets/device_limit_notice.dart';
+import 'package:kabso_live/features/privacy/privacy_repository.dart';
+import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:url_launcher/url_launcher.dart' as launcher;
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const new({super.key});
@@ -23,6 +32,16 @@ class RegisterScreen extends ConsumerStatefulWidget {
   static const usernameKey = Key('register.username');
   static const displayNameKey = Key('register.displayName');
   static const passwordKey = Key('register.password');
+
+  /// D217: the optional invite code «كود الدعوة»; v1.108-social (D343):
+  /// «رمز الدعوة أو رمز المشرف», collapsed under «لديك رمز دعوة؟» unless
+  /// pre-filled.
+  static const referralKey = Key('register.referral');
+  static const referralToggleKey = Key('register.referral.toggle');
+  static const referralPasteKey = Key('register.referral.paste');
+  static const referralRemoveKey = Key('register.referral.remove');
+  static const referralStatusKey = Key('register.referral.status');
+  static const referralFromLinkKey = Key('register.referral.fromLink');
   static const submitKey = Key('register.submit');
   static const usernameStatusKey = Key('register.usernameStatus');
   static const usernameLostKey = Key('register.usernameLost');
@@ -30,6 +49,18 @@ class RegisterScreen extends ConsumerStatefulWidget {
   static const usernameReservedKey = Key('register.usernameReserved');
   static const resendCodeKey = Key('register.resendCode');
   static const chooseAnotherKey = Key('register.chooseAnother');
+
+  /// D175: the required gender choice; one chip per value
+  /// (`register.gender.MALE` …).
+  static const genderKey = Key('register.gender');
+  static Key genderOptionKey(Gender g) => Key('register.gender.${g.wire}');
+
+  /// D198: «عمري 18 عاماً أو أكثر وأوافق على الشروط وسياسة الخصوصية»
+  /// (required) and its two links.
+  static const legalKey = Key('register.legal');
+  static const legalCheckKey = Key('register.legal.check');
+  static const termsLinkKey = Key('register.legal.terms');
+  static const privacyLinkKey = Key('register.legal.privacy');
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -41,6 +72,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _username = TextEditingController();
   final _displayName = TextEditingController();
   final _password = TextEditingController();
+
+  /// D217: an invite code from a friend (optional; typed or pasted — a
+  /// pasted invite link works too). v1.108-social (D343, §10.142): or a
+  /// supervisor's staff ID; pre-filled from the Play install referrer.
+  final _referral = TextEditingController();
+  String? _referralError;
+
+  /// D343: the code field is shown (opened, or pre-filled).
+  bool _codeOpen = false;
+
+  /// D343: the code came from the invite link (install referrer).
+  bool _codeFromLink = false;
+
+  /// D343: the live check of the code (null: nothing to say).
+  SignupCodeCheck? _codeCheck;
+  bool _codeChecking = false;
+  Timer? _codeTimer;
+  int _codeGeneration = 0;
+
+  /// D175 (owner): chosen at sign-up, required; «أفضّل عدم الذكر» is one of
+  /// the three choices.
+  Gender? _gender;
+
+  /// D198: the 18+ statement and the acceptance of the terms and the policy.
+  bool _legalAccepted = false;
   AutovalidateMode _autovalidate = AutovalidateMode.disabled;
 
   /// Server-reported field errors, cleared when the field changes.
@@ -69,6 +125,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _username.text = draft.username;
       _displayName.text = draft.displayName;
       _password.text = draft.password;
+      _gender = draft.gender;
       if (draft.usernameLost) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _showUsernameLost(draft.username);
@@ -76,6 +133,97 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
     }
     _displayName.addListener(_onDisplayNameChanged);
+    // D343: the invite link's code (Android, Google Play), once per install.
+    unawaited(_prefillFromReferrer());
+  }
+
+  Future<void> _prefillFromReferrer() async {
+    String? code;
+    try {
+      code = await ref.read(pendingSignupCodeProvider.future);
+    } on Object {
+      code = null;
+    }
+    if (!mounted || code == null || _referral.text.isNotEmpty) return;
+    setState(() {
+      _referral.text = code!;
+      _codeOpen = true;
+      _codeFromLink = true;
+    });
+    _scheduleCodeCheck(immediate: true);
+  }
+
+  /// D343: asks the server what the code is, after a pause in typing.
+  void _scheduleCodeCheck({bool immediate = false}) {
+    _codeTimer?.cancel();
+    final generation = ++_codeGeneration;
+    final code = _referral.text.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _codeCheck = null;
+        _codeChecking = false;
+      });
+      return;
+    }
+    setState(() {
+      _codeCheck = null;
+      _codeChecking = true;
+    });
+    _codeTimer = Timer(
+      immediate ? Duration.zero : ref.read(signupCodeDebounceProvider),
+      () async {
+        SignupCodeCheck? result;
+        try {
+          result = await ref.read(signupCodeRepositoryProvider).check(code);
+        } on Object {
+          // Offline or a server problem: say nothing, the sign-up decides.
+          result = null;
+        }
+        if (!mounted || generation != _codeGeneration) return;
+        setState(() {
+          _codeChecking = false;
+          _codeCheck = result;
+        });
+      },
+    );
+  }
+
+  void _onCodeChanged(String _) {
+    if (_referralError != null) setState(() => _referralError = null);
+    if (_codeFromLink) setState(() => _codeFromLink = false);
+    _scheduleCodeCheck();
+  }
+
+  /// D343: «لصق الرمز» — the clipboard is read only now, on the tap.
+  Future<void> _pasteCode() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (!mounted) return;
+    final code = extractSignupCode(data?.text ?? '');
+    if (code == null) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(context.l10n.signupCodeClipboardEmpty)),
+      );
+      return;
+    }
+    setState(() {
+      _referral.text = code;
+      _referralError = null;
+      _codeFromLink = false;
+    });
+    _scheduleCodeCheck(immediate: true);
+  }
+
+  void _removeCode() {
+    _codeTimer?.cancel();
+    _codeGeneration++;
+    setState(() {
+      _referral.clear();
+      _referralError = null;
+      _codeFromLink = false;
+      _codeCheck = null;
+      _codeChecking = false;
+    });
+    unawaited(forgetPendingSignupCode(ref.read(sharedPreferencesProvider)));
   }
 
   void _onDisplayNameChanged() => setState(() {});
@@ -92,6 +240,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _username.dispose();
     _displayName.dispose();
     _password.dispose();
+    _referral.dispose();
+    _codeTimer?.cancel();
     super.dispose();
   }
 
@@ -172,6 +322,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _usernameFocus.requestFocus();
   }
 
+  /// Leaving the flow to Login clears the in-memory draft.
+  void _logIn() {
+    ref.read(registrationFlowProvider.notifier).clear();
+    context.go(AppRoutes.login);
+  }
+
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
     setState(() {
@@ -180,7 +336,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
     final valid = _formKey.currentState?.validate() ?? false;
     final status = ref.read(usernameAvailabilityProvider);
-    if (!valid || status is UsernameTaken) return;
+    final gender = _gender;
+    if (!valid || status is UsernameTaken || gender == null) return;
+    if (!_legalAccepted) return;
+    // D198: the versions shown (none before the owner publishes them).
+    final docs = ref.read(legalDocumentsProvider).value ?? const [];
+    String? versionOf(LegalKind k) {
+      for (final d in docs) {
+        if (d.kind == k) return d.version;
+      }
+      return null;
+    }
+
+    final legal = <String, dynamic>{
+      'ageConfirmed': true,
+      'termsVersion': ?versionOf(LegalKind.terms),
+      'privacyVersion': ?versionOf(LegalKind.privacy),
+    };
 
     final ok = await ref
         .read(authControllerProvider.notifier)
@@ -189,9 +361,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           password: _password.text,
           username: _username.text,
           displayName: _displayName.text,
+          gender: gender,
+          legal: legal,
+          referralCode: _referral.text,
         );
     if (!mounted) return;
     if (ok) {
+      // D343: the invite link's code was used; it is not offered again.
+      if (_referral.text.trim().isNotEmpty) {
+        unawaited(forgetPendingSignupCode(ref.read(sharedPreferencesProvider)));
+      }
       // 202: code entry. The draft keeps the form for "Change email".
       // maybeOf: the screen is also hosted without a router (widget tests).
       await GoRouter.maybeOf(context)?.push(AppRoutes.registerCode);
@@ -203,6 +382,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final failure = submission.failure;
     final l10n = context.l10n;
     setState(() {
+      // D343: an unknown or malformed «رمز الدعوة أو رمز المشرف».
+      if (failure is ServerFailure &&
+          failure.details.any((d) => d.field == 'referralCode')) {
+        _referralError = l10n.signupCodeNotFound;
+        _codeOpen = true;
+        _codeCheck = null;
+      }
       for (final MapEntry(key: field, value: issue)
           in failure.authFieldIssues.entries) {
         // EMAIL_TAKEN is never mapped to a field (v1.2, D24).
@@ -245,7 +431,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ? submission.failure
         : null;
 
+    // D343 (owner): a simpler page without Kabi — the wordmark, the title and
+    // the fields (login keeps its own design).
     return AuthScaffold(
+      showBack: Navigator.canPop(context),
       title: l10n.registerTitle,
       subtitle: l10n.registerSubtitle,
       actions: [AuthLanguageSwitch(enabled: !submitting)],
@@ -263,6 +452,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   key: RegisterScreen.usernameLostKey,
                   message: l10n.errUsernameTakenDuringVerify,
                 ),
+                const SizedBox(height: KSpacing.lg),
+              ] else if (generalFailure?.code ==
+                  ErrorCode.deviceAccountLimit) ...[
+                // D223: this device created its accounts; signing in works.
+                DeviceLimitNotice(failure: generalFailure!, onLogIn: _logIn),
                 const SizedBox(height: KSpacing.lg),
               ] else if (generalFailure != null) ...[
                 FailureBanner(failure: generalFailure, remaining: remaining),
@@ -354,6 +548,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: KSpacing.lg),
+              FormField<Gender>(
+                key: RegisterScreen.genderKey,
+                initialValue: _gender,
+                validator: (_) =>
+                    _gender == null ? l10n.registerGenderRequired : null,
+                builder: (field) => GenderChoice(
+                  label: l10n.registerGenderLabel,
+                  helper: l10n.registerGenderHelper,
+                  value: _gender,
+                  enabled: !submitting,
+                  errorText: field.errorText,
+                  optionKey: RegisterScreen.genderOptionKey,
+                  onChanged: (g) {
+                    setState(() => _gender = g);
+                    field.didChange(g);
+                  },
+                ),
+              ),
+              const SizedBox(height: KSpacing.lg),
               KTextField(
                 fieldKey: RegisterScreen.passwordKey,
                 controller: _password,
@@ -375,7 +588,37 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 validator: (v) =>
                     validationMessage(l10n, AuthValidators.password(v)),
               ),
-              const SizedBox(height: KSpacing.xl),
+              const SizedBox(height: KSpacing.md),
+              _SignupCodeSection(
+                open: _codeOpen || _referral.text.isNotEmpty,
+                controller: _referral,
+                enabled: !submitting,
+                fromLink: _codeFromLink,
+                checking: _codeChecking,
+                check: _codeCheck,
+                errorText: _referralError,
+                onOpen: () => setState(() => _codeOpen = true),
+                onChanged: _onCodeChanged,
+                onPaste: _pasteCode,
+                onRemove: _removeCode,
+              ),
+              const SizedBox(height: KSpacing.sm),
+              FormField<bool>(
+                key: RegisterScreen.legalKey,
+                initialValue: _legalAccepted,
+                validator: (_) =>
+                    _legalAccepted ? null : l10n.registerLegalRequired,
+                builder: (field) => _LegalConsent(
+                  accepted: _legalAccepted,
+                  enabled: !submitting,
+                  errorText: field.errorText,
+                  onChanged: (v) {
+                    setState(() => _legalAccepted = v);
+                    field.didChange(v);
+                  },
+                ),
+              ),
+              const SizedBox(height: KSpacing.lg),
               KButton(
                 key: RegisterScreen.submitKey,
                 label: l10n.registerSubmit,
@@ -389,22 +632,172 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 key: RegisterScreen.codeNoticeKey,
                 style: context.textStyles.caption,
               ),
-              const SizedBox(height: KSpacing.xs),
-              Text(l10n.registerTerms, style: context.textStyles.caption),
+
               const SizedBox(height: KSpacing.lg),
               AuthSwitchPrompt(
                 question: l10n.registerHaveAccount,
                 action: l10n.registerSignIn,
-                onPressed: () {
-                  // Leaving the flow to Login clears the in-memory draft.
-                  ref.read(registrationFlowProvider.notifier).clear();
-                  context.go(AppRoutes.login);
-                },
+                onPressed: _logIn,
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// v1.108-social (D343, §10.142): «رمز الدعوة أو رمز المشرف» — a text
+/// button «لديك رمز دعوة؟» until opened or pre-filled; then the field with
+/// «لصق الرمز» (the clipboard is read on that tap only), the live check and,
+/// for a code from the invite link, a note and «إزالة الرمز».
+class _SignupCodeSection extends StatelessWidget {
+  const new({
+    required this.open,
+    required this.controller,
+    required this.enabled,
+    required this.fromLink,
+    required this.checking,
+    required this.check,
+    required this.errorText,
+    required this.onOpen,
+    required this.onChanged,
+    required this.onPaste,
+    required this.onRemove,
+  });
+
+  final bool open;
+  final TextEditingController controller;
+  final bool enabled;
+  final bool fromLink;
+  final bool checking;
+  final SignupCodeCheck? check;
+  final String? errorText;
+  final VoidCallback onOpen;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onPaste;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    if (!open) {
+      return Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton.icon(
+          key: RegisterScreen.referralToggleKey,
+          onPressed: enabled ? onOpen : null,
+          icon: const Icon(Icons.card_giftcard_rounded, size: 20),
+          label: Text(l10n.signupCodeToggle),
+        ),
+      );
+    }
+    final check = this.check;
+    final status = errorText != null
+        ? null
+        : checking
+        ? (null, p.textSecondary, l10n.signupCodeChecking)
+        : switch (check) {
+            SignupCodeValid(kind: SignupCodeKind.supervisor, :final code) => (
+              Icons.check_circle_rounded,
+              p.success,
+              l10n.signupCodeSupervisorOk(code),
+            ),
+            SignupCodeValid() => (
+              Icons.check_circle_rounded,
+              p.success,
+              l10n.signupCodeInviteOk,
+            ),
+            SignupCodeNotFound() => (
+              Icons.error_outline_rounded,
+              p.error,
+              l10n.signupCodeNotFound,
+            ),
+            null => null,
+          };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        KTextField(
+          fieldKey: RegisterScreen.referralKey,
+          controller: controller,
+          label: l10n.signupCodeLabel,
+          helperText: l10n.signupCodeHelper,
+          textInputAction: TextInputAction.done,
+          textDirection: TextDirection.ltr,
+          maxLength: 200,
+          enabled: enabled,
+          errorText: errorText,
+          onChanged: onChanged,
+          suffix: controller.text.isEmpty
+              ? IconButton(
+                  key: RegisterScreen.referralPasteKey,
+                  tooltip: l10n.signupCodePaste,
+                  onPressed: enabled ? onPaste : null,
+                  icon: const Icon(Icons.content_paste_rounded),
+                )
+              : IconButton(
+                  key: RegisterScreen.referralRemoveKey,
+                  tooltip: l10n.signupCodeRemove,
+                  onPressed: enabled ? onRemove : null,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+          status: status == null
+              ? null
+              : Semantics(
+                  key: RegisterScreen.referralStatusKey,
+                  liveRegion: true,
+                  child: Row(
+                    children: [
+                      if (status.$1 == null)
+                        SizedBox.square(
+                          dimension: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: status.$2,
+                          ),
+                        )
+                      else
+                        Icon(status.$1, size: 16, color: status.$2),
+                      const SizedBox(width: KSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          status.$3,
+                          style: context.textStyles.caption.copyWith(
+                            color: status.$2,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+        if (fromLink) ...[
+          const SizedBox(height: KSpacing.xs),
+          Padding(
+            // Aligned with the field's helper and status lines.
+            padding: const EdgeInsetsDirectional.symmetric(
+              horizontal: KSpacing.lg,
+            ),
+            child: Row(
+              key: RegisterScreen.referralFromLinkKey,
+              children: [
+                Icon(Icons.link_rounded, size: 16, color: p.textSecondary),
+                const SizedBox(width: KSpacing.xs),
+                Expanded(
+                  child: Text(
+                    l10n.signupCodeFromLink,
+                    style: context.textStyles.caption.copyWith(
+                      color: p.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -531,4 +924,101 @@ class _LowerCaseFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) => newValue.copyWith(text: newValue.text.toLowerCase());
+}
+
+/// D198: the sign-up's 18+ statement and acceptance of the terms and the
+/// privacy policy, with links to both (the website pages).
+class _LegalConsent extends ConsumerWidget {
+  const new({
+    required this.accepted,
+    required this.enabled,
+    required this.errorText,
+    required this.onChanged,
+  });
+
+  final bool accepted;
+  final bool enabled;
+  final String? errorText;
+  final ValueChanged<bool> onChanged;
+
+  static const _termsUrl = 'https://kabsolive.com/terms';
+  static const _privacyUrl = 'https://kabsolive.com/privacy';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final docs = ref.watch(legalDocumentsProvider).value ?? const [];
+    final arabic = Localizations.localeOf(context).languageCode == 'ar';
+    String urlOf(LegalKind k, String fallback) {
+      var url = fallback;
+      for (final d in docs) {
+        if (d.kind == k) url = d.url;
+      }
+      return arabic ? url : '$url?lang=en';
+    }
+
+    Future<void> open(String url) => launcher.launchUrl(
+      Uri.parse(url),
+      mode: launcher.LaunchMode.externalApplication,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MergeSemantics(
+          child: InkWell(
+            onTap: enabled ? () => onChanged(!accepted) : null,
+            borderRadius: BorderRadius.circular(KRadius.sm),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Checkbox(
+                  key: RegisterScreen.legalCheckKey,
+                  value: accepted,
+                  onChanged: enabled ? (v) => onChanged(v ?? false) : null,
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(top: 12),
+                    child: Text(
+                      l10n.registerLegalAccept,
+                      style: context.textStyles.caption.copyWith(
+                        color: p.textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsetsDirectional.only(start: 40),
+          child: Wrap(
+            spacing: KSpacing.xs,
+            children: [
+              TextButton(
+                key: RegisterScreen.termsLinkKey,
+                onPressed: () => open(urlOf(LegalKind.terms, _termsUrl)),
+                child: Text(l10n.consentTermsName),
+              ),
+              TextButton(
+                key: RegisterScreen.privacyLinkKey,
+                onPressed: () => open(urlOf(LegalKind.privacy, _privacyUrl)),
+                child: Text(l10n.consentPrivacyName),
+              ),
+            ],
+          ),
+        ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: KSpacing.md),
+            child: Text(
+              errorText!,
+              style: context.textStyles.caption.copyWith(color: p.error),
+            ),
+          ),
+      ],
+    );
+  }
 }

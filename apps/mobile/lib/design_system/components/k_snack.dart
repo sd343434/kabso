@@ -3,11 +3,23 @@ import 'package:material_ui/material_ui.dart';
 
 /// SnackBar helpers using token colors.
 abstract final class KSnack {
-  static void success(BuildContext context, String message) => _show(
+  /// With [actionLabel], the bar carries one action (e.g. Undo). [leading]
+  /// replaces the check icon (e.g. an amount with its currency icon).
+  static void success(
+    BuildContext context,
+    String message, {
+    String? actionLabel,
+    VoidCallback? onAction,
+    Widget? leading,
+  }) => _show(
     context,
     message,
     Icons.check_circle_outline,
     context.palette.success,
+    leading: leading,
+    action: actionLabel == null || onAction == null
+        ? null
+        : SnackBarAction(label: actionLabel, onPressed: onAction),
   );
 
   static void error(BuildContext context, String message) =>
@@ -20,17 +32,20 @@ abstract final class KSnack {
     BuildContext context,
     String message,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    SnackBarAction? action,
+    Widget? leading,
+  }) {
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          action: action,
           content: Row(
             children: [
-              ExcludeSemantics(child: Icon(icon, color: color)),
+              ExcludeSemantics(child: leading ?? Icon(icon, color: color)),
               const SizedBox(width: 12),
               Expanded(child: Text(message)),
             ],

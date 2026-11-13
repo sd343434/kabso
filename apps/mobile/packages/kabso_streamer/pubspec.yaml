@@ -1,0 +1,31 @@
+name: kabso_streamer
+description: >-
+  Kabso Live's streamer live (D213), Android: the game / app sound
+  (AudioPlaybackCapture on the screen capture's own MediaProjection, Android
+  10+) mixed into the host's published microphone on flutter_webrtc's capture
+  post-processing, the microphone and the game muted separately, and the
+  capture's lifecycle (stopped from the system, the screen off, phone calls,
+  the display turning) plus FLAG_SECURE for the app's own window while
+  streaming. The screen itself is flutter_webrtc's screen capture. Android
+  only; the Dart API lives in the app.
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.5
+  flutter: ">=3.47.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Reads flutter_webrtc's audio module and its screen capturer's
+  # MediaProjection. Pinned to the app's version: it relies on that exact
+  # native code (see StreamerRules.PROJECTION_PATH).
+  flutter_webrtc: 1.6.2+hotfix.4
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.kabso.kabso_streamer
+        pluginClass: KabsoStreamerPlugin

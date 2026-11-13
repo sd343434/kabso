@@ -7,6 +7,19 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { expressErrorHandler } from './common/errors/all-exceptions.filter.js';
 import { requestIdMiddleware } from './common/request-id/request-id.js';
+import {
+  BANNER_UPLOAD_PATH,
+  BANNER_VIDEO_UPLOAD_PATH,
+  EVENT_UPLOAD_PATH,
+  GIFT_UPLOAD_PATH,
+} from './modules/admin-panel/admin-v2.controller.js';
+import { STAFF_EVENT_UPLOAD_PATH } from './modules/admin-panel/staff-app.controller.js';
+import { WHATSAPP_MEDIA_UPLOAD_PATH, WHATSAPP_WEBHOOK_PATH } from './modules/whatsapp/whatsapp.controller.js';
+import { LEVEL_RAISE_VIDEO_UPLOAD_PATH } from './modules/level-raise/level-raise.controller.js';
+import { VIP_UPLOAD_PATH } from './modules/admin-panel/admin-vip.controller.js';
+import { STORE_UPLOAD_PATH } from './modules/admin-panel/admin-store.controller.js';
+import { STRIPE_WEBHOOK_PATH } from './modules/topup/topup.controller.js';
+import { KYC_WEBHOOK_PATH } from './modules/kyc/kyc.rules.js';
 import type { AppConfig } from './config/app-config.js';
 
 export const API_PREFIX = 'api/v1';
@@ -51,7 +64,61 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
     exposedHeaders: ['X-Request-Id', 'Retry-After'],
     maxAge: 600,
   });
+  // v1.59-social (D190): Stripe signs the exact bytes of its webhook, so that one path keeps a raw Buffer (read
+  // before the JSON parser, which then skips the already-read body). Stripe events stay far below 1 MB.
+  app.useBodyParser('raw', {
+    type: (req: { url?: string }) => (req.url ?? '').split('?')[0] === STRIPE_WEBHOOK_PATH,
+    limit: '1mb',
+  });
+  // v1.80-kyc (D227): Didit signs its webhook (`X-Signature` over the raw bytes, `X-Signature-V2` over the canonical
+  // JSON), so that one path keeps a raw Buffer too; the service parses it. Didit's events stay far below 1 MB.
+  app.useBodyParser('raw', {
+    type: (req: { url?: string }) => (req.url ?? '').split('?')[0] === KYC_WEBHOOK_PATH,
+    limit: '1mb',
+  });
+  // v1.71-social (D207): the admin panel's gift file uploads are the raw bytes (an SVGA is at most 25 MiB); only that
+  // path (v1.59-live, D248: and the banner picture upload, at most 15 MiB, checked by the service; v1.83-social, D258:
+  // and the VIP art upload), and only
+  // `application/octet-stream`.
+  app.useBodyParser('raw', {
+    type: (req: { url?: string; headers?: Record<string, string | string[] | undefined> }) =>
+      [GIFT_UPLOAD_PATH, BANNER_UPLOAD_PATH, VIP_UPLOAD_PATH, STORE_UPLOAD_PATH].includes(
+        (req.url ?? '').split('?')[0] ?? '',
+      ) && String(req.headers?.['content-type'] ?? '').startsWith('application/octet-stream'),
+    limit: '26mb',
+  });
+  // v1.97-social (D303, §10.114.6): the panel's banner video (raw bytes, at most 30 MiB, checked by the service).
+  app.useBodyParser('raw', {
+    type: (req: { url?: string; headers?: Record<string, string | string[] | undefined> }) =>
+      [BANNER_VIDEO_UPLOAD_PATH, EVENT_UPLOAD_PATH, STAFF_EVENT_UPLOAD_PATH].includes(
+        (req.url ?? '').split('?')[0] ?? '',
+      ) && String(req.headers?.['content-type'] ?? '').startsWith('application/octet-stream'),
+    limit: '31mb',
+  });
+  // v1.89-social (D290, §10.103): the panel's level-raise video (raw bytes, at most 100 MiB, checked by the service).
+  app.useBodyParser('raw', {
+    type: (req: { url?: string; headers?: Record<string, string | string[] | undefined> }) =>
+      (req.url ?? '').split('?')[0] === LEVEL_RAISE_VIDEO_UPLOAD_PATH &&
+      String(req.headers?.['content-type'] ?? '').startsWith('application/octet-stream'),
+    limit: '101mb',
+  });
+  // v1.116-social (D355, §10.151.3): Meta signs its WhatsApp webhook (X-Hub-Signature-256 over the exact bytes), so
+  // that one path keeps a raw Buffer whatever its content type; and the staff's outbound media is the raw bytes.
+  app.useBodyParser('raw', {
+    type: (req: { url?: string }) => (req.url ?? '').split('?')[0] === WHATSAPP_WEBHOOK_PATH,
+    limit: '3mb',
+  });
+  app.useBodyParser('raw', {
+    type: (req: { url?: string; headers?: Record<string, string | string[] | undefined> }) =>
+      WHATSAPP_MEDIA_UPLOAD_PATH.test((req.url ?? '').split('?')[0] ?? '') &&
+      String(req.headers?.['content-type'] ?? '').startsWith('application/octet-stream'),
+    limit: config.whatsapp.mediaMaxBytes + 1024,
+  });
   app.useBodyParser('json', { limit: config.http.bodyLimit, strict: true });
+  // CP-010: the media server's signed webhook (`application/webhook+json`) is verified against
+  // its exact bytes, so that one content type is kept raw (a Buffer); no route but the webhook
+  // accepts it.
+  app.useBodyParser('raw', { type: 'application/webhook+json', limit: config.http.bodyLimit });
   // Body-parser failures happen before routing; render them with the contract envelope.
   app.use(expressErrorHandler);
 
@@ -59,6 +126,15 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
     exclude: [
       { path: 'health/live', method: RequestMethod.GET },
       { path: 'health/ready', method: RequestMethod.GET },
+      { path: 'internal/livekit/webhook', method: RequestMethod.POST },
+      // D350: the same signed webhook on a public path (served only with LIVEKIT_PUBLIC_WEBHOOK_ENABLED=true).
+      { path: 'livekit/webhook', method: RequestMethod.POST },
+      // v1.59-social (D190): the top-up website's pages and assets.
+      { path: 'topup', method: RequestMethod.GET },
+      { path: 'topup/success', method: RequestMethod.GET },
+      { path: 'topup/cancel', method: RequestMethod.GET },
+      { path: 'topup/assets/topup.js', method: RequestMethod.GET },
+      { path: 'topup/assets/topup.css', method: RequestMethod.GET },
     ],
   });
   app.enableShutdownHooks();

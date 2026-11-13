@@ -1,4 +1,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
+import 'package:kabso_live/core/models/special_username.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
+import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 
 part 'entities.freezed.dart';
 
@@ -21,6 +26,68 @@ abstract class User with _$User {
     required DateTime createdAt,
     String? bio,
     String? avatarUrl,
+
+    /// CP-010: holds the hosting permission (may go live).
+    @Default(false) bool canHost,
+
+    /// CP-015: the host's live cover, reused by every live; null → the
+    /// avatar is shown.
+    String? liveCoverUrl,
+
+    /// v1.27.1-live (D133): the person's own country (ISO 3166-1 alpha-2,
+    /// upper case), or null. It decides the live hub's Nearby.
+    String? country,
+
+    /// v1.28-live (D146): the tier of the person's premium username, or
+    /// null for a regular one.
+    PremiumTier? premiumTier,
+
+    /// v1.47-social (D175): the person's gender (null until chosen) and
+    /// whether others see it (private by default).
+    Gender? gender,
+    @Default(false) bool showGender,
+
+    /// v1.47-social (D175): the account category shown under the name.
+    AccountCategory? category,
+
+    /// v1.47-social (D175): up to 3 profile links, in order.
+    @Default(<ProfileLink>[]) List<ProfileLink> links,
+
+    /// v1.85-social (D278b, §10.99): the profile tags «منشنات» (0–10).
+    @Default(<String>[]) List<String> tags,
+
+    /// v1.91-social (D292, §10.106): the icon of each tag (`ProfileTagIcon`
+    /// keys, one per tag; empty from an older server — read as `default`).
+    @Default(<String>[]) List<String> tagIcons,
+
+    /// v1.54-social (D185, §10.48.1): the active special username (the
+    /// shown [username] while set) and the person's own base username.
+    SpecialUsername? specialUsername,
+
+    /// v1.76-social (D218, §10.73.3): the profile cover, or null.
+    String? coverUrl,
+
+    /// v1.68-live (D273, §10.96.6): «فريق كابسو» (OWNER, MODERATION or
+    /// SUPPORT) — the Me tab's staff entry and the staff tools in lives.
+    @Default(false) bool kabsoTeam,
+
+    /// v1.72-live (D283, §10.96.10): a limited Kabso Team account
+    /// (MODERATION / SUPPORT / FINANCE, not OWNER) — the staff-only Me tab,
+    /// no go-live, levels, VIP, family, store, wallet or bag. Null otherwise.
+    KabsoStaffIdentity? staff,
+
+    /// v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while
+    /// a panel role is held (the OWNER too) — the Me tab shows it instead of
+    /// the @username. Null otherwise.
+    String? staffId,
+
+    /// v1.90-social (D293, §10.105): the automatic verification badge
+    /// «شارة التوثيق» beside the name, or null.
+    VerificationBadge? verification,
+
+    /// v1.130-social (D376, §10.167): «الحالة» — the status emoji worn over
+    /// the picture (`<pack>.<emoji>`), or null.
+    String? statusEmojiId,
   }) = _User;
 }
 

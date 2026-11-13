@@ -1,0 +1,569 @@
+// D124: the live hub as a 2-column grid with the promo banner carousel
+// (D248: after the first row, and the card-size banner's link), banner
+// links, and the in-room swipe through the tab's rooms.
+
+import 'dart:ui' show Tristate;
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kabso_live/app/app.dart';
+import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/app/shell/feed_region.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/core/storage/preferences.dart';
+import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/data/home_banners_repository.dart';
+import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
+import 'package:kabso_live/features/live/domain/home_banner_link.dart';
+import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
+import 'package:kabso_live/features/live/presentation/hub/hub_card_banner.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_room_swipe.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_type_tag.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
+import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/stories/data/stories_repository.dart';
+import 'package:kabso_live/l10n/l10n.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../../fixtures/live/live_api_fixtures.dart';
+import '../../helpers/component_harness.dart';
+import '../../helpers/fake_home_banners_repository.dart';
+import '../../helpers/fake_live_media_engine.dart';
+import '../../helpers/fake_live_pk.dart';
+import '../../helpers/fake_live_repository.dart';
+import '../../helpers/fake_notifications_repository.dart';
+import '../../helpers/fake_posts_repository.dart';
+import '../../helpers/fake_stories_repository.dart';
+import '../../helpers/fakes.dart';
+import '../../helpers/golden.dart';
+import '../../helpers/pump_app.dart';
+
+Future<void> _pumpHub(
+  WidgetTester tester, {
+  int rooms = 8,
+  List<HomeBanner> banners = const [],
+  AppLanguage language = AppLanguage.en,
+  GoldenViewport viewport = GoldenViewport.phone,
+  double textScale = 1,
+  AppFailure? bannerFailure,
+}) async {
+  setViewport(tester, viewport);
+  await pumpScreen(
+    tester,
+    Builder(
+      builder: (context) => MediaQuery(
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(textScale)),
+        child: const LiveScreen(),
+      ),
+    ),
+    language: language,
+    homeBannersRepository: FakeHomeBannersRepository(
+      banners: banners,
+      failure: bannerFailure,
+    ),
+    overrides: liveOverrides(
+      FakeLiveRepository(
+        rooms: (_) => apiPage(apiRooms(rooms, ar: language == AppLanguage.ar)),
+      ),
+      language: language,
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+/// Which banner the carousel shows (the one whose page fills it).
+String? _visibleBanner(WidgetTester tester) {
+  final carousel = tester.getRect(
+    find.descendant(
+      of: find.byKey(KHomeBannerCarousel.carouselKey),
+      matching: find.byType(PageView),
+    ),
+  );
+  for (final id in ['banner-0', 'banner-1', 'banner-2']) {
+    final page = find.byKey(KHomeBannerCarousel.pageKey(id));
+    for (final e in page.evaluate()) {
+      final box = e.renderObject! as RenderBox;
+      final rect = box.localToGlobal(Offset.zero) & box.size;
+      if ((rect.left - carousel.left).abs() < 1) return id;
+    }
+  }
+  return null;
+}
+
+void main() {
+  group('grid (D124)', () {
+    for (final language in AppLanguage.values) {
+      testWidgets('2 columns from the reading start (${language.name})', (
+        tester,
+      ) async {
+        await _pumpHub(tester, language: language);
+        final first = tester.getRect(find.byKey(LiveHubGrid.cardKey(0)));
+        final second = tester.getRect(find.byKey(LiveHubGrid.cardKey(1)));
+        final third = tester.getRect(find.byKey(LiveHubGrid.cardKey(2)));
+        // D131 (ref 165): 13 pt sides, 7.2 pt across, 6 pt down, 0.894.
+        expect(first.width, moreOrLessEquals((393 - 26 - 7.2) / 2));
+        expect(first.height, moreOrLessEquals(first.width / 0.894));
+        expect(first.top, second.top);
+        expect(third.top - first.bottom, moreOrLessEquals(6));
+        if (language == AppLanguage.ar) {
+          expect(first.right, moreOrLessEquals(393 - 13));
+          expect(first.left - second.right, moreOrLessEquals(7.2));
+        } else {
+          expect(first.left, moreOrLessEquals(13));
+          expect(second.left - first.right, moreOrLessEquals(7.2));
+        }
+        // D377: the tabs (no title) at the reading start of the top bar.
+        final tabs = tester.getRect(
+          find.byKey(LiveHubTopBar.tabKey(LiveHubFilter.following)),
+        );
+        expect(
+          language == AppLanguage.ar ? tabs.right > 300 : tabs.left < 100,
+          isTrue,
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('D131 (ref 165) / D237: every live names its category next '
+        'to the live mark (a solo live «بث مباشر» / "Live")', (tester) async {
+      final l10n = l10nFor(AppLanguage.en);
+      await _pumpHub(tester, rooms: 1);
+      expect(
+        tester
+            .widget<LiveTypeTag>(
+              find.descendant(
+                of: find.byKey(LiveHubGrid.cardKey(0)),
+                matching: find.byKey(KLiveGridCard.typeKey),
+              ),
+            )
+            .kind,
+        LiveCardKind.live,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(LiveHubGrid.cardKey(0)),
+          matching: find.text(l10n.liveTypeTagCam),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(LiveHubGrid.cardKey(0)),
+          matching: find.byType(KLiveEqualizer),
+        ),
+        findsOneWidget,
+      );
+      await pumpComponent(
+        tester,
+        Center(
+          child: Row(
+            children: [
+              for (final card in [
+                const LiveRoomCardData(
+                  hostName: 'A',
+                  title: 'pk',
+                  viewerCount: 3,
+                  inPk: true,
+                ),
+                // D369: a legacy MULTI room reads as a camera live.
+                const LiveRoomCardData(
+                  hostName: 'B',
+                  title: 'multi',
+                  viewerCount: 3,
+                ),
+              ])
+                SizedBox(
+                  width: 180,
+                  height: 201,
+                  child: KLiveGridCard(room: card),
+                ),
+            ],
+          ),
+        ),
+      );
+      expect(find.text(l10n.pkBadge), findsOneWidget);
+      expect(find.text(l10n.liveTypeTagCam), findsOneWidget);
+    });
+  });
+
+  group('banners (D124)', () {
+    testWidgets('D303 (owner): full width as the first block, above the '
+        'first row, 5:1, the indicator bar inside its bottom edge', (
+      tester,
+    ) async {
+      await _pumpHub(tester, banners: sampleBanners());
+      final carousel = find.byKey(KHomeBannerCarousel.carouselKey);
+      expect(carousel, findsOneWidget);
+      final pager = tester.getRect(
+        find.descendant(of: carousel, matching: find.byType(PageView)),
+      );
+      expect(pager.left, moreOrLessEquals(13));
+      expect(pager.width, moreOrLessEquals(393 - 26));
+      // D248b: 5:1 (ref 375).
+      expect(pager.height, moreOrLessEquals((393 - 26) / 5));
+      final first = tester.getRect(find.byKey(LiveHubGrid.cardKey(0)));
+      final second = tester.getRect(find.byKey(LiveHubGrid.cardKey(1)));
+      // D303: the carousel comes first; the first row follows it.
+      expect(first.top, greaterThan(pager.bottom));
+      expect(second.top, moreOrLessEquals(first.top));
+      final dots = tester.getRect(find.byKey(KHomeBannerCarousel.dotsKey));
+      expect(dots.bottom, moreOrLessEquals(pager.bottom - 6.4));
+      expect(dots.center.dx, moreOrLessEquals(pager.center.dx));
+      expect(dots.width, moreOrLessEquals(3 * 8.5));
+      expect(dots.height, moreOrLessEquals(2));
+    });
+
+    testWidgets('D303: first even with a single card', (tester) async {
+      await _pumpHub(tester, rooms: 1, banners: sampleBanners(count: 1));
+      final pager = tester.getRect(
+        find.descendant(
+          of: find.byKey(KHomeBannerCarousel.carouselKey),
+          matching: find.byType(PageView),
+        ),
+      );
+      expect(
+        tester.getRect(find.byKey(LiveHubGrid.cardKey(0))).top,
+        greaterThan(pager.bottom),
+      );
+      // One banner: no dots.
+      expect(find.byKey(KHomeBannerCarousel.dotsKey), findsNothing);
+    });
+
+    testWidgets('hidden with no active banner and on a failed request; D303: '
+        'shown on the empty state too (the first block)', (tester) async {
+      await _pumpHub(tester);
+      expect(find.byKey(KHomeBannerCarousel.carouselKey), findsNothing);
+      await _pumpHub(
+        tester,
+        banners: sampleBanners(),
+        bannerFailure: const NetworkFailure.offline(),
+      );
+      expect(find.byKey(KHomeBannerCarousel.carouselKey), findsNothing);
+      expect(find.byType(KLiveGridCard), findsWidgets);
+      await _pumpHub(tester, rooms: 0, banners: sampleBanners());
+      expect(find.byKey(FeedRegion.emptyKey), findsOneWidget);
+      expect(find.byKey(KHomeBannerCarousel.carouselKey), findsOneWidget);
+    });
+
+    testWidgets('auto-advances every 4 s, wraps forwards, pauses while '
+        'touched', (tester) async {
+      await _pumpHub(tester, banners: sampleBanners());
+      expect(_visibleBanner(tester), 'banner-0');
+      await tester.pump(const Duration(milliseconds: 3900));
+      expect(_visibleBanner(tester), 'banner-0');
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+      expect(_visibleBanner(tester), 'banner-1');
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      expect(_visibleBanner(tester), 'banner-2');
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      expect(_visibleBanner(tester), 'banner-0');
+
+      // A finger on it: no advance.
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(KHomeBannerCarousel.carouselKey)),
+      );
+      await tester.pump(const Duration(seconds: 9));
+      await tester.pumpAndSettle();
+      expect(_visibleBanner(tester), 'banner-0');
+      // Lifted without a tap (a tap would open the banner's link).
+      await gesture.cancel();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      expect(_visibleBanner(tester), 'banner-1');
+    });
+
+    testWidgets('no auto-advance with reduce motion', (tester) async {
+      await _pumpHub(tester, banners: sampleBanners());
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 12));
+      await tester.pumpAndSettle();
+      expect(_visibleBanner(tester), 'banner-0');
+    });
+
+    test('links: the allowlist maps to app routes; others are ignored', () {
+      expect(
+        HomeBannerTarget.parse('/families'),
+        const HomeBannerRoute('/families'),
+      );
+      expect(
+        HomeBannerTarget.parse('/cp/space'),
+        const HomeBannerRoute('/cp/space'),
+      );
+      expect(
+        HomeBannerTarget.parse('/live?tab=trending'),
+        const HomeBannerLiveTab(FeedTab.popular),
+      );
+      expect(
+        HomeBannerTarget.parse('/live?tab=new'),
+        const HomeBannerLiveTab(FeedTab.latest),
+      );
+      expect(
+        HomeBannerTarget.parse(
+          '/home/room/0193A4B2-7c1d-7e2f-8a3b-4c5d6e7f8091',
+        ),
+        const HomeBannerRoute(
+          '/home/room/0193a4b2-7c1d-7e2f-8a3b-4c5d6e7f8091',
+        ),
+      );
+      expect(
+        HomeBannerTarget.parse('/users/sara.k'),
+        const HomeBannerRoute('/users/sara.k'),
+      );
+      for (final link in [
+        'https://kabso.app/x',
+        '/settings',
+        '/live?tab=popular',
+        '/home/room/x',
+        'javascript:alert(1)',
+      ]) {
+        expect(HomeBannerTarget.parse(link), isNull, reason: link);
+      }
+    });
+
+    for (final (viewport, scale) in const [
+      (GoldenViewport.android, 1.0),
+      (GoldenViewport.phone, 2.0),
+      (GoldenViewport.android, 2.0),
+    ]) {
+      testWidgets('${viewport.name} at text scale $scale (ar): no overflow', (
+        tester,
+      ) async {
+        await loadAppFonts();
+        await _pumpHub(
+          tester,
+          banners: sampleBanners(),
+          language: AppLanguage.ar,
+          viewport: viewport,
+          textScale: scale,
+        );
+        expect(tester.takeException(), isNull);
+        // D303: the carousel is the first block (then scrolled away).
+        expect(find.byKey(KHomeBannerCarousel.carouselKey), findsOneWidget);
+        await tester.drag(
+          find.byType(CustomScrollView).first,
+          const Offset(0, -500),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
+
+  group('navigation (D124)', () {
+    late FakeHomeBannersRepository banners;
+
+    Future<GoRouter> pumpRouted(
+      WidgetTester tester, {
+      String? meId,
+      FakeLiveRepository? live,
+    }) async {
+      setViewport(tester, GoldenViewport.phone);
+      final prefs = await testPrefs();
+      Widget stub(String text) => Scaffold(body: Center(child: Text(text)));
+      final router = GoRouter(
+        initialLocation: AppRoutes.home,
+        routes: [
+          GoRoute(
+            path: AppRoutes.home,
+            builder: (_, _) => const LiveScreen(),
+            routes: [
+              GoRoute(
+                path: AppRoutes.liveRoomSegment,
+                builder: (_, state) {
+                  final id = state.pathParameters['roomId']!;
+                  return LiveRoomSwipe(roomId: id, child: stub('room:$id'));
+                },
+              ),
+            ],
+          ),
+          GoRoute(
+            path: AppRoutes.families,
+            builder: (_, _) => stub('families'),
+          ),
+          GoRoute(path: AppRoutes.cpSpace, builder: (_, _) => stub('cp')),
+          GoRoute(
+            path: AppRoutes.notifications,
+            builder: (_, _) => stub('notifications'),
+          ),
+          GoRoute(
+            path: AppRoutes.discover,
+            builder: (_, _) => stub('discover'),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          retry: (_, _) => null,
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            postsRepositoryProvider.overrideWithValue(FakePostsRepository()),
+            storiesRepositoryProvider.overrideWithValue(
+              FakeStoriesRepository(),
+            ),
+            notificationsRepositoryProvider.overrideWithValue(
+              FakeNotificationsRepository(),
+            ),
+            // v1.43-live (D195): never the network for the PK.
+            ...pkTestOverrides(),
+            liveMediaEngineProvider.overrideWithValue(FakeLiveMediaEngine.new),
+            homeBannersRepositoryProvider.overrideWithValue(banners),
+            currentUserProvider.overrideWithValue(
+              meId == null ? null : testUser().copyWith(id: meId),
+            ),
+            ...liveOverrides(
+              live ?? FakeLiveRepository(rooms: (_) => apiPage(apiRooms(6))),
+            ),
+          ],
+          child: MaterialApp.router(
+            routerConfig: router,
+            locale: AppLanguage.en.locale,
+            supportedLocales: KabsoApp.supportedLocales,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              ...GlobalMaterialLocalizations.delegates,
+            ],
+            theme: buildAppTheme(
+              brightness: Brightness.light,
+              locale: AppLanguage.en.locale,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return router;
+    }
+
+    setUp(() => banners = FakeHomeBannersRepository(banners: sampleBanners()));
+
+    testWidgets('a banner opens its link; "/live?tab=trending" selects '
+        'Popular', (tester) async {
+      final l10n = l10nFor(AppLanguage.en);
+      final router = await pumpRouted(tester);
+      await tester.tap(find.byKey(KHomeBannerCarousel.pageKey('banner-0')));
+      await tester.pumpAndSettle();
+      expect(find.text('families'), findsOneWidget);
+      router.pop();
+      await tester.pumpAndSettle();
+
+      // D237: the Following tab, then the talents banner (third) →
+      // Popular.
+      final popular = find.byKey(LiveHubTopBar.tabKey(LiveHubFilter.popular));
+      final following = find.byKey(
+        LiveHubTopBar.tabKey(LiveHubFilter.following),
+      );
+      await tester.tap(following);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .getSemantics(following)
+            .getSemanticsData()
+            .flagsCollection
+            .isSelected,
+        Tristate.isTrue,
+      );
+      final carousel = find.byKey(KHomeBannerCarousel.carouselKey);
+      for (var i = 0; i < 2; i++) {
+        await tester.drag(
+          find.descendant(of: carousel, matching: find.byType(PageView)).last,
+          const Offset(-400, 0),
+        );
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(
+        find.byKey(KHomeBannerCarousel.pageKey('banner-2')).hitTestable(),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: popular,
+          matching: find.text(l10n.liveHubFilterPopular),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .getSemantics(popular)
+            .getSemanticsData()
+            .flagsCollection
+            .isSelected,
+        Tristate.isTrue,
+      );
+    });
+
+    testWidgets('D248: the card-size banner opens its link', (tester) async {
+      banners.hubCardBanners = sampleCardBanners();
+      await pumpRouted(tester);
+      final card = find.byKey(KHubCardBanner.pageKey('card-0'));
+      await tester.ensureVisible(card);
+      await tester.pumpAndSettle();
+      await tester.tap(card);
+      await tester.pumpAndSettle();
+      expect(find.text('families'), findsOneWidget);
+    });
+
+    testWidgets('top bar: search opens Discover; no bell (D377: the '
+        'Moments tab has it)', (tester) async {
+      await pumpRouted(tester, meId: 'user-me');
+      expect(find.byKey(NotificationsBell.bellKey), findsNothing);
+      await tester.tap(find.byKey(LiveHubTopBar.searchKey));
+      await tester.pumpAndSettle();
+      expect(find.text('discover'), findsOneWidget);
+    });
+
+    testWidgets('a card opens its room; inside, swipe up / down moves '
+        "through the tab's rooms", (tester) async {
+      await pumpRouted(tester);
+      await tester.tap(find.byKey(LiveHubGrid.cardKey(1)));
+      await tester.pumpAndSettle();
+      expect(find.text('room:room-1'), findsOneWidget);
+      await tester.fling(find.text('room:room-1'), const Offset(0, -400), 2000);
+      await tester.pumpAndSettle();
+      expect(find.text('room:room-2'), findsOneWidget);
+      await tester.fling(find.text('room:room-2'), const Offset(0, 400), 2000);
+      await tester.pumpAndSettle();
+      expect(find.text('room:room-1'), findsOneWidget);
+      await tester.fling(find.text('room:room-1'), const Offset(0, 400), 2000);
+      await tester.pumpAndSettle();
+      expect(find.text('room:room-0'), findsOneWidget);
+      // The first room: nothing before it.
+      await tester.fling(find.text('room:room-0'), const Offset(0, 400), 2000);
+      await tester.pumpAndSettle();
+      expect(find.text('room:room-0'), findsOneWidget);
+      // A slow drag is not a swipe.
+      await tester.drag(find.text('room:room-0'), const Offset(0, -100));
+      await tester.pumpAndSettle();
+      expect(find.text('room:room-0'), findsOneWidget);
+    });
+
+    testWidgets("no swipe in the caller's own live", (tester) async {
+      await pumpRouted(tester, meId: 'user-1');
+      await tester.tap(find.byKey(LiveHubGrid.cardKey(1)));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveRoomSwipe.swipeKey), findsNothing);
+      await tester.fling(find.text('room:room-1'), const Offset(0, -400), 2000);
+      await tester.pumpAndSettle();
+      expect(find.text('room:room-1'), findsOneWidget);
+    });
+  });
+}

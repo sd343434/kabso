@@ -1,4 +1,5 @@
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_interruption.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -24,6 +25,7 @@ class KRoomVideoUnavailable extends StatelessWidget {
       child: _StageMessage(
         key: const Key('room.videoUnavailable'),
         icon: Icons.videocam_off_outlined,
+        status: l10n.liveStatusUnavailable,
         title: l10n.liveRoomVideoUnavailableTitle,
         body: l10n.liveRoomVideoUnavailableBody,
       ),
@@ -32,6 +34,8 @@ class KRoomVideoUnavailable extends StatelessWidget {
 }
 
 /// HL-L10 "Missing video": the host's camera is off. Fixture-only.
+/// D216: the shared interruption emblem (the host's picture with a camera
+/// badge), no card.
 class KRoomCameraOff extends StatelessWidget {
   const new({required this.hostName, super.key, this.avatar});
 
@@ -39,35 +43,32 @@ class KRoomCameraOff extends StatelessWidget {
   final ImageProvider? avatar;
 
   @override
-  Widget build(BuildContext context) {
-    const p = KPalette.dark;
-    return ColoredBox(
-      color: p.surface,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            KAvatar(name: hostName, image: avatar, size: KSizes.avatarLg),
-            const SizedBox(height: KSpacing.md),
-            Text(
-              context.l10n.liveRoomCameraOff,
-              textAlign: TextAlign.center,
-              textScaler: MediaQuery.textScalerOf(context)
-                  .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale),
-              style: context.textStyles.bodyStrong.copyWith(
-                color: p.textPrimary,
-              ),
-            ),
-          ],
+  Widget build(BuildContext context) => ColoredBox(
+    color: KPalette.dark.surface,
+    child: Center(
+      child: KLiveInterruption(
+        leading: KLiveHostPicture(
+          image: avatar,
+          size: KLiveInterruption.pictureCompact,
         ),
+        badgeIcon: Icons.videocam_off_rounded,
+        title: context.l10n.liveRoomCameraOff,
+        framed: false,
+        compact: true,
+        liveRegion: false,
       ),
-    );
-  }
+    ),
+  );
 }
 
 /// HL-L10 "Poor connectivity": a top-centre chip. Fixture-only.
+/// D216: the live's glass pill with a warning signal icon.
 class KRoomStatusChip extends StatelessWidget {
-  const new({required this.label, super.key, this.icon = Icons.warning_amber});
+  const new({
+    required this.label,
+    super.key,
+    this.icon = Icons.signal_cellular_alt_2_bar_rounded,
+  });
 
   final String label;
   final IconData icon;
@@ -83,18 +84,30 @@ class KRoomStatusChip extends StatelessWidget {
           constraints: const BoxConstraints(
             minHeight: KMetrics.roomInfoChipHeight,
           ),
-          padding: const EdgeInsetsDirectional.symmetric(
-            horizontal: KSpacing.md,
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            KSpacing.xs,
+            KSpacing.xxs,
+            KSpacing.md,
+            KSpacing.xxs,
           ),
           decoration: BoxDecoration(
-            color: p.scrim,
+            color: const Color(0x8C0B0B0D),
             borderRadius: BorderRadius.circular(KRadius.pill),
+            border: Border.all(color: const Color(0x24FFFFFF)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: KMetrics.iconSm, color: p.warning),
-              const SizedBox(width: KSpacing.xs),
+              Container(
+                width: KMetrics.iconMd,
+                height: KMetrics.iconMd,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: p.warning.withValues(alpha: 0.2),
+                ),
+                child: Icon(icon, size: KMetrics.iconXs, color: p.warning),
+              ),
+              const SizedBox(width: KSpacing.xs + KSpacing.xxs),
               Flexible(
                 child: Text(
                   label,
@@ -104,6 +117,7 @@ class KRoomStatusChip extends StatelessWidget {
                       .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale),
                   style: context.textStyles.label.copyWith(
                     color: p.textPrimary,
+                    shadows: KLiveColors.glassShadow,
                   ),
                 ),
               ),
@@ -115,9 +129,8 @@ class KRoomStatusChip extends StatelessWidget {
   }
 }
 
-/// HL-L10 "Reconnecting": the last frame dimmed by 30 % with a centred
-/// progress indicator (a static icon with reduce motion) and the label.
-/// Fixture-only.
+/// HL-L10 "Reconnecting": the last frame dimmed with the interruption card
+/// (D216: the turning arc; still with reduce motion). Fixture-only.
 class KRoomReconnecting extends StatelessWidget {
   const new({required this.frame, super.key});
 
@@ -126,46 +139,21 @@ class KRoomReconnecting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const p = KPalette.dark;
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final l10n = context.l10n;
     return Stack(
       fit: StackFit.expand,
       children: [
         frame,
         const ColoredBox(color: KMetrics.reconnectingDim),
         Center(
-          child: Container(
-            padding: const EdgeInsets.all(KSpacing.lg),
-            decoration: BoxDecoration(
-              color: p.scrim,
-              borderRadius: BorderRadius.circular(KRadius.lg),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox.square(
-                  dimension: KMetrics.iconMd,
-                  child: reduceMotion
-                      ? Icon(
-                          Icons.sync_rounded,
-                          size: KMetrics.iconMd,
-                          color: p.textPrimary,
-                        )
-                      : CircularProgressIndicator(
-                          strokeWidth: KMetrics.stroke,
-                          color: p.textPrimary,
-                        ),
-                ),
-                const SizedBox(height: KSpacing.sm),
-                Text(
-                  context.l10n.liveRoomReconnecting,
-                  textScaler: MediaQuery.textScalerOf(context)
-                      .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale),
-                  style: context.textStyles.bodyStrong.copyWith(
-                    color: p.textPrimary,
-                  ),
-                ),
-              ],
+          child: Padding(
+            padding: const EdgeInsets.all(KSpacing.xl),
+            child: KLiveInterruption(
+              icon: Icons.wifi_rounded,
+              busy: true,
+              status: l10n.liveStatusConnectionLost,
+              title: l10n.liveRoomReconnecting,
+              message: l10n.liveRoomReconnectingBody,
             ),
           ),
         ),
@@ -176,7 +164,8 @@ class KRoomReconnecting extends StatelessWidget {
 
 /// HL-L10 "Host left / ended": a full overlay on `background` at 90 %
 /// with the host, "This live has ended", the end reason, an optional
-/// follow action and "Back to live rooms".
+/// follow action and "Back to live rooms". D216: on the interruption card,
+/// the host's picture with a badge saying why ([reasonIcon]).
 class KRoomEndedOverlay extends StatelessWidget {
   const new({
     required this.hostName,
@@ -184,24 +173,34 @@ class KRoomEndedOverlay extends StatelessWidget {
     required this.onBack,
     super.key,
     this.avatar,
+    this.avatarUrl,
+    this.reasonIcon = Icons.stop_rounded,
     this.followAction,
+    this.crowned = false,
   });
 
   final String hostName;
   final ImageProvider? avatar;
+  final String? avatarUrl;
 
   /// The localized end reason.
   final String reason;
+
+  /// The end reason's badge on the host's picture.
+  final IconData reasonIcon;
   final VoidCallback onBack;
 
   /// The follow button, only when the viewer may follow and does not yet.
   final Widget? followAction;
 
+  /// D221: a crown before the host's name, only for a status the app
+  /// really knows (none yet in production).
+  final bool crowned;
+
   @override
   Widget build(BuildContext context) {
     const p = KPalette.dark;
     final l10n = context.l10n;
-    final text = context.textStyles;
     final followAction = this.followAction;
     return ColoredBox(
       key: const Key('room.ended'),
@@ -210,50 +209,28 @@ class KRoomEndedOverlay extends StatelessWidget {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(KSpacing.xl),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  KAvatar(name: hostName, image: avatar, size: KSizes.avatarLg),
-                  const SizedBox(height: KSpacing.md),
-                  Text(
-                    hostName,
-                    textAlign: TextAlign.center,
-                    style: text.bodyStrong.copyWith(color: p.textPrimary),
-                  ),
-                  const SizedBox(height: KSpacing.xl),
-                  Semantics(
-                    header: true,
-                    liveRegion: true,
-                    child: Text(
-                      l10n.liveRoomEndedTitle,
-                      textAlign: TextAlign.center,
-                      style: text.title.copyWith(color: p.textPrimary),
-                    ),
-                  ),
-                  const SizedBox(height: KSpacing.sm),
-                  Text(
-                    reason,
-                    textAlign: TextAlign.center,
-                    style: text.body.copyWith(color: p.textSecondary),
-                  ),
-                  const SizedBox(height: KSpacing.xl),
-                  if (followAction != null) ...[
-                    followAction,
-                    const SizedBox(height: KSpacing.sm),
-                  ],
-                  KButton(
-                    key: const Key('room.back'),
-                    label: l10n.liveRoomBackToLive,
-                    onPressed: onBack,
-                    variant: followAction == null
-                        ? KButtonVariant.primary
-                        : KButtonVariant.secondary,
-                    expand: false,
-                  ),
-                ],
+            child: KLiveInterruption(
+              leading: KLiveHostPicture(
+                image: avatar,
+                imageUrl: avatarUrl,
+                size: KLiveInterruption.picture,
               ),
+              badgeIcon: reasonIcon,
+              status: l10n.liveStatusEnded,
+              eyebrow: hostName,
+              crowned: crowned,
+              title: l10n.liveRoomEndedTitle,
+              message: reason,
+              actions: [
+                ?followAction,
+                KLiveInterruptionButton(
+                  key: const Key('room.back'),
+                  label: l10n.liveRoomBackToLive,
+                  icon: Icons.replay_rounded,
+                  onPressed: onBack,
+                  primary: followAction == null,
+                ),
+              ],
             ),
           ),
         ),
@@ -263,7 +240,7 @@ class KRoomEndedOverlay extends StatelessWidget {
 }
 
 /// A full-screen room message with the close button at the top end: not
-/// found, failed to load, offline.
+/// found, failed to load, offline, removed (D216: the interruption card).
 class KRoomMessage extends StatelessWidget {
   const new({
     required this.icon,
@@ -274,6 +251,7 @@ class KRoomMessage extends StatelessWidget {
     this.detail,
     this.onRetry,
     this.iconColor,
+    this.status,
   });
 
   final IconData icon;
@@ -282,7 +260,12 @@ class KRoomMessage extends StatelessWidget {
   final String? detail;
   final VoidCallback onClose;
   final VoidCallback? onRetry;
+
+  /// Kept for callers; the emblem is always on the brand ring (D216).
   final Color? iconColor;
+
+  /// D221: the state in the card's red pill («غير متصل»).
+  final String? status;
 
   @override
   Widget build(BuildContext context) {
@@ -295,21 +278,31 @@ class KRoomMessage extends StatelessWidget {
           child: Stack(
             children: [
               Positioned.fill(
-                child: KEmptyState(
-                  icon: icon,
-                  iconColor: iconColor,
-                  title: title,
-                  message: message,
-                  detail: detail,
-                  actionLabel: onRetry != null
-                      ? l10n.actionRetry
-                      : l10n.liveRoomBackToLive,
-                  onAction: onRetry ?? onClose,
-                  actionVariant: KButtonVariant.primary,
-                  secondaryActionLabel: onRetry != null
-                      ? l10n.liveRoomBackToLive
-                      : null,
-                  onSecondaryAction: onRetry != null ? onClose : null,
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(KSpacing.xl),
+                    child: KLiveInterruption(
+                      icon: icon,
+                      status: status,
+                      title: title,
+                      message: message,
+                      detail: detail,
+                      actions: [
+                        if (onRetry != null)
+                          KLiveInterruptionButton(
+                            label: l10n.actionRetry,
+                            icon: Icons.refresh_rounded,
+                            onPressed: onRetry,
+                          ),
+                        KLiveInterruptionButton(
+                          label: l10n.liveRoomBackToLive,
+                          icon: Icons.replay_rounded,
+                          onPressed: onClose,
+                          primary: onRetry == null,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
               PositionedDirectional(
@@ -337,45 +330,22 @@ class _StageMessage extends StatelessWidget {
     required this.title,
     required this.body,
     super.key,
+    this.status,
   });
 
   final IconData icon;
   final String title;
   final String body;
+  final String? status;
 
   @override
-  Widget build(BuildContext context) {
-    const p = KPalette.dark;
-    final text = context.textStyles;
-    final scaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: KSpacing.xxl),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 320),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ExcludeSemantics(
-              child: Icon(icon, size: KSizes.avatarMd, color: p.textSecondary),
-            ),
-            const SizedBox(height: KSpacing.md),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              textScaler: scaler,
-              style: text.bodyStrong.copyWith(color: p.textPrimary),
-            ),
-            const SizedBox(height: KSpacing.xs),
-            Text(
-              body,
-              textAlign: TextAlign.center,
-              textScaler: scaler,
-              style: text.caption.copyWith(color: p.textSecondary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(KSpacing.xl),
+    child: KLiveInterruption(
+      icon: icon,
+      status: status,
+      title: title,
+      message: body,
+    ),
+  );
 }

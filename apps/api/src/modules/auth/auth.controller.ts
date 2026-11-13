@@ -9,21 +9,25 @@ import {
   type AppRequest,
   type AuthContext,
 } from '../../common/http/request-context.js';
-import { bodyField, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
+import { bodyField, byUserId, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
 import { getRequestId } from '../../common/request-id/request-id.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import {
+  checkSignupCodeSchema,
   forgotPasswordSchema,
   loginSchema,
   refreshSchema,
+  type RefreshInput,
   registerResendSchema,
   registerSchema,
   registerVerifySchema,
   resetPasswordSchema,
+  revokeOtherSessionsSchema,
   verifyEmailSchema,
   type LoginInput,
   type RegisterInput,
   type RegisterVerifyInput,
+  type RevokeOtherSessionsInput,
 } from './auth.schemas.js';
 import { AuthService, type AuthResponseDto, type RequestMeta, type TokenPairDto } from './auth.service.js';
 import { CurrentAuth } from './current-auth.decorator.js';
@@ -31,6 +35,7 @@ import { Public } from './public.decorator.js';
 import { RegistrationService, type VerificationPendingDto } from './registration.service.js';
 import type { SessionInfoDto } from './sessions.service.js';
 import { isUuid, parseRefreshToken } from './tokens.js';
+import { ConsentExempt } from '../privacy/consent-exempt.decorator.js';
 
 function acceptLanguage(req: AppRequest): 'ar' | 'en' | undefined {
   const header = req.headers['accept-language'];
@@ -39,7 +44,8 @@ function acceptLanguage(req: AppRequest): 'ar' | 'en' | undefined {
   return primary === 'ar' || primary === 'en' ? primary : undefined;
 }
 
-function requestMeta(req: AppRequest): RequestMeta {
+/** Request metadata for sessions and audit rows (also used by the account-deletion routes, D193). */
+export function requestMeta(req: AppRequest): RequestMeta {
   return {
     ip: clientIp(req),
     ipBucket: clientIpBucket(req),
@@ -55,6 +61,17 @@ function refreshSubject(req: AppRequest): string {
   const parsed = parseRefreshToken(raw);
   return parsed ? `sid:${parsed.sessionId}` : `ip:${clientIpBucket(req)}`;
 }
+
+/**
+ * v1.79-social (D226): «sign out of all other devices» re-checks the password — 5 / 15 min per user with the existing
+ * re-authentication rule (`RATE_LIMIT_ACCOUNT_DELETION_USER`) in its own bucket, replacing the default.
+ */
+const REVOKE_OTHERS_LIMIT = {
+  bucket: 'sessions_revoke_others:user',
+  rule: 'accountDeletionUser',
+  key: byUserId,
+  replacesDefault: true,
+} as const;
 
 @Controller('auth')
 export class AuthController {
@@ -95,6 +112,20 @@ export class AuthController {
     return this.registration.verify(body, requestMeta(req));
   }
 
+  /**
+   * v1.108-social (D343, §10.142): what «رمز الدعوة أو رمز المشرف» is — INVITE or SUPERVISOR — or 400 `code`
+   * (`invalid_format`, `not_found`). Nothing about the code's owner is returned.
+   */
+  @Public()
+  @Post('signup-code/check')
+  @HttpCode(200)
+  @RateLimit({ bucket: 'signup_code:ip', rule: 'signupCodeIp', key: (req) => clientIpBucket(req) })
+  checkSignupCode(
+    @Body(new ZodValidationPipe(checkSignupCodeSchema)) body: { code: string },
+  ): Promise<{ kind: 'INVITE' | 'SUPERVISOR'; code: string }> {
+    return this.registration.checkSignupCode(body.code);
+  }
+
   /** v1.2: re-sends the code if a live pending registration exists; always 202. */
   @Public()
   @Post('register/resend')
@@ -128,13 +159,14 @@ export class AuthController {
   @HttpCode(200)
   @RateLimit({ bucket: 'refresh:session', rule: 'refreshSession', key: refreshSubject })
   refresh(
-    @Body(new ZodValidationPipe(refreshSchema)) body: { refreshToken: string },
+    @Body(new ZodValidationPipe(refreshSchema)) body: RefreshInput,
     @Req() req: AppRequest,
   ): Promise<TokenPairDto> {
-    return this.auth.refresh(body.refreshToken, requestMeta(req));
+    return this.auth.refresh(body.refreshToken, requestMeta(req), body.installSource ?? null);
   }
 
   @Post('logout')
+  @ConsentExempt()
   @HttpCode(204)
   async logout(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest): Promise<void> {
     await this.auth.logout(auth.userId, auth.sessionId, requestMeta(req));
@@ -184,11 +216,26 @@ export class AuthController {
   }
 
   @Get('sessions')
+  @ConsentExempt()
   async listSessions(@CurrentAuth() auth: AuthContext): Promise<{ data: SessionInfoDto[] }> {
     return { data: await this.auth.listSessions(auth.userId, auth.sessionId) };
   }
 
+  /** v1.79-social (D226, §10.76): ends every session of the caller but this one. */
+  @Post('sessions/revoke-others')
+  @ConsentExempt()
+  @HttpCode(200)
+  @RateLimit(REVOKE_OTHERS_LIMIT)
+  revokeOtherSessions(
+    @CurrentAuth() auth: AuthContext,
+    @Body(new ZodValidationPipe(revokeOtherSessionsSchema)) body: RevokeOtherSessionsInput,
+    @Req() req: AppRequest,
+  ): Promise<{ revoked: number }> {
+    return this.auth.revokeOtherSessions(auth.userId, auth.sessionId, body.password, requestMeta(req));
+  }
+
   @Delete('sessions/:sessionId')
+  @ConsentExempt()
   @HttpCode(204)
   async revokeSession(
     @CurrentAuth() auth: AuthContext,
