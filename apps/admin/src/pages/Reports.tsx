@@ -5,7 +5,7 @@ import { useApp } from '../context';
 import { formatDate } from '../format';
 import { isKey } from '../i18n';
 import { navigate } from '../router';
-import type { Page, PanelReport } from '../types';
+import type { Page, PanelReport, StaffSchedule } from '../types';
 import { StatusTabs } from './Applications';
 
 /**
@@ -206,8 +206,35 @@ export function ReportCard({
   );
 }
 
+/**
+ * v1.139-social (D387, §10.176.6): who is on shift now above the shared queue — the viewer's own «في المناوبة الآن»
+ * badge and the people on shift (pure: rendered in the tests).
+ */
+export function ShiftStrip({ schedule }: { schedule: StaffSchedule }) {
+  const { t } = useApp();
+  return (
+    <p className="small" data-shift-strip>
+      {schedule.me.onShiftNow && (
+        <span className="badge ok" data-on-shift-badge>
+          {t('shiftOnNow')}
+        </span>
+      )}{' '}
+      <span className="muted">
+        {schedule.shift.onShiftNow.length === 0
+          ? t('shiftNobody')
+          : `${t('shiftOnNow')}: ${schedule.shift.onShiftNow.map((p) => p.displayName).join('، ')}`}
+      </span>
+    </p>
+  );
+}
+
+function ShiftStripLoader() {
+  const { data } = useAsync(() => api.get<StaffSchedule>('/admin/staff-schedule'), []);
+  return data ? <ShiftStrip schedule={data} /> : null;
+}
+
 export function Reports() {
-  const { t, toast } = useApp();
+  const { t, toast, can } = useApp();
   const [status, setStatus] = useState<ReportTab>('OPEN');
   const pages = useCursorPages(status);
   const { data, error, loading, reload } = useAsync(
@@ -256,6 +283,7 @@ export function Reports() {
         />
       </div>
       <p className="muted small">{t('repSharedHint')}</p>
+      {can('staff.schedule.view') && <ShiftStripLoader />}
       <ErrorAlert error={error} />
       <ErrorAlert error={actError} />
       {loading && !data && <Loading />}

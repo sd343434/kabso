@@ -25,6 +25,15 @@ export interface NavGroup {
 export const NAV: NavGroup[] = [
   { key: 'navGroupHome', items: [{ to: '/', key: 'navDashboard', icon: 'home', cap: 'dashboard.view', match: ['dashboard'] }] },
   {
+    // v1.139-social (D387, §10.176): the operations roles — the shift schedule, compensations, the official accounts.
+    key: 'navGroupOps',
+    items: [
+      { to: '/staff-schedule', key: 'navStaffSchedule', icon: 'clock', cap: 'staff.schedule.view', match: ['staffSchedule'] },
+      { to: '/compensations', key: 'navCompensations', icon: 'gift', cap: 'compensation.grant', match: ['compensations'] },
+      { to: '/social-accounts', key: 'navSocialAccounts', icon: 'globe', cap: 'social.accounts', match: ['socialAccounts'] },
+    ],
+  },
+  {
     key: 'navGroupUsers',
     items: [
       { to: '/users', key: 'navUsers', icon: 'users', cap: 'users.list', match: ['users', 'user'] },
@@ -73,7 +82,8 @@ export const NAV: NavGroup[] = [
   {
     key: 'navGroupMoney',
     items: [
-      { to: '/finance/report', key: 'navReport', icon: 'money', cap: 'finance.view', match: ['report'] },
+      // v1.139-social (D387, §10.176.2): the financial report is the OWNER's alone (`revenue.view`).
+      { to: '/finance/report', key: 'navReport', icon: 'money', cap: 'revenue.view', match: ['report'] },
       { to: '/recharge/applications', key: 'navApplications', icon: 'inbox', cap: 'recharge.applications', match: ['applications', 'application'] },
       { to: '/recharge/agents', key: 'navAgents', icon: 'coins', cap: 'recharge.agents', match: ['agents'] },
       // v1.69-social (D204): «نزاعات الشحن» and «أسعار الصرف».
@@ -139,7 +149,8 @@ export const NAV: NavGroup[] = [
   {
     key: 'navGroupSettings',
     items: [
-      { to: '/site-settings', key: 'navSite', icon: 'globe', cap: 'site.settings', match: ['site'] },
+      // v1.139-social (D387): the website's settings are `site.public` (OWNER, COMMUNITY).
+      { to: '/site-settings', key: 'navSite', icon: 'globe', cap: 'site.public', match: ['site'] },
       { to: '/payments', key: 'navPayments', icon: 'money', cap: 'payments.settings', match: ['payments'] },
       // v1.75-social (D222): «التخزين (R2 / S3)».
       { to: '/storage', key: 'navStorage', icon: 'storage', cap: 'storage.settings', match: ['storage'] },

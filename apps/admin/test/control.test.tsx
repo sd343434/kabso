@@ -185,7 +185,7 @@ describe('D208 action groups', () => {
   it('the test copy of the capability table matches the API', () => {
     const src = readFileSync(new URL('../../api/src/modules/admin-panel/admin-permissions.ts', import.meta.url), 'utf8');
     const api = Object.fromEntries(
-      [...src.matchAll(/^\s*'([a-z_.]+)': \[([^\]]*)\],/gm)].map((m) => [m[1], m[2]!.split(',').map((r) => r.trim().replace(/'/g, ''))]),
+      [...src.matchAll(/^\s*'([a-z_.]+)': \[([^\]]*)\],/gm)].map((m) => [m[1], m[2]!.split(',').map((r) => r.trim().replace(/'/g, '')).filter((r) => r !== '')]), // a long list wrapped by prettier ends with a comma
     );
     expect(CAPABILITY_ROLES).toEqual(api);
   });

@@ -62,6 +62,8 @@ function fakeTx(w: World) {
     adminCredential: { deleteMany: vi.fn(async () => ({ count: 1 })) },
     // v1.68-live (D273): a revoke / reset also ends the staff tools' step-up in the app.
     adminAppGrant: { updateMany: vi.fn(async () => ({ count: 0 })) },
+    // v1.139-social (D387): losing the last schedulable role removes the person's shift schedule slots.
+    staffScheduleSlot: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     adminRecoveryCode: { deleteMany: vi.fn(async () => ({ count: 10 })) },
     auditLog: {
       create: vi.fn(async ({ data }: { data: { action: string; metadata: Record<string, unknown> } }) => {

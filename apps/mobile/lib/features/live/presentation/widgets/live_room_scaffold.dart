@@ -1080,7 +1080,7 @@ class KRoomInfoRow extends StatelessWidget {
           Flexible(child: _InfoChip(text: title)),
           if (level case final level?) ...[
             const SizedBox(width: KSpacing.xs),
-            CharmLevelBadge(level: level, height: 16),
+            CharmLevelBadge(level: level, height: 16, room: true),
           ],
           if (category != null && category.isNotEmpty) ...[
             const SizedBox(width: KSpacing.xs),

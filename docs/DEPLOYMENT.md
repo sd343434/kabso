@@ -4564,6 +4564,47 @@ CONVENTIONS §10.175 (owner 2026-11-12). Two migrations and two optional setting
 - **Order:** deploy the API image (the migrations run first), then the panel, then ship the APK. An older app shows a
   new category as nothing and keeps the default page.
 
+### 5.129 The operations staff roles, the shift schedule, compensations and the official accounts (D387; migrations `20270517090000_ops_roles_enums`, `20270517090100_ops_roles`) — [IMPLEMENTED, draft contract v1.139-social; not deployed, not device-tested]
+
+CONVENTIONS §10.176 (owner 2026-11-12). Two migrations; no new setting, secret or host.
+
+- **Migrations** (the usual `migrate` job, as the migration role, in order): `20270517090000_ops_roles_enums` adds the
+  `admin_permission` values `LIVE_OPS`, `TALENT`, `VIP_CARE`, `COMMUNITY` and the `wallet_ledger_reason` value
+  `STAFF_COMPENSATION` (each `ADD VALUE` in its own migration, outside the next one's transaction);
+  `20270517090100_ops_roles` widens `wallet_ledger_reason_sign` (STAFF_COMPENSATION is a credit), creates
+  `staff_schedule_slots`, `staff_compensation_settings` (one row, defaults 50 000 / 10 000 coins),
+  `staff_compensations` and `official_social_accounts` (runtime grants from the default privileges, KL-013), and replaces
+  `kabso_admin_panel_role(...)` so the CLI and the panel can grant the four new roles (each gets its staff ID). No data
+  is migrated: MODERATION keeps its value, so every moderator keeps exactly their access (TRUST_SAFETY is its new name
+  in the panel and the app; `admin-admin grant … TRUST_SAFETY` grants MODERATION).
+- **Behaviour change for the panel (owner: earnings and revenue for the OWNER only):** FINANCE and every non-OWNER role
+  now get 403 from `/admin/dashboard`, `/admin/stats/overview`, `/admin/stats/series`, `/admin/finance/report` and
+  `/admin/store/sales`, and `null` for the agency earnings, the top-up totals, the gift coins spent and the smart
+  targets' profit. FINANCE keeps the amounts of each withdrawal, top-up, card order and case it handles. The list of
+  changed screens is in §10.176.2. Tell the finance team before deploying.
+- **Moved capabilities:** the gift, banner and rocket-price writes and the public website settings now check
+  `gifts.manage`, `banners.manage`, `boosts.manage` and `site.public` (OWNER unchanged; before D387 only the OWNER held
+  `catalog.manage` and `site.settings`, so nobody loses a write).
+- **After deploying:** the OWNER grants the new roles from «الموظفون والصلاحيات» (or `admin-admin grant`), sets the
+  compensation limits in «التعويضات» if the defaults do not fit, enters the 24/7 schedule in «جدول المناوبات» and the
+  official accounts in «حساباتنا الرسمية» (https links only; never a password or token).
+- **Owner follow-up (2026-11-12, §10.176.4):** migration `20270517090300_staff_compensation_profit` adds the partial
+  index `wallet_ledger_staff_compensation_idx` (built without `CONCURRENTLY`; no row has that reason before this
+  release, so it is instant); «الربح» gains the line `STAFF_COMPENSATIONS`.
+- **Owner follow-up (2026-11-12, §10.176.8–9):** migration `20270517090200_staff_withdrawals` adds
+  `cherry_withdrawals.staff_request` (BOOLEAN NOT NULL DEFAULT false: no rewrite; existing rows false). Employees
+  (any panel role except OWNER; owner: «لا غير ممنوع») can no longer send gifts on any path (403 `STAFF_GIFT_REFUSED`) and can no longer
+  sell cherries to a recharge agent (403 `STAFF_WITHDRAWAL_COMPANY_ONLY`); their withdrawal requests go to the OWNER only.
+  Tell the team before deploying: an open agent cherry request with a staff host cannot be confirmed any more.
+- **Not in this release (§10.176.7):** the COMMUNITY broadcast notification and the TALENT training message to every
+  host; the website footer keeps its three fixed links.
+- **Rollback note:** an older API image ignores the new tables, but its Prisma client does not know the four new
+  `admin_permission` values or `STAFF_COMPENSATION`, so a row holding one would fail its reads: before rolling back,
+  revoke the new roles (`admin-admin revoke`). Once a coin compensation was granted, the older image cannot read that
+  person's ledger rows: roll forward instead. The enum values stay.
+- **Order:** deploy the API image (the migrations run first), then the panel, then ship the APK. An older app shows no
+  «تابعنا» and no on-shift badge; it shows no role line for the four new roles.
+
 ### 5.130 «سؤال اللغة» — the WhatsApp language question (D388; migration `20270518090000_whatsapp_language`) — [IMPLEMENTED, draft contract v1.140-social; not deployed, not tested against Meta]
 
 CONVENTIONS §10.177 (owner 2026-11-13). One migration and one optional setting; no new secret, no new host.

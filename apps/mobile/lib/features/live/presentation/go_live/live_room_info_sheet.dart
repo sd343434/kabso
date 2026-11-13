@@ -189,7 +189,11 @@ class _RoomInfoSheet extends ConsumerWidget {
             _InfoRow(
               label: l10n.liveRoomLevel,
               trailing: switch (room?.roomLevel) {
-                final level? => CharmLevelBadge(level: level, height: 18),
+                final level? => CharmLevelBadge(
+                  level: level,
+                  height: 18,
+                  room: true,
+                ),
                 null => null,
               },
             ),

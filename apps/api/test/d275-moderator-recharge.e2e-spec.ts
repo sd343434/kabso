@@ -292,9 +292,10 @@ describe(
       expect(csv.status).toBe(200);
       expect(csv.headers['content-type']).toContain('text/csv');
       expect((await aget(finance, '/admin/finance/card-orders?format=csv')).status).toBe(200);
+      // v1.139-social (D387, §10.176.2): the financial report is the OWNER's alone now (`revenue.view`).
       expect(
         (await aget(finance, '/admin/finance/report?granularity=day&from=2026-01-01&to=2026-01-31')).status,
-      ).toBe(200);
+      ).toBe(403);
     });
 
     it('403 on every other money route: top-up, cap, status, rates, withdrawals, report, cases, refund', async () => {

@@ -1358,24 +1358,29 @@ class LiveChatBadgeRow extends StatelessWidget {
           const SizedBox(width: _space),
         ],
         if (tag != null)
-          Container(
-            key: roleKey,
-            height: pillH,
-            padding: EdgeInsets.symmetric(horizontal: big ? pillH * 0.4 : 6),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: role == LiveChatRole.host
-                  ? KAudioRoom.hostTag
-                  : const Color(0xFFFFB13B),
-              borderRadius: BorderRadius.circular(KRadius.pill),
-            ),
-            child: Text(
-              tag,
-              style: context.textStyles.caption.copyWith(
-                fontSize: pillText,
-                height: 1.1,
-                color: const Color(0xFF14123A),
-                fontWeight: FontWeight.w800,
+          KBadgeExplainer(
+            message: role == LiveChatRole.host
+                ? l10n.badgeExplainHost
+                : l10n.badgeExplainModerator,
+            child: Container(
+              key: roleKey,
+              height: pillH,
+              padding: EdgeInsets.symmetric(horizontal: big ? pillH * 0.4 : 6),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: role == LiveChatRole.host
+                    ? KAudioRoom.hostTag
+                    : const Color(0xFFFFB13B),
+                borderRadius: BorderRadius.circular(KRadius.pill),
+              ),
+              child: Text(
+                tag,
+                style: context.textStyles.caption.copyWith(
+                  fontSize: pillText,
+                  height: 1.1,
+                  color: const Color(0xFF14123A),
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
@@ -1720,30 +1725,33 @@ class LiveChatNewcomerTag extends StatelessWidget {
       fontWeight: FontWeight.w800,
       shadows: const [],
     );
-    return Container(
-      height: height,
-      padding: EdgeInsets.symmetric(horizontal: height * 0.4),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(KRadius.pill),
-      ),
-      child: Text.rich(
-        TextSpan(
-          style: style,
-          children: [
-            TextSpan(text: words),
-            if (label.contains(sprout))
-              // The emoji's glyph is taller than the letters: 0.8 × them
-              // keeps it inside the pill.
-              TextSpan(
-                text: ' $sprout',
-                style: style.copyWith(fontSize: textSize * 0.8),
-              ),
-          ],
+    return KBadgeExplainer(
+      message: context.l10n.badgeExplainNewcomer,
+      child: Container(
+        height: height,
+        padding: EdgeInsets.symmetric(horizontal: height * 0.4),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(KRadius.pill),
         ),
-        maxLines: 1,
-        textScaler: TextScaler.noScaling,
+        child: Text.rich(
+          TextSpan(
+            style: style,
+            children: [
+              TextSpan(text: words),
+              if (label.contains(sprout))
+                // The emoji's glyph is taller than the letters: 0.8 × them
+                // keeps it inside the pill.
+                TextSpan(
+                  text: ' $sprout',
+                  style: style.copyWith(fontSize: textSize * 0.8),
+                ),
+            ],
+          ),
+          maxLines: 1,
+          textScaler: TextScaler.noScaling,
+        ),
       ),
     );
   }
@@ -1778,60 +1786,66 @@ class LiveChatFamilyChip extends StatelessWidget {
     final h = height;
     final grow = h / LiveChatAuthoredLine.badgeRowHeight;
     final textSize = this.textSize;
-    return Container(
-      height: h,
-      constraints: BoxConstraints(
-        maxWidth: 132 * (textSize == null ? grow : 0.9),
+    return KBadgeExplainer(
+      message: context.l10n.badgeExplainFamily(
+        KFormat.bidiIsolate(name),
+        level,
       ),
-      padding: const EdgeInsetsDirectional.only(start: 1.5, end: 7),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(KRadius.pill),
-        gradient: const LinearGradient(
-          begin: AlignmentDirectional.centerStart,
-          end: AlignmentDirectional.centerEnd,
-          colors: colors,
+      child: Container(
+        height: h,
+        constraints: BoxConstraints(
+          maxWidth: 132 * (textSize == null ? grow : 0.9),
         ),
-        border: Border.all(color: const Color(0x59FFFFFF), width: 0.8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: h - 3.5,
-            height: h - 3.5,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF1A2F8F),
-              border: Border.all(color: const Color(0xFFDDE6FF)),
-            ),
-            child: Text(
-              '$level',
-              textDirection: TextDirection.ltr,
-              style: TextStyle(
-                fontFamily: KFonts.latin,
-                fontSize: textSize == null ? 9 * grow : textSize * 0.8,
-                height: 1,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFFFFFFFF),
+        padding: const EdgeInsetsDirectional.only(start: 1.5, end: 7),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(KRadius.pill),
+          gradient: const LinearGradient(
+            begin: AlignmentDirectional.centerStart,
+            end: AlignmentDirectional.centerEnd,
+            colors: colors,
+          ),
+          border: Border.all(color: const Color(0x59FFFFFF), width: 0.8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: h - 3.5,
+              height: h - 3.5,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF1A2F8F),
+                border: Border.all(color: const Color(0xFFDDE6FF)),
+              ),
+              child: Text(
+                '$level',
+                textDirection: TextDirection.ltr,
+                style: TextStyle(
+                  fontFamily: KFonts.latin,
+                  fontSize: textSize == null ? 9 * grow : textSize * 0.8,
+                  height: 1,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFFFFFFFF),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              KFormat.bidiIsolate(name),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.textStyles.caption.copyWith(
-                fontSize: textSize ?? 11 * grow,
-                height: 1.1,
-                color: const Color(0xFFFFFFFF),
-                fontWeight: FontWeight.w700,
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                KFormat.bidiIsolate(name),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.caption.copyWith(
+                  fontSize: textSize ?? 11 * grow,
+                  height: 1.1,
+                  color: const Color(0xFFFFFFFF),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

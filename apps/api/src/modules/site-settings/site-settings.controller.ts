@@ -49,19 +49,24 @@ export class SiteSettingsController {
 export class AdminSiteSettingsController {
   constructor(private readonly settings: SiteSettingsService) {}
 
+  // v1.139-social (D387, §10.176.1): `site.public` (OWNER, COMMUNITY); was `site.settings` (OWNER only).
   @Get()
-  @RequireCapability('site.settings')
+  @RequireCapability('site.public')
   get(): Promise<SiteSettingsDto> {
     return this.settings.get();
   }
 
   @Put()
-  @RequireCapability('site.settings')
+  @RequireCapability('site.public')
   put(
     @Body(new ZodValidationPipe(updateSiteSettingsSchema)) body: UpdateSiteSettingsInput,
     @CurrentAdmin() admin: AdminContext,
   ): Promise<SiteSettingsDto> {
-    return this.settings.update(body, { userId: admin.userId, ip: admin.ip, requestId: admin.requestId });
+    return this.settings.update(
+      body,
+      { userId: admin.userId, ip: admin.ip, requestId: admin.requestId },
+      admin.capabilities.includes('payments.settings'),
+    );
   }
 }
 

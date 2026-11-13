@@ -77,7 +77,8 @@ describe("D271 the staff cards", () => {
     expect(ar).toContain("سارة");
     expect(ar).toContain("@sara_mod");
     expect(ar).toContain("sara@kabso.test");
-    expect(ar).toContain("مشرف");
+    // v1.139-social (D387): MODERATION is shown as TRUST_SAFETY «مراقبة المحتوى والأمان».
+    expect(ar).toContain("مراقبة المحتوى والأمان");
     expect(ar).toContain("مفعّلة");
     expect(ar).toContain('data-on-shift="true"');
     expect(ar).toContain("في المناوبة");

@@ -368,6 +368,10 @@ enum ProfitDeductionKey {
   staffCommissions('STAFF_COMMISSIONS'),
   teamAdjustments('TEAM_ADJUSTMENTS'),
   coinRewards('COIN_REWARDS'),
+
+  /// v1.139-social (D387, §10.176.4; owner: «نعم ينقص تقرير الربح قيمة هذه
+  /// العملات»): the coins given as VIP care compensations.
+  staffCompensations('STAFF_COMPENSATIONS'),
   cardFees('CARD_FEES');
 
   new(this.wire);

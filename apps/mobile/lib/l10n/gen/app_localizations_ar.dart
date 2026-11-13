@@ -19117,6 +19117,188 @@ class AppLocalizationsAr extends AppLocalizations {
       'راجع فريق كابسو فئة حسابك. افتح «تعديل الملف» لمعرفة التفاصيل';
 
   @override
+  String get staffRoleTrustSafety => 'مراقبة المحتوى والأمان';
+
+  @override
+  String get staffRoleLiveOps => 'مدير عمليات البث';
+
+  @override
+  String get staffRoleTalent => 'مدير الوكالات والمواهب';
+
+  @override
+  String get staffRoleVipCare => 'دعم كبار الداعمين';
+
+  @override
+  String get staffRoleCommunity => 'المجتمع والفعاليات';
+
+  @override
+  String get staffOnShiftNow => 'في المناوبة الآن';
+
+  @override
+  String get staffScheduledHint => 'حسب جدول المناوبات في لوحة الإدارة.';
+
+  @override
+  String get staffMyRoles => 'أدواري';
+
+  @override
+  String get staffRolesAndShift => 'أدواري والمناوبة';
+
+  @override
+  String get staffOpsPanelHint => 'أدوات دورك في لوحة الإدارة.';
+
+  @override
+  String get settingsFollowUs => 'تابعنا';
+
+  @override
+  String get socialPlatformInstagram => 'إنستغرام';
+
+  @override
+  String get socialPlatformTiktok => 'تيك توك';
+
+  @override
+  String get socialPlatformX => 'إكس';
+
+  @override
+  String get socialPlatformFacebook => 'فيسبوك';
+
+  @override
+  String get socialPlatformYoutube => 'يوتيوب';
+
+  @override
+  String get socialPlatformSnapchat => 'سناب شات';
+
+  @override
+  String get socialPlatformTelegram => 'تيليجرام';
+
+  @override
+  String get socialPlatformWhatsapp => 'واتساب';
+
+  @override
+  String get socialPlatformThreads => 'ثريدز';
+
+  @override
+  String get socialPlatformLinkedin => 'لينكدإن';
+
+  @override
+  String get socialPlatformDiscord => 'ديسكورد';
+
+  @override
+  String get socialPlatformOther => 'موقع آخر';
+
+  @override
+  String get giftStaffRefused => 'حسابات فريق كابسو لا ترسل الهدايا.';
+
+  @override
+  String get errorStaffGiftRefused => 'حسابات فريق كابسو لا ترسل الهدايا.';
+
+  @override
+  String get staffCherriesCompanyOnly =>
+      'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.';
+
+  @override
+  String get errorStaffWithdrawalCompanyOnly =>
+      'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط.';
+
+  @override
+  String get ownerProfitCompensations => 'تعويضات دعم كبار الداعمين (عملات)';
+
+  @override
+  String get badgeExplainKabsoTeam =>
+      'شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي';
+
+  @override
+  String badgeExplainWealthLevel(int level) {
+    return 'مستوى الثروة $level';
+  }
+
+  @override
+  String badgeExplainCharmLevel(int level) {
+    return 'مستوى الجاذبية $level';
+  }
+
+  @override
+  String badgeExplainWizardLevel(int level) {
+    return 'مستوى الساحر $level';
+  }
+
+  @override
+  String badgeExplainGamingLevel(int level) {
+    return 'مستوى اللعب $level';
+  }
+
+  @override
+  String badgeExplainRoomLevel(int level) {
+    return 'مستوى الغرفة $level — مستوى جاذبية المضيف';
+  }
+
+  @override
+  String badgeExplainVip(int tier) {
+    return 'عضوية VIP $tier';
+  }
+
+  @override
+  String badgeExplainGoldenId(String id) {
+    return 'آيدي ذهبي $id — من مزايا عضوية VIP';
+  }
+
+  @override
+  String badgeExplainVerification(String kind) {
+    return 'شارة التوثيق: $kind — تُمنح تلقائياً عند تحقق الشروط';
+  }
+
+  @override
+  String badgeExplainCategory(String category) {
+    return 'فئة موثّقة: $category — وثّقها فريق كابسو';
+  }
+
+  @override
+  String get badgeExplainFounder => 'شارة المؤسس — مؤسس Kabso Live';
+
+  @override
+  String badgeExplainRechargeTier(int tier) {
+    return 'شارة الشحن اليومي — المستوى $tier، تظهر 24 ساعة بعد الشحن';
+  }
+
+  @override
+  String badgeExplainRechargeAgent(String code) {
+    return 'وكيل شحن معتمد في Kabso Live — $code';
+  }
+
+  @override
+  String badgeExplainHostAgent(String code) {
+    return 'وكيل مضيفين في Kabso Live — $code';
+  }
+
+  @override
+  String badgeExplainItem(String name) {
+    return 'شارة العنصر: $name';
+  }
+
+  @override
+  String get badgeExplainCreatorLive =>
+      'صانع محتوى — المضيف صانع محتوى في Kabso Live';
+
+  @override
+  String get badgeExplainHostTargetGifts => 'هدف الهدايا اليومي للمضيف';
+
+  @override
+  String get badgeExplainHostTargetLucky => 'هدف هدايا الحظ اليومي للمضيف';
+
+  @override
+  String get badgeExplainHost => 'المضيف — صاحب هذا البث';
+
+  @override
+  String get badgeExplainModerator => 'مشرف — يساعد المضيف في إدارة هذا البث';
+
+  @override
+  String get badgeExplainNewcomer => 'جديد — انضم إلى Kabso Live مؤخراً';
+
+  @override
+  String badgeExplainFamily(String name, int level) {
+    return 'عائلة $name — المستوى $level';
+  }
+
+  @override
   String get waLangAR => 'عربي';
 
   @override

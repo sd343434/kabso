@@ -83,12 +83,20 @@ export class SiteSettingsService {
    * (409 ADMIN_ACTION_REFUSED, `topupEnabled` `stripe_keys_missing`): the website would link to a page that says
    * «الشحن بالبطاقة غير مفعّل».
    */
-  async update(input: UpdateSiteSettingsInput, actor: SiteSettingsActor): Promise<SiteSettingsDto> {
+  async update(
+    input: UpdateSiteSettingsInput,
+    actor: SiteSettingsActor,
+    /** v1.139-social (D387, §10.176.1): COMMUNITY edits the links; the top-up switch needs `payments.settings`. */
+    canSwitchTopup = true,
+  ): Promise<SiteSettingsDto> {
     this.payments.invalidate();
     const keysReady = (await this.payments.resolved()).stripe !== null;
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('site_settings'))`;
       const before = await this.get(tx);
+      if (!canSwitchTopup && input.topupEnabled !== before.topupEnabled) {
+        throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+      }
       if (input.topupEnabled && !before.topupEnabled && !keysReady) {
         throw new AppException(
           ErrorCode.ADMIN_ACTION_REFUSED,

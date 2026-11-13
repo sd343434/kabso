@@ -273,13 +273,24 @@ class MeHubScreen extends ConsumerWidget {
             ),
           ];
 
+    // v1.139-social (D387, §10.176.1): an operations role (no watch role)
+    // opens the same page for its roles and «في المناوبة الآن».
+    final opsRole = switch (staff?.role) {
+      StaffLineRole.liveOps ||
+      StaffLineRole.talent ||
+      StaffLineRole.vipCare ||
+      StaffLineRole.community => true,
+      _ => false,
+    };
     final teamRow = [
       _HubRow(
         rowKey: kabsoTeamKey,
         icon: Icons.verified_user_rounded,
         hue: KabsoTeamColors.end,
         title: l10n.liveKabsoTeam,
-        value: l10n.staffMyLives,
+        value: (user?.kabsoTeam ?? false)
+            ? l10n.staffMyLives
+            : l10n.staffRolesAndShift,
         onTap: () => push(AppRoutes.staff),
       ),
     ];
@@ -365,7 +376,9 @@ class MeHubScreen extends ConsumerWidget {
         : staff != null
         ? <List<Widget>>[
             // D273's panel on the phone (watch roles; FINANCE has none).
-            if (user?.kabsoTeam ?? false) teamRow,
+            // v1.139-social (D387): and the operations roles (their roles and
+            // the on-shift badge).
+            if ((user?.kabsoTeam ?? false) || opsRole) teamRow,
             // v1.78-live (D288, owner: «ان البلاغ يصل كل المشرفين والدعم»):
             // «بلاغات», the shared queue, for the moderators and the support.
             if (staff.role == StaffLineRole.moderation ||
@@ -375,8 +388,10 @@ class MeHubScreen extends ConsumerWidget {
             // واتساب داخل تطبيق الى رسائل لتكون اسهل للوصول»): a pinned
             // circle after «دعم كابسو» (DmPinnedRow, waEntryProvider).
             // v1.75-live (D285): the recruiters' own recruits and earnings.
+            // v1.139-social (D387): TALENT is a recruiter too.
             if (staff.role == StaffLineRole.moderation ||
-                staff.role == StaffLineRole.bd)
+                staff.role == StaffLineRole.bd ||
+                staff.role == StaffLineRole.talent)
               [
                 _HubRow(
                   rowKey: staffRecruitsKey,
@@ -394,9 +409,10 @@ class MeHubScreen extends ConsumerWidget {
                 ),
               ],
             // v1.89-social (D290): level-raise requests for supporters
-            // recruited from other apps.
+            // recruited from other apps (v1.139-social, D387: and VIP_CARE).
             if (staff.role == StaffLineRole.moderation ||
-                staff.role == StaffLineRole.support)
+                staff.role == StaffLineRole.support ||
+                staff.role == StaffLineRole.vipCare)
               [
                 _HubRow(
                   rowKey: staffLevelRaiseKey,

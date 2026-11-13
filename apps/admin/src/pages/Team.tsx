@@ -2,6 +2,7 @@ import { Fragment, useRef, useState } from 'react';
 import { api } from '../api';
 import { Avatar, codeField, Dialog, ErrorAlert, FormDialog, reasonField, StatusBadge, useAsync } from '../components';
 import { useApp } from '../context';
+import { translate } from '../i18n';
 import { formatDate } from '../format';
 import type { PanelRole, WaDepartment, WaLanguage } from '../types';
 import { WA_DEPARTMENTS, WA_LANGUAGES } from '../types';
@@ -396,7 +397,51 @@ export interface GrantResult {
   account?: { email: string; username: string; displayName: string; totpEnrolled: boolean };
 }
 
-export const ROLES: PanelRole[] = ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE', 'BD'];
+/** v1.139-social (D387, §10.176.1): + the operations roles; MODERATION shows as TRUST_SAFETY «مراقبة المحتوى والأمان». */
+export const ROLES: PanelRole[] = [
+  'OWNER',
+  'MODERATION',
+  'SUPPORT',
+  'FINANCE',
+  'BD',
+  'LIVE_OPS',
+  'TALENT',
+  'VIP_CARE',
+  'COMMUNITY',
+];
+
+/**
+ * v1.139-social (D387): the roles with their Arabic and English names and what each can do (the OWNER assigns them
+ * below; a person may hold several; every grant and revoke is audited).
+ */
+export function RolesGuide() {
+  const { t, lang } = useApp();
+  const other = lang === 'ar' ? 'en' : 'ar';
+  return (
+    <details className="card" data-roles-guide>
+      <summary>
+        <strong>{t('opsRolesTitle')}</strong>
+      </summary>
+      <p className="muted small">{t('opsRolesNote')}</p>
+      <p className="small">
+        <span className="badge warn">{t('opsRolesRevenue')}</span>
+      </p>
+      <ul className="activity">
+        {ROLES.map((r) => (
+          <li key={r} data-role={r}>
+            <span className="badge info">{t(`role${r}`)}</span>
+            <span className="names">
+              <span className="muted small" lang={other}>
+                {translate(other, `role${r}`)} · <span className="mono">{r === 'MODERATION' ? 'TRUST_SAFETY' : r}</span>
+              </span>
+              <span className="small">{t(`roleHint${r}` as never)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
 /** The roles with a shift and lives to watch (D260; the API's `lives.watch`). */
 export const SHIFT_ROLES: PanelRole[] = ['OWNER', 'MODERATION', 'SUPPORT'];
 
@@ -714,6 +759,7 @@ export function Team() {
           />
         </label>
       </div>
+      <RolesGuide />
       {data && shown.length === 0 && query.trim() !== '' && (
         <p className="muted">{t('staffSearchNone', { q: query.trim() })}</p>
       )}

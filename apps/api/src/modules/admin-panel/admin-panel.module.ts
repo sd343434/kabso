@@ -54,6 +54,10 @@ import { AdminMedalsController } from './admin-medals.controller.js';
 import { AdminIapController } from './admin-iap.controller.js';
 import { AdminIapService } from './admin-iap.service.js';
 import { IapModule } from '../store-iap/iap.module.js';
+import { AdminOpsController } from './admin-ops.controller.js';
+import { AdminRoleHomesService } from './admin-role-homes.service.js';
+import { StaffCompensationsService } from './staff-compensations.service.js';
+import { StaffScheduleService } from './staff-schedule.service.js';
 
 /**
  * v1.60-social (D191, CONVENTIONS §10.54): the admin panel «لوحة الإدارة» API behind its own cookie session with a
@@ -122,6 +126,8 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
     StaffAppController,
     // v1.99-social (D311, §10.117): «إجراءات المؤسس» — the app owner's moderation actions in the app.
     OwnerModerationController,
+    // v1.139-social (D387, §10.176): the operations roles — homes, the shift schedule, compensations.
+    AdminOpsController,
   ],
   providers: [
     AdminIapService,
@@ -152,6 +158,10 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
     // v1.68-live (D273): the staff tools in the app.
     StaffAppService,
     StaffAppGuard,
+    // v1.139-social (D387, §10.176).
+    StaffScheduleService,
+    StaffCompensationsService,
+    AdminRoleHomesService,
   ],
   exports: [AdminAuthService, AdminSessionGuard],
 })

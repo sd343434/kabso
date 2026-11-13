@@ -31,6 +31,7 @@ import 'package:kabso_live/features/push/open_conversation.dart';
 import 'package:kabso_live/features/push/push_payload.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
+import 'package:kabso_live/features/staff/application/staff_money_rules.dart';
 import 'package:kabso_live/features/support/application/support_providers.dart';
 import 'package:kabso_live/features/vip/application/vip_gift_perks_providers.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
@@ -942,7 +943,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             allowVideo: false,
             onSend: _sending ? null : () => unawaited(_sendText()),
             onMedia: (m) => unawaited(_sendPicture(m)),
-            onGift: () => unawaited(_openGifts(s)),
+            // v1.139-social (D387): a staff account sends no gift.
+            onGift: () {
+              if (refuseStaffGift(context, ref)) return;
+              unawaited(_openGifts(s));
+            },
             voice: _recorder.supported
                 ? ChatVoiceControl(
                     recording: _recording,

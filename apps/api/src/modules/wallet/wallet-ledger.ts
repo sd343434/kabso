@@ -67,7 +67,9 @@ export type WalletLedgerReason =
    * given back on delivery (then charged as its DM_GIFT), cancellation or failure (reference: the same row).
    */
   | 'VIP_SCHEDULED_GIFT'
-  | 'VIP_SCHEDULED_GIFT_RELEASE';
+  | 'VIP_SCHEDULED_GIFT_RELEASE'
+  /** v1.139-social (D387, §10.176.4): a compensation from the VIP care staff (a credit; reference: the compensation). */
+  | 'STAFF_COMPENSATION';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

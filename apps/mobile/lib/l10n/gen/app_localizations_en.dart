@@ -19117,6 +19117,191 @@ class AppLocalizationsEn extends AppLocalizations {
       'The Kabso Team reviewed your account category. Open Edit profile for the details';
 
   @override
+  String get staffRoleTrustSafety => 'Trust & safety';
+
+  @override
+  String get staffRoleLiveOps => 'Live operations manager';
+
+  @override
+  String get staffRoleTalent => 'Agencies & talent manager';
+
+  @override
+  String get staffRoleVipCare => 'VIP care';
+
+  @override
+  String get staffRoleCommunity => 'Community & events';
+
+  @override
+  String get staffOnShiftNow => 'On shift now';
+
+  @override
+  String get staffScheduledHint =>
+      'From the shift schedule in the admin panel.';
+
+  @override
+  String get staffMyRoles => 'My roles';
+
+  @override
+  String get staffRolesAndShift => 'My roles and shift';
+
+  @override
+  String get staffOpsPanelHint => 'Your role\'s tools are in the admin panel.';
+
+  @override
+  String get settingsFollowUs => 'Follow us';
+
+  @override
+  String get socialPlatformInstagram => 'Instagram';
+
+  @override
+  String get socialPlatformTiktok => 'TikTok';
+
+  @override
+  String get socialPlatformX => 'X';
+
+  @override
+  String get socialPlatformFacebook => 'Facebook';
+
+  @override
+  String get socialPlatformYoutube => 'YouTube';
+
+  @override
+  String get socialPlatformSnapchat => 'Snapchat';
+
+  @override
+  String get socialPlatformTelegram => 'Telegram';
+
+  @override
+  String get socialPlatformWhatsapp => 'WhatsApp';
+
+  @override
+  String get socialPlatformThreads => 'Threads';
+
+  @override
+  String get socialPlatformLinkedin => 'LinkedIn';
+
+  @override
+  String get socialPlatformDiscord => 'Discord';
+
+  @override
+  String get socialPlatformOther => 'Other';
+
+  @override
+  String get giftStaffRefused => 'Kabso Team accounts cannot send gifts.';
+
+  @override
+  String get errorStaffGiftRefused => 'Kabso Team accounts cannot send gifts.';
+
+  @override
+  String get staffCherriesCompanyOnly =>
+      'A Kabso Team account withdraws its cherries only through Kabso: request a withdrawal from the cherry wallet. Cherries cannot be sold to an agent.';
+
+  @override
+  String get errorStaffWithdrawalCompanyOnly =>
+      'A Kabso Team account withdraws its cherries only through Kabso.';
+
+  @override
+  String get ownerProfitCompensations => 'VIP care compensations (coins)';
+
+  @override
+  String get badgeExplainKabsoTeam =>
+      'Kabso Team badge — this account is part of Kabso\'s official team';
+
+  @override
+  String badgeExplainWealthLevel(int level) {
+    return 'Wealth level $level';
+  }
+
+  @override
+  String badgeExplainCharmLevel(int level) {
+    return 'Charm level $level';
+  }
+
+  @override
+  String badgeExplainWizardLevel(int level) {
+    return 'Wizard level $level';
+  }
+
+  @override
+  String badgeExplainGamingLevel(int level) {
+    return 'Gaming level $level';
+  }
+
+  @override
+  String badgeExplainRoomLevel(int level) {
+    return 'Room level $level — the host\'s charm level';
+  }
+
+  @override
+  String badgeExplainVip(int tier) {
+    return 'VIP $tier membership';
+  }
+
+  @override
+  String badgeExplainGoldenId(String id) {
+    return 'Golden ID $id — a VIP membership perk';
+  }
+
+  @override
+  String badgeExplainVerification(String kind) {
+    return 'Verified: $kind — granted automatically when the conditions are met';
+  }
+
+  @override
+  String badgeExplainCategory(String category) {
+    return 'Verified category: $category — verified by the Kabso Team';
+  }
+
+  @override
+  String get badgeExplainFounder => 'Founder badge — the founder of Kabso Live';
+
+  @override
+  String badgeExplainRechargeTier(int tier) {
+    return 'Daily recharge badge — tier $tier, shown for 24 hours after a recharge';
+  }
+
+  @override
+  String badgeExplainRechargeAgent(String code) {
+    return 'Official Kabso Live recharge agent — $code';
+  }
+
+  @override
+  String badgeExplainHostAgent(String code) {
+    return 'Kabso Live host agent — $code';
+  }
+
+  @override
+  String badgeExplainItem(String name) {
+    return 'Item badge: $name';
+  }
+
+  @override
+  String get badgeExplainCreatorLive =>
+      'Creator — the host is a Kabso Live content creator';
+
+  @override
+  String get badgeExplainHostTargetGifts => 'The host\'s daily gifts target';
+
+  @override
+  String get badgeExplainHostTargetLucky =>
+      'The host\'s daily lucky-gifts target';
+
+  @override
+  String get badgeExplainHost => 'Host — the owner of this live';
+
+  @override
+  String get badgeExplainModerator =>
+      'Moderator — helps the host run this live';
+
+  @override
+  String get badgeExplainNewcomer => 'New — recently joined Kabso Live';
+
+  @override
+  String badgeExplainFamily(String name, int level) {
+    return 'Family $name — level $level';
+  }
+
+  @override
   String get waLangAR => 'Arabic';
 
   @override

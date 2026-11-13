@@ -26,6 +26,7 @@ import type { AdminContext } from './admin-auth.service.js';
 import { AdminModerationService, type PanelReportDto } from './admin-moderation.service.js';
 import { can, isPanelRole, type Capability } from './admin-permissions.js';
 import { refused, viaOf } from './admin-users.service.js';
+import { resolverShiftIn } from './staff-schedule.js';
 import { AdminControlService } from './admin-control.service.js';
 import { requestDeletionIn } from '../users/account-deletion.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
@@ -632,6 +633,8 @@ export class StaffReportActionsService {
         });
         reportsClosed = closed.count;
         await markReportAlertsReadIn(tx, ids, now);
+        // v1.139-social (D387, §10.176.6): whether the resolver was on shift (the schedule or the D260 switch).
+        const shift = await resolverShiftIn(tx, ctx.userId, this.config.live.rankingsTimeZone, now);
         await this.audit.recordIn(tx, {
           action: AuditAction.MODERATION_REPORT_ACTION,
           actorUserId: ctx.userId,
@@ -644,6 +647,7 @@ export class StaffReportActionsService {
             reason: input.reason,
             ...detail,
             reportsClosed: closed.count,
+            ...shift,
             via: via.via,
           },
           ip: ctx.ip,

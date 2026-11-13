@@ -308,7 +308,12 @@ const List<OwnerFixedCost> ownerFixedCosts = [
 ];
 
 List<ProfitDeduction> _deductions(List<int> minor, List<int> cherries) => [
-  for (final (i, k) in ProfitDeductionKey.values.indexed)
+  // The lines before D387 (the golden screens); the STAFF_COMPENSATIONS line
+  // has its own test (owner_profit_d301_test).
+  for (final (i, k)
+      in ProfitDeductionKey.values
+          .where((k) => k != ProfitDeductionKey.staffCompensations)
+          .indexed)
     ProfitDeduction(
       key: k,
       amountMinor: minor[i],

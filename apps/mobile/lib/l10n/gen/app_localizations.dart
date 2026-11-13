@@ -32254,6 +32254,306 @@ abstract class AppLocalizations {
   /// **'راجع فريق كابسو فئة حسابك. افتح «تعديل الملف» لمعرفة التفاصيل'**
   String get notifCategoryReviewed;
 
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'مراقبة المحتوى والأمان'**
+  String get staffRoleTrustSafety;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'مدير عمليات البث'**
+  String get staffRoleLiveOps;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'مدير الوكالات والمواهب'**
+  String get staffRoleTalent;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'دعم كبار الداعمين'**
+  String get staffRoleVipCare;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'المجتمع والفعاليات'**
+  String get staffRoleCommunity;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'في المناوبة الآن'**
+  String get staffOnShiftNow;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'حسب جدول المناوبات في لوحة الإدارة.'**
+  String get staffScheduledHint;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدواري'**
+  String get staffMyRoles;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدواري والمناوبة'**
+  String get staffRolesAndShift;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدوات دورك في لوحة الإدارة.'**
+  String get staffOpsPanelHint;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'تابعنا'**
+  String get settingsFollowUs;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'إنستغرام'**
+  String get socialPlatformInstagram;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'تيك توك'**
+  String get socialPlatformTiktok;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'إكس'**
+  String get socialPlatformX;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيسبوك'**
+  String get socialPlatformFacebook;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'يوتيوب'**
+  String get socialPlatformYoutube;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'سناب شات'**
+  String get socialPlatformSnapchat;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'تيليجرام'**
+  String get socialPlatformTelegram;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'واتساب'**
+  String get socialPlatformWhatsapp;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'ثريدز'**
+  String get socialPlatformThreads;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'لينكدإن'**
+  String get socialPlatformLinkedin;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'ديسكورد'**
+  String get socialPlatformDiscord;
+
+  /// D387: the operations staff roles, the on-shift badge «في المناوبة الآن» and the app's official accounts «تابعنا» (CONVENTIONS §10.176).
+  ///
+  /// In ar, this message translates to:
+  /// **'موقع آخر'**
+  String get socialPlatformOther;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات فريق كابسو لا ترسل الهدايا.'**
+  String get giftStaffRefused;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات فريق كابسو لا ترسل الهدايا.'**
+  String get errorStaffGiftRefused;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط: اطلب السحب من محفظة الكرز، ولا يمكن بيعه لوكيل.'**
+  String get staffCherriesCompanyOnly;
+
+  /// D387: staff accounts send no gift and withdraw cherries only through Kabso (CONVENTIONS §10.176.8–9).
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب فريق كابسو يسحب الكرز عن طريق Kabso Live فقط.'**
+  String get errorStaffWithdrawalCompanyOnly;
+
+  /// D387 (§10.176.4): «الربح» — the coins given as VIP care compensations.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعويضات دعم كبار الداعمين (عملات)'**
+  String get ownerProfitCompensations;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي'**
+  String get badgeExplainKabsoTeam;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الثروة {level}'**
+  String badgeExplainWealthLevel(int level);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الجاذبية {level}'**
+  String badgeExplainCharmLevel(int level);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الساحر {level}'**
+  String badgeExplainWizardLevel(int level);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى اللعب {level}'**
+  String badgeExplainGamingLevel(int level);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الغرفة {level} — مستوى جاذبية المضيف'**
+  String badgeExplainRoomLevel(int level);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'عضوية VIP {tier}'**
+  String badgeExplainVip(int tier);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'آيدي ذهبي {id} — من مزايا عضوية VIP'**
+  String badgeExplainGoldenId(String id);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة التوثيق: {kind} — تُمنح تلقائياً عند تحقق الشروط'**
+  String badgeExplainVerification(String kind);
+
+  /// D389 (§10.178) for D386 (§10.175): the explainer of a verified category's badge beside the name
+  ///
+  /// In ar, this message translates to:
+  /// **'فئة موثّقة: {category} — وثّقها فريق كابسو'**
+  String badgeExplainCategory(String category);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة المؤسس — مؤسس Kabso Live'**
+  String get badgeExplainFounder;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة الشحن اليومي — المستوى {tier}، تظهر 24 ساعة بعد الشحن'**
+  String badgeExplainRechargeTier(int tier);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل شحن معتمد في Kabso Live — {code}'**
+  String badgeExplainRechargeAgent(String code);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل مضيفين في Kabso Live — {code}'**
+  String badgeExplainHostAgent(String code);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة العنصر: {name}'**
+  String badgeExplainItem(String name);
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'صانع محتوى — المضيف صانع محتوى في Kabso Live'**
+  String get badgeExplainCreatorLive;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'هدف الهدايا اليومي للمضيف'**
+  String get badgeExplainHostTargetGifts;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'هدف هدايا الحظ اليومي للمضيف'**
+  String get badgeExplainHostTargetLucky;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف — صاحب هذا البث'**
+  String get badgeExplainHost;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'مشرف — يساعد المضيف في إدارة هذا البث'**
+  String get badgeExplainModerator;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد — انضم إلى Kabso Live مؤخراً'**
+  String get badgeExplainNewcomer;
+
+  /// D389 (§10.178): the badge explainer — what a tapped badge is, in a small translucent box beside it
+  ///
+  /// In ar, this message translates to:
+  /// **'عائلة {name} — المستوى {level}'**
+  String badgeExplainFamily(String name, int level);
+
   /// D388 (§10.177): a WhatsApp conversation's customer language AR, shown as a small tag on the inbox row and the chat's status strip.
   ///
   /// In ar, this message translates to:

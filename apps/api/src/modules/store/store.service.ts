@@ -32,7 +32,7 @@ import {
   type StoreKind,
 } from './store-rules.js';
 import type { BuyStoreItemBody, StoreItemsQuery } from './store.schemas.js';
-import { refuseLimitedStaff } from '../live/live-staff.js';
+import { refuseLimitedStaff, refuseStaffGift } from '../live/live-staff.js';
 import { activeItemBadges, type ItemBadgeDto } from '../gifts/item-badges.js';
 
 type Tx = Prisma.TransactionClient;
@@ -274,6 +274,8 @@ export class StoreService {
         if (await inCoinDebtIn(tx, buyerId)) throw new AppException(ErrorCode.TOPUP_ACCOUNT_FROZEN);
         // D208 (§10.67): a store gift is a gift — the team's «منع إرسال الهدايا» refuses it.
         if (recipientId !== buyerId) await assertNotRestricted(tx, buyerId, 'NO_GIFTS');
+        // v1.139-social (D387, §10.176.8): a staff account sends no gift (owner: «اي موظف لدينا لا يمكنه ارسال الهدايا»).
+        if (recipientId !== buyerId) await refuseStaffGift(tx, buyerId);
         if (!item.enabled) throw unavailable('item', 'item_off');
         const price = item.prices.find((p) => p.currency === body.currency && p.days === body.days);
         if (!price) throw unavailable('days', 'not_priced');

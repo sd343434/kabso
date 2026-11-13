@@ -9,6 +9,7 @@ import type { ActivityRow, Attention, Kpi, StatsDay, StatsOverview } from '../ty
 import { LineChart, Sparkline } from '../ui/charts';
 import { Icon, type IconName } from '../ui/icons';
 import { ATTENTION_LINK } from '../ui/Shell';
+import { homesOf, RoleHomes } from './RoleHomes';
 
 /** The dashboard's day in its own time zone (Asia/Riyadh), whatever the browser's zone. */
 export function formatDay(iso: string, timeZone: string, lang: 'ar' | 'en'): string {
@@ -81,16 +82,83 @@ function actionLabel(t: (k: Key) => string, action: string): string {
 }
 
 /**
- * Home (D197): five KPI cards with a 14-day sparkline and the change against yesterday, the 7/30/90-day chart of
+ * The panel's landing page. v1.139-social (D387, CONVENTIONS §10.176.2–3): the KPI dashboard (coins sold, gift coin
+ * value) is the OWNER's alone (`revenue.view`); anyone else lands on their role's home (`RoleHomes`) or, with no role
+ * home (SUPPORT, FINANCE), on the attention list and the activity — no money card.
+ */
+export function Dashboard() {
+  const { can } = useApp();
+  return can('revenue.view') ? <OwnerDashboard /> : <StaffDashboard />;
+}
+
+/** «يحتاج انتباهك» (D197; every role with `dashboard.view`). */
+export function AttentionCard() {
+  const { t, lang } = useApp();
+  const attention = useAsync(() => api.get<Attention>('/admin/stats/attention'), []);
+  const n = (v: number) => formatNumber(v, lang);
+  return (
+    <section className="card">
+      <div className="card-head">
+        <h2>{t('attnTitle')}</h2>
+      </div>
+      <ErrorAlert error={attention.error} />
+      <ul className="attention">
+        {attention.data?.items.map((i) => (
+          <li key={i.kind}>
+            <button type="button" onClick={() => navigate(ATTENTION_LINK[i.kind].to)} className={i.count > 0 ? 'hot' : ''}>
+              <span className="names">
+                <span>{t(ATTENTION_LINK[i.kind].key)}</span>
+                <span className="muted small">
+                  {i.oldestAt ? t('attnOldest', { date: formatDate(i.oldestAt, lang) }) : t('attnClear')}
+                </span>
+              </span>
+              <span className={`pill ${i.count > 0 ? 'hot' : ''}`}>{n(i.count)}</span>
+            </button>
+          </li>
+        ))}
+        {attention.data && attention.data.items.length === 0 && <li className="muted small">{t('attnNone')}</li>}
+      </ul>
+    </section>
+  );
+}
+
+/** A staff member's landing page (D387): their role homes, then the attention list. */
+function StaffDashboard() {
+  const { t, can, session } = useApp();
+  const homes = homesOf(can);
+  return (
+    <>
+      {homes.length > 0 ? (
+        <RoleHomes />
+      ) : (
+        <div className="page-head">
+          <div>
+            <h1>{t('homeHello', { name: session?.admin.displayName ?? '' })}</h1>
+            <p className="muted small">
+              {session?.roles.map((r) => t(`role${r}`)).join(' · ')} · {t('homeNoMoney')}
+            </p>
+          </div>
+        </div>
+      )}
+      {can('dashboard.view') && (
+        <div className="dash-grid">
+          <AttentionCard />
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * The OWNER's home (D197): five KPI cards with a 14-day sparkline and the change against yesterday, the 7/30/90-day chart of
  * new users, coins sold and gift coins, «يحتاج انتباهك» and the latest panel activity — every number a real
  * aggregate of `/admin/stats/*` on the Asia/Riyadh day.
  */
-export function Dashboard() {
+function OwnerDashboard() {
   const { t, lang, can, session } = useApp();
   const [days, setDays] = useState<7 | 30 | 90>(30);
   const overview = useAsync(() => api.get<StatsOverview>('/admin/stats/overview'), []);
   const series = useAsync(() => api.get<{ timeZone: string; days: StatsDay[] }>('/admin/stats/series', { days }), [days]);
-  const attention = useAsync(() => api.get<Attention>('/admin/stats/attention'), []);
   const activity = useAsync(() => api.get<{ data: ActivityRow[] }>('/admin/stats/activity'), []);
   const n = (v: number) => formatNumber(v, lang);
   const k = overview.data?.kpis;
@@ -174,28 +242,7 @@ export function Dashboard() {
           <p className="muted small">{t('chartAxesNote')}</p>
         </section>
 
-        <section className="card">
-          <div className="card-head">
-            <h2>{t('attnTitle')}</h2>
-          </div>
-          <ErrorAlert error={attention.error} />
-          <ul className="attention">
-            {attention.data?.items.map((i) => (
-              <li key={i.kind}>
-                <button type="button" onClick={() => navigate(ATTENTION_LINK[i.kind].to)} className={i.count > 0 ? 'hot' : ''}>
-                  <span className="names">
-                    <span>{t(ATTENTION_LINK[i.kind].key)}</span>
-                    <span className="muted small">
-                      {i.oldestAt ? t('attnOldest', { date: formatDate(i.oldestAt, lang) }) : t('attnClear')}
-                    </span>
-                  </span>
-                  <span className={`pill ${i.count > 0 ? 'hot' : ''}`}>{n(i.count)}</span>
-                </button>
-              </li>
-            ))}
-            {attention.data && attention.data.items.length === 0 && <li className="muted small">{t('attnNone')}</li>}
-          </ul>
-        </section>
+        <AttentionCard />
 
         <section className="card activity-card">
           <div className="card-head">

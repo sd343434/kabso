@@ -30,7 +30,8 @@ import {
 type Tx = Prisma.TransactionClient;
 type Db = Tx | PrismaService;
 
-export const RECRUITER_ROLES = ['MODERATION', 'BD'] as const;
+// v1.139-social (D387, §10.176.1): TALENT «مدير الوكالات والمواهب» extends BD — a recruiter too.
+export const RECRUITER_ROLES = ['MODERATION', 'BD', 'TALENT'] as const;
 export type RecruiterRole = (typeof RECRUITER_ROLES)[number];
 
 /** A recruiter as the forms' live check and the panel show them (`StaffRecruiter`). */

@@ -752,7 +752,12 @@ function ItemForm({
 export function Store() {
   const { t, can, toast } = useApp();
   const items = useAsync(() => api.get<AdminStoreItemList>("/admin/store/items"), []);
-  const sales = useAsync(() => api.get<AdminStoreSales>("/admin/store/sales", { limit: "50" }), []);
+  // v1.139-social (D387, §10.176.2): the store's sales and totals are the OWNER's (`revenue.view`).
+  const seesSales = can("revenue.view");
+  const sales = useAsync(
+    () => (seesSales ? api.get<AdminStoreSales>("/admin/store/sales", { limit: "50" }) : Promise.resolve(null)),
+    [seesSales],
+  );
   const [tab, setTab] = useState<StoreKind | "ALL">("ALL");
   const [edit, setEdit] = useState<AdminStoreItem | "new" | null>(null);
   const [toggle, setToggle] = useState<AdminStoreItem | null>(null);
@@ -836,11 +841,13 @@ export function Store() {
         {hiddenOnly && <p className="muted small">{t("storeHiddenNote")}</p>}
         <p className="muted small">{t("storeOffNote")}</p>
       </div>
-      <div className="card">
-        <h2>{t("storeSales")}</h2>
-        <ErrorAlert error={sales.error} />
-        {sales.data && <SalesTable sales={sales.data} />}
-      </div>
+      {seesSales && (
+        <div className="card">
+          <h2>{t("storeSales")}</h2>
+          <ErrorAlert error={sales.error} />
+          {sales.data && <SalesTable sales={sales.data} />}
+        </div>
+      )}
       {edit && (
         <ItemForm
           item={edit === "new" ? null : edit}

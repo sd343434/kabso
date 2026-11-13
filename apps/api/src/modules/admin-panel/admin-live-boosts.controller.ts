@@ -14,7 +14,7 @@ import { viaOf } from './admin-users.service.js';
 
 /**
  * «صواريخ الزيارات» (v1.51-live, D233, CONVENTIONS §10.81): the rocket stages' prices in coins. `catalog.view` reads
- * them (with the server config's price beside each); `catalog.manage` (OWNER) changes all four with a reason and the
+ * them (with the server config's price beside each); `boosts.manage` (OWNER, LIVE_OPS — D387) changes all four with a reason and the
  * authenticator code again, audited `live.boost_prices.update`. Every write also needs the CSRF header (the guard).
  */
 @Public()
@@ -34,7 +34,7 @@ export class AdminLiveBoostsController {
   }
 
   @Put()
-  @RequireCapability('catalog.manage')
+  @RequireCapability('boosts.manage')
   async put(
     @Body(new ZodValidationPipe(adminBoostPricesBody)) body: AdminBoostPricesBody,
     @CurrentAdmin() admin: AdminContext,
