@@ -1503,8 +1503,22 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               : null),
       // D238: the «PK أحكام» card, small at the bottom over the chat; a
       // signed-in viewer may report the dare (⚠️).
+      // v1.119-live (D395): the 4-way PK's dare card (a viewer may report).
       dock: pkState?.match == null
-          ? null
+          ? (pk4State?.match == null
+                ? null
+                : LivePk4Stage.dock(
+                    match: pk4State!.match!,
+                    roomId: room.id,
+                    now: pk4State.now,
+                    actions: PkDareActions(
+                      onReport: me == null
+                          ? null
+                          : ref
+                                .read(livePk4Provider(room.id).notifier)
+                                .reportDare,
+                    ),
+                  ))
           : LivePkStage.dareDock(
               match: pkState!.match!,
               roomId: room.id,

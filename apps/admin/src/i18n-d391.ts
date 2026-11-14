@@ -16,6 +16,15 @@ export const AR_D391 = {
   livePk4End: 'إنهاء PK الرباعي',
   livePk4EndIntro: 'تُنهى المعركة لاغيةً للمضيفين الأربعة (لا فائز ولا تُحتسب في السجلات)، ويبقى البث مستمراً.',
   livePk4Ended: 'أُنهي PK الرباعي',
+  // D395 (v1.119-live, §10.181): FREE_FOR_ALL «الكل ضد الكل», places, «PK أحكام», two to four hosts.
+  livePk4Ffa: 'الكل ضد الكل: {hosts}',
+  livePk4Player: 'لاعب {seat}',
+  livePk4Place: 'المركز {place}',
+  livePk4Format: 'النوع',
+  livePk4FormatTEAMS: '٢ ضد ٢',
+  livePk4FormatFREE_FOR_ALL: 'الكل ضد الكل',
+  livePk4Dares: 'PK أحكام',
+  livePk4Players: '{count} مضيفين',
 };
 
 export const EN_D391: Record<keyof typeof AR_D391, string> = {
@@ -31,4 +40,12 @@ export const EN_D391: Record<keyof typeof AR_D391, string> = {
   livePk4End: 'End the 4-way PK',
   livePk4EndIntro: 'The battle ends void for the four hosts (no winner, not counted in the records); the live goes on.',
   livePk4Ended: 'The 4-way PK was ended',
+  livePk4Ffa: 'Free for all: {hosts}',
+  livePk4Player: 'Player {seat}',
+  livePk4Place: 'Place {place}',
+  livePk4Format: 'Format',
+  livePk4FormatTEAMS: '2 v 2',
+  livePk4FormatFREE_FOR_ALL: 'Free for all',
+  livePk4Dares: 'PK dares',
+  livePk4Players: '{count} hosts',
 };

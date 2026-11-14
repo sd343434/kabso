@@ -51,6 +51,7 @@ import 'package:kabso_live/features/live/data/streamer/live_streamer_platform.da
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
+import 'package:kabso_live/features/live/domain/live_pk4.dart';
 import 'package:kabso_live/features/live/domain/live_vip.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart'
     show pkFollowOpponent, showHostSheet, showPkOpponentCard;
@@ -2389,6 +2390,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         Pk4Notice.declined => l10n.pk4NoticeDeclined,
         Pk4Notice.inviteExpired => l10n.pk4NoticeInviteExpired,
         Pk4Notice.left => l10n.pk4NoticeLeft,
+        Pk4Notice.queueExpired => l10n.pk4NoticeQueueExpired,
       });
     });
     ref.listen(livePkProvider(room.id).select((p) => p.notice), (_, notice) {
@@ -2895,8 +2897,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       // v1.50-live (D229) → D238: the host's dare card, small at the bottom
       // over the chat (loser: accept / refuse; winner: done / not done; the
       // report).
+      // v1.119-live (D395): the 4-way PK's dare card and «جولة أخرى» for four.
       dock: pk.match == null
-          ? null
+          ? (pk4.match == null ? null : _hostPk4Dock(pk4.match!, pk4, room))
           : LivePkStage.dareDock(
               match: pk.match!,
               roomId: room.id,
@@ -2960,7 +2963,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                         showLivePkSheet(
                           context,
                           roomId: room.id,
-                          initialMode: pk4.match != null || pk4.lobby != null
+                          initialMode:
+                              pk4.match != null ||
+                                  pk4.lobby != null ||
+                                  pk4.searching
                               ? PkSheetMode.team
                               : PkSheetMode.oneVsOne,
                         ),
@@ -3071,6 +3077,30 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// v1.118-live (D391): the host's 4-way stage — their own camera at the top
   /// of the start column, the three other hosts from the 4-way connections,
   /// a mute switch per other pane.
+  /// v1.119-live (D395): the host's 4-way dock — the dare's buttons (a loser
+  /// answers for the losing side, a winner judges) and «جولة أخرى» for four.
+  Widget? _hostPk4Dock(Pk4Match match, LivePk4State pk4, LiveRoom room) {
+    final c = ref.read(livePk4Provider(room.id).notifier);
+    return LivePk4Stage.dock(
+      match: match,
+      roomId: room.id,
+      now: pk4.now,
+      isHost: true,
+      actions: PkDareActions(
+        onAccept: c.acceptDare,
+        onRefuse: c.refuseDare,
+        onVerdict: c.judgeDare,
+        onReport: c.reportDare,
+      ),
+      rematch: Pk4RematchActions(
+        onOffer: c.offerRematch,
+        onAccept: c.acceptRematch,
+        onDecline: c.declineRematch,
+        onCancel: c.cancelRematch,
+      ),
+    );
+  }
+
   Widget _hostPk4Stage(LivePk4State pk4, LiveRoom room, GoLiveState state) {
     final engine = _host.engine;
     final match = pk4.match!;

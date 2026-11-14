@@ -909,6 +909,7 @@ export class LiveGiftsService {
                 coins: amounts.totalCoins,
                 booster: gift.pkBooster,
                 now,
+                lucky: isLucky,
               })
             : null;
           const pk =

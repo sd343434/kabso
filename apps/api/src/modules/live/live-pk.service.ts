@@ -676,7 +676,10 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
           OR EXISTS (SELECT 1 FROM pk_invites WHERE status = 'PENDING'
                         AND (from_room_id = ${roomId}::uuid OR to_room_id = ${roomId}::uuid))
           OR (NOT ${opts.ignoreQueue === true}
-              AND EXISTS (SELECT 1 FROM pk_queue WHERE host_id = ${hostId}::uuid AND expires_at > ${iso(now)}::timestamptz))
+              AND (EXISTS (SELECT 1 FROM pk_queue WHERE host_id = ${hostId}::uuid AND expires_at > ${iso(now)}::timestamptz)
+                   -- v1.119-live (D395): the host's own 4-way random wait too (one wait per host).
+                   OR EXISTS (SELECT 1 FROM pk4_queue WHERE host_id = ${hostId}::uuid
+                                 AND expires_at > ${iso(now)}::timestamptz)))
           OR ${pk4BusySql(Prisma.sql`${roomId}::uuid`, iso(now))}
           AS busy`;
     return row?.busy ?? false;
@@ -1300,6 +1303,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
         return;
       }
       if (existing) await tx.pkQueueEntry.delete({ where: { hostId: callerId } });
+      // v1.119-live (D395): one wait per host — a 4-way random wait is replaced by this one.
+      await tx.pk4QueueEntry.deleteMany({ where: { hostId: callerId } });
       if (await this.busyIn(tx, own.id, callerId, now)) throw new AppException(ErrorCode.PK_HOST_BUSY);
       // v1.44-live (D199): both hosts' gender and region preferences must hold (each way).
       const [me] = await tx.$queryRaw<
@@ -1449,6 +1454,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
          WHERE id = ${input.inviteId}::uuid`;
     }
     await tx.pkQueueEntry.deleteMany({ where: { hostId: { in: [input.hostA, input.hostB] } } });
+    // v1.119-live (D395): and their 4-way random waits.
+    await tx.pk4QueueEntry.deleteMany({ where: { hostId: { in: [input.hostA, input.hostB] } } });
     await this.audit.recordIn(tx, {
       action: AuditAction.LIVE_PK_START,
       actorUserId: input.hostB,
@@ -2850,6 +2857,9 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
        WHERE s.auto_match
          AND r.last_heartbeat_at > ${iso(this.staleCutoff(now))}::timestamptz AND r.host_away_since IS NULL
          AND NOT EXISTS (SELECT 1 FROM pk_queue q WHERE q.host_id = s.host_id AND q.expires_at > ${iso(now)}::timestamptz)
+         -- v1.119-live (D395): a host waiting for a 4-way random match keeps that wait.
+         AND NOT EXISTS (SELECT 1 FROM pk4_queue q4 WHERE q4.host_id = s.host_id
+                          AND q4.expires_at > ${iso(now)}::timestamptz)
          AND NOT EXISTS (SELECT 1 FROM pk_matches m WHERE (m.room_a_id = r.id OR m.room_b_id = r.id)
                           AND (m.status <> 'CLOSED' OR m.closed_at > ${iso(rest)}::timestamptz))
          AND NOT EXISTS (SELECT 1 FROM pk_invites i WHERE i.status = 'PENDING' AND i.expires_at > ${iso(now)}::timestamptz

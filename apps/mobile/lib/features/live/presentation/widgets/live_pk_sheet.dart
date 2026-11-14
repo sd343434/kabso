@@ -583,54 +583,19 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
     );
   }
 
+  /// D395: the smaller «الأصدقاء» header ([PkFriendsHeader]), shared with
+  /// the 4-way tab.
   Widget _friendsHeader(BuildContext context) {
     final l10n = context.l10n;
-    final style = context.textStyles.title.copyWith(
-      fontSize: 18,
-      height: 1.2,
-      fontWeight: FontWeight.w800,
-      color: PkSheetMetrics.ink,
-    );
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(20.2, 0, 20.2, 0),
-      child: Row(
-        children: [
-          Semantics(
-            key: LivePkSheet.friendsTabKey,
-            selected: true,
-            header: true,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(l10n.pkFriendsTab, style: style),
-                const SizedBox(height: 2),
-                Container(
-                  width: 6.9,
-                  height: 2.7,
-                  decoration: BoxDecoration(
-                    color: PkSheetMetrics.ink,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          Semantics(
-            button: true,
-            label: l10n.pkFriendsTab,
-            excludeSemantics: true,
-            child: GestureDetector(
-              key: LivePkSheet.friendsHelpKey,
-              onTap: () => _help(l10n.pkFriendsTab, l10n.pkFriendsHelp),
-              child: const Icon(
-                Icons.help_outline_rounded,
-                size: 22,
-                color: PkSheetMetrics.ink,
-              ),
-            ),
-          ),
-        ],
+      child: Semantics(
+        key: LivePkSheet.friendsTabKey,
+        container: true,
+        child: PkFriendsHeader(
+          helpKey: LivePkSheet.friendsHelpKey,
+          onHelp: () => _help(l10n.pkFriendsTab, l10n.pkFriendsHelp),
+        ),
       ),
     );
   }
@@ -712,7 +677,7 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       itemCount: list.length,
       itemBuilder: (context, i) => _candidate(context, list[i], controller),
     );
@@ -744,50 +709,30 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
     ),
   );
 
+  /// D395: a friend in the smaller row ([PkFriendRow]), as the 4-way tab.
   Widget _candidate(
     BuildContext context,
     PkCandidate c,
     LivePkController controller,
   ) {
     final l10n = context.l10n;
-    return ListTile(
+    return PkFriendRow(
       key: LivePkSheet.candidateKey(c.roomId),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-      leading: KAvatar(
-        name: c.host.displayName,
-        imageUrl: c.host.avatarUrl,
-        size: 40,
-      ),
-      title: Text(
-        c.host.displayName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: context.textStyles.bodyStrong.copyWith(
-          color: PkSheetMetrics.ink,
-        ),
-      ),
-      subtitle: Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: PkSheetMetrics.red,
-          visualDensity: VisualDensity.compact,
-        ),
-        onPressed: _busy
-            ? null
-            : () => unawaited(
-                _run(() async {
-                  await controller.invite(c.roomId, type: _type);
-                  if (!context.mounted) return;
-                  KSnack.info(
-                    context,
-                    _type == PkType.dares
-                        ? l10n.pkInviteSentDares(c.host.displayName)
-                        : l10n.pkInviteSent(c.host.displayName),
-                  );
-                }),
-              ),
-        child: Text(l10n.pkInvite),
-      ),
+      candidate: c,
+      onInvite: _busy
+          ? null
+          : () => unawaited(
+              _run(() async {
+                await controller.invite(c.roomId, type: _type);
+                if (!context.mounted) return;
+                KSnack.info(
+                  context,
+                  _type == PkType.dares
+                      ? l10n.pkInviteSentDares(c.host.displayName)
+                      : l10n.pkInviteSent(c.host.displayName),
+                );
+              }),
+            ),
     );
   }
 
@@ -1185,6 +1130,181 @@ class PkModeArt extends StatelessWidget {
       child: IconTheme(
         data: const IconThemeData(color: Color(0xFFFFFFFF)),
         child: glyph,
+      ),
+    );
+  }
+}
+
+/// D395 (owner «أ»): the smaller «الأصدقاء» list, the same in both tabs of
+/// the PK sheet («PK ثنائي» and «PK رباعي») — a smaller header, smaller
+/// avatars, text and «دعوة» buttons, less space between the rows. Before:
+/// the header 18 lp, a 40 lp avatar in a two-line ListTile (about 64 lp per
+/// row) and a full-size button.
+abstract final class PkFriendsMetrics {
+  /// «الأصدقاء» (was 18).
+  static const double header = 15;
+
+  /// A friend's avatar (was 40).
+  static const double avatar = 32;
+
+  /// The name and the live's title (were the body and caption sizes).
+  static const double name = 13.5;
+  static const double title = 11.5;
+
+  /// The «دعوة» button: height and text (was a 36 lp compact button).
+  static const double button = 28;
+  static const double buttonText = 12.5;
+
+  /// A row's vertical padding (each row about 42 lp high).
+  static const double rowPadding = 5;
+}
+
+/// D395: the «الأصدقاء» header of both PK tabs (smaller, [PkFriendsMetrics]).
+class PkFriendsHeader extends StatelessWidget {
+  const new({super.key, this.onHelp, this.helpKey});
+
+  final VoidCallback? onHelp;
+  final Key? helpKey;
+
+  static const textKey = Key('pk.friends.header');
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final style = context.textStyles.title.copyWith(
+      fontSize: PkFriendsMetrics.header,
+      height: 1.2,
+      fontWeight: FontWeight.w800,
+      color: PkSheetMetrics.ink,
+    );
+    return Row(
+      children: [
+        Semantics(
+          selected: true,
+          header: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l10n.pkFriendsTab, key: textKey, style: style),
+              const SizedBox(height: 2),
+              Container(
+                width: 6.9,
+                height: 2.4,
+                decoration: BoxDecoration(
+                  color: PkSheetMetrics.ink,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Spacer(),
+        if (onHelp != null)
+          Semantics(
+            button: true,
+            label: l10n.pkFriendsTab,
+            excludeSemantics: true,
+            child: GestureDetector(
+              key: helpKey,
+              onTap: onHelp,
+              child: const Icon(
+                Icons.help_outline_rounded,
+                size: 19,
+                color: PkSheetMetrics.ink,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// D395: one friend of both PK tabs — the avatar, the name and the live's
+/// title, the red «دعوة» (smaller, [PkFriendsMetrics]).
+class PkFriendRow extends StatelessWidget {
+  const new({required this.candidate, required this.onInvite, super.key});
+
+  final PkCandidate candidate;
+
+  /// Null while a call runs (the button is disabled).
+  final VoidCallback? onInvite;
+
+  static const avatarKey = Key('pk.friend.avatar');
+  static const inviteKey = Key('pk.friend.invite');
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final t = context.textStyles;
+    final c = candidate;
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: KSpacing.xs,
+        vertical: PkFriendsMetrics.rowPadding,
+      ),
+      child: Row(
+        children: [
+          KAvatar(
+            key: avatarKey,
+            name: c.host.displayName,
+            imageUrl: c.host.avatarUrl,
+            size: PkFriendsMetrics.avatar,
+          ),
+          const SizedBox(width: KSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  c.host.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textScaler: scaler,
+                  style: t.bodyStrong.copyWith(
+                    fontSize: PkFriendsMetrics.name,
+                    height: 1.25,
+                    color: PkSheetMetrics.ink,
+                  ),
+                ),
+                if (c.title.isNotEmpty)
+                  Text(
+                    c.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textScaler: scaler,
+                    style: t.caption.copyWith(
+                      fontSize: PkFriendsMetrics.title,
+                      height: 1.25,
+                      color: PkSheetMetrics.grey,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: KSpacing.xs),
+          SizedBox(
+            height: PkFriendsMetrics.button,
+            child: FilledButton(
+              key: inviteKey,
+              style: FilledButton.styleFrom(
+                backgroundColor: PkSheetMetrics.red,
+                minimumSize: const Size(56, PkFriendsMetrics.button),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+                textStyle: t.label.copyWith(
+                  fontSize: PkFriendsMetrics.buttonText,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              onPressed: onInvite,
+              child: Text(l10n.pkInvite, textScaler: scaler),
+            ),
+          ),
+        ],
       ),
     );
   }

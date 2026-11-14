@@ -1,6 +1,6 @@
 # CP-041 — PK with four hosts «PK رباعي»: 2 v 2 and every host for themselves
 
-**Status: APPROVED by the owner (2026-11-13, answers in §9) — phase 2 implemented (D391, v1.118-live, CONVENTIONS §10.180; branch `claude/pk-4way`, not merged); phases 3–4 not started.** Owner (2026-11-13): «الان هناك pk رباعي لم
+**Status: APPROVED by the owner (2026-11-13, answers in §9) — phase 2 implemented (D391, v1.118-live, CONVENTIONS §10.180); phases 3–4 implemented (D395, v1.119-live, CONVENTIONS §10.181; branch `claude/pk4-phase3`, not merged), with the owner's additions «أ» (a start with two or three hosts, the result badge, a smaller friends list).** Owner (2026-11-13): «الان هناك pk رباعي لم
 نقم بتفعيله»; answers the same day: **both formats** (2 v 2 teams *and* all four against each other), started **by
 invitation and by random matching**, built in phases (this document first). Builds on CP-038 / §10.58 (PK 1 v 1),
 §10.62 (settings, best of three, auto-start), §10.70 (random friends), §10.80 (PK أحكام), §10.85 (rematch) and D71
@@ -146,3 +146,30 @@ The same four boosters, gifts, windows and multipliers (§10.58).
 Each phase: contract first (openapi, CONVENTIONS §10.x, board row), migrations, API with e2e, app with widget tests
 and goldens (2 × 2 in Arabic / English, dark / light, 360 × 800 × 1.3), panel, DEPLOYMENT notes, and a real
 LiveKit check like D195's (`d195-pk-livekit-real`) with four rooms.
+
+## 11. Phases 3–4 as built (D395, 2026-11-14) — the choices this document left open
+
+The owner asked for phases 3 and 4 together with three additions («أ و ب»). Where this document is silent, D395 chose
+the following (all owner-confirmable; CONVENTIONS §10.181):
+
+1. **A start with two or three hosts** (owner «أ», new): the organiser's «ابدأ الآن» once one invited host joined; the
+   lobby's time running out with two or more in starts it (one alone: EXPIRED as before). Random matching stays four.
+2. **Places with fewer than four.** TEAMS keeps the invited places (two v one); the organiser and the teammate alone play
+   «like a 1 v 1» (the teammate on the other side). FREE_FOR_ALL packs the hosts (two: half the screen each; three: two
+   stacked, one tile the size of two).
+3. **FREE_FOR_ALL ties below the top** share a place («1, 1, 3» competition ranking). Hosts who left at the same moment
+   are ordered between them by score.
+4. **FREE_FOR_ALL dare with a shared lowest place:** every host on that place does it together; a shared 1st judges
+   together (either verdict counts). No dare when nobody but the winners is still on air.
+5. **TEAMS dare:** one dare for the losing team; either losing host's «قبول» / «رفض» answers for both; a refusal costs
+   **each** losing host the refusal's points.
+6. **Rematch for four:** «present» = not out of the battle and the live still eligible; hosts who left are not in the new
+   battle (two or three present → the seat plan of point 2); mutes carry over.
+7. **Random matching fairness:** the longest waits first, a greedy group (the caller + the first three who fit with
+   everyone already in), the §10.62 preferences between every pair; the settings of the host drawn to place 1.
+8. **One random wait per host:** joining the 4-way queue replaces a 1 v 1 wait and the reverse; Auto Match never takes a
+   host waiting for four.
+9. **DARES details from 1 v 1 carried over:** lucky gifts give no PK points; a host who withdrew and lost gets the
+   withdrawal's points (D276); the match's points count in «لاعب الأحكام» (D300).
+10. **The result badge:** 1 v 1 has no still result art, only the SVGA win / lose / draw animation (kept over the panes);
+    the badge under the scores line is new — gold with a crown, muted for a loss, lavender for a draw.

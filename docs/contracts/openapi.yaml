@@ -675,6 +675,18 @@ info:
     records per host as in 1 v 1; data messages `pk4-match`, `pk4-lobby`, `pk4-invite` on topic `pk`; the panel's
     `AdminLive.pk4` and `endAdminLivePk4`; codes `PK_LOBBY_CLOSED`, `PK_SEAT_TAKEN` (409); `PK4_ENABLED` (true).
     A host in either PK is busy for the other. PK 1 v 1 is unchanged. Additive; migration `20270518090200_pk4_teams`.
+    **D395 (DRAFT v1.119-live, CP-041 phases 3–4)** «PK رباعي» for two to four hosts (CONVENTIONS §10.181): `format`
+    FREE_FOR_ALL «الكل ضد الكل» (each host alone; places 1–4 by score, equal scores share a place, a host who leaves takes
+    the last free place; `Pk4SeatState.place`, `result`, the host's own `boost`, `boosterUses`, `supporters`; `teams` is
+    empty); a start with two or three hosts — the organiser's «ابدأ الآن» (`startLivePk4Lobby`, at least one accepted)
+    or the lobby's time running out with two or more in (`Pk4Lobby.accepted`, `canStart`); `Pk4Match.playerCount`
+    (2–4), `source`; the 4-way random queue for four (`joinLivePk4Random` / `leaveLivePk4Random`, `Pk4State.queue`,
+    `PK4_RANDOM_WAIT_SECONDS` 120, message `pk4-queue`); «PK أحكام» for four (`type` DARES on the lobby and the queue,
+    `Pk4Match.dare`, `acceptLivePk4Dare`, `refuseLivePk4Dare`, `judgeLivePk4Dare`, `reportLivePk4Dare`) and «جولة أخرى»
+    for four (`offerLivePk4Rematch`, `acceptLivePk4Rematch`, `declineLivePk4Rematch`, `cancelLivePk4Rematch`; every
+    present host accepts; `Pk4Match.rematch`, `rematchOf`, `rematchesLeft`). `Pk4Match.seats` has 2–4 items and
+    `teams` 0 or 2 (older apps, which expect exactly four places and two teams, ignore such a match and keep the room's
+    solo view). `AdminLivePk4.type`, `playerCount`, `hosts[].place`. Additive; migration `20270521090000_pk4_phase3`.
     **D376 (DRAFT v1.130-social)** «الحالة» status emoji (CONVENTIONS §10.167; the owner sent the pack 2026-11-12):
     an animated emoji the person wears over their picture, rising like bubbles. `UserSummary.statusEmojiId` (present
     only while worn), `Me.statusEmojiId` and `PublicProfile.statusEmojiId` (null when none) — `<pack>.<emoji>` ids
@@ -5663,8 +5675,8 @@ paths:
       summary: "Open a 4-way lobby as its organiser «PK رباعي» (D391)"
       description: |
         v1.118-live, §10.180. The room's host becomes the **organiser** (place 1, team A). Checks: hosting off → 503;
-        PK or `PK4_ENABLED` off → 409 `PK_UNAVAILABLE`; the body → 400 (`format` TEAMS; FREE_FOR_ALL is phase 3 →
-        409 `PK_UNAVAILABLE`); the caller's own room (404), LIVE (409 `LIVE_ROOM_ENDED`), eligible as for a 1 v 1 PK
+        PK or `PK4_ENABLED` off → 409 `PK_UNAVAILABLE`; the body → 400 (`format` TEAMS or, v1.119-live (D395,
+        §10.181), FREE_FOR_ALL; `type` DARES needs PK_DARES_ENABLED, else 409 `PK_UNAVAILABLE`); the caller's own room (404), LIVE (409 `LIVE_ROOM_ENDED`), eligible as for a 1 v 1 PK
         (409 `PK_UNAVAILABLE`); not busy for either PK — a 1 v 1 match, an open 1 v 1 invitation either way, the
         caller's random-queue wait, an open 4-way lobby, invitation or match (409 `PK_HOST_BUSY`). The lobby is open
         for `PK4_LOBBY_SECONDS` (120). Rate limit as `inviteLivePk` (bucket `live:pk:invite`).
@@ -5773,7 +5785,9 @@ paths:
         caller's random-queue wait ends here). The place becomes ACCEPTED (`pk4-lobby` `accepted`). When **all three
         places** are accepted the match is created under the four rooms' PK locks with the organiser's round time and
         auto-start (§10.62): BATTLE at once, or CONNECTED when the organiser's auto-start is off; the lobby becomes
-        STARTED and the four rooms get `pk4-match` (`started` / `connected`). The answer is the caller's `Pk4State`.
+        STARTED and the four rooms get `pk4-match` (`started` / `connected`). v1.119-live (D395, §10.181): with fewer in,
+        the organiser may start now (`startLivePk4Lobby`) and the lobby's end starts it with two or more in. The answer
+        is the caller's `Pk4State`.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/PkInviteIdPath'
@@ -5799,6 +5813,267 @@ paths:
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/PkInviteIdPath'
+      responses:
+        '204': { description: Declined. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/lobby/start:
+    post:
+      tags: [live]
+      operationId: startLivePk4Lobby
+      summary: "«ابدأ الآن»: start the 4-way lobby with the hosts in (two, three or four) (v1.119-live, D395)"
+      description: |
+        v1.119-live (DRAFT, CONVENTIONS §10.181, owner «أ»). The organiser of the room's OPEN lobby (409 `PK_LOBBY_CLOSED`
+        otherwise). At least one invited host must have accepted (`Pk4Lobby.canStart`; else 409 `PK_UNAVAILABLE`, details
+        `lobby` / `too_few`). The open invitations are CANCELLED (their hosts get `pk4-invite`); the match starts with the
+        hosts in under the rooms' PK locks and fresh checks — an accepted host whose live is no longer eligible loses the
+        place (LEFT), the organiser's live not eligible or a block between any two → 409 `PK_UNAVAILABLE` (the lobby stays
+        OPEN). Places (§10.181): TEAMS keeps the invited places (two on one team: the second plays on the other side);
+        FREE_FOR_ALL packs them. BATTLE, or CONNECTED with the organiser's auto-start off. The rooms get `pk4-match`
+        (`started` / `connected`), the lobby's hosts `pk4-lobby` (`started`). The answer is the caller's `Pk4State`.
+        Bucket `live:pk:action`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The caller's state with the match.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4State' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/random:
+    post:
+      tags: [live]
+      operationId: joinLivePk4Random
+      summary: "«مطابقة عشوائية» for four: join the 4-way random queue (v1.119-live, D395)"
+      description: |
+        v1.119-live (DRAFT, §10.181, CP-041 §3.2). The caller's eligible room (as for a lobby: 409 `LIVE_ROOM_ENDED`,
+        `PK_UNAVAILABLE`) joins the queue of `format` and `type` (DARES needs PK_DARES_ENABLED). One wait per host: a wait in
+        another 4-way queue or in the 1 v 1 queue is replaced. Busy otherwise (a PK of either kind, an open invitation, a
+        lobby) → 409 `PK_HOST_BUSY`. Serialized by one queue lock: when the caller and three waiters who can play together
+        (eligible rooms, not busy, no block between any two, both hosts' gender / region preferences of §10.62 between every
+        pair) are found — the longest waits first — the four are matched at once (`MATCHED`; TEAMS: the teams drawn at
+        random, FREE_FOR_ALL: the places at random; crypto random), the rooms get `pk4-match` and the other three hosts
+        `pk4-queue` (`MATCHED`). Otherwise the caller waits up to PK4_RANDOM_WAIT_SECONDS (120; `WAITING`; the same call
+        again answers the same wait); when it runs out the host gets `pk4-queue` (`EXPIRED`: «لم نجد مضيفين كافيين»). A 4-way
+        random match always has four hosts. A waiting host may still be invited (§10.70). Bucket `live:pk:invite`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Pk4RandomRequest' }
+      responses:
+        '200':
+          description: Matched, or waiting.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4RandomResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: leaveLivePk4Random
+      summary: "Stop waiting for a 4-way random match (v1.119-live, D395)"
+      description: |
+        v1.119-live, §10.181. The caller's own room (404 otherwise). Idempotent (no wait: 204 too). Bucket `live:pk:action`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '204': { description: Not waiting. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/dare/accept:
+    post:
+      tags: [live]
+      operationId: acceptLivePk4Dare
+      summary: "«قبول» the 4-way dare for the losing side (v1.119-live, D395)"
+      description: |
+        v1.119-live, §10.181 (§10.80 for four). A host of the losing side (`Pk4Dare.loserRoomIds`) answers for the side,
+        after the reveal and before `decideBy` → ACTIVE (the timer, PK_DARE_SECONDS, in every room). Any other host 403
+        `PK_DARE_FORBIDDEN`; not the room's host 404; no open DARES match or dare 409 `PK_NOT_ACTIVE`; outside the window
+        409 `PK_DARE_CLOSED`. Already accepted: the match as it is. The rooms get `pk4-match` (`dare`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4Match' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/dare/refuse:
+    post:
+      tags: [live]
+      operationId: refuseLivePk4Dare
+      summary: "«رفض» the 4-way dare for the losing side (v1.119-live, D395)"
+      description: |
+        v1.119-live, §10.181. A host of the losing side, while deciding (after the reveal) → REFUSED: **every** losing host
+        gets the refusal's PK points (`refusePoints`, −3) and «dares refused» + 1 at once. Errors as `acceptLivePk4Dare`.
+        Already refused: the match as it is.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4Match' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/dare/verdict:
+    post:
+      tags: [live]
+      operationId: judgeLivePk4Dare
+      summary: "The winning side's verdict on the 4-way dare (v1.119-live, D395)"
+      description: |
+        v1.119-live, §10.181. A host of the winning side (`Pk4Dare.winnerRoomIds`; the first verdict counts) during the
+        timer: done → DONE (each losing host's «dares done» + 1); not done → REFUSED (each losing host's refusal points).
+        Others 403 `PK_DARE_FORBIDDEN`; outside the timer 409 `PK_DARE_CLOSED`; the same verdict again: the match as it is.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PkDareVerdictRequest' }
+      responses:
+        '200':
+          description: The match.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4Match' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/dare/report:
+    post:
+      tags: [live]
+      operationId: reportLivePk4Dare
+      summary: "⚠️ Report one of the 4-way dare's cards (v1.119-live, D395)"
+      description: |
+        v1.119-live, §10.181 (as `reportLivePkDare`). Anyone signed in who may watch the room; one of the three cards of the
+        room's open 4-way «PK أحكام» (404 otherwise). One report per person per dare; at `reportsToDisable` the dare is
+        disabled automatically. Bucket `live:pk:dare-report` (10 / 10 min).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PkDareReportRequest' }
+      responses:
+        '204': { description: Reported. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/rematch:
+    post:
+      tags: [live]
+      operationId: offerLivePk4Rematch
+      summary: "«جولة أخرى» for four: offer (or accept) another battle (v1.119-live, D395)"
+      description: |
+        v1.119-live, §10.181 (§10.85 for four). A present host of a RESULT match (not out of the battle, live eligible) with
+        its dare over (or none), fewer than PK_REMATCH_MAX rematches in a row, at least two present hosts, ACTIVE, no block
+        between any two → `Pk4Match.rematch` {byRoomId, expiresAt, acceptedRoomIds, waitingRoomIds}; **every present
+        host** must accept within PK_REMATCH_ACCEPT_SECONDS (the result stays open that long). Else 409
+        `PK_REMATCH_UNAVAILABLE`. An offer already open: this host's tap is an acceptance (idempotent once accepted).
+        Events `rematch-offer`, `rematch-accepted`, and `rematch` with the new match when the last present host accepts.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match with the offer (or the new battle).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4Match' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: cancelLivePk4Rematch
+      summary: "Withdraw the 4-way rematch offer (v1.119-live, D395)"
+      description: |
+        v1.119-live, §10.181. The asking host withdraws the offer (`rematch-cancelled`); the result goes on until its end.
+        No offer of theirs open → 409 `PK_REMATCH_CLOSED`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4Match' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/rematch/accept:
+    post:
+      tags: [live]
+      operationId: acceptLivePk4Rematch
+      summary: "Accept the 4-way rematch offer (v1.119-live, D395)"
+      description: |
+        v1.119-live, §10.181. A present host who has not accepted yet. The last present host's acceptance closes the result
+        quietly (the 4-way media stays) and starts a NEW battle at once with the present hosts (places by the seat plan of
+        §10.181; same format and type; the previous round time; `rematchOf`, `source` REMATCH); hosts who are no longer
+        present are left out (their rooms get the old match's `closed`). No open offer → 409 `PK_REMATCH_CLOSED`; not a
+        present host → 409 `PK_REMATCH_UNAVAILABLE`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match (with one more acceptance), or the new battle.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pk4Match' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk4/rematch/decline:
+    post:
+      tags: [live]
+      operationId: declineLivePk4Rematch
+      summary: "Decline the 4-way rematch offer (v1.119-live, D395)"
+      description: |
+        v1.119-live, §10.181. A host who has not accepted says no: the offer ends (`rematch-declined`) and the PK closes as
+        usual (`closed`). No open offer (or already accepted) → 409 `PK_REMATCH_CLOSED`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
       responses:
         '204': { description: Declined. }
         '401': { $ref: '#/components/responses/Error' }
@@ -37388,7 +37663,7 @@ components:
     Pk4Format:
       type: string
       enum: [TEAMS, FREE_FOR_ALL]
-      description: "v1.118-live (D391, §10.180) «2 ضد 2» TEAMS (two teams of two) / «الكل ضد الكل» FREE_FOR_ALL (CP-041 phase 3: refused until then). Unknown future values: show a generic 4-way PK."
+      description: "v1.118-live (D391, §10.180) «2 ضد 2» TEAMS (two teams; v1.119-live: with two to four hosts) / v1.119-live (D395, §10.181) «الكل ضد الكل» FREE_FOR_ALL (each host alone, places 1–4). Unknown future values: show a generic 4-way PK."
     Pk4Team:
       type: string
       enum: [A, B]
@@ -37399,6 +37674,93 @@ components:
       required: [format]
       properties:
         format: { $ref: '#/components/schemas/Pk4Format' }
+        type:
+          allOf:
+            - $ref: '#/components/schemas/PkType'
+          description: "v1.119-live (D395): «PK أحكام» (DARES, PK_DARES_ENABLED) or normal (default NORMAL)."
+    Pk4RandomRequest:
+      type: object
+      additionalProperties: false
+      required: [format]
+      properties:
+        format: { $ref: '#/components/schemas/Pk4Format' }
+        type:
+          allOf:
+            - $ref: '#/components/schemas/PkType'
+          description: Default NORMAL; a waiter is matched only with waiters of the same format and type.
+    Pk4Queue:
+      type: object
+      description: v1.119-live (D395) the host's wait in the 4-way random queue.
+      required: [format, type, joinedAt, expiresAt]
+      properties:
+        format: { $ref: '#/components/schemas/Pk4Format' }
+        type: { $ref: '#/components/schemas/PkType' }
+        joinedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: "joinedAt + PK4_RANDOM_WAIT_SECONDS (120)." }
+    Pk4RandomResult:
+      type: object
+      required: [status, queue, match]
+      properties:
+        status: { type: string, enum: [MATCHED, WAITING] }
+        queue:
+          oneOf:
+            - $ref: '#/components/schemas/Pk4Queue'
+            - type: 'null'
+        match:
+          oneOf:
+            - $ref: '#/components/schemas/Pk4Match'
+            - type: 'null'
+    Pk4Dare:
+      type: object
+      description: "v1.119-live (D395, §10.181) «PK أحكام» for four — one dare for the losing side (TEAMS: the losing team's hosts; FREE_FOR_ALL: the lowest place still on air, shared → each), judged by the winning side (TEAMS: the winning team; FREE_FOR_ALL: the 1st place). As `PkDare` with sides of rooms."
+      required: [status, cause, loserRoomIds, winnerRoomIds, options, drawn, revealAt, decideBy, startedAt, endsAt, finishedAt, points, refusePoints]
+      properties:
+        status:
+          type: string
+          enum: [DRAWING, DECIDING, ACTIVE, DONE, REFUSED, CANCELLED]
+        cause:
+          type: [string, 'null']
+          enum: [LOSER_REFUSED, DECIDE_TIMEOUT, LOSER_LEFT, WINNER_DONE, WINNER_NOT_DONE, TIMER, WINNER_LEFT, ADMIN, null]
+          description: "As `PkDare.cause`; LOSER_LEFT: every losing host left (or one ended the PK)."
+        loserRoomIds:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items: { type: string, format: uuid }
+        winnerRoomIds:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items: { type: string, format: uuid }
+        options:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items: { $ref: '#/components/schemas/PkDareOption' }
+        drawn: { type: integer, minimum: 0, maximum: 2 }
+        revealAt: { type: string, format: date-time }
+        decideBy: { type: string, format: date-time }
+        startedAt: { type: [string, 'null'], format: date-time }
+        endsAt: { type: [string, 'null'], format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+        points: { type: integer, description: "Each losing host's PK points from the dare (the refusal's, else 0)." }
+        refusePoints: { type: integer }
+    Pk4Rematch:
+      type: object
+      description: "v1.119-live (D395) an open «جولة أخرى» offer: every present host must accept."
+      required: [byRoomId, expiresAt, acceptedRoomIds, waitingRoomIds]
+      properties:
+        byRoomId: { type: string, format: uuid }
+        expiresAt: { type: string, format: date-time }
+        acceptedRoomIds:
+          type: array
+          maxItems: 4
+          items: { type: string, format: uuid }
+        waitingRoomIds:
+          type: array
+          maxItems: 4
+          description: The present hosts' rooms that have not accepted yet.
+          items: { type: string, format: uuid }
     Pk4InviteRequest:
       type: object
       additionalProperties: false
@@ -37415,11 +37777,12 @@ components:
         muted: { type: boolean }
     Pk4Invite:
       type: object
-      required: [id, lobbyId, format, seat, team, status, fromRoomId, toRoomId, from, to, createdAt, expiresAt, lobbyExpiresAt]
+      required: [id, lobbyId, format, type, seat, team, status, fromRoomId, toRoomId, from, to, createdAt, expiresAt, lobbyExpiresAt]
       properties:
         id: { type: string, format: uuid }
         lobbyId: { type: string, format: uuid }
         format: { $ref: '#/components/schemas/Pk4Format' }
+        type: { $ref: '#/components/schemas/PkType' }
         seat: { type: integer, minimum: 2, maximum: 4 }
         team: { $ref: '#/components/schemas/Pk4Team' }
         status:
@@ -37439,7 +37802,10 @@ components:
       properties:
         seat: { type: integer, minimum: 1, maximum: 4 }
         team: { $ref: '#/components/schemas/Pk4Team' }
-        role: { type: string, enum: [ORGANISER, TEAMMATE, OPPONENT] }
+        role:
+          type: string
+          enum: [ORGANISER, TEAMMATE, OPPONENT, PLAYER]
+          description: "v1.119-live (D395): PLAYER — an invited place of a FREE_FOR_ALL lobby. Unknown future values: show the place without a role."
         state:
           type: string
           enum: [EMPTY, INVITED, ACCEPTED]
@@ -37456,14 +37822,17 @@ components:
             - type: 'null'
     Pk4Lobby:
       type: object
-      required: [id, format, status, organiserRoomId, createdAt, expiresAt, matchId, serverTime, seats]
+      required: [id, format, type, status, organiserRoomId, createdAt, expiresAt, matchId, serverTime, accepted, canStart, seats]
       properties:
         id: { type: string, format: uuid }
         format: { $ref: '#/components/schemas/Pk4Format' }
+        type: { $ref: '#/components/schemas/PkType' }
+        accepted: { type: integer, minimum: 1, maximum: 4, description: "v1.119-live (D395): the hosts in (the organiser and the accepted places)." }
+        canStart: { type: boolean, description: "v1.119-live (D395): OPEN with at least one accepted host — the organiser's «ابدأ الآن» (`startLivePk4Lobby`). The lobby's time running out with two or more in starts it too." }
         status:
           type: string
           enum: [OPEN, STARTED, CANCELLED, EXPIRED]
-          description: "EXPIRED: PK4_LOBBY_SECONDS (120) ran out before all four accepted («لم يكتمل العدد»)."
+          description: "EXPIRED: PK4_LOBBY_SECONDS (120) ran out with nobody but the organiser in («لم يكتمل العدد»). v1.119-live (D395): two or more in at that time → STARTED."
         organiserRoomId: { type: string, format: uuid }
         createdAt: { type: string, format: date-time }
         expiresAt: { type: string, format: date-time }
@@ -37480,7 +37849,7 @@ components:
       required: [team, score, result, boost, boosterUses, supporters]
       properties:
         team: { $ref: '#/components/schemas/Pk4Team' }
-        score: { type: integer, minimum: 0, description: "The team's PK points: the sum of its two hosts' points (a host who left keeps theirs)." }
+        score: { type: integer, minimum: 0, description: "The team's PK points: the sum of its hosts' points (a host who left keeps theirs)." }
         result:
           type: [string, 'null']
           enum: [WIN, LOSS, DRAW, null]
@@ -37501,7 +37870,7 @@ components:
           items: { $ref: '#/components/schemas/PkSupporter' }
     Pk4SeatState:
       type: object
-      required: [seat, team, roomId, host, score, out, outReason, mutedRoomIds, pkPoints]
+      required: [seat, team, roomId, host, score, out, outReason, mutedRoomIds, pkPoints, place, result, boost, boosterUses, supporters]
       properties:
         seat: { type: integer, minimum: 1, maximum: 4 }
         team: { $ref: '#/components/schemas/Pk4Team' }
@@ -37518,12 +37887,53 @@ components:
           description: The other rooms whose host's sound this host turned off in their own room.
           items: { type: string, format: uuid }
         pkPoints: { type: integer, description: "«نقاط PK»: this host's `PkHostRecord.points` (may be below 0)." }
+        place: { type: [integer, 'null'], minimum: 1, maximum: 4, description: "v1.119-live (D395): FREE_FOR_ALL's place once the battle ended (equal scores share a place; a host who left took the last free place); null in TEAMS, while it runs and for a void match." }
+        result:
+          type: [string, 'null']
+          enum: [WIN, LOSS, DRAW, null]
+          description: "v1.119-live (D395): this host's result — TEAMS: the team's; FREE_FOR_ALL: 1st alone WIN, a shared 1st DRAW, any other place LOSS. Null while it runs and for a void match. The result badge «فاز فريقكم» reads it."
+        boost:
+          description: "v1.119-live (D395): FREE_FOR_ALL — this host's own booster now; TEAMS — the team's."
+          oneOf:
+            - $ref: '#/components/schemas/PkActiveBoost'
+            - type: 'null'
+        boosterUses:
+          allOf:
+            - $ref: '#/components/schemas/PkBoosterUses'
+          description: "v1.119-live (D395): FREE_FOR_ALL — this host's own uses (limits per host); TEAMS — the team's."
+        supporters:
+          type: array
+          maxItems: 3
+          description: "v1.119-live (D395): FREE_FOR_ALL — this host's top three supporters; TEAMS — empty (the team's are on `Pk4TeamState`)."
+          items: { $ref: '#/components/schemas/PkSupporter' }
     Pk4Match:
       type: object
-      required: [id, format, status, startedAt, battleEndsAt, endedAt, resultEndsAt, endReason, winnerTeam, seq, serverTime, roundSeconds, connectedAt, effective, organiserRoomId, teams, seats, boosters]
+      required: [id, format, type, source, playerCount, status, startedAt, battleEndsAt, endedAt, resultEndsAt, endReason, winnerTeam, seq, serverTime, roundSeconds, connectedAt, effective, organiserRoomId, teams, seats, boosters, dare, rematch, rematchOf, rematchesLeft]
       properties:
         id: { type: string, format: uuid }
         format: { $ref: '#/components/schemas/Pk4Format' }
+        type: { $ref: '#/components/schemas/PkType' }
+        source:
+          type: string
+          enum: [INVITE, RANDOM, REMATCH]
+          description: v1.119-live (D395) how it started (a lobby, the 4-way random queue, «جولة أخرى»).
+        playerCount:
+          type: integer
+          minimum: 2
+          maximum: 4
+          description: "v1.119-live (D395): the hosts playing. Layout (§10.181): 2 — half the screen each; 3 — two stacked on one side, the third alone on the other in a tile the size of two; 4 — the 2 × 2 grid. Places 1–2 are the start side, 3–4 the end side."
+        dare:
+          description: v1.119-live (D395) the dare of a «PK أحكام» match (from the end of the battle), else null.
+          oneOf:
+            - $ref: '#/components/schemas/Pk4Dare'
+            - type: 'null'
+        rematch:
+          description: v1.119-live (D395) an open «جولة أخرى» offer, else null.
+          oneOf:
+            - $ref: '#/components/schemas/Pk4Rematch'
+            - type: 'null'
+        rematchOf: { type: [string, 'null'], format: uuid, description: "v1.119-live (D395): the match this battle is a rematch of." }
+        rematchesLeft: { type: [integer, 'null'], minimum: 0, description: "v1.119-live (D395): rematches still allowed in a row (PK_REMATCH_MAX; null: unlimited)." }
         status:
           type: string
           enum: [CONNECTED, BATTLE, RESULT, CLOSED]
@@ -37535,9 +37945,9 @@ components:
         endReason:
           type: [string, 'null']
           enum: [TIME, FORFEIT, DISCONNECT, AWAY, ADMIN, CANCELLED, null]
-          description: "TIME: the round ran out (the higher team sum wins; equal: a draw). FORFEIT / DISCONNECT / AWAY: both hosts of a team were out (the other team won), or all four (a void draw). ADMIN: a moderator (void). CANCELLED: a CONNECTED match that never started (void)."
+          description: "TIME: the round ran out (TEAMS: the higher team sum wins, equal: a draw; FREE_FOR_ALL: places by score). FORFEIT / DISCONNECT / AWAY: every host of a team was out (the other team won), one FREE_FOR_ALL host was left on air (1st), or everyone (a void draw). ADMIN: a moderator (void). CANCELLED: a CONNECTED match that never started (void)."
         winnerTeam:
-          description: Null for a draw, a void match or while the battle runs.
+          description: "Null for a draw, a void match, while the battle runs, and always in FREE_FOR_ALL (read `Pk4SeatState.place` / `result`)."
           oneOf:
             - $ref: '#/components/schemas/Pk4Team'
             - type: 'null'
@@ -37549,23 +37959,29 @@ components:
         organiserRoomId: { type: string, format: uuid }
         teams:
           type: array
-          minItems: 2
+          minItems: 0
           maxItems: 2
-          description: Team A then team B.
+          description: "TEAMS: team A then team B. FREE_FOR_ALL (v1.119-live): empty — no teams."
           items: { $ref: '#/components/schemas/Pk4TeamState' }
         seats:
           type: array
-          minItems: 4
+          minItems: 2
           maxItems: 4
-          description: Places 1–4 in order (1, 2 team A; 3, 4 team B).
+          description: "The places in order (1, 2 the start side / team A; 3, 4 the end side / team B). v1.119-live (D395): two to four (`playerCount`); an older app expecting exactly four ignores the match."
           items: { $ref: '#/components/schemas/Pk4SeatState' }
         boosters:
           type: array
           items: { $ref: '#/components/schemas/PkBoosterRule' }
     Pk4State:
       type: object
-      required: [match, lobby, invite]
+      required: [match, lobby, invite, queue]
       properties:
+        queue:
+          description: v1.119-live (D395) the room's host only — their 4-way random wait; null for everyone else.
+          oneOf:
+            - $ref: '#/components/schemas/Pk4Queue'
+            - type: 'null'
+
         match:
           oneOf:
             - $ref: '#/components/schemas/Pk4Match'
@@ -37602,24 +38018,27 @@ components:
         rooms:
           type: array
           maxItems: 3
+          description: "The other rooms of the match (one to three)."
           items: { $ref: '#/components/schemas/Pk4MediaRoom' }
     AdminLivePk4:
       type: object
       description: (v1.118-live, D391) the room's open 4-way PK.
-      required: [matchId, status, format, team, hosts]
+      required: [matchId, status, format, type, playerCount, team, hosts]
       properties:
         matchId: { type: string, format: uuid }
         status: { type: string, enum: [CONNECTED, BATTLE, RESULT] }
         format: { $ref: '#/components/schemas/Pk4Format' }
+        type: { $ref: '#/components/schemas/PkType' }
+        playerCount: { type: integer, minimum: 2, maximum: 4, description: v1.119-live (D395) the hosts playing. }
         team: { $ref: '#/components/schemas/Pk4Team' }
         hosts:
           type: array
-          minItems: 4
+          minItems: 2
           maxItems: 4
-          description: The four places in order.
+          description: The places in order (two to four, v1.119-live).
           items:
             type: object
-            required: [seat, team, roomId, username, displayName, score, out]
+            required: [seat, team, roomId, username, displayName, score, out, place]
             properties:
               seat: { type: integer, minimum: 1, maximum: 4 }
               team: { $ref: '#/components/schemas/Pk4Team' }
@@ -37628,6 +38047,7 @@ components:
               displayName: { type: [string, 'null'] }
               score: { type: integer, minimum: 0 }
               out: { type: boolean }
+              place: { type: [integer, 'null'], minimum: 1, maximum: 4, description: "v1.119-live (D395): FREE_FOR_ALL's place once the battle ended; null otherwise." }
     AdminPk4Ended:
       type: object
       required: [matchId, previousStatus]

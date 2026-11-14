@@ -10,6 +10,7 @@ import {
   type Pk4LobbyDto,
   type Pk4MatchDto,
   type Pk4MediaAccessDto,
+  type Pk4RandomResultDto,
   type Pk4StateDto,
 } from './live-pk4.service.js';
 
@@ -133,6 +134,105 @@ export class LivePk4Controller {
     @Param('inviteId') inviteId: string,
   ): Promise<void> {
     await this.pk4.decline(requireCaller(req), roomId, inviteId);
+  }
+
+  /** v1.119-live (D395) «ابدأ الآن»: the organiser starts the lobby with the hosts in (two or three, or four). */
+  @Post('rooms/:roomId/pk4/lobby/start')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  startLobby(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<Pk4StateDto> {
+    return this.pk4.startLobby(requireCaller(req), roomId);
+  }
+
+  /** v1.119-live (D395) the 4-way random queue (four hosts, TEAMS or FREE_FOR_ALL). */
+  @Post('rooms/:roomId/pk4/random')
+  @HttpCode(200)
+  @RateLimit(PK_INVITE)
+  joinRandom(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<Pk4RandomResultDto> {
+    return this.pk4.joinRandom(requireCaller(req), roomId, body);
+  }
+
+  @Delete('rooms/:roomId/pk4/random')
+  @HttpCode(204)
+  @RateLimit(PK_ACTION)
+  async leaveRandom(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<void> {
+    await this.pk4.leaveRandom(requireCaller(req), roomId);
+  }
+
+  /** v1.119-live (D395) «PK أحكام» for four: a losing host accepts or refuses, a winning host judges. */
+  @Post('rooms/:roomId/pk4/dare/accept')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  acceptDare(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<Pk4MatchDto> {
+    return this.pk4.acceptDare(requireCaller(req), roomId);
+  }
+
+  @Post('rooms/:roomId/pk4/dare/refuse')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  refuseDare(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<Pk4MatchDto> {
+    return this.pk4.refuseDare(requireCaller(req), roomId);
+  }
+
+  @Post('rooms/:roomId/pk4/dare/verdict')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  judgeDare(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<Pk4MatchDto> {
+    return this.pk4.judgeDare(requireCaller(req), roomId, body);
+  }
+
+  /** §7: bucket `live:pk:dare-report` (10 / 10 min per user), as 1 v 1. */
+  @Post('rooms/:roomId/pk4/dare/report')
+  @HttpCode(204)
+  @RateLimit({
+    bucket: 'live:pk:dare-report',
+    rule: 'livePkDareReportUser',
+    key: byUserId,
+    replacesDefault: true,
+  })
+  async reportDare(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<void> {
+    await this.pk4.reportDare(requireCaller(req), roomId, body);
+  }
+
+  /** v1.119-live (D395) «جولة أخرى» for four: every present host accepts. */
+  @Post('rooms/:roomId/pk4/rematch')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  offerRematch(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<Pk4MatchDto> {
+    return this.pk4.offerRematch(requireCaller(req), roomId);
+  }
+
+  @Delete('rooms/:roomId/pk4/rematch')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  cancelRematch(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<Pk4MatchDto> {
+    return this.pk4.cancelRematch(requireCaller(req), roomId);
+  }
+
+  @Post('rooms/:roomId/pk4/rematch/accept')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  acceptRematch(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<Pk4MatchDto> {
+    return this.pk4.acceptRematch(requireCaller(req), roomId);
+  }
+
+  @Post('rooms/:roomId/pk4/rematch/decline')
+  @HttpCode(204)
+  @RateLimit(PK_ACTION)
+  async declineRematch(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<void> {
+    await this.pk4.declineRematch(requireCaller(req), roomId);
   }
 
   @Post('rooms/:roomId/pk4/start')

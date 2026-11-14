@@ -43,10 +43,76 @@ class FakeLivePk4Repository implements LivePk4Repository {
   }
 
   @override
-  Future<Pk4Lobby> openLobby(String roomId) async {
-    _call('open');
+  Future<Pk4Lobby> openLobby(
+    String roomId, {
+    Pk4Format format = Pk4Format.teams,
+    PkType type = PkType.normal,
+  }) async {
+    _call(
+      format == Pk4Format.teams && type == PkType.normal
+          ? 'open'
+          : 'open:${format.wire}:${type.wire}',
+    );
     return lobbyOnOpen!;
   }
+
+  /// v1.119-live (D395).
+  Pk4State stateOnStartLobby = const Pk4State();
+  Pk4RandomResult randomResult = const Pk4RandomResult();
+  Pk4Match? matchOnAction;
+
+  @override
+  Future<Pk4State> startLobby(String roomId) async {
+    _call('startLobby');
+    return stateOnStartLobby;
+  }
+
+  @override
+  Future<Pk4RandomResult> joinRandom(
+    String roomId, {
+    required Pk4Format format,
+    PkType type = PkType.normal,
+  }) async {
+    _call('random:${format.wire}:${type.wire}');
+    return randomResult;
+  }
+
+  @override
+  Future<void> leaveRandom(String roomId) async => _call('leaveRandom');
+
+  Pk4Match _action(String name) {
+    _call(name);
+    return matchOnAction ?? snapshot.match!;
+  }
+
+  @override
+  Future<Pk4Match> acceptDare(String roomId) async => _action('dare:accept');
+
+  @override
+  Future<Pk4Match> refuseDare(String roomId) async => _action('dare:refuse');
+
+  @override
+  Future<Pk4Match> judgeDare(String roomId, {required bool done}) async =>
+      _action('dare:verdict:$done');
+
+  @override
+  Future<void> reportDare(String roomId, String dareId) async =>
+      _call('dare:report:$dareId');
+
+  @override
+  Future<Pk4Match> offerRematch(String roomId) async =>
+      _action('rematch:offer');
+
+  @override
+  Future<Pk4Match> acceptRematch(String roomId) async =>
+      _action('rematch:accept');
+
+  @override
+  Future<void> declineRematch(String roomId) async => _call('rematch:decline');
+
+  @override
+  Future<Pk4Match> cancelRematch(String roomId) async =>
+      _action('rematch:cancel');
 
   @override
   Future<void> closeLobby(String roomId) async => _call('close');
@@ -331,5 +397,140 @@ Pk4Lobby pk4LobbyFixture({
             invite: invite(seat),
           ),
     ],
+  );
+}
+
+/// v1.119-live (D395): a match of [players] hosts (2–4), TEAMS or
+/// FREE_FOR_ALL, placed as the server's seat plan does — TEAMS: 2 → places 1
+/// and 3, 3 → 1, 2 (team A) and 3 (team B); FREE_FOR_ALL: 2 → 1 and 3, 3 →
+/// 1, 2, 3, 4 → 1–4. room-N is the host at index N (room-0 «this room»).
+/// [results]: the hosts' results at the end (with [places] for FFA).
+Pk4Match pk4PlayersFixture({
+  required DateTime now,
+  required int players,
+  bool ffa = false,
+  bool ar = true,
+  PkMatchStatus status = PkMatchStatus.battle,
+  List<int> scores = const [53200, 12400, 50300, 13000],
+  List<Pk4Result?> results = const [],
+  List<int?> places = const [],
+  Pk4Team? winner,
+  PkType type = PkType.normal,
+  Pk4Dare? dare,
+  Pk4Rematch? rematch,
+  List<int> out = const [],
+}) {
+  String n(String a, String e) => ar ? a : e;
+  final names = [
+    n('سارة', 'Sara'),
+    n('ليلى', 'Layla'),
+    n('كريم', 'Karim'),
+    n('زياد', 'Ziad'),
+  ];
+  final seatNumbers = switch (players) {
+    2 => [1, 3],
+    3 => [1, 2, 3],
+    _ => [1, 2, 3, 4],
+  };
+  final ended = status == PkMatchStatus.result;
+  final seats = [
+    for (final (i, seat) in seatNumbers.indexed)
+      Pk4Seat(
+        seat: seat,
+        roomId: 'room-$i',
+        host: pk4User('user-$i', names[i]),
+        score: scores[i],
+        out: out.contains(i),
+        outReason: out.contains(i) ? PkEndReason.forfeit : null,
+        pkPoints: 12,
+        place: ended && i < places.length ? places[i] : null,
+        result: ended && i < results.length ? results[i] : null,
+        supporters: ffa
+            ? [
+                PkSupporter(
+                  user: pk4User('fan-$i', n('نور', 'Nour')),
+                  points: 900 - i * 100,
+                ),
+              ]
+            : const [],
+      ),
+  ];
+  String? teamResult(Pk4Team t) => !ended || ffa
+      ? null
+      : winner == null
+      ? 'DRAW'
+      : winner == t
+      ? 'WIN'
+      : 'LOSS';
+  int sum(Pk4Team t) =>
+      seats.where((s) => s.team == t).fold(0, (a, s) => a + s.score);
+  return Pk4Match(
+    id: 'pk4-match-$players-${ffa ? 'ffa' : 'teams'}',
+    status: status,
+    startedAt: now.subtract(const Duration(minutes: 2, seconds: 15)),
+    battleEndsAt: now.add(const Duration(minutes: 2, seconds: 45)),
+    resultEndsAt: ended ? now.add(const Duration(seconds: 50)) : null,
+    endReason: ended ? PkEndReason.time : null,
+    winnerTeam: ended && !ffa ? winner : null,
+    seq: 5,
+    serverTime: now,
+    organiserRoomId: 'room-0',
+    format: ffa ? Pk4Format.freeForAll : Pk4Format.teams,
+    type: type,
+    teams: (
+      Pk4TeamState(
+        team: Pk4Team.a,
+        score: sum(Pk4Team.a),
+        result: teamResult(Pk4Team.a),
+        supporters: ffa
+            ? const []
+            : [
+                PkSupporter(
+                  user: pk4User('fan-a', n('هند', 'Hind')),
+                  points: 9000,
+                ),
+              ],
+      ),
+      Pk4TeamState(
+        team: Pk4Team.b,
+        score: sum(Pk4Team.b),
+        result: teamResult(Pk4Team.b),
+        supporters: ffa
+            ? const []
+            : [
+                PkSupporter(
+                  user: pk4User('fan-b', n('عمر', 'Omar')),
+                  points: 7000,
+                ),
+              ],
+      ),
+    ),
+    seats: seats,
+    dare: dare,
+    rematch: rematch,
+  );
+}
+
+/// v1.119-live (D395): a lobby of [format] organised by room-0 with places
+/// 2–4 in [states].
+Pk4Lobby pk4LobbyFormatFixture({
+  required DateTime now,
+  Pk4Format format = Pk4Format.teams,
+  bool ar = true,
+  List<Pk4SeatState> states = const [
+    Pk4SeatState.accepted,
+    Pk4SeatState.invited,
+    Pk4SeatState.empty,
+  ],
+}) {
+  final base = pk4LobbyFixture(now: now, ar: ar, states: states);
+  return Pk4Lobby(
+    id: base.id,
+    status: base.status,
+    organiserRoomId: base.organiserRoomId,
+    expiresAt: base.expiresAt,
+    serverTime: base.serverTime,
+    seats: base.seats,
+    format: format,
   );
 }

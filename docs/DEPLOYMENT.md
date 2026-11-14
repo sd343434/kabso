@@ -4712,3 +4712,26 @@ it on in the panel «السفراء › الإعدادات» (PP-95).
   tables can stay.
 - **Order:** deploy the API image (the migrations run first), then the panel, then ship the APK. An older app shows no
   programme entry and ignores the four notification types.
+
+### 5.133 «PK رباعي» for two to four — FREE_FOR_ALL, «ابدأ الآن», random four, dares and rematch for four (D395; migration `20270521090000_pk4_phase3`) — [IMPLEMENTED, draft contract v1.119-live; not deployed, not device-tested]
+
+CONVENTIONS §10.181, CP-041 phases 3–4 (the owner asked for them with «أ و ب»). Builds on §5.131 (D391): apply that
+migration first. One migration, one optional setting; no new secret, no new host, no new LiveKit room.
+
+- **Migration** `20270521090000_pk4_phase3` (the usual `migrate` job, as the migration role): new columns with defaults
+  on `pk4_lobbies`, `pk4_matches`, `pk4_seats`, `pk4_boosts`, `pk4_supporters` (its primary key widened with `seat`),
+  two new tables `pk4_match_dares` and `pk4_queue`; runtime grants from the default privileges (KL-013). Every existing
+  row keeps its meaning (TEAMS, NORMAL, four players); nothing to backfill. PK 1 v 1's tables are not touched.
+- **Settings:** `PK4_RANDOM_WAIT_SECONDS` (optional, 120, 15–600): the 4-way random wait. FREE_FOR_ALL, the start with two
+  or three hosts, the random queue, «PK أحكام» and «جولة أخرى» for four follow `PK4_ENABLED` (default `true`: **on in
+  staging** with no change) and `PK_DARES_ENABLED`; there is no new switch. `PK_REMATCH_ACCEPT_SECONDS`, `PK_REMATCH_MAX`,
+  `PK_DARE_*` apply to four as to two.
+- **LiveKit cost** as §5.131 (up to three extra watch-only participants per viewer; fewer with two or three hosts).
+- **Moderation.** `pk-admin list|show|end` prints the format, the type, the hosts playing and the places; a moderator's
+  end cancels an open dare. The panel's live monitor shows FREE_FOR_ALL and the hosts playing.
+- **Check after deploy (staging, phones):** see PP-97.
+- **Rollback:** deploy the previous API image; it ignores the new columns and tables (leave them). The previous image
+  would read a FREE_FOR_ALL or two-/three-host match left open as a four-host TEAMS match: end open 4-way matches first
+  (`pk-admin list`, `pk-admin end`) or set `PK4_ENABLED=false` for a while before rolling back.
+- **Order:** the API image (the migration runs first), then the panel, then the APK. An older app ignores two- and
+  three-host and FREE_FOR_ALL matches (its room shows the solo view) and never opens them.
