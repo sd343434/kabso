@@ -36,3 +36,8 @@ a70a876d0acb2b334490e71ef104e39f310a8a81:apps/api/test/d359-event-banners.e2e-sp
 # matched generic-api-key by its shape. It is a widget key, not a secret; verified by hand on 2026-11-14.
 # Gitleaks scans every fetched ref, so this unmerged branch commit failed staging's secret scan.
 f3e6bd3617307bc40a1e7b6342589285308291ee:apps/mobile/lib/features/live/presentation/widgets/live_pk4_stage.dart:generic-api-key:1554
+# The same line as seen through the int-d395-d396 merge commits' diffs (gitleaks git --log-opts="-m …"); the line
+# now carries gitleaks:allow.
+bcaba79a736335cd3bc044a8f2c8ded2186bb6fe:apps/mobile/lib/features/live/presentation/widgets/live_pk4_stage.dart:generic-api-key:1554
+fc7160a40ce0f009f6f3dda9313c85238cd80737:apps/mobile/lib/features/live/presentation/widgets/live_pk4_stage.dart:generic-api-key:1554
+18f1b7f56985dc4c0e9cbdc6055f913c782747cd:apps/mobile/lib/features/live/presentation/widgets/live_pk4_stage.dart:generic-api-key:1554
