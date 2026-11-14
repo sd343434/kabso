@@ -13247,6 +13247,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cherryReasonReferralReversal => 'Referral reward taken back';
 
   @override
+  String get cherryReasonAmbassadorCommission => 'Ambassador commission';
+
+  @override
+  String get cherryReasonAmbassadorCommissionReversal =>
+      'Ambassador commission taken back';
+
+  @override
+  String get cherryReasonAmbassadorReward => 'Ambassador monthly reward';
+
+  @override
   String get notifReferralReversed =>
       'The Kabso team voided an invalid invite and took back its cherries. Open the cherry wallet for details';
 
@@ -19351,7 +19361,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ambGet2 =>
-      'Monthly rewards for reaching targets: coins, VIP days or items';
+      'Monthly rewards for reaching targets: withdrawable cherries, coins, VIP days or items';
 
   @override
   String get ambGet3 => 'The exclusive ambassador badge';
@@ -19365,10 +19375,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String ambLevelName(String code) {
     String _temp0 = intl.Intl.selectLogic(code, {
-      'BRONZE': 'Bronze',
-      'SILVER': 'Silver',
-      'GOLD': 'Gold',
-      'DIAMOND': 'Diamond',
+      'SPARK': 'Spark',
+      'STAR': 'Star',
+      'CONSTELLATION': 'Constellation',
+      'GALAXY': 'Galaxy',
       'other': '$code',
     });
     return '$_temp0';
@@ -19377,6 +19387,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String ambLevelRequirement(String active, String coins) {
     return 'Active referrals: $active · top-ups: $coins coins a month';
+  }
+
+  @override
+  String ambLevelRequirementCoins(String coins) {
+    return 'Qualifying top-ups: $coins coins a month';
   }
 
   @override
@@ -19390,6 +19405,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String ambRewardCoins(String amount) {
     return 'Reward: $amount coins';
+  }
+
+  @override
+  String ambRewardCherries(String amount) {
+    return 'Reward: $amount cherries';
   }
 
   @override

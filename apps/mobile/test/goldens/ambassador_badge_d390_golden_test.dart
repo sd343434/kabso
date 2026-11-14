@@ -2,10 +2,10 @@
 // everyone — on the public profile's badge row and on the live person card —
 // while the membership is ACTIVE (`PublicProfile.ambassador`).
 //
-//   ambassador_badge_d390.profile       another person's profile, a Gold
-//                                       ambassador
+//   ambassador_badge_d390.profile       another person's profile, a
+//                                       Constellation ambassador
 //   ambassador_badge_d390.person_card   the person card in an audio room,
-//                                       a Silver ambassador
+//                                       a Star ambassador
 //
 // Regenerate on Linux with the pinned Flutter:
 //   flutter test --update-goldens test/goldens/ambassador_badge_d390_golden_test.dart
@@ -43,7 +43,7 @@ void main() {
     ) async {
       await pumpOther(
         tester,
-        otherProfile(ar: ar).copyWith(ambassadorLevel: 'GOLD'),
+        otherProfile(ar: ar).copyWith(ambassadorLevel: 'CONSTELLATION'),
         language: language,
       );
       await precacheImages(tester);
@@ -63,9 +63,10 @@ void main() {
         await pumpPersonCardRoom(
           tester,
           language: language,
-          profile: personCardProfile(ar: ar)
-              .copyWith(ambassadorLevel: 'SILVER'),
+          profile: personCardProfile(ar: ar).copyWith(ambassadorLevel: 'STAR'),
         );
+        // The level's medal (an asset image) drawn in the capture.
+        await precacheImages(tester);
         expect(find.byKey(LivePersonSheet.ambassadorBadgeKey), findsOneWidget);
         await expectLater(
           find.byType(MaterialApp),

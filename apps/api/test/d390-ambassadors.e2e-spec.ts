@@ -332,9 +332,10 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       },
     });
     const coins = 30_000_000n;
-    await ctx.prisma.$transaction((tx) =>
+    const r = await ctx.prisma.$transaction((tx) =>
       topUpIn(tx, user.id, coins, (coins * 1200n + 500_000n) / 1_000_000n, null, AGENT_RULES, now()),
     );
+    return r.code!;
   };
 
   let owner: Admin;
@@ -406,18 +407,34 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       holdDays: 14,
       minActiveDays: 3,
       minActiveTopupCoins: 100_000,
-      monthlyCapCherries: 50_000_000,
+      // Owner 2026-11-14 («ب) إلغاء الحد تماماً»): no monthly cap by default (0 = none).
+      monthlyCapCherries: 0,
       velocityMaxPerDay: 30,
       ipClusterMax: 3,
       ipClusterWindowDays: 30,
     });
     expect(
-      (s.body.levels as { code: string; commissionBps: number }[]).map((l) => [l.code, l.commissionBps]),
+      (
+        s.body.levels as {
+          code: string;
+          commissionBps: number;
+          minActiveReferrals: number;
+          minTopupCoins: number;
+        }[]
+      ).map((l) => [l.code, l.commissionBps, l.minActiveReferrals, l.minTopupCoins]),
     ).toEqual([
-      ['BRONZE', 200],
-      ['SILVER', 300],
-      ['GOLD', 400],
-      ['DIAMOND', 500],
+      // Owner 2026-11-14: 1.5 / 2.5 / 3 / 4 %, the month's qualifying top-ups alone (0 / 20 M / 50 M / 250 M).
+      ['SPARK', 150, 0, 0],
+      ['STAR', 250, 0, 20_000_000],
+      ['CONSTELLATION', 300, 0, 50_000_000],
+      ['GALAXY', 400, 0, 250_000_000],
+    ]);
+    // The monthly rewards in withdrawable cherries (owner 2026-11-14, «نعم»).
+    expect((s.body.levels as { reward: unknown }[]).map((l) => l.reward)).toEqual([
+      { kind: 'NONE' },
+      { kind: 'CHERRIES', amount: 5_000_000 },
+      { kind: 'CHERRIES', amount: 15_000_000 },
+      { kind: 'CHERRIES', amount: 50_000_000 },
     ]);
   });
 
@@ -425,7 +442,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     const bad = await awrite(owner, 'put', '/admin/ambassador-settings', {
       levels: [
         {
-          code: 'BRONZE',
+          code: 'SPARK',
           minActiveReferrals: 1,
           minTopupCoins: 0,
           commissionBps: 300,
@@ -490,7 +507,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       }),
     ).toBe(1);
     const d = await dashboard(u);
-    expect(d.level).toEqual({ code: 'BRONZE', commissionBps: 200 });
+    expect(d.level).toEqual({ code: 'SPARK', commissionBps: 150 });
     expect(d.code).toBe(await codeOf(u));
     const stranger = await signup();
     expect((await ctx.http.get('/api/v1/ambassadors/me').set(auth(stranger))).status).toBe(404);
@@ -530,12 +547,12 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     // No SIGNUP_INVITER, no FIRST_RECHARGE for the ambassador.
     expect(await ctx.prisma.referralReward.count({ where: { userId: amb.id } })).toBe(before);
     const [c] = await commissionsOf(amb);
-    // BRONZE 2 %: 1 000 000 coins × 10 cherries × 200 / 10 000.
+    // SPARK 1.5 %: 1 000 000 coins × 10 cherries × 150 / 10 000.
     expect(c).toMatchObject({
       status: 'PENDING',
-      cherries: 200_000n,
-      rateBps: 200,
-      level: 'BRONZE',
+      cherries: 150_000n,
+      rateBps: 150,
+      level: 'SPARK',
       rechargeReason: 'CARD_TOPUP',
     });
     // The D217 hold passes: the referral qualifies but pays the ambassador nothing, and no milestone counts it (a
@@ -560,7 +577,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     // Before its hold ends the commission stays pending.
     await sweep();
     expect((await commissionsOf(amb))[0]!.status).toBe('PENDING');
-    expect((await dashboard(amb)).commissions.pendingCherries).toBe(200_000);
+    expect((await dashboard(amb)).commissions.pendingCherries).toBe(150_000);
   });
 
   it('after the hold and the activity rule (3 days, 100 000 coins) the commission is credited as withdrawable cherries', async () => {
@@ -572,13 +589,13 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     expect(
       (await ctx.prisma.ambassadorReferral.findUniqueOrThrow({ where: { inviteeUserId: friend.id } })).status,
     ).toBe('ACTIVE');
-    expect(await cherriesOf(amb)).toBe(before + 200_000n);
+    expect(await cherriesOf(amb)).toBe(before + 150_000n);
     const row = await ctx.prisma.cherryLedgerEntry.findFirstOrThrow({
       where: { userId: amb.id, reason: 'AMBASSADOR_COMMISSION' },
     });
-    expect(row.delta).toBe(200_000n);
+    expect(row.delta).toBe(150_000n);
     const d = await dashboard(amb);
-    expect(d.commissions.paidCherries).toBe(200_000);
+    expect(d.commissions.paidCherries).toBe(150_000);
     expect(d.referrals).toMatchObject({ total: 1, active: 1, pending: 0 });
     expect(d.month).toMatchObject({ activeReferrals: 1, topupCoins: 1_000_000 });
   });
@@ -592,7 +609,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     await refund(order1);
     const credited = (await commissionsOf(amb)).find((c) => c.rechargeReference === order1)!;
     expect(credited.status).toBe('REVERSED');
-    expect(await cherriesOf(amb)).toBe(before - 200_000n);
+    expect(await cherriesOf(amb)).toBe(before - 150_000n);
     expect(
       await ctx.prisma.cherryLedgerEntry.count({
         where: { userId: amb.id, reason: 'AMBASSADOR_COMMISSION_REVERSAL' },
@@ -607,12 +624,13 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
         where: { userId: amb.id, reason: 'AMBASSADOR_COMMISSION_REVERSAL' },
       }),
     ).toBe(1);
-    expect((await dashboard(amb)).commissions.reversedCherries).toBe(200_000);
+    expect((await dashboard(amb)).commissions.reversedCherries).toBe(150_000);
   });
 
-  it('the monthly cap trims a commission, then pays nothing more this month', async () => {
-    await settings(owner, { monthlyCapCherries: 300_000 });
-    // Used this month: 0 (the first was reversed, the second voided). 1 000 000 coins → 200 000; then 100 000 → cap.
+  it('the monthly cap (set by the OWNER; none by default) trims a commission, then pays nothing more this month', async () => {
+    // The cap is off by default (owner 2026-11-14): the OWNER sets one explicitly here.
+    await settings(owner, { monthlyCapCherries: 225_000 });
+    // Used this month: 0 (the first was reversed, the second voided). 1 000 000 coins → 150 000; then 75 000 → cap.
     const orders = [];
     for (let i = 0; i < 3; i++) {
       orders.push(await cardTopup(friend, 1_000_000n));
@@ -621,11 +639,11 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     const all = await commissionsOf(amb);
     const last3 = orders.map((o) => all.find((c) => c.rechargeReference === o)!);
     expect(last3.map((c) => [c.status, c.cherries, c.cappedCherries, c.voidReason])).toEqual([
-      ['PENDING', 200_000n, 0n, null],
-      ['PENDING', 100_000n, 100_000n, null],
-      ['VOID', 0n, 200_000n, 'MONTHLY_CAP'],
+      ['PENDING', 150_000n, 0n, null],
+      ['PENDING', 75_000n, 75_000n, null],
+      ['VOID', 0n, 150_000n, 'MONTHLY_CAP'],
     ]);
-    await settings(owner, { monthlyCapCherries: 50_000_000 });
+    await settings(owner, { monthlyCapCherries: 0 });
   });
 
   it('self-referral is blocked (same device as the ambassador): no ambassador referral, nothing paid', async () => {
@@ -724,14 +742,14 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     expect(await cherriesOf(amb)).toBe(before);
     const held = await dashboard(amb);
     expect(held.payoutsHeld).toBe(true);
-    expect(held.commissions.heldCherries).toBe(300_000);
+    expect(held.commissions.heldCherries).toBe(225_000);
     const unfreeze = await awrite(owner, 'post', `/admin/ambassadors/${amb.id}/unfreeze`, {
       reason: 'resolved',
       totpCode: nextCode(owner.secret),
     });
     expect(unfreeze.status).toBe(200);
     await sweep();
-    expect(await cherriesOf(amb)).toBe(before + 300_000n);
+    expect(await cherriesOf(amb)).toBe(before + 225_000n);
     expect(
       await ctx.prisma.auditLog.count({
         where: { action: { in: ['ambassador.freeze', 'ambassador.unfreeze'] } },
@@ -755,21 +773,21 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     await settings(owner, {
       levels: [
         {
-          code: 'BRONZE',
+          code: 'SPARK',
           minActiveReferrals: 0,
           minTopupCoins: 0,
           commissionBps: 300,
           reward: { kind: 'NONE' },
         },
         {
-          code: 'SILVER',
+          code: 'STAR',
           minActiveReferrals: 1,
           minTopupCoins: 1_000_000,
           commissionBps: 500,
           reward: { kind: 'COINS', amount: 100_000 },
         },
         {
-          code: 'GOLD',
+          code: 'CONSTELLATION',
           minActiveReferrals: 5,
           minTopupCoins: 50_000_000,
           commissionBps: 700,
@@ -787,14 +805,12 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     const row = await ctx.prisma.ambassadorMonth.findFirstOrThrow({ where: { ambassadorUserId: amb.id } });
     expect(row).toMatchObject({
       activeReferrals: 1,
-      levelBefore: 'BRONZE',
-      metLevel: 'SILVER',
-      levelAfter: 'SILVER',
+      levelBefore: 'SPARK',
+      metLevel: 'STAR',
+      levelAfter: 'STAR',
       rewardStatus: 'GRANTED',
     });
-    expect((await ctx.prisma.ambassador.findUniqueOrThrow({ where: { userId: amb.id } })).level).toBe(
-      'SILVER',
-    );
+    expect((await ctx.prisma.ambassador.findUniqueOrThrow({ where: { userId: amb.id } })).level).toBe('STAR');
     const coin = await ctx.prisma.walletLedgerEntry.findFirstOrThrow({
       where: { userId: amb.id, reason: 'AMBASSADOR_REWARD' },
     });
@@ -808,8 +824,8 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       await ctx.prisma.walletLedgerEntry.count({ where: { userId: amb.id, reason: 'AMBASSADOR_REWARD' } }),
     ).toBe(1);
     const d = await dashboard(amb);
-    expect(d.level.code).toBe('SILVER');
-    expect(d.history[0]).toMatchObject({ levelAfter: 'SILVER', rewardStatus: 'GRANTED' });
+    expect(d.level.code).toBe('STAR');
+    expect(d.history[0]).toMatchObject({ levelAfter: 'STAR', rewardStatus: 'GRANTED' });
   });
 
   it('the panel: SUPPORT sees performance without money; the OWNER sees the totals; campaigns', async () => {
@@ -823,8 +839,8 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     const asOwner = await aget(owner, `/admin/ambassadors/${amb.id}`);
     expect(asOwner.status).toBe(200);
     expectContract(asOwner, 'getAdminAmbassador');
-    expect(asOwner.body.commissions.paidCherries).toBe(300_000);
-    expect(asOwner.body.level).toBe('SILVER');
+    expect(asOwner.body.commissions.paidCherries).toBe(225_000);
+    expect(asOwner.body.level).toBe('STAR');
     const detailSupport = await aget(support, `/admin/ambassadors/${amb.id}`);
     expect(detailSupport.body.commissionList.every((c: { cherries: unknown }) => c.cherries === null)).toBe(
       true,
@@ -876,7 +892,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       expectContract(res, 'getPublicProfile');
       return res.body as { ambassador?: { level: string } };
     };
-    expect((await profileOf(amb)).ambassador).toEqual({ level: 'SILVER' });
+    expect((await profileOf(amb)).ambassador).toEqual({ level: 'STAR' });
     expect((await profileOf(viewer)).ambassador).toBeUndefined();
     // Frozen: private, no badge.
     expect(
@@ -888,7 +904,13 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       totpCode: nextCode(owner.secret),
     });
     expect(un.status).toBe(200);
-    expect((await profileOf(amb)).ambassador).toEqual({ level: 'SILVER' });
+    expect((await profileOf(amb)).ambassador).toEqual({ level: 'STAR' });
+    // An ambassador row still holding an old default code (owner 2026-11-14: BRONZE / SILVER / GOLD / DIAMOND became
+    // SPARK / STAR / CONSTELLATION / GALAXY; migration 20270520090000) reads as the renamed level.
+    await ctx.prisma.ambassador.update({ where: { userId: amb.id }, data: { level: 'SILVER' } });
+    expect((await profileOf(amb)).ambassador).toEqual({ level: 'STAR' });
+    expect((await dashboard(amb)).level.code).toBe('STAR');
+    await ctx.prisma.ambassador.update({ where: { userId: amb.id }, data: { level: 'STAR' } });
     // Programme off: no badge for anyone.
     await settings(owner, { enabled: false });
     expect((await profileOf(amb)).ambassador).toBeUndefined();
@@ -957,8 +979,101 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       reason: 'second chance',
     });
     expect(re.status, JSON.stringify(re.body)).toBe(201);
-    expect(re.body).toMatchObject({ status: 'ACTIVE', level: 'BRONZE', endedAt: null });
+    expect(re.body).toMatchObject({ status: 'ACTIVE', level: 'SPARK', endedAt: null });
     const ended = await aget(owner, '/admin/ambassadors?status=ENDED');
     expect(ended.status).toBe(200);
+  });
+
+  // Last: it moves the clock to the next month and evaluates every ambassador.
+  it('a monthly reward in CHERRIES (owner 2026-11-14): credited once, withdrawable and sold to a recharge agent; the cap counts commissions only', async () => {
+    await settings(owner, {
+      // A small cap, to show it never cuts the reward.
+      monthlyCapCherries: 100_000,
+      levels: [
+        {
+          code: 'SPARK',
+          minActiveReferrals: 0,
+          minTopupCoins: 0,
+          commissionBps: 150,
+          reward: { kind: 'NONE' },
+        },
+        {
+          code: 'STAR',
+          minActiveReferrals: 0,
+          minTopupCoins: 1_000_000,
+          commissionBps: 250,
+          reward: { kind: 'CHERRIES', amount: 5_000_000 },
+        },
+      ],
+    });
+    const cr = await signup();
+    expect(
+      (await awrite(owner, 'post', '/admin/ambassadors', { username: cr.username, reason: 'cherry reward' }))
+        .status,
+    ).toBe(201);
+    // Active before this month started, so this month is evaluated when it ends.
+    await ctx.prisma.ambassador.update({
+      where: { userId: cr.id },
+      data: { activatedAt: new Date(clock - 40 * DAY) },
+    });
+    const f = await signup({ code: await codeOf(cr) });
+    await cardTopup(f, 2_000_000n);
+    const [c] = await commissionsOf(cr);
+    // 2 000 000 coins × 10 × 150 / 10 000 = 300 000, trimmed to the cap of 100 000.
+    expect(c).toMatchObject({ status: 'PENDING', cherries: 100_000n, cappedCherries: 200_000n });
+    const before = await cherriesOf(cr);
+    const t = new Date(clock);
+    clock = Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 1, 6, 0, 0);
+    await later(0);
+    await sweep();
+    const m = await ctx.prisma.ambassadorMonth.findFirstOrThrow({ where: { ambassadorUserId: cr.id } });
+    expect(m).toMatchObject({
+      topupCoins: 2_000_000n,
+      metLevel: 'STAR',
+      levelAfter: 'STAR',
+      rewardStatus: 'GRANTED',
+    });
+    const rows = await ctx.prisma.cherryLedgerEntry.findMany({
+      where: { userId: cr.id, reason: 'AMBASSADOR_REWARD_CHERRIES' },
+    });
+    expect(rows.map((r) => [r.delta, r.referenceId])).toEqual([[5_000_000n, `AMB:${cr.id}@${m.month}`]]);
+    // The full reward although the month's commissions reached the cap (the cap limits commissions only); the commission
+    // (100 000 after the cap) was credited by the same sweep, its hold over.
+    expect((await commissionsOf(cr))[0]).toMatchObject({ status: 'CREDITED', cherries: 100_000n });
+    expect(await cherriesOf(cr)).toBe(before + 100_000n + 5_000_000n);
+    expect(
+      await ctx.prisma.auditLog.count({ where: { action: 'ambassador.reward.grant', targetId: cr.id } }),
+    ).toBe(1);
+    expect(
+      await ctx.prisma.notification.count({
+        where: { recipientId: cr.id, type: 'AMBASSADOR_REWARD_GRANTED' },
+      }),
+    ).toBe(1);
+    // Once per ambassador and month: a second sweep changes nothing.
+    await sweep();
+    expect(
+      await ctx.prisma.cherryLedgerEntry.count({
+        where: { userId: cr.id, reason: 'AMBASSADOR_REWARD_CHERRIES' },
+      }),
+    ).toBe(1);
+    // Withdrawable: the ambassador sells them to a recharge agent (not task-locked).
+    const agent = await signup();
+    const agentCode = await makeAgent(agent);
+    const req = await ctx.http
+      .post('/api/v1/recharge-cherry-requests')
+      .set(auth(cr))
+      .set('Idempotency-Key', randomUUID())
+      .send({ agentCode, cherries: 5_000_000 });
+    expect(req.status, JSON.stringify(req.body)).toBe(201);
+    const ok = await ctx.http
+      .post(`/api/v1/recharge-cherry-requests/${req.body.id as string}/confirm`)
+      .set(auth(agent));
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200);
+    const sale = await ctx.prisma.cherryLedgerEntry.findFirstOrThrow({
+      where: { userId: cr.id, reason: 'RECHARGE_SALE' },
+    });
+    expect(sale.delta).toBe(-5_000_000n);
+    expect(await cherriesOf(cr)).toBe(before + 100_000n);
+    await settings(owner, { monthlyCapCherries: 0 });
   });
 });

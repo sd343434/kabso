@@ -4657,7 +4657,7 @@ secret, no new host, no new LiveKit room.
 - **Order:** the API image (the migration runs first), then the panel, then the APK. An older app never sees a lobby
   or invitation and shows a 4-way room as a solo live.
 
-### 5.132 «برنامج سفراء Kabso» — the ambassadors programme (D390; migrations `20270519090000`, `20270519090100`, `20270519090200`, `20270519090300`) — [IMPLEMENTED, draft contract v1.141-social; not deployed, not device-tested]
+### 5.132 «برنامج سفراء Kabso» — the ambassadors programme (D390; migrations `20270519090000`, `20270519090100`, `20270519090200`, `20270519090300`, `20270520085000`, `20270520090000`) — [IMPLEMENTED, draft contract v1.141-social; not deployed, not device-tested]
 
 CONVENTIONS §10.179 (owner's brief via the coordinator, 2026-11-13). Two migrations and one setting; no new secret, no new
 host. **The programme ships OFF**: nothing changes for anyone until the OWNER reviews the proposed defaults and switches
@@ -4680,6 +4680,21 @@ it on in the panel «السفراء › الإعدادات» (PP-95).
   its own transaction) and `20270519090300_ambassador_end` (`ambassadors.ended_at` / `ended_reason` / `ended_by_id`, the
   CHECKs `ambassadors_shape` and `ambassador_months_shape` re-made — small, empty tables). The settings row is seeded with
   the owner's lower-cost defaults («أ»: 2 / 3 / 4 / 5 %, a 60-day window).
+- **Level names** (owner 2026-11-14, «سفراء النجوم»), after the four above: `20270520090000_ambassador_level_names` — the default level
+  codes BRONZE / SILVER / GOLD / DIAMOND become SPARK / STAR / CONSTELLATION / GALAXY (شرارة / نجم / كوكبة / مجرّة): the
+  `ambassador_settings.levels` column default and the stored list (only when it still holds an old default code and none
+  of the new ones), then `ambassadors.level`, `ambassador_commissions.level` and `ambassador_months.level_before` /
+  `level_after` / `met_level` for the codes the list renamed. It also sets the owner's 2026-11-14 numbers (1.5 / 2.5 / 3 /
+  4 % from 0 / 20 000 000 / 50 000 000 / 250 000 000 coins a month, no active-referral requirement, rewards of 5 000 000
+  / 15 000 000 / 50 000 000 withdrawable cherries) — per level, only over a level still equal to the shipped default and
+  only when the list stays valid — and the monthly cap 50 000 000 → 0 (no cap) where it is still the shipped value; and
+  re-makes the CHECK `cherry_ledger_reason_sign` with `AMBASSADOR_REWARD_CHERRIES` as a credit (a full scan of
+  `cherry_ledger`, as every migration that extended it). Before it, `20270520085000_ambassador_reward_cherries_enums`
+  adds that reason (its own transaction). Idempotent; three helper functions created and dropped in
+  the migration; tiny tables (the programme is OFF on staging: one settings row, no ambassador), no long lock. Ship the
+  API with it: an older API reads a renamed row correctly (it reads the codes from the same list), and the new API and
+  apps still read an old code as its renamed level. The app and the panel show the owner's icons
+  (`apps/mobile/assets/ambassadors/`, PROVENANCE.md; the panel imports them from there at build time).
 - **Setting:** `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (default `300`; `0` is refused in production) — the sweeper that
   activates referrals, credits or voids held commissions, evaluates the finished month and grants held rewards. Every
   amount and rule is in the panel (`ambassador_settings`), never in the environment. The months follow
@@ -4689,7 +4704,9 @@ it on in the panel «السفراء › الإعدادات» (PP-95).
   the commission replaces them (§10.179.3). Referrals made before the switch keep their track.
 - **Money report:** «الربح» shows two lines of their own (§10.179.10): AMBASSADOR_COMMISSIONS (the cherries, net of
   reversals; no longer under REFERRAL_REWARDS) and AMBASSADOR_REWARDS (the coin rewards, valued like
-  STAFF_COMPENSATIONS; no longer under the free coins). The panel's money columns need `revenue.view` (D387).
+  STAFF_COMPENSATIONS, and the cherry rewards at the payout rate; no longer under the free coins). An older API image
+  does not know the reward kind CHERRIES that the migration writes into the default levels: it would read the level
+  list as unreadable and pay nothing (safe), so a rollback keeps the programme OFF (as below). The panel's money columns need `revenue.view` (D387).
 - **Rollback note:** an older API image ignores the new tables; with the programme ON it would pay D217 inviter rewards
   again for new friends of ambassadors. Switch the programme OFF in the panel before rolling back. The enum values and
   tables can stay.

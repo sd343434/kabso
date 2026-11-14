@@ -811,7 +811,8 @@ info:
     `updateAdminAmbassadorSettings`, `listAdminAmbassadorCampaigns`, `createAdminAmbassadorCampaign`,
     `updateAdminAmbassadorCampaign`; capabilities `ambassadors.view` / `ambassadors.manage` (OWNER, SUPPORT, TALENT, COMMUNITY) / `ambassadors.settings` (OWNER); the money totals follow D387's `revenue.view`.
     `CherryLedgerReason` `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`; `WalletLedgerReason`
-    `AMBASSADOR_REWARD`; `NotificationType` `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`,
+    `AMBASSADOR_REWARD` (and, owner 2026-11-14, `CherryLedgerReason` `AMBASSADOR_REWARD_CHERRIES` with the reward kind
+    `CHERRIES`); `NotificationType` `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`,
     `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`. Server config `AMBASSADOR_SWEEP_INTERVAL_SECONDS`. Migrations
     `20270519090000_ambassadors_enums`, `20270519090100_ambassadors`. The programme is OFF until the OWNER turns it on.
     Additive; a referral whose inviter is an ambassador no longer earns the D217 inviter rewards (§10.179.3).
@@ -35812,8 +35813,9 @@ components:
         STAFF_COMPENSATIONS (v1.139-social, D387, §10.176.4; owner: «نعم ينقص تقرير الربح قيمة هذه العملات») — the coins
         given as VIP care compensations (wallet ledger `STAFF_COMPENSATION`) at the same coin value, its own line (`coins`);
         AMBASSADOR_COMMISSIONS (v1.141-social, D390, §10.179.10) — the ambassadors' commissions in cherries
-        (AMBASSADOR_COMMISSION − AMBASSADOR_COMMISSION_REVERSAL); AMBASSADOR_REWARDS (D390) — the ambassadors' monthly rewards
-        in coins (wallet ledger `AMBASSADOR_REWARD`) at the same coin value as COIN_REWARDS (`coins`);
+        (AMBASSADOR_COMMISSION − AMBASSADOR_COMMISSION_REVERSAL); AMBASSADOR_REWARDS (D390) — the ambassadors' monthly rewards:
+        the coins (wallet ledger `AMBASSADOR_REWARD`) at the same coin value as COIN_REWARDS (`coins`) plus, since the owner's
+        2026-11-14 decision, the cherries (cherry ledger `AMBASSADOR_REWARD_CHERRIES`) at the payout rate (`cherries`);
         CARD_FEES — the estimated card fees of the period's card orders. An older app that does not know a key leaves the
         line out of its list; `after` already counts it.
     OwnerProfitPeriod:
@@ -35846,7 +35848,7 @@ components:
             properties:
               key: { $ref: '#/components/schemas/OwnerProfitDeductionKey' }
               amountMinor: { type: integer, description: "US cents (a negative net lowers the costs)." }
-              cherries: { type: [integer, 'null'], description: "The net cherries of a cherry line (null for COIN_REWARDS, STAFF_COMPENSATIONS, AMBASSADOR_REWARDS and CARD_FEES)." }
+              cherries: { type: [integer, 'null'], description: "The net cherries of a cherry line, and the cherry rewards of AMBASSADOR_REWARDS (null for COIN_REWARDS, STAFF_COMPENSATIONS and CARD_FEES)." }
               coins: { type: [integer, 'null'], description: "The coins of COIN_REWARDS, STAFF_COMPENSATIONS and AMBASSADOR_REWARDS (null otherwise)." }
               orders: { type: [integer, 'null'], description: "The card orders of CARD_FEES (null otherwise)." }
         fixedCosts:
@@ -43741,11 +43743,14 @@ components:
         `AMBASSADOR_COMMISSION` (credit): an ambassador's commission on a referred person's qualifying top-up, after
         its hold (reference: the commission; withdrawable, §10.179.5); `AMBASSADOR_COMMISSION_REVERSAL` (debit): that
         commission taken back after a refund or a chargeback (reference: the same commission; the balance may go below 0).
-        New values may appear later.
+        *(D390 follow-up, owner 2026-11-14)* `AMBASSADOR_REWARD_CHERRIES` (credit): an ambassador's monthly target reward
+        in cherries (reference `AMB:<user>@<YYYY-MM>`, once; withdrawable — sellable to a recharge agent, not task-locked;
+        §10.179.6). New values may appear later.
       enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
              PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD, RECHARGE_SALE,
              REFERRAL_REWARD, REFERRAL_REVERSAL, STORE_PURCHASE, HOST_TARGET_REWARD, STAFF_RECRUIT_COMMISSION,
-             AGENCY_FORFEIT, EVENT_PRIZE, AMBASSADOR_COMMISSION, AMBASSADOR_COMMISSION_REVERSAL]
+             AGENCY_FORFEIT, EVENT_PRIZE, AMBASSADOR_COMMISSION, AMBASSADOR_COMMISSION_REVERSAL,
+             AMBASSADOR_REWARD_CHERRIES]
     CherryPayoutRules:
       type: object
       description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (owner: 1 000 000 = 110, $1.10)."
@@ -45542,11 +45547,11 @@ components:
         ids: { type: array, maxItems: 20, uniqueItems: true, items: { type: string, format: uuid } }
     AmbassadorReward:
       type: object
-      description: "(v1.141-social, D390, §10.179.6) A level's monthly target reward: NONE; COINS (`amount` coins, ledger `AMBASSADOR_REWARD`); VIP_DAYS (`amount` days of `vipTier`); BAG_ITEM (`itemCode` for `amount` days)."
+      description: "(v1.141-social, D390, §10.179.6) A level's monthly target reward: NONE; COINS (`amount` coins, ledger `AMBASSADOR_REWARD`); CHERRIES (D390 follow-up, owner 2026-11-14: `amount` withdrawable cherries, cherry ledger `AMBASSADOR_REWARD_CHERRIES`, sellable to a recharge agent — the default of STAR / CONSTELLATION / GALAXY); VIP_DAYS (`amount` days of `vipTier`); BAG_ITEM (`itemCode` for `amount` days). Clients show a kind they do not know as no reward."
       additionalProperties: false
       required: [kind]
       properties:
-        kind: { type: string, enum: [NONE, COINS, VIP_DAYS, BAG_ITEM] }
+        kind: { type: string, enum: [NONE, COINS, CHERRIES, VIP_DAYS, BAG_ITEM] }
         amount: { type: integer, minimum: 1 }
         vipTier: { type: string, minLength: 1, maxLength: 32 }
         itemCode: { type: string, minLength: 1, maxLength: 64 }
@@ -45556,7 +45561,7 @@ components:
       additionalProperties: false
       required: [code, minActiveReferrals, minTopupCoins, commissionBps, reward]
       properties:
-        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,15}$', description: "BRONZE, SILVER, GOLD, DIAMOND by default; the apps name the four defaults and show any other code as is." }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,15}$', description: "SPARK, STAR, CONSTELLATION, GALAXY by default (owner 2026-11-14, «سفراء النجوم»: شرارة / نجم / كوكبة / مجرّة; formerly BRONZE, SILVER, GOLD, DIAMOND, renamed by migration 20270520090000 — clients read an old code as its new level). The apps name and draw the four defaults and show any other code as is." }
         minActiveReferrals: { type: integer, minimum: 0 }
         minTopupCoins: { type: integer, minimum: 0 }
         commissionBps: { type: integer, minimum: 0, maximum: 5000 }
@@ -45720,7 +45725,7 @@ components:
         holdDays: { type: integer, minimum: 0, maximum: 365 }
         minActiveDays: { type: integer, minimum: 0, maximum: 365 }
         minActiveTopupCoins: { type: integer, minimum: 0 }
-        monthlyCapCherries: { type: integer, minimum: 0, description: 0 = no cap. }
+        monthlyCapCherries: { type: integer, minimum: 0, description: "0 = no cap — the default since the owner's 2026-11-14 decision («إلغاء الحد تماماً»). It limits the month's commissions only, never the monthly reward." }
         velocityMaxPerDay: { type: integer, minimum: 0, description: 0 = off. }
         ipClusterMax: { type: integer, minimum: 0, description: 0 = off. }
         ipClusterWindowDays: { type: integer, minimum: 1, maximum: 365 }

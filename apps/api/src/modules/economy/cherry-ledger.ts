@@ -625,6 +625,28 @@ export async function creditAmbassadorCommissionIn(
 }
 
 /**
+ * D390 follow-up (owner 2026-11-14, «يجب ان تكون ارباح السفير بالكرز ليتمكن من سحبهم من وكيل شحن» — «نعم» for the
+ * monthly rewards too, §10.179.6): an ambassador's monthly target reward in cherries — one `AMBASSADOR_REWARD_CHERRIES`
+ * row, reference `AMB:<user>@<YYYY-MM>` (the ledger allows it once per person and month). WITHDRAWABLE: not in the
+ * task-cherry lock, so it can be withdrawn or sold to a recharge agent like a commission.
+ */
+export async function creditAmbassadorRewardCherriesIn(
+  tx: Tx,
+  userId: string,
+  cherries: bigint,
+  reference: string,
+  now: Date,
+): Promise<void> {
+  if (cherries <= 0n) throw new RangeError('A reward is positive');
+  await applyMovementsIn(
+    tx,
+    [{ userId, reason: 'AMBASSADOR_REWARD_CHERRIES', delta: cherries }],
+    reference,
+    now,
+  );
+}
+
+/**
  * v1.141-social (D390, §10.179.5): a credited commission taken back after a refund or a chargeback of its top-up — one
  * `AMBASSADOR_COMMISSION_REVERSAL` row (reference = the commission, so never twice). The balance may go below 0, as a
  * referral claw-back's (§10.71): the shortfall is a debt that blocks withdrawals until it is earned back.

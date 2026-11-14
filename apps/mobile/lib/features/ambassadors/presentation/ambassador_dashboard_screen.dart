@@ -140,13 +140,17 @@ class _LevelCard extends StatelessWidget {
     final c = ambassadorLevelColors(d.levelCode, p);
     final next = d.nextLevel;
     final target = d.target;
-    double frac(int have, int need) =>
-        need <= 0 ? 1 : (have / need).clamp(0, 1);
-    final progress = target == null
+    // The progress counts only what the target asks (owner 2026-11-14: the
+    // default levels ask no active referrals, the top-ups alone decide).
+    final parts = [
+      if (target != null && target.minActiveReferrals > 0)
+        (d.monthActiveReferrals / target.minActiveReferrals).clamp(0.0, 1.0),
+      if (target != null && target.minTopupCoins > 0)
+        (d.monthTopupCoins / target.minTopupCoins).clamp(0.0, 1.0),
+    ];
+    final progress = parts.isEmpty
         ? 1.0
-        : (frac(d.monthActiveReferrals, target.minActiveReferrals) +
-                  frac(d.monthTopupCoins, target.minTopupCoins)) /
-              2;
+        : parts.reduce((a, b) => a + b) / parts.length;
     return Container(
       padding: const EdgeInsets.all(KSpacing.lg),
       decoration: BoxDecoration(
@@ -193,13 +197,15 @@ class _LevelCard extends StatelessWidget {
             Text(l10n.ambTopLevel, style: t.caption)
           else ...[
             Text(
-              l10n.ambNextLevel(l10n.ambLevelName(next.code)),
+              l10n.ambNextLevel(ambassadorLevelName(l10n, next.code)),
               style: t.caption.copyWith(fontWeight: FontWeight.w600),
             ),
             Text(
               [
-                l10n.ambNeedActive(_n(next.activeReferrals)),
-                l10n.ambNeedCoins(_n(next.topupCoins)),
+                if (next.activeReferrals > 0)
+                  l10n.ambNeedActive(_n(next.activeReferrals)),
+                if (next.topupCoins > 0 || next.activeReferrals == 0)
+                  l10n.ambNeedCoins(_n(next.topupCoins)),
               ].join(' · '),
               style: t.caption.copyWith(color: p.textSecondary),
             ),
@@ -355,10 +361,13 @@ class _MonthCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: KSpacing.xs),
+          // No referral requirement (the defaults): the count, no bar.
           row(
             l10n.ambActiveReferrals,
             d.monthActiveReferrals,
-            target?.minActiveReferrals,
+            (target?.minActiveReferrals ?? 0) > 0
+                ? target?.minActiveReferrals
+                : null,
           ),
           row(
             l10n.ambQualifiedTopups,

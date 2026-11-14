@@ -17,9 +17,15 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The percentage of [bps] basis points (500 → «5%»), Latin digits.
+/// A commission in basis points as a percent with no trailing zero: 150 →
+/// «1.5%», 300 → «3%», 125 → «1.25%».
 String ambassadorPercent(int bps) => NumberFormat.decimalPercentPattern(
   locale: 'en',
-  decimalDigits: bps % 100 == 0 ? 0 : 2,
+  decimalDigits: bps % 100 == 0
+      ? 0
+      : bps % 10 == 0
+      ? 1
+      : 2,
 ).format(bps / 10000);
 
 String _n(int v) => KFormat.bidiIsolate(KFormat.grouped(v));
@@ -28,6 +34,8 @@ String _n(int v) => KFormat.bidiIsolate(KFormat.grouped(v));
 String ambassadorRewardText(AppLocalizations l10n, AmbassadorReward r) =>
     switch (r.kind) {
       'COINS' => l10n.ambRewardCoins(_n(r.amount)),
+      // Owner 2026-11-14: withdrawable cherries («مكافأة: 5,000,000 كرز»).
+      'CHERRIES' => l10n.ambRewardCherries(_n(r.amount)),
       'VIP_DAYS' => l10n.ambRewardVip(
         KFormat.bidiIsolate((r.vipTier ?? 'VIP').replaceAll('_', ' ')),
         _n(r.amount),
@@ -518,8 +526,13 @@ class _Levels extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    AmbassadorBadge(level: l.code),
-                    const Spacer(),
+                    Expanded(
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: AmbassadorBadge(level: l.code),
+                      ),
+                    ),
+                    const SizedBox(width: KSpacing.sm),
                     Text(
                       l10n.ambLevelCommission(
                         KFormat.bidiIsolate(ambassadorPercent(l.commissionBps)),
@@ -529,11 +542,15 @@ class _Levels extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: KSpacing.xs),
+                // Owner 2026-11-14: a level that asks no active referrals
+                // names only the month's qualifying top-ups.
                 Text(
-                  l10n.ambLevelRequirement(
-                    _n(l.minActiveReferrals),
-                    _n(l.minTopupCoins),
-                  ),
+                  l.minActiveReferrals > 0
+                      ? l10n.ambLevelRequirement(
+                          _n(l.minActiveReferrals),
+                          _n(l.minTopupCoins),
+                        )
+                      : l10n.ambLevelRequirementCoins(_n(l.minTopupCoins)),
                   style: t.caption.copyWith(color: p.textSecondary),
                 ),
                 Text(

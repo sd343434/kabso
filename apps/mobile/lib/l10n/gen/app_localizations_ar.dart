@@ -13261,6 +13261,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get cherryReasonReferralReversal => 'استرجاع مكافأة دعوة';
 
   @override
+  String get cherryReasonAmbassadorCommission => 'عمولة سفير';
+
+  @override
+  String get cherryReasonAmbassadorCommissionReversal => 'استرجاع عمولة سفير';
+
+  @override
+  String get cherryReasonAmbassadorReward => 'مكافأة السفير الشهرية';
+
+  @override
   String get notifReferralReversed =>
       'ألغى فريق Kabso دعوة غير صالحة واسترجع كرز مكافأتها. افتح محفظة الكرز للتفاصيل';
 
@@ -19346,7 +19355,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get ambGet2 =>
-      'مكافآت شهرية عند تحقيق الأهداف: كوينز أو أيام VIP أو عناصر';
+      'مكافآت شهرية عند تحقيق الأهداف: كرز قابل للسحب أو كوينز أو أيام VIP أو عناصر';
 
   @override
   String get ambGet3 => 'شارة السفير الحصرية';
@@ -19360,10 +19369,10 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String ambLevelName(String code) {
     String _temp0 = intl.Intl.selectLogic(code, {
-      'BRONZE': 'برونزي',
-      'SILVER': 'فضي',
-      'GOLD': 'ذهبي',
-      'DIAMOND': 'ماسي',
+      'SPARK': 'شرارة',
+      'STAR': 'نجم',
+      'CONSTELLATION': 'كوكبة',
+      'GALAXY': 'مجرّة',
       'other': '$code',
     });
     return '$_temp0';
@@ -19372,6 +19381,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String ambLevelRequirement(String active, String coins) {
     return 'إحالات نشطة: $active · شحن: $coins كوينز شهرياً';
+  }
+
+  @override
+  String ambLevelRequirementCoins(String coins) {
+    return 'شحن مؤهل: $coins كوينز شهرياً';
   }
 
   @override
@@ -19385,6 +19399,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String ambRewardCoins(String amount) {
     return 'مكافأة: $amount كوينز';
+  }
+
+  @override
+  String ambRewardCherries(String amount) {
+    return 'مكافأة: $amount كرز';
   }
 
   @override

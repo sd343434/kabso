@@ -37,6 +37,14 @@ enum CherryLedgerReason {
   /// v1.71-live (D281): a smart daily target's profit-share reward (locked
   /// like task rewards).
   hostTargetReward('HOST_TARGET_REWARD'),
+
+  /// v1.141-social (D390): an ambassador's commission, and it taken back.
+  ambassadorCommission('AMBASSADOR_COMMISSION'),
+  ambassadorCommissionReversal('AMBASSADOR_COMMISSION_REVERSAL'),
+
+  /// D390 follow-up (owner 2026-11-14): an ambassador's monthly reward in
+  /// withdrawable cherries.
+  ambassadorRewardCherries('AMBASSADOR_REWARD_CHERRIES'),
   other('');
 
   new(this.wire);

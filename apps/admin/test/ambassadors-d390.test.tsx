@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { AppContext, type AppState } from '../src/context';
 import { DICTIONARIES, translate, type Lang } from '../src/i18n';
 import { AR_D390, EN_D390 } from '../src/i18n-d390';
+import { AmbassadorLevelChip, ambassadorLevelCode, ambassadorLevelIcon } from '../src/ambassador-levels';
 import { visibleNav } from '../src/nav';
 import { matchPath } from '../src/router';
 import {
@@ -51,7 +52,7 @@ const html = (lang: Lang, node: React.ReactNode, role: PanelRole = 'OWNER') =>
 const row = (over: Partial<AmbassadorRow> = {}): AmbassadorRow => ({
   user: { id: '11111111-1111-4111-8111-111111111111', username: 'sara_eg', displayName: 'سارة', avatarUrl: null },
   status: 'ACTIVE',
-  level: 'SILVER',
+  level: 'STAR',
   source: 'APPLICATION',
   country: 'EG',
   activatedAt: '2026-11-02T10:00:00.000Z',
@@ -74,9 +75,9 @@ const detail = (over: Partial<AmbassadorDetailData> = {}): AmbassadorDetailData 
       activeReferrals: 6,
       topupCoins: 3_100_000,
       commissionCherries: 930_000,
-      levelBefore: 'BRONZE',
-      levelAfter: 'SILVER',
-      metLevel: 'SILVER',
+      levelBefore: 'SPARK',
+      levelAfter: 'STAR',
+      metLevel: 'STAR',
       rewardStatus: 'GRANTED',
     },
   ],
@@ -95,7 +96,7 @@ const detail = (over: Partial<AmbassadorDetailData> = {}): AmbassadorDetailData 
       createdAt: '2026-11-04T10:00:00.000Z',
       recharge: 'CARD_TOPUP',
       coins: 1_000_000,
-      level: 'SILVER',
+      level: 'STAR',
       rateBps: 500,
       cherries: 500_000,
       status: 'CREDITED',
@@ -112,15 +113,17 @@ const SETTINGS: AmbassadorSettings = {
   holdDays: 14,
   minActiveDays: 3,
   minActiveTopupCoins: 100_000,
-  monthlyCapCherries: 50_000_000,
+  monthlyCapCherries: 0, // owner 2026-11-14: no cap by default
   velocityMaxPerDay: 30,
   ipClusterMax: 3,
   ipClusterWindowDays: 30,
   levels: [
-    { code: 'BRONZE', minActiveReferrals: 0, minTopupCoins: 0, commissionBps: 200, reward: { kind: 'NONE' } },
-    { code: 'SILVER', minActiveReferrals: 5, minTopupCoins: 3_000_000, commissionBps: 300, reward: { kind: 'COINS', amount: 100_000 } },
-    { code: 'GOLD', minActiveReferrals: 15, minTopupCoins: 15_000_000, commissionBps: 400, reward: { kind: 'VIP_DAYS', amount: 7, vipTier: 'VIP_1' } },
-    { code: 'DIAMOND', minActiveReferrals: 40, minTopupCoins: 60_000_000, commissionBps: 500, reward: { kind: 'COINS', amount: 1_000_000 } },
+    // Owner 2026-11-14: 1.5 / 2.5 / 3 / 4 %, the month's qualifying top-ups alone (0 / 20 M / 50 M / 250 M); the
+    // rewards in withdrawable cherries (5 M / 15 M / 50 M).
+    { code: 'SPARK', minActiveReferrals: 0, minTopupCoins: 0, commissionBps: 150, reward: { kind: 'NONE' } },
+    { code: 'STAR', minActiveReferrals: 0, minTopupCoins: 20_000_000, commissionBps: 250, reward: { kind: 'CHERRIES', amount: 5_000_000 } },
+    { code: 'CONSTELLATION', minActiveReferrals: 0, minTopupCoins: 50_000_000, commissionBps: 300, reward: { kind: 'CHERRIES', amount: 15_000_000 } },
+    { code: 'GALAXY', minActiveReferrals: 0, minTopupCoins: 250_000_000, commissionBps: 400, reward: { kind: 'CHERRIES', amount: 50_000_000 } },
   ],
   updatedAt: '2026-11-13T10:00:00.000Z',
 };
@@ -157,7 +160,9 @@ describe('D390 the list and the performance page', () => {
     const owner = html('en', <AmbassadorTable rows={[row()]} />);
     expect(owner).toContain('Commissions paid (cherries)');
     expect(owner).toContain('960,000');
-    expect(owner).toContain('amb-silver');
+    expect(owner).toContain('amb-star');
+    expect(owner).toContain('>Star</span>');
+    expect(owner).toMatch(/<img class="amb-level-icon" src="[^"]*star[^"]*\.webp" alt=""\/>/);
   });
 
   it('frozen and under review show as badges', () => {
@@ -171,8 +176,9 @@ describe('D390 the list and the performance page', () => {
     expect(owner).toContain('سرعة إحالات غير طبيعية');
     expect(owner).toContain('data-amb-freeze');
     expect(owner).toContain('data-amb-clear-review');
-    expect(owner).toContain('SILVER · 5%');
-    expect(owner).toContain('BRONZE → SILVER');
+    expect(owner).toContain('data-amb-level-chip="STAR"');
+    expect(owner).toContain('>نجم</span> <span class="mono">5%</span>');
+    expect(owner).toMatch(/>شرارة<\/span> → <span[^>]*data-amb-level-chip="STAR"/);
     const frozen = html('en', <AmbassadorView data={detail({ status: 'FROZEN', frozenReason: 'complaint' })} onAction={noop} />);
     expect(frozen).toContain('data-amb-unfreeze');
     expect(frozen).toContain('data-amb-end');
@@ -237,8 +243,17 @@ describe('D390 the settings (OWNER)', () => {
   it('renders every number and the four proposed levels; says the programme is off', () => {
     const ar = html('ar', <AmbassadorSettingsForm saved={SETTINGS} draft={SETTINGS} onChange={noop} onSave={noop} />);
     expect(ar).toContain('البرنامج متوقف حالياً');
-    for (const code of ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND']) expect(ar).toContain(`data-amb-level="${code}"`);
-    expect(ar).toContain('data-bps="500"');
+    for (const code of ['SPARK', 'STAR', 'CONSTELLATION', 'GALAXY']) {
+      expect(ar).toContain(`data-amb-level="${code}"`);
+      expect(ar).toContain(`data-amb-level-chip="${code}"`);
+    }
+    for (const name of ['شرارة', 'نجم', 'كوكبة', 'مجرّة']) expect(ar).toContain(`>${name}</span>`);
+    expect(ar).toContain('data-amb-level-names');
+    for (const bps of [150, 250, 300, 400]) expect(ar).toContain(`data-bps="${bps}"`);
+    expect(ar).toContain('value="250000000"');
+    // The reward kind «كرز» selected, with its amount.
+    expect(ar).toMatch(/<option value="CHERRIES" selected="">كرز<\/option>/);
+    expect(ar).toContain('value="50000000"');
     expect(ar).toContain('value="60"');
     expect(ar).toContain('لا تغييرات');
   });
@@ -247,13 +262,47 @@ describe('D390 the settings (OWNER)', () => {
     expect(levelsValid(SETTINGS.levels)).toBe(true);
     expect(levelsValid([{ ...SETTINGS.levels[0]!, minActiveReferrals: 1 }])).toBe(false);
     expect(levelsValid([SETTINGS.levels[0]!, { ...SETTINGS.levels[1]!, commissionBps: 100 }])).toBe(false);
-    expect(levelsValid([SETTINGS.levels[0]!, { ...SETTINGS.levels[1]!, code: 'BRONZE' }])).toBe(false);
+    expect(levelsValid([SETTINGS.levels[0]!, { ...SETTINGS.levels[1]!, code: 'SPARK' }])).toBe(false);
     expect(ambassadorSettingsChanges(SETTINGS, { ...SETTINGS, enabled: true, holdDays: 7 })).toEqual({ enabled: true, holdDays: 7 });
-    const levels = SETTINGS.levels.map((l) => (l.code === 'GOLD' ? { ...l, commissionBps: 450 } : l));
+    const levels = SETTINGS.levels.map((l) => (l.code === 'CONSTELLATION' ? { ...l, commissionBps: 450 } : l));
     expect(ambassadorSettingsChanges(SETTINGS, { ...SETTINGS, levels })).toEqual({ levels });
     expect(rewardOf('NONE', 5, 'x')).toEqual({ kind: 'NONE' });
+    // Owner 2026-11-14: the monthly reward in withdrawable cherries.
+    expect(rewardOf('CHERRIES', 5_000_000, 'x')).toEqual({ kind: 'CHERRIES', amount: 5_000_000 });
     expect(rewardOf('VIP_DAYS', 7, '')).toEqual({ kind: 'VIP_DAYS', amount: 7, vipTier: 'VIP_1' });
     expect(rewardOf('BAG_ITEM', 30, 'frame_gold')).toEqual({ kind: 'BAG_ITEM', amount: 30, itemCode: 'frame_gold' });
     expect(bpsLabel(750)).toBe('7.5%');
+  });
+});
+
+describe('D390 the level names and icons «سفراء النجوم» (owner 2026-11-14)', () => {
+  const chip = (lang: Lang, code: string) => html(lang, <AmbassadorLevelChip code={code} />);
+
+  it('the four default codes show their name and the app’s icon, in both languages', () => {
+    const names: [string, string, string, string][] = [
+      ['SPARK', 'شرارة', 'Spark', 'spark'],
+      ['STAR', 'نجم', 'Star', 'star'],
+      ['CONSTELLATION', 'كوكبة', 'Constellation', 'constellation'],
+      ['GALAXY', 'مجرّة', 'Galaxy', 'galaxy'],
+    ];
+    for (const [code, ar, en, file] of names) {
+      expect(chip('ar', code)).toContain(`>${ar}</span>`);
+      expect(chip('en', code)).toContain(`>${en}</span>`);
+      expect(chip('en', code)).toContain(`amb-level amb-${file}`);
+      expect(ambassadorLevelIcon(code)).toMatch(new RegExp(`${file}[^/]*\\.webp$`));
+    }
+  });
+
+  it('an old default code reads as its renamed level; a code the OWNER added shows as it is, without an icon', () => {
+    expect(ambassadorLevelCode('BRONZE')).toBe('SPARK');
+    expect(ambassadorLevelCode('SILVER')).toBe('STAR');
+    expect(ambassadorLevelCode('GOLD')).toBe('CONSTELLATION');
+    expect(ambassadorLevelCode('DIAMOND')).toBe('GALAXY');
+    expect(chip('ar', 'GOLD')).toContain('>كوكبة</span>');
+    expect(chip('ar', 'GOLD')).toContain('title="GOLD"');
+    const custom = chip('en', 'PLATINUM');
+    expect(custom).toContain('>PLATINUM</span>');
+    expect(custom).not.toContain('<img');
+    expect(ambassadorLevelIcon('PLATINUM')).toBeNull();
   });
 });

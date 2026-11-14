@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AmbassadorLevelChip } from '../ambassador-levels';
 import { api } from '../api';
 import { codeField, ErrorAlert, FormDialog, Loading, reasonField, useAsync, UserCell } from '../components';
 import { useApp } from '../context';
@@ -92,7 +93,9 @@ export interface AmbassadorCampaign {
   notes: string;
   ambassadors: { id: string; username: string; displayName: string }[];
 }
-export type RewardKind = 'NONE' | 'COINS' | 'VIP_DAYS' | 'BAG_ITEM';
+/** D390 follow-up (owner 2026-11-14): CHERRIES — withdrawable cherries, the default of the levels above the first. */
+export type RewardKind = 'NONE' | 'COINS' | 'CHERRIES' | 'VIP_DAYS' | 'BAG_ITEM';
+export const REWARD_KINDS: readonly RewardKind[] = ['NONE', 'CHERRIES', 'COINS', 'VIP_DAYS', 'BAG_ITEM'];
 export interface AmbassadorLevel {
   code: string;
   minActiveReferrals: number;
@@ -170,7 +173,7 @@ export function AmbassadorTable({ rows }: { rows: AmbassadorRow[] }) {
                 <UserCell username={r.user.username} displayName={r.user.displayName} avatarUrl={r.user.avatarUrl} />
               </td>
               <td>
-                <span className={`amb-level amb-${r.level.toLowerCase()}`}>{r.level}</span>
+                <AmbassadorLevelChip code={r.level} />
               </td>
               <td className="mono">{formatNumber(r.referrals.total, lang)}</td>
               <td className="mono">{formatNumber(r.referrals.active, lang)}</td>
@@ -269,7 +272,7 @@ export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData;
         <div className="amb-kpis">
           <div className="stat amb-stat">
             <div className="label">{t('ambColLevel')}</div>
-            <div className="value"><span className={`amb-level amb-${data.level.toLowerCase()}`}>{data.level}</span></div>
+            <div className="value"><AmbassadorLevelChip code={data.level} /></div>
           </div>
           <div className="stat amb-stat">
             <div className="label">{t('ambColReferrals')}</div>
@@ -366,7 +369,7 @@ export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData;
                   <td className="mono">{formatNumber(m.activeReferrals, lang)}</td>
                   <td className="mono">{formatNumber(m.topupCoins, lang)}</td>
                   <td>
-                    {m.levelBefore} → {m.levelAfter}
+                    <AmbassadorLevelChip code={m.levelBefore} /> → <AmbassadorLevelChip code={m.levelAfter} />
                   </td>
                   <td>{keyed('ambReward', m.rewardStatus)}</td>
                 </tr>
@@ -407,8 +410,8 @@ export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData;
             {data.commissionList.map((x) => (
               <tr key={x.id}>
                 <td className="mono">{formatNumber(x.coins, lang)}</td>
-                <td className="mono">
-                  {x.level} · {bpsLabel(x.rateBps)}
+                <td>
+                  <AmbassadorLevelChip code={x.level} /> <span className="mono">{bpsLabel(x.rateBps)}</span>
                 </td>
                 <td className="mono">{x.cherries === null ? '—' : formatNumber(x.cherries, lang)}</td>
                 <td className="small">
@@ -774,7 +777,7 @@ export function levelsValid(levels: AmbassadorLevel[]): boolean {
 /** A reward as the API takes it (only the fields of its kind). */
 export function rewardOf(kind: RewardKind, amount: number, ref: string): AmbassadorLevel['reward'] {
   if (kind === 'NONE') return { kind };
-  if (kind === 'COINS') return { kind, amount: Math.max(1, amount) };
+  if (kind === 'COINS' || kind === 'CHERRIES') return { kind, amount: Math.max(1, amount) };
   if (kind === 'VIP_DAYS') return { kind, amount: Math.max(1, amount), vipTier: ref || 'VIP_1' };
   return { kind, amount: Math.max(1, amount), itemCode: ref };
 }
@@ -810,6 +813,7 @@ export function AmbassadorSettingsForm({ saved, draft, onChange, onSave }: { sav
           <thead>
             <tr>
               <th>{t('ambLevelCode')}</th>
+              <th>{t('ambLevelShown')}</th>
               <th>{t('ambMinActive')}</th>
               <th>{t('ambMinTopup')}</th>
               <th>{t('ambCommissionPct')}</th>
@@ -824,6 +828,9 @@ export function AmbassadorSettingsForm({ saved, draft, onChange, onSave }: { sav
               <tr key={i} data-amb-level={l.code}>
                 <td>
                   <input className="ltr mono" value={l.code} maxLength={16} onChange={(e) => setLevel(i, { ...l, code: e.target.value.toUpperCase() })} />
+                </td>
+                <td>
+                  <AmbassadorLevelChip code={l.code} />
                 </td>
                 <td>
                   <input type="number" min={0} className="ltr mono" value={l.minActiveReferrals} onChange={(e) => setLevel(i, { ...l, minActiveReferrals: num(e.target.value) })} />
@@ -845,7 +852,7 @@ export function AmbassadorSettingsForm({ saved, draft, onChange, onSave }: { sav
                 </td>
                 <td>
                   <select value={l.reward.kind} onChange={(e) => setLevel(i, { ...l, reward: rewardOf(e.target.value as RewardKind, l.reward.amount ?? 1, l.reward.vipTier ?? l.reward.itemCode ?? '') })}>
-                    {(['NONE', 'COINS', 'VIP_DAYS', 'BAG_ITEM'] as const).map((k) => (
+                    {REWARD_KINDS.map((k) => (
                       <option key={k} value={k}>
                         {t(`ambKind${k}`)}
                       </option>
@@ -881,13 +888,14 @@ export function AmbassadorSettingsForm({ saved, draft, onChange, onSave }: { sav
             const last = draft.levels.at(-1)!;
             onChange({
               ...draft,
-              levels: [...draft.levels, { code: `L${draft.levels.length + 1}X`, minActiveReferrals: last.minActiveReferrals + 1, minTopupCoins: last.minTopupCoins, commissionBps: last.commissionBps, reward: { kind: 'NONE' } }],
+              levels: [...draft.levels, { code: `L${draft.levels.length + 1}X`, minActiveReferrals: last.minActiveReferrals, minTopupCoins: Math.max(1_000_000, last.minTopupCoins * 2), commissionBps: last.commissionBps, reward: { kind: 'NONE' } }],
             });
           }}
         >
           {t('ambAddLevel')}
         </button>
       )}
+      <p className="muted small" data-amb-level-names>{t('ambLevelNamesHint')}</p>
       {!valid && <div className="alert error">{t('ambLevelsInvalid')}</div>}
       <p className="muted small">
         {t('ambUpdatedAt')}: <span className="date">{formatDate(saved.updatedAt, lang)}</span>

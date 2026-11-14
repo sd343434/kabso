@@ -1,37 +1,38 @@
 // D390 «برنامج سفراء Kabso»: payloads shaped like `AmbassadorProgramme` and
 // `AmbassadorDashboard` in openapi.yaml (v1.141-social), with the migration's
-// proposed defaults. Test data only (G-26).
+// defaults (the owner's level codes and numbers of 2026-11-14). Test data only
+// (G-26).
 
 import 'package:kabso_live/features/ambassadors/data/ambassador_repository.dart';
 
 const List<Map<String, Object>> _levels = [
   {
-    'code': 'BRONZE',
+    'code': 'SPARK',
     'minActiveReferrals': 0,
     'minTopupCoins': 0,
-    'commissionBps': 200,
+    'commissionBps': 150,
     'reward': {'kind': 'NONE'},
   },
   {
-    'code': 'SILVER',
-    'minActiveReferrals': 5,
-    'minTopupCoins': 3000000,
+    'code': 'STAR',
+    'minActiveReferrals': 0,
+    'minTopupCoins': 20000000,
+    'commissionBps': 250,
+    'reward': {'kind': 'CHERRIES', 'amount': 5000000},
+  },
+  {
+    'code': 'CONSTELLATION',
+    'minActiveReferrals': 0,
+    'minTopupCoins': 50000000,
     'commissionBps': 300,
-    'reward': {'kind': 'COINS', 'amount': 100000},
+    'reward': {'kind': 'CHERRIES', 'amount': 15000000},
   },
   {
-    'code': 'GOLD',
-    'minActiveReferrals': 15,
-    'minTopupCoins': 15000000,
+    'code': 'GALAXY',
+    'minActiveReferrals': 0,
+    'minTopupCoins': 250000000,
     'commissionBps': 400,
-    'reward': {'kind': 'VIP_DAYS', 'amount': 7, 'vipTier': 'VIP_1'},
-  },
-  {
-    'code': 'DIAMOND',
-    'minActiveReferrals': 40,
-    'minTopupCoins': 60000000,
-    'commissionBps': 500,
-    'reward': {'kind': 'COINS', 'amount': 1000000},
+    'reward': {'kind': 'CHERRIES', 'amount': 50000000},
   },
 ];
 
@@ -82,24 +83,28 @@ AmbassadorProgramme ambassadorProgramme({
   ),
 );
 
-/// A Silver ambassador half-way to Gold this month.
+/// A Star ambassador half-way to Constellation this month.
 Map<String, dynamic> ambassadorDashboardJson({bool payoutsHeld = false}) => {
   'enabled': true,
   'payoutsHeld': payoutsHeld,
   'since': '2026-09-02T10:00:00.000Z',
   'code': 'K7M4QX2D',
   'link': 'https://kabsolive.com/i/K7M4QX2D',
-  'level': {'code': 'SILVER', 'commissionBps': 300},
-  'nextLevel': {'code': 'GOLD', 'activeReferrals': 6, 'topupCoins': 6800000},
+  'level': {'code': 'STAR', 'commissionBps': 250},
+  'nextLevel': {
+    'code': 'CONSTELLATION',
+    'activeReferrals': 0,
+    'topupCoins': 18000000,
+  },
   'month': {
     'month': '2026-11',
     'activeReferrals': 9,
-    'topupCoins': 8200000,
+    'topupCoins': 32000000,
     'target': {
-      'code': 'GOLD',
-      'minActiveReferrals': 15,
-      'minTopupCoins': 15000000,
-      'reward': {'kind': 'VIP_DAYS', 'amount': 7, 'vipTier': 'VIP_1'},
+      'code': 'CONSTELLATION',
+      'minActiveReferrals': 0,
+      'minTopupCoins': 50000000,
+      'reward': {'kind': 'CHERRIES', 'amount': 15000000},
     },
   },
   'referrals': {'total': 23, 'active': 17, 'pending': 6, 'void': 2},
@@ -113,9 +118,9 @@ Map<String, dynamic> ambassadorDashboardJson({bool payoutsHeld = false}) => {
     {
       'month': '2026-10',
       'activeReferrals': 7,
-      'topupCoins': 4100000,
+      'topupCoins': 24100000,
       'commissionCherries': 2050000,
-      'levelAfter': 'SILVER',
+      'levelAfter': 'STAR',
       'rewardStatus': 'GRANTED',
     },
     {
@@ -123,7 +128,7 @@ Map<String, dynamic> ambassadorDashboardJson({bool payoutsHeld = false}) => {
       'activeReferrals': 3,
       'topupCoins': 1500000,
       'commissionCherries': 450000,
-      'levelAfter': 'BRONZE',
+      'levelAfter': 'SPARK',
       'rewardStatus': 'NONE',
     },
   ],
