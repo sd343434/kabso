@@ -64,28 +64,23 @@ AppLocalizations _l10n(WidgetTester tester) =>
 void main() {
   group('PK sheet (refs 276 / 277)', () {
     // D391 (v1.118-live): «PK رباعي» (the former «PK الفرق» card) opens the
-    // 4-way lobby — D393: in place, as a segment of this sheet; «PK متعدد»
-    // (CP-041 phase 3) still says «قريباً».
+    // 4-way lobby — D393: in place, as a segment of this sheet. D393 (owner
+    // «ازل المتعدد»): «PK متعدد» («قريباً») is gone; two cards.
     testWidgets('1v1 is selected and works; 4-way switches to its lobby in '
-        'place; Multi says «قريباً»', (tester) async {
+        'place; no Multi card', (tester) async {
       final repo = await _sheet(tester);
       final l10n = _l10n(tester);
       final one = tester.widget<PkModeCard>(
         find.byKey(LivePkSheet.modeKey(PkSheetMode.oneVsOne)),
       );
-      expect((one.selected, one.soon), (true, false));
+      expect(one.selected, isTrue);
       final four = tester.widget<PkModeCard>(
         find.byKey(LivePkSheet.modeKey(PkSheetMode.team)),
       );
-      expect((four.selected, four.soon), (false, false));
-      final multi = tester.widget<PkModeCard>(
-        find.byKey(LivePkSheet.modeKey(PkSheetMode.multi)),
-      );
-      expect((multi.selected, multi.soon), (false, true));
-      expect(find.text(l10n.liveSoon), findsOneWidget);
-      await tester.tap(find.byKey(LivePkSheet.modeKey(PkSheetMode.multi)));
-      await tester.pump();
-      expect(find.text(l10n.pkModeSoon(l10n.pkModeMulti)), findsOneWidget);
+      expect(four.selected, isFalse);
+      expect(find.byType(PkModeCard), findsNWidgets(2));
+      expect(find.text(l10n.pkModeMulti), findsNothing);
+      expect(find.text(l10n.liveSoon), findsNothing);
       await tester.tap(find.byKey(LivePkSheet.modeKey(PkSheetMode.team)));
       await tester.pumpAndSettle();
       // D393: the 4-way panel inside this same sheet, «PK رباعي» selected.
@@ -110,6 +105,41 @@ void main() {
         isEmpty,
       );
     });
+
+    // D393 (owner «ازل المتعدد»): the two cards share the row equally, on the
+    // sheet's margins, «PK ثنائي» on the reading start (right in Arabic).
+    for (final language in [AppLanguage.ar, AppLanguage.en]) {
+      testWidgets('two mode cards share the width (${language.name})', (
+        tester,
+      ) async {
+        await _sheet(tester, language: language);
+        final sheet = tester.getRect(find.byKey(LivePkSheet.sheetKey));
+        final one = tester.getRect(
+          find.byKey(LivePkSheet.modeKey(PkSheetMode.oneVsOne)),
+        );
+        final four = tester.getRect(
+          find.byKey(LivePkSheet.modeKey(PkSheetMode.team)),
+        );
+        expect(one.width, moreOrLessEquals(four.width, epsilon: 0.01));
+        expect(one.top, four.top);
+        // ar: 1v1 on the right; en: 1v1 on the left.
+        final left = language == AppLanguage.ar ? four : one;
+        final right = language == AppLanguage.ar ? one : four;
+        expect(
+          left.left - sheet.left,
+          moreOrLessEquals(PkSheetMetrics.cardSide, epsilon: 0.01),
+        );
+        expect(
+          sheet.right - right.right,
+          moreOrLessEquals(PkSheetMetrics.cardSide, epsilon: 0.01),
+        );
+        expect(
+          right.left - left.right,
+          moreOrLessEquals(PkSheetMetrics.cardGap, epsilon: 0.01),
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
 
     testWidgets('Friends: mutual follows live now, invite one', (tester) async {
       final repo = await _sheet(

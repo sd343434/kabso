@@ -59,10 +59,10 @@ String? pkBoosterFailureMessage(
 
 /// The host's «PK» sheet — D195's PK in the owner's layout (D199, refs
 /// 276 / 277): the history clock and the settings gear at the start, «PK»
-/// with its help in the middle, ✕ at the end; three mode cards — «PK ثنائي»
-/// works, «PK رباعي» switches the sheet to the 4-way panel in place (D391,
-/// D393: a segment of this sheet, never a page of its own), «PK متعدد» is not
-/// built and says «قريباً»; the
+/// with its help in the middle, ✕ at the end; two mode cards sharing the
+/// width — «PK ثنائي» and «PK رباعي», which switches the sheet to the 4-way
+/// panel in place (D391, D393: a segment of this sheet, never a page of its
+/// own; D393: «PK متعدد» «قريباً» removed, owner «ازل المتعدد»); the
 /// «الأصدقاء» tab (mutual follows live now) with Kabi when there is nobody;
 /// search and «مطابقة عشوائية» (D195) at the bottom. During a PK: start (a
 /// connected PK), mute the opponent and End PK. [initialMode] opens it on a
@@ -118,7 +118,7 @@ abstract final class PkSheetMetrics {
   static const grey = Color(0xFF8A8D92);
 }
 
-enum PkSheetMode { oneVsOne, team, multi }
+enum PkSheetMode { oneVsOne, team }
 
 class LivePkSheet extends ConsumerStatefulWidget {
   const new({
@@ -129,8 +129,7 @@ class LivePkSheet extends ConsumerStatefulWidget {
 
   final String roomId;
 
-  /// D393: the segment shown first — «PK ثنائي» or «PK رباعي» («PK متعدد»
-  /// is not built and is never selected).
+  /// D393: the segment shown first — «PK ثنائي» or «PK رباعي».
   final PkSheetMode initialMode;
 
   static const sheetKey = Key('pk.sheet');
@@ -193,9 +192,7 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
 
   /// D393: the segment under the mode cards — 1 v 1's list or the 4-way
   /// panel ([LivePk4Panel]); switched in place.
-  late PkSheetMode _mode = widget.initialMode == PkSheetMode.multi
-      ? PkSheetMode.oneVsOne
-      : widget.initialMode;
+  late PkSheetMode _mode = widget.initialMode;
 
   @override
   void initState() {
@@ -479,22 +476,13 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
       label: switch (m) {
         PkSheetMode.oneVsOne => l10n.pkModeOneVsOne,
         PkSheetMode.team => l10n.pkModeTeam,
-        PkSheetMode.multi => l10n.pkModeMulti,
       },
       // D393: «PK ثنائي» (D195) and «PK رباعي» (v1.118-live, D391: 2 v 2 by
       // invitation) are segments of this sheet — a tap switches the content
-      // under the cards in place; «PK متعدد» (every host for themselves) is
-      // CP-041 phase 3 and still says «قريباً».
+      // under the cards in place. «PK متعدد» (CP-041 phase 3, not built) is
+      // no longer shown (owner «ازل المتعدد»): the two cards share the width.
       selected: m == _mode,
-      soon: m == PkSheetMode.multi,
-      onTap: switch (m) {
-        PkSheetMode.oneVsOne => () => _select(PkSheetMode.oneVsOne),
-        PkSheetMode.team => () => _select(PkSheetMode.team),
-        PkSheetMode.multi => () => KSnack.info(
-          context,
-          l10n.pkModeSoon(l10n.pkModeMulti),
-        ),
-      },
+      onTap: () => _select(m),
     );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: PkSheetMetrics.cardSide),
@@ -505,8 +493,6 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
             Expanded(child: card(PkSheetMode.oneVsOne)),
             const SizedBox(width: PkSheetMetrics.cardGap),
             Expanded(child: card(PkSheetMode.team)),
-            const SizedBox(width: PkSheetMetrics.cardGap),
-            Expanded(child: card(PkSheetMode.multi)),
           ],
         ),
       ),
@@ -1086,7 +1072,6 @@ class PkModeCard extends StatelessWidget {
     required this.mode,
     required this.label,
     required this.selected,
-    required this.soon,
     this.onTap,
     super.key,
   });
@@ -1094,17 +1079,14 @@ class PkModeCard extends StatelessWidget {
   final PkSheetMode mode;
   final String label;
   final bool selected;
-  final bool soon;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     return Semantics(
       button: true,
       selected: selected,
-      enabled: !soon,
-      label: soon ? '$label، ${l10n.liveSoon}' : label,
+      label: label,
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
@@ -1144,53 +1126,28 @@ class PkModeCard extends StatelessWidget {
                 ),
               ),
             Positioned.fill(
-              child: Opacity(
-                opacity: soon ? 0.45 : 1,
-                child: Column(
-                  children: [
-                    const SizedBox(height: 10.2),
-                    SizedBox(height: 21, child: PkModeArt(mode: mode)),
-                    const Spacer(),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textScaler: MediaQuery.textScalerOf(context)
-                          .clamp(maxScaleFactor: 1.15),
-                      style: context.textStyles.label.copyWith(
-                        fontSize: 12,
-                        height: 1.2,
-                        fontWeight: FontWeight.w600,
-                        color: PkSheetMetrics.ink,
-                      ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 10.2),
+                  SizedBox(height: 21, child: PkModeArt(mode: mode)),
+                  const Spacer(),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textScaler: MediaQuery.textScalerOf(context)
+                        .clamp(maxScaleFactor: 1.15),
+                    style: context.textStyles.label.copyWith(
+                      fontSize: 12,
+                      height: 1.2,
+                      fontWeight: FontWeight.w600,
+                      color: PkSheetMetrics.ink,
                     ),
-                    const SizedBox(height: 9.5),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 9.5),
+                ],
               ),
             ),
-            if (soon)
-              PositionedDirectional(
-                top: 4,
-                end: 4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE9EAF0),
-                    borderRadius: BorderRadius.circular(KRadius.pill),
-                  ),
-                  child: Text(
-                    l10n.liveSoon,
-                    textScaler: TextScaler.noScaling,
-                    style: context.textStyles.caption.copyWith(
-                      color: const Color(0xFF5A5B6A),
-                      fontSize: 8,
-                      height: 1.4,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
@@ -1199,8 +1156,7 @@ class PkModeCard extends StatelessWidget {
 }
 
 /// Kabso-drawn mode art (no third-party icons): two people with a bolt
-/// (1 v 1), a group (Team), a grid of four (Multi), in Kabso's warm
-/// gradient.
+/// (1 v 1) and a group (4-way), in Kabso's warm gradient.
 class PkModeArt extends StatelessWidget {
   const new({required this.mode, super.key});
 
@@ -1218,7 +1174,6 @@ class PkModeArt extends StatelessWidget {
         ],
       ),
       PkSheetMode.team => const Icon(Icons.groups_rounded, size: 24),
-      PkSheetMode.multi => const Icon(Icons.grid_view_rounded, size: 20),
     };
     return ShaderMask(
       blendMode: BlendMode.srcIn,

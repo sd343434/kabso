@@ -3578,7 +3578,6 @@
   "pkModeOneVsOne": "1v1 PK",
   "pkModeTeam": "4-way PK",
   "pkModeMulti": "Multi PK",
-  "pkModeSoon": "{mode} is coming soon — not built yet",
   "pkFriendsTab": "Friends",
   "pkNoFriends": "No friends to invite currently",
   "pkFriendsHelp": "Friends are hosts you follow who follow you back and are in a video live now. Search any other host by name, or try a random match.",

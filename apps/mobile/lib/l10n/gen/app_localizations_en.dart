@@ -11342,11 +11342,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pkModeMulti => 'Multi PK';
 
   @override
-  String pkModeSoon(String mode) {
-    return '$mode is coming soon — not built yet';
-  }
-
-  @override
   String get pkFriendsTab => 'Friends';
 
   @override

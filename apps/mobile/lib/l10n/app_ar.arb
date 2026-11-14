@@ -10618,15 +10618,6 @@
   "@pkModeMulti": {
     "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
   },
-  "pkModeSoon": "{mode} قريباً — لم يُبنَ بعد",
-  "@pkModeSoon": {
-    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
-    "placeholders": {
-      "mode": {
-        "type": "String"
-      }
-    }
-  },
   "pkFriendsTab": "الأصدقاء",
   "@pkFriendsTab": {
     "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."

@@ -19311,12 +19311,6 @@ abstract class AppLocalizations {
   /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
   ///
   /// In ar, this message translates to:
-  /// **'{mode} قريباً — لم يُبنَ بعد'**
-  String pkModeSoon(String mode);
-
-  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
-  ///
-  /// In ar, this message translates to:
   /// **'الأصدقاء'**
   String get pkFriendsTab;
 
