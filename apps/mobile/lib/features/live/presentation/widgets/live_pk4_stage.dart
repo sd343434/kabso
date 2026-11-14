@@ -1551,7 +1551,7 @@ class _Pk4RematchDockState extends State<Pk4RematchDock> {
       liveRegion: true,
       child: Center(
         child: KLiveDialogCard(
-          key: key == Pk4RematchDock.offerKey ? null : key,
+          key: key == Pk4RematchDock.offerKey ? null : key, // gitleaks:allow
           semanticsLabel: text,
           padding: KLiveDialogCard.densePadding,
           dense: true,
