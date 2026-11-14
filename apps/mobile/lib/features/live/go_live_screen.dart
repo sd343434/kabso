@@ -2963,7 +2963,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                         showLivePkSheet(
                           context,
                           roomId: room.id,
-                          initialMode: pk4.match != null || pk4.lobby != null
+                          initialMode:
+                              pk4.match != null ||
+                                  pk4.lobby != null ||
+                                  pk4.searching
                               ? PkSheetMode.team
                               : PkSheetMode.oneVsOne,
                         ),

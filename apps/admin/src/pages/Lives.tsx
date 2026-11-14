@@ -25,6 +25,9 @@ export interface LivePk4 {
   matchId: string;
   status: 'CONNECTED' | 'BATTLE' | 'RESULT';
   format: 'TEAMS' | 'FREE_FOR_ALL';
+  /** D395 (v1.119-live): «PK أحكام» or normal, and the hosts playing (2–4). Optional for an older API. */
+  type?: 'NORMAL' | 'DARES';
+  playerCount?: number;
   team: 'A' | 'B';
   hosts: {
     seat: number;
@@ -34,11 +37,22 @@ export interface LivePk4 {
     displayName: string | null;
     score: number;
     out: boolean;
+    /** D395: FREE_FOR_ALL's place once the battle ended. */
+    place?: number | null;
   }[];
 }
 
-/** D391: «@a + @b ضد @c + @d» (this room's team first). */
-export function pk4TeamsLine(pk4: LivePk4, t: (key: 'livePk4Teams', vars: Record<string, string>) => string): string {
+/**
+ * D391: «@a + @b ضد @c + @d» (this room's team first). D395: FREE_FOR_ALL «@a · @b · @c» (each alone), and TEAMS with
+ * two or three hosts («@a + @b ضد @c»).
+ */
+export function pk4TeamsLine(
+  pk4: LivePk4,
+  t: (key: 'livePk4Teams' | 'livePk4Ffa', vars: Record<string, string>) => string,
+): string {
+  if (pk4.format === 'FREE_FOR_ALL') {
+    return t('livePk4Ffa', { hosts: pk4.hosts.map((h) => (h.username ? `@${h.username}` : '?')).join(' · ') });
+  }
   const team = (side: 'A' | 'B') =>
     pk4.hosts
       .filter((h) => h.team === side)
@@ -54,8 +68,11 @@ export function Pk4Hosts({ pk4 }: { pk4: LivePk4 }) {
     <ul className="pk4-hosts" data-pk4-match={pk4.matchId}>
       {pk4.hosts.map((h) => (
         <li key={h.seat} data-pk4-seat={h.seat} data-pk4-team={h.team} data-own-team={h.team === pk4.team ? 'true' : undefined}>
-          <span className="badge">{t('livePk4Team', { team: h.team })}</span> <span className="ltr">@{h.username ?? '?'}</span>{' '}
-          <span className="num">{formatNumber(h.score, lang)}</span>
+          <span className="badge">
+            {pk4.format === 'FREE_FOR_ALL' ? t('livePk4Player', { seat: String(h.seat) }) : t('livePk4Team', { team: h.team })}
+          </span>{' '}
+          <span className="ltr">@{h.username ?? '?'}</span> <span className="num">{formatNumber(h.score, lang)}</span>
+          {h.place !== null && h.place !== undefined && <span className="small"> · {t('livePk4Place', { place: String(h.place) })}</span>}
           {h.out && <span className="muted small"> · {t('livePk4Out')}</span>}
         </li>
       ))}
@@ -217,6 +234,14 @@ function LiveDialog({ id, onClose, onEnded }: { id: string; onClose: () => void;
               <>
                 <dt>{t('livePk4Status')}</dt>
                 <dd>{t(`livePk4Status${data.pk4.status}`)}</dd>
+                <dt>{t('livePk4Format')}</dt>
+                <dd data-pk4-format={data.pk4.format}>
+                  {t(`livePk4Format${data.pk4.format}`)}
+                  {data.pk4.playerCount !== undefined && (
+                    <span className="muted small"> · {t('livePk4Players', { count: String(data.pk4.playerCount) })}</span>
+                  )}
+                  {data.pk4.type === 'DARES' && <span className="badge"> {t('livePk4Dares')}</span>}
+                </dd>
                 <dt>{t('livePk4Hosts')}</dt>
                 <dd>
                   <Pk4Hosts pk4={data.pk4} />

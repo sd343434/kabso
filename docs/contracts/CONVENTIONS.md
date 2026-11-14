@@ -806,6 +806,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.119-live (draft) | 2026-11-14 | **D395 (CP-041 phases 3–4; owner «أ و ب»):** «PK رباعي» for two to four hosts — `format` FREE_FOR_ALL (places 1–4, equal scores share a place, a host who leaves takes the last free place; `Pk4SeatState.place`, `result`, per-host `boost`, `boosterUses`, `supporters`; `Pk4Match.teams` empty); `startLivePk4Lobby` «ابدأ الآن» and the automatic start at the lobby's end with two or more in (`Pk4Lobby.accepted`, `canStart`); `Pk4Match.playerCount`, `source`, `type`; the seat plan (TEAMS two v one, two like a 1 v 1; FREE_FOR_ALL packed); `joinLivePk4Random` / `leaveLivePk4Random` (four only; `Pk4Queue`, `Pk4RandomResult`, `Pk4State.queue`, message `pk4-queue`, `PK4_RANDOM_WAIT_SECONDS`); «PK أحكام» for four (`Pk4Dare`, `acceptLivePk4Dare`, `refuseLivePk4Dare`, `judgeLivePk4Dare`, `reportLivePk4Dare`); «جولة أخرى» for four (`Pk4Rematch`, `offerLivePk4Rematch`, `acceptLivePk4Rematch`, `declineLivePk4Rematch`, `cancelLivePk4Rematch`; every present host accepts); `AdminLivePk4.type`, `playerCount`, `hosts[].place`; migration `20270521090000_pk4_phase3`. §10.181. | **Additive.** `Pk4Match.seats` 2–4 and `teams` 0 or 2: an app of v1.118-live ignores such a match (solo view, no crash) and never opens FFA or the random 4-way queue; one random wait per host (joining either queue replaces the other). |
 | v1.118-live (draft) | 2026-11-13 | **D391 (CP-041 phase 2, approved by the owner 2026-11-13: «PK رباعي»):** PK 2 v 2 (`format` TEAMS) by invitation — `getLivePk4`, `listLivePk4Candidates`, `openLivePk4Lobby` / `closeLivePk4Lobby`, `inviteLivePk4` / `cancelLivePk4Invite`, `acceptLivePk4Invite` / `declineLivePk4Invite`, `startLivePk4`, `endLivePk4`, `muteLivePk4Host`, `createLivePk4MediaToken`; schemas `Pk4*`; `AdminLive.pk4`, `AdminLiveDetail.pk4` (optional) and `endAdminLivePk4`; codes `PK_LOBBY_CLOSED`, `PK_SEAT_TAKEN` (409); data messages `pk4-match`, `pk4-lobby`, `pk4-invite` on topic `pk`; media identities `pk4:`; config `PK4_ENABLED` (true), `PK4_LOBBY_SECONDS` (120), `PK4_INVITE_TTL_SECONDS` (30), `PK4_MAX_WATCHERS_PER_ROOM` (0); migration `20270518090200_pk4_teams`; `pk-admin` accepts 4-way ids. A host busy in either PK is busy for the other (1 v 1 otherwise unchanged). §4, §8, §10.180. | **Additive**: older apps ignore the new messages and see a 4-way room as a solo live; a 1 v 1 host is refused 409 `PK_HOST_BUSY` only while the other host is in a 4-way lobby or match. |
 | v1.141-social (draft) | 2026-11-13 | **D390 (owner's «برنامج سفراء Kabso», via the coordinator 2026-11-13; OFF until the OWNER switches it on):** tag `ambassadors` — `getAmbassadorProgramme` (`GET /ambassadors/programme`, `AmbassadorProgramme`), `applyForAmbassadorProgramme` (`POST /ambassadors/applications`, `AmbassadorApplicationRequest`), `getMyAmbassadorDashboard` (`GET /ambassadors/me`, `AmbassadorDashboard`); panel `listAdminAmbassadors` / `appointAdminAmbassador`, `getAdminAmbassador`, `freezeAdminAmbassador`, `unfreezeAdminAmbassador`, `clearAdminAmbassadorReview`, `listAdminAmbassadorApplications`, `approveAdminAmbassadorApplication`, `rejectAdminAmbassadorApplication`, `getAdminAmbassadorSettings` / `updateAdminAmbassadorSettings`, `listAdminAmbassadorCampaigns`, `createAdminAmbassadorCampaign`, `updateAdminAmbassadorCampaign` (schemas `AmbassadorLevel`, `AmbassadorReward`, `AmbassadorApplication`, `AmbassadorSettings`, `UpdateAmbassadorSettingsRequest`, `AmbassadorReferralCounts`, `AmbassadorCommissionTotals`, `AdminAmbassador*`, `AmbassadorCampaignRequest`); capabilities `ambassadors.view` / `ambassadors.manage` (OWNER, SUPPORT) and `ambassadors.settings` (OWNER); code `AMBASSADOR_APPLICATION_NOT_ALLOWED` (409); `CherryLedgerReason` `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`; `WalletLedgerReason` `AMBASSADOR_REWARD`; `NotificationType` `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`, `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`; config `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (300); migrations `20270519090000_ambassadors_enums`, `20270519090100_ambassadors`. Owner follow-up (2026-11-13): `PublicProfile.ambassador` (optional, the public badge), `endAdminAmbassador` «إنهاء العضوية» (status ENDED, `NotificationType` `AMBASSADOR_MEMBERSHIP_ENDED`, `AmbassadorProgramme.status` / `refusal` ENDED, `AdminAmbassadorRow.endedAt` / `endedReason`; migrations `20270519090200_ambassador_end_enums`, `20270519090300_ambassador_end`), the lower-cost defaults (2 / 3 / 4 / 5 %, 60 days). §4, §8, §10.179. | **Additive** (new operations, schemas and enum values; clients ignore unknown notification types and ledger reasons). **Behaviour change (D217, §10.71):** while the programme is ON, a referral whose inviter is an ambassador earns no D217 inviter reward (sign-up, first recharge, milestones) — the ambassador's commission replaces it. OFF by default: no change until the OWNER switches it on. |
 | v1.140-social (draft) | 2026-11-13 | **D388 (owner 2026-11-13: «اريد عندما يرسل الشخص يقوم تلقائي بسؤاله عن لغة التي يتحدثها عربي او انجليزي»; first time only, a confirmation, the language shown to the staff, routed to staff who speak it): «سؤال اللغة» — the WhatsApp language question and language routing.** On a WhatsApp conversation's first message (once ever; `WHATSAPP_ASK_LANGUAGE`, default on) the server sends reply buttons «العربية» / «English»; the button (or a typed «عربي» / «English» …) sets `WaConversation.language` (`WaLanguage` AR / EN; null until answered) and a confirmation is sent in that language. Both automatic messages are OUTBOUND messages with `sentBy` null (audited `whatsapp.language.auto`); they never claim the conversation or change its preview. `?language=` on both conversation lists. A REPLY+ staff member speaks AR, EN or both (none set = both): `setAdminTeamWhatsAppLanguages` (code + reason, audited `admin.team.whatsapp_languages`; `team_languages_level`), `AdminTeam.data[].whatsappLanguages`. The new-message push of an unassigned conversation in a language goes to the staff who speak it (everyone when none of them can answer). Migration `20270518090000_whatsapp_language` (§10.177). | Additive (a new required response field `WaConversation.language`, always sent). |
@@ -14014,3 +14015,112 @@ Every number is an owner-confirmable default (server config).
 - **Migration** `20270518090200_pk4_teams`: enums `pk4_format`, `pk4_lobby_status`, `pk4_invite_status`; tables
   `pk4_lobbies`, `pk4_invites`, `pk4_matches`, `pk4_seats`, `pk4_boosts`, `pk4_gift_points`, `pk4_supporters`,
   `pk4_point_events` (runtime grants from the default privileges).
+
+### 10.181 «PK رباعي» for two to four — FREE_FOR_ALL, «ابدأ الآن», random four, «PK أحكام» and «جولة أخرى» for four *(v1.119-live, DRAFT — D395, CP-041 phases 3–4)*
+
+The owner asked for all of it («أ و ب»): (A) the result badge «فاز فريقكم», a smaller friends list in both tabs of the
+PK sheet, and a start with two or three hosts; (B) CP-041's phase 3 (FREE_FOR_ALL) and phase 4 (random matching, «PK
+أحكام» and «جولة أخرى» for four). §10.180 holds unless said here; PK 1 v 1 (§10.58 and its extensions) does not change
+except that a host waits in one random queue at a time. Every number is an owner-confirmable default.
+
+- **Formats.** `openLivePk4Lobby {format, type?}` takes `FREE_FOR_ALL` «الكل ضد الكل» (each host alone) as well as `TEAMS`,
+  and `type` `DARES` («PK أحكام», PK_DARES_ENABLED; default NORMAL). FREE_FOR_ALL places 2–4 are PLAYERs
+  (`Pk4LobbySeat.role` `PLAYER`); the invitation (`Pk4Invite.format`, `type`) and the lobby (`Pk4Lobby.format`, `type`)
+  carry them.
+- **Starting with two or three (owner «أ»).** `Pk4Lobby.accepted` (the hosts in, the organiser included) and `canStart`
+  (OPEN with at least one accepted host). The organiser's **«ابدأ الآن»** — `startLivePk4Lobby` (`POST …/pk4/lobby/start`;
+  only the organiser: anyone else 409 `PK_LOBBY_CLOSED`; nobody in yet: 409 `PK_UNAVAILABLE` `lobby` / `too_few`) — starts
+  the match with the hosts in; the open invitations are CANCELLED (their hosts get `pk4-invite`). When
+  **`PK4_LOBBY_SECONDS` runs out with two or more in**, the PK tick starts it the same way (audited `live.pk4.lobby`
+  `auto-started`; the organiser's start `started-early`); with only the organiser in, the lobby EXPIRES as in §10.180.
+  All four in still starts at the third acceptance. The same fresh checks as §10.180 (an accepted host whose live is no
+  longer eligible loses the place; the organiser's live not eligible or a block between any two → refused, the lobby
+  stays OPEN). The organiser's settings (§10.62) as before.
+- **Places — the seat plan.** `Pk4Match.playerCount` (2–4); `seats` has two to four items. The place decides the side of
+  the screen: places 1–2 the start side (team A), 3–4 the end side (team B).
+  - TEAMS keeps each host's invited place: three → two on one side as a team, the third alone on the other (organiser +
+    teammate + one opponent, or organiser + two opponents); two on one team (the organiser and the teammate only) → the
+    second plays at place 3, «like a 1 v 1». The team's score is the sum of its hosts; a lone host's team is that host.
+  - FREE_FOR_ALL packs the hosts in their order: two → places 1 and 3; three → 1, 2 and 3; four → 1–4.
+  - **Layouts** (the app): two — half the screen each; three — the two of one side stacked, the third alone on the other
+    side in a tile the size of two; four — the 2 × 2 grid.
+- **FREE_FOR_ALL scoring (CP-041 §2, §4, §6).** Each host's own PK points (`Pk4SeatState.score`; `score_a|b` stay the
+  sides' sums). **Boosters are the host's own** (`pk4_boosts.seat`; the limits and the one active booster per host;
+  `Pk4SeatState.boost`, `boosterUses`; the `boost` message names `seat`); **supporters per host** (top three,
+  `Pk4SeatState.supporters`; `pk4_supporters.seat`). At the end the **places** (`Pk4SeatState.place`): the hosts still
+  on air by score (equal scores share a place: 1, 1, 3), then the hosts who left — each took the last free place when
+  they left (the first to leave the last place); hosts who left at the same moment are ordered between them by score.
+  One host left on air → the battle ends at once and that host is 1st; everyone gone → a draw void for the records (no
+  places). `Pk4SeatState.result`: 1st alone WIN, a shared 1st DRAW, every other place LOSS (TEAMS: the team's result).
+  **Records** (owner §9 row 4): 1st a win, every other place a loss; equal 1st places a draw for them. `Pk4Match.teams`
+  is **empty** and `winnerTeam` null in FREE_FOR_ALL.
+- **«PK أحكام» for four (CP-041 §7).** `Pk4Match.type` DARES; `Pk4Match.dare` (`Pk4Dare`: `loserRoomIds`,
+  `winnerRoomIds`, the three cards, `drawn`, the times, `points`, `refusePoints`). One dare for the **losing side**: TEAMS
+  — the losing team's hosts (both, or the lone host); FREE_FOR_ALL — the **lowest place still on air** (owner «ان كان حكم
+  ينفذ الثالث الحكم»: the 4th left, so the 3rd does it; a shared lowest place does it together); judged by the **winning
+  side** (TEAMS the winning team, FREE_FOR_ALL the 1st place, shared → each). A draw (TEAMS equal, FREE_FOR_ALL everyone
+  1st), a void match, or no loser still on air → no dare. The draw is §10.80's (EASY, MEDIUM, HARD, crypto random) over
+  the side's hosts: each card is one no loser and no winner has been shown, else one no loser has seen, a loser who has
+  seen every active dare of a level starts a new cycle; the three are marked seen for every host of both sides
+  (`pk4_match_dares`, audited `live.pk.dare.draw` with target `pk4_match`). **Any losing host answers for the side**
+  (`acceptLivePk4Dare`, `refuseLivePk4Dare`), **any winning host judges** (`judgeLivePk4Dare {done}`; the first verdict
+  counts); every other host 403 `PK_DARE_FORBIDDEN` (e.g. FREE_FOR_ALL's 2nd place); the windows, the timer, «done» by
+  the timer, a decision timeout counting as a refusal and the reports (`reportLivePk4Dare`) as §10.80. A refusal (or
+  «لم يُنفّذ») gives **every losing host** the refusal's points and «dares refused» + 1; done gives each «dares done» + 1.
+  Every losing host gone → refused (LOSER_LEFT); a losing host's End → refused; a judge's End → as §10.80. In a DARES
+  match a host who left the battle and lost gets `forfeitPoints` instead of the loss's points (as §10.80 / D276), and a
+  lucky gift adds no PK points. A DARES match's points also count in `dares_points` (D300). A moderator's end cancels an
+  open dare (ADMIN).
+- **«جولة أخرى» for four (CP-041 §7).** `offerLivePk4Rematch` (`POST …/pk4/rematch`) by a **present** host (not out of
+  the battle, the live still eligible) of a RESULT match whose dare is over, with fewer than PK_REMATCH_MAX in a row, at
+  least two present hosts, ACTIVE and with no block between any two → `Pk4Match.rematch` {byRoomId, expiresAt,
+  acceptedRoomIds, waitingRoomIds}; **every present host must accept** within PK_REMATCH_ACCEPT_SECONDS
+  (`acceptLivePk4Rematch`; another host's offer tap is an acceptance). The last acceptance closes the result quietly and
+  starts a **new battle at once** with the present hosts (`source` REMATCH, `rematchOf`, the same format and type, the
+  previous round time, places by the seat plan — so with two or three present the rules above hold; mutes carry over);
+  the rooms of hosts no longer present get the old match's `closed`. `declineLivePk4Rematch` (a host who has not
+  accepted) ends the offer and closes the PK; `cancelLivePk4Rematch` (the asking host) withdraws it; an offer not
+  accepted by everyone in time lapses (`rematch-expired`, closed). `rematchesLeft`. Watchers of any match of the chain
+  stay valid while the chain's match is open. Audited `live.pk4.rematch` (offered, accepted, declined, cancelled,
+  expired) and `live.pk4.start` (source REMATCH).
+- **Random matching for four (CP-041 §3.2).** `joinLivePk4Random {format, type?}` (`POST …/pk4/random`; bucket
+  `live:pk:invite`): the caller's eligible room joins the queue of that format and type (`pk4_queue`; one wait per host —
+  a wait in another 4-way queue or in the 1 v 1 queue is replaced, and joining the 1 v 1 queue replaces a 4-way wait).
+  Busy (§10.180's rules) → 409 `PK_HOST_BUSY`. Under one queue lock the caller and the **three longest waiters** who can
+  all play together are matched at once: eligible rooms (LIVE SOLO video, fresh heartbeat, host present), ACTIVE, not
+  busy, **no block between any two**, and the gender / region preferences of §10.62 **between every pair**. TEAMS: the
+  teams drawn at random; FREE_FOR_ALL: the places at random (crypto random); the settings of the host at place 1 (as a
+  random host's). The answer is `Pk4RandomResult` (`MATCHED` with the match, or `WAITING` with `Pk4Queue`); the other
+  three get `{type: "pk4-queue", status: "MATCHED", matchId}`. **Four only**: a random 4-way match never starts with
+  fewer. The wait lasts **`PK4_RANDOM_WAIT_SECONDS` = 120**; then the tick deletes it and tells the host
+  `{type: "pk4-queue", status: "EXPIRED"}` («لم نجد مضيفين كافيين»); a wait whose live ended is dropped silently.
+  `leaveLivePk4Random` (`DELETE …/pk4/random`, idempotent). `Pk4State.queue` (the host only). A waiting host may still be
+  invited (§10.70); accepting ends the wait. Auto Match (§10.62) stays 1 v 1 and never takes a host waiting for four.
+  Audited `live.pk4.queue` (joined, left, matched).
+- **Messages.** `pk4-match` events add `dare`, `rematch-offer`, `rematch-accepted`, `rematch`, `rematch-declined`,
+  `rematch-cancelled`, `rematch-expired`; the new `pk4-queue` message. An older app ignores what it does not know.
+- **Older apps (compatibility).** Everything is additive. An app of v1.118-live expects exactly four places and two teams:
+  it **ignores** a match with two or three places or with no teams (FREE_FOR_ALL) — the room stays its solo view, no
+  crash — and it never opens a FREE_FOR_ALL lobby or a random 4-way wait. Such an app invited to a FREE_FOR_ALL lobby sees
+  the place as «زميلك» / «منافس» (it does not read `format`); accepting works.
+- **The app.** The PK sheet's «PK رباعي» segment: «٢ ضد ٢» / «الكل ضد الكل» and «PK أحكام», «افتح PK رباعي», «مطابقة
+  عشوائية رباعية» (with the wait's countdown and «إيقاف البحث»), «ابدأ الآن» once one invited host joined. **The smaller
+  friends list in both tabs** (owner «أ»): «الأصدقاء» 15 lp (was 18), a 32 lp avatar (was 40), name 13.5 lp and title
+  11.5 lp, a 28 lp «دعوة» button, rows about 42 lp (were about 64). The stage draws two, three or four hosts as above;
+  FREE_FOR_ALL has a four-part bar (one colour per host, the leader first) and each pane's booster, place medal and the
+  1 v 1 result animation. **The result badge** directly under the scores line — smaller and softer than the 1 v 1 result
+  (whose win / lose / draw animation still plays over the panes): gold with a crown for a win («فاز فريقكم», «فزت» when the
+  room plays alone on its side, «المركز الأول»), a calm muted glass for a loss («خسر فريقكم», «خسرت», «المركز N»), a soft
+  lavender for a draw («تعادل الفريقان», «تعادل على المركز الأول»). The dare card (the 1 v 1 card for the room's side) and
+  «جولة أخرى» for four («العب جولة أخرى مع الجميع؟», «بانتظار موافقة N…», «وافقت — بانتظار البقية», «@A يريد جولة أخرى») in the
+  room's dock.
+- **The panel.** `AdminLivePk4.type`, `playerCount`, `hosts[].place` (2–4 hosts); the live card lists a FREE_FOR_ALL PK
+  as «الكل ضد الكل: @a · @b · @c» and the dialog the format, the hosts playing, «PK أحكام» and each place. `pk-admin`
+  prints the format, the type, the hosts playing and the places.
+- **Config.** `PK4_RANDOM_WAIT_SECONDS` (120, 15–600). The 4-way random queue, FREE_FOR_ALL, the dares and the rematch
+  for four follow `PK4_ENABLED` (default true — on in staging) and `PK_DARES_ENABLED`; no new switch.
+- **Migration** `20270521090000_pk4_phase3`: columns `pk4_lobbies.type`; `pk4_matches.type`, `source`, `player_count`,
+  `rematch_of`, `rematch_root_id`, `rematch_count`, `rematch_by_room_id`, `rematch_expires_at`, `rematch_accepted`,
+  `top_seats`; `pk4_seats.place`; `pk4_boosts.seat`; `pk4_supporters.seat` (primary key widened to
+  `(match_id, team, seat, user_id)`); tables `pk4_match_dares` and `pk4_queue` (runtime grants from the default
+  privileges). Every phase-2 row keeps its meaning (TEAMS, NORMAL, four players, an invitation).

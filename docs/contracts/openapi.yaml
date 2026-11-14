@@ -5671,8 +5671,8 @@ paths:
       summary: "Open a 4-way lobby as its organiser «PK رباعي» (D391)"
       description: |
         v1.118-live, §10.180. The room's host becomes the **organiser** (place 1, team A). Checks: hosting off → 503;
-        PK or `PK4_ENABLED` off → 409 `PK_UNAVAILABLE`; the body → 400 (`format` TEAMS; FREE_FOR_ALL is phase 3 →
-        409 `PK_UNAVAILABLE`); the caller's own room (404), LIVE (409 `LIVE_ROOM_ENDED`), eligible as for a 1 v 1 PK
+        PK or `PK4_ENABLED` off → 409 `PK_UNAVAILABLE`; the body → 400 (`format` TEAMS or, v1.119-live (D395,
+        §10.181), FREE_FOR_ALL; `type` DARES needs PK_DARES_ENABLED, else 409 `PK_UNAVAILABLE`); the caller's own room (404), LIVE (409 `LIVE_ROOM_ENDED`), eligible as for a 1 v 1 PK
         (409 `PK_UNAVAILABLE`); not busy for either PK — a 1 v 1 match, an open 1 v 1 invitation either way, the
         caller's random-queue wait, an open 4-way lobby, invitation or match (409 `PK_HOST_BUSY`). The lobby is open
         for `PK4_LOBBY_SECONDS` (120). Rate limit as `inviteLivePk` (bucket `live:pk:invite`).
@@ -5781,7 +5781,9 @@ paths:
         caller's random-queue wait ends here). The place becomes ACCEPTED (`pk4-lobby` `accepted`). When **all three
         places** are accepted the match is created under the four rooms' PK locks with the organiser's round time and
         auto-start (§10.62): BATTLE at once, or CONNECTED when the organiser's auto-start is off; the lobby becomes
-        STARTED and the four rooms get `pk4-match` (`started` / `connected`). The answer is the caller's `Pk4State`.
+        STARTED and the four rooms get `pk4-match` (`started` / `connected`). v1.119-live (D395, §10.181): with fewer in,
+        the organiser may start now (`startLivePk4Lobby`) and the lobby's end starts it with two or more in. The answer
+        is the caller's `Pk4State`.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/PkInviteIdPath'
