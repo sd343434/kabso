@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Kabso Live — automatic update (KL-069, docs/DEPLOYMENT.md §11). Run by kabso-update.timer every
+# 5 minutes, and once by install.sh with --force.
+#
+# 1. fast-forwards /opt/kabso to origin/$KABSO_BRANCH (compose file, Caddyfile, initdb) and rebuilds the admin
+#    panel's static files when apps/admin changed (build-admin.sh, D191) and the studio's when apps/studio changed
+#    (build-studio.sh, D247);
+# 2. pulls the API image CI published for that branch ($KABSO_API_IMAGE, only after CI is green);
+# 3. when either changed, or the running API is not on the pulled image yet: runs `prisma migrate
+#    deploy` as the migration role, then restarts the services whose image or configuration
+#    changed. A failed migration stops here and the running API keeps serving
+#    (docs/DEPLOYMENT.md §5); the next run tries again, because the API is still on the old image.
+# 4. D330: at the end of every run, whatever happened above, mirrors the staging test APK from the public
+#    `staging-latest` release into infra/deploy/app/ (mirror-apk.sh; https://live.<domain>/app/, §11.8). Best effort:
+#    its failure is logged and changes neither this run's result nor the API. D356: then the event page preview bundle
+#    the panel embeds, from the same release, into infra/deploy/event-preview/ (mirror-event-preview.sh, §11.14), the
+#    same best-effort way.
+set -euo pipefail
+
+APP_DIR=/opt/kabso
+cd "$APP_DIR"
+set -a; . /etc/kabso/kabso.env; set +a
+
+# Lets `docker compose -f infra/deploy/docker-compose.yml ...` work by hand too (compose reads
+# .env from the project directory; git ignores it).
+ln -sfn /etc/kabso/kabso.env infra/deploy/.env
+
+exec 9>/run/kabso-update.lock
+flock -n 9 || { echo "another update is running"; exit 0; }
+
+# D330: the staging APK mirror runs last (an EXIT trap: also after the early "nothing changed" exit and after a failed
+# deploy), so a slow download never delays a deploy; the script's own exit status is kept. Run as a separate process
+# with a time limit; never fatal.
+# shellcheck disable=SC2329 # invoked by the EXIT trap below
+mirror_apk() {
+  if [ -x "$APP_DIR/infra/deploy/mirror-apk.sh" ]; then
+    timeout 600 "$APP_DIR/infra/deploy/mirror-apk.sh" ||
+      echo "staging APK mirror failed (exit $?); the previous APK stays served" >&2
+  fi
+  # D356: the event page preview bundle (the panel's design step).
+  if [ -x "$APP_DIR/infra/deploy/mirror-event-preview.sh" ]; then
+    timeout 600 "$APP_DIR/infra/deploy/mirror-event-preview.sh" ||
+      echo "event preview mirror failed (exit $?); the previous bundle stays served" >&2
+  fi
+}
+trap mirror_apk EXIT
+# The directories Caddy mounts at /srv/app and /srv/event-preview (git-ignored); created here so Docker never has to.
+mkdir -p infra/deploy/app infra/deploy/event-preview
+
+C=(docker compose -f infra/deploy/docker-compose.yml)
+
+before=$(git rev-parse HEAD)
+git fetch -q origin "$KABSO_BRANCH"
+git merge -q --ff-only "origin/$KABSO_BRANCH"
+after=$(git rev-parse HEAD)
+
+old_image=$(docker image inspect -f '{{.Id}}' "$KABSO_API_IMAGE" 2>/dev/null || true)
+docker pull -q "$KABSO_API_IMAGE" >/dev/null
+new_image=$(docker image inspect -f '{{.Id}}' "$KABSO_API_IMAGE")
+
+# The image the running API container was started from (empty when it is not running).
+api_container=$("${C[@]}" ps -q api)
+running_image=$( [ -n "$api_container" ] && docker inspect -f '{{.Image}}' "$api_container" 2>/dev/null || true)
+
+# v1.60-social (D191): the admin panel's static build (skips itself when apps/admin did not change). A failed build
+# keeps the previous one and does not stop the API deploy.
+infra/deploy/build-admin.sh || echo "admin panel build failed; the previous build stays" >&2
+# v1.57-live (D247): «استوديو البث» the same way (skips itself when apps/studio did not change).
+infra/deploy/build-studio.sh || echo "studio build failed; the previous build stays" >&2
+
+if [ "${1:-}" != "--force" ] && [ "$before" = "$after" ] && [ "$old_image" = "$new_image" ] &&
+  [ "$running_image" = "$new_image" ]; then
+  exit 0
+fi
+
+echo "deploying commit ${after:0:12}, API image ${new_image#sha256:}"
+# D192: the website's legal fields the owner still has to fill (infra/deploy/site/config.json; docs/DEPLOYMENT.md
+# §11.7). Caddy serves the site straight from the checkout, so a merged change is live without a restart.
+site_config=infra/deploy/site/config.json
+if [ -f "$site_config" ]; then
+  empty=$(grep -oE '"[A-Za-z]+": *("" *|null)' "$site_config" | cut -d'"' -f2 | paste -sd' ' - || true)
+  [ -n "$empty" ] && echo "warning: website legal fields still empty in $site_config: $empty" >&2
+  grep -qE '"legalReviewed": *true' "$site_config" ||
+    echo "warning: website legal pages not reviewed yet (legalReviewed is not true): they show the draft banner" >&2
+fi
+"${C[@]}" up -d --wait postgres redis
+"${C[@]}" --profile jobs run --rm migrate
+"${C[@]}" up -d --remove-orphans
+# The Caddyfile is a bind mount, so `up -d` does not restart Caddy when only its content changed (D192). D205: on the
+# server a `caddy reload` did not start serving a new site block (`admin.`), while recreating the container did (and
+# its certificate was then obtained), so recreate it. Certificates live in the caddy-data volume and are kept.
+if [ "$before" != "$after" ] && ! git diff --quiet "$before" "$after" -- infra/deploy/Caddyfile; then
+  "${C[@]}" up -d --force-recreate caddy && echo "Caddy recreated (Caddyfile changed)"
+fi
+
+for _ in $(seq 1 30); do
+  if "${C[@]}" exec -T api node -e "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" 2>/dev/null; then
+    echo "API ready"
+    docker image prune -f >/dev/null
+    exit 0
+  fi
+  sleep 2
+done
+echo "API did not become ready; recent logs:" >&2
+"${C[@]}" logs --tail 50 api >&2
+exit 1

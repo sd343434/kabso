@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/ids/install_id.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
@@ -15,6 +17,9 @@ import '../../helpers/fakes.dart';
 import '../../helpers/pump_app.dart';
 
 const _base = '/api/v1';
+
+/// D217: the install id the app sends with every sign-in and sign-up.
+const _installId = 'install-0001-test';
 
 void main() {
   late FakeHttpAdapter http;
@@ -35,6 +40,7 @@ void main() {
         httpClientAdapterProvider.overrideWithValue(http),
         secureTokenStoreProvider.overrideWithValue(store),
         sharedPreferencesProvider.overrideWithValue(prefs),
+        installIdProvider.overrideWithValue(_installId),
       ],
     );
     repo = container.read(authRepositoryProvider);
@@ -70,7 +76,11 @@ void main() {
         expect(req.data, {
           'identifier': 'layla.k',
           'password': 'pa55word!',
-          'device': {'platform': 'android', 'appVersion': '1.2.3'},
+          'device': {
+            'platform': 'android',
+            'appVersion': '1.2.3',
+            'installId': _installId,
+          },
         });
         expect(req.headers.containsKey('Authorization'), isFalse);
         expect(user.username, 'layla.k');
@@ -132,6 +142,7 @@ void main() {
       password: 'pa55word!',
       username: 'layla.k',
       displayName: ' ليلى ',
+      gender: Gender.female,
       locale: 'ar',
     );
 
@@ -140,8 +151,14 @@ void main() {
       'password': 'pa55word!',
       'username': 'layla.k',
       'displayName': 'ليلى',
+      // v1.47-social (D175): required at sign-up.
+      'gender': 'FEMALE',
       'locale': 'ar',
-      'device': {'platform': 'android', 'appVersion': '1.2.3'},
+      'device': {
+        'platform': 'android',
+        'appVersion': '1.2.3',
+        'installId': _installId,
+      },
     });
     // No tokens before the code is verified.
     expect(store.refreshToken, isNull);
@@ -173,7 +190,11 @@ void main() {
       expect(req.data, {
         'email': 'layla@example.com',
         'code': '48210937',
-        'device': {'platform': 'android', 'appVersion': '1.2.3'},
+        'device': {
+          'platform': 'android',
+          'appVersion': '1.2.3',
+          'installId': _installId,
+        },
       });
       expect(user.displayName, 'Layla');
       expect(user.emailVerified, isTrue);
@@ -264,6 +285,7 @@ void main() {
       password: 'pa55word!',
       username: ' Layla.K ',
       displayName: 'L',
+      gender: Gender.undisclosed,
       locale: 'en',
     );
 
@@ -283,6 +305,7 @@ void main() {
         password: 'pa55word!',
         username: 'admin',
         displayName: 'A',
+        gender: Gender.male,
         locale: 'en',
       ),
       throwsA(

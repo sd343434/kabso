@@ -1,0 +1,31 @@
+name: kabso_camera_fx
+description: >-
+  Kabso Live's camera processing on the published track (D144): colour
+  filters (D143 Magic) and DeepAR effects, applied before the encoder so the
+  host and every viewer see the same picture. Android only in phase 1; other
+  platforms report "unsupported".
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.5
+  flutter: ">=3.47.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The processor installs itself on flutter_webrtc's native LocalVideoTrack
+  # (Android `LocalVideoTrack.addProcessor`). Pinned to the app's version: the
+  # processor relies on that exact native API.
+  flutter_webrtc: 1.6.2+hotfix.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.kabso.kabso_camera_fx
+        pluginClass: KabsoCameraFxPlugin

@@ -1,0 +1,124 @@
+# Kabso Live — single-server deployment (KL-069, docs/DEPLOYMENT.md §11).
+#
+# Not the local dev stack (that is /docker-compose.yml). Driven by infra/deploy/install.sh and
+# infra/deploy/update.sh on the server; every value comes from /etc/kabso/*.env, which
+# install.sh generates ON the server (never in git). Only Caddy (80/443) and the LiveKit media
+# ports are published; the API, PostgreSQL and Redis are reachable only on the internal network.
+name: kabso
+
+services:
+  postgres:
+    # postgres:16.15-alpine — multi-arch index digest resolved 2026-10-15 (scripts/image-digests.sh)
+    image: postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+    restart: unless-stopped
+    env_file: /etc/kabso/postgres.env
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+      - ../postgres/bootstrap-roles.sql:/kabso/bootstrap-roles.sql:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  redis:
+    # redis:7.4-alpine — multi-arch index digest resolved 2026-10-15
+    image: redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
+    volumes:
+      - redis-data:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # One-shot job, run by update.sh before the API is (re)started: `prisma migrate deploy` as the
+  # migration role. Only this service gets MIGRATION_DATABASE_URL (docs/DEPLOYMENT.md §5).
+  migrate:
+    image: ${KABSO_API_IMAGE:?set in /etc/kabso/kabso.env}
+    profiles: ["jobs"]
+    env_file: /etc/kabso/migrate.env
+    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+    restart: "no"
+
+  api:
+    image: ${KABSO_API_IMAGE:?set in /etc/kabso/kabso.env}
+    restart: unless-stopped
+    env_file: /etc/kabso/api.env
+    # D152 push notifications: the Firebase Admin SDK key, read-only, never in git or in an env
+    # file. The API runs as `node` (uid/gid 1000), so the host file is root:1000, mode 640, inside
+    # /etc/kabso (700, root only) — docs/DEPLOYMENT.md §11.4. If the host file is missing, Docker
+    # creates an empty directory at that path; the API then logs "Push notifications are off" and
+    # runs normally. KABSO_FIREBASE_ADMIN_FILE (kabso.env) may point elsewhere, e.g. /dev/null.
+    environment:
+      FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase-admin.json
+    volumes:
+      - ${KABSO_FIREBASE_ADMIN_FILE:-/etc/kabso/firebase-admin.json}:/run/secrets/firebase-admin.json:ro
+      # D355 WhatsApp: the System User token, app secret and verify token as files
+      # (docs/DEPLOYMENT.md §11.13): folder root:1000 750, files root:1000 640. A missing
+      # folder becomes an empty one and WhatsApp stays off (no WHATSAPP_* settings).
+      - ${KABSO_WHATSAPP_SECRETS_DIR:-/opt/kabso/secrets/whatsapp}:/run/secrets/whatsapp:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [internal]
+
+  livekit:
+    # livekit/livekit-server:v1.9.1 — multi-arch index digest resolved 2026-10-25
+    image: livekit/livekit-server:v1.9.1@sha256:c039a1bfa154c8479ac369c380665638e92a7e9531e69664549c0c0d3eb65e63
+    restart: unless-stopped
+    command: ["--config", "/etc/livekit.yaml"]
+    volumes:
+      - /etc/kabso/livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      # WebRTC media: TCP fallback and the single UDP mux port (livekit.yaml rtc.*).
+      - "7881:7881/tcp"
+      - "7882:7882/udp"
+    networks: [internal]
+
+  caddy:
+    # caddy:2.10.2-alpine — multi-arch index digest resolved 2026-10-25
+    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    restart: unless-stopped
+    env_file: /etc/kabso/kabso.env
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./site:/srv/site:ro
+      # v1.60-social (D191): the admin panel's build (build-admin.sh swaps admin/current; not in git).
+      - ./admin:/srv/admin:ro
+      # v1.57-live (D247): «استوديو البث»'s build (build-studio.sh swaps studio/current; not in git).
+      - ./studio:/srv/studio:ro
+      # D330: the staging test APK mirror (mirror-apk.sh, run by update.sh; not in git), at https://live.<domain>/app/.
+      - ./app:/srv/app:ro
+      # D356: the event page preview bundle the panel embeds (mirror-event-preview.sh swaps event-preview/current; not
+      # in git), at https://admin.<domain>/event-preview/.
+      - ./event-preview:/srv/event-preview:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [api, livekit]
+    networks: [internal]
+
+networks:
+  internal:
+
+volumes:
+  postgres-data:
+  redis-data:
+  caddy-data:
+  caddy-config:

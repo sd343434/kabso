@@ -1,0 +1,389 @@
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kabso_camera_fx/kabso_camera_fx.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel(KabsoCameraFx.channelName);
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  final calls = <MethodCall>[];
+
+  setUp(() {
+    calls.clear();
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return switch (call.method) {
+        'attach' || 'setLicenseKey' => true,
+        _ => null,
+      };
+    });
+  });
+
+  tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+  test('Android: every call reaches the plugin with its arguments', () async {
+    final fx = KabsoCameraFx(supported: true);
+    expect(await fx.attach('track-1'), isTrue);
+    await fx.setColorMatrix(List<double>.filled(12, 0.5));
+    expect(await fx.setLicenseKey('key'), isTrue);
+    await fx.setEffect(KabsoCameraFxEffects.backgroundBlur);
+    await fx.setEffect(null);
+    await fx.release();
+    expect(calls.map((c) => c.method), [
+      'attach',
+      'setColorMatrix',
+      'setLicenseKey',
+      'setEffect',
+      'setEffect',
+      'release',
+    ]);
+    expect(calls[0].arguments, {'trackId': 'track-1'});
+    expect((calls[1].arguments as Map)['matrix'], hasLength(12));
+    expect(calls[2].arguments, {'licenseKey': 'key'});
+    expect(calls[3].arguments, {'effect': 'builtin:background_blur'});
+    expect(calls[4].arguments, {'effect': null});
+  });
+
+  test('elsewhere: no-ops that answer false', () async {
+    final fx = KabsoCameraFx(supported: false);
+    expect(fx.isSupported, isFalse);
+    expect(await fx.attach('t'), isFalse);
+    expect(await fx.setLicenseKey('key'), isFalse);
+    await fx.setColorMatrix(null);
+    await fx.setEffect('x');
+    await fx.release();
+    expect(calls, isEmpty);
+  });
+
+  test('an empty key or track id is not sent', () async {
+    final fx = KabsoCameraFx(supported: true);
+    expect(await fx.attach(''), isFalse);
+    expect(await fx.setLicenseKey(''), isFalse);
+    expect(calls, isEmpty);
+  });
+
+  test('a matrix must have 12 values', () {
+    final fx = KabsoCameraFx(supported: true);
+    expect(() => fx.setColorMatrix([1, 0, 0]), throwsArgumentError);
+  });
+
+  test('no plugin registered: false, not a crash', () async {
+    messenger.setMockMethodCallHandler(channel, null);
+    final fx = KabsoCameraFx(supported: true);
+    expect(await fx.attach('t'), isFalse);
+    await fx.setEffect(null);
+  });
+
+  group('D144a status and diagnostics', () {
+    Future<void> nativeSays(String method, Object? arguments) async {
+      final data = const StandardMethodCodec().encodeMethodCall(
+        MethodCall(method, arguments),
+      );
+      await messenger.handlePlatformMessage(
+        KabsoCameraFx.channelName,
+        data,
+        (_) {},
+      );
+    }
+
+    test('native status calls arrive as statuses', () async {
+      final fx = KabsoCameraFx(supported: true);
+      final seen = <KabsoCameraFxStatus>[];
+      final sub = fx.statusChanges.listen(seen.add);
+      await nativeSays('status', {'state': 'initializing', 'reason': null});
+      await nativeSays('status', {'state': 'ready', 'reason': null});
+      await nativeSays('status', {'state': 'disabled', 'reason': 'no_output'});
+      await nativeSays('status', {'state': 'licence_failed', 'reason': 'x'});
+      await nativeSays('status', {'state': 'error', 'reason': 'init_timeout'});
+      await nativeSays('status', 'garbage');
+      await sub.cancel();
+      expect(seen, const [
+        KabsoCameraFxStatus(KabsoCameraFxState.initializing),
+        KabsoCameraFxStatus(KabsoCameraFxState.ready),
+        KabsoCameraFxStatus(KabsoCameraFxState.disabled, 'no_output'),
+        KabsoCameraFxStatus(KabsoCameraFxState.licenceFailed, 'x'),
+        KabsoCameraFxStatus(KabsoCameraFxState.error, 'init_timeout'),
+        KabsoCameraFxStatus.off,
+      ]);
+      expect(KabsoCameraFxState.disabled.isFailure, isTrue);
+      expect(KabsoCameraFxState.ready.isFailure, isFalse);
+      messenger.setMockMethodCallHandler(channel, null);
+    });
+
+    test('diagnostics parse every counter; no key in them', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'diagnostics');
+        return {
+          'state': 'ready',
+          'reason': null,
+          'licencePresent': true,
+          'attached': true,
+          'initialized': true,
+          'framesIn': 300,
+          'fed': 280,
+          'busySkips': 20,
+          'delivered': 590,
+          'staleDropped': 300,
+          'framesOut': 290,
+          'timeouts': 10,
+          'consecutiveMisses': 0,
+          'avgWaitMs': 12.5,
+          'avgPackMs': 4,
+          'inFlightMs': 3,
+          'instances': 1,
+          'input': '1280x720@270',
+          'sdkVersion': '5.6.22',
+          'lastError': null,
+          'inputLuma': 118,
+          'outputLuma': 17,
+          'blackMs': 1250,
+          'probe': 'passthrough_ok',
+        };
+      });
+      final d = (await KabsoCameraFx(supported: true).diagnostics())!;
+      expect(d.status, const KabsoCameraFxStatus(KabsoCameraFxState.ready));
+      expect(d.licencePresent, isTrue);
+      expect(d.attached, isTrue);
+      expect(d.framesIn, 300);
+      expect(d.fed, 280);
+      expect(d.busySkips, 20);
+      expect(d.delivered, 590);
+      expect(d.staleDropped, 300);
+      expect(d.framesOut, 290);
+      expect(d.timeouts, 10);
+      expect(d.avgWaitMs, 12.5);
+      expect(d.avgPackMs, 4.0);
+      expect(d.instances, 1);
+      expect(d.input, '1280x720@270');
+      expect(d.sdkVersion, '5.6.22');
+      // D145e: input vs output brightness, the black run and the probe.
+      expect(d.inputLuma, 118);
+      expect(d.outputLuma, 17);
+      expect(d.blackMs, 1250);
+      expect(d.probe, 'passthrough_ok');
+      expect(await KabsoCameraFx(supported: false).diagnostics(), isNull);
+    });
+
+    test('D145e: no luma sample yet reads -1, not black', () {
+      final d = KabsoCameraFxDiagnostics.fromMap(const {'state': 'ready'});
+      expect(d.inputLuma, -1);
+      expect(d.outputLuma, -1);
+      expect(d.blackMs, 0);
+      expect(d.probe, isNull);
+      expect(
+        KabsoCameraFxStatus.fromMap(const {
+          'state': 'disabled',
+          'reason': 'black_output',
+        }),
+        const KabsoCameraFxStatus(KabsoCameraFxState.disabled, 'black_output'),
+      );
+    });
+  });
+
+  group('D144b', () {
+    test('release names its track (a late stop never frees the next '
+        "camera's processor); no track: everything", () async {
+      final fx = KabsoCameraFx(supported: true);
+      await fx.release(trackId: 'old-camera');
+      await fx.release();
+      expect(calls.map((c) => c.method), ['release', 'release']);
+      expect(calls[0].arguments, {'trackId': 'old-camera'});
+      expect(calls[1].arguments, isNull);
+    });
+
+    test('diagnostics: camera frames into the processor and the frame path; '
+        'no_frames is an error status', () {
+      final d = KabsoCameraFxDiagnostics.fromMap(const {
+        'state': 'error',
+        'reason': 'no_frames',
+        'attached': true,
+        'cameraFrames': 0,
+        'framePath': 'rebound',
+      });
+      expect(
+        d.status,
+        const KabsoCameraFxStatus(KabsoCameraFxState.error, 'no_frames'),
+      );
+      expect(d.status.state.isFailure, isTrue);
+      expect(d.cameraFrames, 0);
+      expect(d.framePath, 'rebound');
+      final old = KabsoCameraFxDiagnostics.fromMap(const {'state': 'ready'});
+      expect(old.cameraFrames, 0);
+      expect(old.framePath, isNull);
+    });
+  });
+
+  test('D144c: diagnostics carry the first lit picture, held-back black '
+      "renders, DeepAR's engine state and its last warning", () {
+    final d = KabsoCameraFxDiagnostics.fromMap(const {
+      'state': 'initializing',
+      'litMs': 2400,
+      'heldBlack': 61,
+      'engine': 2,
+      'lastWarning':
+          'WARNING: Switch effect called but DeepAR rendering is '
+          'paused!',
+    });
+    expect(d.litMs, 2400);
+    expect(d.heldBlack, 61);
+    expect(d.engine, 2);
+    expect(d.lastWarning, contains('paused'));
+    final none = KabsoCameraFxDiagnostics.fromMap(const {'state': 'off'});
+    expect(none.litMs, -1);
+    expect(none.engine, -1);
+    expect(
+      KabsoCameraFxStatus.fromMap(const {
+        'state': 'error',
+        'reason': 'engine_busy',
+      }),
+      const KabsoCameraFxStatus(KabsoCameraFxState.error, 'engine_busy'),
+    );
+  });
+
+  group('D144a permissions', () {
+    const permissionsChannel = MethodChannel(KabsoPermissions.channelName);
+    final asked = <MethodCall>[];
+
+    setUp(() {
+      asked.clear();
+      messenger.setMockMethodCallHandler(permissionsChannel, (call) async {
+        asked.add(call);
+        return switch (call.method) {
+          'status' => {'camera': 'notAsked', 'microphone': 'granted'},
+          'request' => {'camera': 'blocked', 'microphone': 'granted'},
+          'openSettings' => true,
+          _ => null,
+        };
+      });
+    });
+
+    tearDown(
+      () => messenger.setMockMethodCallHandler(permissionsChannel, null),
+    );
+
+    test('status, request and settings reach the plugin', () async {
+      final p = KabsoPermissions(supported: true);
+      expect(
+        await p.status({KabsoPermission.camera, KabsoPermission.microphone}),
+        {
+          KabsoPermission.camera: KabsoPermissionStatus.notAsked,
+          KabsoPermission.microphone: KabsoPermissionStatus.granted,
+        },
+      );
+      expect(await p.request({KabsoPermission.camera}), {
+        KabsoPermission.camera: KabsoPermissionStatus.blocked,
+      });
+      expect(await p.openSettings(), isTrue);
+      expect(asked.map((c) => c.method), ['status', 'request', 'openSettings']);
+      expect((asked[0].arguments as Map)['kinds'], ['camera', 'microphone']);
+      expect((asked[1].arguments as Map)['kinds'], ['camera']);
+    });
+
+    test('D152: the notification permission goes by its own kind', () async {
+      messenger.setMockMethodCallHandler(permissionsChannel, (call) async {
+        asked.add(call);
+        return {'notifications': 'denied'};
+      });
+      final p = KabsoPermissions(supported: true);
+      expect(await p.request({KabsoPermission.notifications}), {
+        KabsoPermission.notifications: KabsoPermissionStatus.denied,
+      });
+      expect((asked.single.arguments as Map)['kinds'], ['notifications']);
+    });
+
+    test('elsewhere or without the plugin: unknown, nothing asked', () async {
+      final elsewhere = KabsoPermissions(supported: false);
+      expect(await elsewhere.status({KabsoPermission.microphone}), {
+        KabsoPermission.microphone: KabsoPermissionStatus.unknown,
+      });
+      expect(await elsewhere.openSettings(), isFalse);
+      expect(asked, isEmpty);
+      messenger.setMockMethodCallHandler(permissionsChannel, null);
+      expect(
+        await KabsoPermissions(supported: true)
+            .request({KabsoPermission.camera}),
+        {KabsoPermission.camera: KabsoPermissionStatus.unknown},
+      );
+    });
+  });
+
+  group('D228 free engine', () {
+    test('the engine switch and the free effects reach the plugin', () async {
+      final fx = KabsoCameraFx(supported: true);
+      await fx.setEngine(KabsoCameraFxEngine.free);
+      await fx.setFreeFx(
+        const KabsoFreeFx(backgroundBlur: true, smooth: 0.4, eyes: 1.6),
+      );
+      await fx.setFreeFx(KabsoFreeFx.none);
+      await fx.setEngine(KabsoCameraFxEngine.deepAr);
+      expect(calls.map((c) => c.method), [
+        'setEngine',
+        'setFreeFx',
+        'setFreeFx',
+        'setEngine',
+      ]);
+      expect(calls[0].arguments, {'engine': 'free'});
+      expect(calls[1].arguments, {
+        'blur': true,
+        'smooth': 0.4,
+        'brighten': 0.0,
+        'slim': 0.0,
+        'eyes': 1.0,
+      });
+      expect((calls[2].arguments as Map)['blur'], isFalse);
+      expect(calls[3].arguments, {'engine': 'deepar'});
+      expect(KabsoFreeFx.none.isNone, isTrue);
+      expect(const KabsoFreeFx(brighten: 0.1).isNone, isFalse);
+    });
+
+    test('elsewhere: nothing is sent', () async {
+      final fx = KabsoCameraFx(supported: false);
+      await fx.setEngine(KabsoCameraFxEngine.free);
+      await fx.setFreeFx(const KabsoFreeFx(backgroundBlur: true));
+      expect(calls, isEmpty);
+    });
+
+    test("diagnostics carry the free engine's times and model", () {
+      final d = KabsoCameraFxDiagnostics.fromMap({
+        'state': 'ready',
+        'reason': 'beauty_unavailable',
+        'fxEngine': 'free',
+        'framesIn': 300,
+        'framesOut': 290,
+        'timeouts': 10,
+        'frameMs': 11.5,
+        'lastFrameMs': 9,
+        'budgetMs': 40,
+        'slowFrames': 3,
+        'skippedFrames': 30,
+        'backoffs': 1,
+        'analysisMs': 21.0,
+        'segmentMs': 8.25,
+        'landmarkMs': 12.5,
+        'analyses': 140,
+        'facePresent': true,
+        'faceModel': 'failed',
+      });
+      expect(d.isFree, isTrue);
+      expect(d.status.state, KabsoCameraFxState.ready);
+      expect(d.status.reason, 'beauty_unavailable');
+      expect(d.frameMs, 11.5);
+      expect(d.lastFrameMs, 9);
+      expect(d.budgetMs, 40);
+      expect(d.slowFrames, 3);
+      expect(d.skippedFrames, 30);
+      expect(d.backoffs, 1);
+      expect(d.analysisMs, 21);
+      expect(d.segmentMs, 8.25);
+      expect(d.landmarkMs, 12.5);
+      expect(d.analyses, 140);
+      expect(d.facePresent, isTrue);
+      expect(d.faceModel, 'failed');
+      expect(
+        KabsoCameraFxDiagnostics.fromMap({'fxEngine': 'deepar'}).isFree,
+        isFalse,
+      );
+    });
+  });
+}

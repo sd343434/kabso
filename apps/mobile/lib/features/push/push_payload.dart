@@ -1,0 +1,177 @@
+import 'package:kabso_live/app/router/routes.dart';
+
+/// D152: a push as the app sees it — the FCM data the server sends
+/// (CONVENTIONS §11.12): `kind` `notification` (channel `general`),
+/// `family_chat` or (D155, §11.13) `dm` (channel `messages`).
+class PushPayload {
+  const new(this.data);
+
+  /// FCM data (string values).
+  final Map<String, String> data;
+
+  static const kindNotification = 'notification';
+  static const kindFamilyChat = 'family_chat';
+
+  /// D155: a direct message (`conversationId`, `messageId`,
+  /// `senderUsername`).
+  static const kindDm = 'dm';
+
+  /// v1.104-social (D339): a group message, or being added to a group
+  /// (`groupId`, `messageId` for a message, `senderUsername`).
+  static const kindDmGroup = 'dm_group';
+
+  /// v1.116-social (D355, §10.151.5): a customer's WhatsApp message
+  /// (`conversationId`; channel `staff`).
+  static const kindWhatsApp = 'whatsapp';
+
+  /// v1.137-social (D385, §10.174.6): a staff reply in «دعم كابسو»
+  /// (`conversationId`; channel `messages`).
+  static const kindSupport = 'support';
+
+  String? get kind => data['kind'];
+
+  /// The chat a `messages` push belongs to (the same id the open chat
+  /// screen reports, [familyConversation]), or `null`.
+  String? get conversation {
+    if (kind == kindDm) {
+      final id = data['conversationId'];
+      return id == null || id.isEmpty ? null : dmConversation(id);
+    }
+    if (kind == kindDmGroup) {
+      final id = data['groupId'];
+      return id == null || id.isEmpty ? null : dmGroupConversation(id);
+    }
+    if (kind == kindSupport) {
+      final id = data['conversationId'];
+      return id == null || id.isEmpty ? null : supportConversation(id);
+    }
+    final family = data['familyId'];
+    return kind == kindFamilyChat && family != null && family.isNotEmpty
+        ? familyConversation(family)
+        : null;
+  }
+
+  bool get isMessage =>
+      kind == kindFamilyChat ||
+      kind == kindDm ||
+      kind == kindDmGroup ||
+      kind == kindSupport;
+
+  /// A direct or (D339) group message: the Messages badge and lists read
+  /// the server again.
+  /// D385: a «دعم كابسو» reply counts too (the circle reads again).
+  bool get isDirectMessage =>
+      kind == kindDm || kind == kindDmGroup || kind == kindSupport;
+
+  /// v1.116-social (D355): a customer's WhatsApp message for the staff.
+  bool get isWhatsApp => kind == kindWhatsApp;
+
+  /// v1.78-live (D288): a new report in the shared queue (channel `staff`).
+  bool get isStaffReport =>
+      kind == kindNotification && data['type'] == 'STAFF_REPORT_NEW';
+
+  /// Where a tap goes: the family chat, or the notification's target as the
+  /// inbox would open it (`NotificationRow.routeTo`), else the inbox. `null`
+  /// for a push this app does not know.
+  String? route() {
+    switch (kind) {
+      case kindFamilyChat:
+        final family = data['familyId'];
+        return family == null || family.isEmpty
+            ? null
+            : AppRoutes.familyChat(family);
+      case kindDm:
+        final sender = data['senderUsername'];
+        return sender == null || sender.isEmpty
+            ? AppRoutes.messages
+            : AppRoutes.chat(sender);
+      case kindDmGroup:
+        final group = data['groupId'];
+        return group == null || group.isEmpty
+            ? AppRoutes.messages
+            : AppRoutes.groupChat(group);
+      case kindSupport:
+        return AppRoutes.supportChat;
+      case kindNotification:
+        return _notificationRoute() ?? AppRoutes.notifications;
+      case kindWhatsApp:
+        final c = data['conversationId'];
+        return c == null || c.isEmpty
+            ? AppRoutes.staffWhatsApp
+            : AppRoutes.staffWhatsAppChat(c);
+      default:
+        return null;
+    }
+  }
+
+  String? _notificationRoute() {
+    final type = data['type'];
+    final targetType = data['targetType'];
+    final id = data['targetId'];
+    if (type == 'CONTENT_REMOVED') return null;
+    if (type == 'CP_REQUEST' || type == 'CP_ACCEPTED') return AppRoutes.cp;
+    if (type == 'MEDAL_AWARDED') return AppRoutes.medals;
+    if (type == 'BAG_ITEM_RECEIVED') return AppRoutes.bag;
+    // D185.
+    if (type == 'RECHARGE_COINS_RECEIVED') return AppRoutes.wallet;
+    if (type == 'RECHARGE_CHERRY_REQUEST') return AppRoutes.rechargeCherries;
+    // D206: «افتح وكالة» — every agency notification opens «الوكالة».
+    if (type is String && type.startsWith('AGENCY_')) return AppRoutes.agency;
+    // D209: «كن مضيفاً مع الإدارة» decided.
+    if (type is String && type.startsWith('HOST_APPLICATION_')) {
+      return AppRoutes.agency;
+    }
+    // D227: the identity check's result.
+    if (type is String && type.startsWith('KYC_')) return AppRoutes.agency;
+    // D386: the account category's verification → Edit profile.
+    if (type == 'CATEGORY_VERIFIED' || type == 'CATEGORY_REVIEWED') {
+      return AppRoutes.editProfile;
+    }
+    // D217: a referral's cherries taken back.
+    if (type == 'REFERRAL_REWARD_REVERSED') return AppRoutes.walletCherries;
+    // D290: a level-raise request's result (the supporter: their levels).
+    if (type == 'LEVEL_RAISED') return AppRoutes.levels;
+    if (type == 'LEVEL_RAISE_APPROVED' || type == 'LEVEL_RAISE_REJECTED') {
+      return AppRoutes.staffLevelRaises;
+    }
+    if (id == null || id.isEmpty) return null;
+    // D273: a staff alert — the live, as staff, on its reports.
+    if (type == 'LIVE_STAFF_REPORT') return AppRoutes.liveRoomStaffReports(id);
+    // D288: a new report in the shared queue — «بلاغات» on it.
+    if (type == 'STAFF_REPORT_NEW') return AppRoutes.staffReport(id);
+    // D204: a recharge order's chat.
+    if (targetType == 'RECHARGE_ORDER') return AppRoutes.rechargeOrder(id);
+    final postId = data['targetPostId'];
+    final actor = data['actorUsername'];
+    return switch (targetType) {
+      'PREMIUM_USERNAME' => AppRoutes.premium,
+      'POST' => AppRoutes.post(id),
+      'COMMENT' when postId != null && postId.isNotEmpty => AppRoutes.post(
+        postId,
+        comments: true,
+      ),
+      'STORY' when actor != null && actor.isNotEmpty => AppRoutes.stories(
+        actor,
+      ),
+      'USER' => AppRoutes.userProfile(id),
+      'FAMILY' => AppRoutes.family(id),
+      'MEDAL' => AppRoutes.medals,
+      _ => null,
+    };
+  }
+}
+
+/// The conversation id of a family's chat (the server's Android tag).
+String familyConversation(String familyId) => 'family:$familyId';
+
+/// D155: the conversation id of a direct conversation (the server's
+/// Android tag).
+String dmConversation(String conversationId) => 'dm:$conversationId';
+
+/// v1.137-social (D385): the «دعم كابسو» thread's id (the server's Android
+/// tag `support:<id>`).
+String supportConversation(String conversationId) => 'support:$conversationId';
+
+/// v1.104-social (D339): the conversation id of a group (the server's
+/// Android tag `dmg:<id>`).
+String dmGroupConversation(String groupId) => 'dmg:$groupId';

@@ -12,10 +12,25 @@ class AuthRemoteDataSource {
 
   final Dio _dio;
 
-  Future<AuthResponseDto> login(LoginRequestDto body) => _guard(() async {
+  /// v1.62-social (D193): [cancelDeletion] cancels a pending account
+  /// deletion and signs in (otherwise such an account answers 409
+  /// `ACCOUNT_DELETION_PENDING`).
+  ///
+  /// v1.72-social (D208): [newPassword] answers 403
+  /// `PASSWORD_CHANGE_REQUIRED` (the team reset the password): it becomes the
+  /// account's password and the sign-in goes on.
+  Future<AuthResponseDto> login(
+    LoginRequestDto body, {
+    bool cancelDeletion = false,
+    String? newPassword,
+  }) => _guard(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/auth/login',
-      data: body.toJson(),
+      data: {
+        ...body.toJson(),
+        if (cancelDeletion) 'cancelDeletion': true,
+        'newPassword': ?newPassword,
+      },
       options: publicEndpoint(),
     );
     return AuthResponseDto.fromJson(res.data!);
@@ -60,6 +75,15 @@ class AuthRemoteDataSource {
     return MeDto.fromJson(res.data!);
   });
 
+  /// v1.27.1-live (D133): `PATCH /me` `{country}`; null clears it.
+  Future<MeDto> updateCountry(String? country) => _guard(() async {
+    final res = await _dio.patch<Map<String, dynamic>>(
+      '/me',
+      data: {'country': country},
+    );
+    return MeDto.fromJson(res.data!);
+  });
+
   Future<void> logout() => _guard(() => _dio.post<void>('/auth/logout'));
 
   Future<MeDto> getMe() => _guard(() async {
@@ -93,6 +117,15 @@ class AuthRemoteDataSource {
   Future<void> revokeSession(String sessionId) => _guard(
     () => _dio.delete<void>('/auth/sessions/${Uri.encodeComponent(sessionId)}'),
   );
+
+  /// v1.79-social (D226): `revokeOtherSessions` → `{revoked}`.
+  Future<int> revokeOtherSessions(String password) => _guard(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/auth/sessions/revoke-others',
+      data: {'password': password},
+    );
+    return res.data!['revoked'] as int;
+  });
 
   Future<T> _guard<T>(Future<T> Function() call) async {
     try {

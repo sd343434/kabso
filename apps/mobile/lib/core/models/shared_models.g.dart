@@ -21,6 +21,17 @@ _UserSummary _$UserSummaryFromJson(Map<String, dynamic> json) => _UserSummary(
   username: json['username'] as String,
   displayName: json['displayName'] as String,
   avatarUrl: json['avatarUrl'] as String?,
+  premiumTier: premiumTierFromJson(json['premiumTier']),
+  rechargeAgentCode: rechargeAgentCodeFromJson(json['rechargeAgent']),
+  hostAgentCode: rechargeAgentCodeFromJson(json['hostAgent']),
+  avatarFrame: avatarFrameFromJson(json['avatarFrame']),
+  rechargeBadge: rechargeBadgeFromJson(json['rechargeBadge']),
+  vip: userVipFromJson(userVipWithWear(json, 'vip')),
+  staffId: json['staffId'] as String?,
+  goldenId: userGoldenIdFromJson(json['goldenId']),
+  verification: verificationBadgeFromJson(json['verification']),
+  statusEmojiId: json['statusEmojiId'] as String?,
+  anonymous: json['anonymous'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
@@ -29,4 +40,15 @@ Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
       'username': instance.username,
       'displayName': instance.displayName,
       'avatarUrl': instance.avatarUrl,
+      'premiumTier': premiumTierToJson(instance.premiumTier),
+      'rechargeAgent': ?rechargeAgentCodeToJson(instance.rechargeAgentCode),
+      'hostAgent': ?rechargeAgentCodeToJson(instance.hostAgentCode),
+      'avatarFrame': ?avatarFrameToJson(instance.avatarFrame),
+      'rechargeBadge': ?rechargeBadgeToJson(instance.rechargeBadge),
+      'vip': ?userVipToJson(instance.vip),
+      'staffId': ?instance.staffId,
+      'goldenId': ?userGoldenIdToJson(instance.goldenId),
+      'verification': ?verificationBadgeToJson(instance.verification),
+      'statusEmojiId': ?instance.statusEmojiId,
+      'anonymous': ?trueOrNull(instance.anonymous),
     };

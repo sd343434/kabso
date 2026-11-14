@@ -1,0 +1,81 @@
+# Kabso Live — standalone LiveKit media node (D350, Phase 1: one Hetzner EX44, single node).
+# docs/infrastructure/LIVEKIT_SINGLE_NODE_DEPLOYMENT.md is the runbook; TURN_NETWORK_DESIGN.md explains the ports.
+#
+# This bundle is independent of infra/deploy (staging): staging keeps its own LiveKit v1.9.1 until LIVEKIT_URL is
+# switched by hand. Nothing here auto-updates (no kabso-update timer on media nodes): update-media.sh drains first.
+#
+# Every service uses HOST networking, as LiveKit recommends ("If running in a Dockerized environment, host networking
+# should be used for optimal performance", docs.livekit.io/transport/self-hosting/deployment). With host networking
+# ufw sees the real ports (no Docker DNAT that bypasses it).
+#
+# Files (rendered on the server by render-config.sh from the templates in this directory; none is in git):
+#   ${KABSO_MEDIA_ETC}/livekit.yaml   LiveKit config, no secret (mode 644)
+#   ${KABSO_MEDIA_ETC}/livekit.env    LIVEKIT_KEYS="<key>: <secret>" (mode 600, root)
+#   ${KABSO_MEDIA_ETC}/caddy.yaml     layer-4 TLS/SNI front on 443 (mode 644)
+name: kabso-media
+
+services:
+  livekit:
+    # livekit/livekit-server:v1.13.11 — multi-arch index digest resolved 2026-11-09 (Docker Hub tags API; the same
+    # digest was pulled through mirror.gcr.io for the local config check).
+    # update-media.sh may override it through ${KABSO_MEDIA_ETC}/images.env (LIVEKIT_IMAGE=…) after a drain.
+    image: ${LIVEKIT_IMAGE:-livekit/livekit-server:v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20}
+    network_mode: host
+    restart: unless-stopped
+    command: ["--config", "/etc/livekit.yaml"]
+    env_file:
+      - path: ${KABSO_MEDIA_ETC:-/etc/kabso-media}/livekit.env
+        required: true
+    volumes:
+      - ${KABSO_MEDIA_ETC:-/etc/kabso-media}/livekit.yaml:/etc/livekit.yaml:ro
+    # Drain (docs.livekit.io/transport/self-hosting/distributed): on SIGTERM LiveKit keeps active rooms running,
+    # accepts new participants into them, refuses new rooms, and exits when the last participant leaves. Docker's
+    # default 10 s would cut every live; 3 h lets a normal live finish. update-media.sh passes its own timeout.
+    stop_signal: SIGTERM
+    stop_grace_period: 3h
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    healthcheck:
+      # LiveKit answers "OK" on / of its HTTP port (bound to 127.0.0.1, livekit.yaml bind_addresses).
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:7880/"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "10" }
+
+  caddy:
+    # livekit/caddyl4:v2.11.3 — LiveKit's own Caddy build with the layer4 module (the image its VM generator uses);
+    # multi-arch index digest resolved 2026-11-09. The stock caddy image has no layer4.
+    image: ${CADDY_IMAGE:-livekit/caddyl4:v2.11.3@sha256:9dd090159a6042a907dbff0ce9dda27a21d2a559dc7b03b60a8e6b1b60b8348e}
+    network_mode: host
+    restart: unless-stopped
+    command: ["run", "--config", "/etc/caddy.yaml", "--adapter", "yaml"]
+    volumes:
+      - ${KABSO_MEDIA_ETC:-/etc/kabso-media}/caddy.yaml:/etc/caddy.yaml:ro
+      - caddy_data:/data
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+  node-exporter:
+    # prom/node-exporter:v1.12.1 — multi-arch index digest resolved 2026-11-09 (Docker Hub tags API).
+    image: ${NODE_EXPORTER_IMAGE:-prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0}
+    network_mode: host
+    pid: host
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+      # 127.0.0.1 by default; the private (vSwitch) address in Phase 2. ufw allows it only from MONITORING_IPS.
+      - --web.listen-address=${NODE_EXPORTER_LISTEN:-127.0.0.1:9100}
+      # health.sh writes kabso_media_probe_ok{probe=…} here every minute (alertable).
+      - --collector.textfile.directory=/host/var/lib/kabso-media/metrics
+    volumes:
+      - /:/host:ro,rslave
+
+volumes:
+  caddy_data: {}

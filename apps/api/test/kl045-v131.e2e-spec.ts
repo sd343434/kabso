@@ -16,7 +16,7 @@ import { performance } from 'node:perf_hooks';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppException } from '../src/common/errors/app-exception.js';
 import { Clock } from '../src/common/time/clock.js';
-import { CURSOR_MAX_STARTED_AT_MS, CURSOR_MAX_VIEWER_COUNT } from '../src/modules/live/live-cursor.js';
+import { CURSOR_MAX_SCORE, CURSOR_MAX_STARTED_AT_MS } from '../src/modules/live/live-cursor.js';
 import { LiveRoomsService } from '../src/modules/live/live-rooms.service.js';
 import { expectContract } from './helpers/openapi.js';
 import { createTestApp, newUser, registerVerified, type TestContext } from './helpers/test-app.js';
@@ -42,6 +42,9 @@ const cp = (...points: number[]) => String.fromCodePoint(...points);
 async function signup(ctx: TestContext, overrides: Partial<Record<string, unknown>> = {}): Promise<TestUser> {
   const { res } = await registerVerified(ctx, overrides);
   expect(res.status, JSON.stringify(res.body)).toBe(201);
+  // CP-010 (D93): going live needs the hosting permission. These v1.3 suites are about hosting,
+  // so every account they create may host; kl063-live-video covers the refusal without it.
+  await ctx.prisma.liveHost.create({ data: { userId: res.body.user.id as string, source: 'ADMIN' } });
   return { id: res.body.user.id, username: res.body.user.username, token: res.body.tokens.accessToken };
 }
 
@@ -353,12 +356,13 @@ describe('KL-045 v1.3.1 behaviour', () => {
     it('validly signed cursors at the bounds return 200; beyond them 400 (never 500)', async () => {
       const viewer = await signup(ctx);
       const id = '0192f1d0-0000-7000-8000-000000000000';
-      const base = { v: 1, c: null, u: null, i: id };
+      // v3 (v1.86-live, D310): `n` is the room cherries (int8; v2, CP-012: the score).
+      const base = { v: 3, c: null, u: null, i: id };
       for (const tab of ['popular', 'new'] as const) {
         for (const [n, s] of [
-          [CURSOR_MAX_VIEWER_COUNT, CURSOR_MAX_STARTED_AT_MS],
+          [CURSOR_MAX_SCORE, CURSOR_MAX_STARTED_AT_MS],
           [0, 0],
-          [CURSOR_MAX_VIEWER_COUNT, 0],
+          [CURSOR_MAX_SCORE, 0],
           [0, CURSOR_MAX_STARTED_AT_MS],
         ]) {
           const res = await ctx.http
@@ -369,7 +373,7 @@ describe('KL-045 v1.3.1 behaviour', () => {
           expect({ tab, n, s, status: res.status }).toEqual({ tab, n, s, status: 200 });
         }
         for (const bad of [
-          { n: CURSOR_MAX_VIEWER_COUNT + 1, s: 0 },
+          { n: CURSOR_MAX_SCORE + 1, s: 0 },
           { n: 0, s: CURSOR_MAX_STARTED_AT_MS + 1 },
           { n: 0, s: 8_640_000_000_000_000 },
         ]) {
@@ -385,7 +389,8 @@ describe('KL-045 v1.3.1 behaviour', () => {
   });
 
   describe('QA-002 follow on a private account', () => {
-    it('an existing follower re-PUTs → 200 (no new edge); a new follow stays 403', async () => {
+    // v1.47-social (D175): a new follow of a private account is a follow request (was 403).
+    it('an existing follower re-PUTs → 200 (no new edge); a new follow is a request, not an edge', async () => {
       const fan = await signup(ctx);
       const target = await signup(ctx);
       expect((await ctx.http.put(`/api/v1/users/${target.username}/follow`).set(bearer(fan))).status).toBe(
@@ -396,22 +401,21 @@ describe('KL-045 v1.3.1 behaviour', () => {
       const again = await ctx.http.put(`/api/v1/users/${target.username}/follow`).set(bearer(fan));
       expectContract(again, 'followUser');
       expect(again.status).toBe(200);
-      expect(again.body).toEqual({ isFollowing: true, followerCount: 1 });
+      expect(again.body).toEqual({ isFollowing: true, isRequested: false, followerCount: 1 });
       expect(await ctx.prisma.follow.count({ where: { followeeId: target.id } })).toBe(1);
 
       const stranger = await signup(ctx);
-      const denied = await ctx.http.put(`/api/v1/users/${target.username}/follow`).set(bearer(stranger));
-      expectContract(denied, 'followUser');
-      expect({ status: denied.status, code: denied.body.error?.code }).toEqual({
-        status: 403,
-        code: 'AUTH_FORBIDDEN',
-      });
+      const requested = await ctx.http.put(`/api/v1/users/${target.username}/follow`).set(bearer(stranger));
+      expectContract(requested, 'followUser');
+      expect(requested.status).toBe(200);
+      expect(requested.body).toEqual({ isFollowing: false, isRequested: true, followerCount: 1 });
       expect(await ctx.prisma.follow.count({ where: { followeeId: target.id } })).toBe(1);
 
       const leave = await ctx.http.delete(`/api/v1/users/${target.username}/follow`).set(bearer(fan));
-      expect(leave.body).toEqual({ isFollowing: false, followerCount: 0 });
+      expect(leave.body).toEqual({ isFollowing: false, isRequested: false, followerCount: 0 });
       const back = await ctx.http.put(`/api/v1/users/${target.username}/follow`).set(bearer(fan));
-      expect(back.status).toBe(403); // a former follower is a new follow
+      // a former follower is a new follow: a request again
+      expect(back.body).toEqual({ isFollowing: false, isRequested: true, followerCount: 0 });
     });
   });
 

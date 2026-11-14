@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- D152: the notification channels as the system settings show them. -->
+    <string name="notification_channel_general">Notifications</string>
+    <string name="notification_channel_general_description">Likes, comments, follows and other activity</string>
+    <string name="notification_channel_messages">Messages</string>
+    <string name="notification_channel_messages_description">New messages in your chats</string>
+    <string name="notification_channel_staff">Kabso Team reports</string>
+    <string name="notification_channel_staff_description">New reports waiting for the moderators and the support</string>
+</resources>

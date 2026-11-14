@@ -1,5 +1,6 @@
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -7,22 +8,24 @@ import 'package:material_ui/material_ui.dart';
 /// Live room tile (DESIGN_SYSTEM §9.10, HOME_LIVE_LAYOUT_DECISIONS §6):
 /// 3:4 cover, radius `sm`, no accent line (VG-10).
 ///
-/// - top-start: the LIVE badge (KL-047 owner request, reversing VG-10's
-///   "no LIVE badge in grids"; [showLiveBadge] turns it off), then the viewer
-///   chip only when at least 1 viewer is reported, otherwise "New" (VG-11):
-///   a count is never invented. The group scales down rather than run into
-///   the mode tag on narrow cards.
-/// - top-end: room mode tag, only when true: PK (solid) or multi-guest.
-/// - bottom: 50 % scrim, host (`bodyStrong`), title (`caption`) and the
-///   category name when the room has one (`caption` after a `#` glyph),
-///   1 line each; with
-///   a cover, a `sm` host avatar before them (D39: creator identity on every
-///   card).
+/// Owner (2026-11-08): «أرى أن المعلومات على بطاقة البث كثيرة» — the card
+/// carries only:
+/// - top-start: ONE type badge — LIVE (KL-047; [showLiveBadge] turns it
+///   off), PK (solid), multi-guest (seats + count), or the voice / podcast /
+///   streamer label the hub already uses («بث صوتي» …) — then the viewer
+///   count (0 shows 0: the real count; the «جديد» chip is gone). The group
+///   scales down rather than run into the creator mark on narrow cards.
+/// - top-end: a content creator's live — the small purple creator mark
+///   (D295's colour and sparkle, no text).
+/// - bottom: 50 % scrim and the title the host set (the host's name when it
+///   is empty), up to 2 lines with an ellipsis. No host row, category, topic
+///   or cherries (the room is ranked by its cherries on the server; the room's
+///   host pill shows them, D310).
 /// - missing or broken cover: the host avatar on `surfaceRaised`, no error
 ///   text (VG-13).
 /// - press: scales to 0.98 for `durationFast` (instant with reduce motion).
 ///
-/// Announced as "{host}, live, {n viewers | New}, {title}[, {mode}]
+/// Announced as "{host}, live, {n viewers}, {title}, {type}[, creator]
 /// [, {category}]".
 class KLiveCoverCard extends StatelessWidget {
   const new({
@@ -32,7 +35,8 @@ class KLiveCoverCard extends StatelessWidget {
     this.showLiveBadge = true,
   });
 
-  static const categoryKey = Key('liveCard.category');
+  static const typeKey = Key('liveCard.type');
+  static const titleKey = Key('liveCard.title');
 
   final LiveRoomCardData room;
   final VoidCallback? onTap;
@@ -44,35 +48,44 @@ class KLiveCoverCard extends StatelessWidget {
     final text = context.textStyles;
     final white = KPalette.dark.textPrimary;
     final cover = room.cover;
-    final isNew = room.viewerCount < 1;
     final guests = room.guestCount;
-    final mode = room.inPk
+    final title = room.title.trim().isEmpty ? room.hostName : room.title;
+    // One type: PK, multi-guest, the voice kinds' own labels, else LIVE.
+    final voiceLabel = room.isPodcast
+        ? l10n.liveCategoryPodcast
+        : room.isAudio
+        ? l10n.liveCategoryAudio
+        : room.isStreamer
+        ? l10n.liveCardTagStreamer
+        : null;
+    final type = room.inPk
         ? l10n.pkBadge
-        : guests == null
-        ? null
-        : l10n.liveMultiGuest(guests);
+        : guests != null
+        ? l10n.liveMultiGuest(guests)
+        : voiceLabel ?? l10n.liveBadge;
+    final Widget? typeBadge = room.inPk
+        ? const KBadge.pk()
+        : guests != null
+        ? KBadge.multiGuest(count: guests)
+        : voiceLabel != null
+        ? _TypePill(label: voiceLabel)
+        : showLiveBadge
+        ? const KBadge.live()
+        : null;
     final base = l10n.liveCardSemantics(
       room.hostName,
-      isNew
-          ? l10n.liveCardNew
-          : l10n.liveViewers(
-              room.viewerCount,
-              KFormat.grouped(room.viewerCount),
-            ),
-      room.title,
+      l10n.liveViewers(room.viewerCount, KFormat.grouped(room.viewerCount)),
+      title,
     );
-    final withMode = mode == null
-        ? base
-        : l10n.liveCardSemanticsMode(base, mode);
+    final withType = l10n.liveCardSemanticsMode(base, type);
+    final withCreator = room.hostIsCreator
+        ? l10n.liveCardSemanticsMode(withType, l10n.liveCreatorBadge)
+        : withType;
     final category = room.categoryName;
-    final hasCategory = category != null && category.isNotEmpty;
-    final semantics = hasCategory
-        ? l10n.liveCardSemanticsCategory(withMode, category)
-        : withMode;
+    final semantics = category != null && category.isNotEmpty
+        ? l10n.liveCardSemanticsCategory(withCreator, category)
+        : withCreator;
     final fallback = _CoverFallback(room: room);
-    final Widget viewers = isNew
-        ? const KBadge.newRoom()
-        : KViewerCountChip(count: room.viewerCount);
 
     return Semantics(
       button: onTap != null,
@@ -105,21 +118,18 @@ class KLiveCoverCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (showLiveBadge) ...[
-                            const KBadge.live(),
+                          if (typeBadge != null) ...[
+                            KeyedSubtree(key: typeKey, child: typeBadge),
                             const SizedBox(width: KSpacing.xs),
                           ],
-                          viewers,
+                          KViewerCountChip(count: room.viewerCount),
                         ],
                       ),
                     ),
                   ),
-                  if (room.inPk) ...[
+                  if (room.hostIsCreator) ...[
                     const SizedBox(width: KSpacing.xs),
-                    const KBadge.pk(),
-                  ] else if (guests != null) ...[
-                    const SizedBox(width: KSpacing.xs),
-                    KBadge.multiGuest(count: guests),
+                    const CreatorLiveBadge(iconOnly: true),
                   ],
                 ],
               ),
@@ -128,52 +138,12 @@ class KLiveCoverCard extends StatelessWidget {
               start: KSpacing.sm,
               end: KSpacing.sm,
               bottom: KSpacing.sm,
-              child: Row(
-                children: [
-                  // D39: the creator is identifiable on every card. Without
-                  // a (working) cover the large fallback avatar shows them.
-                  if (cover != null) _CoverHostAvatar(room: room, cover: cover),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          room.hostName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: text.bodyStrong.copyWith(color: white),
-                        ),
-                        Text(
-                          room.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: text.caption.copyWith(color: white),
-                        ),
-                        if (hasCategory)
-                          Row(
-                            key: KLiveCoverCard.categoryKey,
-                            children: [
-                              Icon(
-                                Icons.tag_rounded,
-                                size: KMetrics.iconXs,
-                                color: white,
-                              ),
-                              const SizedBox(width: KSpacing.xxs),
-                              Flexible(
-                                child: Text(
-                                  category,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: text.caption.copyWith(color: white),
-                                ),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
+              child: Text(
+                title,
+                key: titleKey,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: text.bodyStrong.copyWith(color: white),
               ),
             ),
           ],
@@ -181,6 +151,36 @@ class KLiveCoverCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A voice, podcast, streamer or plain multi-guest live's type, as the badge
+/// row's other pills (`scrim`, 20 dp).
+class _TypePill extends StatelessWidget {
+  const new({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: KMetrics.badgeHeight,
+    padding: const EdgeInsetsDirectional.symmetric(horizontal: KSpacing.sm),
+    decoration: BoxDecoration(
+      color: KPalette.dark.scrim,
+      borderRadius: BorderRadius.circular(KRadius.pill),
+    ),
+    child: Center(
+      widthFactor: 1,
+      child: Text(
+        label,
+        maxLines: 1,
+        textScaler: TextScaler.noScaling,
+        style: context.textStyles.label.copyWith(
+          color: KPalette.dark.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ),
+  );
 }
 
 /// Loading state with the card's anatomy (§9.10 "loading = Skeleton").
@@ -314,69 +314,4 @@ class _CoverFallback extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// The `sm` host avatar before the host name on a card with a cover (D39).
-/// Hidden once the cover fails to load: the fallback then shows the large
-/// avatar, and one avatar per card is enough.
-class _CoverHostAvatar extends StatefulWidget {
-  const new({required this.room, required this.cover});
-
-  final LiveRoomCardData room;
-  final ImageProvider cover;
-
-  @override
-  State<_CoverHostAvatar> createState() => _CoverHostAvatarState();
-}
-
-class _CoverHostAvatarState extends State<_CoverHostAvatar> {
-  ImageStream? _stream;
-  late final ImageStreamListener _listener = ImageStreamListener(
-    (_, _) {},
-    onError: (_, _) {
-      if (mounted && !_failed) setState(() => _failed = true);
-    },
-  );
-  bool _failed = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _resolve();
-  }
-
-  @override
-  void didUpdateWidget(_CoverHostAvatar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.cover != widget.cover) {
-      _failed = false;
-      _resolve();
-    }
-  }
-
-  void _resolve() {
-    final stream = widget.cover.resolve(createLocalImageConfiguration(context));
-    if (stream.key == _stream?.key) return;
-    _stream?.removeListener(_listener);
-    _stream = stream..addListener(_listener);
-  }
-
-  @override
-  void dispose() {
-    _stream?.removeListener(_listener);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_failed) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(end: KSpacing.xs),
-      child: KAvatar(
-        name: widget.room.hostName,
-        image: widget.room.hostAvatar,
-        size: KSizes.avatarSm,
-      ),
-    );
-  }
 }

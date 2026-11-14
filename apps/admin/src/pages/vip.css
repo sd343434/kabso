@@ -1,0 +1,108 @@
+/* D252 «VIP»: the tiers table and the tier form's perks editor. Kabso tokens from styles.css only; logical properties. */
+.vip-order {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.vip-order .btn.small {
+  padding-inline: 6px;
+}
+.vip-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.vip-swatch {
+  inline-size: 14px;
+  block-size: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  flex: none;
+}
+.vip-perks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-inline-size: 320px;
+}
+.vip-perks .badge.muted {
+  opacity: 0.55;
+}
+.vip-color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vip-color input[type='color'] {
+  inline-size: 40px;
+  block-size: 36px;
+  padding: 2px;
+  flex: none;
+}
+.vip-perk-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.vip-perk-editor > .row {
+  justify-content: space-between;
+}
+.vip-perk {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vip-perk .hint.ok {
+  color: var(--ok, inherit);
+}
+/* D374: the perk catalogue's checkbox grid, by category. */
+.vip-perk-cat {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px 12px;
+  margin: 0;
+}
+.vip-perk-cat > legend {
+  font-weight: 600;
+  padding-inline: 6px;
+}
+.vip-perk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.vip-perk.on {
+  grid-column: 1 / -1;
+  border-color: var(--border-strong);
+  background: var(--raised);
+}
+.vip-perk .check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vip-perk-title {
+  flex: 1;
+  font-weight: 600;
+}
+.vip-perk-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-block-start: 1px solid var(--border);
+  padding-block-start: 8px;
+}
+
+/* D378 (§10.168.4): a golden ID «آيدي ذهبي» as the app shows it — a gold chip. */
+.vip-golden-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6b4400, #7f5d00);
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid #ffe08a;
+}

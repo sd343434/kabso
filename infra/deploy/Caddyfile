@@ -1,0 +1,215 @@
+# Kabso Live — HTTPS front (KL-069). Caddy obtains and renews the Let's Encrypt certificates
+# itself once the DNS A records point at this server. KABSO_DOMAIN comes from kabso.env.
+{
+	email {$KABSO_ACME_EMAIL}
+}
+
+# The public website (D192, docs/contracts/CONVENTIONS.md §10.55): static files from infra/deploy/site, plus the
+# two paths that belong to the API on the same origin (no CORS): the waitlist form and the website's settings.
+# D190's card top-up pages live on the API's own host (TOPUP_PUBLIC_BASE_URL = https://api.<domain>): /topup* here
+# redirects there, so the pages, their /api/v1 calls, their CSP and the tab's sessionStorage token stay on one origin.
+{$KABSO_DOMAIN} {
+	encode zstd gzip
+
+	handle /topup* {
+		# D190: the card top-up pages are served by the API (same origin as its /api/v1 calls).
+		redir https://api.{$KABSO_DOMAIN}{uri} 302
+	}
+
+	@api path /api/v1/waitlist /api/v1/site/settings
+	handle @api {
+		# Caddy appends X-Forwarded-For here too, so TRUST_PROXY=1 still holds (docs/DEPLOYMENT.md §3.1). The
+		# API sets its own headers (helmet: HSTS, nosniff, …).
+		reverse_proxy api:3000
+	}
+
+	handle {
+		header {
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; media-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Referrer-Policy "strict-origin-when-cross-origin"
+			Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+			Cross-Origin-Opener-Policy "same-origin"
+			-Server
+		}
+		# Art and fonts never change under the same name (a new file gets a new name); pages, CSS, JS and
+		# config.json are revalidated after 5 minutes (file_server sends ETag / Last-Modified).
+		@longCache path /assets/fonts/* /assets/characters/*
+		header @longCache Cache-Control "public, max-age=2592000"
+		@shortCache not path /assets/fonts/* /assets/characters/*
+		header @shortCache Cache-Control "public, max-age=300"
+		root * /srv/site
+		# v1.74-social (D217): an invite link /i/<code> shows invite.html (the code is read from the address there).
+		rewrite /i/* /invite.html
+		# Clean URLs: /privacy → privacy.html.
+		try_files {path} {path}.html
+		file_server
+	}
+}
+
+www.{$KABSO_DOMAIN} {
+	redir https://{$KABSO_DOMAIN}{uri} permanent
+}
+
+api.{$KABSO_DOMAIN} {
+	encode zstd gzip
+	# The signed media-server webhook is posted by LiveKit over the internal network
+	# (livekit.yaml), never through the public host.
+	@internal path /internal/*
+	respond @internal 404
+	# Caddy is the one proxy that appends X-Forwarded-For: TRUST_PROXY=1 (docs/DEPLOYMENT.md §3.1).
+	reverse_proxy api:3000
+}
+
+# v1.60-social (D191, CONVENTIONS §10.54.7): the admin panel. The static build (infra/deploy/build-admin.sh, run by
+# update.sh) is served from /srv/admin/current with an SPA fallback; /api/* goes to the API on the same origin, so the
+# session cookie stays first-party (SameSite=Strict, __Host-). Optional allowlist: KABSO_ADMIN_ALLOW_IPS in kabso.env
+# (space-separated CIDRs; unset = everyone).
+# v1.60-live (D250, CONVENTIONS §10.91.7): staff watch lives in the panel (livekit-client, subscribe only) — connect-src
+# allows the media server (wss: signalling, https: its HTTP endpoints) and media-src the video elements' blob: streams.
+# KABSO_ADMIN_MEDIA_ORIGINS in kabso.env when LIVEKIT_URL is elsewhere (e.g. "wss://x.livekit.cloud https://x.livekit.cloud").
+admin.{$KABSO_DOMAIN} {
+	encode zstd gzip
+	# D356 (CONVENTIONS §10.152, docs/DEPLOYMENT.md §11.14): /event-preview/ is the event page preview bundle (the app's
+	# Flutter page built for the web, mirrored by mirror-event-preview.sh), framed by the panel's design step only
+	# (frame-ancestors 'self'). It differs from the panel: CanvasKit is WebAssembly ('wasm-unsafe-eval'), the Flutter
+	# engine injects its own <style> elements (style-src 'unsafe-inline'; scripts stay 'self'), and the event's art
+	# comes from the media host (img-src / connect-src https:; the page holds no credential and calls no API).
+	# apps/admin/e2e-preview/headers.mjs repeats both policies for the local tests (a unit test keeps them equal).
+	@preview path /event-preview /event-preview/*
+	@panel not path /event-preview /event-preview/*
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	header @panel {
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self'; media-src 'self' blob:; connect-src 'self' wss://live.{$KABSO_DOMAIN} https://live.{$KABSO_DOMAIN} {$KABSO_ADMIN_MEDIA_ORIGINS}; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		X-Frame-Options "DENY"
+	}
+	header @preview {
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'"
+		X-Frame-Options "SAMEORIGIN"
+		# File names are not hashed: always revalidated (ETag), so a new bundle shows on the next open.
+		Cache-Control "no-cache"
+	}
+	@blocked not remote_ip {$KABSO_ADMIN_ALLOW_IPS:0.0.0.0/0 ::/0}
+	@page not path /assets/* /api/* /event-preview /event-preview/*
+	header @page Cache-Control "no-store"
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+	# `route` keeps this order: the allowlist, the internal paths, the API, the preview bundle, then the static panel.
+	route {
+		respond @blocked "Forbidden" 403
+		respond /internal/* 404
+		# Caddy is the one proxy that appends X-Forwarded-For: TRUST_PROXY=1 (docs/DEPLOYMENT.md §3.1).
+		reverse_proxy /api/* api:3000
+		redir /event-preview /event-preview/ 308
+		# D356: no SPA fallback here — a missing file is a 404 (the panel then shows its sketch preview).
+		handle_path /event-preview/* {
+			root * /srv/event-preview/current
+			file_server
+		}
+		root * /srv/admin/current
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# v1.57-live (D247, CONVENTIONS §10.88): «استوديو البث», the streamer's browser studio. The static build
+# (infra/deploy/build-studio.sh, run by update.sh) from /srv/studio/current with an SPA fallback; /api/* goes to the API
+# on the same origin (no CORS; the user's bearer token, as the app). The page may use the camera, the microphone and
+# the screen capture (Permissions-Policy self) and connects to the media server: live.<domain> by default, plus
+# KABSO_STUDIO_MEDIA_ORIGINS in kabso.env when LIVEKIT_URL is elsewhere (e.g. "wss://x.livekit.cloud https://x.livekit.cloud").
+studio.{$KABSO_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self'; media-src 'self' blob:; connect-src 'self' wss://live.{$KABSO_DOMAIN} https://live.{$KABSO_DOMAIN} {$KABSO_STUDIO_MEDIA_ORIGINS}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	@page not path /assets/* /api/*
+	header @page Cache-Control "no-store"
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+	# `route` keeps this order: the internal paths, the API, then the static studio.
+	route {
+		respond /internal/* 404
+		# Caddy is the one proxy that appends X-Forwarded-For: TRUST_PROXY=1 (docs/DEPLOYMENT.md §3.1).
+		reverse_proxy /api/* api:3000
+		root * /srv/studio/current
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# LiveKit signalling (wss://live.<domain>: /rtc, /twirp/*, its health check on /), plus, under /app (a path LiveKit
+# never uses), D330's staging test APK (docs/DEPLOYMENT.md §11.8): mirror-apk.sh keeps the latest arm64 APK of the
+# public `staging-latest` release in infra/deploy/app/ (mounted at /srv/app) with a gzip copy and a generated page.
+#   /app/                         the page (version, commit, sha256, download button; Arabic + English)
+#   /app/kabso-staging.apk        the APK; gzip on the wire when the browser accepts it (the .gz copy)
+#   /app/raw/kabso-staging.apk    the same APK never compressed (download managers that do not decode gzip)
+#   /app/kabso-staging.txt        the manifest (commit, version, sha256, size, built)
+# The file name never changes, so it is revalidated on every request (ETag / Last-Modified), never cached stale.
+live.{$KABSO_DOMAIN} {
+	redir /app /app/ 308
+
+	handle /app/* {
+		header {
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Referrer-Policy "no-referrer"
+			X-Robots-Tag "noindex, nofollow"
+			Cache-Control "no-cache"
+			-Server
+		}
+		@apk path /app/kabso-staging.apk /app/raw/kabso-staging.apk
+		header @apk {
+			Content-Type "application/vnd.android.package-archive"
+			Content-Disposition "attachment; filename=\"kabso-staging.apk\""
+		}
+		# Only these names; the .gz copy, temp files and anything else answer 404.
+		@unlisted not path /app/ /app/index.html /app/kabso-staging.apk /app/raw/kabso-staging.apk /app/kabso-staging.txt
+		route {
+			respond @unlisted 404
+			root * /srv/app
+			uri strip_prefix /app
+			handle /raw/kabso-staging.apk {
+				rewrite * /kabso-staging.apk
+				file_server
+			}
+			# The gzip copy, with the headers set here: `file_server { precompressed gzip }` answers 206 to a request
+			# without Range in Caddy 2.10.2, which a download must not get. Ranges then count gzip bytes (RFC 9110); the
+			# response has no Content-Length (Go's ServeContent omits it with a Content-Encoding), so the phone shows
+			# the bytes received without a percentage. The header matcher adds `Vary: Accept-Encoding` itself.
+			@gzip {
+				path /kabso-staging.apk
+				header Accept-Encoding *gzip*
+				file {path}.gz
+			}
+			handle @gzip {
+				rewrite * /kabso-staging.apk.gz
+				header Content-Encoding gzip
+				file_server
+			}
+			handle {
+				file_server
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy livekit:7880
+	}
+}

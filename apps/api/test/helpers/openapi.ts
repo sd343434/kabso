@@ -87,7 +87,15 @@ function undeclared(node: Json, data: unknown, path: string): string[] {
   if (Array.isArray(schema.oneOf)) {
     if (data === null) return [];
     const branches = (schema.oneOf as Json[]).map(resolve);
-    const objectBranch = branches.find((b) => b.type === 'object' || b.properties || b.allOf);
+    const objectBranches = branches.filter((b) => b.type === 'object' || b.properties || b.allOf);
+    // Several object branches (e.g. SearchPage items): check against the one whose required
+    // properties the data has (the validator already proved exactly one branch matches).
+    const objectBranch =
+      objectBranches.length > 1 && data !== null && typeof data === 'object'
+        ? (objectBranches.find((b) =>
+            ((b.required as string[] | undefined) ?? []).every((k) => k in (data as Json)),
+          ) ?? objectBranches[0])
+        : objectBranches[0];
     return objectBranch ? undeclared(objectBranch, data, path) : [];
   }
   if (Array.isArray(data)) {
@@ -138,4 +146,19 @@ export function expectContract(res: request.Response, operationId: string): void
   const schema = content['application/json']!.schema as Json;
   expect(undeclared(schema, res.body, '$'), `${operationId}: undeclared properties`).toEqual([]);
   expect(res.headers['content-type']).toMatch(/^application\/json/);
+}
+
+/**
+ * v1.118-live (D391): asserts that `value` matches the component schema `name` (e.g. a data message's `match`, which no
+ * HTTP response carries) and declares no extra property.
+ */
+export function expectSchema(name: string, value: unknown): void {
+  const pointer = `/components/schemas/${name}`;
+  const validate = validatorFor(pointer);
+  const ok = validate(value);
+  expect(
+    ok ? [] : (validate.errors ?? []).map((e) => `${e.instancePath} ${e.message}`),
+    `${name}: ${JSON.stringify(value)}`,
+  ).toEqual([]);
+  expect(undeclared(get(`#${pointer}`), value, '$'), `${name}: undeclared properties`).toEqual([]);
 }

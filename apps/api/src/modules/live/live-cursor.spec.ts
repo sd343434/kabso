@@ -2,7 +2,8 @@ import { createHmac, hkdfSync, randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   CURSOR_MAX_STARTED_AT_MS,
-  CURSOR_MAX_VIEWER_COUNT,
+  CURSOR_MAX_SCORE,
+  CURSOR_VERSION,
   cursorScope,
   LiveCursorCodec,
   type CursorPosition,
@@ -13,7 +14,7 @@ const USER = '0192f1c2-7a10-7c3e-9d2a-3b4c5d6e7f80';
 const OTHER = '0192f1c2-7a10-7c3e-9d2a-3b4c5d6e7f81';
 const ROOM = '0192f1d0-1111-7aaa-8bbb-0c0d0e0f1011';
 const position: CursorPosition = {
-  viewerCount: 3,
+  score: 3,
   startedAt: new Date('2026-10-16T19:00:00.123Z'),
   id: ROOM,
 };
@@ -35,6 +36,9 @@ describe('LiveCursorCodec', () => {
     cursorScope('new', 'music', USER),
     cursorScope('following', undefined, USER),
     cursorScope('following', 'music', USER),
+    cursorScope('popular', undefined, USER, 'audio'),
+    cursorScope('new', 'music', USER, 'video'),
+    cursorScope('following', undefined, USER, 'audio'),
   ];
 
   it.each(scopes)('round-trips %o', (scope) => {
@@ -42,6 +46,32 @@ describe('LiveCursorCodec', () => {
     expect(cursor).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{22}$/);
     expect(cursor.length).toBeLessThanOrEqual(512);
     expect(codec.decode(cursor, scope)).toEqual(position);
+  });
+
+  it('D129 (v1.26.4-live): binds the kind filter; a cursor without a kind has no `k` and stays valid', () => {
+    const audio = codec.encode(cursorScope('popular', undefined, USER, 'audio'), position);
+    expect(codec.decode(audio, cursorScope('popular', undefined, USER, 'audio'))).toEqual(position);
+    expect(codec.decode(audio, cursorScope('popular', undefined, USER, 'video'))).toBeNull();
+    expect(codec.decode(audio, cursorScope('popular', undefined, USER))).toBeNull();
+
+    const all = codec.encode(cursorScope('popular', undefined, USER), position);
+    const [payload = ''] = all.split('.');
+    expect(JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))).not.toHaveProperty('k');
+    expect(codec.decode(all, cursorScope('popular', undefined, USER))).toEqual(position);
+    expect(codec.decode(all, cursorScope('popular', undefined, USER, 'audio'))).toBeNull();
+
+    // A signed payload with an unknown kind is rejected.
+    const bad = forge({
+      v: CURSOR_VERSION,
+      t: 'popular',
+      c: null,
+      k: 'podcast',
+      u: null,
+      n: 3,
+      s: 0,
+      i: ROOM,
+    });
+    expect(codec.decode(bad, cursorScope('popular', undefined, USER))).toBeNull();
   });
 
   it('binds the caller only for the personal following tab', () => {
@@ -100,8 +130,9 @@ describe('LiveCursorCodec', () => {
 
   it('rejects a correctly signed payload with an unknown version or a bad shape', () => {
     const scope = cursorScope('new', undefined, USER);
-    const good = { v: 1, t: 'new', c: null, u: null, n: 0, s: position.startedAt.getTime(), i: ROOM };
-    expect(codec.decode(forge(good), scope)).toEqual({ ...position, viewerCount: 0 });
+    const good = { v: 3, t: 'new', c: null, u: null, n: 0, s: position.startedAt.getTime(), i: ROOM };
+    expect(codec.decode(forge(good), scope)).toEqual({ ...position, score: 0 });
+    expect(codec.decode(forge({ ...good, v: 4 }), scope)).toBeNull();
     expect(codec.decode(forge({ ...good, v: 2 }), scope)).toBeNull();
     expect(codec.decode(forge({ ...good, i: 'x' }), scope)).toBeNull();
     expect(codec.decode(forge({ ...good, n: -1 }), scope)).toBeNull();
@@ -111,17 +142,17 @@ describe('LiveCursorCodec', () => {
 
   it('SEC-038: bounds the sort keys to values the database accepts', () => {
     const scope = cursorScope('popular', undefined, USER);
-    const good = { v: 1, t: 'popular', c: null, u: null, n: 0, s: 0, i: ROOM };
-    expect(
-      codec.decode(forge({ ...good, n: CURSOR_MAX_VIEWER_COUNT, s: CURSOR_MAX_STARTED_AT_MS }), scope),
-    ).toEqual({
-      viewerCount: CURSOR_MAX_VIEWER_COUNT,
-      startedAt: new Date(CURSOR_MAX_STARTED_AT_MS),
-      id: ROOM,
-    });
+    const good = { v: 3, t: 'popular', c: null, u: null, n: 0, s: 0, i: ROOM };
+    expect(codec.decode(forge({ ...good, n: CURSOR_MAX_SCORE, s: CURSOR_MAX_STARTED_AT_MS }), scope)).toEqual(
+      {
+        score: CURSOR_MAX_SCORE,
+        startedAt: new Date(CURSOR_MAX_STARTED_AT_MS),
+        id: ROOM,
+      },
+    );
     expect(new Date(CURSOR_MAX_STARTED_AT_MS).toISOString()).toBe('9999-12-31T23:59:59.999Z');
     for (const bad of [
-      { n: CURSOR_MAX_VIEWER_COUNT + 1 },
+      { n: CURSOR_MAX_SCORE + 1 },
       { n: 1.5 },
       { n: -1 },
       { s: CURSOR_MAX_STARTED_AT_MS + 1 },
@@ -140,12 +171,69 @@ describe('LiveCursorCodec', () => {
     expect(codec.decode(`${body}.${tag.toString('base64url')}`, scope)).toBeNull();
   });
 
+  it('D310 (v1.86-live): format v3 carries the room cherries; a v2 (score) or v1 (viewerCount) cursor is rejected', () => {
+    expect(CURSOR_VERSION).toBe(3);
+    const scope = cursorScope('popular', undefined, USER);
+    const big = { ...position, score: 12_345_678_901 };
+    const cursor = codec.encode(scope, big);
+    const [payload = ''] = cursor.split('.');
+    expect(JSON.parse(Buffer.from(payload, 'base64url').toString())).toMatchObject({
+      v: 3,
+      n: 12_345_678_901,
+    });
+    expect(codec.decode(cursor, scope)).toEqual(big);
+    for (const tab of ['popular', 'new'] as const) {
+      for (const v of [1, 2]) {
+        const old = { v, t: tab, c: null, u: null, n: 3, s: position.startedAt.getTime(), i: ROOM };
+        expect(codec.decode(forge(old), cursorScope(tab, undefined, USER))).toBeNull();
+      }
+    }
+  });
+
   it('derives its key with HKDF (a cursor signed with the raw source key is rejected)', () => {
     const scope = cursorScope('new', undefined, USER);
     const body = Buffer.from(
-      JSON.stringify({ v: 1, t: 'new', c: null, u: null, n: 0, s: 0, i: ROOM }),
+      JSON.stringify({ v: CURSOR_VERSION, t: 'new', c: null, u: null, n: 0, s: 0, i: ROOM }),
     ).toString('base64url');
     const tag = createHmac('sha256', key).update(`live-cursor\u0000${body}`).digest().subarray(0, 16);
     expect(codec.decode(`${body}.${tag.toString('base64url')}`, scope)).toBeNull();
+  });
+});
+
+describe('D133 (v1.27.1-live): nearby, featured and the new kinds', () => {
+  const codec2 = new LiveCursorCodec(randomBytes(48).toString('base64url'));
+  const at: CursorPosition = { ...position, rank: 7 };
+
+  it('binds the nearby country and the caller; a country change invalidates the cursor', () => {
+    const sa = cursorScope('popular', undefined, USER, 'solo', { nearbyCountry: 'SA' });
+    expect(sa.userId).toBe(USER);
+    const cursor = codec2.encode(sa, position);
+    expect(codec2.decode(cursor, sa)).toEqual(position);
+    expect(
+      codec2.decode(cursor, cursorScope('popular', undefined, USER, 'solo', { nearbyCountry: 'EG' })),
+    ).toBeNull();
+    expect(
+      codec2.decode(cursor, cursorScope('popular', undefined, OTHER, 'solo', { nearbyCountry: 'SA' })),
+    ).toBeNull();
+    expect(codec2.decode(cursor, cursorScope('popular', undefined, USER, 'solo'))).toBeNull();
+  });
+
+  it('binds featured and carries the feature rank; a non-featured cursor is refused for featured', () => {
+    const featured = cursorScope('new', 'music', USER, 'party', { featured: true });
+    const cursor = codec2.encode(featured, at);
+    expect(codec2.decode(cursor, featured)).toEqual(at);
+    expect(codec2.decode(cursor, cursorScope('new', 'music', USER, 'party'))).toBeNull();
+    const plain = codec2.encode(cursorScope('new', 'music', USER, 'party'), position);
+    expect(codec2.decode(plain, featured)).toBeNull();
+    const [payload = ''] = plain.split('.');
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as object;
+    expect(decoded).not.toHaveProperty('f');
+    expect(decoded).not.toHaveProperty('sc');
+  });
+
+  it.each(['solo', 'multi', 'party', 'party_all'] as const)('binds kind %s', (kind) => {
+    const cursor = codec2.encode(cursorScope('popular', undefined, USER, kind), position);
+    expect(codec2.decode(cursor, cursorScope('popular', undefined, USER, kind))).toEqual(position);
+    expect(codec2.decode(cursor, cursorScope('popular', undefined, USER, 'audio'))).toBeNull();
   });
 });

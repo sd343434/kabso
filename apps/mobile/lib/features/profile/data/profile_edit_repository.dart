@@ -1,0 +1,178 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show immutable;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
+import 'package:kabso_live/core/network/api_call.dart';
+import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/features/auth/data/dtos.dart';
+import 'package:kabso_live/features/auth/domain/entities.dart';
+
+/// Editing the own profile (contract v1.45-social, D168, CONVENTIONS
+/// §10.42): the name and bio (`PATCH /me`) and the profile photo
+/// (`PUT` / `DELETE /me/avatar`; the photo itself is uploaded first as an
+/// `AVATAR` asset, `MediaRepository.uploadAvatar`).
+///
+/// Every method throws an `AppFailure`.
+abstract interface class ProfileEditRepository {
+  /// `PATCH /me {displayName}`; the updated `Me`.
+  Future<User> updateDisplayName(String displayName);
+
+  /// `PATCH /me {bio}`; null (or empty) clears it. The updated `Me`.
+  Future<User> updateBio(String? bio);
+
+  /// v1.47-social (D175, §10.47): `PATCH /me` with the profile fields of
+  /// [change] (only those it sets). The updated `Me`.
+  Future<User> updateProfileFields(ProfileFieldsChange change);
+
+  /// `PUT /me/avatar {mediaId}`; the photo's URL.
+  Future<String> setAvatar(String mediaId);
+
+  /// `DELETE /me/avatar` (idempotent; works while uploads are off).
+  Future<void> removeAvatar();
+
+  /// v1.76-social (D218, §10.73.3): `PUT /me/cover {mediaId}` (a
+  /// `PROFILE_COVER` asset); the cover's URL.
+  Future<String> setCover(String mediaId);
+
+  /// v1.76-social (D218): `DELETE /me/cover` (idempotent; works while
+  /// uploads are off).
+  Future<void> removeCover();
+}
+
+class ProfileEditRepositoryImpl implements ProfileEditRepository {
+  new(this._api);
+
+  final Dio _api;
+
+  Future<User> _patch(Map<String, Object?> body) => guardApiCall(() async {
+    final res = await _api.patch<Map<String, dynamic>>('/me', data: body);
+    return MeDto.fromJson(res.data!).toEntity();
+  });
+
+  @override
+  Future<User> updateDisplayName(String displayName) =>
+      _patch({'displayName': displayName});
+
+  @override
+  Future<User> updateBio(String? bio) => _patch({'bio': bio});
+
+  @override
+  Future<User> updateProfileFields(ProfileFieldsChange change) =>
+      _patch(change.toJson());
+
+  @override
+  Future<String> setAvatar(String mediaId) => guardApiCall(() async {
+    final res = await _api.put<Map<String, dynamic>>(
+      '/me/avatar',
+      data: {'mediaId': mediaId},
+    );
+    return res.data!['avatarUrl']! as String;
+  });
+
+  @override
+  Future<void> removeAvatar() =>
+      guardApiCall(() => _api.delete<void>('/me/avatar'));
+
+  @override
+  Future<String> setCover(String mediaId) => guardApiCall(() async {
+    final res = await _api.put<Map<String, dynamic>>(
+      '/me/cover',
+      data: {'mediaId': mediaId},
+    );
+    return res.data!['coverUrl']! as String;
+  });
+
+  @override
+  Future<void> removeCover() =>
+      guardApiCall(() => _api.delete<void>('/me/cover'));
+}
+
+/// One link as sent to the server (`ProfileLinkInput`).
+typedef ProfileLinkInput = ({String url, String? label});
+
+/// D175: what a `PATCH /me` of the profile fields changes. Unset fields are
+/// not sent; [clearCategory] sends `category: null`.
+@immutable
+class ProfileFieldsChange {
+  const new({
+    this.gender,
+    this.showGender,
+    this.category,
+    this.clearCategory = false,
+    this.links,
+    this.tags,
+    this.tagIcons,
+  });
+
+  final Gender? gender;
+  final bool? showGender;
+  final AccountCategory? category;
+  final bool clearCategory;
+
+  /// The whole set, in order (empty clears them).
+  final List<ProfileLinkInput>? links;
+
+  /// D278b: the tags, the whole set in order (empty clears them).
+  final List<String>? tags;
+
+  /// D292 (§10.106): one icon key per tag of [tags] (sent only with it).
+  final List<String>? tagIcons;
+
+  Map<String, Object?> toJson() => {
+    'gender': ?gender?.wire,
+    'showGender': ?showGender,
+    if (clearCategory) 'category': null else 'category': ?category?.wire,
+    if (links case final links?)
+      'links': [
+        for (final l in links)
+          {
+            'url': l.url,
+            if (l.label case final label? when label.isNotEmpty) 'label': label,
+          },
+      ],
+    'tags': ?tags,
+    if (tags != null) 'tagIcons': ?tagIcons,
+  };
+}
+
+final profileEditRepositoryProvider = Provider<ProfileEditRepository>(
+  (ref) => ProfileEditRepositoryImpl(ref.watch(apiDioProvider)),
+);
+
+/// Where a new profile photo comes from.
+enum AvatarSource { library, camera }
+
+/// Takes one photo for the profile: from the system photo picker or the
+/// camera. Asking for a bounded size and a quality makes the platform
+/// re-encode, so iOS HEIC arrives as JPEG (the API refuses HEIC, §11.1).
+abstract interface class AvatarPhotoPicker {
+  /// The photo's bytes, or null when cancelled.
+  Future<Uint8List?> pick(AvatarSource source);
+}
+
+class ImagePickerAvatarPhotos implements AvatarPhotoPicker {
+  new([ImagePicker? picker]) : _picker = picker ?? ImagePicker();
+
+  final ImagePicker _picker;
+
+  @override
+  Future<Uint8List?> pick(AvatarSource source) async {
+    final file = await _picker.pickImage(
+      source: source == AvatarSource.camera
+          ? ImageSource.camera
+          : ImageSource.gallery,
+      preferredCameraDevice: CameraDevice.front,
+      maxWidth: 2160,
+      maxHeight: 2160,
+      imageQuality: 90,
+    );
+    return file == null ? null : await file.readAsBytes();
+  }
+}
+
+final avatarPhotoPickerProvider = Provider<AvatarPhotoPicker>(
+  (ref) => ImagePickerAvatarPhotos(),
+);

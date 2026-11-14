@@ -1,0 +1,284 @@
+// CP-020 payloads shaped exactly like docs/contracts/openapi.yaml
+// v1.23-live (tag `gifts`, `sendLiveGift`; the examples where given;
+// `Gift.tag` v1.24.3-live, D117). Test
+// data only: production starts with an empty catalogue.
+
+/// The test catalogue's gifts, by tab, in catalogue order.
+const giftFixtureCodes = [
+  'rose',
+  'heart_balloon',
+  'crown',
+  'sports_car',
+  'lantern',
+  'cake',
+  'confetti',
+  'kabi_dance',
+];
+
+const _gifts = <String, (String, int, String, String?, String, String)>{
+  // code: (category, price, badge, animationKey, ar, en)
+  'rose': ('POPULAR', 1, 'NONE', null, 'وردة', 'Rose'),
+  'heart_balloon': ('POPULAR', 10, 'NEW', null, 'بالون قلب', 'Heart balloon'),
+  'crown': ('POPULAR', 299, 'NONE', null, 'تاج', 'Crown'),
+  'sports_car': (
+    'POPULAR',
+    5000,
+    'NEW',
+    'fx_sports_car',
+    'سيارة رياضية',
+    'Sports car',
+  ),
+  'lantern': ('EVENT', 99, 'EVENT', null, 'فانوس', 'Lantern'),
+  'cake': ('EVENT', 520, 'EVENT', null, 'كعكة', 'Cake'),
+  'confetti': ('FUN', 5, 'NONE', null, 'قصاصات ملونة', 'Confetti'),
+  'kabi_dance': ('FUN', 66, 'NEW', null, 'رقصة كابي', 'Kabi dance'),
+  // v1.27-live (D132): a lucky gift (not in [giftFixtureCodes]; tests that
+  // need it list it and the LUCKY tab).
+  'lucky_clover': ('LUCKY', 10, 'NONE', null, 'برسيم الحظ', 'Lucky clover'),
+  // v1.32-live (D154): quips (not in [giftFixtureCodes]; tests that need
+  // them list them and the QUIPS tab). D349: every paid line 100 000.
+  'quip_clap': ('QUIPS', 0, 'NONE', null, 'تصفيق', 'Clap'),
+  'quip_ghazal_01': ('QUIPS', 100000, 'NONE', null, 'غزل ١', 'Flirty 1'),
+  'quip_gulf_14': ('QUIPS', 100000, 'NONE', null, 'خليجي ١٤', 'Gulf 14'),
+  'quip_jordan_01': ('QUIPS', 100000, 'NONE', null, 'أردني ١', 'Jordanian 1'),
+};
+
+/// D154: the quips' sound, length and words. code: (soundKey, ms, text).
+const _quips = <String, (String, int, String?)>{
+  'quip_clap': ('room/clap', 2038, null),
+  'quip_ghazal_01': ('kabi/ghazal_01', 4362, 'إيه الجمال ده! تحفة بجد!'),
+  // D349: the owner's words (one with an emoji).
+  'quip_gulf_14': (
+    'gulf/gulf_14',
+    7340,
+    'تدري وش ناقص الدنيا؟ نسخة ثانية منك، عشان إذا اشتقت لك أروح لها! 😂',
+  ),
+  'quip_jordan_01': (
+    'jordan/jordan_01',
+    5016,
+    'ولك شو هالحلا؟ إنت مش بني آدم، إنت مخالفِة جمال!',
+  ),
+};
+
+/// D154: the quip codes of the test catalogue.
+const quipFixtureCodes = ['quip_clap', 'quip_ghazal_01'];
+
+/// D349: the quips of one per sub-category, in the server's order
+/// (مجانية, مصري, خليجي, أردني).
+const quipRegionFixtureCodes = [
+  'quip_clap',
+  'quip_ghazal_01',
+  'quip_gulf_14',
+  'quip_jordan_01',
+];
+
+/// The test sub-categories (D117): only POPULAR gifts carry one, so the
+/// other tabs show no chip row. code: (tagCode, ar, en).
+const _tags = <String, (String, String, String)>{
+  'rose': ('love', 'حب', 'Love'),
+  'heart_balloon': ('love', 'حب', 'Love'),
+  'crown': ('luxury', 'فخامة', 'Luxury'),
+  'sports_car': ('luxury', 'فخامة', 'Luxury'),
+  'quip_clap': ('free', 'مجانية', 'Free'),
+  'quip_ghazal_01': ('egypt', 'مصري', 'Egyptian'),
+  'quip_gulf_14': ('gulf', 'خليجي', 'Gulf'),
+  'quip_jordan_01': ('jordan', 'أردني', 'Jordanian'),
+};
+
+/// The name of [code] as the server sends it.
+String giftFixtureName(String code, {bool ar = true}) {
+  final g = _gifts[code];
+  if (g == null) return code;
+  return ar ? g.$5 : g.$6;
+}
+
+/// The price of [code] in coins.
+int giftFixturePrice(String code) => _gifts[code]!.$2;
+
+/// `Gift`.
+Map<String, Object?> giftJson(String code, {bool ar = true}) {
+  final g = _gifts[code]!;
+  return {
+    'code': code,
+    'category': g.$1,
+    'name': ar ? g.$5 : g.$6,
+    'priceCoins': g.$2,
+    'assetKey': switch (code) {
+      'quip_clap' => 'quips/clap',
+      'quip_ghazal_01' => 'quips/ghazal',
+      'quip_gulf_14' => 'quips/gulf',
+      'quip_jordan_01' => 'quips/jordan',
+      _ => 'gift_$code',
+    },
+    'animationKey': g.$4,
+    'sortOrder': (giftFixtureCodes.indexOf(code) + 1) * 10,
+    'badge': g.$3,
+    'tag': switch (_tags[code]) {
+      final t? => {'code': t.$1, 'name': ar ? t.$2 : t.$3},
+      null => null,
+    },
+    // v1.26.2-live (D126): no hosted art in the test catalogue.
+    'imageUrl': null,
+    'animationUrl': null,
+    'animationBytes': null,
+    // v1.32-live (D154).
+    'quip': switch (_quips[code]) {
+      final q? => {'soundKey': q.$1, 'durationMs': q.$2, 'text': q.$3},
+      null => null,
+    },
+  };
+}
+
+/// `LiveQuip` (v1.32-live, D154) of [code] sent by [sender].
+Map<String, Object?> liveQuipJson({
+  required String id,
+  String roomId = 'room-0',
+  String code = 'quip_ghazal_01',
+  String kind = 'GIFT',
+  int delayMs = 0,
+  Map<String, Object?>? sender,
+  int? durationMs,
+}) {
+  final q = _quips[code]!;
+  return {
+    'id': id,
+    'roomId': roomId,
+    'kind': kind,
+    'giftCode': code,
+    'soundKey': q.$1,
+    'durationMs': durationMs ?? q.$2,
+    'text': q.$3,
+    'free': _gifts[code]!.$2 == 0,
+    'sender': sender ?? giftUserJson('lina', 'لينا'),
+    'startsAt': '2026-10-28T12:00:00.000Z',
+    'delayMs': delayMs,
+    'createdAt': '2026-10-28T12:00:00.000Z',
+  };
+}
+
+/// `GiftCatalogue`: [codes] (default: every test gift).
+Map<String, Object?> giftCatalogueJson({
+  List<String> codes = giftFixtureCodes,
+  bool ar = true,
+  String version = '3f2a9c0d81b4e6a7',
+  List<int> quantities = const [1, 10, 66, 99, 188, 520, 1314],
+  List<String> categories = const ['POPULAR', 'EVENT', 'FUN'],
+  List<Map<String, Object?>> extra = const [],
+}) => {
+  'version': version,
+  'categories': categories,
+  'quantities': quantities,
+  'maxRecipients': 25,
+  'comboWindowSeconds': 5,
+  'data': [for (final c in codes) giftJson(c, ar: ar), ...extra],
+};
+
+/// `GiftBagItem`.
+Map<String, Object?> giftBagItemJson(
+  String code,
+  int quantity, {
+  bool ar = true,
+}) => {...giftJson(code, ar: ar), 'quantity': quantity};
+
+/// `UserSummary` of a person in a gift.
+Map<String, Object?> giftUserJson(String username, String displayName) => {
+  'id': 'user-$username',
+  'username': username,
+  'displayName': displayName,
+  'avatarUrl': null,
+};
+
+/// `LiveGift` (the contract's example by default).
+Map<String, Object?> liveGiftJson({
+  String id = '0192f1d0-4444-7000-8000-000000000015',
+  String roomId = 'room-0',
+  String code = 'rose',
+  int quantity = 10,
+  String source = 'COINS',
+  Map<String, Object?>? sender,
+  List<Map<String, Object?>>? recipients,
+  String? comboId,
+  int comboCount = 1,
+  Map<String, Object?> art = const {},
+}) {
+  final to =
+      recipients ?? [giftUserJson('sara', 'سارة'), giftUserJson('omar', 'عمر')];
+  final unit = _gifts[code]?.$2 ?? 1;
+  return {
+    'id': id,
+    'roomId': roomId,
+    'giftCode': code,
+    'assetKey': 'gift_$code',
+    'animationKey': _gifts[code]?.$4,
+    'unitPrice': unit,
+    'quantity': quantity,
+    'source': source,
+    'totalCoins': unit * quantity * to.length,
+    'sender': sender ?? giftUserJson('lina', 'لينا'),
+    'recipients': to,
+    'combo': {
+      'id': comboId ?? id,
+      'count': comboCount,
+      'quantity': quantity * comboCount,
+    },
+    'createdAt': '2026-10-26T18:30:00.000Z',
+    // v1.26.2-live (D126): the hosted art (none unless given).
+    'imageUrl': null,
+    'animationUrl': null,
+    'animationBytes': null,
+    ...art,
+  };
+}
+
+/// `LiveGiftResult`.
+Map<String, Object?> liveGiftResultJson({
+  required Map<String, Object?> gift,
+  int coins = 80,
+  int bagQuantity = 0,
+  Map<String, Object?>? luckyResult,
+  Map<String, Object?>? quip,
+}) => {
+  'gift': gift,
+  'coins': coins,
+  'bagQuantity': bagQuantity,
+  'luckyResult': ?luckyResult,
+  'quip': ?quip,
+};
+
+/// `LuckyGiftOdds` (the contract's example; [reason] null = eligible).
+Map<String, Object?> luckyOddsJson({
+  bool enabled = true,
+  String? reason,
+  bool ageConfirmed = true,
+  bool guest = false,
+}) => {
+  'enabled': enabled,
+  'drawsPerGift': 1,
+  // D148: the server's default table — eight tiers and the guarantee.
+  'returnPercent': 84.9999,
+  'hostSharePercent': 10,
+  'outcomes': [
+    {'multiplier': 5, 'chancePerMillion': 48918, 'probability': 0.048918},
+    {'multiplier': 10, 'chancePerMillion': 15451, 'probability': 0.015451},
+    {'multiplier': 25, 'chancePerMillion': 3903, 'probability': 0.003903},
+    {'multiplier': 50, 'chancePerMillion': 1464, 'probability': 0.001464},
+    {'multiplier': 100, 'chancePerMillion': 569, 'probability': 0.000569},
+    {'multiplier': 250, 'chancePerMillion': 130, 'probability': 0.00013},
+    {'multiplier': 500, 'chancePerMillion': 40, 'probability': 0.00004},
+    {'multiplier': 1000, 'chancePerMillion': 12, 'probability': 0.000012},
+  ],
+  'noWinChancePerMillion': 929513,
+  'noWinProbability': 0.929513,
+  'bigWinMultiplier': 100,
+  'pity': {'after': 15, 'multiplier': 5},
+  'dailyProtection': true,
+  'dayTimeZone': 'Asia/Riyadh',
+  'minimumAge': 18,
+  'caller': guest
+      ? null
+      : {
+          'eligible': reason == null && enabled,
+          'reason': reason ?? (enabled ? null : 'DISABLED'),
+          'ageConfirmed': ageConfirmed,
+        },
+};

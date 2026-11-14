@@ -1,6 +1,42 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Required in every build type: the app talks to the Kabso API. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- CP-010 (live video): camera and microphone while going live; network state for reconnects. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- D123: a live keeps running in the background. A foreground service
+         (flutter_foreground_task) of type microphone (host and seated guests)
+         and mediaPlayback (listeners of audio rooms) with an ongoing
+         notification; Android 13+ asks for POST_NOTIFICATIONS to show it.
+         D152: the same permission shows pushes (asked once, with a rationale). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <!-- D213 «بث ستريمر»: a streamer host's service also has the types
+         mediaProjection (the phone screen; Android 14 asks for the capture
+         consent first, then starts the service with it) and camera (the
+         round camera bubble goes on while the host is in the game). Only a
+         streamer live starts the service with these types. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
+    <!-- KL-060 Create: the in-app photo gallery (photo_manager). Android 13+
+         reads images and (D162: video posts and reels) videos; Android 14+
+         may grant a user-selected subset. Android 12 and older use
+         READ_EXTERNAL_STORAGE, declared by the plugin with maxSdkVersion 32.
+         No location access. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
+    <!-- D201: «حفظ في الجهاز» of a live clip. Android 10+ adds it to
+         MediaStore without a permission; Android 7–9 need storage writing. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
 
     <!-- Backup / transfer of auth data (SEC-019):
          - allowBackup=false: no cloud (or adb) backup of app data at all.
@@ -13,7 +49,7 @@
          the device, so a copied file could not be decrypted anyway; excluding
          it makes the "never leaves the device" rule explicit. -->
     <application
-        android:label="Kabso Live"
+        android:label="kabso"
         android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -41,6 +77,28 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- D123: the live's foreground service (the plugin's class; the name
+             must not change). Not exported; stops with the app's task. The
+             camera is paused in the background (D123) — except a streamer
+             host's bubble: D213 adds mediaProjection|camera, started with
+             them only for a streamer live (after the capture consent). -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="microphone|mediaPlayback|mediaProjection|camera"
+            android:stopWithTask="true"
+            android:exported="false"/>
+        <!-- D152 pushes (Firebase Cloud Messaging): the channel a push without
+             one uses, the status-bar icon and its accent. The channels and
+             their sounds are created by MainActivity. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="kabso_general" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_kabso" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -56,6 +114,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- v1.109-social (D344): «الشحن من الموقع» opens in a Custom Tab (url_launcher inAppBrowserView);
+             Android 11+ needs this query to see the browser that provides Custom Tabs. -->
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService"/>
         </intent>
     </queries>
 </manifest>

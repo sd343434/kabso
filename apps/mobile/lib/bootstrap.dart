@@ -8,6 +8,7 @@ import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/storage/fresh_install.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
+import 'package:kabso_live/features/status/status_catalogue.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Initializes bindings, global error handlers and async dependencies, then
@@ -29,6 +30,9 @@ Future<void> bootstrap(Widget Function() builder) async {
     AppLogger.error('Uncaught error', error, stack);
     return true;
   };
+
+  // D376: the Noto animated emoji's CC BY 4.0 notice on the licences page.
+  registerStatusEmojiLicense();
 
   final prefs = await SharedPreferences.getInstance();
   // SEC-019: drop Keychain tokens that survived an uninstall (iOS).

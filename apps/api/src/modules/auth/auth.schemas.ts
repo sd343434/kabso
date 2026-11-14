@@ -1,7 +1,21 @@
+import { LEGAL_VERSION } from '../privacy/legal.js';
 import { z } from 'zod';
+import { isCountryCode } from '../users/country.js';
+import { regularUsernameIssue } from '../premium-usernames/premium-username-rules.js';
 import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, USERNAME_PATTERN } from '../users/username.js';
 import { normalizeDisplayName, rawDisplayNameIssue } from '../users/display-name.js';
+import { normalizeContentText, type ContentTextLimits } from '../posts/content-text.js';
 import { passwordPolicyIssue } from './password-policy.js';
+import {
+  ACCOUNT_CATEGORIES,
+  GENDERS,
+  profileLinksSchema,
+  profileTagIconsSchema,
+  profileTagsSchema,
+} from '../users/profile-fields.js';
+import { installIdSchema } from '../referrals/referral-rules.js';
+import { signupCodeInput } from '../referrals/signup-codes.js';
+import { deviceKeySchema } from './device-signups.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml. All objects are strict
 // (`additionalProperties: false`): unknown fields fail with `unknown_field`.
@@ -48,12 +62,48 @@ export const usernameSchema = z
   .max(USERNAME_MAX_LENGTH)
   .regex(USERNAME_PATTERN);
 
+/**
+ * v1.28-live (D146): a new regular username (registration, `PUT /me/username`): 6–30 of a–z, 0–9
+ * and `_`, a letter and a digit, not premium. The first issue is reported on the field
+ * (`premium`, `too_short`, `too_long`, `invalid_format`, `letters_and_digits`).
+ */
+export const regularUsernameSchema = z
+  .string()
+  .max(64)
+  .superRefine((value, ctx) => {
+    const issue = regularUsernameIssue(value);
+    if (issue) ctx.addIssue({ code: 'custom', message: `username ${issue}`, params: { issue } });
+  });
+
 export const localeSchema = z.enum(['ar', 'en']);
+
+/** v1.112-social (§10.143.3): `InstallSource`. */
+export const INSTALL_SOURCES = ['PLAY', 'APP_STORE', 'SIDELOAD'] as const;
+export type InstallSource = (typeof INSTALL_SOURCES)[number];
+export const installSourceSchema = z.enum(INSTALL_SOURCES);
 
 export const deviceInfoSchema = z.strictObject({
   name: safeText(0, 100).optional(),
   platform: z.enum(['android', 'ios', 'web', 'other']).optional(),
   appVersion: safeText(0, 32).optional(),
+  /**
+   * v1.74-social (D217, §10.71): a random id the app keeps for this install (until it is uninstalled); used only by
+   * the referral fraud checks (one reward per device, no self-referral).
+   */
+  installId: installIdSchema.optional(),
+  /**
+   * v1.78-social (D223, §10.75): the phone's stable device id (Android `ANDROID_ID`, iOS the Keychain id) as the app's
+   * salted SHA-256 (64 lower-case hex). Read only by `register` / `registerVerify` (at most
+   * SIGNUP_MAX_ACCOUNTS_PER_DEVICE accounts created per device); stored only as an HMAC under the server's key.
+   */
+  deviceKey: deviceKeySchema.optional(),
+  /**
+   * v1.112-social (int21, D344/D345, §10.143.3): where this copy of the app was installed from — `PLAY` (Android,
+   * installer `com.android.vending`), `APP_STORE` (iOS, TestFlight included) or `SIDELOAD` (Android, any other or no
+   * installer: the direct APK). Kept on the session; «الشحن من الموقع» is offered only to the sources in
+   * TOPUP_APP_LINK_SOURCES (default SIDELOAD).
+   */
+  installSource: installSourceSchema.optional(),
 });
 
 /**
@@ -73,15 +123,36 @@ export const displayNameSchema = z
 export const registerSchema = z.strictObject({
   email: emailSchema,
   password: passwordSchema,
-  username: usernameSchema,
+  username: regularUsernameSchema,
   displayName: displayNameSchema,
+  // v1.47-social (D175): required (owner: chosen at sign-up; `UNDISCLOSED` = «أفضّل عدم الذكر»).
+  gender: z.string().pipe(z.enum(GENDERS)),
   locale: localeSchema.optional(),
   device: deviceInfoSchema.optional(),
+  /**
+   * v1.74-social (D217, §10.71): an invite code (or invite link) typed at sign-up, or from the link that opened the
+   * app. v1.108-social (D343, §10.142): or a supervisor's staff ID («رمز الدعوة أو رمز المشرف»); `register` answers 400
+   * `referralCode` `not_found` for a code nobody can use now; it is applied when the account is created.
+   */
+  referralCode: signupCodeInput.optional(),
+  /**
+   * v1.66-social (D198, §10.61.2): the sign-up's «عمري 18 عاماً أو أكثر وأوافق على الشروط وسياسة الخصوصية» — the 18+
+   * statement and the versions of the terms and the privacy policy shown (from `getLegalDocuments`). Optional for
+   * older clients: without it nothing is recorded and the consent screen asks after sign-in.
+   */
+  legal: z
+    .strictObject({
+      ageConfirmed: z.literal(true),
+      termsVersion: z.string().regex(LEGAL_VERSION).optional(),
+      privacyVersion: z.string().regex(LEGAL_VERSION).optional(),
+    })
+    .optional(),
 });
 export type RegisterInput = z.output<typeof registerSchema>;
 
 export const loginSchema = z.strictObject({
-  identifier: z.string().trim().min(3).max(254),
+  // v1.28-live (D146): 1-character premium usernames sign in too.
+  identifier: z.string().trim().min(1).max(254),
   // Length is checked in code points after NFC, so an NFD spelling of a valid password passes.
   password: z
     .string()
@@ -90,12 +161,27 @@ export const loginSchema = z.strictObject({
     .transform(normalizePassword)
     .refine((v) => [...v].length <= 128, { params: { issue: 'too_long' } }),
   device: deviceInfoSchema.optional(),
+  /**
+   * v1.62-social (D193, §10.56): `true` cancels a pending account deletion and signs in (otherwise signing in to an
+   * account in its grace period answers 409 ACCOUNT_DELETION_PENDING). Ignored for any other account.
+   */
+  cancelDeletion: z.boolean().optional(),
+  /**
+   * v1.72-social (D208, §10.67): the new password when the team requires one (a temporary password or «فرض تغيير كلمة
+   * المرور»; otherwise sign-in answers 403 PASSWORD_CHANGE_REQUIRED). Ignored for any other account.
+   */
+  newPassword: passwordSchema.optional(),
 });
 export type LoginInput = z.output<typeof loginSchema>;
 
 const opaqueToken = z.string().min(10).max(200);
 
-export const refreshSchema = z.strictObject({ refreshToken: opaqueToken });
+export const refreshSchema = z.strictObject({
+  refreshToken: opaqueToken,
+  /** v1.112-social (§10.143.3): the app's install source, kept on the session (a session signed in earlier gets it). */
+  installSource: installSourceSchema.optional(),
+});
+export type RefreshInput = z.output<typeof refreshSchema>;
 export const verifyEmailSchema = z.strictObject({ token: opaqueToken });
 export const forgotPasswordSchema = z.strictObject({ email: emailSchema });
 
@@ -111,7 +197,86 @@ export type RegisterVerifyInput = z.output<typeof registerVerifySchema>;
 
 export const registerResendSchema = z.strictObject({ email: emailSchema });
 
-export const updateMeSchema = z.strictObject({ locale: localeSchema });
+/** v1.108-social (D343, §10.142): `CheckSignupCodeRequest` — the sign-up field's live check. */
+export const checkSignupCodeSchema = z.strictObject({ code: signupCodeInput });
+
+/** v1.45-social (D168, CONVENTIONS §10.42): a bio — ≤ 300 code points, ≤ 4 line breaks, §6 hygiene. */
+export const BIO_LIMITS: ContentTextLimits = { maxCodePoints: 300, maxLineBreaks: 4, allowEmpty: true };
+/** Raw input bound checked before any normalisation work. */
+export const BIO_RAW_MAX = 1200;
+
+/** A bio after normalisation; an empty result is null (cleared). */
+export const bioSchema = z
+  .string()
+  .max(BIO_RAW_MAX)
+  .transform((raw, ctx) => {
+    const result = normalizeContentText(raw, BIO_LIMITS);
+    if ('issue' in result) {
+      ctx.addIssue({ code: 'custom', message: `bio ${result.issue}`, params: { issue: result.issue } });
+      return z.NEVER;
+    }
+    return result.value.length === 0 ? null : result.value;
+  })
+  .nullable();
+
+/**
+ * `PATCH /me`: v1.2 `locale`; v1.27.1-live (D133) `country` (ISO 3166-1 alpha-2, any case,
+ * stored upper case; null clears it); v1.45-social (D168) `displayName` (the §6 registration rules;
+ * reserved terms are checked by the service) and `bio` (null or empty clears it); v1.47-social (D175)
+ * `gender`, `showGender`, `category` and `links`; v1.85-social (D278b) `tags`; v1.91-social (D292) `tagIcons`
+ * (only with `tags`, one per tag). At least one.
+ */
+export const updateMeSchema = z
+  .strictObject({
+    locale: localeSchema.optional(),
+    country: z
+      .string()
+      .transform((v) => v.toUpperCase())
+      .refine(isCountryCode, { params: { issue: 'invalid_value' } })
+      .nullable()
+      .optional(),
+    displayName: displayNameSchema.optional(),
+    bio: bioSchema.optional(),
+    // v1.47-social (D175, CONVENTIONS §10.47): gender (never cleared once chosen), whether others see
+    // it, the account category (null clears it) and the links (the whole set; [] clears them).
+    gender: z.enum(GENDERS).optional(),
+    showGender: z.boolean().optional(),
+    category: z.enum(ACCOUNT_CATEGORIES).nullable().optional(),
+    links: profileLinksSchema.optional(),
+    // v1.85-social (D278b, §10.99): the profile tags «منشنات» (the whole set; [] clears them).
+    tags: profileTagsSchema.optional(),
+    // v1.91-social (D292, §10.106): the icon of each tag (null = `default`); omitted, each tag keeps its icon.
+    tagIcons: profileTagIconsSchema.optional(),
+  })
+  .superRefine((body, ctx) => {
+    if (body.tagIcons !== undefined && body.tags?.length !== body.tagIcons.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['tagIcons'],
+        params: { issue: 'invalid_value' },
+        message: 'one icon per tag, sent with tags',
+      });
+    }
+    if (Object.values(body).every((v) => v === undefined)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['body'],
+        params: { issue: 'required' },
+        message: 'nothing to update',
+      });
+    }
+  });
 export const resetPasswordSchema = z.strictObject({ token: opaqueToken, newPassword: passwordSchema });
+
+/** `RevokeOtherSessionsRequest` (openapi v1.79-social, D226): the account's current password, re-checked. */
+export const revokeOtherSessionsSchema = z.strictObject({
+  password: z
+    .string()
+    .min(1)
+    .max(512)
+    .transform(normalizePassword)
+    .refine((v) => [...v].length <= 128, { params: { issue: 'too_long' } }),
+});
+export type RevokeOtherSessionsInput = z.output<typeof revokeOtherSessionsSchema>;
 
 export type DeviceInfo = z.output<typeof deviceInfoSchema>;

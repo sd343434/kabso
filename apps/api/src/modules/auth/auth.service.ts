@@ -8,9 +8,13 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MAIL_SENDER, type MailLocale, type MailSender } from '../mail/mail-sender.js';
 import { normalizeEmail, normalizeUsername } from '../users/username.js';
+import { parseStaffId, staffIdHolderOf } from '../users/staff-ids.js';
+import { activeDeviceBanOf, deviceBannedError } from './device-bans.js';
+import { activeRestrictionOf } from '../users/account-control.js';
 import { UsersService, type MeDto } from '../users/users.service.js';
 import { AccessTokenService } from './access-token.service.js';
-import type { DeviceInfo, LoginInput } from './auth.schemas.js';
+import { AccountDeletionService } from './account-deletion.service.js';
+import type { DeviceInfo, InstallSource, LoginInput } from './auth.schemas.js';
 import { PasswordHasher } from './password-hasher.service.js';
 import {
   RevokedReason,
@@ -49,6 +53,9 @@ interface LoginLimits {
   reserved: boolean;
 }
 
+/** How the sign-in identifier was read (audit metadata; v1.84-live D302 adds `staff_id`). */
+type LoginIdentifierType = 'email' | 'username' | 'staff_id';
+
 /** Redis flag bucket: "this source logged into this account recently" (SEC-023). */
 const RECENT_SUCCESS_BUCKET = 'login:recent_success';
 
@@ -65,6 +72,7 @@ export class AuthService {
     private readonly accessTokens: AccessTokenService,
     private readonly audit: AuditService,
     private readonly rateLimits: RateLimitService,
+    private readonly deletion: AccountDeletionService,
     @Inject(MAIL_SENDER) private readonly mail: MailSender,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
@@ -73,8 +81,17 @@ export class AuthService {
     const identifier = input.identifier.includes('@')
       ? { email: normalizeEmail(input.identifier) }
       : { username: normalizeUsername(input.identifier) };
-    const identifierType = 'email' in identifier ? 'email' : 'username';
-    const candidate = await this.users.findLoginCandidate(identifier);
+    // v1.84-live (D302, §10.96.12; owner: «المشرفين يدخلون من خلال وضع الايدي المميز والباسورد»): a staff ID («Kabso01»,
+    // «kabso1», «@KABSO01», the primary OWNER's «Kabso») signs in its CURRENT holder (ACTIVE, a panel role held). A
+    // retired number or a suspended holder resolves to nobody and the identifier is read as before (username / email),
+    // so the answer and the work done are those of any unknown identifier. Every rule below applies unchanged.
+    const staffNumber = parseStaffId(input.identifier);
+    const staffHolder = staffNumber === null ? null : await staffIdHolderOf(this.prisma, staffNumber);
+    const identifierType: LoginIdentifierType =
+      staffHolder !== null ? 'staff_id' : 'email' in identifier ? 'email' : 'username';
+    const candidate = await this.users.findLoginCandidate(
+      staffHolder !== null ? { id: staffHolder } : identifier,
+    );
     const limits = await this.checkLoginLimits(candidate?.id ?? null, identifier, identifierType, meta);
 
     let passwordOk: boolean;
@@ -101,6 +118,26 @@ export class AuthService {
     }
     // The password was right: this was not a failed guess (contract §7: failures only).
     await this.refundAccountAttempt(limits);
+    // v1.62-social (D193, §10.56): an account in its deletion grace period — only after the right password, so
+    // the answer reveals nothing to someone guessing. `cancelDeletion: true` cancels it and signs in.
+    if (candidate.status === 'PENDING_DELETION') {
+      if (input.cancelDeletion !== true) {
+        await this.audit.record({
+          action: AuditAction.LOGIN_FAILURE,
+          actorUserId: candidate.id,
+          metadata: { identifierType, reason: 'deletion_pending' },
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+        const purgeAfter = await this.deletion.purgeAfterOf(candidate.id);
+        throw new AppException(
+          ErrorCode.ACCOUNT_DELETION_PENDING,
+          undefined,
+          purgeAfter ? [{ field: 'purgeAfter', issue: purgeAfter.toISOString() }] : undefined,
+        );
+      }
+      await this.deletion.cancelAtSignIn(candidate.id, meta);
+    }
     if (candidate.status === 'SUSPENDED') {
       await this.audit.record({
         action: AuditAction.LOGIN_FAILURE,
@@ -111,8 +148,78 @@ export class AuthService {
       });
       throw new AppException(ErrorCode.ACCOUNT_SUSPENDED);
     }
+    // v1.72-social (D208, §10.67): a temporary lock by the team — told only after the right password, with its end
+    // and the team's reason (the person sees them on the sign-in screen).
+    const lock = await activeRestrictionOf(this.prisma, candidate.id, 'LOCK');
+    if (lock) {
+      await this.audit.record({
+        action: AuditAction.LOGIN_FAILURE,
+        actorUserId: candidate.id,
+        metadata: { identifierType, reason: 'locked', lockedUntil: lock.endsAt.toISOString() },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      throw new AppException(ErrorCode.ACCOUNT_LOCKED, undefined, [
+        { field: 'lockedUntil', issue: lock.endsAt.toISOString() },
+        { field: 'reason', issue: lock.reason },
+      ]);
+    }
+    // v1.60-live (D250, §10.91): a device the team banned «حظر جهاز» — refused for every account, told only after the
+    // right password (like a lock), with the end and the team's reason.
+    const deviceBan = await activeDeviceBanOf(this.prisma, [
+      this.sessions.deviceHashOf(input.device?.deviceKey),
+    ]);
+    if (deviceBan) {
+      await this.audit.record({
+        action: AuditAction.LOGIN_FAILURE,
+        actorUserId: candidate.id,
+        metadata: { identifierType, reason: 'device_banned', deviceBanId: deviceBan.id },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      throw deviceBannedError(deviceBan);
+    }
+    // v1.72-social (D208): the team requires a new password (a temporary one, or «فرض تغيير كلمة المرور»).
+    let changedPassword = false;
+    if (candidate.passwordChangeRequiredAt !== null) {
+      if (input.newPassword === undefined) {
+        await this.audit.record({
+          action: AuditAction.LOGIN_FAILURE,
+          actorUserId: candidate.id,
+          metadata: { identifierType, reason: 'password_change_required' },
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+        throw new AppException(ErrorCode.PASSWORD_CHANGE_REQUIRED);
+      }
+      if (input.newPassword === input.password) {
+        throw AppException.validation([{ field: 'newPassword', issue: 'same_as_current' }]);
+      }
+      const hash = await this.passwords.hash(input.newPassword);
+      const revoked = await this.prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: candidate.id },
+          data: { passwordHash: hash, passwordChangeRequiredAt: null },
+        });
+        await tx.verificationToken.updateMany({
+          where: { userId: candidate.id, purpose: 'PASSWORD_RESET', consumedAt: null },
+          data: { consumedAt: new Date() },
+        });
+        return this.sessions.revokeAllForUser(tx, candidate.id, RevokedReason.PASSWORD_RESET);
+      });
+      await this.audit.record({
+        action: AuditAction.PASSWORD_CHANGED_AT_SIGN_IN,
+        actorUserId: candidate.id,
+        targetType: 'user',
+        targetId: candidate.id,
+        metadata: { revokedSessions: revoked },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      changedPassword = true;
+    }
 
-    if (this.passwords.needsRehash(candidate.passwordHash)) {
+    if (!changedPassword && this.passwords.needsRehash(candidate.passwordHash)) {
       await this.users.updatePasswordHash(
         this.prisma,
         candidate.id,
@@ -136,8 +243,12 @@ export class AuthService {
     return { user: me, tokens: await this.tokenPair(candidate.id, session) };
   }
 
-  async refresh(refreshToken: string, meta: RequestMeta): Promise<TokenPairDto> {
-    const outcome = await this.sessions.rotate(refreshToken);
+  async refresh(
+    refreshToken: string,
+    meta: RequestMeta,
+    installSource: InstallSource | null = null,
+  ): Promise<TokenPairDto> {
+    const outcome = await this.sessions.rotate(refreshToken, new Date(), installSource);
     if (outcome.kind === 'reuse') {
       await this.audit.record({
         action: AuditAction.REFRESH_REUSE,
@@ -200,6 +311,43 @@ export class AuthService {
     });
   }
 
+  /**
+   * `POST /auth/sessions/revoke-others` (v1.79-social, D226, §10.76). Order after auth and the rate limit: 400 body →
+   * 403 `REAUTH_FAILED` (the password is not the account's; audited) → 200 with the number of sessions ended
+   * (0 when there was no other; audited either way). The caller's own session stays.
+   */
+  async revokeOtherSessions(
+    userId: string,
+    currentSessionId: string,
+    password: string,
+    meta: RequestMeta,
+  ): Promise<{ revoked: number }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+    if (!user) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+    if (!(await this.passwords.verify(user.passwordHash, password))) {
+      await this.audit.record({
+        action: AuditAction.SESSIONS_REVOKE_OTHERS_REAUTH_FAILED,
+        actorUserId: userId,
+        targetType: 'user',
+        targetId: userId,
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      throw new AppException(ErrorCode.REAUTH_FAILED);
+    }
+    const revoked = await this.sessions.revokeOthers(userId, currentSessionId, RevokedReason.USER_REVOKED);
+    await this.audit.record({
+      action: AuditAction.SESSIONS_REVOKED_OTHERS,
+      actorUserId: userId,
+      targetType: 'session',
+      targetId: currentSessionId,
+      metadata: { count: revoked },
+      ip: meta.ip,
+      requestId: meta.requestId,
+    });
+    return { revoked };
+  }
+
   async verifyEmail(token: string, meta: RequestMeta): Promise<void> {
     const now = new Date();
     const userId = await this.prisma.$transaction(async (tx) => {
@@ -236,7 +384,8 @@ export class AuthService {
   async forgotPassword(email: string, meta: RequestMeta): Promise<void> {
     try {
       const user = await this.users.findMailRecipient({ email });
-      if (!user || user.status !== 'ACTIVE') return;
+      // v1.62-social (D193): a person in their deletion grace period may reset a forgotten password (to cancel).
+      if (!user || (user.status !== 'ACTIVE' && user.status !== 'PENDING_DELETION')) return;
       const token = await this.verificationTokens.issue(
         this.prisma,
         user.id,
@@ -301,7 +450,7 @@ export class AuthService {
   private async checkLoginLimits(
     userId: string | null,
     identifier: { email: string } | { username: string },
-    identifierType: 'email' | 'username',
+    identifierType: LoginIdentifierType,
     meta: RequestMeta,
   ): Promise<LoginLimits> {
     const account = userId

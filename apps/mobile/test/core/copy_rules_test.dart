@@ -38,8 +38,30 @@ void main() {
 
   test('T2: the brand is "Kabso Live" in Latin script in Arabic copy', () {
     for (final MapEntry(:key, :value) in ar.entries) {
-      expect(value, isNot(contains('كابسو')), reason: key);
+      // D294 (owner, 2026-11-06: «إن كان التطبيق بالعربية، كلمة كابسو لايف
+      // تكون على اليمين بالعربية»): the live hub's top-bar brand alone is
+      // written in Arabic script; checked exactly below.
+      if (key == 'liveHubBrand') continue;
+      // D389 (owner, 2026-11-13, chose «ب) هذا الحساب من فريق عمل كابسو
+      // الرسمي»): the Kabso Team badge's explainer, by the owner's own
+      // wording — this one string only, checked exactly below.
+      if (key == 'badgeExplainKabsoTeam') continue;
+      // D260 (owner, 2026-11-04): the staff badge is «فريق كابسو» in
+      // Arabic, by the owner's own wording. D273: the team's name in the
+      // staff strings too — only that phrase, never the brand alone.
+      // D385 (owner, 2026-11-12, approved «نعم»): the support chat is
+      // «دعم كابسو», by the owner's own wording — only that phrase too.
+      expect(
+        value.replaceAll('فريق كابسو', '').replaceAll('دعم كابسو', ''),
+        isNot(contains('كابسو')),
+        reason: key,
+      );
     }
+    expect(ar['liveHubBrand'], 'كابسو لايف');
+    expect(
+      ar['badgeExplainKabsoTeam'],
+      'شارة فريق كابسو — هذا الحساب من فريق عمل كابسو الرسمي',
+    );
     expect(ar['appTitle'], 'Kabso Live');
     expect(ar['codeWelcome'], contains('Kabso Live'));
   });
@@ -86,10 +108,17 @@ void main() {
     expect(ar['accountSuspendedBanner'], contains('تواصل مع الدعم'));
   });
 
-  test('Create empty state lists phases 3, 4, 5 and 6', () {
-    for (final copy in [en['createComingBody']!, ar['createComingBody']!]) {
-      for (final phase in ['3', '4', '5', '6']) {
-        expect(copy, contains(phase));
+  // KL-060: Create is the real composer now (the "coming in phases 3–6"
+  // empty state is gone); its copy names the photo rules it enforces.
+  test('Create copy names the photo limits it enforces', () {
+    expect(en['createPhotoTooLarge'], contains('15 MB'));
+    expect(ar['createPhotoTooLarge'], contains('15'));
+    for (final copy in [
+      en['createPhotoUnsupported']!,
+      ar['createPhotoUnsupported']!,
+    ]) {
+      for (final type in ['JPEG', 'PNG', 'WebP']) {
+        expect(copy, contains(type));
       }
     }
   });

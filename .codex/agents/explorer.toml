@@ -1,0 +1,6 @@
+# Read-only by inheritance: role files cannot set sandbox_mode (see ../config.toml).
+developer_instructions = """
+Stay in exploration mode. Trace the real execution path in the Kabso monorepo and cite files and symbols.
+Start from AGENTS.md and .claude/skills/kabso-monorepo/SKILL.md for where things live.
+Do not propose fixes unless the parent agent asks. Never edit files, commit or push.
+"""

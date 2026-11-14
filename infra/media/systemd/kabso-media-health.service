@@ -1,0 +1,11 @@
+# Kabso Live — media node health probe (D350). Logs to the journal (journalctl -u kabso-media-health) and writes
+# kabso_media_probe_ok gauges for node_exporter's textfile collector.
+[Unit]
+Description=Kabso Live media node health probe
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /opt/kabso-media/health.sh
+TimeoutStartSec=60

@@ -1,14 +1,33 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/demo/demo_mode.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/features/debug/demo_data.dart';
+import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_room_stats.dart';
+import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart'
+    show ReportReason;
 
 /// Live discovery (docs/contracts/openapi.yaml v1.3, tag `live`).
 ///
 /// Every method throws an `AppFailure`. Requests go through the
 /// authenticated Dio (bearer token, single-flight refresh, `Accept-Language`
 /// from the app language, `X-Request-Id`).
+/// `LiveBulletResult` (CP-017): the bullet, the balance after it and
+/// (v1.83-social, D258 §10.94.4) whether it was one of the sender's free VIP
+/// public messages of the day and how many free ones are left (null without
+/// the perk).
+typedef LiveBulletSent = ({
+  LiveBullet bullet,
+  int coins,
+  bool free,
+  int? freeLeft,
+});
+
 abstract interface class LiveRepository {
   /// `GET /live/config`.
   Future<LiveConfig> getConfig();
@@ -18,15 +37,319 @@ abstract interface class LiveRepository {
   Future<List<LiveCategory>> listCategories();
 
   /// `GET /live/rooms?tab&category&cursor&limit`.
+  /// D129: [kind] lists voice rooms or video lives only (`null`: all).
+  /// D133 (v1.27.1-live): [nearby] sends `scope=nearby` (the caller's
+  /// country; `emptyReason` `COUNTRY_NOT_SET` without one) and [featured]
+  /// sends `featured=true` (featured hosts, by feature rank). D240
+  /// (v1.53-live): [country] sends `country` (the hosts of that country; it
+  /// wins over the caller's own).
   Future<LiveRoomPage> listRooms({
     required LiveRoomsTab tab,
     String? category,
+    LiveRoomsKind? kind,
+    bool nearby = false,
+    String? country,
+    bool featured = false,
     String? cursor,
     int limit = defaultPageSize,
   });
 
   /// `GET /live/rooms/{roomId}` (also returns ended rooms).
   Future<LiveRoom> getRoom(String roomId);
+
+  /// `POST /live/rooms` (CP-010: needs the hosting permission). CP-011:
+  /// [mode] SOLO, MULTI or AUDIO; [seatCount] for MULTI and AUDIO only.
+  Future<LiveRoom> startRoom({
+    required String title,
+    String? categorySlug,
+    bool allowGuests = true,
+    LiveRoomMode mode = LiveRoomMode.solo,
+    int? seatCount,
+    String? theme,
+    PodcastSetup? podcast,
+
+    /// v1.56-live (D213): a STREAMER's starting layout (version ignored).
+    LiveStreamer? streamer,
+
+    /// v1.132-social (D379, §10.169.9): AUDIO only — a VIP room's lowest
+    /// tier (its code), within the host's VIP_ROOM perk.
+    String? vipMinTier,
+  });
+
+  /// v1.56-live (D213, CONVENTIONS §10.86): `PUT /live/rooms/{roomId}/
+  /// streamer` (host) — only the values given change. Answers the layout
+  /// now (its `version` moves on a real change).
+  Future<LiveStreamer> updateStreamer(
+    String roomId, {
+    StreamerOrientation? orientation,
+    bool? cameraVisible,
+    StreamerCorner? corner,
+  });
+
+  /// `POST /live/rooms/{roomId}/heartbeat` (host).
+  Future<void> heartbeat(String roomId);
+
+  /// v1.42-live (D170, CONVENTIONS §10.44): `POST /live/rooms/{roomId}/
+  /// host-presence` (host) — the app went to the background with the camera
+  /// off ([away]) or came back. A video live away for 5 minutes is ended by
+  /// the server (`HOST_AWAY_TIMEOUT`).
+  Future<void> setHostPresence(String roomId, {required bool away});
+
+  /// `POST /live/rooms/{roomId}/end` (host; idempotent).
+  Future<LiveRoom> endRoom(String roomId);
+
+  /// `PATCH /live/rooms/{roomId}` (host): the guests switch.
+  Future<LiveRoom> setAllowGuests(String roomId, {required bool allow});
+
+  /// `PATCH /live/rooms/{roomId}` (host, CP-011): seat count and theme.
+  Future<LiveRoom> updateRoom(String roomId, {int? seatCount, String? theme});
+
+  /// v1.27.3-live (D136): `PATCH /live/rooms/{roomId}` `{wishGifts}` (host;
+  /// up to 4 gift codes in order, `[]` empties the list).
+  Future<LiveRoom> setWishGifts(String roomId, List<String> codes);
+
+  // ---- CP-011 seats ----------------------------------------------------
+
+  /// `GET /live/rooms/{roomId}/seats`.
+  Future<LiveSeats> seats(String roomId);
+
+  /// `POST /live/rooms/{roomId}/seat-requests`. D212: in a podcast a
+  /// raised hand, with an optional short [question].
+  Future<LiveSeatRequest> requestSeat(
+    String roomId, {
+    int? seatIndex,
+    String? question,
+  });
+
+  /// v1.47-live (D212): `POST …/seat-requests/{requestId}/defer` — the
+  /// host's «لاحقاً» on a podcast hand.
+  Future<LiveSeats> deferSeatRequest(String roomId, String requestId);
+
+  /// v1.47-live (D212): `PATCH /live/rooms/{roomId}` with the podcast's
+  /// hands switch and/or question time ([questionSeconds] `null` = no
+  /// limit; leave [setQuestionSeconds] false to keep it).
+  Future<LiveRoom> setPodcastSettings(
+    String roomId, {
+    bool? questionsOpen,
+    bool setQuestionSeconds = false,
+    int? questionSeconds,
+  });
+
+  /// v1.47-live (D212): `GET /live/podcasts/scheduled`.
+  Future<List<LiveScheduledPodcast>> scheduledPodcasts();
+
+  /// `DELETE /live/rooms/{roomId}/seat-requests/me`.
+  Future<void> cancelSeatRequest(String roomId);
+
+  /// `GET /live/rooms/{roomId}/seat-requests` (host, moderators).
+  Future<({List<LiveSeatRequest> items, String? next})> seatRequests(
+    String roomId, {
+    String? cursor,
+  });
+
+  /// `POST …/seat-requests/{requestId}/accept`. v1.114-live (D363):
+  /// [hotSeat] seats a video podcast's hand «في الكرسي الساخن» for
+  /// [hotSeatSeconds] (the server's default 60 s when null).
+  Future<LiveSeats> acceptSeatRequest(
+    String roomId,
+    String requestId, {
+    int? seatIndex,
+    bool hotSeat = false,
+    int? hotSeatSeconds,
+  });
+
+  /// v1.114-live (D363): `PUT` / `DELETE …/seat-requests/{requestId}/vote`
+  /// — the caller's upvote of a video podcast hand's question.
+  Future<LivePodcastQuestionVotes> voteQuestion(
+    String roomId,
+    String requestId, {
+    required bool vote,
+  });
+
+  /// v1.114-live (D363): `PUT /live/rooms/{roomId}/podcast/director` — the
+  /// host relays the director's shot to the room.
+  Future<void> setPodcastDirector(String roomId, PodcastDirectorShot shot);
+
+  /// v1.114-live (D363 scope extension): `PUT …/podcast/control` — pin a
+  /// person and/or keep a layout; both null = «تلقائي».
+  Future<LivePodcastStudio> setPodcastControl(
+    String roomId, {
+    String? pinUserId,
+    PodcastShotKind? layout,
+  });
+
+  /// `PUT …/podcast/segments` — the episode's segments (0–8).
+  Future<LivePodcastStudio> setPodcastSegments(
+    String roomId,
+    List<LivePodcastSegment> segments,
+  );
+
+  /// `POST …/podcast/segments/next` — the next segment, then the closing
+  /// card.
+  Future<LivePodcastStudio> nextPodcastSegment(String roomId);
+
+  /// `PUT …/podcast/on-screen` — a hand's question over the video.
+  Future<LivePodcastStudio> showPodcastQuestion(
+    String roomId,
+    String requestId, {
+    String? answerUserId,
+  });
+
+  /// `DELETE …/podcast/on-screen` — the question card goes away.
+  Future<LivePodcastStudio> hidePodcastQuestion(String roomId);
+
+  /// `POST …/seats/{seatIndex}/on-air` — a backstage guest goes on air.
+  Future<LiveSeats> bringSeatOnAir(String roomId, int seatIndex);
+
+  /// `POST …/seat-requests/{requestId}/decline`.
+  Future<void> declineSeatRequest(String roomId, String requestId);
+
+  /// `POST /live/rooms/{roomId}/seat-invites`. v1.114-live (D363):
+  /// [guestTitle] is a video podcast guest's lower-third title.
+  Future<LiveSeatInvite> inviteToSeat(
+    String roomId,
+    String username, {
+    int? seatIndex,
+    String? guestTitle,
+  });
+
+  /// `POST …/seat-invites/me/accept`.
+  Future<LiveSeats> acceptSeatInvite(String roomId);
+
+  /// `POST …/seat-invites/me/decline`.
+  Future<void> declineSeatInvite(String roomId);
+
+  /// `POST …/seats/me/leave`.
+  Future<void> leaveSeat(String roomId);
+
+  /// `POST …/seats/{index}/mute`.
+  Future<LiveSeats> muteSeat(String roomId, int index, {required bool muted});
+
+  /// `POST …/seats/{index}/remove`.
+  Future<LiveSeats> removeFromSeat(String roomId, int index);
+
+  /// `POST …/seats/{index}/lock` (host).
+  Future<LiveSeats> lockSeat(String roomId, int index, {required bool locked});
+
+  /// `PUT /live/rooms/{roomId}/moderators/{username}` (host).
+  Future<LiveSeats> addModerator(String roomId, String username);
+
+  /// `DELETE /live/rooms/{roomId}/moderators/{username}` (host).
+  Future<LiveSeats> removeModerator(String roomId, String username);
+
+  /// `POST /live/rooms/{roomId}/media-token`; [guestId] only without an
+  /// account.
+  ///
+  /// v1.68-live (D273): [staffVisibility] `HIDDEN` asks for «مراقبة خفية» (a
+  /// staff member with `lives.watch.hidden`; D286: no code); the server decides
+  /// `LiveMediaAccess.staff`.
+  Future<LiveMediaAccess> mediaToken(
+    String roomId, {
+    String? guestId,
+    String? staffVisibility,
+  });
+
+  /// `GET /live/rooms/{roomId}/viewers` (the host and, D109, anyone who may
+  /// watch the room): who is watching now, newest first.
+  Future<LiveViewersPage> viewers(String roomId, {String? cursor});
+
+  /// `POST /live/rooms/{roomId}/taps` (CP-012): a batch of 1–50 taps.
+  Future<LiveTapsResult> tap(String roomId, int count);
+
+  /// `PATCH /live/rooms/{roomId}` (host, CP-014): the title, the category
+  /// (`null`: none) and the topic (`null`: none), all three sent.
+  Future<LiveRoom> editRoom(
+    String roomId, {
+    required String title,
+    required String? categorySlug,
+    required String? topic,
+  });
+
+  /// `GET /live/rooms/{roomId}/contributors` (CP-014): the top 50.
+  Future<List<LiveContributor>> contributors(String roomId);
+
+  /// `GET /live/rooms/{roomId}/contributors/{username}` (v1.20-live, D105):
+  /// one person's points in this live and their rank (null with 0 points).
+  Future<LiveContributorStanding> contributor(String roomId, String username);
+
+  /// `GET /live/rooms/{roomId}/stats` (host only, v1.27.6-live, D140): the
+  /// live's statistics for the end-of-live summary.
+  Future<LiveRoomStats> roomStats(String roomId);
+
+  // ---- v1.20-live kicks (CONVENTIONS §10.20, D105) ---------------------
+
+  /// `POST /live/rooms/{roomId}/kicks` (host, moderator): [username] leaves
+  /// this live and cannot come back until it ends. Already kicked → the
+  /// first kick.
+  Future<LiveKick> kick(String roomId, String username);
+
+  /// `GET /live/rooms/{roomId}/kicks` (host, moderator), newest first.
+  Future<List<LiveKick>> kicks(String roomId);
+
+  /// `DELETE /live/rooms/{roomId}/kicks/{username}` (host, moderator;
+  /// idempotent): lets them back in.
+  Future<void> unkick(String roomId, String username);
+
+  // ---- CP-013 chat (CONVENTIONS §10.11) ---------------------------------
+
+  /// `GET /live/rooms/{roomId}/chat`: the last 50 messages, oldest first.
+  Future<List<LiveChatEntry>> chatMessages(String roomId);
+
+  /// `POST /live/rooms/{roomId}/chat`; a retry with the same [clientId]
+  /// returns the first message.
+  Future<LiveChatEntry> sendChat(
+    String roomId, {
+    required String text,
+    required String clientId,
+  });
+
+  /// `DELETE /live/rooms/{roomId}/chat/{messageId}` (the author, the host or
+  /// a moderator; idempotent).
+  Future<void> deleteChat(String roomId, String messageId);
+
+  /// `GET /live/rooms/{roomId}/chat/mutes` (host, moderator).
+  Future<List<LiveChatMute>> chatMutes(String roomId);
+
+  /// `PUT` / `DELETE /live/rooms/{roomId}/chat/mutes/{username}`.
+  Future<void> setChatMuted(
+    String roomId,
+    String username, {
+    required bool muted,
+  });
+
+  /// `PATCH /live/rooms/{roomId}` `chatEnabled` (host).
+  Future<LiveRoom> setChatEnabled(String roomId, {required bool enabled});
+
+  /// `POST /reports` with `targetType: LIVE_CHAT_MESSAGE`.
+  Future<void> reportChatMessage(String messageId, ReportReason reason);
+
+  // ---- CP-017 voice clips, pictures, bullets and coins (§10.19) ---------
+
+  /// `POST /live/rooms/{roomId}/chat` with [kind] VOICE or IMAGE and the
+  /// caller's completed `LIVE_CHAT_VOICE` / `LIVE_CHAT_IMAGE` upload
+  /// [mediaId]; a retry with the same [clientId] returns the first message.
+  Future<LiveChatEntry> sendChatMedia(
+    String roomId, {
+    required LiveChatKind kind,
+    required String mediaId,
+    required String clientId,
+  });
+
+  /// `POST /live/rooms/{roomId}/bullets` (10,000 coins, D371): the bullet
+  /// and the balance after it. A retry with the same [clientId] is never
+  /// charged again.
+  Future<LiveBulletSent> sendBullet(
+    String roomId, {
+    required String text,
+    required String clientId,
+  });
+
+  /// `GET /wallet/me`: the caller's coin balance.
+  Future<int> myCoins();
+
+  /// `POST /live/rooms/{roomId}/seat-emoji` (v1.27.5-live, D138): plays
+  /// [token] (`:<pack>_<id>:`) once on the caller's own tile, for the room.
+  Future<LiveSeatEmoji> sendSeatEmoji(String roomId, String token);
 
   /// CONVENTIONS §5 / HL-H5.
   static const defaultPageSize = 20;
@@ -57,6 +380,10 @@ class LiveRepositoryImpl implements LiveRepository {
   Future<LiveRoomPage> listRooms({
     required LiveRoomsTab tab,
     String? category,
+    LiveRoomsKind? kind,
+    bool nearby = false,
+    String? country,
+    bool featured = false,
     String? cursor,
     int limit = LiveRepository.defaultPageSize,
   }) => guardApiCall(() async {
@@ -65,6 +392,10 @@ class LiveRepositoryImpl implements LiveRepository {
       queryParameters: {
         'tab': tab.wire,
         'category': ?category,
+        'kind': ?kind?.wire,
+        if (nearby) 'scope': 'nearby',
+        'country': ?country,
+        if (featured) 'featured': 'true',
         'cursor': ?cursor,
         'limit': limit,
       },
@@ -79,8 +410,627 @@ class LiveRepositoryImpl implements LiveRepository {
     );
     return LiveRoom.fromJson(res.data!);
   });
+
+  @override
+  Future<LiveRoom> startRoom({
+    required String title,
+    String? categorySlug,
+    bool allowGuests = true,
+    LiveRoomMode mode = LiveRoomMode.solo,
+    int? seatCount,
+    String? theme,
+    PodcastSetup? podcast,
+    LiveStreamer? streamer,
+    String? vipMinTier,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/live/rooms',
+      data: {
+        'title': title,
+        'categorySlug': ?categorySlug,
+        'allowGuests': allowGuests,
+        if (mode != LiveRoomMode.solo) 'mode': mode.wire,
+        'seatCount': ?seatCount,
+        'theme': ?theme,
+        if (podcast != null) 'podcast': podcast.toJson(),
+        if (vipMinTier != null && mode == LiveRoomMode.audio)
+          'vipMinTier': vipMinTier,
+        if (streamer != null && mode == LiveRoomMode.streamer)
+          'streamer': {
+            'orientation': streamer.orientation.wire,
+            'cameraOverlay': {
+              'visible': streamer.cameraVisible,
+              'corner': streamer.corner.wire,
+            },
+          },
+      },
+    );
+    return LiveRoom.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveStreamer> updateStreamer(
+    String roomId, {
+    StreamerOrientation? orientation,
+    bool? cameraVisible,
+    StreamerCorner? corner,
+  }) => guardApiCall(() async {
+    final res = await _dio.put<Map<String, dynamic>>(
+      '/live/rooms/${pathSegment(roomId)}/streamer',
+      data: {
+        'orientation': ?orientation?.wire,
+        if (cameraVisible != null || corner != null)
+          'cameraOverlay': {'visible': ?cameraVisible, 'corner': ?corner?.wire},
+      },
+    );
+    return LiveStreamer.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> heartbeat(String roomId) => guardApiCall(() async {
+    await _dio.post<void>('/live/rooms/${pathSegment(roomId)}/heartbeat');
+  });
+
+  @override
+  Future<void> setHostPresence(String roomId, {required bool away}) =>
+      guardApiCall(() async {
+        await _dio.post<void>(
+          '/live/rooms/${pathSegment(roomId)}/host-presence',
+          data: {'away': away},
+        );
+      });
+
+  @override
+  Future<LiveRoom> endRoom(String roomId) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/live/rooms/${pathSegment(roomId)}/end',
+    );
+    return LiveRoom.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveRoom> setAllowGuests(String roomId, {required bool allow}) =>
+      guardApiCall(() async {
+        final res = await _dio.patch<Map<String, dynamic>>(
+          '/live/rooms/${pathSegment(roomId)}',
+          data: {'allowGuests': allow},
+        );
+        return LiveRoom.fromJson(res.data!);
+      });
+
+  @override
+  Future<LiveMediaAccess> mediaToken(
+    String roomId, {
+    String? guestId,
+    String? staffVisibility,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/live/rooms/${pathSegment(roomId)}/media-token',
+      data: {'guestId': ?guestId, 'staffVisibility': ?staffVisibility},
+    );
+    return LiveMediaAccess.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveRoom> editRoom(
+    String roomId, {
+    required String title,
+    required String? categorySlug,
+    required String? topic,
+  }) => guardApiCall(() async {
+    final res = await _dio.patch<Map<String, dynamic>>(
+      _room(roomId),
+      data: {'title': title, 'categorySlug': categorySlug, 'topic': topic},
+    );
+    return LiveRoom.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveRoomStats> roomStats(String roomId) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('${_room(roomId)}/stats');
+    return LiveRoomStats.fromJson(res.data!);
+  });
+
+  @override
+  Future<List<LiveContributor>> contributors(String roomId) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '${_room(roomId)}/contributors',
+        );
+        return [
+          for (final c in res.data!['data']! as List<dynamic>)
+            LiveContributor.fromJson(c as Map<String, dynamic>),
+        ];
+      });
+
+  @override
+  Future<LiveContributorStanding> contributor(String roomId, String username) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '${_room(roomId)}/contributors/${pathSegment(username)}',
+        );
+        return LiveContributorStanding.fromJson(res.data!);
+      });
+
+  @override
+  Future<LiveKick> kick(String roomId, String username) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '${_room(roomId)}/kicks',
+          data: {'username': username},
+        );
+        return LiveKick.fromJson(res.data!);
+      });
+
+  @override
+  Future<List<LiveKick>> kicks(String roomId) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('${_room(roomId)}/kicks');
+    return [
+      for (final k in res.data!['data']! as List<dynamic>)
+        LiveKick.fromJson(k as Map<String, dynamic>),
+    ];
+  });
+
+  @override
+  Future<void> unkick(String roomId, String username) => guardApiCall(() async {
+    await _dio.delete<void>('${_room(roomId)}/kicks/${pathSegment(username)}');
+  });
+
+  @override
+  Future<LiveViewersPage> viewers(String roomId, {String? cursor}) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '/live/rooms/${pathSegment(roomId)}/viewers',
+          queryParameters: {'cursor': ?cursor},
+        );
+        final body = res.data!;
+        final page = PageInfo.fromJson(body['page']! as Map<String, dynamic>);
+        return (
+          items: [
+            for (final v in body['data']! as List<dynamic>)
+              LiveViewer.fromJson(v as Map<String, dynamic>),
+          ],
+          next: page.hasMore ? page.nextCursor : null,
+          // D260: the Kabso staff watching (first page; absent from an older
+          // server).
+          staff: [
+            for (final s in body['staff'] as List<dynamic>? ?? const [])
+              if (s is Map<String, dynamic>) LiveStaffWatcher.fromJson(s),
+          ],
+        );
+      });
+
+  @override
+  Future<LiveTapsResult> tap(String roomId, int count) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '/live/rooms/${pathSegment(roomId)}/taps',
+          data: {'count': count},
+        );
+        return LiveTapsResult.fromJson(res.data!);
+      });
+
+  @override
+  Future<LiveRoom> updateRoom(String roomId, {int? seatCount, String? theme}) =>
+      guardApiCall(() async {
+        final res = await _dio.patch<Map<String, dynamic>>(
+          '/live/rooms/${pathSegment(roomId)}',
+          data: {'seatCount': ?seatCount, 'theme': ?theme},
+        );
+        return LiveRoom.fromJson(res.data!);
+      });
+
+  @override
+  Future<LiveRoom> setWishGifts(String roomId, List<String> codes) =>
+      guardApiCall(() async {
+        final res = await _dio.patch<Map<String, dynamic>>(
+          _room(roomId),
+          data: {'wishGifts': codes},
+        );
+        return LiveRoom.fromJson(res.data!);
+      });
+
+  String _room(String roomId) => '/live/rooms/${pathSegment(roomId)}';
+
+  Future<LiveSeats> _seatsCall(
+    Future<Response<Map<String, dynamic>>> Function() call,
+  ) => guardApiCall(() async => LiveSeats.fromJson((await call()).data!));
+
+  @override
+  Future<LiveSeats> seats(String roomId) =>
+      _seatsCall(() => _dio.get('${_room(roomId)}/seats'));
+
+  @override
+  Future<LiveSeatRequest> requestSeat(
+    String roomId, {
+    int? seatIndex,
+    String? question,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/seat-requests',
+      data: {'seatIndex': ?seatIndex, 'question': ?question},
+    );
+    return LiveSeatRequest.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveSeats> deferSeatRequest(String roomId, String requestId) =>
+      _seatsCall(
+        () => _dio.post(
+          '${_room(roomId)}/seat-requests/${pathSegment(requestId)}/defer',
+        ),
+      );
+
+  @override
+  Future<LiveRoom> setPodcastSettings(
+    String roomId, {
+    bool? questionsOpen,
+    bool setQuestionSeconds = false,
+    int? questionSeconds,
+  }) => guardApiCall(() async {
+    final res = await _dio.patch<Map<String, dynamic>>(
+      _room(roomId),
+      data: {
+        'questionsOpen': ?questionsOpen,
+        if (setQuestionSeconds) 'questionSeconds': questionSeconds,
+      },
+    );
+    return LiveRoom.fromJson(res.data!);
+  });
+
+  @override
+  Future<List<LiveScheduledPodcast>> scheduledPodcasts() =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '/live/podcasts/scheduled',
+        );
+        return [
+          for (final p in res.data!['data']! as List<dynamic>)
+            LiveScheduledPodcast.fromJson(p as Map<String, dynamic>),
+        ];
+      });
+
+  @override
+  Future<void> cancelSeatRequest(String roomId) => guardApiCall(() async {
+    await _dio.delete<void>('${_room(roomId)}/seat-requests/me');
+  });
+
+  @override
+  Future<({List<LiveSeatRequest> items, String? next})> seatRequests(
+    String roomId, {
+    String? cursor,
+  }) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '${_room(roomId)}/seat-requests',
+      queryParameters: {'cursor': ?cursor},
+    );
+    final body = res.data!;
+    final page = PageInfo.fromJson(body['page']! as Map<String, dynamic>);
+    return (
+      items: [
+        for (final r in body['data']! as List<dynamic>)
+          LiveSeatRequest.fromJson(r as Map<String, dynamic>),
+      ],
+      next: page.hasMore ? page.nextCursor : null,
+    );
+  });
+
+  @override
+  Future<LiveSeats> acceptSeatRequest(
+    String roomId,
+    String requestId, {
+    int? seatIndex,
+    bool hotSeat = false,
+    int? hotSeatSeconds,
+  }) => _seatsCall(
+    () => _dio.post(
+      '${_room(roomId)}/seat-requests/${pathSegment(requestId)}/accept',
+      data: {
+        'seatIndex': ?seatIndex,
+        if (hotSeat) 'hotSeat': true,
+        if (hotSeat) 'hotSeatSeconds': ?hotSeatSeconds,
+      },
+    ),
+  );
+
+  @override
+  Future<LivePodcastQuestionVotes> voteQuestion(
+    String roomId,
+    String requestId, {
+    required bool vote,
+  }) => guardApiCall(() async {
+    final path =
+        '${_room(roomId)}/seat-requests/${pathSegment(requestId)}/vote';
+    final res = vote
+        ? await _dio.put<Map<String, dynamic>>(path)
+        : await _dio.delete<Map<String, dynamic>>(path);
+    return LivePodcastQuestionVotes.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> setPodcastDirector(String roomId, PodcastDirectorShot shot) =>
+      guardApiCall(() async {
+        await _dio.put<void>(
+          '${_room(roomId)}/podcast/director',
+          data: shot.toJson(),
+        );
+      });
+
+  Future<LivePodcastStudio> _studioCall(
+    Future<Response<Map<String, dynamic>>> Function() call,
+  ) => guardApiCall(() async {
+    final res = await call();
+    return LivePodcastStudio.fromJson(res.data!);
+  });
+
+  @override
+  Future<LivePodcastStudio> setPodcastControl(
+    String roomId, {
+    String? pinUserId,
+    PodcastShotKind? layout,
+  }) => _studioCall(
+    () => _dio.put<Map<String, dynamic>>(
+      '${_room(roomId)}/podcast/control',
+      data: {'pinUserId': pinUserId, 'layout': layout?.wire},
+    ),
+  );
+
+  @override
+  Future<LivePodcastStudio> setPodcastSegments(
+    String roomId,
+    List<LivePodcastSegment> segments,
+  ) => _studioCall(
+    () => _dio.put<Map<String, dynamic>>(
+      '${_room(roomId)}/podcast/segments',
+      data: {
+        'segments': [for (final g in segments) g.toJson()],
+      },
+    ),
+  );
+
+  @override
+  Future<LivePodcastStudio> nextPodcastSegment(String roomId) => _studioCall(
+    () => _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/podcast/segments/next',
+    ),
+  );
+
+  @override
+  Future<LivePodcastStudio> showPodcastQuestion(
+    String roomId,
+    String requestId, {
+    String? answerUserId,
+  }) => _studioCall(
+    () => _dio.put<Map<String, dynamic>>(
+      '${_room(roomId)}/podcast/on-screen',
+      data: {'requestId': requestId, 'answerUserId': ?answerUserId},
+    ),
+  );
+
+  @override
+  Future<LivePodcastStudio> hidePodcastQuestion(String roomId) => _studioCall(
+    () =>
+        _dio.delete<Map<String, dynamic>>('${_room(roomId)}/podcast/on-screen'),
+  );
+
+  @override
+  Future<LiveSeats> bringSeatOnAir(String roomId, int seatIndex) =>
+      _seatsCall(() => _dio.post('${_room(roomId)}/seats/$seatIndex/on-air'));
+
+  @override
+  Future<void> declineSeatRequest(String roomId, String requestId) =>
+      guardApiCall(() async {
+        await _dio.post<void>(
+          '${_room(roomId)}/seat-requests/${pathSegment(requestId)}/decline',
+        );
+      });
+
+  @override
+  Future<LiveSeatInvite> inviteToSeat(
+    String roomId,
+    String username, {
+    int? seatIndex,
+    String? guestTitle,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/seat-invites',
+      data: {
+        'username': username,
+        'seatIndex': ?seatIndex,
+        'guestTitle': ?guestTitle,
+      },
+    );
+    return LiveSeatInvite.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveSeats> acceptSeatInvite(String roomId) =>
+      _seatsCall(() => _dio.post('${_room(roomId)}/seat-invites/me/accept'));
+
+  @override
+  Future<void> declineSeatInvite(String roomId) => guardApiCall(() async {
+    await _dio.post<void>('${_room(roomId)}/seat-invites/me/decline');
+  });
+
+  @override
+  Future<void> leaveSeat(String roomId) => guardApiCall(() async {
+    await _dio.post<void>('${_room(roomId)}/seats/me/leave');
+  });
+
+  @override
+  Future<LiveSeats> muteSeat(String roomId, int index, {required bool muted}) =>
+      _seatsCall(
+        () => _dio.post(
+          '${_room(roomId)}/seats/$index/mute',
+          data: {'muted': muted},
+        ),
+      );
+
+  @override
+  Future<LiveSeats> removeFromSeat(String roomId, int index) =>
+      _seatsCall(() => _dio.post('${_room(roomId)}/seats/$index/remove'));
+
+  @override
+  Future<LiveSeats> lockSeat(
+    String roomId,
+    int index, {
+    required bool locked,
+  }) => _seatsCall(
+    () => _dio.post(
+      '${_room(roomId)}/seats/$index/lock',
+      data: {'locked': locked},
+    ),
+  );
+
+  @override
+  Future<LiveSeats> addModerator(String roomId, String username) => _seatsCall(
+    () => _dio.put('${_room(roomId)}/moderators/${pathSegment(username)}'),
+  );
+
+  @override
+  Future<LiveSeats> removeModerator(String roomId, String username) =>
+      _seatsCall(
+        () =>
+            _dio.delete('${_room(roomId)}/moderators/${pathSegment(username)}'),
+      );
+
+  @override
+  Future<List<LiveChatEntry>> chatMessages(String roomId) => guardApiCall(
+    () async {
+      final res = await _dio.get<Map<String, dynamic>>('${_room(roomId)}/chat');
+      return [
+        for (final m in res.data!['data']! as List<dynamic>)
+          LiveChatEntry.fromJson(m as Map<String, dynamic>),
+      ];
+    },
+  );
+
+  @override
+  Future<LiveChatEntry> sendChat(
+    String roomId, {
+    required String text,
+    required String clientId,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/chat',
+      data: {'text': text, 'clientId': clientId},
+    );
+    return LiveChatEntry.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> deleteChat(String roomId, String messageId) =>
+      guardApiCall(() async {
+        await _dio.delete<void>(
+          '${_room(roomId)}/chat/${pathSegment(messageId)}',
+        );
+      });
+
+  @override
+  Future<List<LiveChatMute>> chatMutes(String roomId) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '${_room(roomId)}/chat/mutes',
+    );
+    return [
+      for (final m in res.data!['data']! as List<dynamic>)
+        LiveChatMute.fromJson(m as Map<String, dynamic>),
+    ];
+  });
+
+  @override
+  Future<void> setChatMuted(
+    String roomId,
+    String username, {
+    required bool muted,
+  }) => guardApiCall(() async {
+    final path = '${_room(roomId)}/chat/mutes/${pathSegment(username)}';
+    if (muted) {
+      await _dio.put<void>(path);
+    } else {
+      await _dio.delete<void>(path);
+    }
+  });
+
+  @override
+  Future<LiveRoom> setChatEnabled(String roomId, {required bool enabled}) =>
+      guardApiCall(() async {
+        final res = await _dio.patch<Map<String, dynamic>>(
+          _room(roomId),
+          data: {'chatEnabled': enabled},
+        );
+        return LiveRoom.fromJson(res.data!);
+      });
+
+  @override
+  Future<void> reportChatMessage(String messageId, ReportReason reason) =>
+      guardApiCall(() async {
+        await _dio.post<Map<String, dynamic>>(
+          '/reports',
+          data: {
+            'targetType': 'LIVE_CHAT_MESSAGE',
+            'targetId': messageId,
+            'reason': reason.wire,
+          },
+        );
+      });
+
+  @override
+  Future<LiveChatEntry> sendChatMedia(
+    String roomId, {
+    required LiveChatKind kind,
+    required String mediaId,
+    required String clientId,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/chat',
+      data: {
+        'kind': kind == LiveChatKind.voice ? 'VOICE' : 'IMAGE',
+        'mediaId': mediaId,
+        'clientId': clientId,
+      },
+    );
+    return LiveChatEntry.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveBulletSent> sendBullet(
+    String roomId, {
+    required String text,
+    required String clientId,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/bullets',
+      data: {'text': text, 'clientId': clientId},
+    );
+    final data = res.data!;
+    return (
+      bullet: LiveBullet.fromJson(data['bullet']! as Map<String, dynamic>),
+      coins: (data['coins']! as num).toInt(),
+      free: data['free'] == true,
+      freeLeft: (data['freeLeft'] as num?)?.toInt(),
+    );
+  });
+
+  @override
+  Future<int> myCoins() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/wallet/me');
+    return (res.data!['coins']! as num).toInt();
+  });
+
+  @override
+  Future<LiveSeatEmoji> sendSeatEmoji(String roomId, String token) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '${_room(roomId)}/seat-emoji',
+          data: {'token': token},
+        );
+        return LiveSeatEmoji.fromJson(res.data!);
+      });
 }
 
+/// D86: test builds with Demo data on get the demo hub (no server).
 final liveRepositoryProvider = Provider<LiveRepository>(
-  (ref) => LiveRepositoryImpl(ref.watch(apiDioProvider)),
+  (ref) => watchDemo(ref)
+      ? DemoLiveRepository(ar: DemoData.arabic(ref))
+      : LiveRepositoryImpl(ref.watch(apiDioProvider)),
 );

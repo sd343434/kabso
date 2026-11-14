@@ -10,6 +10,13 @@ const base = {
   APP_PUBLIC_URL: 'https://kabso.example/',
 };
 
+/** CP-010: livekit-server's public --dev settings. */
+const LIVEKIT = {
+  LIVEKIT_URL: 'ws://127.0.0.1:7880',
+  LIVEKIT_API_KEY: 'devkey',
+  LIVEKIT_API_SECRET: 'secret',
+};
+
 describe('loadConfig', () => {
   it('applies CONVENTIONS defaults', () => {
     const config = loadConfig(base);
@@ -137,6 +144,57 @@ describe('loadConfig', () => {
       expect(about(prod({ RATE_LIMIT_KEY_SECRET: 'b'.repeat(48) }), 'RATE_LIMIT_KEY_SECRET')).toHaveLength(1);
       // Production config with generated secrets has no secret/proxy problems (only the B2 mail block).
       expect(problems(prod()).map((p) => p.split(':')[0])).toEqual(['MAIL_TRANSPORT']);
+    });
+
+    describe('SMTP mail (KL-042)', () => {
+      const smtp = {
+        MAIL_TRANSPORT: 'smtp',
+        MAIL_FROM: 'Kabso Live <no-reply@kabso.example>',
+        SMTP_HOST: 'smtp.kabso.example',
+        SMTP_USER: 'no-reply@kabso.example',
+        SMTP_PASSWORD: 'app-password',
+      };
+
+      it('is the production transport: a production config with SMTP has no problems', () => {
+        expect(problems(prod(smtp))).toEqual([]);
+        expect(loadConfig(prod(smtp)).smtp).toEqual({
+          host: 'smtp.kabso.example',
+          port: 465,
+          secure: true,
+          user: 'no-reply@kabso.example',
+          password: 'app-password',
+          from: 'Kabso Live <no-reply@kabso.example>',
+        });
+        expect(loadConfig(prod({ ...smtp, SMTP_PORT: '587', SMTP_SECURE: 'false' })).smtp).toMatchObject({
+          port: 587,
+          secure: false,
+        });
+      });
+
+      it.each(['MAIL_FROM', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD'])('requires %s with smtp', (key) => {
+        const env: Record<string, string> = { ...smtp };
+        delete env[key];
+        expect(about(prod(env), key)).toEqual([`${key}: is required when MAIL_TRANSPORT=smtp`]);
+      });
+
+      it.each(['no-reply', 'Kabso <no-reply>', '<a@b>', 'a@b', 'Kabso <a@b.c', 'a@b.c>'])(
+        'refuses the sender %s',
+        (from) => {
+          expect(about(prod({ ...smtp, MAIL_FROM: from }), 'MAIL_FROM')).toHaveLength(1);
+        },
+      );
+
+      it.each(['no-reply@kabso.example', 'Kabso Live <no-reply@kabso.example>'])(
+        'accepts the sender %s',
+        (from) => {
+          expect(about(prod({ ...smtp, MAIL_FROM: from }), 'MAIL_FROM')).toEqual([]);
+        },
+      );
+
+      it('has no SMTP settings with the log transport', () => {
+        expect(loadConfig(base).smtp).toBeNull();
+        expect(() => loadConfig({ ...base, SMTP_SECURE: 'yes' })).toThrow(/SMTP_SECURE/);
+      });
     });
 
     it('generates a per-process rate-limit key outside production', () => {
@@ -285,6 +343,7 @@ describe('loadConfig', () => {
         heartbeatIntervalSeconds: 15,
         heartbeatStaleSeconds: 45,
         sweepIntervalSeconds: 15,
+        hostAwayTimeoutSeconds: 300,
       });
       expect(config.rateLimits).toMatchObject({
         liveListUser: { max: 300, windowSeconds: 900 },
@@ -299,10 +358,88 @@ describe('loadConfig', () => {
     });
 
     it('LIVE_HOSTING_ENABLED accepts only "true" / "false"', () => {
-      expect(loadConfig({ ...base, LIVE_HOSTING_ENABLED: 'true' }).live.hostingEnabled).toBe(true);
+      // CP-010: turning hosting on also needs the media server (next test).
+      expect(loadConfig({ ...base, ...LIVEKIT, LIVE_HOSTING_ENABLED: 'true' }).live.hostingEnabled).toBe(
+        true,
+      );
       expect(loadConfig({ ...base, LIVE_HOSTING_ENABLED: 'false' }).live.hostingEnabled).toBe(false);
       for (const value of ['1', 'yes', 'TRUE', 'on', '']) {
         expect(problemsFor({ ...base, LIVE_HOSTING_ENABLED: value }, 'LIVE_HOSTING_ENABLED')).toHaveLength(1);
+      }
+    });
+
+    it('hosting needs LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET; production needs wss (CP-010)', () => {
+      for (const key of ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'] as const) {
+        expect(problemsFor({ ...base, LIVE_HOSTING_ENABLED: 'true' }, key)).toEqual([
+          `${key}: is required when LIVE_HOSTING_ENABLED=true`,
+        ]);
+      }
+      expect(loadConfig({ ...base, ...LIVEKIT }).live.livekit).toEqual({
+        url: 'ws://127.0.0.1:7880',
+        apiUrl: 'ws://127.0.0.1:7880',
+        apiKey: 'devkey',
+        apiSecret: 'secret',
+      });
+      expect(loadConfig(base).live.livekit).toBeNull();
+      expect(problemsFor({ ...base, LIVEKIT_URL: 'http://x' }, 'LIVEKIT_URL')).toHaveLength(1);
+      expect(
+        problemsFor(
+          prod({ LIVEKIT_URL: 'ws://media.example', LIVEKIT_API_KEY: 'k', LIVEKIT_API_SECRET: 'secret' }),
+          'LIVEKIT_URL',
+        ),
+      ).toEqual(['LIVEKIT_URL: must use wss in production']);
+      expect(
+        problemsFor(
+          prod({ LIVEKIT_URL: 'wss://media.example', LIVEKIT_API_KEY: 'k', LIVEKIT_API_SECRET: 'secret' }),
+          'LIVEKIT_API_SECRET',
+        ),
+      ).toHaveLength(1);
+    });
+
+    it('D350: LIVEKIT_API_URL is where the API calls LiveKit (default LIVEKIT_URL); production: https/wss or private http', () => {
+      expect(
+        loadConfig({ ...base, ...LIVEKIT, LIVEKIT_API_URL: 'http://10.0.1.11:7880/' }).live.livekit,
+      ).toEqual({
+        url: 'ws://127.0.0.1:7880',
+        apiUrl: 'http://10.0.1.11:7880',
+        apiKey: 'devkey',
+        apiSecret: 'secret',
+      });
+      expect(problemsFor({ ...base, LIVEKIT_API_URL: 'ftp://x' }, 'LIVEKIT_API_URL')).toHaveLength(1);
+      const live = { LIVEKIT_URL: 'wss://media1.example', LIVEKIT_API_KEY: 'k' };
+      for (const ok of [
+        'https://media1.example',
+        'wss://media1.example',
+        'http://10.0.1.11:7880',
+        'http://172.16.0.5:7880',
+        'http://192.168.1.2:7880',
+      ]) {
+        expect(problemsFor(prod({ ...live, LIVEKIT_API_URL: ok }), 'LIVEKIT_API_URL'), ok).toEqual([]);
+      }
+      for (const bad of [
+        'http://media1.example',
+        'ws://media1.example',
+        'http://8.8.8.8:7880',
+        'http://172.32.0.1:7880',
+      ]) {
+        expect(problemsFor(prod({ ...live, LIVEKIT_API_URL: bad }), 'LIVEKIT_API_URL'), bad).toEqual([
+          'LIVEKIT_API_URL: must use https/wss in production (plain http only to a private IPv4 address)',
+        ]);
+      }
+    });
+
+    it('D350: LIVEKIT_PUBLIC_WEBHOOK_ENABLED is off unless exactly "true"', () => {
+      expect(loadConfig(base).live.publicWebhookEnabled).toBe(false);
+      expect(loadConfig({ ...base, LIVEKIT_PUBLIC_WEBHOOK_ENABLED: 'true' }).live.publicWebhookEnabled).toBe(
+        true,
+      );
+      expect(loadConfig({ ...base, LIVEKIT_PUBLIC_WEBHOOK_ENABLED: 'false' }).live.publicWebhookEnabled).toBe(
+        false,
+      );
+      for (const value of ['1', 'yes', 'TRUE', '']) {
+        expect(
+          problemsFor({ ...base, LIVEKIT_PUBLIC_WEBHOOK_ENABLED: value }, 'LIVEKIT_PUBLIC_WEBHOOK'),
+        ).toHaveLength(1);
       }
     });
 
@@ -433,5 +570,249 @@ describe('loadConfig', () => {
       );
       expect(problemsFor({ ...base, LIVE_CURSOR_KEY: 'short' }, 'LIVE_CURSOR_KEY')).toHaveLength(1);
     });
+  });
+});
+
+describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => {
+  it('keeps uploads off by default with the §11.8 rate limits', () => {
+    const config = loadConfig(base);
+    expect(config.media.uploadsEnabled).toBe(false);
+    expect(config.media.s3.region).toBe('auto');
+    expect(config.media.sweepIntervalSeconds).toBe(300);
+    expect(config.social.publishIntervalSeconds).toBe(30);
+    expect(config.rateLimits.mediaUploadUser).toEqual({ max: 60, windowSeconds: 3600 });
+    expect(config.rateLimits.postCreateHourUser).toEqual({ max: 20, windowSeconds: 3600 });
+    expect(config.rateLimits.postCreateDayUser).toEqual({ max: 100, windowSeconds: 86400 });
+    expect(config.rateLimits.commentUser).toEqual({ max: 60, windowSeconds: 3600 });
+    expect(config.rateLimits.likeUser).toEqual({ max: 600, windowSeconds: 3600 });
+    expect(config.rateLimits.feedUser).toEqual({ max: 300, windowSeconds: 900 });
+    expect(config.rateLimits.reportUser).toEqual({ max: 30, windowSeconds: 3600 });
+    expect(config.rateLimits.storyCreateUser).toEqual({ max: 30, windowSeconds: 3600 });
+    expect(config.rateLimits.storySeenUser).toEqual({ max: 600, windowSeconds: 3600 });
+  });
+
+  it('needs the bucket, credentials and public URL when uploads are on, never echoing secrets', () => {
+    let error: unknown;
+    try {
+      loadConfig({ ...base, MEDIA_UPLOADS_ENABLED: 'true', S3_SECRET_ACCESS_KEY: 'super-secret-value' });
+    } catch (err) {
+      error = err;
+    }
+    const message = (error as Error).message;
+    expect(message).toContain('S3_BUCKET: is required when MEDIA_UPLOADS_ENABLED=true');
+    expect(message).toContain('S3_ACCESS_KEY_ID');
+    expect(message).toContain('MEDIA_PUBLIC_BASE_URL');
+    expect(message).not.toContain('S3_SECRET_ACCESS_KEY: is required');
+    expect(message).not.toContain('super-secret-value');
+    const config = loadConfig({
+      ...base,
+      MEDIA_UPLOADS_ENABLED: 'true',
+      S3_ENDPOINT: 'http://localhost:9000',
+      S3_BUCKET: 'kabso-media-dev',
+      S3_ACCESS_KEY_ID: 'id',
+      S3_SECRET_ACCESS_KEY: 'secret',
+      S3_FORCE_PATH_STYLE: 'true',
+      MEDIA_PUBLIC_BASE_URL: 'http://localhost:9000/kabso-media-dev/',
+    });
+    expect(config.media.s3.forcePathStyle).toBe(true);
+    expect(config.media.publicBaseUrl).toBe('http://localhost:9000/kabso-media-dev');
+  });
+
+  it('runs the notifications sweeper hourly by default and limits marking read to 120 per hour (CP-009)', () => {
+    const config = loadConfig(base);
+    expect(config.social.notificationsSweepIntervalSeconds).toBe(3600);
+    expect(config.rateLimits.notificationsReadUser).toEqual({ max: 120, windowSeconds: 3600 });
+    expect(
+      loadConfig({ ...base, NOTIFICATIONS_SWEEP_INTERVAL_SECONDS: '0' }).social
+        .notificationsSweepIntervalSeconds,
+    ).toBe(0);
+  });
+
+  it('reads the CP-021 CP space buckets (defaults and overrides)', () => {
+    expect(loadConfig(base).rateLimits.cpSpaceWriteUser).toEqual({ max: 60, windowSeconds: 60 });
+    expect(loadConfig(base).rateLimits.cpConfessionUser).toEqual({ max: 10, windowSeconds: 3600 });
+    expect(
+      loadConfig({ ...base, RATE_LIMIT_CP_CONFESSION_USER: '3/60' }).rateLimits.cpConfessionUser,
+    ).toEqual({ max: 3, windowSeconds: 60 });
+  });
+
+  it('reads the v1.32-live host share per gift category and the quip queue limit (D154)', () => {
+    expect(loadConfig(base).gifts.hostShareBps).toEqual({
+      POPULAR: 6500,
+      EVENT: 6500,
+      FUN: 6500,
+      QUIPS: 5000,
+    });
+    expect(loadConfig(base).gifts.quipMaxWaitMs).toBe(60_000);
+    expect(
+      loadConfig({ ...base, GIFT_HOST_SHARE_PERCENTS: ' QUIPS:40 , FUN:70,EVENT:65.5,POPULAR:0' }).gifts
+        .hostShareBps,
+    ).toEqual({ POPULAR: 0, EVENT: 6550, FUN: 7000, QUIPS: 4000 });
+    for (const bad of [
+      'POPULAR:65,EVENT:65,FUN:65',
+      'POPULAR:65,EVENT:65,FUN:65,QUIPS:50,LUCKY:10',
+      'POPULAR:65,EVENT:65,FUN:65,QUIPS:101',
+      'POPULAR:65,POPULAR:60,EVENT:65,FUN:65,QUIPS:50',
+      'POPULAR:65,EVENT:65,FUN:65,QUIPS',
+    ]) {
+      expect(() => loadConfig({ ...base, GIFT_HOST_SHARE_PERCENTS: bad }), bad).toThrow(
+        /GIFT_HOST_SHARE_PERCENTS/,
+      );
+    }
+    expect(() => loadConfig({ ...base, QUIP_QUEUE_MAX_WAIT_SECONDS: '4' })).toThrow(
+      /QUIP_QUEUE_MAX_WAIT_SECONDS/,
+    );
+  });
+
+  it('reads the CP-020 gift quantities and the gift-send bucket', () => {
+    expect(loadConfig(base).gifts.quantities).toEqual([1, 10, 66, 99, 188, 520, 1314]);
+    expect(loadConfig(base).rateLimits.liveGiftUser).toEqual({ max: 120, windowSeconds: 60 });
+    // D145c / D145d: lucky gifts' own limits (100 a second, 6000 a minute).
+    expect(loadConfig(base).rateLimits.liveGiftAnyUser).toEqual({ max: 6000, windowSeconds: 60 });
+    expect(loadConfig(base).rateLimits.liveLuckyGiftBurstUser).toEqual({ max: 100, windowSeconds: 1 });
+    expect(loadConfig({ ...base, LIVE_GIFT_QUANTITIES: ' 1, 5 ,9999' }).gifts.quantities).toEqual([
+      1, 5, 9999,
+    ]);
+    expect(loadConfig({ ...base, LIVE_GIFT_QUANTITIES: '7' }).gifts.quantities).toEqual([7]);
+    for (const bad of [
+      '',
+      '0',
+      '1,1',
+      '10,1',
+      '1,10000',
+      '1,x',
+      '01',
+      '1.5',
+      '-1',
+      '1,,2',
+      '1,2,3,4,5,6,7,8,9,10,11,12,13',
+    ]) {
+      expect(() => loadConfig({ ...base, LIVE_GIFT_QUANTITIES: bad }), bad).toThrow(/LIVE_GIFT_QUANTITIES/);
+    }
+  });
+
+  it('D179: the cherry economy defaults are the owner values; the agency sweeper cannot be off in production', () => {
+    expect(loadConfig(base).economy).toEqual({
+      cherriesPerCoin: 10,
+      // v1.82-live (D295, owner 2026-11-06): agencies earn their commission on their creator members' gifts.
+      creatorAgencyCommission: true,
+      agencyCommissionBps: 1500,
+      agencyTierCommissionBps: 1600,
+      agencyTierMonthlyCherries: 1_500_000_000,
+      parentCommissionBps: 300,
+      rankMinActiveHosts: 5,
+      rankExceptionCherries: 200_000_000,
+      adminMinSubAgencies: 3,
+      activeHostMinDays: 7,
+      activeHostMinHours: 10,
+      activeHostWindowDays: 30,
+      leaveDays: 14,
+      sweepIntervalSeconds: 3600,
+      // v1.70-social (D206): «افتح وكالة» — 7 days, 3 hosts, the 24 h reminder, 30 days before opening again.
+      probationDays: 7,
+      probationMinHosts: 3,
+      probationReminderHours: 24,
+      reopenCooldownDays: 30,
+      // v1.73-social (D209): «كن مضيفاً مع الإدارة» — 18 or older, 30 days after a rejection.
+      hostApplyMinAge: 18,
+      hostApplyReapplyDays: 30,
+      rateCherries: 1_000_000,
+      rateMinor: 110,
+      currency: 'USD',
+      // D188 (owner): the coins' retail price, $12.50 per 1 000 000.
+      coinRetailUsdPerMillion: 12.5,
+      minWithdrawalMinor: 1000,
+      payoutDays: 7,
+      // D188 (owner): $60 of lifetime gift support (was $50).
+      taskCherriesUnlockGiftMinor: 6000,
+    });
+    expect(loadConfig({ ...base, CHERRY_PAYOUT_RATE: '1000:110' }).economy.rateCherries).toBe(1000);
+    expect(() => loadConfig({ ...base, CHERRY_PAYOUT_RATE: '1.1' })).toThrow(/CHERRY_PAYOUT_RATE/);
+    expect(() => loadConfig({ ...base, AGENCY_COMMISSION_BPS: '10001' })).toThrow(/AGENCY_COMMISSION_BPS/);
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production', AGENCY_SWEEP_INTERVAL_SECONDS: '0' })).toThrow(
+      /AGENCY_SWEEP_INTERVAL_SECONDS/,
+    );
+  });
+
+  it('D193: account deletion — 30-day grace, 90-day quarantine and legal hold, ledgers kept 7 years', () => {
+    expect(loadConfig(base).accountDeletion).toEqual({
+      graceDays: 30,
+      usernameQuarantineDays: 90,
+      supportEmail: 'info@kabsolive.com',
+      sweepIntervalSeconds: 3600,
+      legalHoldDays: 90,
+      ledgerRetentionDays: 2557,
+    });
+    const tuned = loadConfig({
+      ...base,
+      REPORT_LEGAL_HOLD_DAYS: '180',
+      DELETED_LEDGER_RETENTION_DAYS: '3653',
+    });
+    expect(tuned.accountDeletion).toMatchObject({ legalHoldDays: 180, ledgerRetentionDays: 3653 });
+    for (const [key, bad] of [
+      ['REPORT_LEGAL_HOLD_DAYS', '0'],
+      ['DELETED_LEDGER_RETENTION_DAYS', '0'],
+      ['DELETED_LEDGER_RETENTION_DAYS', 'seven years'],
+    ] as const) {
+      expect(() => loadConfig({ ...base, [key]: bad }), key).toThrow(new RegExp(key));
+    }
+  });
+
+  it('D155: direct messages live 24 h; the sweeper runs by default and cannot be off in production', () => {
+    expect(loadConfig(base).dm).toEqual({
+      retentionHours: 24,
+      sweepIntervalSeconds: 60,
+      requestMaxMessages: 3,
+      deleteForEveryoneSeconds: 3600,
+      giftRecipientSharePercent: 50,
+      // v1.104-social (D339): the group member cap.
+      groupMaxMembers: 100,
+    });
+    expect(loadConfig(base).rateLimits.dmSendUser).toEqual({ max: 30, windowSeconds: 60 });
+    expect(loadConfig(base).rateLimits.dmRequestUser).toEqual({ max: 20, windowSeconds: 3600 });
+    expect(loadConfig(base).rateLimits.dmWriteUser).toEqual({ max: 300, windowSeconds: 3600 });
+    // v1.104-social (D339): new groups, 2 a day (owner); the cap 3–256.
+    expect(loadConfig(base).rateLimits.dmGroupCreateUser).toEqual({ max: 2, windowSeconds: 86400 });
+    expect(loadConfig({ ...base, DM_GROUP_MAX_MEMBERS: '256' }).dm.groupMaxMembers).toBe(256);
+    expect(() => loadConfig({ ...base, DM_GROUP_MAX_MEMBERS: '2' })).toThrow();
+    expect(() => loadConfig({ ...base, DM_GROUP_MAX_MEMBERS: '257' })).toThrow();
+    expect(loadConfig({ ...base, DM_SWEEP_INTERVAL_SECONDS: '0' }).dm.sweepIntervalSeconds).toBe(0);
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production', DM_SWEEP_INTERVAL_SECONDS: '0' })).toThrow(
+      /DM_SWEEP_INTERVAL_SECONDS/,
+    );
+    for (const [key, bad] of [
+      ['DM_RETENTION_HOURS', '0'],
+      ['GIFT_DM_RECIPIENT_SHARE_PERCENT', '101'],
+      ['DM_REQUEST_MAX_MESSAGES', '0'],
+    ] as const) {
+      expect(() => loadConfig({ ...base, [key]: bad }), key).toThrow(new RegExp(key));
+    }
+  });
+
+  it('runs the CP-018 family and CP request sweeper by default and refuses disabling it in production', () => {
+    expect(loadConfig(base).social.bondsSweepIntervalSeconds).toBe(300);
+    expect(loadConfig({ ...base, BONDS_SWEEP_INTERVAL_SECONDS: '0' }).social.bondsSweepIntervalSeconds).toBe(
+      0,
+    );
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production', BONDS_SWEEP_INTERVAL_SECONDS: '0' })).toThrow(
+      /BONDS_SWEEP_INTERVAL_SECONDS/,
+    );
+  });
+
+  it('refuses plain http storage, disabled workers and a weak cursor key in production', () => {
+    expect(() =>
+      loadConfig({
+        ...base,
+        NODE_ENV: 'production',
+        S3_ENDPOINT: 'http://r2.example',
+        MEDIA_PUBLIC_BASE_URL: 'http://cdn.example',
+        MEDIA_SWEEP_INTERVAL_SECONDS: '0',
+        POSTS_PUBLISH_INTERVAL_SECONDS: '0',
+        NOTIFICATIONS_SWEEP_INTERVAL_SECONDS: '0',
+        SOCIAL_CURSOR_KEY: 'replace-me-with-a-long-random-string-of-at-least-32-bytes',
+      }),
+    ).toThrow(
+      /S3_ENDPOINT: must use https[\s\S]*MEDIA_PUBLIC_BASE_URL: must use https[\s\S]*MEDIA_SWEEP_INTERVAL_SECONDS[\s\S]*POSTS_PUBLISH_INTERVAL_SECONDS[\s\S]*NOTIFICATIONS_SWEEP_INTERVAL_SECONDS[\s\S]*SOCIAL_CURSOR_KEY/,
+    );
   });
 });

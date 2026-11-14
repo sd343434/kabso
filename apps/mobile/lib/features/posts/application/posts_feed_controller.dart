@@ -1,0 +1,305 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show AsyncNotifierProviderFamily;
+import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/network/error_mapper.dart';
+import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/home/application/home_feed_provider.dart';
+import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart';
+import 'package:material_ui/material_ui.dart';
+
+/// A [Post] as the feed tile shows it: the first photo is the cover (its
+/// ratio sizes the media), and a post with several photos carries all of
+/// them. Images load from the media CDN. D162: a video post (or a reel)
+/// shows its poster and plays its file in place.
+///
+/// [text] replaces the post's own text (D307: an official announcement's
+/// caption in the app's language, from `Post.texts`).
+FeedPostData feedPostOf(Post post, {UserSummary? repostedBy, String? text}) {
+  final cover = post.media.isEmpty ? null : post.media.first;
+  final video = post.video;
+  return FeedPostData(
+    postId: post.id,
+    authorName: post.author.displayName.isEmpty
+        ? post.author.username
+        : post.author.displayName,
+    authorUsername: post.author.username,
+    authorId: post.author.id,
+    authorVerification: post.author.verification,
+    authorVip: post.author.vip,
+    authorAvatar: switch (post.author.avatarUrl) {
+      final url? => NetworkImage(url),
+      null => null,
+    },
+    postedAt: post.publishedAt ?? post.createdAt,
+    location: post.location,
+    text: text ?? post.text,
+    media: cover == null ? null : NetworkImage(cover.coverUrl),
+    isVideo: video != null,
+    videoUrl: video?.url,
+    // Every photo, in post order: the tile swipes between them.
+    gallery: post.media.length > 1
+        ? [for (final m in post.media) NetworkImage(m.url)]
+        : const [],
+    // D162: a video keeps to 4:5 – 1.91:1 in the feed (covered), so a
+    // portrait clip never fills the screen.
+    mediaAspect: video != null ? video.aspect.clamp(0.8, 1.91) : cover?.aspect,
+    likes: post.likeCount,
+    comments: post.commentCount,
+    shares: post.shareCount,
+    views: post.viewCount,
+    // D218: the card's «متابعة» pill and «مقترح لك» (never on your own).
+    isFollowingAuthor: post.isSelf ? null : post.viewerFollowsAuthor,
+    liked: post.viewerHasLiked,
+    saved: post.viewerHasSaved,
+    reposted: post.viewerHasReposted,
+    reposts: post.repostCount,
+    isSelf: post.isSelf,
+    pendingModeration: post.pendingModeration,
+    announcement: post.announcement,
+    official: post.official,
+    repostedBy: (repostedBy ?? post.repostedBy)?.displayName,
+    pinned: post.pinned,
+    edited: post.editedAt != null,
+    hashtags: {for (final t in post.hashtags) t.toLowerCase()},
+    mentions: {for (final m in post.mentions) m.username.toLowerCase()},
+    premiumMentions: {
+      for (final m in post.mentions)
+        if (m.premiumTier != null) m.username.toLowerCase(),
+    },
+    commentsOpen:
+        post.isSelf ||
+        (post.commentsEnabled && post.whoCanComment != WhoCanComment.nobody),
+    // D372 «هدية الدعم».
+    giftCherries: post.giftCherries,
+    giftTo: post.giftable ? post.author : null,
+  );
+}
+
+extension on HomeFeed {
+  PostsFeedTab get tab => switch (this) {
+    HomeFeed.trending => PostsFeedTab.trending,
+    HomeFeed.following => PostsFeedTab.following,
+  };
+}
+
+/// One posts feed from the real API (`GET /feed/posts`, CONVENTIONS §11.3),
+/// paged by cursor — or, with [reels] (v1.41-social, D162), the reels feed
+/// of Moments (`GET /feed/reels`, §11.14). A rejected cursor (an expired
+/// Trending snapshot) reloads the feed from the first page once. A hidden or
+/// deleted post leaves the list at once.
+class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
+  new(this.feed, {this.reels = false, this.mixed = false});
+
+  final HomeFeed feed;
+  final bool reels;
+
+  /// v1.76-social (D218, CONVENTIONS §10.73.1): the posts page's home feed
+  /// (`GET /feed/posts?tab=mixed`, 1 Following : 2 Trending, frozen like
+  /// Trending); with [reels] (v1.92-social, D294, §10.107) the reels page's
+  /// (`GET /feed/reels?tab=mixed`, the same rule over reels). [feed] is then
+  /// ignored.
+  final bool mixed;
+
+  PostsFeedTab get _tab => mixed ? PostsFeedTab.mixed : feed.tab;
+
+  String? _next;
+  int _generation = 0;
+
+  PostsRepository get _repo => ref.read(postsRepositoryProvider);
+
+  @override
+  Future<FeedItems<Post>> build() {
+    ref
+      ..watch(currentUserProvider.select((u) => u?.id))
+      ..watch(postsRepositoryProvider);
+    _generation++;
+    return _first();
+  }
+
+  Future<FeedItems<Post>> _first() async {
+    final page = reels ? await _repo.reelsFeed(_tab) : await _repo.feed(_tab);
+    _next = page.next;
+    return FeedItems(_dedupe(const [], page.items), hasMore: _next != null);
+  }
+
+  /// Loads the next page when one exists and nothing is in flight or failed
+  /// (prefetch calls this freely).
+  Future<void> loadMore() async {
+    final current = state.value;
+    final cursor = _next;
+    if (current == null ||
+        state.isLoading ||
+        cursor == null ||
+        current.loadingMore ||
+        current.loadMoreError != null) {
+      return;
+    }
+    final generation = _generation;
+    state = AsyncData(
+      FeedItems(current.items, hasMore: true, loadingMore: true),
+    );
+    try {
+      final page = reels
+          ? await _repo.reelsFeed(_tab, cursor: cursor)
+          : await _repo.feed(_tab, cursor: cursor);
+      if (!ref.mounted || generation != _generation) return;
+      _next = page.next;
+      state = AsyncData(
+        FeedItems(
+          _dedupe(state.requireValue.items, page.items),
+          hasMore: _next != null,
+        ),
+      );
+    } on Object catch (e) {
+      if (!ref.mounted || generation != _generation) return;
+      final failure = toAppFailure(e);
+      if (_isBadCursor(failure)) {
+        try {
+          state = AsyncData(await _first());
+        } on Object catch (e2) {
+          if (!ref.mounted || generation != _generation) return;
+          state = AsyncData(
+            FeedItems(
+              current.items,
+              hasMore: true,
+              loadMoreError: toAppFailure(e2),
+            ),
+          );
+        }
+        return;
+      }
+      state = AsyncData(
+        FeedItems(current.items, hasMore: true, loadMoreError: failure),
+      );
+    }
+  }
+
+  /// "Retry" on the footer error.
+  Future<void> retryLoadMore() async {
+    final current = state.value;
+    if (current == null || current.loadMoreError == null) return;
+    state = AsyncData(FeedItems(current.items, hasMore: current.hasMore));
+    await loadMore();
+  }
+
+  /// Drops [postId] from the list (hidden, reported or deleted).
+  void remove(String postId) {
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncData(
+      FeedItems(
+        [
+          for (final p in current.items)
+            if (p.id != postId) p,
+        ],
+        hasMore: current.hasMore,
+        loadingMore: current.loadingMore,
+        loadMoreError: current.loadMoreError,
+      ),
+    );
+  }
+
+  static bool _isBadCursor(AppFailure failure) =>
+      failure is ServerFailure &&
+      failure.code == ErrorCode.validationFailed &&
+      failure.details.any((d) => d.field == 'cursor');
+
+  static List<Post> _dedupe(List<Post> existing, List<Post> page) {
+    final seen = {for (final p in existing) p.id};
+    return List.unmodifiable([
+      ...existing,
+      for (final p in page)
+        if (seen.add(p.id)) p,
+    ]);
+  }
+}
+
+final AsyncNotifierProviderFamily<
+  PostsFeedController,
+  FeedItems<Post>,
+  HomeFeed
+>
+postsFeedProvider = AsyncNotifierProvider.family(PostsFeedController.new);
+
+/// v1.41-social (D162): the reels of Moments, per [HomeFeed].
+final AsyncNotifierProviderFamily<
+  PostsFeedController,
+  FeedItems<Post>,
+  HomeFeed
+>
+reelsFeedProvider = AsyncNotifierProvider.family(
+  (feed) => PostsFeedController(feed, reels: true),
+);
+
+/// v1.92-social (D294, CONVENTIONS §10.107; owner: «اجعل فلتر فقط منشورات
+/// وريلز»): the reels page's only feed — 1 Following : 2 Trending of reels,
+/// interleaved by the server like the posts page's (§10.73.1). It replaces
+/// the reels page's Following · For You · Nearby tabs (D202).
+final AsyncNotifierProvider<PostsFeedController, FeedItems<Post>>
+mixedReelsFeedProvider = AsyncNotifierProvider(
+  () => PostsFeedController(HomeFeed.trending, reels: true, mixed: true),
+);
+
+/// v1.76-social (D218): the posts page's only feed — 1 Following : 2
+/// Trending, interleaved by the server (§10.73.1).
+final AsyncNotifierProvider<PostsFeedController, FeedItems<Post>>
+mixedPostsFeedProvider = AsyncNotifierProvider(
+  () => PostsFeedController(HomeFeed.trending, mixed: true),
+);
+
+/// The latest version of posts the caller changed in this session (edit,
+/// pin): feeds and the post screen show it instead of what they loaded.
+class PostEdits extends Notifier<Map<String, Post>> {
+  @override
+  Map<String, Post> build() => const {};
+
+  void put(Post post) => state = {...state, post.id: post};
+
+  /// Drops [postId] (its screen reloaded it from the server).
+  void forget(String postId) {
+    if (!state.containsKey(postId)) return;
+    state = {...state}..remove(postId);
+  }
+}
+
+final postEditsProvider = NotifierProvider<PostEdits, Map<String, Post>>(
+  PostEdits.new,
+);
+
+/// Posts hidden or deleted on this device in this session: grids and the
+/// post screen leave them out at once.
+class RemovedPosts extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+
+  void add(String postId) => state = {...state, postId};
+}
+
+final removedPostsProvider = NotifierProvider<RemovedPosts, Set<String>>(
+  RemovedPosts.new,
+);
+
+/// Removes [postId] from every loaded posts feed (and grids).
+void removePostFromFeeds(WidgetRef ref, String postId) {
+  ref.read(removedPostsProvider.notifier).add(postId);
+  for (final feed in HomeFeed.values) {
+    if (ref.exists(postsFeedProvider(feed))) {
+      ref.read(postsFeedProvider(feed).notifier).remove(postId);
+    }
+    if (ref.exists(reelsFeedProvider(feed))) {
+      ref.read(reelsFeedProvider(feed).notifier).remove(postId);
+    }
+  }
+  if (ref.exists(mixedReelsFeedProvider)) {
+    ref.read(mixedReelsFeedProvider.notifier).remove(postId);
+  }
+  if (ref.exists(mixedPostsFeedProvider)) {
+    ref.read(mixedPostsFeedProvider.notifier).remove(postId);
+  }
+}

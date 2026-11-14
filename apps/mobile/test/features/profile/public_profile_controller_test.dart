@@ -30,6 +30,22 @@ class _FakeProfiles implements ProfileRepository {
     calls.add('$verb $username');
     await gate?.future;
     if (failure case final f?) throw f;
+    // D175: a private account answers a new follow with a request.
+    if (to && profile.isPrivate && !profile.isFollowing) {
+      profile = profile.copyWith(followRequested: true);
+      return FollowState(
+        isFollowing: false,
+        isRequested: true,
+        followerCount: profile.followerCount,
+      );
+    }
+    if (!to && profile.followRequested) {
+      profile = profile.copyWith(followRequested: false);
+      return FollowState(
+        isFollowing: false,
+        followerCount: profile.followerCount,
+      );
+    }
     final was = profile.isFollowing;
     final count = profile.followerCount + (to == was ? 0 : (to ? 1 : -1));
     profile = profile.copyWith(isFollowing: to, followerCount: count);
@@ -145,15 +161,25 @@ void main() {
     expect(repo.calls.where((c) => c != 'GET layla.k'), ['PUT layla.k']);
   });
 
-  test('never follows yourself or (newly) a private account', () async {
+  // D175: a private account gets a follow request (until v1.47-social the
+  // controller refused to follow one: no requests existed).
+  test('never follows yourself; a private account gets a request (the count '
+      'does not move) that can be cancelled', () async {
     await start(_profile(isSelf: true));
     await container.read(provider.notifier).setFollowing(follow: true);
     expect(repo.calls, ['GET layla.k']);
     expect(current().isFollowing, isFalse);
 
     await start(_profile(isPrivate: true));
+    final before = current().followerCount;
     await container.read(provider.notifier).setFollowing(follow: true);
-    expect(repo.calls, ['GET layla.k']);
+    expect(repo.calls, ['GET layla.k', 'PUT layla.k']);
+    expect(current().isFollowing, isFalse);
+    expect(current().followRequested, isTrue);
+    expect(current().followerCount, before);
+    await container.read(provider.notifier).setFollowing(follow: false);
+    expect(repo.calls.last, 'DELETE layla.k');
+    expect(current().followRequested, isFalse);
 
     // An existing follower of a private account can unfollow.
     await start(_profile(isPrivate: true, isFollowing: true));

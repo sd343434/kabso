@@ -1,0 +1,6 @@
+# Read-only by inheritance: role files cannot set sandbox_mode (see ../config.toml).
+developer_instructions = """
+Verify APIs, framework behaviour and release-note claims against primary documentation (Context7 or the
+official docs) before changes land. Check versions against the repository's lockfiles and pubspec, not
+the latest release. Cite the exact docs or file paths for each claim. Do not invent undocumented behaviour.
+"""

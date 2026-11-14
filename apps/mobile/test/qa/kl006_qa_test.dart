@@ -289,9 +289,9 @@ void main() {
       await tester.pumpAndSettle();
       for (final key in const [
         Key('nav.home'),
-        Key('nav.discover'),
-        Key('nav.create'),
-        Key('nav.live'),
+        Key('nav.party'),
+        Key('nav.reels'),
+        Key('nav.messages'),
         Key('nav.profile'),
       ]) {
         final size = tester.getSize(find.byKey(key));
@@ -315,7 +315,10 @@ void main() {
           m.keys.where((k) => !k.startsWith('@')).toSet();
       expect(keys(ar), keys(en));
 
-      final placeholder = RegExp(r'\{(\w+)');
+      // A placeholder `{name` — not the text of a plural / select branch
+      // (`=1{Day}`, `other{Days}`), which an English branch starts with a
+      // word (D354: the countdown units agree with their numbers).
+      final placeholder = RegExp(r'(?<![=\w])\{(\w+)');
       for (final key in keys(en)) {
         Set<String> names(Object? v) =>
             placeholder.allMatches('$v').map((m) => m.group(1)!).toSet();
@@ -357,7 +360,8 @@ void main() {
       );
       addTearDown(container.dispose);
       expect(container.read(languageControllerProvider), AppLanguage.ar);
-      expect(container.read(themeModeControllerProvider), ThemeMode.dark);
+      // D68: the device decides until the user picks a theme.
+      expect(container.read(themeModeControllerProvider), ThemeMode.system);
     });
   });
 
@@ -377,15 +381,15 @@ void main() {
       addTearDown(sub.close);
       final controller = container.read(usernameAvailabilityProvider.notifier)
         // "slowname" is taken but answers late; "fastname" is free.
-        ..onChanged('SlowName');
+        ..onChanged('Slow_Name1');
       await Future<void>.delayed(const Duration(milliseconds: 10));
-      controller.onChanged('fastname');
+      controller.onChanged('fast_name1');
       await Future<void>.delayed(const Duration(milliseconds: 300));
 
-      expect(repo.availabilityChecks, ['slowname', 'fastname']);
+      expect(repo.availabilityChecks, ['slow_name1', 'fast_name1']);
       final state = container.read(usernameAvailabilityProvider);
       expect(state, isA<UsernameAvailable>());
-      expect((state as UsernameAvailable).username, 'fastname');
+      expect((state as UsernameAvailable).username, 'fast_name1');
     });
   });
 }
@@ -397,7 +401,7 @@ class _SlowFirstRepo extends FakeAuthRepository {
     String username,
   ) async {
     availabilityChecks.add(username);
-    if (username == 'slowname') {
+    if (username == 'slow_name1') {
       await Future<void>.delayed(const Duration(milliseconds: 150));
       return UsernameAvailability(username: username, available: false);
     }

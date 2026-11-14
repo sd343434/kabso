@@ -1,22 +1,63 @@
+import 'package:flutter/foundation.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 
 /// Pure redirect rules of the auth guard (unit-testable).
 ///
+/// - Launch animation still playing ([introDone] false) → stay on the
+///   splash, whatever the auth state (D63).
 /// - Restoring / restore failed → stay on the splash.
-/// - Signed out → only the public auth routes.
-/// - Signed in → never the splash or the public auth routes.
-String? authRedirect(AuthState state, String location) {
+/// - Signed out → only the public auth routes; the welcome screen on the
+///   first launch, login afterwards or when the session ended with a
+///   reason to show (D64/D65).
+/// - Signed in → never the splash or the public auth routes; while a new
+///   version of the terms or the privacy policy waits ([consentRequired],
+///   D198), only the consent screen, the data export and the deletion.
+/// - Debug-only routes (labelled test data, never in release builds) open in
+///   any state, so a test build can show the design previews without a
+///   server or a session.
+String? authRedirect(
+  AuthState state,
+  String location, {
+  bool allowDebugRoutes = !kReleaseMode,
+  bool introDone = true,
+  bool welcomeSeen = false,
+  bool consentRequired = false,
+}) {
+  if (allowDebugRoutes && location.startsWith(AppRoutes.debugPrefix)) {
+    return null;
+  }
   final isSplash = location == AppRoutes.splash;
   final isPublicAuth = AppRoutes.publicAuthRoutes.contains(location);
+  if (isSplash && !introDone) return null;
 
   switch (state) {
     case AuthRestoring():
     case AuthRestoreFailed():
       return isSplash ? null : AppRoutes.splash;
-    case Unauthenticated():
-      return isPublicAuth ? null : AppRoutes.login;
-    case Authenticated():
+    case Unauthenticated(:final reason):
+      if (isPublicAuth) return null;
+      // A session that ended (suspended, refresh refused) lands on login,
+      // which explains why. Otherwise the first launch shows the welcome
+      // screen and every later one goes straight to login (D65).
+      if (reason != null || welcomeSeen) return AppRoutes.login;
+      return AppRoutes.welcome;
+    case Authenticated(:final user):
+      // D198: a new version of the terms or the privacy policy waits to be
+      // accepted — only the consent screen, the data export and the account
+      // deletion are reachable until then.
+      if (consentRequired) {
+        return AppRoutes.consentAllowedRoutes.contains(location)
+            ? null
+            : AppRoutes.legalConsent;
+      }
+      if (location == AppRoutes.legalConsent) return AppRoutes.home;
+      // v1.72-live (D283, §10.96.10): a Kabso Team account's Me tab has no
+      // user, host or agency features — their pages (and deep links to them)
+      // show a short note instead; the server refuses the actions anyway.
+      if (user.staff != null && AppRoutes.staffBlocked(location)) {
+        return AppRoutes.staffUnavailable;
+      }
       return isSplash || isPublicAuth ? AppRoutes.home : null;
   }
 }

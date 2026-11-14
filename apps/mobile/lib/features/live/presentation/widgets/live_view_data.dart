@@ -1,5 +1,7 @@
+import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/design_system/theme/app_theme.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_vip.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Presentation-only inputs for the live widgets (KL-022). Production
@@ -20,6 +22,23 @@ class LiveRoomCardData {
     this.guestCount,
     this.categoryName,
     this.roomId,
+    this.score = 0,
+    this.isAudio = false,
+    this.isPodcast = false,
+    this.isStreamer = false,
+    this.hostId,
+    this.seatCount,
+    this.occupiedSeats = 0,
+    this.featured = false,
+    this.boostStage = 0,
+    this.podcast,
+    this.hostUsername,
+    this.topic,
+    this.roomLevel,
+    this.popular = false,
+    this.hostCountry,
+    this.hostIsCreator = false,
+    this.vipMinTier,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
@@ -28,22 +47,49 @@ class LiveRoomCardData {
   /// card then shows the host avatar) and the server-localized category name
   /// when the room has one. Multi-guest rooms carry no guest count in v1.3,
   /// so no seats tag is shown.
-  factory fromSummary(LiveRoomSummary room) {
+  factory fromSummary(
+    LiveRoomSummary room, {
+    bool featured = false,
+    int boostStage = 0,
+  }) {
     final cover = room.coverUrl;
     final avatar = room.host.avatarUrl;
     return LiveRoomCardData(
       hostName: room.host.displayName,
       title: room.title,
       viewerCount: room.viewerCount,
-      cover: cover == null || cover.isEmpty ? null : NetworkImage(cover),
-      hostAvatar: avatar == null || avatar.isEmpty
-          ? null
-          : NetworkImage(avatar),
-      inPk: room.mode == LiveRoomMode.pk,
+      cover: cover == null || cover.isEmpty ? null : _image(cover),
+      hostAvatar: avatar == null || avatar.isEmpty ? null : _image(avatar),
+      // D241: the server's flag (a real battle keeps the room SOLO); the
+      // legacy mode PK too.
+      inPk: room.inPk || room.mode == LiveRoomMode.pk,
       categoryName: room.category?.name,
       roomId: room.id,
+      score: room.score,
+      isAudio: room.mode.isVoice,
+      isPodcast: room.mode == LiveRoomMode.podcast,
+      isStreamer: room.mode == LiveRoomMode.streamer,
+      hostId: room.host.id,
+      seatCount: room.seatCount,
+      occupiedSeats: room.occupiedSeats,
+      featured: featured || boostStage > 0,
+      boostStage: boostStage,
+      podcast: room.mode == LiveRoomMode.podcast ? room.podcast : null,
+      hostUsername: room.host.username,
+      topic: room.topic,
+      roomLevel: room.roomLevel,
+      popular: room.popular,
+      hostCountry: room.hostCountry,
+      hostIsCreator: room.hostIsCreator,
+      vipMinTier: room.vipMinTier,
     );
   }
+
+  /// D86: demo rooms (test builds only) carry `asset:` covers.
+  static ImageProvider _image(String url) =>
+      kDemoAvailable && url.startsWith('asset:')
+      ? AssetImage(url.substring('asset:'.length))
+      : NetworkImage(url);
 
   /// The API room id; `null` for gallery samples and fixtures, which then
   /// open nothing.
@@ -69,6 +115,63 @@ class LiveRoomCardData {
   /// The room's category (already localized by the server); `null` when
   /// it has none (nothing is shown).
   final String? categoryName;
+
+  /// CP-012: the live's points; 0 shows nothing.
+  final int score;
+
+  /// D124: an audio room (CP-011 `AUDIO`); every other mode has video. The
+  /// grid card names the room type next to the live mark.
+  final bool isAudio;
+
+  /// D237: a podcast (v1.47-live `PODCAST`; [isAudio] too).
+  final bool isPodcast;
+
+  /// D213: a streamer (v1.56-live `STREAMER`): the card's tag «ستريمر».
+  final bool isStreamer;
+
+  /// D124: the host's user id (API rooms only), so the in-room swipe never
+  /// moves a host away from their own live.
+  final String? hostId;
+
+  /// CP-011: the tiles of a MULTI or AUDIO room (host included), or `null`.
+  final int? seatCount;
+
+  /// CP-011: guests seated now.
+  final int occupiedSeats;
+
+  /// v1.82-live (D295): the host is a content creator — the purple «صانع
+  /// محتوى» badge on the card.
+  final bool hostIsCreator;
+
+  /// v1.132-social (D379, §10.169.9): a VIP room — the card shows the lock.
+  final LiveVipMinTier? vipMinTier;
+
+  /// D154b: in a paid «مميز» slot now (a traffic card); the card says so.
+  final bool featured;
+
+  /// D233: the rocket stage (1–4) running on this live, 0 for none: the
+  /// card shows that stage's rocket badge and the animated «مميز» frame.
+  final int boostStage;
+
+  /// D212: a podcast's episode facts (its hub card); null otherwise.
+  final LivePodcast? podcast;
+
+  /// D212: the host's @username (API rooms).
+  final String? hostUsername;
+
+  /// CP-014: the host's one-line topic, or null (D246: the party page's
+  /// card subtitle).
+  final String? topic;
+
+  /// v1.58-live (D246): the host's charm level (the cards' level pill), or
+  /// null.
+  final int? roomLevel;
+
+  /// v1.58-live (D246): «رائج» (top of its kind in the popular order).
+  final bool popular;
+
+  /// v1.58-live (D246): the host's profile country (ISO alpha-2), or null.
+  final String? hostCountry;
 }
 
 /// A line in the live chat overlay.

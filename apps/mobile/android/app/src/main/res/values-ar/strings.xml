@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- D152: قنوات الإشعارات كما تظهر في إعدادات النظام. -->
+    <string name="notification_channel_general">الإشعارات</string>
+    <string name="notification_channel_general_description">الإعجابات والتعليقات والمتابعات وغيرها</string>
+    <string name="notification_channel_messages">الرسائل</string>
+    <string name="notification_channel_messages_description">الرسائل الجديدة في محادثاتك</string>
+    <string name="notification_channel_staff">بلاغات فريق كابسو</string>
+    <string name="notification_channel_staff_description">البلاغات الجديدة بانتظار المشرفين والدعم</string>
+</resources>

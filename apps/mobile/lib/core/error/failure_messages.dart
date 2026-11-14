@@ -28,10 +28,179 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.liveHostingUnavailable => l10n.errorLiveHostingUnavailable,
     ErrorCode.liveRoomAlreadyActive => l10n.errorLiveRoomAlreadyActive,
     ErrorCode.liveRoomEnded => l10n.errorLiveRoomEnded,
+    ErrorCode.liveHostingNotAllowed => l10n.errorLiveHostingNotAllowed,
+    ErrorCode.liveGuestsNotAllowed => l10n.errorLiveGuestsNotAllowed,
+    ErrorCode.liveChatNotInRoom => l10n.errorLiveChatNotInRoom,
+    ErrorCode.liveChatMuted => l10n.errorLiveChatMuted,
+    ErrorCode.liveChatClosed => l10n.errorLiveChatClosed,
+    ErrorCode.mediaUploadsUnavailable => l10n.errorMediaUploadsUnavailable,
+    ErrorCode.mediaInvalid => l10n.errorMediaInvalid,
+    ErrorCode.pinLimitReached => l10n.errorPinLimitReached,
+    ErrorCode.liveScheduleFull => l10n.errorLiveScheduleFull,
+    ErrorCode.reportAlreadyResolved => l10n.errorReportAlreadyResolved,
+    ErrorCode.insufficientCoins => l10n.errorInsufficientCoins,
+    ErrorCode.liveKicked => l10n.errorLiveKicked,
+    ErrorCode.liveQuestionsClosed => l10n.errorLiveQuestionsClosed,
+    ErrorCode.alreadyInFamily => l10n.errorAlreadyInFamily,
+    ErrorCode.familyFull => l10n.errorFamilyFull,
+    ErrorCode.familyNameTaken => l10n.errorFamilyNameTaken,
+    ErrorCode.familyRequestPending => l10n.errorFamilyRequestPending,
+    ErrorCode.familyRequestNotPending => l10n.errorFamilyRequestNotPending,
+    ErrorCode.familyNotEmpty => l10n.errorFamilyNotEmpty,
+    ErrorCode.familyLeaderCannotLeave => l10n.errorFamilyLeaderCannotLeave,
+    ErrorCode.cpAlreadyPaired => l10n.errorCpAlreadyPaired,
+    ErrorCode.cpRequestPending => l10n.errorCpRequestPending,
+    ErrorCode.cpRequestNotPending => l10n.errorCpRequestNotPending,
+    ErrorCode.cpNotPaired => l10n.errorCpNotPaired,
+    ErrorCode.medalNotUnlocked => l10n.errorMedalNotUnlocked,
+    ErrorCode.bagItemNotOwned => l10n.errorBagItemNotOwned,
+    ErrorCode.bagItemNotTransferable => l10n.errorBagItemNotTransferable,
+    ErrorCode.bagSendPermanentWholeOnly => l10n.errorBagSendPermanentWholeOnly,
+    ErrorCode.bagSendExceedsRemaining => l10n.errorBagSendExceedsRemaining,
+    ErrorCode.bagRecipientHasPermanent => l10n.errorBagRecipientHasPermanent,
+    ErrorCode.giftUnavailable => l10n.errorGiftUnavailable,
+    ErrorCode.giftBagInsufficient => l10n.errorGiftBagInsufficient,
+    ErrorCode.liveGiftRecipientUnavailable =>
+      l10n.errorLiveGiftRecipientUnavailable,
+    ErrorCode.luckyGiftAgeUnconfirmed => l10n.errorLuckyGiftAgeUnconfirmed,
+    ErrorCode.luckyGiftRegionUnavailable =>
+      l10n.errorLuckyGiftRegionUnavailable,
+    ErrorCode.cpTaskNotCompleted => l10n.errorCpTaskNotCompleted,
+    ErrorCode.cpPrivilegeLocked => l10n.errorCpPrivilegeLocked,
+    ErrorCode.familyChatMuted => l10n.errorFamilyChatMuted,
+    ErrorCode.premiumUsernameUnavailable =>
+      l10n.errorPremiumUsernameUnavailable,
+    ErrorCode.premiumUsernamePriceChanged =>
+      l10n.errorPremiumUsernamePriceChanged,
+    ErrorCode.premiumUsernameActive => l10n.errorPremiumUsernameActive,
+    ErrorCode.dmNotAllowed => l10n.errorDmNotAllowed,
+    ErrorCode.dmRequestLimit => l10n.errorDmRequestLimit,
+    ErrorCode.dmRequestTextOnly => l10n.errorDmRequestTextOnly,
+    ErrorCode.dmDeleteWindowPassed => l10n.errorDmDeleteWindowPassed,
+    ErrorCode.dmNotArchivable => l10n.errorDmNotArchivable,
+    ErrorCode.dmGroupFull => l10n.errorDmGroupFull,
+    ErrorCode.dmPinLimit => l10n.errorDmPinLimit,
+    ErrorCode.featuredPinLimit => l10n.errorFeaturedPinLimit,
+    ErrorCode.categoryVerificationPending =>
+      l10n.errorCategoryVerificationPending,
+    ErrorCode.accountCategoryLocked => l10n.errorAccountCategoryLocked,
+    ErrorCode.ambassadorApplicationNotAllowed =>
+      l10n.errorAmbassadorApplicationNotAllowed,
+    ErrorCode.dmGroupMemberNotAllowed => l10n.errorDmGroupMemberNotAllowed,
+    ErrorCode.quipFreeUsed => l10n.errorQuipFreeUsed,
+    ErrorCode.quipQueueFull => l10n.errorQuipQueueFull,
+    ErrorCode.boostQueueFull => l10n.errorBoostQueueFull,
+    ErrorCode.boostCardInsufficient => l10n.errorBoostCardInsufficient,
+    ErrorCode.boostRoomBusy => l10n.errorBoostRoomBusy,
+    ErrorCode.youtubeVideoUnavailable => l10n.errorYoutubeVideoUnavailable,
+    ErrorCode.youtubeSearchUnavailable => l10n.errorYoutubeSearchUnavailable,
+    ErrorCode.agencyAlreadyMember => l10n.errorAgencyAlreadyMember,
+    ErrorCode.agencyJoinNotAllowed => l10n.errorAgencyJoinNotAllowed,
+    ErrorCode.agencyLeaveWindowClosed => l10n.errorAgencyLeaveWindowClosed,
+    ErrorCode.agencyOpenNotAllowed => l10n.errorAgencyOpenNotAllowed,
+    ErrorCode.hostApplicationNotAllowed => l10n.errorHostApplicationNotAllowed,
+    ErrorCode.agencyActivationNotAllowed =>
+      l10n.errorAgencyActivationNotAllowed,
+    ErrorCode.kycNotAllowed => l10n.errorKycNotAllowed,
+    ErrorCode.kycUnavailable => l10n.kycUnavailable,
+    ErrorCode.referralUnavailable => l10n.errorReferralUnavailable,
+    ErrorCode.referralCodeInvalid => l10n.errorReferralCodeInvalid,
+    ErrorCode.referralNotAllowed => l10n.errorReferralNotAllowed,
+    ErrorCode.deviceAccountLimit => l10n.errorDeviceAccountLimit,
+    ErrorCode.deviceBanned => l10n.errorDeviceBanned,
+    ErrorCode.vipUnavailable => l10n.errorVipUnavailable,
+    ErrorCode.vipPriceChanged => l10n.errorVipPriceChanged,
+    ErrorCode.insufficientRechargePoints =>
+      l10n.errorInsufficientRechargePoints,
+    ErrorCode.contentGiftRecipientUnavailable =>
+      l10n.errorContentGiftRecipientUnavailable,
+    ErrorCode.storeUnavailable => l10n.errorStoreUnavailable,
+    ErrorCode.storePriceChanged => l10n.errorStorePriceChanged,
+    ErrorCode.storeIapUnavailable => l10n.errorStoreIapUnavailable,
+    ErrorCode.storeIapVerificationFailed =>
+      l10n.errorStoreIapVerificationFailed,
+    ErrorCode.storeIapPurchaseConflict => l10n.errorStoreIapPurchaseConflict,
+    ErrorCode.storeIapPending => l10n.errorStoreIapPending,
+    // v1.116-social (D355): «واتساب».
+    ErrorCode.whatsappUnavailable => l10n.waErrOff,
+    ErrorCode.whatsappWindowClosed => l10n.waErrWindow,
+    ErrorCode.whatsappConversationAssigned => l10n.waErrAssigned,
+    ErrorCode.whatsappConversationClosed => l10n.waErrClosed,
+    ErrorCode.whatsappSendFailed => l10n.waErrSend,
+    ErrorCode.staffProtected => l10n.errorStaffProtected,
+    ErrorCode.vipProtected => l10n.errorVipProtected,
+    ErrorCode.liveStaffRefused => l10n.errorLiveStaffRefused,
+    ErrorCode.staffGiftRefused => l10n.errorStaffGiftRefused,
+    ErrorCode.staffWithdrawalCompanyOnly =>
+      l10n.errorStaffWithdrawalCompanyOnly,
+    ErrorCode.staffStepUpRequired => l10n.errorStaffStepUpRequired,
+    ErrorCode.staffTotpNotEnrolled => l10n.errorStaffTotpNotEnrolled,
+    ErrorCode.adminTotpInvalid => l10n.errorAdminTotpInvalid,
+    ErrorCode.adminLocked => l10n.errorAdminLocked,
+    ErrorCode.adminActionRefused => l10n.errorAdminActionRefused,
+    ErrorCode.levelRaiseDuplicate => l10n.lrDuplicateShort,
+    ErrorCode.ownerOnly => l10n.errorOwnerOnly,
+    ErrorCode.ownerJourneyLimit => l10n.errorOwnerJourneyLimit,
+    ErrorCode.liveCapacityFull => l10n.errorLiveCapacityFull,
+    ErrorCode.liveVipOnly => l10n.errorLiveVipOnly,
+    ErrorCode.livePinBusy => l10n.errorLivePinBusy,
+    ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
+    ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
+    ErrorCode.rechargeApplicationNotAllowed =>
+      l10n.errorRechargeApplicationNotAllowed,
+    ErrorCode.rechargeAgentNotActive => l10n.errorRechargeAgentNotActive,
+    ErrorCode.rechargeOffShift => l10n.errorRechargeOffShift,
+    ErrorCode.rechargeStockInsufficient => l10n.errorRechargeStockInsufficient,
+    ErrorCode.rechargeEmployeeNotAllowed =>
+      l10n.errorRechargeEmployeeNotAllowed,
+    ErrorCode.rechargeCherryRequestPending =>
+      l10n.errorRechargeCherryRequestPending,
+    ErrorCode.rechargeCherryRequestClosed =>
+      l10n.errorRechargeCherryRequestClosed,
+    ErrorCode.rechargeCherryCapReached => l10n.errorRechargeCherryCapReached,
+    ErrorCode.usernameLocked => l10n.errorUsernameLocked,
+    ErrorCode.hostFrameStyleFromGender => l10n.errorHostFrameStyleFromGender,
+    ErrorCode.reauthFailed => l10n.errorReauthFailed,
+    ErrorCode.accountDeletionBlocked => l10n.errorAccountDeletionBlocked,
+    ErrorCode.accountDeletionPending => l10n.errorAccountDeletionPending,
+    ErrorCode.consentRequired => l10n.errorConsentRequired,
+    ErrorCode.consentVersionMismatch => l10n.errorConsentVersionMismatch,
+    ErrorCode.dataExportLimit => l10n.errorDataExportLimit,
+    ErrorCode.dataExportLinkInvalid => l10n.errorDataExportLinkInvalid,
+    ErrorCode.rechargeOrdersUnavailable => l10n.errorRechargeOrdersUnavailable,
+    ErrorCode.rechargeOrderOpenExists => l10n.errorRechargeOrderOpenExists,
+    ErrorCode.rechargeOrderStateChanged => l10n.errorRechargeOrderStateChanged,
+    ErrorCode.rechargeOrderNoticeRequired =>
+      l10n.errorRechargeOrderNoticeRequired,
+    ErrorCode.rechargeOrderDisputeTooEarly =>
+      l10n.errorRechargeOrderDisputeTooEarly,
+    ErrorCode.rechargeEmployeeNotPermitted =>
+      l10n.errorRechargeEmployeeNotPermitted,
+    ErrorCode.rechargeOrderClaimed => l10n.errorRechargeOrderClaimed,
+    ErrorCode.rechargeEmployeeIsStaff => l10n.errorRechargeEmployeeIsStaff,
+    ErrorCode.staffAccountLimited => l10n.errorStaffAccountLimited,
+    ErrorCode.accountLocked => l10n.errorAccountLocked,
+    ErrorCode.accountRestricted => l10n.errorAccountRestricted,
+    ErrorCode.passwordChangeRequired => l10n.errorPasswordChangeRequired,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,
   };
+}
+
+/// v1.113-live (D351): the go-live was refused by the capacity guard
+/// «حد الامتلاء» (`LIVE_CAPACITY_FULL`).
+bool isLiveCapacityFull(Object? failure) =>
+    failure is ServerFailure && failure.code == ErrorCode.liveCapacityFull;
+
+/// The wait before «حاول مجددًا» after `LIVE_CAPACITY_FULL`: its
+/// `Retry-After`, else [fallback] (the server's default, 60 s).
+Duration liveCapacityWait(
+  ServerFailure failure, {
+  Duration fallback = const Duration(seconds: 60),
+}) {
+  final after = failure.retryAfter;
+  return after != null && after > Duration.zero ? after : fallback;
 }
 
 /// Codes that honour `Retry-After` (countdown + disabled CTA).
@@ -62,7 +231,84 @@ String failureMessage(
           : l10n.errorServiceBusyRetryIn(wait);
     }
   }
+  // v1.78-social (D223): the device's own limit (2 unless an exception).
+  if (failure is ServerFailure &&
+      failure.code == ErrorCode.deviceAccountLimit) {
+    final max = deviceAccountLimitOf(failure);
+    if (max != null) return l10n.errorDeviceAccountLimitCount(max);
+  }
+  // v1.72-social (D208): a lock or restriction by the team, with its end.
+  if (failure is ServerFailure) {
+    final locked = _accountControlMessage(l10n, failure);
+    if (locked != null) return locked;
+  }
   return errorCodeMessage(l10n, failure.code);
+}
+
+/// v1.78-social (D223): the accounts the device may create, from
+/// `DEVICE_ACCOUNT_LIMIT`'s `details[0].issue` (null when absent or odd).
+int? deviceAccountLimitOf(ServerFailure f) {
+  final max = int.tryParse(_detail(f, 'device') ?? '');
+  return max != null && max > 0 ? max : null;
+}
+
+/// The end of a lock or restriction: the date and the time (it may end today).
+String _when(DateTime at, String locale) =>
+    '${KFormat.date(at, locale)} ${KFormat.time(at, locale)}';
+
+String? _detail(ServerFailure f, String field) =>
+    f.details.where((d) => d.field == field).map((d) => d.issue).firstOrNull;
+
+/// «حسابك مقفل حتى …. السبب: …» / «… موقوف لحسابك حتى …» (D208), «تم حظر
+/// هذا الجهاز …» (D250), or null.
+String? _accountControlMessage(AppLocalizations l10n, ServerFailure f) {
+  if (f.code == ErrorCode.accountLocked) {
+    final until = DateTime.tryParse(_detail(f, 'lockedUntil') ?? '');
+    final reason = _detail(f, 'reason');
+    if (until == null) return null;
+    return l10n.errorAccountLockedUntil(
+      _when(until, l10n.localeName),
+      reason == null || reason.trim().isEmpty ? '—' : reason.trim(),
+    );
+  }
+  if (f.code == ErrorCode.accountRestricted) {
+    final until = DateTime.tryParse(_detail(f, 'until') ?? '');
+    final what = switch (_detail(f, 'restriction')) {
+      'CHAT_MUTE' => l10n.restrictionChatMute,
+      'NO_LIVE' => l10n.restrictionNoLive,
+      'NO_GIFTS' => l10n.restrictionNoGifts,
+      'NO_POSTING' => l10n.restrictionNoPosting,
+      _ => null,
+    };
+    if (until == null || what == null) return null;
+    // v1.60-live (D250): the team's reason, when the server sends it.
+    final reason = _detail(f, 'reason')?.trim();
+    if (reason != null && reason.isNotEmpty) {
+      return l10n.errorAccountRestrictedUntilReason(
+        what,
+        _when(until, l10n.localeName),
+        KFormat.bidiIsolate(reason),
+      );
+    }
+    return l10n.errorAccountRestrictedUntil(
+      what,
+      _when(until, l10n.localeName),
+    );
+  }
+  // v1.60-live (D250, §10.91.6): a device the team banned, with the end (or
+  // for good) and the reason.
+  if (f.code == ErrorCode.deviceBanned) {
+    final reasonText = _detail(f, 'reason')?.trim();
+    final reason = reasonText == null || reasonText.isEmpty
+        ? '—'
+        : KFormat.bidiIsolate(reasonText);
+    final until = _detail(f, 'until');
+    if (until == 'permanent') return l10n.errorDeviceBannedPermanent(reason);
+    final at = DateTime.tryParse(until ?? '');
+    if (at == null) return null;
+    return l10n.errorDeviceBannedUntil(_when(at, l10n.localeName), reason);
+  }
+  return null;
 }
 
 /// The request id to show as a selectable "Error ID" (PHASE1_SCREENS §10):

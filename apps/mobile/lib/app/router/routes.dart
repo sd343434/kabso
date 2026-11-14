@@ -2,6 +2,11 @@
 abstract final class AppRoutes {
   static const splash = '/splash';
 
+  /// D64/D65: first screen of the first signed-out launch.
+  static const welcome = '/auth/welcome';
+
+  /// D65: "Create account" or "Log in", after the welcome screen.
+  static const join = '/auth/join';
   static const login = '/auth/login';
   static const register = '/auth/register';
   static const forgotPassword = '/auth/forgot-password';
@@ -9,39 +14,513 @@ abstract final class AppRoutes {
   /// Verify-first registration: enter the emailed 8-digit code (v1.2).
   static const registerCode = '/auth/register/code';
 
+  /// Home is the live-discovery hub (D48).
   static const home = '/home';
   static const discover = '/discover';
   static const create = '/create';
-  static const live = '/live';
 
-  /// KL-034: a live room, nested under the Live branch but shown above the
-  /// shell (no bottom nav on full-screen live surfaces, HL-N1 §2).
+  /// Posts · Reels (D47/D48/D52), the second shell tab (D86).
+  static const reels = '/reels';
+
+  /// KL-034: a live room, nested under the Home (live hub) branch but shown
+  /// above the shell (no bottom nav on full-screen live surfaces, HL-N1 §2).
   static const liveRoomSegment = 'room/:roomId';
 
   /// The location of the live room [roomId].
   static String liveRoom(String roomId) =>
-      '$live/room/${Uri.encodeComponent(roomId)}';
+      '$home/room/${Uri.encodeComponent(roomId)}';
+
+  /// v1.68-live (D273): a live opened from a staff alert «بلاغ جديد على بث» —
+  /// it opens with «أدوات فريق كابسو» on its reports.
+  static String liveRoomStaffReports(String roomId) =>
+      '${liveRoom(roomId)}?staff=reports';
+
+  /// v1.68-live (D273): «فريق كابسو» — the shift and «بثوثي» (D286: no code)
+  /// (the Me tab, staff accounts only).
+  static const staff = '/me/staff';
+
+  /// v1.72-live (D283): what a Kabso Team account sees instead of a page it
+  /// cannot use.
+  static const staffUnavailable = '/me/staff/unavailable';
+
+  /// v1.75-live (D285): «استقطاباتي» and «أرباحي» in the staff Me tab
+  /// (MODERATION / BD).
+  static const staffRecruits = '/me/staff/recruits';
+
+  /// v1.78-live (D288, §10.101): «بلاغات» — the shared report queue (the
+  /// staff Me tab, MODERATION / SUPPORT); [staffReportsFor] opens it on one
+  /// report (a `STAFF_REPORT_NEW` tap).
+  static const staffReports = '/me/staff/reports';
+
+  /// v1.116-social (D355, §10.151): «واتساب» — the official number's inbox
+  /// (OWNER, MODERATION, SUPPORT) and one conversation ([staffWhatsAppChat],
+  /// also a `whatsapp` push's target).
+  static const staffWhatsApp = '/me/staff/whatsapp';
+  static const staffWhatsAppChatPattern = '/me/staff/whatsapp/:conversationId';
+  static String staffWhatsAppChat(String conversationId) =>
+      '$staffWhatsApp/${Uri.encodeComponent(conversationId)}';
+  static String staffReportsFor(String reportId) =>
+      '$staffReports?report=${Uri.encodeQueryComponent(reportId)}';
+
+  /// v1.93-social (D296, §10.109): one report opened — the reported content
+  /// for the staff with the actions (a tap in «بلاغات», a `STAFF_REPORT_NEW`
+  /// notification or push).
+  static const staffReportPattern = '/me/staff/reports/:reportId';
+  static String staffReport(String reportId) =>
+      '$staffReports/${Uri.encodeComponent(reportId)}';
+
+  /// D296 follow-up (owner: «عندما يضغط الموظف عليه تفتح الشات»): a DM
+  /// report's conversation, opened from its closed card (read only).
+  static const staffReportChatPattern = '/me/staff/reports/:reportId/chat';
+  static String staffReportChat(String reportId) =>
+      '${staffReport(reportId)}/chat';
+  static const staffEarnings = '/me/staff/earnings';
+
+  /// v1.89-social (D290): «طلبات رفع الليفيل» and «طلب جديد» in the staff Me
+  /// tab (MODERATION / SUPPORT).
+  static const staffLevelRaises = '/me/staff/level-raises';
+  static const staffLevelRaiseNew = '/me/staff/level-raises/new';
+
+  /// v1.75-live (D285): «انضم كصانع محتوى» (from the creator centre).
+  static const creatorApply = '/creator/apply';
+
+  /// v1.141-social (D390): «برنامج سفراء Kabso» — the explanation and the
+  /// application, and the ambassador's dashboard.
+  static const ambassadors = '/ambassadors';
+  static const ambassadorDashboard = '/ambassadors/me';
+
+  /// v1.72-live (D283, §10.96.10): the pages a Kabso Team account (MODERATION
+  /// / SUPPORT / FINANCE, not OWNER) cannot use: going live and announcing a
+  /// live, levels, VIP, family, store, wallet / recharge, bag, agency,
+  /// creator / event / task centres, medals, CP, premium usernames, the
+  /// invite programme and stories.
+  static bool staffBlocked(String location) {
+    final path = Uri.tryParse(location)?.path ?? location;
+    const exact = {
+      goLive,
+      newStory,
+      levels,
+      families,
+      cp,
+      cpSpace,
+      medals,
+      bag,
+      premium,
+      wallet,
+      inviteFriends,
+      // D390: Kabso Team accounts are never ambassadors.
+      ambassadors,
+      ambassadorDashboard,
+      creatorCenter,
+      agency,
+      recharge,
+      taskCenter,
+      eventCenter,
+      vip,
+      store,
+    };
+    if (exact.contains(path)) return true;
+    const prefixes = [
+      '/levels/',
+      '/families/',
+      '/family/',
+      '/cp/',
+      '/wallet/',
+      '/agency/',
+      '/recharge/',
+      '/vip/',
+      '/store/',
+      '/creator/',
+      '/tasks/',
+      '/events/',
+      '/medals/',
+    ];
+    return prefixes.any(path.startsWith);
+  }
+
+  /// The Me tab. D163 (owner): a hub of the person's features (Bigo-style
+  /// layout); the profile with its grids moved to [myProfile].
   static const profile = '/profile';
+
+  /// D163: your own profile (posts, reels, reposts, saved), opened from the
+  /// Me hub's photo or name, pushed above the shell.
+  static const myProfile = '/me/profile';
+
+  /// KL-060: one post (from a profile grid, search or a hashtag), pushed
+  /// above the shell.
+  static const postPattern = '/posts/:postId';
+
+  /// KL-060: a hashtag's posts (lower case, without `#`).
+  static const hashtagPattern = '/hashtags/:tag';
+
+  /// D147: the hashtags of the week ("More" on the search home).
+  static const trendingHashtags = '/search/hashtags';
+
+  /// The page of [tag] (with or without `#`).
+  static String hashtag(String tag) =>
+      '/hashtags/${Uri.encodeComponent(tag.replaceFirst('#', '').toLowerCase())}';
+
+  /// The screen of post [postId]; with [comments] its comments open at
+  /// once (a comment notification, CP-009).
+  static String post(String postId, {bool comments = false}) =>
+      '/posts/${Uri.encodeComponent(postId)}${comments ? '?comments=1' : ''}';
+
+  /// CP-008: one account's stories, full screen (then the next accounts
+  /// of the tray).
+  static const storiesPattern = '/stories/:username';
+
+  /// The stories of [username].
+  static String stories(String username) =>
+      '/stories/${Uri.encodeComponent(username)}';
+
+  /// CP-008: post a photo story.
+  static const newStory = '/story/new';
+
+  /// D162: post a reel (a vertical short video for Moments).
+  static const newReel = '/reel/new';
+
+  /// CP-010: go live (camera preview, then on air).
+  static const goLive = '/live/new';
+
+  /// D377: go live with a mode preselected (`?mode=audio`; the party
+  /// page's «+»). The person can still pick another mode inside go-live.
+  static String goLiveIn(String mode) =>
+      '$goLive?mode=${Uri.encodeQueryComponent(mode)}';
+
+  /// D201: join the caller's own live as its second camera (device B).
+  static const liveSecondCamera = '/live/second-camera';
+
+  /// D131: the voice rooms — D322: «الحفلة», the second shell tab (the Live
+  /// hub's party button is gone).
+  static const voiceRooms = '/live/voice';
+
+  /// CP-008: your story archive.
+  static const storyArchive = '/me/stories';
+
+  /// KL-060: your drafts and scheduled posts.
+  static const drafts = '/me/drafts';
+
+  /// KL-060: edit your post (caption, place, settings).
+  static const editPostPattern = '/posts/:postId/edit';
+
+  /// The edit screen of post [postId].
+  static String editPost(String postId) => '${post(postId)}/edit';
+
+  /// KL-060: who liked a post.
+  static const postLikesPattern = '/posts/:postId/likes';
+
+  /// The likers of post [postId].
+  static String postLikes(String postId) => '${post(postId)}/likes';
+
+  /// D60: another user's public profile (pushed above the shell).
+  static const userProfilePattern = '/users/:username';
+
+  /// The public profile of [username].
+  static String userProfile(String username) =>
+      '/users/${Uri.encodeComponent(username)}';
+
+  /// D86: the Messages tab (the conversation list).
+  static const messages = '/messages';
+
+  /// D61: a private conversation with a user (not connected yet).
+  static const chatPattern = '/messages/:username';
+
+  /// The conversation with [username].
+  static String chat(String username) =>
+      '/messages/${Uri.encodeComponent(username)}';
+
+  /// D385 (§10.174): «دعم كابسو» — the person's in-app support chat.
+  static const supportChat = '/support-chat';
+
+  /// D339 (§10.133): «مجموعة جديدة» — the photo, the name and the people.
+  static const newGroup = '/message-groups/new';
+
+  /// D339: a group conversation.
+  static const groupChatPattern = '/message-groups/:groupId';
+  static String groupChat(String groupId) =>
+      '/message-groups/${Uri.encodeComponent(groupId)}';
+
+  /// D339: «معلومات المجموعة» (members, roles, rename, photo, leave).
+  static const groupInfoPattern = '/message-groups/:groupId/info';
+  static String groupInfo(String groupId) =>
+      '/message-groups/${Uri.encodeComponent(groupId)}/info';
+
+  /// D339: «إضافة أعضاء» (admins).
+  static const groupAddPattern = '/message-groups/:groupId/add';
+  static String groupAdd(String groupId) =>
+      '/message-groups/${Uri.encodeComponent(groupId)}/add';
+
+  /// D58: edit the own profile (read-only until the contract allows saving).
+  static const editProfile = '/profile/edit';
 
   static const settings = '/settings';
 
-  /// KL-022 component gallery. Registered only when `!kReleaseMode`.
-  static const debugComponents = '/debug/components';
+  /// D226: every active session (Settings shows the two most recent).
+  static const sessions = '/settings/sessions';
+
+  /// KL-060: privacy settings and blocked accounts.
+  static const privacy = '/settings/privacy';
+  static const blockedAccounts = '/settings/blocked';
+
+  /// D175: the pending requests to follow the private account.
+  static const followRequests = '/settings/follow-requests';
+
+  /// CP-007: muted accounts.
+  static const mutedAccounts = '/settings/muted';
+
+  /// CP-009: in-app notifications and their settings.
+  static const notifications = '/notifications';
+  static const notificationSettings = '/settings/notifications';
+
+  /// D72: the caller's four levels (CP-005), pushed above the shell.
+  static const levels = '/levels';
+  static const levelPattern = '/levels/:category';
+
+  /// One category's levels; [category] is its lower-case code.
+  static String level(String category) =>
+      '/levels/${Uri.encodeComponent(category)}';
+
+  /// CP-018: families (browse and search), a new family, one family.
+  static const families = '/families';
+  static const newFamily = '/families/new';
+  static const familyPattern = '/families/:familyId';
+
+  /// The page of family [familyId].
+  static String family(String familyId) =>
+      '/families/${Uri.encodeComponent(familyId)}';
+
+  /// CP-022: the family chat of a family (members only).
+  static const familyChatPattern = '/families/:familyId/chat';
+  static String familyChat(String familyId) =>
+      '/families/${Uri.encodeComponent(familyId)}/chat';
+
+  /// CP-018: your relationship (CP) and its requests.
+  static const cp = '/cp';
+
+  /// CP-021: your couple's CP space, and a couple's read-only page.
+  static const cpSpace = '/cp/space';
+  static const cpCouplePattern = '/cp/couples/:coupleId';
+
+  /// The CP space of couple [coupleId] (yours opens in full).
+  static String cpCouple(String coupleId) =>
+      '/cp/couples/${Uri.encodeComponent(coupleId)}';
+
+  /// CP-018: the medal catalogue (yours) and the showcase picker.
+  static const medals = '/medals';
+  static const medalShowcase = '/medals/showcase';
+
+  /// CP-019: the bag (owned items by category; the one worn).
+  static const bag = '/bag';
+
+  /// D146: the premium usernames store; [premiumFor] checks a name at once.
+  static const premium = '/premium';
+  static String premiumFor(String username) =>
+      '$premium?q=${Uri.encodeQueryComponent(username)}';
+
+  /// D164: the Me hub's wallet (balance and coin history), earnings and
+  /// creator center.
+  static const wallet = '/wallet';
+
+  /// D177: the earnings are the wallet's «الكرز» tab; `/earnings` redirects
+  /// there.
+  static const earnings = '/earnings';
+  static const walletCherries = '/wallet?tab=cherries';
+
+  /// v1.74-social (D217): «دعوة صديق», behind the Me hub's «اربح المال»
+  /// (the cherry wallet when the programme is off).
+  static const inviteFriends = '/invite-friends';
+
+  /// D177: the coin history (D164's ledger), behind the gold card's button.
+  static const walletHistory = '/wallet/history';
+
+  /// D370: «نقاط الشحن» — the recharge points and their history, behind the
+  /// wallet's row.
+  static const rechargePoints = '/wallet/recharge-points';
+  static const creatorCenter = '/creator';
+
+  /// D172: the Creator Center's detailed statistics (D164's page).
+  static const creatorStats = '/creator/stats';
+
+  /// D179: host agencies «الوكالة» (join by code, the host's agency, the
+  /// agent's dashboard). D172's Creator Center tab will host it on merge.
+  static const agency = '/agency';
+
+  /// v1.70-social (D206): «افتح وكالة» (free; ID check; a 7-day probation).
+  /// `extra`: the `AgencyOpenRule` (its numbers), optional.
+  static const agencyOpen = '/agency/open';
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة» — the application to host
+  /// directly with the Kabso Live team (ID check, 18+, the host rules).
+  /// `extra`: the minimum age (`int`), optional.
+  static const agencyHostApply = '/agency/host-apply';
+
+  /// D185: recharge agents «وكيل الشحن»: the caller's page (apply, pending,
+  /// the agent's dashboard or the employee's), the application, employees,
+  /// the directory «وكلاء الشحن» and cherry sales between hosts and agents.
+  static const recharge = '/recharge';
+  static const rechargeApply = '/recharge/apply';
+  static const rechargeEmployees = '/recharge/employees';
+  static const rechargeAgents = '/recharge/agents';
+  static const rechargeCherries = '/recharge/cherries';
+
+  /// D204: recharge orders «طلبات الشحن» — the list (as buyer / for the
+  /// agent), a new order to an agent (`?agent=coin0007&country=EG`) and one
+  /// order's chat.
+  static const rechargeOrders = '/recharge/orders';
+  static const rechargeOrderNew = '/recharge/order-new';
+  static const rechargeOrderPattern = '/recharge/orders/:orderId';
+  static String rechargeOrder(String id) =>
+      '/recharge/orders/${Uri.encodeComponent(id)}';
+  static String rechargeOrderNewFor(String agentCode, String country) => Uri(
+    path: rechargeOrderNew,
+    queryParameters: {'agent': agentCode, 'country': country},
+  ).toString();
+
+  /// D166: the Me hub's programs — the Task Center, the Event Center (and
+  /// one event) and SVIP.
+  static const taskCenter = '/tasks';
+  static const eventCenter = '/events';
+  static const eventPattern = '/events/:eventId';
+  static const svip = '/svip';
+
+  /// D252: «شراء VIP» — the tiers the owner manages in the admin panel.
+  static const vip = '/vip';
+
+  /// D270: «المتجر» — frames, profile cards, chat bubbles, entry banners
+  /// and cars for coins or cherries (the Me hub's store card).
+  static const store = '/store';
+
+  /// D258: «من زار ملفي» (members holding PROFILE_VISITORS).
+  static const vipVisitors = '/vip/visitors';
+
+  /// D378: «هويتي المميزة» — the signature, golden ID and VIP premium
+  /// username (members holding one of them).
+  static const vipIdentity = '/vip/identity';
+
+  /// D381: «هدية مؤجلة» (members holding SCHEDULED_GIFT; the list stays for
+  /// cancelling after the VIP ended).
+  static const vipScheduledGifts = '/vip/scheduled-gifts';
+
+  /// D384: «صورة متحركة» (members holding ANIMATED_AVATAR).
+  static const vipAnimatedAvatar = '/vip/animated-avatar';
+
+  /// The page of event [eventId].
+  static String event(String eventId) =>
+      '/events/${Uri.encodeComponent(eventId)}';
+
+  /// D146: change the regular username (`PUT /me/username`).
+  static const changeUsername = '/settings/username';
+
+  /// v1.62-social (D193): the in-app account deletion «حذف الحساب».
+  static const deleteAccount = '/settings/delete-account';
+
+  /// v1.66-social (D198): «تنزيل بياناتي» (Settings › Privacy).
+  static const dataExport = '/settings/privacy/data-export';
+
+  /// v1.66-social (D198): the blocking consent screen after a new version
+  /// of the terms or the privacy policy.
+  static const legalConsent = '/legal/consent';
+
+  /// D198: what stays reachable while consent is required (the API answers
+  /// 428 to everything else).
+  static const Set<String> consentAllowedRoutes = {
+    legalConsent,
+    dataExport,
+    deleteAccount,
+  };
+
+  /// v1.62-social (D193): signing in to an account in its deletion grace
+  /// period («طلب حذف قيد التنفيذ — إلغاء الحذف؟»). Public (no session yet).
+  static const deletionPending = '/auth/deletion-pending';
+
+  /// v1.72-social (D208): the team requires a new password at this sign-in.
+  static const passwordChange = '/auth/password-change';
+
+  /// CP-018: another user's medals.
+  static const userMedalsPattern = '/users/:username/medals';
+
+  /// The medals of [username].
+  static String userMedals(String username) =>
+      '${userProfile(username)}/medals';
+
+  /// D121: a user's followers and following (two tabs; `?tab=following`
+  /// opens the second).
+  static const userFollowsPattern = '/users/:username/follows';
+
+  /// The follow lists of [username], on Following when [following].
+  static String userFollows(String username, {bool following = false}) =>
+      '${userProfile(username)}/follows${following ? '?tab=following' : ''}';
+
+  /// Prefix of every debug-only route (`!kReleaseMode`).
+  static const debugPrefix = '/debug/';
+
+  /// KL-056 hub listing the design previews (test builds open here when
+  /// built with `--dart-define=KABSO_START_ROUTE=/debug/previews`).
+  /// Registered only when `!kReleaseMode`.
+  static const debugPreviews = '/debug/previews';
+
+  /// KL-056 full-screen vertical feed preview with labelled test data.
+  /// Registered only when `!kReleaseMode`.
+  static const debugFeedPreview = '/debug/feed-preview';
+
+  /// KL-056 full-screen live room preview with labelled test data.
+  /// Registered only when `!kReleaseMode`.
+  static const debugLivePreview = '/debug/live-preview';
+
+  /// KL-056 private conversation preview with labelled test data.
+  /// Registered only when `!kReleaseMode`.
+  static const debugMessagesPreview = '/debug/messages-preview';
+
+  /// KL-056 conversation list preview (test data, state switcher).
+  /// Registered only when `!kReleaseMode`.
+  static const debugConversationsPreview = '/debug/conversations-preview';
+
+  /// KL-056 Discover preview (test data, state switcher).
+  /// Registered only when `!kReleaseMode`.
+  static const debugDiscoverPreview = '/debug/discover-preview';
+  static const debugReelsPreview = '/debug/reels-preview';
+
+  /// KL-056 the real Reels tab (Posts · Reels, D52) with labelled test data.
+  /// Registered only when `!kReleaseMode`.
+  static const debugPostsPreview = '/debug/posts-preview';
+
+  /// KL-056 the real profile tab (D57) with labelled test data.
+  /// Registered only when `!kReleaseMode`.
+  static const debugProfilePreview = '/debug/profile-preview';
+
+  /// KL-056 the edit-profile screen (D58) with labelled test data.
+  /// Registered only when `!kReleaseMode`.
+  static const debugProfileEditPreview = '/debug/profile-edit-preview';
+
+  /// KL-056 another user's public profile (D60) with labelled test data.
+  /// Registered only when `!kReleaseMode`.
+  static const debugUserPreview = '/debug/user-preview';
+
+  /// KL-056 the (not connected) conversation screen (D61), test name.
+  /// Registered only when `!kReleaseMode`.
+  static const debugChatPreview = '/debug/chat-preview';
 
   /// Reachable without a session.
   static const Set<String> publicAuthRoutes = {
+    welcome,
+    join,
     login,
     register,
     registerCode,
     forgotPassword,
+    deletionPending,
+    passwordChange,
   };
 
-  /// Shell branches, in navigation order (start → end).
+  /// Shell branches, in navigation order (start → end). D322 (owner's bar):
+  /// Live · Party (the voice rooms, [voiceRooms]) · Moments · Messages · Me;
+  /// no Create tab (D86's centre button is gone: Create opens above the
+  /// shell from Moments' «+»). Discover opens from the search buttons.
   static const List<String> shellBranches = [
     home,
-    discover,
-    create,
-    live,
+    voiceRooms,
+    reels,
+    messages,
     profile,
   ];
 }

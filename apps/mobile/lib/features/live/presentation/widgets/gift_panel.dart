@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -11,10 +12,11 @@ import 'package:material_ui/material_ui.dart';
 /// `size.giftGridColumns` (4) grid with `sm` gaps, a selected cell with a
 /// 1.5 dp `gold` outline on `surfaceOverlay`, and the ×N combo counter.
 ///
-/// Sending is **disabled**: there is no gift catalogue, wallet or send API
-/// (purchases are blocked on B5), so the footer shows a disabled Send button
-/// with the reason. Production shows [preview] items (Kabso's own art, no
-/// prices); prices and balances exist only in test fixtures.
+/// Sending is **disabled** here: this shell serves the private-message gift
+/// preview and the debug gallery. Live rooms use the real panel,
+/// `KLiveGiftSheet` (CP-020), which reuses [show] and [KGiftComboCounter].
+/// Production shows [preview] items (Kabso's own art, no prices); prices
+/// and balances exist only in test fixtures.
 class KGiftPanel extends StatelessWidget {
   const new({
     required this.gifts,
@@ -44,7 +46,7 @@ class KGiftPanel extends StatelessWidget {
     isScrollControlled: true,
     backgroundColor: KPalette.dark.surfaceRaised.withValues(alpha: 0),
     barrierColor: KMetrics.roomSheetBarrier,
-    constraints: BoxConstraints(
+    constraints: KMetrics.sheetConstraints(
       maxHeight:
           MediaQuery.sizeOf(context).height * KMetrics.giftSheetMaxHeightFactor,
     ),
@@ -267,10 +269,10 @@ class _GiftCell extends StatelessWidget {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
-                                Icons.monetization_on,
+                              // D135: the owner's gold coin.
+                              const KabsoArtIcon(
+                                KabsoArt.coin,
                                 size: KMetrics.iconXs,
-                                color: KBrandColors.gold,
                               ),
                               const SizedBox(width: KSpacing.xxs),
                               Text(

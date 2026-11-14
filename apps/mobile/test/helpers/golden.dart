@@ -1,6 +1,6 @@
 // G-26 golden-test infrastructure (REFERENCE_INVENTORY §6.1).
 //
-// - Real fonts: Inter, IBM Plex Sans Arabic and Material Icons are loaded
+// - Real fonts: Inter, Readex Pro and Material Icons are loaded
 //   with FontLoader (flutter_test defaults to Ahem, which hides Arabic
 //   shaping and icon problems).
 // - Pinned viewports: 393×852 @3x (primary) and 360×800 @3x (Android).
@@ -55,14 +55,21 @@ Future<void> loadAppFonts() async {
   }
 
   await family(KFonts.latin, const [
-    'assets/fonts/Inter-Regular.ttf',
-    'assets/fonts/Inter-SemiBold.ttf',
-    'assets/fonts/Inter-Bold.ttf',
+    'assets/fonts/Roboto-Regular.ttf',
+    'assets/fonts/Roboto-Medium.ttf',
+    'assets/fonts/Roboto-Bold.ttf',
   ]);
   await family(KFonts.arabic, const [
-    'assets/fonts/IBMPlexSansArabic-Regular.ttf',
-    'assets/fonts/IBMPlexSansArabic-SemiBold.ttf',
-    'assets/fonts/IBMPlexSansArabic-Bold.ttf',
+    'assets/fonts/NotoSansArabic-Regular.ttf',
+    'assets/fonts/NotoSansArabic-Medium.ttf',
+    'assets/fonts/NotoSansArabic-SemiBold.ttf',
+    'assets/fonts/NotoSansArabic-Bold.ttf',
+  ]);
+  // D63/D64: splash wordmark and the welcome screen.
+  await family('Fredoka', const ['assets/fonts/Fredoka-Bold.ttf']);
+  await family('Baloo Bhaijaan 2', const [
+    'assets/fonts/BalooBhaijaan2-SemiBold.ttf',
+    'assets/fonts/BalooBhaijaan2-ExtraBold.ttf',
   ]);
   // Bundled by `uses-material-design: true`.
   await family('MaterialIcons', const ['fonts/MaterialIcons-Regular.otf']);
@@ -126,14 +133,28 @@ Future<void> pumpGolden(
 
 /// Decodes every image in the tree outside the fake-async zone, then
 /// rebuilds so images (or their error builders) are painted.
+///
+/// Repeats while the rebuild shows images it has not decoded yet: an error
+/// builder can bring its own image (a live card's broken cover falls back
+/// to the host's photo). With one pass, that second image was decoded only
+/// when an earlier test in the same isolate had cached it, so a golden
+/// depended on which tests ran before it.
 Future<void> precacheImages(WidgetTester tester) async {
-  await tester.runAsync(() async {
-    for (final element in find.byType(Image).evaluate()) {
-      final image = element.widget as Image;
-      await precacheImage(image.image, element, onError: (_, _) {});
-    }
-  });
-  await tester.pumpAndSettle();
+  final done = <ImageProvider>{};
+  for (var pass = 0; pass < 4; pass++) {
+    final pending = [
+      for (final element in find.byType(Image).evaluate())
+        if (done.add((element.widget as Image).image)) element,
+    ];
+    if (pending.isEmpty && pass > 0) break;
+    await tester.runAsync(() async {
+      for (final element in pending) {
+        final image = element.widget as Image;
+        await precacheImage(image.image, element, onError: (_, _) {});
+      }
+    });
+    await tester.pumpAndSettle();
+  }
 }
 
 /// Compares the whole screen with `test/goldens/png/<name>.<lang>.<vp>.png`.

@@ -3,6 +3,24 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Prisma, type UserRole, type UserStatus } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { isPanelStaff } from '../live/live-staff.js';
+import { grantFreeItemsIn } from '../bag/bag-grants.js';
+import type { PremiumTier } from '../premium-usernames/premium-username-rules.js';
+import { regularUsernameIssue } from '../premium-usernames/premium-username-rules.js';
+import {
+  PROFILE_LINKS_SELECT,
+  profileLinkDto,
+  profileTagIconsOf,
+  profileTagsOf,
+  publicGender,
+  type AccountCategory,
+  type Gender,
+  type ProfileLinkDto,
+} from './profile-fields.js';
+import { resolveUserIdByUsername } from './special-usernames.js';
+import type { VerificationBadgeValue } from '../verification/verification-rules.js';
+import { usernameHash } from './account-deletion.js';
+import { visibleStatusEmoji } from '../status-emoji/status-emoji-catalogue.js';
 import { isReservedUsername, isValidUsername } from './username.js';
 
 /** `Me` response (openapi `#/components/schemas/Me`). */
@@ -18,6 +36,42 @@ export interface MeDto {
   role: UserRole;
   isPrivate: boolean;
   createdAt: string;
+  /** CP-010: holds the hosting permission (`live_hosts`). */
+  canHost: boolean;
+  /** CP-015: the host's live cover (640 px square), or null (the avatar is shown). */
+  liveCoverUrl: string | null;
+  /** v1.27.1-live (D133): the caller's own country (ISO alpha-2), or null (D45: user-chosen). */
+  country: string | null;
+  /** v1.28-live (D146): the tier of the caller's premium username; absent for a regular one. */
+  premiumTier?: PremiumTier;
+  /** v1.47-social (D175, §10.47): the caller's gender (null until chosen) and whether others see it. */
+  gender: Gender | null;
+  showGender: boolean;
+  /** v1.47-social (D175): the account category shown under the name, or null. */
+  category: AccountCategory | null;
+  /**
+   * v1.138-social (D386, §10.175): the Kabso Team verified the current category (the profile's own look); false with
+   * no category and for a Kabso Team account. `categoryLocked`: the team locked it.
+   */
+  categoryVerified: boolean;
+  categoryLocked: boolean;
+  /** v1.47-social (D175): the profile links, in order (0–3). */
+  links: ProfileLinkDto[];
+  /** v1.85-social (D278b, §10.99): the profile tags «منشنات», in order (0–10). */
+  tags: string[];
+  /** v1.91-social (D292, §10.106): the icon of each tag, one per tag (`default` when none was chosen). */
+  tagIcons: string[];
+  /** v1.54-social (D185): the caller's active special username; absent when none. */
+  specialUsername?: MeSpecialUsernameDto;
+  /** v1.76-social (D218, §10.73.3): the caller's profile cover (1 080 px), or null (the Kabso gradient). */
+  coverUrl: string | null;
+  /** v1.90-social (D293, §10.105): the automatic verification badge «شارة التوثيق» (only its type), or null. */
+  verification: VerificationBadgeValue | null;
+  /**
+   * v1.130-social (D376, §10.167): «الحالة» — the status emoji the caller wears (`<pack>.<emoji>`), or null (none, or
+   * a store pack's emoji whose pack has ended).
+   */
+  statusEmojiId: string | null;
 }
 
 /** Public identity fields of an ACTIVE user (contract v1.3 `PublicProfile` / `UserSummary`). */
@@ -28,6 +82,22 @@ export interface PublicUser {
   avatarUrl: string | null;
   bio: string | null;
   isPrivate: boolean;
+  /** v1.28-live (D146): the premium username's tier, or null. */
+  premiumTier: PremiumTier | null;
+  /** v1.47-social (D175): the gender others see (only when shown), the category and the links. */
+  gender: 'MALE' | 'FEMALE' | null;
+  category: AccountCategory | null;
+  /** v1.138-social (D386, §10.175): the Kabso Team verified the category (the caller hides it for a staff account). */
+  categoryVerified: boolean;
+  links: ProfileLinkDto[];
+  /** v1.85-social (D278b, §10.99): the profile tags, in order (also on a private account's profile). */
+  tags: string[];
+  /** v1.91-social (D292, §10.106): the icon of each tag, one per tag. */
+  tagIcons: string[];
+  /** v1.76-social (D218, §10.73.3): the cover, the country the user chose (D133) and the month they joined. */
+  coverUrl: string | null;
+  country: string | null;
+  joinedMonth: string;
 }
 
 /** A follow target locked for the duration of the caller's transaction. */
@@ -36,7 +106,41 @@ export interface LockedUser {
   isPrivate: boolean;
 }
 
-export const ME_INCLUDE = { profile: true, settings: true } as const;
+// `liveHost`: a read of the live module's `live_hosts` (one row or none), the documented
+// read-only exception for `Me.canHost` (CP-010) and `Me.liveCoverUrl` (CP-015).
+export const ME_INCLUDE = {
+  profile: true,
+  profileLinks: PROFILE_LINKS_SELECT,
+  settings: true,
+  liveHost: { select: { userId: true, coverUrl: true } },
+  // v1.90-social (D293): the automatic verification badge (one row or none).
+  verificationBadge: { select: { badge: true } },
+  // v1.130-social (D376): the status packs held (`Me.statusEmojiId` hides an ended pack's emoji).
+  statusPacks: { select: { packId: true, expiresAt: true } },
+  // v1.54-social (D185): the caller's own ACTIVE special username (self only, never public).
+  specialUsernames: {
+    where: { status: 'ACTIVE' },
+    select: {
+      username: true,
+      baseUsername: true,
+      source: true,
+      grantedAt: true,
+      expiresAt: true,
+      locked: true,
+    },
+    take: 1,
+  },
+} as const;
+
+/** v1.54-social (D185, §10.48.1): `Me.specialUsername` — only ever in the caller's own `Me`. */
+export interface MeSpecialUsernameDto {
+  username: string;
+  baseUsername: string;
+  source: 'RECHARGE_AGENT' | 'ADMIN_GIFT' | 'PURCHASE' | 'HOST_AGENT';
+  grantedAt: string;
+  expiresAt: string | null;
+  locked: boolean;
+}
 
 export interface UserWithProfile {
   id: string;
@@ -50,8 +154,42 @@ export interface UserWithProfile {
     bio: string | null;
     avatarUrl: string | null;
     locale: string;
+    /** v1.27.1-live (D133). Absent in older selects: null. */
+    countryCode?: string | null;
+    /** v1.28-live (D146). Absent in older selects: none. */
+    premiumTier?: string | null;
+    /** v1.47-social (D175). */
+    gender?: Gender | null;
+    showGender?: boolean;
+    category?: AccountCategory | null;
+    /** v1.138-social (D386). Absent in older selects: not verified, not locked. */
+    categoryVerifiedAt?: Date | null;
+    categoryLockedAt?: Date | null;
+    /** v1.76-social (D218). Absent in older selects: null. */
+    coverUrl?: string | null;
+    /** v1.85-social (D278b). Absent in older selects: none. */
+    tags?: string[];
+    tagIcons?: string[];
   } | null;
+  /** v1.47-social (D175): `ME_INCLUDE` reads them. */
+  profileLinks?: { id: string; url: string; label: string | null }[];
   settings: { isPrivate: boolean } | null;
+  /** Absent for a just-created account (no permission yet). */
+  liveHost?: { userId: string; coverUrl?: string | null } | null;
+  /** v1.90-social (D293, §10.105): `ME_INCLUDE` reads the automatic verification badge (none: null). */
+  verificationBadge?: { badge: VerificationBadgeValue } | null;
+  /** v1.130-social (D376, §10.167): the status emoji and (`ME_INCLUDE`) the status packs held. */
+  statusEmojiId?: string | null;
+  statusPacks?: { packId: string; expiresAt: Date }[];
+  /** v1.54-social (D185): `ME_INCLUDE` reads the ACTIVE one. */
+  specialUsernames?: {
+    username: string;
+    baseUsername: string;
+    source: 'RECHARGE_AGENT' | 'ADMIN_GIFT' | 'PURCHASE' | 'HOST_AGENT';
+    grantedAt: Date;
+    expiresAt: Date | null;
+    locked: boolean;
+  }[];
 }
 
 export function toMeDto(user: UserWithProfile): MeDto {
@@ -68,6 +206,38 @@ export function toMeDto(user: UserWithProfile): MeDto {
     role: user.role,
     isPrivate: user.settings?.isPrivate ?? false,
     createdAt: user.createdAt.toISOString(),
+    canHost: Boolean(user.liveHost),
+    liveCoverUrl: user.liveHost?.coverUrl ?? null,
+    country: user.profile.countryCode ?? null,
+    ...(user.profile.premiumTier ? { premiumTier: user.profile.premiumTier as PremiumTier } : {}),
+    gender: user.profile.gender ?? null,
+    showGender: user.profile.showGender ?? false,
+    category: user.profile.category ?? null,
+    categoryVerified:
+      (user.profile.category ?? null) !== null && (user.profile.categoryVerifiedAt ?? null) !== null,
+    categoryLocked: (user.profile.categoryLockedAt ?? null) !== null,
+    links: (user.profileLinks ?? []).map(profileLinkDto),
+    tags: profileTagsOf(user.profile.tags),
+    tagIcons: profileTagIconsOf(user.profile.tags, user.profile.tagIcons),
+    ...specialOf(user),
+    coverUrl: user.profile.coverUrl ?? null,
+    verification: user.verificationBadge?.badge ?? null,
+    statusEmojiId: visibleStatusEmoji(user.statusEmojiId, user.statusPacks, new Date()),
+  };
+}
+
+function specialOf(user: UserWithProfile): { specialUsername?: MeSpecialUsernameDto } {
+  const s = user.specialUsernames?.[0];
+  if (!s) return {};
+  return {
+    specialUsername: {
+      username: s.username,
+      baseUsername: s.baseUsername,
+      source: s.source,
+      grantedAt: s.grantedAt.toISOString(),
+      expiresAt: s.expiresAt?.toISOString() ?? null,
+      locked: s.locked,
+    },
   };
 }
 
@@ -77,6 +247,8 @@ export interface NewAccount {
   username: string;
   displayName: string;
   locale: 'ar' | 'en';
+  /** v1.47-social (D175): chosen at sign-up (null only for a pending row made before v1.47). */
+  gender?: Gender | null;
   /** Set at creation for verify-first registration (contract v1.2). */
   emailVerifiedAt?: Date;
 }
@@ -85,6 +257,8 @@ export interface LoginCandidate {
   id: string;
   passwordHash: string;
   status: UserStatus;
+  /** v1.72-social (D208): the team requires a new password at this sign-in. */
+  passwordChangeRequiredAt: Date | null;
 }
 
 export interface MailRecipient {
@@ -129,27 +303,43 @@ export class UsersService {
 
   async getMe(userId: string): Promise<MeDto | null> {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, include: ME_INCLUDE });
-    return user ? toMeDto(user) : null;
+    if (!user) return null;
+    const me = toMeDto(user);
+    // v1.124-social (D367, §10.160): a Kabso Team account (any panel role, the founder too) shows no account category;
+    // the stored value is kept (it shows again if the role ends).
+    // v1.138-social (D386): so is its verification (the default look).
+    return me.category !== null && (await isPanelStaff(this.prisma, userId))
+      ? { ...me, category: null, categoryVerified: false }
+      : me;
   }
 
   /**
    * Creates User + UserProfile + UserSettings inside the caller's transaction. Unique
-   * violations are translated to EMAIL_TAKEN / USERNAME_TAKEN.
+   * violations are translated to EMAIL_TAKEN / USERNAME_TAKEN. v1.22-live (CP-019, D107): the
+   * account receives the free bag items and wears them (`bunny_royal`), in the same transaction.
+   * This is the only path that creates accounts (verify-first registration).
    */
   async createAccount(tx: Prisma.TransactionClient, input: NewAccount): Promise<UserWithProfile> {
     try {
-      return await tx.user.create({
+      const user = await tx.user.create({
         data: {
           email: input.email,
           passwordHash: input.passwordHash,
           emailVerifiedAt: input.emailVerifiedAt ?? null,
           profile: {
-            create: { username: input.username, displayName: input.displayName, locale: input.locale },
+            create: {
+              username: input.username,
+              displayName: input.displayName,
+              locale: input.locale,
+              gender: input.gender ?? null,
+            },
           },
           settings: { create: {} },
         },
         include: ME_INCLUDE,
       });
+      await grantFreeItemsIn(tx, user.id, 'FREE_SIGNUP');
+      return user;
     } catch (err) {
       const code = uniqueViolationCode(err);
       if (code) throw new AppException(code);
@@ -167,9 +357,11 @@ export class UsersService {
 
   /** Looks a user up by normalized email or username. */
   async findLoginCandidate(
-    identifier: { email: string } | { username: string },
+    identifier: { email: string } | { username: string } | { id: string },
   ): Promise<LoginCandidate | null> {
-    const select = { id: true, passwordHash: true, status: true } as const;
+    const select = { id: true, passwordHash: true, status: true, passwordChangeRequiredAt: true } as const;
+    // v1.84-live (D302): the current holder of a staff ID, already resolved (`staffIdHolderOf`).
+    if ('id' in identifier) return this.prisma.user.findUnique({ where: { id: identifier.id }, select });
     if ('email' in identifier) {
       return this.prisma.user.findUnique({ where: { email: identifier.email }, select });
     }
@@ -177,7 +369,14 @@ export class UsersService {
       where: { username: identifier.username },
       select: { user: { select } },
     });
-    return profile?.user ?? null;
+    if (profile) return profile.user;
+    // v1.54-social (D185, §10.48.1): the person's own (base) username still signs in while a special
+    // one is shown. A special username in grace does not (only the username shown now and the base).
+    const special = await this.prisma.specialUsername.findFirst({
+      where: { baseUsername: identifier.username, status: 'ACTIVE' },
+      select: { user: { select } },
+    });
+    return special?.user ?? null;
   }
 
   async findMailRecipient(where: { id: string } | { email: string }): Promise<MailRecipient | null> {
@@ -212,7 +411,7 @@ export class UsersService {
    * `exceptEmail`, which is about to be replaced) holds it (contract v1.2 §6 rule 7).
    */
   async isUsernameTaken(username: string, exceptEmail?: string, now: Date = new Date()): Promise<boolean> {
-    const [accounts, pending] = await Promise.all([
+    const [accounts, pending, held] = await Promise.all([
       this.prisma.userProfile.count({ where: { username } }),
       this.prisma.pendingRegistration.count({
         where: {
@@ -221,13 +420,35 @@ export class UsersService {
           ...(exceptEmail === undefined ? {} : { email: { not: exceptEmail } }),
         },
       }),
-    ]);
-    return accounts > 0 || pending > 0;
+      // v1.28-live (D146): the regular username a renter goes back to is kept for them.
+      this.prisma.premiumUsernameLease.count({ where: { regularUsername: username, status: 'ACTIVE' } }),
+      // v1.54-social (D185): a base username behind a special one, a special one in grace, any `coin` name.
+      this.prisma.specialUsername.count({
+        where: {
+          OR: [
+            { status: 'ACTIVE', baseUsername: username },
+            { status: { in: ['ACTIVE', 'GRACE'] }, username },
+            // v1.58-social (D189): any `host` name (host agents) too.
+            { username, source: { in: ['RECHARGE_AGENT', 'HOST_AGENT'] } },
+          ],
+        },
+      }),
+      // v1.62-social (D193, §10.56): the regular username of a purged account, during its quarantine.
+      this.prisma.deletedUsername.count({ where: { nameHash: usernameHash(username), until: { gt: now } } }),
+    ]).then(([a, p, h, s, q]) => [a, p, h + s + q] as const);
+    return accounts > 0 || pending > 0 || held > 0;
   }
 
   /** Reserved, malformed, taken or reserved-by-pending names are reported unavailable. */
   async isUsernameAvailable(username: string): Promise<boolean> {
-    if (!isValidUsername(username) || isReservedUsername(username)) return false;
+    // v1.28-live (D146): only a name a new account may take (the regular rule) is available.
+    if (
+      !isValidUsername(username) ||
+      regularUsernameIssue(username) !== null ||
+      isReservedUsername(username)
+    ) {
+      return false;
+    }
     return !(await this.isUsernameTaken(username));
   }
 
@@ -248,21 +469,41 @@ export class UsersService {
   /**
    * The public identity of an ACTIVE user by username, else null (contract v1.3 §10.5). A name
    * that is not a well-formed username (§6 pattern and length) is not found without querying
-   * (SEC-037: a NUL byte or other invalid text must never reach the driver). Otherwise one query
+   * (SEC-037: a NUL byte or other invalid text must never reach the driver). Otherwise the name is
+   * resolved (also a base or grace name, D185) and the profile read
    * filtered on `status = 'ACTIVE'`, so unknown, pending-only, SUSPENDED and DELETED are
    * indistinguishable and the response time does not depend on the reason.
    */
   async findActivePublicUser(username: string): Promise<PublicUser | null> {
     if (!isValidUsername(username)) return null;
+    // v1.54-social (D185, §10.48.1): an old link by the person's base username (behind an ACTIVE special
+    // one) or by a special one in grace still leads to them; the response carries the username shown now.
+    const owner = await resolveUserIdByUsername(this.prisma, username);
+    if (owner === null) return null;
     const profile = await this.prisma.userProfile.findFirst({
-      where: { username, user: { status: 'ACTIVE' } },
+      where: { userId: owner, user: { status: 'ACTIVE' } },
       select: {
         userId: true,
         username: true,
         displayName: true,
         avatarUrl: true,
         bio: true,
-        user: { select: { settings: { select: { isPrivate: true } } } },
+        premiumTier: true,
+        gender: true,
+        showGender: true,
+        category: true,
+        categoryVerifiedAt: true,
+        tags: true,
+        tagIcons: true,
+        coverUrl: true,
+        countryCode: true,
+        user: {
+          select: {
+            createdAt: true,
+            settings: { select: { isPrivate: true } },
+            profileLinks: PROFILE_LINKS_SELECT,
+          },
+        },
       },
     });
     if (!profile) return null;
@@ -273,6 +514,17 @@ export class UsersService {
       avatarUrl: profile.avatarUrl,
       bio: profile.bio,
       isPrivate: profile.user.settings?.isPrivate ?? false,
+      premiumTier: profile.premiumTier,
+      gender: publicGender(profile.gender, profile.showGender),
+      category: profile.category,
+      categoryVerified: profile.category !== null && profile.categoryVerifiedAt !== null,
+      links: profile.user.profileLinks.map(profileLinkDto),
+      tags: profileTagsOf(profile.tags),
+      tagIcons: profileTagIconsOf(profile.tags, profile.tagIcons),
+      coverUrl: profile.coverUrl,
+      country: profile.countryCode,
+      // D218: the month only («انضم في <شهر سنة>»), never the exact time (UTC).
+      joinedMonth: profile.user.createdAt.toISOString().slice(0, 7),
     };
   }
 
@@ -288,7 +540,15 @@ export class UsersService {
         FROM user_profiles p
         JOIN users u ON u.id = p.user_id
         LEFT JOIN user_settings s ON s.user_id = u.id
-       WHERE p.username = ${username} AND u.status = 'ACTIVE'::user_status
+       WHERE (p.username = ${username}
+              -- v1.54-social (D185): an old link by a base or grace name still leads to the person.
+              OR (NOT EXISTS (SELECT 1 FROM user_profiles p2 WHERE p2.username = ${username})
+                  AND EXISTS (SELECT 1 FROM special_usernames su
+                               WHERE su.user_id = u.id
+                                 AND ((su.status = 'ACTIVE'::special_username_status AND su.base_username = ${username})
+                                   OR (su.status = 'GRACE'::special_username_status AND su.username = ${username})))))
+         AND u.status = 'ACTIVE'::user_status
+       LIMIT 1
          FOR SHARE OF u`;
     const row = rows[0];
     return row ? { id: row.id, isPrivate: row.is_private ?? false } : null;
@@ -322,7 +582,21 @@ export class UsersService {
 
   /** PATCH /me (contract v1.2, KL-018): persists an explicit locale choice. */
   async updateLocale(userId: string, locale: 'ar' | 'en'): Promise<MeDto | null> {
-    const updated = await this.prisma.userProfile.updateMany({ where: { userId }, data: { locale } });
+    return this.updateMe(userId, { locale });
+  }
+
+  /** `PATCH /me`: the fields given (v1.2 `locale`; v1.27.1-live `country`, null clears it). */
+  async updateMe(
+    userId: string,
+    fields: { locale?: 'ar' | 'en' | undefined; country?: string | null | undefined },
+  ): Promise<MeDto | null> {
+    const updated = await this.prisma.userProfile.updateMany({
+      where: { userId },
+      data: {
+        ...(fields.locale !== undefined ? { locale: fields.locale } : {}),
+        ...(fields.country !== undefined ? { countryCode: fields.country } : {}),
+      },
+    });
     return updated.count === 0 ? null : this.getMe(userId);
   }
 }

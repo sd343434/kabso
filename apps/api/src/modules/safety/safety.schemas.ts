@@ -1,0 +1,133 @@
+import { z } from 'zod';
+import { normalizeContentText, type ContentTextLimits } from '../posts/content-text.js';
+import { limitSchema } from '../posts/posts.schemas.js';
+
+// Request schemas mirror docs/contracts/openapi.yaml v1.5-social (strict objects). CONVENTIONS §11.7.
+
+const NOTE_LIMITS: ContentTextLimits = { maxCodePoints: 500, maxLineBreaks: 10, allowEmpty: true };
+
+/** An optional free-text note (§6 hygiene); empty after trimming → absent. */
+const noteSchema = z
+  .string()
+  .max(2000)
+  .transform((raw, ctx) => {
+    const result = normalizeContentText(raw, NOTE_LIMITS);
+    if ('issue' in result) {
+      ctx.addIssue({ code: 'custom', message: result.issue, params: { issue: result.issue } });
+      return z.NEVER;
+    }
+    return result.value === '' ? null : result.value;
+  });
+
+export const REPORT_REASONS = [
+  'SPAM',
+  'NUDITY',
+  'VIOLENCE',
+  'HATE',
+  'HARASSMENT',
+  'ILLEGAL',
+  'OTHER',
+] as const;
+
+/** `CreateReportRequest`. */
+export const createReportSchema = z.strictObject({
+  // v1.24-live (CP-021): CP_CONFESSION, a confession on a CP couple's page (§10.24).
+  // v1.25-live (CP-022): FAMILY_CHAT_MESSAGE, a message in the reporter's family chat (§10.25).
+  targetType: z.enum([
+    'POST',
+    'COMMENT',
+    'STORY',
+    'USER',
+    'LIVE_ROOM',
+    'LIVE_CHAT_MESSAGE',
+    'CP_CONFESSION',
+    'FAMILY_CHAT_MESSAGE',
+    // v1.40-social (D155): a direct message the reporter received (§11.13).
+    'DM_MESSAGE',
+    // v1.47-social (D175): a link on someone's profile (`targetId` the link's id, §10.47).
+    'PROFILE_LINK',
+    // v1.104-social (D339): a group conversation the reporter belongs to (`targetId` the group's id, §10.133).
+    'DM_GROUP',
+  ]),
+  targetId: z.string().min(1).max(64),
+  reason: z.enum(REPORT_REASONS),
+  note: noteSchema.optional(),
+  /**
+   * v1.68-live (D273, §10.96.8): a USER reported from inside a live — that live (the report's context), so the live's
+   * staff see it and are alerted. Only with `targetType` USER (400 otherwise); a live the reporter cannot see → 404.
+   */
+  liveRoomId: z.uuid().optional(),
+  /**
+   * v1.93-social (D296, §10.109.5): a USER reported from a direct conversation — that conversation (the reporter's, with
+   * that user), so the report keeps the whole conversation for the staff. Only with `targetType` USER (400 otherwise);
+   * not the reporter's conversation with that user → 404.
+   */
+  dmConversationId: z.uuid().optional(),
+});
+export type CreateReportInput = z.output<typeof createReportSchema>;
+
+/** v1.133-social (D380, §10.170.5): `LiveGiftReportRequest` — a recipient reports the sender of a gift. */
+export const liveGiftReportSchema = z.strictObject({
+  reason: z.enum(REPORT_REASONS),
+  note: noteSchema.optional(),
+});
+
+/** `ReportActionRequest`. */
+export const reportActionSchema = z.strictObject({
+  action: z.enum(['REMOVE_TARGET', 'DISMISS']),
+  note: noteSchema.optional(),
+});
+export type ReportActionInput = z.output<typeof reportActionSchema>;
+
+/** `UpdatePrivacyRequest` (at least one field). */
+export const updatePrivacySchema = z
+  .strictObject({
+    whoCanMention: z.enum(['EVERYONE', 'FOLLOWING', 'NOBODY']).optional(),
+    defaultWhoCanComment: z.enum(['EVERYONE', 'FOLLOWERS', 'NOBODY']).optional(),
+    // v1.25-live (CP-022, D116): others may see when the user was last active (§10.25).
+    showActivityStatus: z.boolean().optional(),
+    // v1.40-social (D155): who may send the user direct messages (§11.13).
+    whoCanMessage: z.enum(['EVERYONE', 'FOLLOWING', 'NOBODY']).optional(),
+    // v1.47-social (D175): a private account (§10.47).
+    isPrivate: z.boolean().optional(),
+    // v1.77-social (D220, §10.74): leave the lifetime totals out of the card and profile for others.
+    hideCherriesReceived: z.boolean().optional(),
+    hideCoinsSent: z.boolean().optional(),
+    // v1.133-social (D380, §10.170.1): the VIP privacy switches — only while the caller holds the perk (else 409
+    // `VIP_UNAVAILABLE` `{field: <the switch>, issue: no_perk}`).
+    hiddenVisit: z.boolean().optional(),
+    rankingAnonymous: z.boolean().optional(),
+    kickMuteShield: z.boolean().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });
+
+export const adminReportsQuerySchema = z.strictObject({
+  status: z
+    .string()
+    .pipe(z.enum(['OPEN', 'ACTIONED', 'DISMISSED']))
+    .optional()
+    .transform((v) => v ?? 'OPEN'),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type AdminReportsQuery = z.output<typeof adminReportsQuerySchema>;
+
+/**
+ * v1.78-live (D288, §10.101): the shared queue (`listAdminModerationReports`, `listStaffReports`) — `RESOLVED` is every
+ * closed report (ACTIONED or DISMISSED, «تم حله» included), newest resolution first.
+ */
+export const sharedReportsQuerySchema = z.strictObject({
+  status: z
+    .string()
+    .pipe(z.enum(['OPEN', 'RESOLVED', 'ACTIONED', 'DISMISSED']))
+    .optional()
+    .transform((v) => v ?? 'OPEN'),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type SharedReportsQuery = z.output<typeof sharedReportsQuerySchema>;
+
+/** D288: «تم حله» with an optional note (shown to the team). */
+export const resolveReportSchema = z.strictObject({ note: z.string().trim().min(1).max(500).optional() });
+/** D288: reopening a resolved report needs a reason (audited). */
+export const reopenReportSchema = z.strictObject({ reason: z.string().trim().min(1).max(500) });

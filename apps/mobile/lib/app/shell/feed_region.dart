@@ -105,6 +105,7 @@ class FeedRegion<T> extends StatelessWidget {
     required this.onRetry,
     super.key,
     this.header,
+    this.leading,
     this.onLoadMore,
     this.onRetryLoadMore,
     this.footerLoadingSliver,
@@ -125,6 +126,10 @@ class FeedRegion<T> extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final VoidCallback onRetry;
   final Widget? header;
+
+  /// D218: a sliver above the content in every state (the posts page's
+  /// stories tray), scrolling with it; a state fills the rest below it.
+  final Widget? leading;
   final VoidCallback? onLoadMore;
   final VoidCallback? onRetryLoadMore;
   final Widget? footerLoadingSliver;
@@ -230,6 +235,7 @@ class FeedRegion<T> extends StatelessWidget {
       physics: refreshable ? const AlwaysScrollableScrollPhysics() : null,
       slivers: [
         if (header case final header?) SliverFloatingHeader(child: header),
+        ?leading,
         body,
         ?footer,
         // A state already fills the rest of the region.
@@ -237,13 +243,15 @@ class FeedRegion<T> extends StatelessWidget {
           const SliverToBoxAdapter(child: SizedBox(height: KSpacing.lg)),
       ],
     );
+    // Prefetch only measures a list of items: the loading skeleton's
+    // (short) metrics would otherwise ask for page 2 before page 1 shows.
     final region = switch (onLoadMore) {
-      null => scroll,
-      final load => _Prefetch(
+      final load? when content.value is FeedItems<T> => _Prefetch(
         content: content,
         onLoadMore: load,
         child: scroll,
       ),
+      _ => scroll,
     };
     if (!refreshable) return region;
     return RefreshIndicator(

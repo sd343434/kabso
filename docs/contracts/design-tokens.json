@@ -59,7 +59,30 @@
       "pkRight": "#3B8BFF",
       "chatScrim": "#99000000"
     },
-    "onStatus": "#0B0B0D"
+    "onStatus": "#0B0B0D",
+    "categoryAccent": {
+      "$comment": "D386 (v1.138-social, CONVENTIONS §10.175): the accent of a verified account category's profile page, per family (cover tint, category badge, primary buttons, featured section). Dark on the dark palette, light on the light one; each ≥ 4.5:1 against its page background.",
+      "dark": {
+        "music": "#B388FF",
+        "reciter": "#3DD6A3",
+        "word": "#F0B45E",
+        "visual": "#4FC9E8",
+        "performer": "#FF6FAE",
+        "sportsGames": "#FF9447",
+        "lifestyle": "#A8D65A",
+        "public": "#F5C451"
+      },
+      "light": {
+        "music": "#6A35D9",
+        "reciter": "#0B7A55",
+        "word": "#8F5A0E",
+        "visual": "#0A6F8A",
+        "performer": "#B8155A",
+        "sportsGames": "#B04A06",
+        "lifestyle": "#4E7A12",
+        "public": "#8A6508"
+      }
+    }
   },
   "spacing": {
     "xxs": 2,
@@ -81,7 +104,7 @@
   },
   "typography": {
     "fontFamilyLatin": "Inter",
-    "fontFamilyArabic": "IBM Plex Sans Arabic",
+    "fontFamilyArabic": "Readex Pro",
     "fontLicense": "Both OFL-1.1; bundle as assets (no runtime font download).",
     "scale": {
       "display": {
@@ -140,5 +163,5 @@
     "liveCardAspect": 0.75,
     "giftGridColumns": 4
   },
-  "$version": "1.1"
+  "$version": "1.3"
 }

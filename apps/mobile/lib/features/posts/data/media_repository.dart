@@ -1,0 +1,300 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/config/app_config.dart';
+import 'package:kabso_live/core/network/api_call.dart';
+import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/features/posts/data/video_source.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart';
+
+/// The largest photo the server accepts (`CreateMediaUploadRequest.byteSize`).
+const int maxPhotoBytes = 15 * 1024 * 1024;
+
+/// The largest voice clip the server accepts (`LIVE_CHAT_VOICE`, §11.1).
+const int maxVoiceBytes = 1024 * 1024;
+
+/// The image type of [bytes] from its signature (CONVENTIONS §11.1: the
+/// bytes decide, never the picker's MIME type): `image/jpeg`, `image/png`,
+/// `image/webp`, or `null` for anything else (HEIC, GIF, …).
+String? sniffImageType(Uint8List bytes) {
+  bool at(int offset, List<int> sig) {
+    if (bytes.length < offset + sig.length) return false;
+    for (var i = 0; i < sig.length; i++) {
+      if (bytes[offset + i] != sig[i]) return false;
+    }
+    return true;
+  }
+
+  if (at(0, const [0xFF, 0xD8, 0xFF])) return 'image/jpeg';
+  if (at(0, const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])) {
+    return 'image/png';
+  }
+  if (at(0, 'RIFF'.codeUnits) && at(8, 'WEBP'.codeUnits)) return 'image/webp';
+  return null;
+}
+
+/// Photo uploads (v1.5-social, CONVENTIONS §11.1): reserve a slot
+/// (`POST /media/uploads`), send the bytes to its presigned URL with exactly
+/// the headers it names, then `POST /media/uploads/{id}/complete`, which
+/// verifies and processes the photo.
+///
+/// Every method throws an `AppFailure`.
+abstract interface class MediaRepository {
+  /// Uploads one photo of type [contentType] for a post, or with
+  /// [forStory] for a story (`STORY_IMAGE`, kept at 1 920 px, CP-008), or
+  /// with [forLiveCover] as the host's live cover (`LIVE_COVER`, a 640 px
+  /// square, CP-015); [onProgress] gets 0–1.
+  Future<MediaAsset> uploadPhoto(
+    Uint8List bytes,
+    String contentType, {
+    bool forStory = false,
+    bool forLiveCover = false,
+    void Function(double progress)? onProgress,
+  });
+
+  /// CP-017: a voice clip ([voice], `LIVE_CHAT_VOICE`, `audio/mp4`, at most
+  /// [maxVoiceBytes]) or a picture (`LIVE_CHAT_IMAGE`) for the live chat.
+  Future<MediaAsset> uploadLiveChatMedia(
+    Uint8List bytes,
+    String contentType, {
+    required bool voice,
+  });
+
+  /// CP-018: a family's emblem (`FAMILY_EMBLEM`, a centre-cropped square
+  /// like the live cover).
+  Future<MediaAsset> uploadFamilyEmblem(Uint8List bytes, String contentType);
+
+  /// D155: a direct message's voice note ([voice], `DM_VOICE`, `audio/mp4`,
+  /// at most [maxVoiceBytes]) or picture (`DM_IMAGE`). Returns the asset id.
+  Future<String> uploadDmMedia(
+    Uint8List bytes,
+    String contentType, {
+    required bool voice,
+  });
+
+  /// CP-022: a family's cover (`FAMILY_COVER`, processed like a post image).
+  Future<MediaAsset> uploadFamilyCover(Uint8List bytes, String contentType);
+
+  /// v1.104-social (D339): a group conversation's photo (`DM_GROUP_PHOTO`,
+  /// a centre-cropped square like a family emblem).
+  Future<MediaAsset> uploadDmGroupPhoto(Uint8List bytes, String contentType);
+
+  /// v1.45-social (D168): the profile photo (`AVATAR`, a 640 px square like
+  /// the live cover); [onProgress] gets 0–1.
+  Future<MediaAsset> uploadAvatar(
+    Uint8List bytes,
+    String contentType, {
+    void Function(double progress)? onProgress,
+  });
+
+  /// v1.76-social (D218, §10.73.3): the profile cover (`PROFILE_COVER`,
+  /// processed like a post image, never cropped).
+  Future<MediaAsset> uploadCover(
+    Uint8List bytes,
+    String contentType, {
+    void Function(double progress)? onProgress,
+  });
+
+  /// v1.41-social (D162, CONVENTIONS §11.14): a post's video
+  /// (`POST_VIDEO`) or, with [reel], a reel's (`REEL_VIDEO`). The poster
+  /// goes first (`VIDEO_POSTER`), then the file is streamed to its slot and
+  /// completed with `{posterId}`; [onProgress] gets 0–1 of the file.
+  /// v1.89-social (D290): [kind] overrides the kind (`LEVEL_RAISE_VIDEO`, a
+  /// level-raise request's video, limited like a post video).
+  Future<MediaAsset> uploadVideo(
+    PickedVideo video, {
+    required bool reel,
+    String? kind,
+    void Function(double progress)? onProgress,
+  });
+}
+
+class MediaRepositoryImpl implements MediaRepository {
+  new(this._api, this._storage);
+
+  final Dio _api;
+
+  /// A bare client for the storage URL: no API base URL and, above all, no
+  /// bearer token (the URL is presigned; the token must not leak to it).
+  final Dio _storage;
+
+  @override
+  Future<MediaAsset> uploadPhoto(
+    Uint8List bytes,
+    String contentType, {
+    bool forStory = false,
+    bool forLiveCover = false,
+    void Function(double progress)? onProgress,
+  }) => _upload(
+    bytes,
+    contentType,
+    kind: forLiveCover
+        ? 'LIVE_COVER'
+        : forStory
+        ? 'STORY_IMAGE'
+        : 'POST_IMAGE',
+    onProgress: onProgress,
+  );
+
+  @override
+  Future<MediaAsset> uploadLiveChatMedia(
+    Uint8List bytes,
+    String contentType, {
+    required bool voice,
+  }) => _upload(
+    bytes,
+    contentType,
+    kind: voice ? 'LIVE_CHAT_VOICE' : 'LIVE_CHAT_IMAGE',
+  );
+
+  @override
+  Future<String> uploadDmMedia(
+    Uint8List bytes,
+    String contentType, {
+    required bool voice,
+  }) async => (await _upload(
+    bytes,
+    contentType,
+    kind: voice ? 'DM_VOICE' : 'DM_IMAGE',
+  )).id;
+
+  @override
+  Future<MediaAsset> uploadFamilyEmblem(Uint8List bytes, String contentType) =>
+      _upload(bytes, contentType, kind: 'FAMILY_EMBLEM');
+
+  @override
+  Future<MediaAsset> uploadFamilyCover(Uint8List bytes, String contentType) =>
+      _upload(bytes, contentType, kind: 'FAMILY_COVER');
+
+  @override
+  Future<MediaAsset> uploadDmGroupPhoto(Uint8List bytes, String contentType) =>
+      _upload(bytes, contentType, kind: 'DM_GROUP_PHOTO');
+
+  @override
+  Future<MediaAsset> uploadAvatar(
+    Uint8List bytes,
+    String contentType, {
+    void Function(double progress)? onProgress,
+  }) => _upload(bytes, contentType, kind: 'AVATAR', onProgress: onProgress);
+
+  @override
+  Future<MediaAsset> uploadCover(
+    Uint8List bytes,
+    String contentType, {
+    void Function(double progress)? onProgress,
+  }) => _upload(
+    bytes,
+    contentType,
+    kind: 'PROFILE_COVER',
+    onProgress: onProgress,
+  );
+
+  @override
+  Future<MediaAsset> uploadVideo(
+    PickedVideo video, {
+    required bool reel,
+    String? kind,
+    void Function(double progress)? onProgress,
+  }) async {
+    final poster = await _upload(
+      video.poster,
+      video.posterType,
+      kind: 'VIDEO_POSTER',
+    );
+    return await guardApiCall(() async {
+      final slot = (await _api.post<Map<String, dynamic>>(
+        '/media/uploads',
+        data: {
+          'kind': kind ?? (reel ? 'REEL_VIDEO' : 'POST_VIDEO'),
+          'contentType': video.contentType,
+          'byteSize': video.byteSize,
+        },
+      )).data!;
+      final uploadId = slot['uploadId']! as String;
+      final headers = {
+        for (final e in (slot['headers']! as Map<String, dynamic>).entries)
+          e.key: e.value as String,
+      };
+      await _storage.put<void>(
+        slot['uploadUrl']! as String,
+        data: video.open(),
+        options: Options(
+          headers: headers,
+          contentType: headers['Content-Type'],
+          // Up to 200 MiB on a phone connection: the whole send may take
+          // long; a stalled one still ends at the receive timeout.
+          sendTimeout: const Duration(minutes: 30),
+        ),
+        onSendProgress: onProgress == null
+            ? null
+            : (sent, total) => onProgress(
+                total <= 0 ? 0 : (sent / total).clamp(0, 1).toDouble(),
+              ),
+      );
+      final asset = await _api.post<Map<String, dynamic>>(
+        '/media/uploads/${pathSegment(uploadId)}/complete',
+        data: {'posterId': poster.id},
+      );
+      return MediaAsset.fromJson(asset.data!);
+    });
+  }
+
+  /// Slot, PUT, complete.
+  Future<MediaAsset> _upload(
+    Uint8List bytes,
+    String contentType, {
+    required String kind,
+    void Function(double progress)? onProgress,
+  }) => guardApiCall(() async {
+    final slot = (await _api.post<Map<String, dynamic>>(
+      '/media/uploads',
+      data: {
+        'kind': kind,
+        'contentType': contentType,
+        'byteSize': bytes.length,
+      },
+    )).data!;
+    final uploadId = slot['uploadId']! as String;
+    final headers = {
+      for (final e in (slot['headers']! as Map<String, dynamic>).entries)
+        e.key: e.value as String,
+    };
+    await _storage.put<void>(
+      slot['uploadUrl']! as String,
+      data: Stream.fromIterable([bytes]),
+      options: Options(headers: headers, contentType: headers['Content-Type']),
+      onSendProgress: onProgress == null
+          ? null
+          : (sent, total) => onProgress(total <= 0 ? 0 : sent / total),
+    );
+    final asset = await _api.post<Map<String, dynamic>>(
+      '/media/uploads/${pathSegment(uploadId)}/complete',
+    );
+    return MediaAsset.fromJson(asset.data!);
+  });
+}
+
+/// The storage client (tests swap the adapter like the API's).
+final storageDioProvider = Provider<Dio>((ref) {
+  final config = ref.watch(appConfigProvider);
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: config.connectTimeout,
+      sendTimeout: const Duration(minutes: 2),
+      receiveTimeout: config.receiveTimeout,
+    ),
+  );
+  if (ref.watch(httpClientAdapterProvider) case final adapter?) {
+    dio.httpClientAdapter = adapter;
+  }
+  ref.onDispose(dio.close);
+  return dio;
+});
+
+final mediaRepositoryProvider = Provider<MediaRepository>(
+  (ref) => MediaRepositoryImpl(
+    ref.watch(apiDioProvider),
+    ref.watch(storageDioProvider),
+  ),
+);

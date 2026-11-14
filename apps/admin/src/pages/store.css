@@ -1,0 +1,50 @@
+/* D270 «المتجر»: the items table, the price grid and the art previews. Kabso tokens from styles.css only; logical properties. */
+.store-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block-end: 12px;
+}
+.store-tabs .btn.active {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.store-thumb {
+  inline-size: 48px;
+  block-size: 48px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  object-fit: contain;
+  background: var(--surface-2, transparent);
+  flex: none;
+}
+.store-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.store-prices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-inline-size: 280px;
+}
+.store-price-grid {
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(90px, 1fr));
+  gap: 6px 10px;
+  align-items: center;
+}
+.store-price-grid input {
+  inline-size: 100%;
+}
+.store-art {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+}
+.store-art .media-preview {
+  inline-size: 160px;
+  block-size: 160px;
+}

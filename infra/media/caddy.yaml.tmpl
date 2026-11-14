@@ -1,0 +1,76 @@
+# Kabso Live — media node front on 443/tcp (D350). render-config.sh fills ${...} and writes /etc/kabso-media/caddy.yaml.
+#
+# One public IPv4, two TLS names on 443/tcp, split by SNI at layer 4 (the layout of LiveKit's own VM recipe,
+# docs.livekit.io/transport/self-hosting/vm: "443 - primary HTTPS and TURN/TLS"):
+#   ${MEDIA_DOMAIN} → TLS terminated here (HTTP/1.1 for the WebSocket upgrade) → 127.0.0.1:7880 (LiveKit signalling)
+#   ${TURN_DOMAIN}  → TLS terminated here → 127.0.0.1:5349 (LiveKit TURN, external_tls) with a PROXY v2 header,
+#                     so TURN sees the real client address (livekit.yaml turn.proxy_protocol).
+# Caddy obtains and renews both certificates itself (ACME; HTTP-01 on :80 or TLS-ALPN-01 on 443). No certbot, no
+# renewal hook, no certificate file handed to LiveKit.
+logging:
+  logs:
+    default:
+      level: INFO
+storage:
+  module: file_system
+  root: /data
+apps:
+  tls:
+    certificates:
+      automate:
+        - ${MEDIA_DOMAIN}
+        - ${TURN_DOMAIN}
+    automation:
+      policies:
+        - subjects:
+            - ${MEDIA_DOMAIN}
+            - ${TURN_DOMAIN}
+          issuers:
+            - module: acme
+              email: ${ACME_EMAIL}
+  layer4:
+    servers:
+      tls443:
+        listen:
+          - ":443"
+        routes:
+          - match:
+              - tls:
+                  sni:
+                    - ${TURN_DOMAIN}
+            handle:
+              - handler: tls
+              - handler: proxy
+                proxy_protocol: v2
+                upstreams:
+                  - dial:
+                      - 127.0.0.1:5349
+          - match:
+              - tls:
+                  sni:
+                    - ${MEDIA_DOMAIN}
+            handle:
+              - handler: tls
+                connection_policies:
+                  - alpn:
+                      - http/1.1
+              - handler: proxy
+                upstreams:
+                  - dial:
+                      - 127.0.0.1:7880
+  http:
+    servers:
+      acme80:
+        # Port 80 only answers ACME HTTP-01 challenges and redirects the rest. Automatic HTTPS stays on (it manages
+        # nothing here: no host matchers) so the challenge handling is not switched off; only its redirects are.
+        listen:
+          - ":80"
+        automatic_https:
+          disable_redirects: true
+        routes:
+          - handle:
+              - handler: static_response
+                status_code: 308
+                headers:
+                  Location:
+                    - "https://{http.request.host}{http.request.uri}"

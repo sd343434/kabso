@@ -1,5 +1,6 @@
 // KL-033 screen goldens: the Home feed and the Live hub with the shell's
-// bottom nav, in ar and en at 393×852 and 360×800 @3x, dark theme.
+// bottom nav, in ar and en at 393×852 and 360×800 @3x, dark theme (D124:
+// the live hub also in the light theme).
 //
 // KL-047: no search control in the header; states are composed blocks
 // (88 dp disc, title, body, primary action) placed in the space under the
@@ -23,35 +24,45 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
-import 'package:kabso_live/app/shell/feed_tabs_scaffold.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
-import 'package:kabso_live/features/home/home_screen.dart';
+import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
+import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
+import 'package:kabso_live/features/live/voice_rooms_screen.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../fixtures/live/live_api_fixtures.dart';
 import '../fixtures/live/live_fixtures.dart';
 import '../helpers/fake_live_repository.dart';
+import '../helpers/fake_posts_repository.dart';
+import '../helpers/fakes.dart';
 import '../helpers/golden.dart';
 
 /// Home is shell branch 0, Live is branch 3.
-const _homeIndex = 0;
-const _liveIndex = 3;
+// D48: Home (index 0) is the live hub; Reels (index 3) is the feed.
+const _liveIndex = 0;
+const _partyIndex = 1;
+const _reelsIndex = 2;
 
 Future<void> _pumpShellTab(
   WidgetTester tester, {
   required Widget screen,
-  required int navIndex,
+  required int? navIndex,
   required AppLanguage language,
   required GoldenViewport viewport,
   List<Override> overrides = const [],
+  Brightness brightness = Brightness.dark,
 }) async {
   if (viewport == GoldenViewport.phone) {
     tester.view.padding = const FakeViewPadding(
@@ -64,21 +75,31 @@ Future<void> _pumpShellTab(
     tester,
     ProviderScope(
       retry: (_, _) => null,
-      overrides: overrides,
+      // KL-060: posts read the posts API; here a server with no posts.
+      overrides: [
+        postsRepositoryProvider.overrideWithValue(FakePostsRepository()),
+        // The feeds are scoped to the signed-in user: no platform storage.
+        secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+        ...overrides,
+      ],
       child: Builder(
         builder: (context) => Scaffold(
           body: screen,
-          bottomNavigationBar: KBottomNav(
-            items: shellNavItems(context.l10n),
-            currentIndex: navIndex,
-            onSelect: (_) {},
-          ),
+          // D322: the owner's bar (the voice rooms are its «الحفلة» tab).
+          bottomNavigationBar: navIndex == null
+              ? null
+              : shellNavBar(
+                  context.l10n,
+                  currentIndex: navIndex,
+                  onTap: (_) {},
+                ),
         ),
       ),
     ),
     language: language,
     viewport: viewport,
     bare: true,
+    brightness: brightness,
   );
 }
 
@@ -92,10 +113,11 @@ void main() {
           WidgetTester tester,
           String name, {
           required Widget screen,
-          required int navIndex,
+          required int? navIndex,
           List<Override> overrides = const [],
           Duration extraPump = Duration.zero,
           bool scrollToEnd = false,
+          Brightness brightness = Brightness.dark,
         }) => withClock(Clock.fixed(fixtureNow), () async {
           await _pumpShellTab(
             tester,
@@ -104,17 +126,22 @@ void main() {
             language: language,
             viewport: viewport,
             overrides: overrides,
+            brightness: brightness,
           );
           if (extraPump > Duration.zero) {
             await tester.pump(extraPump);
             await precacheImages(tester);
           }
           if (scrollToEnd) {
-            await tester.drag(
-              find.byType(KLiveCoverCard).first,
-              const Offset(0, -3000),
-            );
-            await tester.pumpAndSettle();
+            // D124: the bottom of the grid (the footer under it).
+            for (var i = 0; i < 4; i++) {
+              await tester.drag(
+                find.byType(CustomScrollView).first,
+                const Offset(0, -1500),
+              );
+              // The load-more progress animates: pump, never settle.
+              await tester.pump(const Duration(milliseconds: 500));
+            }
           }
           await expectScreenGolden(
             name,
@@ -123,26 +150,74 @@ void main() {
           );
         });
 
-        testWidgets('home.unavailable ($vp)', (tester) async {
+        // KL-060: was `reels_tab.unavailable`; posts now have an API, so
+        // with no posts the Posts mode shows its empty state.
+        testWidgets('reels_tab.posts_empty ($vp)', (tester) async {
           await golden(
             tester,
-            'home.unavailable',
-            screen: const HomeScreen(),
-            navIndex: _homeIndex,
+            'reels_tab.posts_empty',
+            screen: const FeedScreen(),
+            navIndex: _reelsIndex,
           );
         });
 
-        testWidgets('home.populated ($vp)', (tester) async {
+        testWidgets('reels_tab.populated ($vp)', (tester) async {
           await golden(
             tester,
-            'home.populated',
-            screen: const HomeScreen(),
-            navIndex: _homeIndex,
+            'reels_tab.populated',
+            screen: const FeedScreen(),
+            navIndex: _reelsIndex,
             overrides: [
-              homeFeedProvider.overrideWith(
-                (ref, tab) => FeedItems<FeedPostData>(feedPosts(language)),
+              // D218: the posts page shows the server's mix.
+              homeMixedPostsProvider.overrideWith(
+                (ref) => FeedItems<FeedPostData>(feedPosts(language)),
+              ),
+              homeStoriesProvider.overrideWith(
+                (ref) => FeedItems<FeedStoryData>(feedStories(language)),
               ),
             ],
+          );
+        });
+
+        testWidgets('reels_tab.posts ($vp)', (tester) async {
+          await golden(
+            tester,
+            'reels_tab.posts',
+            // Posts without a stories source: no tray.
+            screen: const FeedScreen(),
+            navIndex: _reelsIndex,
+            overrides: [
+              // D218: the posts page shows the server's mix.
+              homeMixedPostsProvider.overrideWith(
+                (ref) => FeedItems<FeedPostData>(feedPosts(language)),
+              ),
+            ],
+          );
+        });
+
+        testWidgets('reels_tab.reels ($vp)', (tester) async {
+          await golden(
+            tester,
+            'reels_tab.reels',
+            screen: const FeedScreen(initialTab: HomeTab.reels),
+            navIndex: _reelsIndex,
+            overrides: [
+              // D294: the reels page shows the server's mix.
+              homeMixedReelsProvider.overrideWith(
+                (ref) => FeedItems<FeedReelData>(feedReels(language)),
+              ),
+            ],
+          );
+        });
+
+        // D162: was `reels_tab.reels.unavailable`; reels now have an API
+        // (`GET /feed/reels`, empty here), so the honest empty state.
+        testWidgets('reels_tab.reels_empty ($vp)', (tester) async {
+          await golden(
+            tester,
+            'reels_tab.reels_empty',
+            screen: const FeedScreen(initialTab: HomeTab.reels),
+            navIndex: _reelsIndex,
           );
         });
 
@@ -160,53 +235,198 @@ void main() {
         });
 
         // Layout review with designed fixture covers (D35): the pure hub
-        // body, as in the debug gallery.
-        testWidgets('live_hub.populated ($vp)', (tester) async {
-          await golden(
-            tester,
-            'live_hub.populated',
-            screen: FeedTabsScaffold(
-              pageBuilder: (context, tab, selectTab) => LiveHubBody(
-                tab: tab,
-                content: AsyncData(FeedItems(hubRooms(language))),
-                onRefresh: () async {},
-                onRetry: () {},
-                onSelectTab: (_) {},
+        // body, as in the debug gallery. D124: the 2-column grid with the
+        // banner carousel (D248: after the first row, and the card-size
+        // banner in the 5th cell; their pictures are network images: the
+        // placeholder surface here), in the dark and the light app theme
+        // (the hub follows the app theme).
+        for (final brightness in Brightness.values) {
+          final suffix = brightness == Brightness.light ? '.light' : '';
+          testWidgets('live_hub.populated$suffix ($vp)', (tester) async {
+            await golden(
+              tester,
+              'live_hub.populated$suffix',
+              brightness: brightness,
+              // D377: the shared top bar (the party page's tabs, «+» and
+              // search) over the fixture rooms.
+              screen: SafeArea(
+                bottom: false,
+                top: false,
+                child: Column(
+                  children: [
+                    LiveHubTopBar(
+                      filter: LiveHubFilter.popular,
+                      onFilter: (_) {},
+                    ),
+                    Expanded(
+                      child: LiveHubBody(
+                        kind: LiveListKind.popular,
+                        content: AsyncData(FeedItems(hubRooms(language))),
+                        banners: [
+                          for (var i = 0; i < 3; i++)
+                            HomeBanner(
+                              id: 'banner-$i',
+                              imageUrl: 'https://media.example.test/$i.webp',
+                              link: '/families',
+                            ),
+                        ],
+                        cardBanners: const [
+                          HomeBanner(
+                            id: 'card-0',
+                            imageUrl: 'https://media.example.test/card.webp',
+                            width: 720,
+                            height: 805,
+                            link: '/families',
+                          ),
+                        ],
+                        onRefresh: () async {},
+                        onRetry: () {},
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            navIndex: _liveIndex,
-          );
-        });
+              navIndex: _liveIndex,
+            );
+          });
+        }
+
+        // D131: the real hub (ref 165: video lives under the four filters)
+        // and the Voice rooms screen behind the party button (ref 166: list
+        // rows, and the grid), the server answering `kind` (rooms 0–5
+        // party — D342: audio, podcast and multi mixed, the party page's
+        // one `party_all` list —, 6–11 video), in the dark and the light
+        // theme.
+        const party = [
+          LiveRoomMode.audio,
+          LiveRoomMode.podcast,
+          LiveRoomMode.multi,
+          LiveRoomMode.audio,
+          LiveRoomMode.multi,
+          LiveRoomMode.podcast,
+        ];
+        List<LiveRoomSummary> rooms() {
+          final ar = language == AppLanguage.ar;
+          return [
+            for (final (i, room) in apiRooms(
+              12,
+              ar: ar,
+              categories: apiCategories(ar: ar),
+            ).indexed)
+              room.copyWith(
+                mode: i < 6
+                    ? party[i]
+                    : const [
+                        LiveRoomMode.solo,
+                        LiveRoomMode.multi,
+                        LiveRoomMode.pk,
+                      ][i % 3],
+                seatCount: i < 6
+                    ? (party[i] == LiveRoomMode.podcast ? 4 : 8)
+                    : null,
+                occupiedSeats: i < 6
+                    ? (i * 3) % (party[i] == LiveRoomMode.podcast ? 4 : 8)
+                    : 0,
+                podcast: i < 6 && party[i] == LiveRoomMode.podcast
+                    ? LivePodcast(
+                        episodeNumber: i + 3,
+                        topic: i == 1
+                            ? PodcastTopic.business
+                            : PodcastTopic.tech,
+                      )
+                    : null,
+                // D246 (v1.58-live): the party cards' «رائج», the host's
+                // level and country (none for some, as the API).
+                popular: i == 0 || i == 2,
+                roomLevel: i.isEven ? 12 + i * 7 : null,
+                hostCountry: const ['JO', 'SA', null, 'EG', 'AE', null][i % 6],
+                viewerCount: const [
+                  128,
+                  0,
+                  2400,
+                  37,
+                  910,
+                  5,
+                  15300,
+                  0,
+                  642,
+                  88,
+                  1200,
+                  9,
+                ][i],
+              ),
+          ];
+        }
+
+        List<Override> server() => liveOverrides(
+          FakeLiveRepository(
+            categories: apiCategories(ar: language == AppLanguage.ar),
+            rooms: (request) => apiPage([
+              for (final room in rooms())
+                if (request.kind == null || request.kind!.includes(room.mode))
+                  room,
+            ]),
+          ),
+          language: language,
+        );
+
+        for (final brightness in Brightness.values) {
+          final suffix = brightness == Brightness.light ? '.light' : '';
+          testWidgets('live_hub.filters$suffix ($vp)', (tester) async {
+            await golden(
+              tester,
+              'live_hub.filters$suffix',
+              brightness: brightness,
+              screen: const LiveScreen(),
+              navIndex: _liveIndex,
+              overrides: server(),
+            );
+          });
+          testWidgets('voice_rooms$suffix ($vp)', (tester) async {
+            await golden(
+              tester,
+              'voice_rooms$suffix',
+              brightness: brightness,
+              screen: const VoiceRoomsScreen(),
+              navIndex: _partyIndex,
+              overrides: server(),
+            );
+          });
+        }
 
         // KL-038: what the v1.3 API returns today when hosting is on —
         // server categories, viewerCount 0 ("New"), no covers (host avatar
         // fallback), more pages to come.
-        testWidgets('live_hub.categories ($vp)', (tester) async {
-          await golden(
-            tester,
-            'live_hub.categories',
-            screen: const LiveScreen(),
-            navIndex: _liveIndex,
-            overrides: liveOverrides(
-              FakeLiveRepository(
-                categories: apiCategories(ar: language == AppLanguage.ar),
-                rooms: (request) => request.cursor == null
-                    ? apiPage(
-                        apiRooms(
-                          6,
-                          ar: language == AppLanguage.ar,
-                          categories: apiCategories(
+        for (final brightness in Brightness.values) {
+          final suffix = brightness == Brightness.light ? '.light' : '';
+          testWidgets('live_hub.categories$suffix ($vp)', (tester) async {
+            await golden(
+              tester,
+              'live_hub.categories$suffix',
+              brightness: brightness,
+              screen: const LiveScreen(),
+              navIndex: _liveIndex,
+              overrides: liveOverrides(
+                FakeLiveRepository(
+                  categories: apiCategories(ar: language == AppLanguage.ar),
+                  rooms: (request) => request.cursor == null
+                      ? apiPage(
+                          apiRooms(
+                            6,
                             ar: language == AppLanguage.ar,
+                            categories: apiCategories(
+                              ar: language == AppLanguage.ar,
+                            ),
                           ),
-                        ),
-                        nextCursor: 'c1',
-                      )
-                    : Completer<LiveRoomPage>().future,
+                          nextCursor: 'c1',
+                        )
+                      : Completer<LiveRoomPage>().future,
+                ),
+                language: language,
               ),
-              language: language,
-            ),
-          );
-        });
+            );
+          });
+        }
 
         testWidgets('live_hub.loading ($vp)', (tester) async {
           await golden(
@@ -248,9 +468,9 @@ void main() {
           );
         });
 
-        // Footer states (HL-H5), scrolled to the end of the list.
+        // Load-more states (HL-H5) under the grid (D124).
         for (final (name, next) in <(String, RoomsHandler)>[
-          // The next page is still loading: 2 footer skeletons.
+          // The next page is still loading: a progress footer.
           ('live_hub.footer_loading', (_) => Completer<LiveRoomPage>().future),
           // The next page failed: inline "Couldn't load more · Retry".
           (

@@ -18,6 +18,29 @@ MeDto _$MeDtoFromJson(Map<String, dynamic> json) => MeDto(
   createdAt: DateTime.parse(json['createdAt'] as String),
   bio: json['bio'] as String?,
   avatarUrl: json['avatarUrl'] as String?,
+  canHost: json['canHost'] as bool? ?? false,
+  liveCoverUrl: json['liveCoverUrl'] as String?,
+  country: json['country'] as String?,
+  premiumTier: premiumTierFromJson(json['premiumTier']),
+  gender: genderFromJson(json['gender']),
+  showGender: json['showGender'] as bool? ?? false,
+  category: accountCategoryFromJson(json['category']),
+  categoryVerified: json['categoryVerified'] as bool? ?? false,
+  categoryLocked: json['categoryLocked'] as bool? ?? false,
+  links: json['links'] == null ? const [] : profileLinksFromJson(json['links']),
+  tags:
+      (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      const [],
+  tagIcons:
+      (json['tagIcons'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      const [],
+  specialUsername: specialUsernameFromJson(json['specialUsername']),
+  coverUrl: json['coverUrl'] as String?,
+  kabsoTeam: json['kabsoTeam'] as bool? ?? false,
+  staff: staffIdentityFromJson(json['staff']),
+  staffId: json['staffId'] as String?,
+  verification: verificationBadgeFromJson(json['verification']),
+  statusEmojiId: json['statusEmojiId'] as String?,
 );
 
 Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
@@ -32,6 +55,25 @@ Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
   'role': instance.role,
   'isPrivate': instance.isPrivate,
   'createdAt': instance.createdAt.toIso8601String(),
+  'canHost': instance.canHost,
+  'liveCoverUrl': instance.liveCoverUrl,
+  'country': instance.country,
+  'premiumTier': premiumTierToJson(instance.premiumTier),
+  'gender': genderToJson(instance.gender),
+  'showGender': instance.showGender,
+  'category': accountCategoryToJson(instance.category),
+  'categoryVerified': instance.categoryVerified,
+  'categoryLocked': instance.categoryLocked,
+  'links': profileLinksToJson(instance.links),
+  'tags': instance.tags,
+  'tagIcons': instance.tagIcons,
+  'specialUsername': ?specialUsernameToJson(instance.specialUsername),
+  'coverUrl': instance.coverUrl,
+  'kabsoTeam': instance.kabsoTeam,
+  'staff': ?staffIdentityToJson(instance.staff),
+  'staffId': ?instance.staffId,
+  'verification': ?verificationBadgeToJson(instance.verification),
+  'statusEmojiId': ?instance.statusEmojiId,
 };
 
 AuthResponseDto _$AuthResponseDtoFromJson(Map<String, dynamic> json) =>
@@ -48,6 +90,9 @@ DeviceInfoDto _$DeviceInfoDtoFromJson(Map<String, dynamic> json) =>
       name: json['name'] as String?,
       platform: json['platform'] as String?,
       appVersion: json['appVersion'] as String?,
+      installId: json['installId'] as String?,
+      deviceKey: json['deviceKey'] as String?,
+      installSource: json['installSource'] as String?,
     );
 
 Map<String, dynamic> _$DeviceInfoDtoToJson(DeviceInfoDto instance) =>
@@ -55,6 +100,9 @@ Map<String, dynamic> _$DeviceInfoDtoToJson(DeviceInfoDto instance) =>
       'name': ?instance.name,
       'platform': ?instance.platform,
       'appVersion': ?instance.appVersion,
+      'installId': ?instance.installId,
+      'deviceKey': ?instance.deviceKey,
+      'installSource': ?instance.installSource,
     };
 
 LoginRequestDto _$LoginRequestDtoFromJson(Map<String, dynamic> json) =>
@@ -79,10 +127,13 @@ RegisterRequestDto _$RegisterRequestDtoFromJson(Map<String, dynamic> json) =>
       password: json['password'] as String,
       username: json['username'] as String,
       displayName: json['displayName'] as String,
+      gender: json['gender'] as String,
       locale: json['locale'] as String?,
       device: json['device'] == null
           ? null
           : DeviceInfoDto.fromJson(json['device'] as Map<String, dynamic>),
+      legal: json['legal'] as Map<String, dynamic>?,
+      referralCode: json['referralCode'] as String?,
     );
 
 Map<String, dynamic> _$RegisterRequestDtoToJson(RegisterRequestDto instance) =>
@@ -91,8 +142,11 @@ Map<String, dynamic> _$RegisterRequestDtoToJson(RegisterRequestDto instance) =>
       'password': instance.password,
       'username': instance.username,
       'displayName': instance.displayName,
+      'gender': instance.gender,
       'locale': ?instance.locale,
       'device': ?instance.device?.toJson(),
+      'legal': ?instance.legal,
+      'referralCode': ?instance.referralCode,
     };
 
 SessionInfoDto _$SessionInfoDtoFromJson(Map<String, dynamic> json) =>

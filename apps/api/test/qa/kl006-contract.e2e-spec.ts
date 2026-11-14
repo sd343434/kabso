@@ -23,6 +23,12 @@ const ISO_Z = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const ME_REQUIRED = [
+  // v1.76-social (D218): the profile cover (nullable, always present).
+  'coverUrl',
+  // v1.90-social (D293): the automatic verification badge (nullable, always present).
+  'verification',
+  // v1.130-social (D376, §10.167): the status emoji «الحالة» (nullable, always present).
+  'statusEmojiId',
   'id',
   'email',
   'emailVerified',
@@ -32,6 +38,24 @@ const ME_REQUIRED = [
   'role',
   'isPrivate',
   'createdAt',
+  // CP-010 (D93): the hosting permission.
+  'canHost',
+  // CP-015 (D98): the host's live cover (nullable, always present).
+  'liveCoverUrl',
+  // D133 (v1.27.1-live): the caller's own country (nullable, always present).
+  'country',
+  // D175 (v1.47-social): gender (nullable), its visibility, the category (nullable) and the links.
+  'gender',
+  'showGender',
+  'category',
+  // D386 (v1.138-social): the team's verification and lock of the category.
+  'categoryVerified',
+  'categoryLocked',
+  'links',
+  // D278b (v1.85-social): the profile tags «منشنات».
+  'tags',
+  // D292 (v1.91-social): the icon of each tag.
+  'tagIcons',
 ];
 const ME_OPTIONAL = ['bio', 'avatarUrl'];
 const TOKEN_PAIR = ['accessToken', 'accessTokenExpiresAt', 'refreshToken', 'refreshTokenExpiresAt'];

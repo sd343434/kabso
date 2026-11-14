@@ -18,6 +18,7 @@ class KTextField extends StatefulWidget {
     this.errorText,
     this.helperText,
     this.status,
+    this.suffix,
     this.obscure = false,
     this.showPasswordLabel,
     this.hidePasswordLabel,
@@ -44,6 +45,10 @@ class KTextField extends StatefulWidget {
 
   /// Replaces the helper line when not null.
   final Widget? status;
+
+  /// A trailing action inside the field (not for [obscure] fields, which
+  /// show the visibility toggle there). D343: the sign-up code's paste.
+  final Widget? suffix;
   final bool obscure;
 
   /// Semantics labels for the visibility toggle (required when [obscure]).
@@ -130,7 +135,7 @@ class _KTextFieldState extends State<KTextField> {
                     ),
                     onPressed: () => setState(() => _obscured = !_obscured),
                   )
-                : null,
+                : widget.suffix,
           ),
         ),
         if (widget.status != null)

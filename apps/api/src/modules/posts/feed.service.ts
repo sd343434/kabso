@@ -1,0 +1,497 @@
+import { randomUUID } from 'node:crypto';
+import { Inject, Injectable } from '@nestjs/common';
+import type { Redis } from 'ioredis';
+import { AppException } from '../../common/errors/app-exception.js';
+import { Prisma } from '../../generated/prisma/client.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { REDIS } from '../../redis/redis.module.js';
+import type { UserSummaryDto } from '../live/live-rooms.service.js';
+import {
+  PostViews,
+  visiblePostSql,
+  userSummary,
+  USER_SUMMARY_SELECT,
+  visiblePostWhere,
+  type PageDto,
+  type PostDto,
+} from './post-views.js';
+import type { FeedFormat, FeedQuery, PageQuery, ReelsFeedQuery } from './posts.schemas.js';
+import { PostsService } from './posts.service.js';
+
+/** Trending (CONVENTIONS §11.3): window, snapshot size and lifetime, author spread. */
+const TRENDING_WINDOW_HOURS = 7 * 24;
+const TRENDING_CANDIDATES = 2000;
+const TRENDING_SNAPSHOT_SIZE = 500;
+const TRENDING_SNAPSHOT_SECONDS = 600;
+const TRENDING_SPREAD = { window: 10, perAuthor: 2 } as const;
+/**
+ * Score weights: `(likes + 2·comments + 3·shares + 2·saves + 1) / (hours + 2)^1.5`. Server-side
+ * constants until ranking moves to its own service (M5); changing them is not a contract change.
+ */
+export const TRENDING_WEIGHTS = { like: 1, comment: 2, share: 3, save: 2, gravity: 1.5 } as const;
+
+/**
+ * At most `perAuthor` posts by one author in any `window` consecutive entries, keeping the ranked
+ * order otherwise (a post that does not fit waits for the first place where it does).
+ */
+export function spreadAuthors<T extends { authorId: string }>(ranked: readonly T[], limit: number): T[] {
+  const out: T[] = [];
+  const waiting = [...ranked];
+  while (out.length < limit && waiting.length > 0) {
+    const recent = out.slice(-(TRENDING_SPREAD.window - 1));
+    const index = waiting.findIndex(
+      (c) => recent.filter((r) => r.authorId === c.authorId).length < TRENDING_SPREAD.perAuthor,
+    );
+    if (index < 0) break;
+    out.push(waiting.splice(index, 1)[0]!);
+  }
+  return out;
+}
+
+/**
+ * v1.76-social (D218, CONVENTIONS §10.73): the home feed `tab=mixed` — one post from Following, then
+ * two from Trending, again and again. When one source runs out the other continues; a post is listed
+ * once (the Following entry wins). The newest {@link MIXED_FOLLOWING_CANDIDATES} Following entries
+ * and the Trending snapshot are merged into one frozen list (see {@link FeedService.rankedPage}).
+ */
+export const MIXED_PATTERN = { following: 1, trending: 2 } as const;
+const MIXED_FOLLOWING_CANDIDATES = 500;
+
+/** A ranked list's entry: a post id, or (D218) a post id with who reposted it into Following. */
+export type RankedEntry = string | { readonly id: string; readonly by: string | null };
+
+/**
+ * D218: interleaves `following` and `trending` in the {@link MIXED_PATTERN} (1 : 2), Following first.
+ * A source that runs out leaves its turns to the other; a post is listed once — one that is also in
+ * Following only at its Following place — and each list keeps its own order. At most `limit` entries.
+ */
+export function interleaveMixed<T extends { readonly id: string }>(
+  following: readonly T[],
+  trending: readonly T[],
+  limit: number,
+): T[] {
+  const out: T[] = [];
+  const seen = new Set<string>();
+  // A post in both lists is listed at its Following place (with its reposter), never as Trending.
+  const inFollowing = new Set(following.map((e) => e.id));
+  const cycle = MIXED_PATTERN.following + MIXED_PATTERN.trending;
+  let f = 0;
+  let t = 0;
+  let turn = 0;
+  while (out.length < limit) {
+    while (f < following.length && seen.has(following[f]!.id)) f += 1;
+    while (t < trending.length && (seen.has(trending[t]!.id) || inFollowing.has(trending[t]!.id))) t += 1;
+    const followingLeft = f < following.length;
+    const trendingLeft = t < trending.length;
+    if (!followingLeft && !trendingLeft) break;
+    const followingTurn = turn % cycle < MIXED_PATTERN.following;
+    const entry = (followingTurn ? followingLeft : !trendingLeft) ? following[f++]! : trending[t++]!;
+    seen.add(entry.id);
+    out.push(entry);
+    turn += 1;
+  }
+  return out;
+}
+
+function entryId(entry: RankedEntry): string {
+  return typeof entry === 'string' ? entry : entry.id;
+}
+
+/** Feeds and the post lists of interactions: Following, Trending, saved, a user's reposts. */
+@Injectable()
+export class FeedService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly posts: PostsService,
+    private readonly views: PostViews,
+    @Inject(REDIS) private readonly redis: Redis,
+  ) {}
+
+  /**
+   * `GET /feed/posts` (`format` POST) and, v1.41-social (D162), `GET /feed/reels` (`format` REEL,
+   * CONVENTIONS §11.14). Cursors and snapshots are bound to the list.
+   */
+  async feed(viewerId: string, query: FeedQuery, format: FeedFormat = 'POST'): Promise<PageDto<PostDto>> {
+    const page = await (query.tab === 'mixed'
+      ? this.mixed(viewerId, query, format)
+      : query.tab === 'following'
+        ? this.following(viewerId, query, format)
+        : this.trending(viewerId, query, format));
+    return format === 'POST' ? this.withAnnouncement(viewerId, query, page) : page;
+  }
+
+  /**
+   * v1.95-social (D301 follow-up, §10.112.7; owner: «تكون دائماً في اول منشور»): every posts tab's first page starts
+   * with the app owner's latest official announcement (the newest `official_at` among the posts of an ACTIVE OWNER that
+   * the caller may see — a block, a mute or a hide still applies); it appears nowhere else in the list. Read live (not
+   * from the frozen snapshots), so a newer announcement replaces it, and un-marking removes it, at once.
+   */
+  private async withAnnouncement(
+    viewerId: string,
+    query: FeedQuery,
+    page: PageDto<PostDto>,
+  ): Promise<PageDto<PostDto>> {
+    const [top] = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT p.id::text AS id
+        FROM posts p
+        JOIN users a ON a.id = p.author_id
+        LEFT JOIN user_settings s ON s.user_id = a.id
+       WHERE p.official_at IS NOT NULL AND p.format = 'POST'::post_format
+         AND ${visiblePostSql(viewerId, { excludeMuted: true, excludeHidden: true })}
+         AND EXISTS (SELECT 1 FROM user_admin_permissions o
+                      WHERE o.user_id = a.id AND o.permission = 'OWNER'::admin_permission)
+       ORDER BY p.official_at DESC
+       LIMIT 1`;
+    if (!top) return page;
+    const data = page.data.filter((p) => p.id !== top.id);
+    if (query.cursor === undefined) {
+      const [first] = await this.views.load(viewerId, [top.id]);
+      if (first) data.unshift(first);
+    }
+    return { ...page, data };
+  }
+
+  /**
+   * v1.76-social (D218, CONVENTIONS §10.73): `GET /feed/posts?tab=mixed` — {@link interleaveMixed} of
+   * the caller's Following entries (newest first, reposts with `repostedBy`) and Trending (§11.3), frozen
+   * like Trending for 10 minutes. Never the caller's own posts (also not when reposted into Following),
+   * nor muted, hidden or blocked authors (both sources already leave them out; every page re-checks
+   * visibility).
+   *
+   * v1.92-social (D294, CONVENTIONS §10.107): `GET /feed/reels?tab=mixed` — the same rule over the reels
+   * lists: reels Following (followed accounts, the caller's own — as `tab=following` lists them — and
+   * reels reposted by followed accounts) and reels Trending; its own snapshot list (`reels-mixed`).
+   */
+  private mixed(viewerId: string, query: FeedQuery, format: FeedFormat): Promise<PageDto<PostDto>> {
+    const reels = format === 'REEL';
+    return this.rankedPage(viewerId, reels ? 'reels-mixed' : 'mixed', query, async () => {
+      const [following, trending] = await Promise.all([
+        this.followingEntries(viewerId, format, null, MIXED_FOLLOWING_CANDIDATES),
+        this.rankTrending(viewerId, format),
+      ]);
+      return interleaveMixed(
+        // D218: the posts home feed never lists the caller's own; D294: reels Following keeps them (D162).
+        following
+          .filter((r) => reels || r.author_id !== viewerId)
+          .map((r) => ({ id: r.post_id, by: r.reposter_id })),
+        trending.map((id) => ({ id, by: null })),
+        TRENDING_SNAPSHOT_SIZE + MIXED_FOLLOWING_CANDIDATES,
+      );
+    });
+  }
+
+  /**
+   * Following: posts and reposts of followed accounts, newest entry first; a post appears once
+   * (its newest entry; a repost entry carries `repostedBy`). Muted and hidden are left out.
+   * D162: the reels list also holds the caller's own reels (a creator sees what they posted).
+   */
+  private async following(viewerId: string, query: FeedQuery, format: FeedFormat): Promise<PageDto<PostDto>> {
+    const reels = format === 'REEL';
+    const scope = reels ? `feed-reels-following:${viewerId}` : `feed-following:${viewerId}`;
+    const after = this.posts.decode(query.cursor, scope);
+    const rows = await this.followingEntries(viewerId, format, after, query.limit + 1);
+    const hasMore = rows.length > query.limit;
+    const pageRows = rows.slice(0, query.limit);
+    const reposters = await this.summaries(pageRows.flatMap((r) => (r.reposter_id ? [r.reposter_id] : [])));
+    const repostedBy = new Map(
+      pageRows.flatMap((r) => {
+        const by = r.reposter_id ? reposters.get(r.reposter_id) : undefined;
+        return by ? [[r.post_id, by] as const] : [];
+      }),
+    );
+    const last = pageRows[pageRows.length - 1];
+    return {
+      data: await this.views.load(
+        viewerId,
+        pageRows.map((r) => r.post_id),
+        repostedBy,
+      ),
+      page: {
+        hasMore,
+        nextCursor:
+          hasMore && last ? this.posts.cursors.encode(scope, { at: last.at, id: last.post_id }) : null,
+      },
+    };
+  }
+
+  /**
+   * The Following entries (newest first, after `after`): posts of followed accounts (D162: for reels
+   * also the caller's own) and posts they reposted, each post once at its newest entry; muted and
+   * hidden left out.
+   */
+  private followingEntries(
+    viewerId: string,
+    format: FeedFormat,
+    after: { at: Date; id: string } | null,
+    limit: number,
+  ): Promise<{ post_id: string; at: Date; reposter_id: string | null; author_id: string }[]> {
+    const reels = format === 'REEL';
+    return this.prisma.$queryRaw<
+      { post_id: string; at: Date; reposter_id: string | null; author_id: string }[]
+    >`
+      WITH entries AS (
+        SELECT p.id AS post_id, p.published_at AS at, NULL::uuid AS reposter_id
+          FROM follows f JOIN posts p ON p.author_id = f.followee_id
+         WHERE f.follower_id = ${viewerId}::uuid
+           AND p.status = 'PUBLISHED'::post_status AND p.deleted_at IS NULL
+           AND p.format = ${format}::post_format
+        ${
+          reels
+            ? Prisma.sql`UNION ALL
+        SELECT p.id, p.published_at, NULL::uuid
+          FROM posts p
+         WHERE p.author_id = ${viewerId}::uuid AND p.format = 'REEL'::post_format
+           AND p.status = 'PUBLISHED'::post_status AND p.deleted_at IS NULL`
+            : Prisma.empty
+        }
+        UNION ALL
+        SELECT r.post_id, r.created_at, r.user_id
+          FROM follows f
+          JOIN post_reposts r ON r.user_id = f.followee_id
+          JOIN users ru ON ru.id = r.user_id AND ru.status = 'ACTIVE'::user_status
+         WHERE f.follower_id = ${viewerId}::uuid
+           AND NOT EXISTS (SELECT 1 FROM user_mutes m
+                            WHERE m.muter_id = ${viewerId}::uuid AND m.muted_id = r.user_id)
+      ), newest AS (
+        SELECT DISTINCT ON (post_id) post_id, at, reposter_id
+          FROM entries ORDER BY post_id, at DESC, reposter_id NULLS FIRST
+      )
+      SELECT n.post_id::text AS post_id, n.at, n.reposter_id::text AS reposter_id, p.author_id::text AS author_id
+        FROM newest n
+        JOIN posts p ON p.id = n.post_id
+        JOIN users a ON a.id = p.author_id
+        LEFT JOIN user_settings s ON s.user_id = a.id
+       WHERE ${visiblePostSql(viewerId, { excludeMuted: true, excludeHidden: true })}
+         AND p.format = ${format}::post_format
+         ${after ? Prisma.sql`AND (n.at, n.post_id) < (${after.at}, ${after.id}::uuid)` : Prisma.empty}
+       ORDER BY n.at DESC, n.post_id DESC
+       LIMIT ${limit}`;
+  }
+
+  /**
+   * v1.68-social (D202, CONVENTIONS §11.15): `GET /feed/reels?tab=nearby` — visible public reels of
+   * authors whose country is the caller's own (D133 `Me.country`; never inferred), newest first, not
+   * the caller's own, muted or hidden. A caller with no country gets an empty page (the app asks them
+   * to choose one). The cursor is bound to the caller and their country: after a country change an
+   * old cursor → 400 `cursor` / `invalid_value`.
+   */
+  async nearbyReels(viewerId: string, query: ReelsFeedQuery): Promise<PageDto<PostDto>> {
+    const profile = await this.prisma.userProfile.findUnique({
+      where: { userId: viewerId },
+      select: { countryCode: true },
+    });
+    const country = profile?.countryCode ?? null;
+    if (country === null) return { data: [], page: { hasMore: false, nextCursor: null } };
+    const scope = `feed-reels-nearby:${viewerId}:${country}`;
+    const after = this.posts.decode(query.cursor, scope);
+    const rows = await this.prisma.$queryRaw<{ id: string; at: Date }[]>`
+      SELECT p.id::text AS id, p.published_at AS at
+        FROM posts p
+        JOIN users a ON a.id = p.author_id
+        JOIN user_profiles ap ON ap.user_id = a.id AND ap.country_code = ${country}
+        LEFT JOIN user_settings s ON s.user_id = a.id
+       WHERE ${visiblePostSql(viewerId, { excludeMuted: true, excludeHidden: true })}
+         AND p.moderation = 'VISIBLE'::post_moderation
+         AND COALESCE(s.is_private, false) = false
+         AND p.author_id <> ${viewerId}::uuid
+         AND p.format = 'REEL'::post_format
+         ${after ? Prisma.sql`AND (p.published_at, p.id) < (${after.at}, ${after.id}::uuid)` : Prisma.empty}
+       ORDER BY p.published_at DESC, p.id DESC
+       LIMIT ${query.limit + 1}`;
+    const hasMore = rows.length > query.limit;
+    const pageRows = rows.slice(0, query.limit);
+    const last = pageRows[pageRows.length - 1];
+    return {
+      data: await this.views.load(
+        viewerId,
+        pageRows.map((r) => r.id),
+      ),
+      page: {
+        hasMore,
+        nextCursor: hasMore && last ? this.posts.cursors.encode(scope, { at: last.at, id: last.id }) : null,
+      },
+    };
+  }
+
+  /** Trending: a ranked snapshot (see {@link rankedPage}) of {@link rankTrending}. */
+  private trending(viewerId: string, query: FeedQuery, format: FeedFormat): Promise<PageDto<PostDto>> {
+    return this.rankedPage(viewerId, format === 'REEL' ? 'reels-trending' : 'trending', query, () =>
+      this.rankTrending(viewerId, format),
+    );
+  }
+
+  /**
+   * A ranked list paged from a snapshot: the first page ranks and freezes up to 500 ids for
+   * 10 minutes (in Redis, per caller and list); later pages read that snapshot by offset, so they
+   * never repeat or skip. Posts that stopped being visible since are left out of the page. An
+   * expired, foreign or other-list cursor → 400 `cursor` / `invalid_value`.
+   */
+  async rankedPage(
+    viewerId: string,
+    list: string,
+    query: PageQuery,
+    rank: () => Promise<readonly RankedEntry[]>,
+  ): Promise<PageDto<PostDto>> {
+    const scope = `ranked:${list}:${viewerId}`;
+    const after = this.posts.decode(query.cursor, scope);
+    let snapshotId: string;
+    let createdAt: Date;
+    let entries: RankedEntry[];
+    const offset = after?.n ?? 0;
+    if (after) {
+      snapshotId = after.id;
+      createdAt = after.at;
+      const stored = await this.redis.get(this.snapshotKey(viewerId, snapshotId));
+      if (stored === null) throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
+      // D218: an entry with a reposter is stored as `[id, reposterId]`, a plain one as its id.
+      entries = (JSON.parse(stored) as (string | [string, string | null])[]).map((e) =>
+        typeof e === 'string' ? e : { id: e[0], by: e[1] },
+      );
+    } else {
+      snapshotId = randomUUID();
+      createdAt = new Date();
+      entries = [...(await rank())];
+      await this.redis.set(
+        this.snapshotKey(viewerId, snapshotId),
+        JSON.stringify(
+          entries.map((e) => (typeof e === 'string' || e.by === null ? entryId(e) : [e.id, e.by])),
+        ),
+        'EX',
+        TRENDING_SNAPSHOT_SECONDS,
+      );
+    }
+    const sliceEntries = entries.slice(offset, offset + query.limit);
+    const slice = sliceEntries.map(entryId);
+    const visible = new Set(
+      (
+        await this.prisma.post.findMany({
+          where: { AND: [{ id: { in: slice } }, visiblePostWhere(viewerId)] },
+          select: { id: true },
+        })
+      ).map((p) => p.id),
+    );
+    const reposterIds = sliceEntries.flatMap((e) => (typeof e !== 'string' && e.by !== null ? [e.by] : []));
+    const reposters = await this.summaries(reposterIds);
+    const repostedBy = new Map(
+      sliceEntries.flatMap((e) => {
+        const by = typeof e !== 'string' && e.by !== null ? reposters.get(e.by) : undefined;
+        return by ? [[entryId(e), by] as const] : [];
+      }),
+    );
+    const next = offset + sliceEntries.length;
+    const hasMore = next < entries.length;
+    return {
+      data: await this.views.load(
+        viewerId,
+        slice.filter((id) => visible.has(id)),
+        repostedBy,
+      ),
+      page: {
+        hasMore,
+        nextCursor: hasMore
+          ? this.posts.cursors.encode(scope, { at: createdAt, id: snapshotId, n: next })
+          : null,
+      },
+    };
+  }
+
+  private snapshotKey(viewerId: string, snapshotId: string): string {
+    return `social:ranked:${viewerId}:${snapshotId}`;
+  }
+
+  /**
+   * Ranked ids of visible public posts (D162: of `format`) of the last 7 days, not the caller's,
+   * spread by author.
+   */
+  async rankTrending(viewerId: string, format: FeedFormat = 'POST'): Promise<string[]> {
+    const w = TRENDING_WEIGHTS;
+    const rows = await this.prisma.$queryRaw<{ id: string; author_id: string }[]>`
+      SELECT p.id::text AS id, p.author_id::text AS author_id
+        FROM posts p
+        JOIN users a ON a.id = p.author_id
+        LEFT JOIN user_settings s ON s.user_id = a.id
+       WHERE ${visiblePostSql(viewerId, { excludeMuted: true, excludeHidden: true })}
+         AND p.moderation = 'VISIBLE'::post_moderation
+         AND COALESCE(s.is_private, false) = false
+         AND p.author_id <> ${viewerId}::uuid
+         AND p.format = ${format}::post_format
+         AND p.published_at >= now() - make_interval(hours => ${TRENDING_WINDOW_HOURS}::int)
+       ORDER BY (${w.like}::float8 * p.like_count + ${w.comment}::float8 * p.comment_count
+                 + ${w.share}::float8 * p.share_count + ${w.save}::float8 * p.save_count + 1)
+                / power(GREATEST(EXTRACT(EPOCH FROM (now() - p.published_at)), 0) / 3600 + 2, ${w.gravity}::float8) DESC,
+                p.published_at DESC, p.id DESC
+       LIMIT ${TRENDING_CANDIDATES}`;
+    return spreadAuthors(
+      rows.map((r) => ({ id: r.id, authorId: r.author_id })),
+      TRENDING_SNAPSHOT_SIZE,
+    ).map((r) => r.id);
+  }
+
+  /** `GET /me/saved`: newest save first; posts no longer visible are skipped. */
+  async saved(viewerId: string, query: PageQuery): Promise<PageDto<PostDto>> {
+    const scope = `saved:${viewerId}`;
+    const after = this.posts.decode(query.cursor, scope);
+    const rows = await this.prisma.postSave.findMany({
+      where: {
+        userId: viewerId,
+        post: visiblePostWhere(viewerId),
+        ...(after
+          ? { OR: [{ createdAt: { lt: after.at } }, { createdAt: after.at, postId: { lt: after.id } }] }
+          : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { postId: 'desc' }],
+      take: query.limit + 1,
+      select: { postId: true, createdAt: true },
+    });
+    return this.posts.page(
+      viewerId,
+      rows.map((r) => ({ id: r.postId, at: r.createdAt })),
+      query.limit,
+      (r) => this.posts.cursors.encode(scope, { at: r.at, id: r.id }),
+    );
+  }
+
+  /** `GET /users/{username}/reposts`: newest repost first, each with `repostedBy`. */
+  async userReposts(viewerId: string, username: string, query: PageQuery): Promise<PageDto<PostDto>> {
+    const userId = await this.posts.readableAuthor(viewerId, username);
+    const scope = `user-reposts:${userId}:${viewerId}`;
+    const after = this.posts.decode(query.cursor, scope);
+    const rows = await this.prisma.postRepost.findMany({
+      where: {
+        userId,
+        post: visiblePostWhere(viewerId),
+        ...(after
+          ? { OR: [{ createdAt: { lt: after.at } }, { createdAt: after.at, postId: { lt: after.id } }] }
+          : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { postId: 'desc' }],
+      take: query.limit + 1,
+      select: { postId: true, createdAt: true },
+    });
+    const hasMore = rows.length > query.limit;
+    const pageRows = rows.slice(0, query.limit);
+    const by = (await this.summaries([userId])).get(userId)!;
+    const last = pageRows[pageRows.length - 1];
+    return {
+      data: await this.views.load(
+        viewerId,
+        pageRows.map((r) => r.postId),
+        new Map(pageRows.map((r) => [r.postId, by])),
+      ),
+      page: {
+        hasMore,
+        nextCursor:
+          hasMore && last ? this.posts.cursors.encode(scope, { at: last.createdAt, id: last.postId }) : null,
+      },
+    };
+  }
+
+  private async summaries(ids: readonly string[]): Promise<Map<string, UserSummaryDto>> {
+    if (ids.length === 0) return new Map();
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [...new Set(ids)] } },
+      select: USER_SUMMARY_SELECT,
+    });
+    return new Map(users.map((u) => [u.id, userSummary(u)]));
+  }
+}

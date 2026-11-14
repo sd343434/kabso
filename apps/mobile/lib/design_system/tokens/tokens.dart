@@ -26,6 +26,17 @@ abstract final class KLiveColors {
   /// v1.1: behind live chat lines (60 % black; white text stays ≥ 5.74:1
   /// even over a white video frame).
   static const chatScrim = Color(0x99000000);
+
+  /// D135 (owner: "more transparent frames"): the live's pills and chips
+  /// (host pill, chips row, viewer count, quick replies) — black 22 %; their
+  /// text carries [glassShadow].
+  static const glass = Color(0x38000000);
+
+  /// The text shadow on [glass] pills, so white text reads on bright video.
+  static const glassShadow = [
+    Shadow(color: Color(0x99000000), blurRadius: 3),
+    Shadow(color: Color(0x66000000), offset: Offset(0, 0.5), blurRadius: 1),
+  ];
 }
 
 /// `color.onStatus` (v1.1): text/icons on status, gold and PK fills.
@@ -128,6 +139,61 @@ class KPalette {
   );
 }
 
+/// `color.categoryAccent` (D386, v1.138-social, CONVENTIONS §10.175): the
+/// accent of a verified account category's profile page, per family — the
+/// cover tint, the category badge, the primary buttons and the featured
+/// section. [dark] on the dark palette, [light] on the light one; each is
+/// ≥ 4.5:1 against its page background. [onDark] / [onLight] is the text on
+/// a filled accent.
+class KCategoryAccents {
+  const new({
+    required this.music,
+    required this.reciter,
+    required this.word,
+    required this.visual,
+    required this.performer,
+    required this.sportsGames,
+    required this.lifestyle,
+    required this.public,
+  });
+
+  final Color music;
+  final Color reciter;
+  final Color word;
+  final Color visual;
+  final Color performer;
+  final Color sportsGames;
+  final Color lifestyle;
+  final Color public;
+
+  static const dark = KCategoryAccents(
+    music: Color(0xFFB388FF),
+    reciter: Color(0xFF3DD6A3),
+    word: Color(0xFFF0B45E),
+    visual: Color(0xFF4FC9E8),
+    performer: Color(0xFFFF6FAE),
+    sportsGames: Color(0xFFFF9447),
+    lifestyle: Color(0xFFA8D65A),
+    public: Color(0xFFF5C451),
+  );
+
+  static const light = KCategoryAccents(
+    music: Color(0xFF6A35D9),
+    reciter: Color(0xFF0B7A55),
+    word: Color(0xFF8F5A0E),
+    visual: Color(0xFF0A6F8A),
+    performer: Color(0xFFB8155A),
+    sportsGames: Color(0xFFB04A06),
+    lifestyle: Color(0xFF4E7A12),
+    public: Color(0xFF8A6508),
+  );
+
+  /// Text and icons on a filled accent: the page's dark ink on the bright
+  /// dark-mode accents, white on the deep light-mode ones.
+  static const onDark = Color(0xFF0B0B0D);
+  static const onLight = Color(0xFFFFFFFF);
+}
+
 /// `spacing`
 abstract final class KSpacing {
   static const double xxs = 2;
@@ -152,11 +218,19 @@ abstract final class KRadius {
 
 /// `typography`
 abstract final class KFonts {
-  static const latin = 'Inter';
-  static const arabic = 'IBM Plex Sans Arabic';
+  /// D255 (owner: «اريد نفس خط bigo live», the whole app; supersedes D47's
+  /// Inter + Readex Pro): Roboto — Bigo's face on Android — and Noto Sans
+  /// Arabic for Arabic, bundled so every phone draws the same.
+  static const latin = 'Roboto';
+  static const arabic = 'Noto Sans Arabic';
 
-  /// Arabic locales use IBM Plex Sans Arabic (which also covers Latin);
-  /// other locales use Inter with Plex Arabic as fallback for Arabic text.
+  /// D386: the poetry cards of a verified poet's «قصائدي» — the bundled
+  /// Baloo Bhaijaan 2 (OFL, D64's welcome face), Roboto / Noto Sans Arabic
+  /// for anything it lacks.
+  static const poetry = 'Baloo Bhaijaan 2';
+
+  /// Arabic locales use Noto Sans Arabic with Roboto for Latin runs; other
+  /// locales use Roboto with Noto Sans Arabic for Arabic runs.
   static String familyFor(Locale locale) =>
       locale.languageCode == 'ar' ? arabic : latin;
 

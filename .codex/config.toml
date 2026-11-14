@@ -1,0 +1,41 @@
+# Kabso Live: project Codex configuration. Maintained by hand; not managed by ECC Tools.
+# Rules and approval gate: AGENTS.md. Keep credentials and personal MCP servers (GitHub included) in
+# ~/.codex/config.toml, never here: the repository is public (board D40).
+
+# Read-only by default. Any write, command needing more access, commit or push requires an explicit
+# approval request to the human (approval_policy "on-request").
+#
+# These two settings apply ONLY when this project is trusted in your personal Codex config. For an
+# untrusted project Codex may ignore this file (and AGENTS.md), and your personal or built-in sandbox
+# applies. A command-line override (-c sandbox_mode=..., tested; a sandbox flag is expected to behave
+# the same, not tested) takes precedence over this file. Keep sandbox_mode = "read-only" in your
+# personal ~/.codex/config.toml as a fallback.
+# Observed with Codex CLI 0.163.0 on 2026-11-06; see AGENTS.md, "Codex: when the project's read-only
+# sandbox applies".
+sandbox_mode = "read-only"
+approval_policy = "on-request"
+
+# MCP servers, exact versions (verified on npm 2026-11-06, both published >= 2 weeks earlier):
+#   @upstash/context7-mcp 4.4.4  published 2026-10-19, repo github.com/upstash/context7
+#   @playwright/mcp       0.0.83 published 2026-09-28, repo github.com/microsoft/playwright-mcp
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp@4.4.4"]
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@0.0.83", "--headless", "--isolated"]
+
+# Sub-agent roles. Role files cannot change sandbox_mode or approval_policy (Codex strips them), so
+# every role inherits the read-only sandbox above. No model is pinned: roles use the session's model.
+[agents.explorer]
+description = "Read-only explorer: traces code paths and cites files before changes are proposed."
+config_file = "./agents/explorer.toml"
+
+[agents.reviewer]
+description = "Read-only reviewer: correctness, security, contract conformance, missing tests."
+config_file = "./agents/reviewer.toml"
+
+[agents.docs_researcher]
+description = "Read-only researcher: checks APIs and framework behaviour against primary documentation."
+config_file = "./agents/docs-researcher.toml"

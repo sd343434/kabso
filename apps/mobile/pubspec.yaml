@@ -8,20 +8,98 @@ environment:
   flutter: ">=3.47.0"
 
 dependencies:
+  audioplayers: ^6.5.1
+  # D384 the VIP animated picture «صورة متحركة»: the front camera's frames
+  # while recording (image stream, no video file to decode). The official
+  # Flutter plugin (flutter.dev), BSD-3-Clause; pinned exactly, released
+  # 2026-10-27 (at least two weeks before this change), with its platform
+  # packages resolved no newer than two weeks (camera_web pinned: 0.3.6 is
+  # six days old; Android camera_android_camerax 0.7.6+1 2026-10-29, iOS
+  # camera_avfoundation 0.11.1 2026-10-21).
+  camera: 0.12.2
+  camera_web: 0.3.5+7
   clock: ^1.1.3
+  # D126 the gift art disk cache (file names are SHA-256 of the URL).
+  crypto: ^3.0.7
+  # D94 beauty on the web: dart_webrtc, flutter_webrtc and web are pinned to
+  # the versions livekit_client already resolves.
+  dart_webrtc: 1.8.2
   dio: ^5.11.1
+  # D152 push notifications (Android; FCM). Pinned exactly, one FlutterFire
+  # release (2026-09-14). BSD-3-Clause.
+  firebase_core: 4.15.0
+  firebase_messaging: 16.7.0
   flutter:
     sdk: flutter
+  flutter_foreground_task: 11.0.3
   flutter_localizations:
     sdk: flutter
   flutter_riverpod: ^3.4.3
   flutter_secure_storage: ^11.2.0
+  flutter_svg: ^2.3.0
+  # D71 PK battle animations (SVGA). Pinned: the maintained replacement for
+  # the archived svgaplayer_flutter, which needs http 0.13 and clashes with
+  # lottie 3.
+  flutter_svga: 0.0.13
+  flutter_webrtc: 1.6.2+hotfix.4
   freezed_annotation: ^3.1.0
   go_router: ^18.1.0
+  # D384 the VIP animated picture: on-device person segmentation (Google ML
+  # Kit selfie segmentation) removes the background on the phone — offline,
+  # free, no server ML. The plugin is MIT (flutter-ml.dev); the native ML Kit
+  # SDK it pulls (Android `segmentation-selfie` 16.0.0-beta6, bundled model;
+  # iOS pod `GoogleMLKit/SegmentationSelfie` 9.0, iOS ≥ 15.5) is Google's,
+  # under the ML Kit terms. Pinned exactly to 0.12.1 (2026-08-17): the 1.0.x
+  # line is less than two weeks old.
+  google_mlkit_selfie_segmentation: 0.12.1
+  image_picker: ^1.2.4
+  # D345 coins from the stores: Google Play Billing and App Store In-App
+  # Purchase (StoreKit 2). The official Flutter plugin (flutter.dev),
+  # BSD-3-Clause; pinned exactly with its two platform implementations, each
+  # released at least two weeks before this change (3.3.1 2026-09-18, the
+  # Android 0.5.5 2026-10-19 on Play Billing Library 8, StoreKit 0.4.15
+  # 2026-10-20). No other payment package.
+  in_app_purchase: 3.3.1
+  in_app_purchase_android: 0.5.5
+  in_app_purchase_storekit: 0.4.15
   intl: ^0.20.2
   json_annotation: ^4.12.0
+  # D144: colour filters (D143 Magic) and DeepAR effects on the published
+  # camera track, Android (packages/kabso_camera_fx).
+  kabso_camera_fx:
+    path: packages/kabso_camera_fx
+  # D201: background music mixed into the host's microphone (Android).
+  kabso_live_music:
+    path: packages/kabso_live_music
+  # D213: the streamer live's game audio and screen-capture lifecycle (Android).
+  kabso_streamer:
+    path: packages/kabso_streamer
+  livekit_client: 2.13.1
+  lottie: ^3.3.1
   material_ui: ^1.7.0
+  # D126 the gift art disk cache directory.
+  path_provider: ^2.1.6
+  photo_manager: ^3.12.0
+  # CP-017 voice clips in the live chat (AAC in .m4a). Pinned exactly.
+  record: 7.1.2
+  # D202 the reels' Share opens the system share sheet. Flutter Community
+  # Plus plugin, pinned exactly. BSD-3-Clause.
+  share_plus: 13.3.1
   shared_preferences: ^2.5.6
+  # D175 profile links open in the system browser / the platform's app. The
+  # official Flutter plugin, pinned exactly. BSD-3-Clause.
+  url_launcher: 6.3.2
+  # D156 the launch video (and message attachments). The official Flutter
+  # plugin, pinned exactly. BSD-3-Clause.
+  video_player: 2.14.1
+  visibility_detector: ^0.4.0+2
+  web: 1.1.1
+  # D154i YouTube watch-together: the official YouTube IFrame player in a web
+  # view (no video passes through Kabso). The official Flutter plugin and its
+  # platform packages (autoplay without a tap), pinned exactly. BSD-3-Clause.
+  webview_flutter: 4.14.1
+  webview_flutter_android: 4.14.1
+  webview_flutter_wkwebview: 3.27.2
 
 dev_dependencies:
   build_runner: ^2.16.2
@@ -34,20 +112,191 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  # D207: a side-by-side alpha MP4 gift effect (left colour, right alpha), composited on the GPU.
+  shaders:
+    - shaders/gift_alpha_sbs.frag
+  assets:
+    - assets/icons/
+    - assets/icons/nav/
+    - assets/icons/brand/
+    # D357: the founder's social icons (Simple Icons 15.9.0, CC0; assets/icons/social/README.md).
+    - assets/icons/social/
+    # v1.79-live (D289): the nine gift / store badge icons (drawn for Kabso; the panel has the same paths).
+    - assets/icons/badges/
+    # D72 level emblems (owner-supplied kabso_levels pack, 4 × 11 tiers).
+    - assets/levels/
+    - assets/levels/support/
+    - assets/levels/support_frames/
+    # D74 the owner's 3D coin and gift box.
+    - assets/art/
+    # D337 the owner's default avatar (assets/avatar/PROVENANCE.md).
+    - assets/avatar/
+    # D84 leaderboard art (Kabso's own, AI-generated; see the board).
+    - assets/leaderboard/
+    # D125 the owner's family art (assets/families/PROVENANCE.md).
+    - assets/families/
+    # D84 flags from Noto Color Emoji (OFL, assets/flags/NOTICE.txt).
+    - assets/flags/
+    # KL-056 debug-preview imagery (AI-generated, development only).
+    - assets/preview/
+    # D94 live room themes (Kabso's own, AI-generated; PROVENANCE.md).
+    - assets/live_themes/
+    - assets/live_room_icons/
+    # Owner-supplied live bottom-bar icons (assets/live_bar/PROVENANCE.md).
+    - assets/live_bar/
+    # D173 the owner's cinema room for YouTube in audio rooms (assets/live_cinema/PROVENANCE.md).
+    - assets/live_cinema/
+    # D146 the owner's special-ID medals (assets/special_id/PROVENANCE.md).
+    - assets/special_id/
+    # Owner-supplied live category icons (assets/category_icons/PROVENANCE.md).
+    - assets/category_icons/
+    # Owner-supplied popularity board frames (assets/live_rank_frames/PROVENANCE.md).
+    - assets/live_rank_frames/
+    # D256: the owner's TOP 1–3 frames of a live's top viewers (assets/live_top_frames/PROVENANCE.md).
+    - assets/live_top_frames/
+    # D159 the owner's tiered lucky-win frames (assets/win_frames/PROVENANCE.md).
+    - assets/win_frames/
+    # The official Kabso Live logo, owner-supplied 2026-11-09 (assets/brand/PROVENANCE.md; B8).
+    - assets/brand/
+    # D305 the owner's global strips — gifts and games (assets/global_strips/PROVENANCE.md).
+    - assets/global_strips/
+    # The owner's currency set (assets/currency/PROVENANCE.md): the Kabi coin (D161),
+    # the Kab Cherry (D134; new art D182) and the game-card ticket (D182).
+    - assets/currency/
+    # D185 the owner's recharge-agent frame, badge and entrance bar (assets/recharge_agent/PROVENANCE.md).
+    - assets/recharge_agent/
+    # D189 the owner's host-agent frame, badge and entrance bar (assets/host_agent/PROVENANCE.md).
+    - assets/host_agent/
+    # D186 the owner's active-host avatar frames, blue and pink (assets/host_frames/PROVENANCE.md).
+    - assets/host_frames/
+    # D187 the owner's daily recharge badges (assets/recharge_badges/PROVENANCE.md).
+    - assets/recharge_badges/
+    # D390 the owner's ambassador level icons «سفراء النجوم» (assets/ambassadors/PROVENANCE.md).
+    - assets/ambassadors/
+    # Owner-supplied charm level icons and tap characters (D101, PROVENANCE.md in each).
+    - assets/charm/
+    - assets/taps/
+    # D282 the owner's Kabso Team badge (assets/staff/PROVENANCE.md).
+    - assets/staff/
+    # D283 the Kabso Team covers per region (assets/staff/PROVENANCE.md).
+    - assets/staff/covers/
+    # D277 the host target badges (owner art to come; assets/host_targets/PROVENANCE.md).
+    - assets/host_targets/
+    # D156 the owner's launch video and its last frame; the D63 Lottie (the
+    # welcome screen's Kabi). assets/splash/PROVENANCE.md.
+    - assets/splash/
+    # D145d the owner's MAX X sounds (assets/sounds/PROVENANCE.md).
+    - assets/sounds/
+    # D154 the owner's «إفيهات» quips (assets/sounds/quips/PROVENANCE.md).
+    - assets/sounds/quips/room/
+    - assets/sounds/quips/kabi/
+    # D349 the owner's Gulf and Jordanian quips (same PROVENANCE.md).
+    - assets/sounds/quips/gulf/
+    - assets/sounds/quips/jordan/
+    # Owner-supplied emoji packs, one folder per pack (D66, D102; Kabi's
+    # outline added by tool/kabi_emoji_outline.py; assets/emojis/PROVENANCE.md).
+    - assets/emojis/kabi/
+    - assets/emojis/kiki/
+    - assets/emojis/boo/
+    - assets/emojis/pipo/
+    - assets/emojis/dubi/
+    - assets/emojis/gogo/
+    - assets/emojis/lulu/
+    - assets/emojis/neno/
+    - assets/emojis/flags/
+    # D376 «الحالة»: Google Noto animated emoji, CC BY 4.0 (the «عام» and
+    # «المميزة» status packs; assets/emojis/PROVENANCE.md, Settings › Licenses).
+    - assets/emojis/noto/
+    # D71 PK battle animations (owner-supplied SVGA: start, win, lose,
+    # draw).
+    - assets/battle/
+    # D73 Kabi on the PK score bar (owner-supplied Lottie, markers idle,
+    # push, fire, tense, win, cheer; not edited).
+    - assets/pk/
+    # D199: the owner's PK score bar parts (frames t1–t4, neutral, emblems)
+    # and Kabi push / pull / win (assets/pk/PROVENANCE.md).
+    - assets/pk/score_bar/parts/
+    - assets/pk/score_bar/kabi/
+    # Owner's profile-card header decorations (SVGA 750×280 + still).
+    - assets/profile_card/
+    # D218: the owner's bond pills (family, couple, medals).
+    - assets/profile/bonds/
+    # Owner's person-card box icons (family, CP, gift wall).
+    - assets/card_boxes/
+    # D113 CP seat frames per CP level, cut from the owner's art
+    # (assets/live_cp_seats/PROVENANCE.md; source/ is not bundled).
+    # D291: the owner's medals-page art (assets/medals/PROVENANCE.md): the
+    # stage pedestal, the card frame and the light / dark page backgrounds.
+    - assets/medals/medals_stage_pedestal.webp
+    - assets/medals/medals_stage_pedestal_light.webp
+    - assets/medals/medal_wealth_l1.webp
+    - assets/medals/medal_wealth_l2.webp
+    - assets/medals/medal_wealth_l3.webp
+    - assets/medals/medal_wealth_l4.webp
+    - assets/medals/medal_wealth_l5.webp
+    - assets/medals/medal_wealth_l6.webp
+    - assets/medals/medal_lucky_l1.webp
+    - assets/medals/medal_lucky_l2.webp
+    - assets/medals/medal_lucky_l3.webp
+    - assets/medals/medal_lucky_l4.webp
+    # D300 «مدرسة المحتوى»: the owner's art of each level (2026-11-07).
+    - assets/medals/medal_content_school_l1.webp
+    - assets/medals/medal_content_school_l2.webp
+    - assets/medals/medal_content_school_l3.webp
+    - assets/medals/medal_content_school_l4.webp
+    # D300 «لاعب الأحكام»: the owner's art of each level (2026-11-07).
+    - assets/medals/medal_dares_player_l1.webp
+    - assets/medals/medal_dares_player_l2.webp
+    - assets/medals/medal_dares_player_l3.webp
+    - assets/medals/medal_dares_player_l4.webp
+    - assets/medals/medal_card_frame.webp
+    - assets/medals/medals_bg_light.webp
+    - assets/medals/medals_bg_dark.webp
+    - assets/live_cp_seats/
+    - assets/live_cp_seats/fx/
+    # CP-021 CP space art (owner-supplied; assets/cp_space/PROVENANCE.md).
+    - assets/cp_space/
+    # CP-020 live gift art and effects, named by the catalogue's assetKey /
+    # animationKey (owner-supplied; assets/gifts/PROVENANCE.md).
+    - assets/gifts/
+    - assets/gifts/anim/
+    # v1.43-live (D195): the four PK boosters' gift images (Kabso-made; assets/gifts/PROVENANCE.md).
+    - assets/gifts/pk/
   fonts:
-    - family: Inter
+    # D63 splash and D64 welcome wordmark (OFL, assets/fonts/OFL-Fredoka.txt).
+    - family: Fredoka
       fonts:
-        - asset: assets/fonts/Inter-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/Inter-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Inter-Bold.ttf
+        - asset: assets/fonts/Fredoka-Bold.ttf
           weight: 700
-    - family: IBM Plex Sans Arabic
+    # D64 welcome screen only (owner's design; OFL,
+    # assets/fonts/OFL-BalooBhaijaan2.txt).
+    - family: Baloo Bhaijaan 2
       fonts:
-        - asset: assets/fonts/IBMPlexSansArabic-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/IBMPlexSansArabic-SemiBold.ttf
+        - asset: assets/fonts/BalooBhaijaan2-SemiBold.ttf
           weight: 600
-        - asset: assets/fonts/IBMPlexSansArabic-Bold.ttf
+        - asset: assets/fonts/BalooBhaijaan2-ExtraBold.ttf
+          weight: 800
+    # D255 (owner: «اريد نفس خط bigo live», the whole app): Roboto, as Bigo
+    # on Android (OFL, assets/fonts/OFL-Roboto.txt). Semi-bold (600) is
+    # Roboto Medium, as Android draws it.
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 600
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
+    # D255: the Arabic face with it (OFL, assets/fonts/OFL-NotoSansArabic.txt).
+    - family: Noto Sans Arabic
+      fonts:
+        - asset: assets/fonts/NotoSansArabic-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansArabic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansArabic-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/NotoSansArabic-Bold.ttf
           weight: 700

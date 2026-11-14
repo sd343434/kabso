@@ -1,6 +1,6 @@
 import { SetMetadata } from '@nestjs/common';
 import type { AppConfig } from '../../config/app-config.js';
-import type { AppRequest } from '../http/request-context.js';
+import { clientIpBucket, type AppRequest } from '../http/request-context.js';
 
 export const RATE_LIMITS_KEY = 'kabso:rate-limits';
 export const SKIP_RATE_LIMIT_KEY = 'kabso:skip-rate-limit';
@@ -19,10 +19,18 @@ export interface RateLimitSpec {
   readonly replacesDefault?: boolean;
   /** Log rejections of this bucket (e.g. follow anti-abuse, CONVENTIONS §10.6). */
   readonly logRejections?: boolean;
+  /**
+   * CP-010: on `@OptionalAuth()` routes, counts only signed-in callers (`user`) or only guests
+   * (`guest`). Unset: always.
+   */
+  readonly appliesTo?: 'user' | 'guest';
 }
 
 /** Subject key of the per-user v1.3 buckets: the authenticated user id. */
 export const byUserId = (req: AppRequest): string => req.auth?.userId ?? '';
+
+/** Subject key of per-IP buckets (guests, CP-010). */
+export const byIp = (req: AppRequest): string => clientIpBucket(req);
 
 /** Endpoint-specific limits (CONVENTIONS §7), evaluated in order before the handler. */
 export const RateLimit = (...specs: RateLimitSpec[]) => SetMetadata(RATE_LIMITS_KEY, specs);

@@ -3,163 +3,1231 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
+import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
+import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_actions.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_sections.dart';
+import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/profile/category/category_repository.dart';
+import 'package:kabso_live/features/profile/category/category_style.dart';
+import 'package:kabso_live/features/profile/category/featured_section.dart';
+import 'package:kabso_live/features/profile/domain/profile_models.dart';
+import 'package:kabso_live/features/profile/edit_profile_screen.dart';
+import 'package:kabso_live/features/profile/profile_cover_header.dart';
+import 'package:kabso_live/features/profile/profile_fields_view.dart';
+import 'package:kabso_live/features/recharge/application/recharge_providers.dart';
+import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// The signed-in user's own profile, from `GET /me`.
-class ProfileScreen extends ConsumerWidget {
+/// Profile geometry (D57, layout from the owner's reference; sizes on the
+/// Kabso scale).
+abstract final class KProfile {
+  static const double inset = KSpacing.lg;
+  static const double avatar = KSizes.avatarLg;
+
+  /// The gap between grid cells.
+  static const double gridGap = KMetrics.hairline;
+
+  /// A reels cell is portrait; a posts cell is square.
+  static const double reelAspect = 9 / 16;
+
+  /// D335 (the owner's reference, M at 1.333 px/dp): the profile grid sits
+  /// 13 dp in from the screen's edges (M 12.75), 3 dp between the cells (M
+  /// 3–3.75), square posts cells (M ≈ 120.5 × 120) with rounded corners
+  /// (E ≈ 9). Reels keep [reelAspect].
+  static const double pageGridInset = 13;
+  static const double pageGridGap = 3;
+  static const double postAspect = 1;
+  static const double gridRadius = 9;
+
+  /// D335: from the tabs' line to the first row (M ≈ 10).
+  static const double pageGridTop = 9;
+
+  /// D335: the word tabs span the screen less 11 dp a side (M 10.9); the
+  /// selected one has a Kabso-red gradient line (M 0.76 of its width,
+  /// 2.25 dp thick) on a hairline under all of them.
+  static const double tabsInset = 11;
+  static const double tabIndicatorShare = 0.76;
+  static const double tabIndicatorHeight = 2.5;
+  static const double tabLabelDrop = 4;
+
+  /// Header buttons (Edit profile, Follow, Watch live).
+  static const double buttonHeight = KSizes.minTouchTarget - KSpacing.sm;
+}
+
+/// The signed-in user's own profile (D57; D163: opened from the Me hub at
+/// [AppRoutes.myProfile]). Its top bar is unchanged: @username in the
+/// centre, Drafts and Settings at the end.
+///
+/// D218 (owner: «وحدهما»): the body is the public profile's design
+/// ([ProfileCoverHeader], [ProfileInfoBlock]) — the cover (a tap opens
+/// «صورة الغلاف»), the photo over it, the name and the level badges, the
+/// follow counts, the bio, the country and «انضم في», the links, a wide
+/// «تعديل الملف الشخصي» pill, the family / relationship / medals tiles
+/// (and the bag); then the words «منشورات · ريلز · إعادات · محفوظات» over the
+/// 3-column grid (Saved is the person's own, D59). No PK record.
+class ProfileScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
   static const settingsButtonKey = Key('profile.settings');
+  static const draftsButtonKey = Key('profile.drafts');
+  static const editButtonKey = Key('profile.editButton');
+  static const statsKey = Key('profile.stats');
+  static const tabsKey = Key('profile.tabs');
+
+  static Key tabKey(ProfileTab tab) => Key('profile.tab.${tab.name}');
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final me = ref.watch(meProvider);
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
 
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  /// The chosen tab; null → the first of the page's order (D386).
+  ProfileTab? _tab;
+
+  /// D386 (§10.175): the own page takes the verified category's look (never
+  /// a Kabso Team account's, D367; the founder's page is his own).
+  CategoryLook? _lookOf(User user, {required bool founder}) {
+    final category = user.category;
+    if (category == null || !user.categoryVerified || founder) return null;
+    if (profileHidesCategory(
+      kabsoTeam: user.kabsoTeam,
+      hasStaffIdentity: user.staff != null,
+      hasStaffId: user.staffId != null,
+    )) {
+      return null;
+    }
+    return CategoryLook.forCategory(context, category);
+  }
+
+  /// D278: the cover has scrolled out from under the top bar.
+  bool _solid = false;
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0) return false;
+    final solid = profileCoverScrolledAway(context, n.metrics);
+    if (solid != _solid) setState(() => _solid = solid);
+    return false;
+  }
+
+  /// Owner (D218, «وحدهما»): the own profile in the public profile's design
+  /// — the cover (a tap changes it) with, over it (D278), the photo, the
+  /// name and the level badges, the counts (the follow lists) and «تعديل
+  /// الملف»; under it the bio, the country and «انضم في», the links and the
+  /// family / relationship / medals tiles. `GET /me` is the source of what
+  /// the person edits (it changes at once); `GET /users/{me}` adds the
+  /// counts, live, frames, family, couple and medals.
+  List<Widget> _ownHeader(User user) {
+    final l10n = context.l10n;
+    final statsLoad = ref.watch(profileStatsProvider(user.username));
+    final stats = statsLoad.value;
+    // D185: the caller's own agent frame and badge while ACTIVE.
+    final agent = ref.watch(myRechargeAgentProvider).value?.agent;
+    final created = user.createdAt.toUtc();
+    final base =
+        stats ??
+        PublicProfile(
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+          bio: user.bio,
+          isPrivate: user.isPrivate,
+          followerCount: 0,
+          followingCount: 0,
+          isFollowing: false,
+          isSelf: true,
+          liveRoomId: null,
+        );
+    final profile = base.copyWith(
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      isSelf: true,
+      coverUrl: user.coverUrl,
+      country: user.country,
+      joinedMonth:
+          '${created.year.toString().padLeft(4, '0')}-'
+          '${created.month.toString().padLeft(2, '0')}',
+      category: user.category,
+      categoryVerified: user.categoryVerified,
+      gender: user.showGender ? user.gender : null,
+      links: user.links,
+      tags: user.tags,
+      tagIcons: user.tagIcons,
+      premiumTier: user.premiumTier,
+      kabsoTeam: user.kabsoTeam,
+      // D283c: the official staff ID «Kabso01» (the OWNER too).
+      staffId: user.staffId,
+      // D293: the automatic verification badge beside the name.
+      verification: user.verification,
+      // D376: «الحالة» changes at once after the picker saves.
+      statusEmojiId: user.statusEmojiId,
+      rechargeAgentCode: agent?.status == RechargeAgentStatus.active
+          ? agent?.code
+          : null,
+    );
+    return [
+      SliverToBoxAdapter(
+        child: ProfileCoverHeader(
+          profile: profile,
+          // D168 (owner: «اعرض الصورة بدون إطار»): the own page shows the
+          // photo without the couple's heart frame.
+          cpFrame: false,
+          onCoverTap: () =>
+              changeProfileCover(context, ref, hasCover: user.coverUrl != null),
+          countsKnown: stats != null,
+          countsFailed: stats == null && statsLoad.hasError,
+          onOpenFollowers: () =>
+              context.push(AppRoutes.userFollows(user.username)),
+          onOpenFollowing: () => context.push(
+            AppRoutes.userFollows(user.username, following: true),
+          ),
+          // D301: the owner's cover video, in the app's language.
+          coverVideo: ownerCoverVideoFor(context, profile),
+          // D335: «تعديل الملف» (+ the header's bonds chevron).
+          actions: (context, toggle) => Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: ProfileScreen.editButtonKey,
+                  style: ProfileCoverButtons.pill(context),
+                  onPressed: () => context.push(AppRoutes.editProfile),
+                  child: ProfileCoverButtons.label(l10n.profileEditShort),
+                ),
+              ),
+              if (toggle != null) ...[
+                const SizedBox(width: KSpacing.sm),
+                toggle,
+              ],
+            ],
+          ),
+        ),
+      ),
+      SliverToBoxAdapter(child: ProfileInfoBlock(profile: profile)),
+      // D301 (§10.112.6): the app owner's own page — «لوحة المؤسس» (خاص),
+      // «إعلانات رسمية» and «رحلة Kabso» with «تعديل».
+      if (profile.kabsoOwner) ...[
+        SliverToBoxAdapter(
+          child: OwnerProfileSections(profile: profile, own: true),
+        ),
+        // D307 follow-up: the announcements in full after «رحلة Kabso».
+        OfficialAnnouncementsFeed(username: profile.username, own: true),
+      ],
+    ];
+  }
+
+  CategoryLook? _lookFor(User user) => _lookOf(
+    user,
+    founder:
+        ref.watch(profileStatsProvider(user.username)).value?.kabsoOwner ??
+        false,
+  );
+
+  /// D386: the tabs in the verified category's order.
+  List<ProfileTab> _tabsOf(User user) =>
+      _lookFor(user)?.orderTabs(ProfileTab.values) ?? ProfileTab.values;
+
+  Widget _withLook(User user, Widget child) =>
+      CategoryLookScope(look: _lookFor(user), child: child);
+
+  Widget _underBar(Widget child) => Padding(
+    padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+    child: MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      child: child,
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final me = ref.watch(meProvider);
+    final username =
+        me.value?.username ?? ref.watch(currentUserProvider)?.username ?? '';
+    // D146: the premium username's tier (the special-ID badge in the bar).
+    final tier = me.hasValue
+        ? me.value!.premiumTier
+        : ref.watch(currentUserProvider)?.premiumTier;
+    // D283c: a staff account's bar shows «ID: Kabso01».
+    final staffId = me.hasValue
+        ? me.value!.staffId
+        : ref.watch(currentUserProvider)?.staffId;
+
+    // D335: the bar over the cover — back and the @username at the reading
+    // start, drafts and settings at the end, on translucent circles; solid
+    // once the list has moved (D307), and while nothing is read yet.
+    final solid = _solid || me.value == null;
+    final fg = solid ? p.textPrimary : KPalette.dark.textPrimary;
     return Scaffold(
-      appBar: AppBar(
+      backgroundColor: p.background,
+      extendBodyBehindAppBar: true,
+      appBar: ProfileCoverBar(
+        solid: solid,
         // PHASE1_1_SCREENS §5.4: the TopBar shows @username ("Profile" stays
         // the tab label).
-        title: Text(
-          l10n.profileUsername(
-            me.value?.username ??
-                ref.watch(currentUserProvider)?.username ??
-                '',
-          ),
-          key: const Key('profile.title'),
-          textDirection: TextDirection.ltr,
+        title: ProfileCoverHandle(
+          solid: solid,
+          username: username,
+          tier: tier,
+          staffId: staffId,
+          textKey: const Key('profile.title'),
         ),
         actions: [
           IconButton(
-            key: settingsButtonKey,
+            key: ProfileScreen.draftsButtonKey,
+            tooltip: l10n.draftsTitle,
+            icon: Icon(
+              Icons.drafts_outlined,
+              size: KPublicProfile.barIcon,
+              color: fg,
+            ),
+            onPressed: () => context.push(AppRoutes.drafts),
+          ),
+          IconButton(
+            key: ProfileScreen.settingsButtonKey,
             tooltip: l10n.settingsTitle,
-            icon: const Icon(Icons.settings_outlined),
+            icon: AppIcon(
+              AppIcons.settings,
+              size: KPublicProfile.barIcon,
+              color: fg,
+            ),
             onPressed: () => context.push(AppRoutes.settings),
           ),
         ],
       ),
       body: switch (me) {
         // Keep showing the user while a pull-to-refresh is running.
-        AsyncValue(:final value?) => RefreshIndicator(
-          onRefresh: () async {
-            try {
-              ref.invalidate(meProvider);
-              await ref.read(meProvider.future);
-            } on Object catch (e) {
-              if (context.mounted) {
-                KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
-              }
-            }
-          },
-          child: _ProfileBody(user: value),
+        AsyncValue(:final value?) => _withLook(
+          value,
+          NotificationListener<ScrollNotification>(
+            onNotification: _onScroll,
+            child: RefreshIndicator(
+              edgeOffset: MediaQuery.paddingOf(context).top,
+              onRefresh: () async {
+                try {
+                  ref
+                    ..invalidate(meProvider)
+                    ..invalidate(profileStatsProvider(value.username))
+                    ..invalidate(profileFeaturedProvider(value.username))
+                    ..invalidate(myFeaturedPinsProvider)
+                    ..invalidate(profileGridProvider)
+                    ..invalidate(ownerDashboardProvider)
+                    ..invalidate(ownerJourneyProvider(value.username))
+                    ..invalidate(ownerOfficialPostsProvider(value.username));
+                  await ref.read(meProvider.future);
+                } on Object catch (e) {
+                  if (context.mounted) {
+                    KSnack.error(
+                      context,
+                      failureMessage(l10n, toAppFailure(e)),
+                    );
+                  }
+                }
+              },
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  // D278: the cover runs under the bar; the tabs pin under it.
+                  const ProfileCoverBarSpace(),
+                  ..._ownHeader(value),
+                  // D386: the verified category's featured section.
+                  FeaturedSectionSliver(username: value.username, own: true),
+                  // D307 follow-up (owner: «في صفحة المؤسس لا تحتوي ريلز او
+                  // بوست او اي اعادة»): the founder's page ends with «رحلة
+                  // Kabso» — no tabs, no grid (not even «محفوظات»).
+                  if (!(ref
+                          .watch(profileStatsProvider(value.username))
+                          .value
+                          ?.kabsoOwner ??
+                      false)) ...[
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: ProfileTabsDelegate(
+                        tabs: _tabsOf(value),
+                        tab: _tab ?? _tabsOf(value).first,
+                        background: p.background,
+                        // Owner (D218, «وحدهما»): the public profile's words,
+                        // plus «محفوظات» (only you see what you saved).
+                        text: true,
+                        onSelect: (t) => setState(() => _tab = t),
+                      ),
+                    ),
+                    ProfileGrid(
+                      username: value.username,
+                      tab: _tab ?? _tabsOf(value).first,
+                      own: true,
+                    ),
+                  ] else
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: KSpacing.xl),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
-        AsyncValue(:final error?, isLoading: false) => FailureErrorState(
-          title: l10n.errorTitle,
-          failure: toAppFailure(error),
-          onRetry: () => ref.invalidate(meProvider),
+        // Until `GET /me` is read, the states sit under the bar.
+        AsyncValue(:final error?, isLoading: false) => _underBar(
+          FailureErrorState(
+            title: l10n.errorTitle,
+            failure: toAppFailure(error),
+            onRetry: () => ref.invalidate(meProvider),
+          ),
         ),
-        _ => const _ProfileSkeleton(),
+        _ => _underBar(const ProfileSkeleton()),
       },
     );
   }
 }
 
-class _ProfileBody extends StatelessWidget {
-  const new({required this.user});
+/// The outlined grey button of profile headers (Edit profile, Following).
+ButtonStyle profileSecondaryButtonStyle(BuildContext context) {
+  final p = context.palette;
+  return OutlinedButton.styleFrom(
+    foregroundColor: p.textPrimary,
+    backgroundColor: p.surface,
+    side: BorderSide(color: p.border),
+    padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(KRadius.sm),
+    ),
+    textStyle: context.textStyles.bodyStrong,
+  );
+}
 
-  final User user;
+/// The header shared by the own and the public profile (D57/D60): the photo
+/// at the reading start (with the live ring and badge while [live]; tapping
+/// it then calls [onOpenLive]), the Followers and Following counts beside
+/// it, the name, the bio, then [actions].
+class ProfileHeaderView extends StatelessWidget {
+  const new({
+    required this.displayName,
+    required this.actions,
+    super.key,
+    this.avatarUrl,
+    this.bio,
+    this.followers,
+    this.following,
+    this.statsFailed = false,
+    this.live = false,
+    this.onOpenLive,
+    this.levels,
+    this.nameTrailing,
+    this.cpFrame = false,
+    this.onOpenFollowers,
+    this.onOpenFollowing,
+    this.subtitle,
+    this.about,
+    this.agentCode,
+    this.hostAgentCode,
+    this.avatarFrame,
+    this.rechargeBadge,
+  });
+
+  /// v1.58-social (D189, §10.52): the person's code while they are a host
+  /// agent: the host-agent badge beside the name (after the recharge one)
+  /// and the host-agent frame unless the recharge-agent frame wins
+  /// ([agentFrameKindFor]).
+  final String? hostAgentCode;
+
+  /// v1.55-social (D186): the avatar frame the person wears (e.g. the
+  /// active-host frame), drawn around the photo when this app has its art.
+  /// The live ring and the recharge-agent and host-agent frames win over
+  /// it; it wins over the CP frame.
+  final AvatarFrame? avatarFrame;
+
+  /// v1.56-social (D187): the person's daily recharge badge while it shows,
+  /// beside the name like the level badge.
+  final RechargeBadge? rechargeBadge;
+
+  /// v1.54-social (D185): the person's code while they are an ACTIVE
+  /// recharge agent: the agent frame (with the code in its plate) around
+  /// the photo and the agent badge beside the name. While [live], the live
+  /// ring wins (as for the CP frame).
+  final String? agentCode;
+
+  final String displayName;
+  final String? avatarUrl;
+  final String? bio;
+  final int? followers;
+  final int? following;
+  final bool statsFailed;
+  final bool live;
+  final VoidCallback? onOpenLive;
+  final Widget actions;
+
+  /// D72: the level badges under the name and bio (`ProfileLevels`).
+  final Widget? levels;
+
+  /// D163: shown beside the name on the same line (the own profile's level
+  /// badge); it wraps under the name when the line is full.
+  final Widget? nameTrailing;
+
+  /// CP-021 (D112): the person's couple unlocked the Special Frame
+  /// (`PublicProfile.cp.privileges`); the picture is drawn in the owner's
+  /// heart frame. While [live], the live ring (which opens the live) wins.
+  final bool cpFrame;
+
+  /// D121: tapping the Followers / Following count opens the follow lists.
+  final VoidCallback? onOpenFollowers;
+  final VoidCallback? onOpenFollowing;
+
+  /// D175: under the name — the account category (and a shown gender),
+  /// [ProfileFieldsLine].
+  final Widget? subtitle;
+
+  /// D175: after the bio — the profile links, [ProfileLinksRow].
+  final Widget? about;
+
+  static const avatarKey = Key('profile.avatar');
+  static const followersKey = Key('profile.stat.followers');
+  static const followingKey = Key('profile.stat.following');
+  static const cpFrameKey = Key('profile.avatar.cpFrame');
+  static const agentFrameKey = Key('profile.avatar.agentFrame');
+  static const avatarFrameKey = Key('profile.avatar.frame');
+  static const agentBadgeKey = Key('profile.agentBadge');
+  static const hostAgentBadgeKey = Key('profile.hostAgentBadge');
+  static const rechargeBadgeKey = Key('profile.rechargeBadge');
+
+  /// D390: the exclusive ambassador badge in the badge row.
+  static const ambassadorBadgeKey = Key('profile.ambassadorBadge');
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    return ListView(
-      padding: const EdgeInsetsDirectional.all(KSpacing.xl),
-      children: [
-        Center(
-          child: KAvatar(
-            name: user.displayName,
-            imageUrl: user.avatarUrl,
-            size: KSizes.avatarLg,
-          ),
-        ),
-        const SizedBox(height: KSpacing.lg),
-        Text(
-          user.displayName,
-          key: const Key('profile.displayName'),
-          style: t.headline,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: KSpacing.xs),
-        Text(
-          l10n.profileUsername(user.username),
-          key: const Key('profile.username'),
-          style: t.body.copyWith(color: p.textSecondary),
-          textAlign: TextAlign.center,
-          textDirection: TextDirection.ltr,
-        ),
-        if (user.bio != null && user.bio!.isNotEmpty) ...[
-          const SizedBox(height: KSpacing.md),
-          Text(user.bio!, style: t.body, textAlign: TextAlign.center),
-        ],
-        const SizedBox(height: KSpacing.xl),
-        Container(
-          padding: const EdgeInsetsDirectional.all(KSpacing.lg),
-          decoration: BoxDecoration(
-            color: p.surface,
-            borderRadius: BorderRadius.circular(KRadius.lg),
-            border: Border.all(color: p.border),
-          ),
+    final bio = this.bio;
+    Widget stat(
+      String label,
+      int? value, {
+      Key? key,
+      VoidCallback? onTap,
+      String? hint,
+    }) => Expanded(
+      child: Semantics(
+        key: key,
+        button: onTap != null,
+        hint: onTap == null ? null : hint,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(KRadius.sm),
           child: Column(
             children: [
-              ExcludeSemantics(
-                child: Icon(Icons.grid_view_rounded, color: p.textTertiary),
-              ),
-              const SizedBox(height: KSpacing.sm),
+              if (value == null && !statsFailed)
+                const KSkeleton(width: KSpacing.xl)
+              else
+                Text(
+                  value == null ? '\u2013' : KFormat.compact(value, l10n),
+                  maxLines: 1,
+                  style: t.title.copyWith(color: p.textPrimary),
+                ),
               Text(
-                l10n.profileContentComingTitle,
-                style: t.bodyStrong,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: KSpacing.xs),
-              Text(
-                l10n.profileContentComingBody,
-                style: t.caption,
-                textAlign: TextAlign.center,
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: t.body.copyWith(color: p.textPrimary),
               ),
             ],
           ),
         ),
-      ],
+      ),
+    );
+    final agentCode = this.agentCode;
+    final hostCode = hostAgentCode;
+    final avatar = ProfileAvatar(
+      displayName: displayName,
+      avatarUrl: avatarUrl,
+      live: live,
+      cpFrame: cpFrame,
+      agentCode: agentCode,
+      hostAgentCode: hostCode,
+      avatarFrame: avatarFrame,
+    );
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        KProfile.inset,
+        KSpacing.sm,
+        KProfile.inset,
+        KSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Semantics(
+                key: avatarKey,
+                button: live && onOpenLive != null,
+                label: live ? l10n.profileWatchLive : null,
+                // The live ring of KAvatar carries the LIVE badge.
+                child: GestureDetector(
+                  onTap: live ? onOpenLive : null,
+                  child: avatar,
+                ),
+              ),
+              const SizedBox(width: KSpacing.lg),
+              Expanded(
+                child: Row(
+                  key: ProfileScreen.statsKey,
+                  children: [
+                    stat(
+                      l10n.profileFollowers,
+                      followers,
+                      key: followersKey,
+                      onTap: onOpenFollowers,
+                      hint: l10n.profileOpenFollowers,
+                    ),
+                    stat(
+                      l10n.profileFollowingCount,
+                      following,
+                      key: followingKey,
+                      onTap: onOpenFollowing,
+                      hint: l10n.profileOpenFollowing,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: KSpacing.md),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: KSpacing.sm,
+            children: [
+              Text(
+                displayName,
+                key: const Key('profile.displayName'),
+                style: t.bodyStrong.copyWith(color: p.textPrimary),
+              ),
+              // Owner (after D189): the agent and daily badges at their
+              // default 18 (ProfileLevels' height) in this compact view.
+              // D292: the profile header ([ProfileCoverHeader]) draws them
+              // at one visible size (KPublicProfile.nameBadge and its
+              // siblings) — the square crests were too small there.
+              if (agentCode case final code?)
+                RechargeAgentBadge(key: agentBadgeKey, code: code),
+              // D189: the host-agent badge, placed as the recharge one.
+              if (hostCode case final code?)
+                HostAgentBadge(key: hostAgentBadgeKey, code: code),
+              if (rechargeBadgeShows(rechargeBadge))
+                RechargeTierBadge(key: rechargeBadgeKey, badge: rechargeBadge),
+              ?nameTrailing,
+            ],
+          ),
+          ?subtitle,
+          if (bio != null && bio.isNotEmpty) ...[
+            const SizedBox(height: KSpacing.xxs),
+            Text(bio, style: t.body.copyWith(color: p.textPrimary)),
+          ],
+          ?about,
+          ?levels,
+          const SizedBox(height: KSpacing.md),
+          actions,
+        ],
+      ),
     );
   }
 }
 
-class _ProfileSkeleton extends StatelessWidget {
-  const new();
+/// The profile photo with whichever frame wins (D189 d + D186: the
+/// recharge-agent frame > the host-agent frame > the worn bag frame > the
+/// CP frame; while [live], the live ring with its badge wins over all), in
+/// the recharge frame's box around a [KProfile.avatar] photo. Shared by the
+/// own profile's header and (D218) the public profile's cover header.
+class ProfileAvatar extends StatelessWidget {
+  const new({
+    required this.displayName,
+    super.key,
+    this.avatarUrl,
+    this.live = false,
+    this.cpFrame = false,
+    this.agentCode,
+    this.hostAgentCode,
+    this.avatarFrame,
+    this.outline,
+    this.outlineWidth = KMetrics.strokeLarge,
+    this.outlineGap = 0,
+  });
+
+  final String displayName;
+  final String? avatarUrl;
+  final bool live;
+  final bool cpFrame;
+  final String? agentCode;
+  final String? hostAgentCode;
+  final AvatarFrame? avatarFrame;
+
+  /// D218: a plain photo (no frame, not live) gets a 3 dp ring of this
+  /// colour (the page's, over the cover).
+  final Color? outline;
+
+  /// The ring's width, and (D316) a page-coloured gap between the ring and
+  /// the photo; the whole stays [KProfile.avatar] wide.
+  final double outlineWidth;
+  final double outlineGap;
+
+  static const Key agentFrameKey = ProfileHeaderView.agentFrameKey;
+  static const Key avatarFrameKey = ProfileHeaderView.avatarFrameKey;
+  static const Key cpFrameKey = ProfileHeaderView.cpFrameKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final agentCode = this.agentCode;
+    final hostCode = hostAgentCode;
+    // D189 d + D186: recharge-agent frame > host-agent frame > the worn bag
+    // frame > the CP frame.
+    final frameKind = agentFrameKindFor(
+      rechargeCode: agentCode,
+      hostCode: hostCode,
+    );
+    final frameArt = AvatarFrameArt.of(avatarFrame);
+    // Owner (after D189): every frame in one box — the recharge frame's —
+    // the photo in each art's measured circle.
+    final box = AvatarFrameBox.aroundAvatar(KProfile.avatar);
+    return frameKind == AgentFrameKind.recharge && !live
+        ? box.place(
+            RechargeAgentFrame(
+              key: agentFrameKey,
+              width: AgentFrameGeometry.widthIn(frameKind!, box),
+              name: displayName,
+              code: agentCode!,
+              imageUrl: avatarUrl,
+            ),
+          )
+        : frameKind == AgentFrameKind.host && !live
+        ? box.place(
+            HostAgentFrame(
+              key: agentFrameKey,
+              width: AgentFrameGeometry.widthIn(frameKind!, box),
+              name: displayName,
+              imageUrl: avatarUrl,
+            ),
+          )
+        : frameArt != null && !live
+        ? box.place(
+            FramedAvatar(
+              key: avatarFrameKey,
+              art: frameArt,
+              picture: frameArt.pictureForWidth(box.square),
+              layout: true,
+              child: KAvatar(
+                name: displayName,
+                imageUrl: avatarUrl,
+                size: frameArt.pictureForWidth(box.square),
+              ),
+            ),
+          )
+        : cpFrame && !live
+        ? box.place(
+            CpSpecialFrameAvatar(
+              key: cpFrameKey,
+              width: box.fit(CpSpecialFrameAvatar.paintAspect).width,
+              name: displayName,
+              imageUrl: avatarUrl,
+            ),
+          )
+        : outline != null && !live
+        ? DecoratedBox(
+            decoration: outlineGap > 0
+                ? BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: context.palette.background,
+                    border: Border.all(color: outline!, width: outlineWidth),
+                  )
+                : BoxDecoration(shape: BoxShape.circle, color: outline),
+            child: Padding(
+              padding: EdgeInsets.all(outlineWidth + outlineGap),
+              child: KAvatar(
+                name: displayName,
+                imageUrl: avatarUrl,
+                size: KProfile.avatar - 2 * (outlineWidth + outlineGap),
+              ),
+            ),
+          )
+        : KAvatar(
+            name: displayName,
+            imageUrl: avatarUrl,
+            size: KProfile.avatar,
+            ring: live ? KAvatarRing.live : KAvatarRing.none,
+          );
+  }
+}
+
+/// The pinned tab bar of a profile: one icon per tab in [tabs].
+class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
+  const new({
+    required this.tabs,
+    required this.tab,
+    required this.background,
+    required this.onSelect,
+    this.text = false,
+  });
+
+  final List<ProfileTab> tabs;
+  final ProfileTab tab;
+  final Color background;
+  final ValueChanged<ProfileTab> onSelect;
+
+  /// D218 (the owner's reference, public profile): words instead of icons
+  /// — the selected one bold with a 2 dp underline, the others tertiary.
+  final bool text;
+
+  @override
+  double get minExtent => KSizes.minTouchTarget;
+
+  @override
+  double get maxExtent => KSizes.minTouchTarget;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlaps) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    Widget item(ProfileTab t, String outline, String filled, String label) {
+      final selected = t == tab;
+      return Expanded(
+        child: Semantics(
+          button: true,
+          selected: selected,
+          inMutuallyExclusiveGroup: true,
+          label: label,
+          excludeSemantics: true,
+          child: InkWell(
+            key: ProfileScreen.tabKey(t),
+            onTap: () => onSelect(t),
+            child: text
+                // D335: the word, the selected one bold with the Kabso-red
+                // gradient line at the bottom (on the hairline).
+                ? LayoutBuilder(
+                    builder: (context, box) => Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        if (selected)
+                          Positioned(
+                            bottom: 0,
+                            child: Container(
+                              width: box.maxWidth * KProfile.tabIndicatorShare,
+                              height: KProfile.tabIndicatorHeight,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                  KRadius.pill,
+                                ),
+                                gradient: const LinearGradient(
+                                  begin: AlignmentDirectional.centerStart,
+                                  end: AlignmentDirectional.centerEnd,
+                                  colors: KPublicProfile.gradient,
+                                ),
+                              ),
+                            ),
+                          ),
+                        // M: the word's centre ≈ 20 dp above the line (2
+                        // under the tab's middle).
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: KProfile.tabLabelDrop,
+                          ),
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textScaler: MediaQuery.textScalerOf(context).clamp(
+                              maxScaleFactor: KMetrics.topBarMaxTextScale,
+                            ),
+                            style: context.textStyles.label.copyWith(
+                              fontSize: 14,
+                              fontWeight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              color: selected ? p.textPrimary : p.textTertiary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: selected ? p.textPrimary : p.border,
+                          width: selected ? KMetrics.stroke : KMetrics.hairline,
+                        ),
+                      ),
+                    ),
+                    child: Center(
+                      child: AppIcon(
+                        selected ? filled : outline,
+                        size: KMetrics.iconMd,
+                        color: selected ? p.textPrimary : p.textTertiary,
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+      );
+    }
+
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final t in tabs)
+          switch (t) {
+            ProfileTab.posts => item(
+              t,
+              AppIcons.grid,
+              AppIcons.gridFilled,
+              text ? l10n.profileTabPostsWord : l10n.homeTabPosts,
+            ),
+            ProfileTab.reels => item(
+              t,
+              AppIcons.reels,
+              AppIcons.reelsFilled,
+              text ? l10n.profileTabReelsWord : l10n.homeTabReels,
+            ),
+            ProfileTab.reposts => item(
+              t,
+              AppIcons.repost,
+              AppIcons.repost,
+              text ? l10n.profileTabRepostsWord : l10n.profileReposts,
+            ),
+            ProfileTab.saved => item(
+              t,
+              AppIcons.bookmark,
+              AppIcons.bookmarkFilled,
+              text ? l10n.profileTabSavedWord : l10n.profileSaved,
+            ),
+          },
+      ],
+    );
+    return ColoredBox(
+      key: ProfileScreen.tabsKey,
+      color: background,
+      child: text
+          ? Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: KProfile.tabsInset,
+              ),
+              child: DecoratedBox(
+                position: DecorationPosition.foreground,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: p.border.withValues(alpha: 0.6)),
+                  ),
+                ),
+                child: row,
+              ),
+            )
+          : row,
+    );
+  }
+
+  @override
+  bool shouldRebuild(ProfileTabsDelegate old) =>
+      old.tab != tab ||
+      old.background != background ||
+      old.tabs != tabs ||
+      old.text != text;
+}
+
+/// The selected tab's grid of [username], or its state. [own] picks the
+/// copy ("Your posts…") of the own profile.
+class ProfileGrid extends ConsumerWidget {
+  const new({
+    required this.username,
+    required this.tab,
+    super.key,
+    this.own = false,
+  });
+
+  final String username;
+  final ProfileTab tab;
+  final bool own;
+
+  static const gridKey = Key('profile.grid');
+  static const loadMoreRetryKey = Key('profile.grid.retry');
+  static Key cellKey(String postId) => PostGridCell.cellKey(postId);
+  static const stateKey = Key('profile.gridState');
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final reels = tab == ProfileTab.reels;
+    final saved = tab == ProfileTab.saved;
+    // Saved mixes posts and reels: post-shaped cells (D316), reels marked
+    // with play.
+    final aspect = reels ? KProfile.reelAspect : KProfile.postAspect;
+    Widget state(String title, String body) => SliverToBoxAdapter(
+      child: Padding(
+        key: stateKey,
+        padding: const EdgeInsets.symmetric(vertical: KSpacing.xl),
+        child: KEmptyState(
+          icon: switch (tab) {
+            ProfileTab.posts => Icons.grid_on_rounded,
+            ProfileTab.reels => Icons.smart_display_outlined,
+            ProfileTab.reposts => Icons.repeat_rounded,
+            ProfileTab.saved => Icons.bookmark_border_rounded,
+          },
+          title: title,
+          message: body,
+          compact: true,
+        ),
+      ),
+    );
+    // D316 / D335: inset from the screen's edges, 3 dp apart.
+    Widget grid(int count, Widget Function(int) cell) => SliverPadding(
+      padding: const EdgeInsets.fromLTRB(
+        KProfile.pageGridInset,
+        KProfile.pageGridTop,
+        KProfile.pageGridInset,
+        0,
+      ),
+      sliver: SliverGrid.builder(
+        key: gridKey,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisSpacing: KProfile.pageGridGap,
+          crossAxisSpacing: KProfile.pageGridGap,
+          childAspectRatio: aspect,
+        ),
+        itemCount: count,
+        // D335: rounded tiles.
+        itemBuilder: (_, i) => ClipRRect(
+          borderRadius: BorderRadius.circular(KProfile.gridRadius),
+          child: cell(i),
+        ),
+      ),
+    );
+    final key = (username: username, tab: tab);
+    // A reload (pull to refresh, a new page) keeps the cells on screen.
+    return switch (ref.watch(profileGridProvider(key))) {
+      AsyncValue(
+        value: FeedItems(:final items, :final hasMore, :final loadMoreError),
+      )
+          when items.isNotEmpty =>
+        SliverMainAxisGroup(
+          slivers: [
+            grid(items.length, (i) => PostGridCell(item: items[i])),
+            if (hasMore)
+              SliverToBoxAdapter(
+                child: loadMoreError == null
+                    ? PostGridLoadMore(
+                        // A new element per page: each asks once.
+                        key: ValueKey(items.length),
+                        onVisible: () => ref
+                            .read(profileGridPagesProvider(key).notifier)
+                            .loadMore(),
+                      )
+                    : Center(
+                        child: TextButton(
+                          key: loadMoreRetryKey,
+                          onPressed: () => ref
+                              .read(profileGridPagesProvider(key).notifier)
+                              .loadMore(),
+                          child: Text(l10n.actionRetry),
+                        ),
+                      ),
+              ),
+          ],
+        ),
+      // An empty grid — and (owner) a tab without its API yet (the reels
+      // tab): the normal empty state, never a «coming in phase N» note.
+      AsyncValue(value: FeedItems()) ||
+      AsyncValue(value: FeedUnavailable()) when !saved => state(
+        switch (tab) {
+          ProfileTab.posts => l10n.profileNoPosts,
+          ProfileTab.reels => l10n.profileNoReels,
+          ProfileTab.reposts => l10n.profileNoReposts,
+          ProfileTab.saved => l10n.profileNoSaved,
+        },
+        switch (tab) {
+          ProfileTab.saved => l10n.profileSavedEmptyBody,
+          ProfileTab.reposts => l10n.profileRepostsEmptyBody,
+          _ when own => l10n.profileGridEmptyBody,
+          _ => l10n.profileOtherEmptyBody,
+        },
+      ),
+      AsyncValue(value: FeedItems()) => state(
+        l10n.profileNoSaved,
+        l10n.profileSavedEmptyBody,
+      ),
+      AsyncValue(value: FeedUnavailable()) => state(
+        l10n.profileSavedComingTitle,
+        l10n.profileSavedComingBody,
+      ),
+      AsyncError(:final error) => SliverToBoxAdapter(
+        child: FailureErrorState(
+          title: l10n.errorTitle,
+          failure: toAppFailure(error),
+          onRetry: () => ref.invalidate(profileGridProvider(key)),
+        ),
+      ),
+      _ => grid(
+        6,
+        (_) => const KSkeleton(width: double.infinity, height: double.infinity),
+      ),
+    };
+  }
+}
+
+/// Asks for the next page when it comes into view (built lazily near the
+/// end of the grid).
+class PostGridLoadMore extends StatefulWidget {
+  const new({required this.onVisible, super.key});
+
+  final VoidCallback onVisible;
+
+  @override
+  State<PostGridLoadMore> createState() => _PostGridLoadMoreState();
+}
+
+class _PostGridLoadMoreState extends State<PostGridLoadMore> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onVisible());
+  }
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.all(KSpacing.md),
+    child: Center(child: CircularProgressIndicator()),
+  );
+}
+
+/// One cell of a posts grid (profile, hashtag, search): the cover, or the
+/// text of a text-only post, with the pinned, gallery and video marks; a
+/// real post opens its screen.
+class PostGridCell extends StatelessWidget {
+  const new({required this.item, super.key});
+
+  final ProfileGridItem item;
+
+  static Key cellKey(String postId) => Key('profile.grid.$postId');
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l10n = context.l10n;
+    final cover = item.cover;
+    final text = item.text;
+    final id = item.postId;
+    final white = KPalette.dark.textPrimary;
+    final cell = Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(
+          // A tint under the cover (and under a text-only post) so every
+          // cell reads as a tile while its image loads or if it fails.
+          color: p.surfaceOverlay,
+          child: cover != null
+              ? Image(
+                  image: cover,
+                  fit: BoxFit.cover,
+                  excludeFromSemantics: true,
+                  errorBuilder: (_, _, _) => const SizedBox.expand(),
+                )
+              : (text != null && text.isNotEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(KSpacing.sm),
+                        child: Center(
+                          child: Text(
+                            text,
+                            maxLines: 5,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: context.textStyles.caption.copyWith(
+                              color: p.textPrimary,
+                            ),
+                          ),
+                        ),
+                      )
+                    : null),
+        ),
+        if (item.isVideo || item.multiple || item.pinned)
+          PositionedDirectional(
+            top: KSpacing.xs,
+            end: KSpacing.xs,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (item.pinned)
+                  Icon(
+                    Icons.push_pin_rounded,
+                    size: KMetrics.iconSm,
+                    color: cover == null ? p.textSecondary : white,
+                  ),
+                if (item.multiple)
+                  Icon(
+                    Icons.collections_rounded,
+                    size: KMetrics.iconSm,
+                    color: white,
+                  ),
+                if (item.isVideo)
+                  AppIcon(AppIcons.play, size: KMetrics.iconSm, color: white),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (id == null) return cell;
+    return Semantics(
+      button: true,
+      label: [
+        l10n.profileGridOpenPost,
+        if (item.pinned) l10n.profileGridPinned,
+        ?(text?.isEmpty ?? true ? null : text),
+      ].join(', '),
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: cellKey(id),
+        onTap: () => context.push(AppRoutes.post(id)),
+        child: cell,
+      ),
+    );
+  }
+}
+
+/// Loading placeholder of a profile header.
+class ProfileSkeleton extends StatelessWidget {
+  const new({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       label: context.l10n.loading,
       child: const Padding(
-        padding: EdgeInsetsDirectional.all(KSpacing.xl),
+        padding: EdgeInsetsDirectional.all(KProfile.inset),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            KSkeleton(height: KSizes.avatarLg, circle: true),
-            SizedBox(height: KSpacing.lg),
-            KSkeleton(width: 180, height: 24),
-            SizedBox(height: KSpacing.sm),
-            KSkeleton(width: 120),
-            SizedBox(height: KSpacing.xl),
-            KSkeleton(height: 72, radius: KRadius.lg),
+            Row(
+              children: [
+                KSkeleton(height: KProfile.avatar, circle: true),
+                SizedBox(width: KSpacing.lg),
+                Expanded(child: KSkeleton(height: KSpacing.xxl)),
+              ],
+            ),
+            SizedBox(height: KSpacing.md),
+            KSkeleton(width: 140),
+            SizedBox(height: KSpacing.md),
+            KSkeleton(height: 40),
           ],
         ),
       ),

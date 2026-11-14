@@ -10,7 +10,7 @@
  * connection (KABSO_TEST_ADMIN_DATABASE_URL, plus `psql` on PATH); they are required in CI.
  */
 import 'reflect-metadata';
-import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto';
+import { createHash, createHmac, pbkdf2Sync, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -216,14 +216,36 @@ describe('KL-013 runtime role DML', () => {
       expect.arrayContaining(['live_categories', 'live_rooms', 'follows']),
     );
     for (const row of rows) {
-      const appendOnly = row.table === 'audit_logs';
+      // KL-058: the points ledger and level history are append-only like the audit log.
+      // CP-017: wallet_ledger is append-only too (migration 20261108090000_wallet_and_bullets);
+      // CP-018: so is family_points_ledger (migration 20261110100000_families_cp_medals);
+      // CP-021: and cp_points_ledger (migration 20261113100000_cp_space).
+      const appendOnly = [
+        'audit_logs',
+        'points_ledger',
+        'level_history',
+        'wallet_ledger',
+        'family_points_ledger',
+        'cp_points_ledger',
+        // v1.75-live (D285): a recruiter's day is written once (migration 20270319090100_staff_recruits).
+        'staff_recruit_commissions',
+        // v1.82-live (D295): an agency is banned once (migration 20270329090100_creator_lives).
+        'agency_bans',
+        // v1.126-social (D370): the recharge-points ledger (migration 20270430090000_recharge_points).
+        'recharge_points_ledger',
+        // v1.130-social (D376): status pack purchases (migration 20270505090000_status_emoji).
+        'status_pack_purchases',
+      ].includes(row.table);
+      // KL-058: admin permissions are granted by the migration role only. v1.73-live (D283c): the staff IDs are given
+      // only by the SECURITY DEFINER `kabso_assign_staff_id` (through `kabso_admin_panel_role`).
+      const readOnly = ['user_admin_permissions', 'staff_ids'].includes(row.table);
       expect({ table: row.table, owner: row.owner, s: row.s, i: row.i, u: row.u, d: row.d }).toEqual({
         table: row.table,
         owner: migrationUser,
         s: true,
-        i: true,
-        u: !appendOnly,
-        d: !appendOnly,
+        i: !readOnly,
+        u: !appendOnly && !readOnly,
+        d: !appendOnly && !readOnly,
       });
     }
   });
@@ -331,15 +353,23 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
     const byName = Object.fromEntries(indexes.map((i) => [i.name, i.def]));
     for (const name of [
       'live_rooms_one_live_per_host',
-      'live_rooms_live_popular_idx',
+      'live_rooms_live_popular_cherries_idx',
       'live_rooms_live_new_idx',
-      'live_rooms_live_cat_popular_idx',
+      'live_rooms_live_cat_popular_cherries_idx',
       'live_rooms_live_cat_new_idx',
       'live_rooms_live_heartbeat_idx',
     ]) {
       expect(byName[name], name).toMatch(/WHERE \(status = 'LIVE'::live_room_status\)$/);
     }
     expect(byName.live_rooms_one_live_per_host).toMatch(/^CREATE UNIQUE INDEX/);
+    // v1.86-live (D310): the popular keyset indexes order by the room cherries (CP-012's score ones are gone).
+    expect(byName.live_rooms_live_popular_cherries_idx).toContain(
+      '(cherries DESC, started_at DESC, id DESC)',
+    );
+    expect(byName.live_rooms_live_cat_popular_cherries_idx).toContain(
+      '(category_id, cherries DESC, started_at DESC, id DESC)',
+    );
+    expect(byName.live_rooms_live_popular_idx).toBeUndefined();
     expect(Object.keys(byName)).toEqual(
       expect.arrayContaining([
         'live_rooms_host_started_idx',
@@ -358,11 +388,750 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       'live_categories_name_ar_length',
       'live_categories_name_en_length',
       'live_categories_slug_format',
+      // v1.86-live (D310, 20270408090000_live_room_cherries): the room cherries are never negative.
+      'live_rooms_cherries_nonneg',
       'live_rooms_end_state',
+      // CP-014 (20261030090000_live_room_edit): the info version is never negative.
+      'live_rooms_info_version_nonneg',
+      // v1.27.6-live (20261130090000_live_audience): the peak is never negative (NULL before D140).
+      'live_rooms_peak_viewer_count_min',
+      // v1.47-live (D212, 20270205090100_podcast): episode number, topic and question time only on a PODCAST;
+      // v1.114-live (D363, 20270426090000_podcast_video) re-creates it with `podcast_video` (true only on a PODCAST).
+      'live_rooms_podcast_fields',
+      // CP-012 (20261028090000_live_taps): the score is never negative.
+      'live_rooms_score_nonneg',
+      // CP-011 (20261027090000_live_seats): the seat count matches the mode; theme slug; version.
+      'live_rooms_seat_count_mode',
+      'live_rooms_seats_version_nonneg',
+      // v1.56-live (D213, 20270301090100_streamer; v1.57-live D247 20270302090000_streamer_main re-creates it):
+      // the STREAMER layout fields are set exactly for a STREAMER.
+      'live_rooms_streamer_fields',
+      'live_rooms_theme_format',
       'live_rooms_time_order',
       'live_rooms_title_length',
+      // CP-014: the topic is 1–100 code points or NULL.
+      'live_rooms_topic_length',
       'live_rooms_viewer_count_nonneg',
+      // v1.132-social (D379, 20270511090000_vip_live_perks): a VIP room is an AUDIO live.
+      'live_rooms_vip_audio',
+      'live_rooms_wish_gifts_max',
     ]);
+    // CP-014: the Contribution list of a room reads the tappers in rank order (v1.23-live: points,
+    // taps and gifts, then who reached them first).
+    const rank = await runtime.$queryRawUnsafe<{ def: string }[]>(`
+      SELECT indexdef AS def FROM pg_indexes
+       WHERE schemaname = 'public' AND indexname = 'live_room_tappers_room_rank_idx'`);
+    expect(rank[0]?.def).toContain('(room_id, points DESC, points_at, user_id)');
+  });
+});
+
+describe('CP-012 score tables (live_room_scores, live_room_tappers) under the KL-013 roles', () => {
+  const ids = {
+    user: '0192f1c2-0000-7000-8000-00000000b001',
+    room: '0192f1c2-0000-7000-8000-00000000b002',
+  };
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM live_rooms WHERE id = '${ids.room}'`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${ids.user}'`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    const owners = await runtime.$queryRawUnsafe<{ t: string; owner: string }[]>(`
+      SELECT c.relname::text AS t, pg_get_userbyid(c.relowner)::text AS owner
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname IN ('live_room_scores', 'live_room_tappers')
+       ORDER BY 1`);
+    expect(owners).toEqual([
+      { t: 'live_room_scores', owner: migrationUser },
+      { t: 'live_room_tappers', owner: migrationUser },
+    ]);
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conrelid IN ('live_room_scores'::regclass, 'live_room_tappers'::regclass)
+       ORDER BY 1`);
+    // v1.23-live (CP-020): the Contribution points are taps + 100 a gift coin.
+    // v1.63-live (D259, §10.95): the live's host cherries are never negative.
+    expect(checks.map((c) => c.name)).toEqual([
+      'live_room_scores_host_cherries',
+      'live_room_scores_nonneg',
+      'live_room_tappers_counted',
+      'live_room_tappers_points',
+    ]);
+  });
+
+  it('the runtime role has DML on both; the CHECKs hold; DDL and TRUNCATE are refused', async () => {
+    await runtimeExec(
+      `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${ids.user}', 'cp012-${suffix}@example.com', 'x', now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO live_rooms (id, host_user_id, title, status, mode, updated_at) VALUES ('${ids.room}', '${ids.user}', 'Probe', 'LIVE'::live_room_status, 'SOLO'::live_room_mode, now())`,
+    );
+    await runtimeExec(`INSERT INTO live_room_scores (room_id, tap_points) VALUES ('${ids.room}', 3)`);
+    await runtimeExec(
+      `INSERT INTO live_room_tappers (room_id, user_id, counted, last_batch_at, points, points_at) VALUES ('${ids.room}', '${ids.user}', 3, now(), 3, now())`,
+    );
+    expect(await runtimeExec(`UPDATE live_rooms SET score = score + 3 WHERE id = '${ids.room}'`)).toBe(1);
+    expect(
+      await runtimeExec(
+        `UPDATE live_room_scores SET tap_points = tap_points + 1 WHERE room_id = '${ids.room}'`,
+      ),
+    ).toBe(1);
+    await expect(runtimeExec(`UPDATE live_rooms SET score = -1 WHERE id = '${ids.room}'`)).rejects.toThrow(
+      /live_rooms_score_nonneg/,
+    );
+    // v1.86-live (D310): the runtime role writes the room cherries; never below 0.
+    expect(
+      await runtimeExec(`UPDATE live_rooms SET cherries = cherries + 650 WHERE id = '${ids.room}'`),
+    ).toBe(1);
+    await expect(runtimeExec(`UPDATE live_rooms SET cherries = -1 WHERE id = '${ids.room}'`)).rejects.toThrow(
+      /live_rooms_cherries_nonneg/,
+    );
+    await expect(
+      runtimeExec(`UPDATE live_room_scores SET support_points = -1 WHERE room_id = '${ids.room}'`),
+    ).rejects.toThrow(/live_room_scores_nonneg/);
+    await expect(
+      runtimeExec(
+        `UPDATE live_room_tappers SET counted = 10001, points = 10001 WHERE room_id = '${ids.room}'`,
+      ),
+    ).rejects.toThrow(/live_room_tappers_counted/);
+    await expect(
+      runtimeExec(`UPDATE live_room_tappers SET support_coins = 1 WHERE room_id = '${ids.room}'`),
+    ).rejects.toThrow(/live_room_tappers_points/);
+    for (const sql of [
+      'TRUNCATE TABLE live_room_scores',
+      'TRUNCATE TABLE live_room_tappers',
+      'ALTER TABLE live_room_tappers DROP CONSTRAINT live_room_tappers_counted',
+      'DROP INDEX live_rooms_live_popular_cherries_idx',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    // The rows go with the room (ON DELETE CASCADE).
+    expect(await runtimeExec(`DELETE FROM live_rooms WHERE id = '${ids.room}'`)).toBe(1);
+    expect(
+      Number(
+        await scalar<bigint>(
+          runtime,
+          `SELECT (SELECT count(*) FROM live_room_scores WHERE room_id = '${ids.room}') + (SELECT count(*) FROM live_room_tappers WHERE room_id = '${ids.room}') AS v`,
+        ),
+      ),
+    ).toBe(0);
+  });
+});
+
+describe('CP-013 chat tables (live_chat_messages, live_chat_mutes) under the KL-013 roles', () => {
+  const ids = {
+    user: '0192f1c2-0000-7000-8000-00000000c001',
+    other: '0192f1c2-0000-7000-8000-00000000c002',
+    room: '0192f1c2-0000-7000-8000-00000000c003',
+    message: '0192f1c2-0000-7000-8000-00000000c004',
+    client: '0192f1c2-0000-7000-8000-00000000c005',
+  };
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM live_rooms WHERE id = '${ids.room}'`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id IN ('${ids.user}', '${ids.other}')`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    const owners = await runtime.$queryRawUnsafe<{ t: string; owner: string }[]>(`
+      SELECT c.relname::text AS t, pg_get_userbyid(c.relowner)::text AS owner
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname IN ('live_chat_messages', 'live_chat_mutes')
+       ORDER BY 1`);
+    expect(owners).toEqual([
+      { t: 'live_chat_messages', owner: migrationUser },
+      { t: 'live_chat_mutes', owner: migrationUser },
+    ]);
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conrelid IN ('live_chat_messages'::regclass, 'live_chat_mutes'::regclass)
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual([
+      'live_chat_messages_deleted_state',
+      // CP-017 (20261108100000_live_chat_media): TEXT / VOICE / IMAGE shape.
+      'live_chat_messages_kind_shape',
+      'live_chat_messages_text_length',
+      'live_chat_mutes_not_self',
+    ]);
+  });
+
+  it('the runtime role has DML on both; the CHECKs and the clientId key hold; DDL and TRUNCATE are refused', async () => {
+    for (const id of [ids.user, ids.other]) {
+      await runtimeExec(
+        `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${id}', 'cp013-${id.slice(-4)}-${suffix}@example.com', 'x', now())`,
+      );
+    }
+    await runtimeExec(
+      `INSERT INTO live_rooms (id, host_user_id, title, status, mode, updated_at) VALUES ('${ids.room}', '${ids.user}', 'Probe', 'LIVE'::live_room_status, 'SOLO'::live_room_mode, now())`,
+    );
+    expect(
+      await scalar<boolean>(runtime, `SELECT chat_enabled AS v FROM live_rooms WHERE id = '${ids.room}'`),
+    ).toBe(true);
+    const insert = (id: string, text: string) =>
+      runtimeExec(
+        `INSERT INTO live_chat_messages (id, room_id, user_id, client_id, text, author_role) VALUES ('${id}', '${ids.room}', '${ids.other}', '${ids.client}', '${text}', 'VIEWER'::live_chat_author_role)`,
+      );
+    await insert(ids.message, 'hello');
+    await expect(insert('0192f1c2-0000-7000-8000-00000000c006', 'again')).rejects.toThrow(
+      /live_chat_messages_client_once/,
+    );
+    await expect(insert('0192f1c2-0000-7000-8000-00000000c007', '')).rejects.toThrow(
+      /live_chat_messages_text_length/,
+    );
+    await expect(
+      runtimeExec(`UPDATE live_chat_messages SET deleted_by_id = '${ids.user}' WHERE id = '${ids.message}'`),
+    ).rejects.toThrow(/live_chat_messages_deleted_state/);
+    expect(
+      await runtimeExec(
+        `UPDATE live_chat_messages SET deleted_at = now(), deleted_by_id = '${ids.user}' WHERE id = '${ids.message}'`,
+      ),
+    ).toBe(1);
+    await runtimeExec(
+      `INSERT INTO live_chat_mutes (room_id, user_id, muted_by_id) VALUES ('${ids.room}', '${ids.other}', '${ids.user}')`,
+    );
+    await expect(
+      runtimeExec(
+        `INSERT INTO live_chat_mutes (room_id, user_id, muted_by_id) VALUES ('${ids.room}', '${ids.user}', '${ids.user}')`,
+      ),
+    ).rejects.toThrow(/live_chat_mutes_not_self/);
+    for (const sql of [
+      'TRUNCATE TABLE live_chat_messages',
+      'TRUNCATE TABLE live_chat_mutes',
+      'ALTER TABLE live_chat_messages DROP CONSTRAINT live_chat_messages_text_length',
+      'DROP INDEX live_chat_messages_room_created_idx',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    // The rows go with the room (ON DELETE CASCADE).
+    expect(await runtimeExec(`DELETE FROM live_rooms WHERE id = '${ids.room}'`)).toBe(1);
+    expect(
+      Number(
+        await scalar<bigint>(
+          runtime,
+          `SELECT (SELECT count(*) FROM live_chat_messages WHERE room_id = '${ids.room}') + (SELECT count(*) FROM live_chat_mutes WHERE room_id = '${ids.room}') AS v`,
+        ),
+      ),
+    ).toBe(0);
+  });
+});
+
+describe('D281 smart targets tables (host_target_assignments, host_target_settings) under the KL-013 roles', () => {
+  const user = '0192f1c2-0000-7000-8000-00000000d281';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${user}'`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    const owners = await runtime.$queryRawUnsafe<{ t: string; owner: string }[]>(`
+      SELECT c.relname::text AS t, pg_get_userbyid(c.relowner)::text AS owner
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname IN ('host_target_assignments', 'host_target_settings')
+       ORDER BY 1`);
+    expect(owners).toEqual([
+      { t: 'host_target_assignments', owner: migrationUser },
+      { t: 'host_target_settings', owner: migrationUser },
+    ]);
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c'
+         AND conrelid IN ('host_target_assignments'::regclass, 'host_target_settings'::regclass,
+                          'task_assignments'::regclass)
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual(
+      expect.arrayContaining([
+        'host_target_assignments_shape',
+        'host_target_settings_one',
+        'host_target_settings_shape',
+        'task_assignments_variant_shape',
+      ]),
+    );
+  });
+
+  it('the runtime role has DML; the CHECKs hold (levels, kinds, a paid row, the knobs’ order); DDL is refused', async () => {
+    await runtimeExec(
+      `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${user}', 'd281-${suffix}@example.com', 'x', now())`,
+    );
+    const insert = (level: string, kind: string, subject: string | null, extra = '') =>
+      runtimeExec(
+        `INSERT INTO host_target_assignments (user_id, day, level, code, kind, subject, amount, window_from, window_to,
+           expected_coins, reward_bps, reward_cherries, title_ar, title_en, reason, catalogue_version${extra ? ', paid_cherries, paid_at' : ''})
+         VALUES ('${user}', '2027-01-14', '${level}', 'T.${kind}.${subject ?? '*'}.3.0-1440', '${kind}',
+           ${subject === null ? 'NULL' : `'${subject}'`}, 3, 0, 1440, 300, 150, 10, 'ع', 'e', '{}'::jsonb, 'v'${extra})`,
+      );
+    await insert('EASY', 'GIFT_COUNT', 'rose');
+    await expect(insert('NOPE', 'GIFT_SENDS', null)).rejects.toThrow(/host_target_assignments_shape/);
+    // A gift count needs its gift; a cherries target has none.
+    await expect(insert('MEDIUM', 'GIFT_COUNT', null)).rejects.toThrow(/host_target_assignments_shape/);
+    await expect(insert('MEDIUM', 'GIFT_CHERRIES', 'rose')).rejects.toThrow(/host_target_assignments_shape/);
+    // A payment never above the reward shown, and only with a completion.
+    await expect(insert('HARD', 'GIFT_SENDS', null, ', 11, now()')).rejects.toThrow(
+      /host_target_assignments_shape/,
+    );
+    expect(
+      await runtimeExec(
+        `UPDATE host_target_assignments SET completed_at = now(), paid_cherries = 10, paid_at = now() WHERE user_id = '${user}'`,
+      ),
+    ).toBe(1);
+    // The knobs: one row, the order of the levels.
+    await expect(runtimeExec(`INSERT INTO host_target_settings (id) VALUES (2)`)).rejects.toThrow(
+      /host_target_settings_one|host_target_settings_pkey/,
+    );
+    await expect(
+      runtimeExec(
+        `INSERT INTO host_target_settings (id, easy_percentile) VALUES (1, 80) ON CONFLICT (id) DO UPDATE SET easy_percentile = 80`,
+      ),
+    ).rejects.toThrow(/host_target_settings_shape/);
+    // The ledger's sign rule knows the new credit.
+    await expect(
+      runtimeExec(
+        `INSERT INTO cherry_ledger (id, user_id, delta, balance_after, reason, reference_id)
+         VALUES ('0192f1c2-0000-7000-8000-00000000d282', '${user}', -5, 0, 'HOST_TARGET_REWARD', 'HT:EASY@2027-01-14')`,
+      ),
+    ).rejects.toThrow(/cherry_ledger_reason_sign/);
+    for (const sql of [
+      'TRUNCATE TABLE host_target_assignments',
+      'ALTER TABLE host_target_assignments DROP CONSTRAINT host_target_assignments_shape',
+      'DROP TABLE host_target_settings',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    expect(await runtimeExec(`DELETE FROM host_target_assignments WHERE user_id = '${user}'`)).toBe(1);
+  });
+});
+
+describe('D283 staff regions and the team picture (admin_staff_regions, user_profiles.staff_*) under the KL-013 roles', () => {
+  const user = '0192f1c2-0000-7000-8000-00000000d283';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${user}'`);
+    });
+  });
+
+  it('is owned by the migration role and has its CHECK constraints', async () => {
+    expect(
+      await scalar<string>(
+        runtime,
+        `SELECT pg_get_userbyid(c.relowner)::text AS v FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relname = 'admin_staff_regions'`,
+      ),
+    ).toBe(migrationUser);
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conname IN ('admin_staff_regions_code', 'user_profiles_staff_saved_avatar')
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual([
+      'admin_staff_regions_code',
+      'user_profiles_staff_saved_avatar',
+    ]);
+  });
+
+  it('the runtime role has DML; the CHECKs hold; DDL and TRUNCATE are refused', async () => {
+    await runtimeExec(
+      `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${user}', 'd283-${suffix}@example.com', 'x', now())`,
+    );
+    await runtimeExec(`INSERT INTO admin_staff_regions (user_id, region) VALUES ('${user}', 'ARAB_WORLD')`);
+    await expect(
+      runtimeExec(`INSERT INTO admin_staff_regions (user_id, region) VALUES ('${user}', 'MARS')`),
+    ).rejects.toThrow(/admin_staff_regions_code/);
+    expect(await runtimeExec(`DELETE FROM admin_staff_regions WHERE user_id = '${user}'`)).toBe(1);
+    await runtimeExec(
+      `INSERT INTO user_profiles (user_id, username, display_name, updated_at) VALUES ('${user}', 'd283_${suffix}', 'D283', now())`,
+    );
+    await expect(
+      runtimeExec(
+        `UPDATE user_profiles SET staff_avatar = false, staff_saved_avatar_url = 'https://x.example/a.jpg' WHERE user_id = '${user}'`,
+      ),
+    ).rejects.toThrow(/user_profiles_staff_saved_avatar/);
+    for (const sql of [
+      'TRUNCATE TABLE admin_staff_regions',
+      'ALTER TABLE admin_staff_regions DROP CONSTRAINT admin_staff_regions_code',
+      'ALTER TABLE user_profiles DROP CONSTRAINT user_profiles_staff_saved_avatar',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+  });
+});
+
+describe('D385 pins and the in-app support channel (dm_pins, wa_conversations.channel) under the KL-013 roles', () => {
+  const user = '0192f1c2-0000-7000-8000-00000000d385';
+  const peer = '0192f1c2-0000-7000-8000-00000000d386';
+  const conversation = '0192f1c2-0000-7000-8000-00000000d387';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM wa_conversations WHERE linked_user_id = '${user}'`);
+      await m.$executeRawUnsafe(`DELETE FROM dm_conversations WHERE id = '${conversation}'`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id IN ('${user}', '${peer}')`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    expect(
+      await scalar<string>(
+        runtime,
+        `SELECT pg_get_userbyid(c.relowner)::text AS v FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relname = 'dm_pins'`,
+      ),
+    ).toBe(migrationUser);
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conname IN ('dm_pins_target', 'wa_conversations_channel_shape')
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual(['dm_pins_target', 'wa_conversations_channel_shape']);
+  });
+
+  it('the runtime role has DML; the CHECKs and the one-thread key hold; DDL and TRUNCATE are refused', async () => {
+    for (const [id, tag] of [
+      [user, 'a'],
+      [peer, 'b'],
+    ] as const) {
+      await runtimeExec(
+        `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${id}', 'd385${tag}-${suffix}@example.com', 'x', now())`,
+      );
+    }
+    await runtimeExec(
+      `INSERT INTO dm_conversations (id, user_low_id, user_high_id, last_message_at) VALUES ('${conversation}', '${user}', '${peer}', now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO dm_pins (id, user_id, conversation_id) VALUES ('${randomUUID()}', '${user}', '${conversation}')`,
+    );
+    await expect(
+      runtimeExec(`INSERT INTO dm_pins (id, user_id) VALUES ('${randomUUID()}', '${user}')`),
+    ).rejects.toThrow(/dm_pins_target/);
+    await expect(
+      runtimeExec(
+        `INSERT INTO dm_pins (id, user_id, conversation_id) VALUES ('${randomUUID()}', '${user}', '${conversation}')`,
+      ),
+    ).rejects.toThrow(/dm_pins_user_conversation_key/);
+    // An in-app thread has no phone and an owner; a WhatsApp one has a phone.
+    await runtimeExec(
+      `INSERT INTO wa_conversations (id, channel, linked_user_id) VALUES ('${randomUUID()}', 'IN_APP', '${user}')`,
+    );
+    await expect(
+      runtimeExec(
+        `INSERT INTO wa_conversations (id, channel, linked_user_id) VALUES ('${randomUUID()}', 'IN_APP', '${user}')`,
+      ),
+    ).rejects.toThrow(/wa_conversations_in_app_user_key/);
+    await expect(
+      runtimeExec(`INSERT INTO wa_conversations (id, channel) VALUES ('${randomUUID()}', 'IN_APP')`),
+    ).rejects.toThrow(/wa_conversations_channel_shape/);
+    await expect(
+      runtimeExec(
+        `INSERT INTO wa_conversations (id, channel, phone_e164, wa_id, linked_user_id) VALUES ('${randomUUID()}', 'IN_APP', '+966500000000', '966500000000', '${peer}')`,
+      ),
+    ).rejects.toThrow(/wa_conversations_channel_shape/);
+    await expect(
+      runtimeExec(`INSERT INTO wa_conversations (id, linked_user_id) VALUES ('${randomUUID()}', '${peer}')`),
+    ).rejects.toThrow(/wa_conversations_channel_shape/);
+    for (const sql of [
+      'TRUNCATE TABLE dm_pins',
+      'ALTER TABLE dm_pins DROP CONSTRAINT dm_pins_target',
+      'ALTER TABLE wa_conversations DROP CONSTRAINT wa_conversations_channel_shape',
+      'DROP INDEX wa_conversations_in_app_user_key',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    expect(await runtimeExec(`DELETE FROM dm_pins WHERE user_id = '${user}'`)).toBe(1);
+  });
+});
+
+describe('D386 category profiles (profile_featured_pins, category_verification_requests) under the KL-013 roles', () => {
+  const user = '0192f1c2-0000-7000-8000-00000000d386';
+  const post = '0192f1c2-0000-7000-8000-0000000d386a';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${user}'`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    for (const table of ['profile_featured_pins', 'category_verification_requests']) {
+      expect(
+        await scalar<string>(
+          runtime,
+          `SELECT pg_get_userbyid(c.relowner)::text AS v FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public' AND c.relname = '${table}'`,
+        ),
+      ).toBe(migrationUser);
+    }
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conname IN ('profile_featured_pins_position', 'category_verification_requests_note_len',
+             'category_verification_requests_decided', 'user_profiles_category_verified_shape')
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual([
+      'category_verification_requests_decided',
+      'category_verification_requests_note_len',
+      'profile_featured_pins_position',
+      'user_profiles_category_verified_shape',
+    ]);
+  });
+
+  it('the runtime role has DML; the CHECKs and the keys hold; DDL and TRUNCATE are refused', async () => {
+    await runtimeExec(
+      `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${user}', 'd386-${suffix}@example.com', 'x', now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO user_profiles (user_id, username, display_name, updated_at) VALUES ('${user}', 'd386_${suffix}', 'D386', now())`,
+    );
+    // A verification needs a category.
+    await expect(
+      runtimeExec(`UPDATE user_profiles SET category_verified_at = now() WHERE user_id = '${user}'`),
+    ).rejects.toThrow(/user_profiles_category_verified_shape/);
+    expect(
+      await runtimeExec(
+        `UPDATE user_profiles SET account_category = 'QURAN_RECITER', category_verified_at = now(), category_locked_at = now() WHERE user_id = '${user}'`,
+      ),
+    ).toBe(1);
+    await runtimeExec(
+      `INSERT INTO posts (id, author_id, published_at, updated_at) VALUES ('${post}', '${user}', now(), now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO profile_featured_pins (user_id, post_id, position) VALUES ('${user}', '${post}', 0)`,
+    );
+    await expect(
+      runtimeExec(`UPDATE profile_featured_pins SET position = 6 WHERE user_id = '${user}'`),
+    ).rejects.toThrow(/profile_featured_pins_position/);
+    await expect(
+      runtimeExec(
+        `INSERT INTO profile_featured_pins (user_id, post_id, position) VALUES ('${user}', '${post}', 1)`,
+      ),
+    ).rejects.toThrow(/profile_featured_pins_pkey/);
+    // One PENDING request per person; a decision carries its fields.
+    await runtimeExec(
+      `INSERT INTO category_verification_requests (id, user_id, category) VALUES ('${randomUUID()}', '${user}', 'QURAN_RECITER')`,
+    );
+    await expect(
+      runtimeExec(
+        `INSERT INTO category_verification_requests (id, user_id, category) VALUES ('${randomUUID()}', '${user}', 'POET')`,
+      ),
+    ).rejects.toThrow(/category_verification_requests_one_pending/);
+    await expect(
+      runtimeExec(
+        `INSERT INTO category_verification_requests (id, user_id, category, status, decided_at) VALUES ('${randomUUID()}', '${user}', 'POET', 'REJECTED', now())`,
+      ),
+    ).rejects.toThrow(/category_verification_requests_decided/);
+    await expect(
+      runtimeExec(
+        `INSERT INTO category_verification_requests (id, user_id, category, status, decided_at, cancel_reason, note) VALUES ('${randomUUID()}', '${user}', 'POET', 'CANCELLED', now(), 'user', '')`,
+      ),
+    ).rejects.toThrow(/category_verification_requests_note_len/);
+    for (const sql of [
+      'TRUNCATE TABLE profile_featured_pins',
+      'TRUNCATE TABLE category_verification_requests',
+      'ALTER TABLE profile_featured_pins DROP CONSTRAINT profile_featured_pins_position',
+      'ALTER TABLE user_profiles DROP CONSTRAINT user_profiles_category_verified_shape',
+      'DROP INDEX category_verification_requests_one_pending',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    expect(await runtimeExec(`DELETE FROM profile_featured_pins WHERE user_id = '${user}'`)).toBe(1);
+    expect(await runtimeExec(`DELETE FROM category_verification_requests WHERE user_id = '${user}'`)).toBe(1);
+  });
+});
+
+describe('D283c staff IDs (staff_ids) under the KL-013 roles', () => {
+  const user = '0192f1c2-0000-7000-8000-0000000d283c';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM staff_ids WHERE user_id = '${user}'`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${user}'`);
+    });
+  });
+
+  it('is owned by the migration role, read-only for the runtime role, with its constraints', async () => {
+    expect(
+      await scalar<string>(
+        runtime,
+        `SELECT pg_get_userbyid(c.relowner)::text AS v FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relname = 'staff_ids'`,
+      ),
+    ).toBe(migrationUser);
+    const constraints = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE conrelid = 'public.staff_ids'::regclass ORDER BY 1`);
+    expect(constraints.map((c) => c.name)).toEqual([
+      'staff_ids_number_nonnegative',
+      'staff_ids_pkey',
+      'staff_ids_user_id_fkey',
+    ]);
+    expect(
+      await scalar<boolean>(
+        runtime,
+        `SELECT indisunique AS v FROM pg_index WHERE indexrelid = 'public.staff_ids_user_id_key'::regclass`,
+      ),
+    ).toBe(true);
+  });
+
+  it('only the grant function writes it: one number per person, kept, MAX + 1; DML and DDL refused', async () => {
+    await runtimeExec(
+      `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${user}', 'd283c-${suffix}@example.com', 'x', now())`,
+    );
+    for (const sql of [
+      `INSERT INTO staff_ids (number, user_id) VALUES (99999, '${user}')`,
+      `UPDATE staff_ids SET number = number + 1000`,
+      `DELETE FROM staff_ids`,
+      `SELECT kabso_assign_staff_id('${user}'::uuid, false)`,
+      'TRUNCATE TABLE staff_ids',
+      'ALTER TABLE staff_ids DROP CONSTRAINT staff_ids_number_nonnegative',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    const max = await scalar<number | null>(runtime, 'SELECT MAX(number) AS v FROM staff_ids');
+    await runtime.$transaction(async (tx) => {
+      await tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${user}'::uuid, 'FINANCE', true, NULL)`);
+      await tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${user}'::uuid, 'SUPPORT', true, NULL)`);
+      await tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${user}'::uuid, 'FINANCE', false, NULL)`);
+      await tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${user}'::uuid, 'SUPPORT', false, NULL)`);
+    });
+    const rows = await runtime.$queryRawUnsafe<{ number: number }[]>(
+      `SELECT number FROM staff_ids WHERE user_id = '${user}'`,
+    );
+    expect(rows).toEqual([{ number: (max ?? 0) + 1 }]);
+    await withMigrationClient((m) =>
+      expect(
+        m.$executeRawUnsafe(`INSERT INTO staff_ids (number, user_id) VALUES (-1, NULL)`),
+      ).rejects.toThrow(/staff_ids_number_nonnegative/),
+    );
+  });
+});
+
+describe('D285 staff recruitment (staff_recruitments, staff_recruit_commissions, …) under the KL-013 roles', () => {
+  const staff = '0192f1c2-0000-7000-8000-0000000d285a';
+  const recruit = '0192f1c2-0000-7000-8000-0000000d285b';
+  const recruitment = '0192f1c2-0000-7000-8000-0000000d285c';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM staff_ids WHERE user_id IN ('${staff}', '${recruit}')`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id IN ('${staff}', '${recruit}')`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    const tables = [
+      'creator_applications',
+      'creator_members',
+      'staff_recruit_commissions',
+      'staff_recruit_settings',
+      'staff_recruitments',
+    ];
+    const owners = await runtime.$queryRawUnsafe<{ t: string; owner: string }[]>(`
+      SELECT c.relname::text AS t, pg_get_userbyid(c.relowner)::text AS owner
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname IN (${tables.map((t) => `'${t}'`).join(', ')})
+       ORDER BY 1`);
+    expect(owners).toEqual(tables.map((t) => ({ t, owner: migrationUser })));
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conname IN ('creator_applications_shape', 'staff_recruitments_shape',
+             'staff_recruit_settings_one', 'staff_recruit_settings_shape', 'staff_recruit_commissions_shape',
+             'staff_recruit_commissions_guard', 'agency_applications_recruiter_not_self',
+             'recharge_agent_applications_recruiter_not_self', 'host_applications_recruiter_not_self')
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual([
+      'agency_applications_recruiter_not_self',
+      'creator_applications_shape',
+      'host_applications_recruiter_not_self',
+      'recharge_agent_applications_recruiter_not_self',
+      'staff_recruit_commissions_guard',
+      'staff_recruit_commissions_shape',
+      'staff_recruit_settings_one',
+      'staff_recruit_settings_shape',
+      'staff_recruitments_shape',
+    ]);
+  });
+
+  it('the runtime role: DML on the recruitments; the commissions append-only with the guard; BD a panel role', async () => {
+    for (const id of [staff, recruit]) {
+      await runtimeExec(
+        `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${id}', 'd285-${id.slice(-1)}-${suffix}@example.com', 'x', now())`,
+      );
+    }
+    // BD goes through the grant function (and gets a staff ID).
+    await runtime.$transaction(async (tx) => {
+      await tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${staff}'::uuid, 'BD', true, NULL)`);
+    });
+    expect(
+      await scalar<number>(runtime, `SELECT count(*)::int AS v FROM staff_ids WHERE user_id = '${staff}'`),
+    ).toBe(1);
+    await expect(
+      runtime.$transaction((tx) =>
+        tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${staff}'::uuid, 'LIVE_HOSTS', true, NULL)`),
+      ),
+    ).rejects.toThrow(/not a panel role/);
+    // A recruitment: never self; the agency id only for AGENCY; one per (type, recruit); HOST / CREATOR exclusive.
+    const insert = (id: string, type: string, rec: string, agency = 'NULL') =>
+      runtimeExec(
+        `INSERT INTO staff_recruitments (id, type, recruiter_user_id, recruit_user_id, application_id, agency_id, activated_at)
+         VALUES ('${id}', '${type}', '${rec}', '${recruit}', gen_random_uuid(), ${agency}, now())`,
+      );
+    await expect(insert(randomUUID(), 'HOST', recruit)).rejects.toThrow(/staff_recruitments_shape/);
+    await expect(insert(randomUUID(), 'AGENCY', staff)).rejects.toThrow(/staff_recruitments_shape/);
+    await insert(recruitment, 'HOST', staff);
+    await expect(insert(randomUUID(), 'HOST', staff)).rejects.toThrow(/staff_recruitments_type_recruit_key/);
+    await expect(insert(randomUUID(), 'CREATOR', staff)).rejects.toThrow(
+      /staff_recruitments_one_gift_recruit/,
+    );
+    // Reassigning needs a reason.
+    await expect(
+      runtimeExec(`UPDATE staff_recruitments SET reassigned_at = now() WHERE id = '${recruitment}'`),
+    ).rejects.toThrow(/staff_recruitments_shape/);
+    // The commissions: the guard (1 % of $5.35 = 48 636 cherries at $1.10 per million, never 48 637).
+    const commission = (day: string, cherries: number, profit = '535000000000000') =>
+      runtimeExec(
+        `INSERT INTO staff_recruit_commissions (recruitment_id, day, type, recruiter_user_id, recruit_user_id,
+           profit_units, rate_cherries, rate_minor, bps, cherries)
+         VALUES ('${recruitment}', '${day}', 'HOST', '${staff}', '${recruit}', ${profit}, 1000000, 110, 100, ${cherries})`,
+      );
+    await expect(commission('2027-03-17', 48_637)).rejects.toThrow(/staff_recruit_commissions_guard/);
+    await expect(commission('2027-03-17', 1, '-5')).rejects.toThrow(/staff_recruit_commissions_guard/);
+    await commission('2027-03-17', 48_636);
+    await expect(commission('2027-03-17', 0)).rejects.toThrow(/staff_recruit_commissions_pkey/);
+    for (const sql of [
+      `UPDATE staff_recruit_commissions SET cherries = 1 WHERE recruitment_id = '${recruitment}'`,
+      `DELETE FROM staff_recruit_commissions WHERE recruitment_id = '${recruitment}'`,
+      'TRUNCATE TABLE staff_recruit_commissions',
+      'TRUNCATE TABLE staff_recruitments',
+      'ALTER TABLE staff_recruit_commissions DROP CONSTRAINT staff_recruit_commissions_guard',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    // The shares: one row, 0–20 %.
+    await expect(runtimeExec(`INSERT INTO staff_recruit_settings (id) VALUES (2)`)).rejects.toThrow(
+      /staff_recruit_settings_one|staff_recruit_settings_pkey/,
+    );
+    await expect(
+      runtimeExec(
+        `INSERT INTO staff_recruit_settings (id, host_bps) VALUES (1, 2001) ON CONFLICT (id) DO UPDATE SET host_bps = 2001`,
+      ),
+    ).rejects.toThrow(/staff_recruit_settings_shape/);
+    // The ledger's sign rule knows the new credit.
+    await expect(
+      runtimeExec(
+        `INSERT INTO cherry_ledger (id, user_id, delta, balance_after, reason, reference_id)
+         VALUES ('${randomUUID()}', '${staff}', -5, 0, 'STAFF_RECRUIT_COMMISSION', 'SR:x@2027-03-17')`,
+      ),
+    ).rejects.toThrow(/cherry_ledger_reason_sign/);
+    // A recruitment goes with the recruit (ON DELETE CASCADE, the commissions with it).
+    await withMigrationClient((m) => m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${recruit}'`));
+    expect(
+      await scalar<number>(
+        runtime,
+        `SELECT count(*)::int AS v FROM staff_recruit_commissions WHERE recruitment_id = '${recruitment}'`,
+      ),
+    ).toBe(0);
   });
 });
 

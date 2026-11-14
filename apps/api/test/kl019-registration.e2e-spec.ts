@@ -405,12 +405,14 @@ describe('KL-019 verify-first registration', () => {
       const invalid = await ctx.http.patch('/api/v1/me').set(bearer(token)).send({ locale: 'fr' });
       expect(invalid.status).toBe(400);
       expect(invalid.body.error.details).toEqual([{ field: 'locale', issue: 'invalid_value' }]);
+      // v1.45-social (D168) made `displayName` and `bio` editable here; the photo has its own
+      // endpoint, so `avatarUrl` stays an unknown field.
       const extra = await ctx.http
         .patch('/api/v1/me')
         .set(bearer(token))
-        .send({ locale: 'en', displayName: 'x' });
+        .send({ locale: 'en', avatarUrl: 'https://example.test/a.png' });
       expect(extra.status).toBe(400);
-      expect(extra.body.error.details).toEqual([{ field: 'displayName', issue: 'unknown_field' }]);
+      expect(extra.body.error.details).toEqual([{ field: 'avatarUrl', issue: 'unknown_field' }]);
     });
   });
 });

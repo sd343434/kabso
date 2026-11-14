@@ -28,6 +28,168 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.liveHostingUnavailable: 503,
   ErrorCode.liveRoomAlreadyActive: 409,
   ErrorCode.liveRoomEnded: 409,
+  ErrorCode.liveHostingNotAllowed: 403,
+  ErrorCode.liveGuestsNotAllowed: 403,
+  ErrorCode.liveChatNotInRoom: 403,
+  ErrorCode.liveChatMuted: 403,
+  ErrorCode.liveChatClosed: 409,
+  // v1.5-social
+  ErrorCode.mediaUploadsUnavailable: 503,
+  ErrorCode.mediaInvalid: 422,
+  ErrorCode.pinLimitReached: 409,
+  ErrorCode.reportAlreadyResolved: 409,
+  // v1.14-live (CP-016 C)
+  ErrorCode.liveScheduleFull: 409,
+  // v1.19-live (CP-017)
+  ErrorCode.insufficientCoins: 409,
+  // v1.20-live (D105)
+  ErrorCode.liveKicked: 403,
+  // v1.47-live (D212).
+  ErrorCode.liveQuestionsClosed: 409,
+  // v1.21-live (CP-018)
+  ErrorCode.alreadyInFamily: 409,
+  ErrorCode.familyFull: 409,
+  ErrorCode.familyNameTaken: 409,
+  ErrorCode.familyRequestPending: 409,
+  ErrorCode.familyRequestNotPending: 409,
+  ErrorCode.familyNotEmpty: 409,
+  ErrorCode.familyLeaderCannotLeave: 409,
+  ErrorCode.cpAlreadyPaired: 409,
+  ErrorCode.cpRequestPending: 409,
+  ErrorCode.cpRequestNotPending: 409,
+  ErrorCode.cpNotPaired: 409,
+  ErrorCode.medalNotUnlocked: 409,
+  ErrorCode.bagItemNotOwned: 409,
+  // v1.48-social (D171)
+  ErrorCode.bagItemNotTransferable: 409,
+  ErrorCode.bagSendPermanentWholeOnly: 409,
+  ErrorCode.bagSendExceedsRemaining: 409,
+  ErrorCode.bagRecipientHasPermanent: 409,
+  ErrorCode.giftUnavailable: 409,
+  ErrorCode.giftBagInsufficient: 409,
+  ErrorCode.liveGiftRecipientUnavailable: 409,
+  ErrorCode.luckyGiftAgeUnconfirmed: 403,
+  ErrorCode.luckyGiftRegionUnavailable: 403,
+  ErrorCode.cpTaskNotCompleted: 409,
+  ErrorCode.cpPrivilegeLocked: 403,
+  ErrorCode.familyChatMuted: 403,
+  ErrorCode.premiumUsernameUnavailable: 409,
+  ErrorCode.premiumUsernamePriceChanged: 409,
+  ErrorCode.premiumUsernameActive: 409,
+  // v1.40-social (D155)
+  ErrorCode.dmNotAllowed: 403,
+  ErrorCode.dmRequestLimit: 403,
+  ErrorCode.dmRequestTextOnly: 403,
+  ErrorCode.dmDeleteWindowPassed: 409,
+  // v1.104-social (D339).
+  ErrorCode.dmNotArchivable: 409,
+  ErrorCode.dmGroupFull: 409,
+  ErrorCode.dmPinLimit: 409,
+  // v1.138-social (D386).
+  ErrorCode.featuredPinLimit: 409,
+  ErrorCode.categoryVerificationPending: 409,
+  ErrorCode.accountCategoryLocked: 403,
+  // v1.141-social (D390).
+  ErrorCode.ambassadorApplicationNotAllowed: 409,
+  ErrorCode.dmGroupMemberNotAllowed: 403,
+  ErrorCode.quipFreeUsed: 409,
+  ErrorCode.quipQueueFull: 409,
+  ErrorCode.boostQueueFull: 409,
+  ErrorCode.boostCardInsufficient: 409,
+  ErrorCode.boostRoomBusy: 409,
+  ErrorCode.youtubeVideoUnavailable: 422,
+  ErrorCode.youtubeSearchUnavailable: 503,
+  ErrorCode.agencyAlreadyMember: 409,
+  ErrorCode.agencyJoinNotAllowed: 409,
+  ErrorCode.agencyLeaveWindowClosed: 409,
+  ErrorCode.agencyOpenNotAllowed: 409,
+  ErrorCode.hostApplicationNotAllowed: 409,
+  // v1.82-live (D295).
+  ErrorCode.agencyActivationNotAllowed: 409,
+  // v1.80-kyc (D227).
+  ErrorCode.kycNotAllowed: 409,
+  ErrorCode.kycUnavailable: 503,
+  ErrorCode.referralUnavailable: 503,
+  ErrorCode.referralCodeInvalid: 422,
+  ErrorCode.referralNotAllowed: 409,
+  ErrorCode.deviceAccountLimit: 409,
+  // v1.60-live (D250).
+  ErrorCode.deviceBanned: 403,
+  ErrorCode.insufficientCherries: 409,
+  ErrorCode.withdrawalPending: 409,
+  ErrorCode.rechargeApplicationNotAllowed: 409,
+  ErrorCode.rechargeAgentNotActive: 409,
+  ErrorCode.rechargeOffShift: 409,
+  ErrorCode.rechargeStockInsufficient: 409,
+  ErrorCode.rechargeEmployeeNotAllowed: 409,
+  ErrorCode.rechargeCherryRequestPending: 409,
+  ErrorCode.rechargeCherryRequestClosed: 409,
+  ErrorCode.rechargeCherryCapReached: 409,
+  ErrorCode.usernameLocked: 409,
+  ErrorCode.hostFrameStyleFromGender: 409,
+  ErrorCode.reauthFailed: 403,
+  ErrorCode.accountDeletionBlocked: 409,
+  ErrorCode.accountDeletionPending: 409,
+  ErrorCode.consentRequired: 428,
+  ErrorCode.consentVersionMismatch: 409,
+  ErrorCode.dataExportLimit: 429,
+  ErrorCode.dataExportLinkInvalid: 410,
+  ErrorCode.rechargeOrdersUnavailable: 503,
+  ErrorCode.rechargeOrderOpenExists: 409,
+  ErrorCode.rechargeOrderStateChanged: 409,
+  ErrorCode.rechargeOrderNoticeRequired: 409,
+  ErrorCode.rechargeOrderDisputeTooEarly: 409,
+  // v1.87-social (D287).
+  ErrorCode.rechargeEmployeeNotPermitted: 403,
+  ErrorCode.rechargeOrderClaimed: 409,
+  // D287 (owner): the Kabso Team is never a recharge employee.
+  ErrorCode.rechargeEmployeeIsStaff: 403,
+  ErrorCode.staffAccountLimited: 403,
+  // v1.72-social (D208).
+  ErrorCode.accountLocked: 403,
+  ErrorCode.accountRestricted: 403,
+  ErrorCode.passwordChangeRequired: 403,
+  // v1.82-social (D252).
+  ErrorCode.vipUnavailable: 409,
+  ErrorCode.vipPriceChanged: 409,
+  // v1.126-social (D370).
+  ErrorCode.insufficientRechargePoints: 409,
+  // v1.127-social (D372).
+  ErrorCode.contentGiftRecipientUnavailable: 409,
+  // D270.
+  ErrorCode.storeUnavailable: 409,
+  ErrorCode.storePriceChanged: 409,
+  ErrorCode.storeIapUnavailable: 503,
+  ErrorCode.storeIapVerificationFailed: 400,
+  ErrorCode.storeIapPurchaseConflict: 409,
+  ErrorCode.storeIapPending: 409,
+  // v1.116-social (D355): «واتساب».
+  ErrorCode.whatsappUnavailable: 503,
+  ErrorCode.whatsappWindowClosed: 409,
+  ErrorCode.whatsappConversationAssigned: 409,
+  ErrorCode.whatsappConversationClosed: 409,
+  ErrorCode.whatsappSendFailed: 502,
+  // v1.68-live (D273).
+  ErrorCode.staffProtected: 403,
+  // v1.133-social (D380).
+  ErrorCode.vipProtected: 403,
+  ErrorCode.liveStaffRefused: 403,
+  // v1.139-social (D387).
+  ErrorCode.staffGiftRefused: 403,
+  ErrorCode.staffWithdrawalCompanyOnly: 403,
+  ErrorCode.staffStepUpRequired: 403,
+  ErrorCode.staffTotpNotEnrolled: 409,
+  ErrorCode.adminTotpInvalid: 403,
+  ErrorCode.adminLocked: 429,
+  ErrorCode.adminActionRefused: 409,
+  ErrorCode.levelRaiseDuplicate: 409,
+  ErrorCode.ownerOnly: 403,
+  ErrorCode.ownerJourneyLimit: 409,
+  // v1.113-live (D351): the capacity guard «حد الامتلاء».
+  ErrorCode.liveCapacityFull: 503,
+  // v1.132-social (D379): the VIP room and the one pin at a time.
+  ErrorCode.liveVipOnly: 403,
+  ErrorCode.livePinBusy: 409,
 };
 
 DioException _badResponse(
@@ -61,6 +223,8 @@ void main() {
           'AUTH_FORBIDDEN',
           'ACCOUNT_SUSPENDED',
           'NOT_FOUND',
+          'LIVE_HOSTING_NOT_ALLOWED',
+          'LIVE_GUESTS_NOT_ALLOWED',
           'EMAIL_TAKEN',
           'USERNAME_TAKEN',
           'IDEMPOTENCY_CONFLICT',
@@ -73,6 +237,179 @@ void main() {
           'LIVE_HOSTING_UNAVAILABLE',
           'LIVE_ROOM_ALREADY_ACTIVE',
           'LIVE_ROOM_ENDED',
+          // v1.9-live (CP-013)
+          'LIVE_CHAT_NOT_IN_ROOM',
+          'LIVE_CHAT_MUTED',
+          'LIVE_CHAT_CLOSED',
+          // v1.5-social
+          'MEDIA_UPLOADS_UNAVAILABLE',
+          'MEDIA_INVALID',
+          'PIN_LIMIT_REACHED',
+          'REPORT_ALREADY_RESOLVED',
+          // v1.14-live (CP-016 C)
+          'LIVE_SCHEDULE_FULL',
+          // v1.19-live (CP-017)
+          'INSUFFICIENT_COINS',
+          // v1.20-live (D105)
+          'LIVE_KICKED',
+          'LIVE_QUESTIONS_CLOSED',
+          // v1.21-live (CP-018)
+          'ALREADY_IN_FAMILY',
+          'FAMILY_FULL',
+          'FAMILY_NAME_TAKEN',
+          'FAMILY_REQUEST_PENDING',
+          'FAMILY_REQUEST_NOT_PENDING',
+          'FAMILY_NOT_EMPTY',
+          'FAMILY_LEADER_CANNOT_LEAVE',
+          'CP_ALREADY_PAIRED',
+          'CP_REQUEST_PENDING',
+          'CP_REQUEST_NOT_PENDING',
+          'CP_NOT_PAIRED',
+          'MEDAL_NOT_UNLOCKED',
+          // v1.22-live (CP-019)
+          'BAG_ITEM_NOT_OWNED',
+          // v1.48-social (D171)
+          'BAG_ITEM_NOT_TRANSFERABLE',
+          'BAG_SEND_PERMANENT_WHOLE_ONLY',
+          'BAG_SEND_EXCEEDS_REMAINING',
+          'BAG_RECIPIENT_HAS_PERMANENT',
+          // v1.23-live (CP-020)
+          'GIFT_UNAVAILABLE',
+          'GIFT_BAG_INSUFFICIENT',
+          'LIVE_GIFT_RECIPIENT_UNAVAILABLE',
+          // v1.27-live (D132)
+          'LUCKY_GIFT_AGE_UNCONFIRMED',
+          'LUCKY_GIFT_REGION_UNAVAILABLE',
+          // v1.24-live (CP-021)
+          'CP_TASK_NOT_COMPLETED',
+          'CP_PRIVILEGE_LOCKED',
+          'FAMILY_CHAT_MUTED',
+          // v1.28-live (D146)
+          'PREMIUM_USERNAME_UNAVAILABLE',
+          'PREMIUM_USERNAME_PRICE_CHANGED',
+          'PREMIUM_USERNAME_ACTIVE',
+          // v1.40-social (D155)
+          'DM_NOT_ALLOWED',
+          'DM_REQUEST_LIMIT',
+          'DM_REQUEST_TEXT_ONLY',
+          'DM_DELETE_WINDOW_PASSED',
+          // v1.104-social (D339)
+          'DM_NOT_ARCHIVABLE',
+          'DM_GROUP_FULL',
+          'DM_PIN_LIMIT',
+          // v1.138-social (D386)
+          'FEATURED_PIN_LIMIT',
+          'CATEGORY_VERIFICATION_PENDING',
+          'ACCOUNT_CATEGORY_LOCKED',
+          // v1.141-social (D390)
+          'AMBASSADOR_APPLICATION_NOT_ALLOWED',
+          'DM_GROUP_MEMBER_NOT_ALLOWED',
+          'QUIP_FREE_USED',
+          'QUIP_QUEUE_FULL',
+          'BOOST_QUEUE_FULL',
+          'BOOST_CARD_INSUFFICIENT',
+          'BOOST_ROOM_BUSY',
+          'YOUTUBE_VIDEO_UNAVAILABLE',
+          'YOUTUBE_SEARCH_UNAVAILABLE',
+          // v1.52-social (D179)
+          'AGENCY_ALREADY_MEMBER',
+          'AGENCY_JOIN_NOT_ALLOWED',
+          'AGENCY_LEAVE_WINDOW_CLOSED',
+          'AGENCY_OPEN_NOT_ALLOWED',
+          // v1.73-social (D209)
+          'HOST_APPLICATION_NOT_ALLOWED',
+          // v1.82-live (D295)
+          'AGENCY_ACTIVATION_NOT_ALLOWED',
+          // v1.80-kyc (D227)
+          'KYC_NOT_ALLOWED',
+          'KYC_UNAVAILABLE',
+          // v1.74-social (D217)
+          'REFERRAL_UNAVAILABLE',
+          'REFERRAL_CODE_INVALID',
+          'REFERRAL_NOT_ALLOWED',
+          // v1.78-social (D223).
+          'DEVICE_ACCOUNT_LIMIT',
+          // v1.60-live (D250).
+          'DEVICE_BANNED',
+          'INSUFFICIENT_CHERRIES',
+          'WITHDRAWAL_PENDING',
+          // v1.54-social (D185).
+          'RECHARGE_APPLICATION_NOT_ALLOWED',
+          'RECHARGE_AGENT_NOT_ACTIVE',
+          'RECHARGE_OFF_SHIFT',
+          'RECHARGE_STOCK_INSUFFICIENT',
+          'RECHARGE_EMPLOYEE_NOT_ALLOWED',
+          'RECHARGE_CHERRY_REQUEST_PENDING',
+          'RECHARGE_CHERRY_REQUEST_CLOSED',
+          'RECHARGE_CHERRY_CAP_REACHED',
+          'USERNAME_LOCKED',
+          // v1.55-social (D186).
+          'HOST_FRAME_STYLE_FROM_GENDER',
+          'REAUTH_FAILED',
+          'ACCOUNT_DELETION_BLOCKED',
+          'ACCOUNT_DELETION_PENDING',
+          'CONSENT_REQUIRED',
+          'CONSENT_VERSION_MISMATCH',
+          'DATA_EXPORT_LIMIT',
+          'DATA_EXPORT_LINK_INVALID',
+          // v1.69-social (D204).
+          'RECHARGE_ORDERS_UNAVAILABLE',
+          'RECHARGE_ORDER_OPEN_EXISTS',
+          'RECHARGE_ORDER_STATE_CHANGED',
+          'RECHARGE_ORDER_NOTICE_REQUIRED',
+          'RECHARGE_ORDER_DISPUTE_TOO_EARLY',
+          // v1.87-social (D287).
+          'RECHARGE_EMPLOYEE_NOT_PERMITTED',
+          'RECHARGE_ORDER_CLAIMED',
+          // D287 (owner).
+          'RECHARGE_EMPLOYEE_IS_STAFF',
+          'STAFF_ACCOUNT_LIMITED',
+          // v1.72-social (D208).
+          'ACCOUNT_LOCKED',
+          'ACCOUNT_RESTRICTED',
+          'PASSWORD_CHANGE_REQUIRED',
+          // v1.82-social (D252).
+          'VIP_UNAVAILABLE',
+          'VIP_PRICE_CHANGED',
+          // v1.126-social (D370)
+          'INSUFFICIENT_RECHARGE_POINTS',
+          // v1.127-social (D372)
+          'CONTENT_GIFT_RECIPIENT_UNAVAILABLE',
+          'STORE_UNAVAILABLE',
+          'STORE_PRICE_CHANGED',
+          'STORE_IAP_UNAVAILABLE',
+          'STORE_IAP_VERIFICATION_FAILED',
+          'STORE_IAP_PURCHASE_CONFLICT',
+          'STORE_IAP_PENDING',
+          // v1.116-social (D355): «واتساب».
+          'WHATSAPP_UNAVAILABLE',
+          'WHATSAPP_WINDOW_CLOSED',
+          'WHATSAPP_CONVERSATION_ASSIGNED',
+          'WHATSAPP_CONVERSATION_CLOSED',
+          'WHATSAPP_SEND_FAILED',
+          // v1.68-live (D273): the staff tools in the app.
+          'STAFF_PROTECTED',
+          // v1.133-social (D380): KICK_MUTE_SHIELD.
+          'VIP_PROTECTED',
+          'LIVE_STAFF_REFUSED',
+          // v1.139-social (D387).
+          'STAFF_GIFT_REFUSED',
+          'STAFF_WITHDRAWAL_COMPANY_ONLY',
+          'STAFF_STEP_UP_REQUIRED',
+          'STAFF_TOTP_NOT_ENROLLED',
+          'ADMIN_TOTP_INVALID',
+          'ADMIN_LOCKED',
+          'ADMIN_ACTION_REFUSED',
+          // v1.89-social (D290): a level-raise request's source account taken.
+          'LEVEL_RAISE_DUPLICATE',
+          // v1.95-social (D301): the app owner only; «رحلة Kabso» is full.
+          'OWNER_ONLY',
+          'OWNER_JOURNEY_LIMIT',
+          // v1.113-live (D351).
+          'LIVE_CAPACITY_FULL',
+          // v1.132-social (D379).
+          'LIVE_VIP_ONLY',
+          'LIVE_PIN_BUSY',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

@@ -105,3 +105,27 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // v1.108-social (D343, CONVENTIONS §10.142): Google's Play Install Referrer library (the official client of the
+    // Play Store's referrer service), read once per install over `com.kabso/install_referrer` in MainActivity so the
+    // personal link's code `https://kabsolive.com/i/<code>` → Play `&referrer=kabso_code%3D<code>` fills the sign-up
+    // field. Chosen over the Flutter wrappers (`play_install_referrer`, `android_play_install_referrer`: thin,
+    // third-party, Android-only wrappers of this same library) — like D223's device id, a platform channel adds no pub
+    // package and keeps pubspec.lock unchanged. No permission; no data leaves the phone.
+    implementation("com.android.installreferrer:installreferrer:2.2")
+    // D251: plain JVM tests of rules kept apart from the Activity
+    // (`ScreenKeepOnTest`; run with `./gradlew :app:testDebugUnitTest`).
+    testImplementation("junit:junit:4.13.2")
+}
+
+// D152 push notifications (Firebase Cloud Messaging). google-services.json is
+// never in git (the repository is public): CI writes it from the
+// GOOGLE_SERVICES_JSON secret before the build. Without it (forks, pull
+// requests, a fresh clone) the plugin is not applied, the APK still builds,
+// and the app runs with push off (Firebase.initializeApp fails and is caught).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.lifecycle("google-services.json not found: building without push (D152)")
+}

@@ -5,16 +5,14 @@ const _required = ValidationError(ValidationIssue.required);
 const _format = ValidationError(ValidationIssue.invalidFormat);
 
 void main() {
-  group('username (contract regex, 3–30)', () {
+  group('username (D146: 6–30, letters and digits, a–z 0–9 _)', () {
     for (final ok in [
-      'abc',
-      'a.b',
-      'a_b',
-      'layla.k',
       'user_123',
-      '0ab',
-      'a' * 30,
-      'a.b_c.d9',
+      'abc123',
+      'layla_k9',
+      'a1b2c3',
+      '0ab_c9',
+      'a1${'bc' * 14}',
     ]) {
       test('accepts "$ok"', () => expect(AuthValidators.username(ok), isNull));
     }
@@ -26,25 +24,29 @@ void main() {
 
     test('enforces length bounds', () {
       expect(
-        AuthValidators.username('ab'),
-        const ValidationError(ValidationIssue.tooShort, 3),
+        AuthValidators.username('ab_1'),
+        const ValidationError(ValidationIssue.tooShort, 6),
       );
       expect(
-        AuthValidators.username('a' * 31),
+        AuthValidators.username('a1${'bc' * 15}'),
         const ValidationError(ValidationIssue.tooLong, 30),
       );
     });
 
     for (final bad in [
-      '.abc',
-      'abc.',
-      '_abc',
-      'abc_',
-      'Abc',
-      'ab c',
-      'ab-c',
-      'لیلى',
-      'ab@c',
+      '.abc12',
+      'abc12.',
+      '_abc12',
+      'abc12_',
+      'Abc123',
+      'ab c12',
+      'ab-c12',
+      'لیلى123',
+      'ab@c12',
+      'layla.k9',
+      'abcdef',
+      'abc_def',
+      '777777',
     ]) {
       test('rejects "$bad"', () {
         expect(AuthValidators.username(bad), _format);
@@ -105,12 +107,10 @@ void main() {
   });
 
   group('identifier and display name', () {
-    test('identifier 3–254', () {
+    test('identifier 1–254 (D146: 1-character premium usernames)', () {
       expect(AuthValidators.identifier(''), _required);
-      expect(
-        AuthValidators.identifier('ab'),
-        const ValidationError(ValidationIssue.tooShort, 3),
-      );
+      expect(AuthValidators.identifier('  '), _required);
+      expect(AuthValidators.identifier('7'), isNull);
       expect(AuthValidators.identifier('abc'), isNull);
       expect(
         AuthValidators.identifier('a' * 255),

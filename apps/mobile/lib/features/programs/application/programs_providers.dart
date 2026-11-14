@@ -1,0 +1,86 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
+import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
+import 'package:kabso_live/features/programs/data/programs_repository.dart';
+
+// Names (tasks, perks, events) are localized by the server, so a language
+// change reloads them; a new signed-in person reloads everything.
+
+/// The caller's Task Center (`GET /me/tasks`, D166).
+final FutureProvider<MyTasks> myTasksProvider = FutureProvider.autoDispose((
+  ref,
+) {
+  ref
+    ..watch(languageControllerProvider)
+    ..watch(currentUserProvider.select((u) => u?.id));
+  return ref.watch(programsRepositoryProvider).tasks();
+});
+
+/// The caller's SVIP status (`GET /me/svip`, D166).
+final FutureProvider<SvipStatus> mySvipProvider = FutureProvider.autoDispose((
+  ref,
+) {
+  ref
+    ..watch(languageControllerProvider)
+    ..watch(currentUserProvider.select((u) => u?.id));
+  return ref.watch(programsRepositoryProvider).svip();
+});
+
+/// One Event Center list: a tab, and for the calendar its month
+/// (`YYYY-MM`).
+typedef EventListKey = ({EventTab tab, String? month});
+
+/// `GET /events?tab=&month=` (D166).
+final FutureProviderFamily<EventList, EventListKey> eventListProvider =
+    FutureProvider.autoDispose.family((ref, key) {
+      ref.watch(languageControllerProvider);
+      return ref
+          .watch(programsRepositoryProvider)
+          .events(key.tab, month: key.month);
+    });
+
+/// `GET /events/{eventId}` (D166).
+final FutureProviderFamily<EventDetail, String> eventDetailProvider =
+    FutureProvider.autoDispose.family((ref, id) {
+      ref.watch(languageControllerProvider);
+      return ref.watch(programsRepositoryProvider).event(id);
+    });
+
+/// `GET /events/{eventId}/leaderboard` (D166).
+final FutureProviderFamily<EventLeaderboard, String> eventLeaderboardProvider =
+    FutureProvider.autoDispose.family(
+      (ref, id) => ref.watch(programsRepositoryProvider).leaderboard(id),
+    );
+
+/// v1.97-social (D303): one board of a gift event.
+typedef EventBoardKey = ({String id, EventBoardKind board});
+
+/// `GET /events/{eventId}/leaderboard?board=` (D303): a gift event's board.
+final FutureProviderFamily<EventLeaderboard, EventBoardKey> eventBoardProvider =
+    FutureProvider.autoDispose.family(
+      (ref, key) => ref
+          .watch(programsRepositoryProvider)
+          .leaderboard(key.id, board: key.board.wire),
+    );
+
+/// The recharge packages (`GET /wallet/recharge-packages`, D166).
+final FutureProvider<RechargeOffer> rechargeOfferProvider =
+    FutureProvider.autoDispose(
+      (ref) => ref.watch(programsRepositoryProvider).rechargePackages(),
+    );
+
+/// The Task Center's banners (`placement=tasks`, D176). A failure shows no
+/// banner (a banner is never a reason to show an error).
+final FutureProvider<List<HomeBanner>> taskBannersProvider =
+    FutureProvider.autoDispose((ref) async {
+      ref
+        ..watch(languageControllerProvider)
+        ..watch(currentUserProvider.select((u) => u?.id));
+      try {
+        return await ref.watch(taskBannersRepositoryProvider).list();
+      } on Object {
+        return const [];
+      }
+    });

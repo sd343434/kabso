@@ -18,13 +18,35 @@ export const REDACT_PATHS = [
   'token',
   'refreshToken',
   'accessToken',
+  // v1.109-social (D344): the one-time website sign-in code (`POST /topup/handoff` body, the minted URL).
+  'handoff',
+  'websiteUrl',
   '*.password',
   '*.newPassword',
   '*.passwordHash',
   '*.token',
   '*.refreshToken',
   '*.accessToken',
+  '*.handoff',
+  '*.websiteUrl',
   '*.secret',
+  // v1.64-social (D196): the Stripe keys the OWNER types into the panel and the code re-entered with them.
+  'secretKey',
+  'webhookSecret',
+  'totpCode',
+  '*.secretKey',
+  '*.webhookSecret',
+  '*.totpCode',
+  // v1.75-social (D222): the object-storage keys the OWNER types into «التخزين (R2 / S3)».
+  'accessKeyId',
+  'secretAccessKey',
+  '*.accessKeyId',
+  '*.secretAccessKey',
+  // v1.80-kyc (D227): the Didit API key the OWNER types into «التحقق من الهوية (Didit)» (the webhook secret is above),
+  // and Didit's header should a request object ever be logged.
+  'apiKey',
+  '*.apiKey',
+  'req.headers["x-api-key"]',
 ];
 
 export function buildLoggerOptions(config: AppConfig): Params {

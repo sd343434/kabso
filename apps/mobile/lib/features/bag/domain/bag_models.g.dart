@@ -1,0 +1,185 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'bag_models.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+_BagItemVip _$BagItemVipFromJson(Map<String, dynamic> json) => _BagItemVip(
+  tier: json['tier'] as String,
+  tierName: json['tierName'] as String,
+  color: json['color'] as String,
+  perk: json['perk'] as String,
+  animation: json['animation'] as String?,
+  still: json['still'] as String?,
+);
+
+Map<String, dynamic> _$BagItemVipToJson(_BagItemVip instance) =>
+    <String, dynamic>{
+      'tier': instance.tier,
+      'tierName': instance.tierName,
+      'color': instance.color,
+      'perk': instance.perk,
+      'animation': instance.animation,
+      'still': instance.still,
+    };
+
+_BagTransfer _$BagTransferFromJson(Map<String, dynamic> json) => _BagTransfer(
+  id: json['id'] as String,
+  code: json['code'] as String,
+  category: json['category'] as String,
+  name: json['name'] as String,
+  recipient: UserSummary.fromJson(json['recipient'] as Map<String, dynamic>),
+  whole: json['whole'] as bool,
+  durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
+  remaining: json['remaining'] == null
+      ? null
+      : BagItem.fromJson(json['remaining'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$BagTransferToJson(_BagTransfer instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'code': instance.code,
+      'category': instance.category,
+      'name': instance.name,
+      'recipient': instance.recipient,
+      'whole': instance.whole,
+      'durationSeconds': instance.durationSeconds,
+      'remaining': instance.remaining,
+    };
+
+_ProfileCard _$ProfileCardFromJson(Map<String, dynamic> json) => _ProfileCard(
+  code: json['code'] as String,
+  assetKey: json['assetKey'] as String,
+);
+
+Map<String, dynamic> _$ProfileCardToJson(_ProfileCard instance) =>
+    <String, dynamic>{'code': instance.code, 'assetKey': instance.assetKey};
+
+_BagCatalogueItem _$BagCatalogueItemFromJson(Map<String, dynamic> json) =>
+    _BagCatalogueItem(
+      code: json['code'] as String,
+      category: json['category'] as String,
+      name: json['name'] as String,
+      assetKey: json['assetKey'] as String,
+      sortOrder: (json['sortOrder'] as num).toInt(),
+      free: json['free'] as bool,
+      art: StoreArt.fromJson(json['art']),
+    );
+
+Map<String, dynamic> _$BagCatalogueItemToJson(_BagCatalogueItem instance) =>
+    <String, dynamic>{
+      'code': instance.code,
+      'category': instance.category,
+      'name': instance.name,
+      'assetKey': instance.assetKey,
+      'sortOrder': instance.sortOrder,
+      'free': instance.free,
+      'art': storeArtToJson(instance.art),
+    };
+
+_BagItem _$BagItemFromJson(Map<String, dynamic> json) => _BagItem(
+  code: json['code'] as String,
+  category: json['category'] as String,
+  name: json['name'] as String,
+  assetKey: json['assetKey'] as String,
+  acquiredAt: DateTime.parse(json['acquiredAt'] as String),
+  source: json['source'] as String,
+  equipped: json['equipped'] as bool,
+  expiresAt: json['expiresAt'] == null
+      ? null
+      : DateTime.parse(json['expiresAt'] as String),
+  giftedBy: json['giftedBy'] == null
+      ? null
+      : UserSummary.fromJson(json['giftedBy'] as Map<String, dynamic>),
+  transferable: json['transferable'] as bool? ?? false,
+  vip: json['vip'] == null
+      ? null
+      : BagItemVip.fromJson(json['vip'] as Map<String, dynamic>),
+  art: StoreArt.fromJson(json['art']),
+);
+
+Map<String, dynamic> _$BagItemToJson(_BagItem instance) => <String, dynamic>{
+  'code': instance.code,
+  'category': instance.category,
+  'name': instance.name,
+  'assetKey': instance.assetKey,
+  'acquiredAt': instance.acquiredAt.toIso8601String(),
+  'source': instance.source,
+  'equipped': instance.equipped,
+  'expiresAt': instance.expiresAt?.toIso8601String(),
+  'giftedBy': instance.giftedBy,
+  'transferable': instance.transferable,
+  'vip': instance.vip,
+  'art': storeArtToJson(instance.art),
+};
+
+_BagEquippedItem _$BagEquippedItemFromJson(Map<String, dynamic> json) =>
+    _BagEquippedItem(
+      code: json['code'] as String,
+      name: json['name'] as String,
+      assetKey: json['assetKey'] as String,
+      art: StoreArt.fromJson(json['art']),
+    );
+
+Map<String, dynamic> _$BagEquippedItemToJson(_BagEquippedItem instance) =>
+    <String, dynamic>{
+      'code': instance.code,
+      'name': instance.name,
+      'assetKey': instance.assetKey,
+      'art': storeArtToJson(instance.art),
+    };
+
+_BagEquipped _$BagEquippedFromJson(Map<String, dynamic> json) => _BagEquipped(
+  category: json['category'] as String,
+  equipped: json['equipped'] == null
+      ? null
+      : BagEquippedItem.fromJson(json['equipped'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$BagEquippedToJson(_BagEquipped instance) =>
+    <String, dynamic>{
+      'category': instance.category,
+      'equipped': instance.equipped,
+    };
+
+_HostFrameItem _$HostFrameItemFromJson(Map<String, dynamic> json) =>
+    _HostFrameItem(
+      code: json['code'] as String,
+      assetKey: json['assetKey'] as String,
+      equipped: json['equipped'] as bool,
+    );
+
+Map<String, dynamic> _$HostFrameItemToJson(_HostFrameItem instance) =>
+    <String, dynamic>{
+      'code': instance.code,
+      'assetKey': instance.assetKey,
+      'equipped': instance.equipped,
+    };
+
+_HostFrame _$HostFrameFromJson(Map<String, dynamic> json) => _HostFrame(
+  agencyHost: json['agencyHost'] as bool,
+  active: json['active'] as bool,
+  liveDays: (json['liveDays'] as num).toInt(),
+  liveSeconds: (json['liveSeconds'] as num).toInt(),
+  canChoose: json['canChoose'] as bool,
+  style: json['style'] as String?,
+  styleFrom: json['styleFrom'] as String?,
+  frame: json['frame'] == null
+      ? null
+      : HostFrameItem.fromJson(json['frame'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$HostFrameToJson(_HostFrame instance) =>
+    <String, dynamic>{
+      'agencyHost': instance.agencyHost,
+      'active': instance.active,
+      'liveDays': instance.liveDays,
+      'liveSeconds': instance.liveSeconds,
+      'canChoose': instance.canChoose,
+      'style': instance.style,
+      'styleFrom': instance.styleFrom,
+      'frame': instance.frame,
+    };
