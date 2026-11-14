@@ -33321,6 +33321,156 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'PK رباعي غير متاح على الخادم بعد.'**
   String get pk4ErrorOpenNotOnServer;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the TEAMS choice in the 4-way panel.
+  ///
+  /// In ar, this message translates to:
+  /// **'٢ ضد ٢'**
+  String get pk4FormatTeams;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the FREE_FOR_ALL choice in the 4-way panel.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل ضد الكل'**
+  String get pk4FormatFfa;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the format choice (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع PK الرباعي'**
+  String get pk4FormatSemantics;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the panel subtitle in FREE_FOR_ALL.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل ضد الكل — كل مضيف وحده، الترتيب من ١ إلى ٤'**
+  String get pk4SubtitleFfa;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the hint before the lobby opens (owner «أ»: a start with two or three).
+  ///
+  /// In ar, this message translates to:
+  /// **'ادعُ حتى ثلاثة مضيفين. حين ينضم واحد على الأقل تستطيع البدء الآن، وتبدأ وحدها عند انتهاء الوقت.'**
+  String get pk4LobbyHintStart;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: an invited place of a FREE_FOR_ALL lobby.
+  ///
+  /// In ar, this message translates to:
+  /// **'لاعب'**
+  String get pk4SeatPlayer;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the organiser's button once at least one invited host joined.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ الآن'**
+  String get pk4StartNow;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the line over «ابدأ الآن» (count: the hosts in, the organiser included).
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم {count} — ابدأ الآن أو انتظر البقية'**
+  String pk4StartNowHint(String count);
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the 4-way random queue button (four hosts only).
+  ///
+  /// In ar, this message translates to:
+  /// **'مطابقة عشوائية رباعية'**
+  String get pk4Random;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the 4-way random wait with its countdown.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ البحث عن ٣ مضيفين… {time}'**
+  String pk4RandomSearching(String time);
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: stops the 4-way random wait.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف البحث'**
+  String get pk4RandomStop;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the 4-way random wait ran out.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم نجد مضيفين كافيين'**
+  String get pk4NoticeQueueExpired;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the «PK أحكام» switch of the 4-way panel.
+  ///
+  /// In ar, this message translates to:
+  /// **'PK أحكام: الخاسر ينفّذ حكماً'**
+  String get pk4DaresToggle;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: a FREE_FOR_ALL host's place on the result.
+  ///
+  /// In ar, this message translates to:
+  /// **'المركز {place}'**
+  String pk4PlaceN(String place);
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the result badge of the FREE_FOR_ALL winner's room.
+  ///
+  /// In ar, this message translates to:
+  /// **'المركز الأول'**
+  String get pk4ResultFirst;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the result badge of another FREE_FOR_ALL place.
+  ///
+  /// In ar, this message translates to:
+  /// **'المركز {place}'**
+  String pk4ResultPlace(String place);
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the result badge of a TEAMS draw.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعادل الفريقان'**
+  String get pk4ResultDrawTeams;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the result badge of a shared FREE_FOR_ALL first place.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعادل على المركز الأول'**
+  String get pk4ResultDrawFirst;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the result badge when the room plays alone on its side (two or three hosts).
+  ///
+  /// In ar, this message translates to:
+  /// **'فزت'**
+  String get pk4ResultWinSolo;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the result badge when the room plays alone on its side and lost.
+  ///
+  /// In ar, this message translates to:
+  /// **'خسرت'**
+  String get pk4ResultLossSolo;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: the four-part bar (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'النقاط: {scores}'**
+  String pk4FfaScoreSemantics(String scores);
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: «جولة أخرى» for four: nothing asked yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'العب جولة أخرى مع الجميع؟'**
+  String get pk4RematchAskAll;
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: «جولة أخرى» for four: this host accepted (count: hosts still to accept).
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار موافقة {count}…'**
+  String pk4RematchWaitingAll(String count);
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: «جولة أخرى» for four: another host asked.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} يريد جولة أخرى'**
+  String pk4RematchOffered(String name);
+
+  /// v1.119-live (D395, CONVENTIONS §10.181) «PK رباعي»: «جولة أخرى» for four: this host accepted, others not yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'وافقت — بانتظار البقية'**
+  String get pk4RematchAccepted;
 }
 
 class _AppLocalizationsDelegate

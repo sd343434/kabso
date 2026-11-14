@@ -26,6 +26,10 @@ enum Pk4Notice {
 
   /// An accepted host left before the start.
   left,
+
+  /// v1.119-live (D395): the 4-way random wait ran out
+  /// («لم نجد مضيفين كافيين»).
+  queueExpired,
 }
 
 /// What a room's screen knows about its 4-way PK (v1.118-live, D391, §10.180).
@@ -39,6 +43,7 @@ class LivePk4State {
     this.offset = Duration.zero,
     this.joined = 0,
     this.capped = false,
+    this.queue,
   });
 
   /// The room's open match (CONNECTED, BATTLE or RESULT); null: none.
@@ -65,6 +70,15 @@ class LivePk4State {
   /// PK4_MAX_WATCHERS_PER_ROOM left a room out (its pane shows no video).
   final bool capped;
 
+  /// v1.119-live (D395) host only: the 4-way random wait.
+  final Pk4Queue? queue;
+
+  /// Waiting for a 4-way random match now.
+  bool get searching {
+    final q = queue;
+    return q != null && q.expiresAt.isAfter(now());
+  }
+
   DateTime now() => DateTime.now().add(offset);
 
   LivePk4State copyWith({
@@ -81,6 +95,8 @@ class LivePk4State {
     Duration? offset,
     int? joined,
     bool? capped,
+    Pk4Queue? queue,
+    bool clearQueue = false,
   }) => LivePk4State(
     match: clearMatch ? null : match ?? this.match,
     lobby: clearLobby ? null : lobby ?? this.lobby,
@@ -90,6 +106,7 @@ class LivePk4State {
     offset: offset ?? this.offset,
     joined: joined ?? this.joined,
     capped: capped ?? this.capped,
+    queue: clearQueue ? null : queue ?? this.queue,
   );
 }
 
@@ -162,6 +179,8 @@ class LivePk4Controller extends Notifier<LivePk4State> {
           clearLobby: snapshot.lobby == null,
           incoming: snapshot.invite,
           clearIncoming: snapshot.invite == null,
+          queue: snapshot.queue,
+          clearQueue: snapshot.queue == null,
         );
       }
     } on Object {
@@ -171,11 +190,24 @@ class LivePk4Controller extends Notifier<LivePk4State> {
 
   void _onEvent(Pk4Event event) {
     switch (event) {
-      case Pk4MatchEvent(:final match, :final event, :final boostTeam):
+      case Pk4MatchEvent(
+        :final match,
+        :final event,
+        :final boostTeam,
+        :final boostSeat,
+      ):
         final current = state.match;
         if (current != null &&
             current.id == match.id &&
             match.seq < current.seq) {
+          return;
+        }
+        // v1.119-live (D395): a «جولة أخرى» replaced the match — a late
+        // message of the old one never clears the new battle.
+        if (current != null &&
+            current.id != match.id &&
+            current.open &&
+            !match.open) {
           return;
         }
         if (current != null &&
@@ -186,7 +218,7 @@ class LivePk4Controller extends Notifier<LivePk4State> {
         }
         _applyMatch(match.open ? match : null);
         if (event == 'boost' && boostTeam != null && match.open) {
-          _announce(match, boostTeam);
+          _announce(match, boostTeam, seat: boostSeat);
         }
       case Pk4LobbyEvent(:final lobby, :final event):
         if (!_isHost) return;
@@ -216,21 +248,30 @@ class LivePk4Controller extends Notifier<LivePk4State> {
         state = invite.pending
             ? state.copyWith(incoming: invite)
             : state.copyWith(clearIncoming: true);
+      case Pk4QueueEvent(:final matched):
+        if (!_isHost) return;
+        state = state.copyWith(
+          clearQueue: true,
+          notice: matched ? null : Pk4Notice.queueExpired,
+        );
+        if (matched) unawaited(refresh());
     }
   }
 
-  void _announce(Pk4Match match, Pk4Team team) {
-    final state0 = match.team(team);
-    final boost = state0.boost;
+  void _announce(Pk4Match match, Pk4Team team, {int? seat}) {
+    // FREE_FOR_ALL: the host's own booster («فعّل @host …»).
+    final own = seat == null
+        ? null
+        : match.seats.where((s) => s.seat == seat).firstOrNull;
+    final boost = own?.boost ?? match.team(team).boost;
     if (boost == null) return;
-    final names = match
-        .seatsOf(team)
-        .map((s) => s.host.displayName)
-        .join(' · ');
+    final names = own != null
+        ? own.host.displayName
+        : match.seatsOf(team).map((s) => s.host.displayName).join(' · ');
     _serial += 1;
     state = state.copyWith(
       announcement: PkAnnouncement(
-        roomId: match.seatsOf(team).first.roomId,
+        roomId: own?.roomId ?? match.seatsOf(team).first.roomId,
         teamName: names,
         kind: boost.kind,
         multiplier: boost.multiplier,
@@ -265,6 +306,7 @@ class LivePk4Controller extends Notifier<LivePk4State> {
       offset: match.serverTime.difference(DateTime.now()),
       clearLobby: true,
       clearIncoming: true,
+      clearQueue: true,
     );
     unawaited(_ensureRooms(match));
   }
@@ -274,6 +316,16 @@ class LivePk4Controller extends Notifier<LivePk4State> {
   /// refresh tries again); this host's mutes applied per room.
   Future<void> _ensureRooms(Pk4Match match) async {
     final mine = match.seatOf(roomId);
+    // v1.119-live (D395): a rematch without a host — that room's connection
+    // closes.
+    for (final gone in [
+      for (final r in _rooms.keys)
+        if (!match.seats.any((s) => s.roomId == r)) r,
+    ]) {
+      final media = _rooms.remove(gone);
+      if (media != null) await _leave(media);
+      state = state.copyWith(joined: _rooms.length);
+    }
     for (final entry in [..._rooms.entries]) {
       final muted = mine?.mutedRoomIds.contains(entry.key) ?? false;
       if (entry.value.audioMuted != muted) {
@@ -358,9 +410,68 @@ class LivePk4Controller extends Notifier<LivePk4State> {
 
   // ---- Host actions (each throws an AppFailure for the screen) ----------
 
-  Future<void> openLobby() async {
-    state = state.copyWith(lobby: await _repo.openLobby(roomId));
+  Future<void> openLobby({
+    Pk4Format format = Pk4Format.teams,
+    PkType type = PkType.normal,
+  }) async {
+    state = state.copyWith(
+      lobby: await _repo.openLobby(roomId, format: format, type: type),
+    );
   }
+
+  /// v1.119-live (D395) «ابدأ الآن»: the organiser starts with the hosts in.
+  Future<void> startLobby() async {
+    final after = await _repo.startLobby(roomId);
+    state = state.copyWith(lobby: after.lobby, clearLobby: after.lobby == null);
+    _applyMatch(after.match);
+  }
+
+  /// v1.119-live (D395): the 4-way random queue (four hosts only).
+  Future<void> joinRandom({
+    required Pk4Format format,
+    PkType type = PkType.normal,
+  }) async {
+    final result = await _repo.joinRandom(roomId, format: format, type: type);
+    if (result.match case final match?) {
+      _applyMatch(match);
+    } else {
+      state = state.copyWith(
+        queue: result.queue,
+        clearQueue: result.queue == null,
+      );
+    }
+  }
+
+  Future<void> leaveRandom() async {
+    state = state.copyWith(clearQueue: true);
+    await _repo.leaveRandom(roomId);
+  }
+
+  // v1.119-live (D395) «PK أحكام» and «جولة أخرى» for four.
+  Future<void> acceptDare() async =>
+      _applyMatch(await _repo.acceptDare(roomId), replace: true);
+
+  Future<void> refuseDare() async =>
+      _applyMatch(await _repo.refuseDare(roomId), replace: true);
+
+  Future<void> judgeDare({required bool done}) async =>
+      _applyMatch(await _repo.judgeDare(roomId, done: done), replace: true);
+
+  Future<void> reportDare(String dareId) => _repo.reportDare(roomId, dareId);
+
+  Future<void> offerRematch() async =>
+      _applyMatch(await _repo.offerRematch(roomId), replace: true);
+
+  Future<void> acceptRematch() async =>
+      _applyMatch(await _repo.acceptRematch(roomId), replace: true);
+
+  Future<void> declineRematch() async {
+    await _repo.declineRematch(roomId);
+    await refresh();
+  }
+
+  Future<void> cancelRematch() async =>
+      _applyMatch(await _repo.cancelRematch(roomId), replace: true);
 
   /// The organiser cancels the lobby, or an accepted host leaves it.
   Future<void> closeLobby() async {
@@ -420,6 +531,9 @@ class LivePk4Controller extends Notifier<LivePk4State> {
 
   void debugSetIncoming(Pk4Invite? invite) =>
       state = state.copyWith(incoming: invite, clearIncoming: invite == null);
+
+  void debugSetQueue(Pk4Queue? queue) =>
+      state = state.copyWith(queue: queue, clearQueue: queue == null);
 }
 
 final NotifierProviderFamily<LivePk4Controller, LivePk4State, String>

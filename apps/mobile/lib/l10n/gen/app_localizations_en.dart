@@ -19781,4 +19781,94 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pk4ErrorOpenNotOnServer =>
       'The 4-way PK is not on the server yet.';
+
+  @override
+  String get pk4FormatTeams => '2 v 2';
+
+  @override
+  String get pk4FormatFfa => 'Free for all';
+
+  @override
+  String get pk4FormatSemantics => '4-way PK format';
+
+  @override
+  String get pk4SubtitleFfa => 'Free for all — each host alone, ranked 1 to 4';
+
+  @override
+  String get pk4LobbyHintStart =>
+      'Invite up to three hosts. Once one has joined you can start now, and it starts by itself when the time runs out.';
+
+  @override
+  String get pk4SeatPlayer => 'Player';
+
+  @override
+  String get pk4StartNow => 'Start now';
+
+  @override
+  String pk4StartNowHint(String count) {
+    return '$count joined — start now or wait for the rest';
+  }
+
+  @override
+  String get pk4Random => 'Random 4-way match';
+
+  @override
+  String pk4RandomSearching(String time) {
+    return 'Looking for 3 hosts… $time';
+  }
+
+  @override
+  String get pk4RandomStop => 'Stop searching';
+
+  @override
+  String get pk4NoticeQueueExpired => 'Not enough hosts found';
+
+  @override
+  String get pk4DaresToggle => 'PK dares: the loser does a dare';
+
+  @override
+  String pk4PlaceN(String place) {
+    return 'Place $place';
+  }
+
+  @override
+  String get pk4ResultFirst => 'First place';
+
+  @override
+  String pk4ResultPlace(String place) {
+    return 'Place $place';
+  }
+
+  @override
+  String get pk4ResultDrawTeams => 'The teams drew';
+
+  @override
+  String get pk4ResultDrawFirst => 'Tied for first';
+
+  @override
+  String get pk4ResultWinSolo => 'You won';
+
+  @override
+  String get pk4ResultLossSolo => 'You lost';
+
+  @override
+  String pk4FfaScoreSemantics(String scores) {
+    return 'Points: $scores';
+  }
+
+  @override
+  String get pk4RematchAskAll => 'Play another round with everyone?';
+
+  @override
+  String pk4RematchWaitingAll(String count) {
+    return 'Waiting for $count to accept…';
+  }
+
+  @override
+  String pk4RematchOffered(String name) {
+    return '$name wants another round';
+  }
+
+  @override
+  String get pk4RematchAccepted => 'Accepted — waiting for the others';
 }

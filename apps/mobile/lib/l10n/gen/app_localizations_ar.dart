@@ -19770,4 +19770,95 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get pk4ErrorOpenNotOnServer => 'PK رباعي غير متاح على الخادم بعد.';
+
+  @override
+  String get pk4FormatTeams => '٢ ضد ٢';
+
+  @override
+  String get pk4FormatFfa => 'الكل ضد الكل';
+
+  @override
+  String get pk4FormatSemantics => 'نوع PK الرباعي';
+
+  @override
+  String get pk4SubtitleFfa =>
+      'الكل ضد الكل — كل مضيف وحده، الترتيب من ١ إلى ٤';
+
+  @override
+  String get pk4LobbyHintStart =>
+      'ادعُ حتى ثلاثة مضيفين. حين ينضم واحد على الأقل تستطيع البدء الآن، وتبدأ وحدها عند انتهاء الوقت.';
+
+  @override
+  String get pk4SeatPlayer => 'لاعب';
+
+  @override
+  String get pk4StartNow => 'ابدأ الآن';
+
+  @override
+  String pk4StartNowHint(String count) {
+    return 'انضم $count — ابدأ الآن أو انتظر البقية';
+  }
+
+  @override
+  String get pk4Random => 'مطابقة عشوائية رباعية';
+
+  @override
+  String pk4RandomSearching(String time) {
+    return 'جارٍ البحث عن ٣ مضيفين… $time';
+  }
+
+  @override
+  String get pk4RandomStop => 'إيقاف البحث';
+
+  @override
+  String get pk4NoticeQueueExpired => 'لم نجد مضيفين كافيين';
+
+  @override
+  String get pk4DaresToggle => 'PK أحكام: الخاسر ينفّذ حكماً';
+
+  @override
+  String pk4PlaceN(String place) {
+    return 'المركز $place';
+  }
+
+  @override
+  String get pk4ResultFirst => 'المركز الأول';
+
+  @override
+  String pk4ResultPlace(String place) {
+    return 'المركز $place';
+  }
+
+  @override
+  String get pk4ResultDrawTeams => 'تعادل الفريقان';
+
+  @override
+  String get pk4ResultDrawFirst => 'تعادل على المركز الأول';
+
+  @override
+  String get pk4ResultWinSolo => 'فزت';
+
+  @override
+  String get pk4ResultLossSolo => 'خسرت';
+
+  @override
+  String pk4FfaScoreSemantics(String scores) {
+    return 'النقاط: $scores';
+  }
+
+  @override
+  String get pk4RematchAskAll => 'العب جولة أخرى مع الجميع؟';
+
+  @override
+  String pk4RematchWaitingAll(String count) {
+    return 'بانتظار موافقة $count…';
+  }
+
+  @override
+  String pk4RematchOffered(String name) {
+    return '$name يريد جولة أخرى';
+  }
+
+  @override
+  String get pk4RematchAccepted => 'وافقت — بانتظار البقية';
 }

@@ -3,18 +3,34 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
 
 /// v1.118-live (D391, CONVENTIONS §10.180, CP-041 phase 2) «PK رباعي»: PK 2 v 2
-/// (`TEAMS`) started by invitation. Parsed by hand like PK 1 v 1; the data
-/// messages (`pk4-match`, `pk4-lobby`, `pk4-invite` on the `pk` topic) carry
-/// the same shapes as the snapshot.
+/// (`TEAMS`) started by invitation; v1.119-live (D395, §10.181, phases 3–4):
+/// two to four hosts, `FREE_FOR_ALL` «الكل ضد الكل», the organiser's «ابدأ
+/// الآن», the 4-way random queue, «PK أحكام» and «جولة أخرى» for four. Parsed
+/// by hand like PK 1 v 1; the data messages (`pk4-match`, `pk4-lobby`,
+/// `pk4-invite`, `pk4-queue` on the `pk` topic) carry the same shapes as the
+/// snapshot.
 
 DateTime? _date(Object? v) => v is String ? DateTime.tryParse(v) : null;
 
 int _int(Object? v) => v is num ? v.toInt() : 0;
 
+int? _intOrNull(Object? v) => v is num ? v.toInt() : null;
+
 UserSummary _user(Object? v) =>
     UserSummary.fromJson(v! as Map<String, dynamic>);
 
+Map<PkBoosterKind, int> _uses(Object? uses) => {
+  if (uses is Map)
+    for (final k in PkBoosterKind.values) k: _int(uses[k.wire]),
+};
+
+List<PkSupporter> _supporters(Object? list) => [
+  for (final s in (list as List<dynamic>? ?? const []))
+    PkSupporter.fromJson(s as Map<String, dynamic>),
+];
+
 /// A team: A is the organiser's (places 1 and 2), B the opponents (3 and 4).
+/// v1.119-live: in FREE_FOR_ALL it is only the side of the screen.
 enum Pk4Team {
   a('A'),
   b('B');
@@ -26,6 +42,34 @@ enum Pk4Team {
   static Pk4Team fromWire(Object? v) => v == 'B' ? b : a;
 
   Pk4Team get other => this == a ? b : a;
+}
+
+/// v1.119-live (D395): «٢ ضد ٢» (two teams) or «الكل ضد الكل» (each alone).
+/// An unknown value reads as TEAMS (a generic 4-way PK).
+enum Pk4Format {
+  teams('TEAMS'),
+  freeForAll('FREE_FOR_ALL');
+
+  new(this.wire);
+
+  final String wire;
+
+  static Pk4Format fromWire(Object? v) =>
+      v == 'FREE_FOR_ALL' ? freeForAll : teams;
+}
+
+/// v1.119-live (D395): a host's result (WIN, LOSS, DRAW).
+enum Pk4Result {
+  win,
+  loss,
+  draw;
+
+  static Pk4Result? fromWire(Object? v) => switch (v) {
+    'WIN' => win,
+    'LOSS' => loss,
+    'DRAW' => draw,
+    _ => null,
+  };
 }
 
 /// The place's team (1–2 A, 3–4 B).
@@ -45,6 +89,8 @@ class Pk4Invite {
     required this.to,
     required this.expiresAt,
     required this.lobbyExpiresAt,
+    this.format = Pk4Format.teams,
+    this.type = PkType.normal,
   });
 
   factory fromJson(Map<String, dynamic> j) => Pk4Invite(
@@ -58,6 +104,8 @@ class Pk4Invite {
     to: _user(j['to']),
     expiresAt: _date(j['expiresAt']) ?? DateTime.now(),
     lobbyExpiresAt: _date(j['lobbyExpiresAt']) ?? DateTime.now(),
+    format: Pk4Format.fromWire(j['format']),
+    type: PkType.fromWire(j['type']),
   );
 
   final String id;
@@ -71,10 +119,14 @@ class Pk4Invite {
   final DateTime expiresAt;
   final DateTime lobbyExpiresAt;
 
+  /// v1.119-live (D395).
+  final Pk4Format format;
+  final PkType type;
+
   Pk4Team get team => pk4TeamOfSeat(seat);
 
-  /// Place 2 is the teammate; 3 and 4 the opponents.
-  bool get asTeammate => seat == 2;
+  /// Place 2 is the teammate; 3 and 4 the opponents (TEAMS).
+  bool get asTeammate => format == Pk4Format.teams && seat == 2;
 
   bool get pending => status == 'PENDING';
 }
@@ -127,6 +179,9 @@ class Pk4Lobby {
     required this.seats,
     required this.serverTime,
     this.matchId,
+    this.format = Pk4Format.teams,
+    this.type = PkType.normal,
+    this.canStartFlag,
   });
 
   factory fromJson(Map<String, dynamic> j) => Pk4Lobby(
@@ -136,6 +191,9 @@ class Pk4Lobby {
     expiresAt: _date(j['expiresAt']) ?? DateTime.now(),
     serverTime: _date(j['serverTime']) ?? DateTime.now(),
     matchId: j['matchId'] as String?,
+    format: Pk4Format.fromWire(j['format']),
+    type: PkType.fromWire(j['type']),
+    canStartFlag: j['canStart'] as bool?,
     seats: [
       for (final s in (j['seats'] as List<dynamic>? ?? const []))
         Pk4LobbySeat.fromJson(s as Map<String, dynamic>),
@@ -152,6 +210,13 @@ class Pk4Lobby {
   final String? matchId;
   final List<Pk4LobbySeat> seats;
 
+  /// v1.119-live (D395): the format and the type of the lobby.
+  final Pk4Format format;
+  final PkType type;
+
+  /// v1.119-live (D395): the server's `canStart` (null from an older server).
+  final bool? canStartFlag;
+
   bool get open => status == 'OPEN';
 
   Pk4LobbySeat seat(int n) => seats.firstWhere(
@@ -161,6 +226,10 @@ class Pk4Lobby {
 
   int get accepted =>
       seats.where((s) => s.state == Pk4SeatState.accepted).length;
+
+  /// v1.119-live (D395, owner «أ»): «ابدأ الآن» — at least one invited host
+  /// has joined the organiser.
+  bool get canStart => open && (canStartFlag ?? accepted >= 2);
 }
 
 /// `Pk4TeamState`.
@@ -175,29 +244,20 @@ class Pk4TeamState {
     this.supporters = const [],
   });
 
-  factory fromJson(Map<String, dynamic> j) {
-    final uses = j['boosterUses'];
-    return Pk4TeamState(
-      team: Pk4Team.fromWire(j['team']),
-      score: _int(j['score']),
-      result: j['result'] as String?,
-      boost: j['boost'] is Map<String, dynamic>
-          ? PkActiveBoost.fromJson(j['boost']! as Map<String, dynamic>)
-          : null,
-      boosterUses: {
-        if (uses is Map)
-          for (final k in PkBoosterKind.values) k: _int(uses[k.wire]),
-      },
-      supporters: [
-        for (final s in (j['supporters'] as List<dynamic>? ?? const []))
-          PkSupporter.fromJson(s as Map<String, dynamic>),
-      ],
-    );
-  }
+  factory fromJson(Map<String, dynamic> j) => Pk4TeamState(
+    team: Pk4Team.fromWire(j['team']),
+    score: _int(j['score']),
+    result: j['result'] as String?,
+    boost: j['boost'] is Map<String, dynamic>
+        ? PkActiveBoost.fromJson(j['boost']! as Map<String, dynamic>)
+        : null,
+    boosterUses: _uses(j['boosterUses']),
+    supporters: _supporters(j['supporters']),
+  );
 
   final Pk4Team team;
 
-  /// The sum of the team's two hosts' PK points.
+  /// The sum of the team's hosts' PK points.
   final int score;
 
   /// WIN, LOSS, DRAW, or null (running, void).
@@ -212,7 +272,7 @@ class Pk4TeamState {
   }
 }
 
-/// `Pk4SeatState`: one of the four hosts.
+/// `Pk4SeatState`: one of the hosts.
 @immutable
 class Pk4Seat {
   const new({
@@ -224,6 +284,11 @@ class Pk4Seat {
     this.outReason,
     this.mutedRoomIds = const [],
     this.pkPoints,
+    this.place,
+    this.result,
+    this.boost,
+    this.boosterUses = const {},
+    this.supporters = const [],
   });
 
   factory fromJson(Map<String, dynamic> j) => Pk4Seat(
@@ -237,7 +302,14 @@ class Pk4Seat {
       for (final r in (j['mutedRoomIds'] as List<dynamic>? ?? const []))
         r as String,
     ],
-    pkPoints: j['pkPoints'] is num ? (j['pkPoints']! as num).toInt() : null,
+    pkPoints: _intOrNull(j['pkPoints']),
+    place: _intOrNull(j['place']),
+    result: Pk4Result.fromWire(j['result']),
+    boost: j['boost'] is Map<String, dynamic>
+        ? PkActiveBoost.fromJson(j['boost']! as Map<String, dynamic>)
+        : null,
+    boosterUses: _uses(j['boosterUses']),
+    supporters: _supporters(j['supporters']),
   );
 
   final int seat;
@@ -247,7 +319,7 @@ class Pk4Seat {
   /// This host's own PK points (under their pane).
   final int score;
 
-  /// Left the battle (their points stay in the team's score).
+  /// Left the battle (their points stay).
   final bool out;
   final PkEndReason? outReason;
 
@@ -255,7 +327,138 @@ class Pk4Seat {
   final List<String> mutedRoomIds;
   final int? pkPoints;
 
+  /// v1.119-live (D395): FREE_FOR_ALL's place once it ended (shared on equal
+  /// scores); null in TEAMS and while it runs.
+  final int? place;
+
+  /// v1.119-live (D395): this host's result (TEAMS: the team's).
+  final Pk4Result? result;
+
+  /// v1.119-live (D395): FREE_FOR_ALL — the host's own booster, uses and
+  /// supporters.
+  final PkActiveBoost? boost;
+  final Map<PkBoosterKind, int> boosterUses;
+  final List<PkSupporter> supporters;
+
+  /// The side of the screen (TEAMS: the team).
   Pk4Team get team => pk4TeamOfSeat(seat);
+
+  PkActiveBoost? boostAt(DateTime now) {
+    final b = boost;
+    return b != null && b.endsAt.isAfter(now) ? b : null;
+  }
+}
+
+/// v1.119-live (D395) `Pk4Dare`: one dare for the losing side, judged by the
+/// winning side.
+@immutable
+class Pk4Dare {
+  const new({
+    required this.status,
+    required this.loserRoomIds,
+    required this.winnerRoomIds,
+    required this.options,
+    required this.drawn,
+    required this.revealAt,
+    required this.decideBy,
+    this.cause,
+    this.startedAt,
+    this.endsAt,
+    this.finishedAt,
+    this.points = 0,
+    this.refusePoints = -3,
+  });
+
+  factory fromJson(Map<String, dynamic> j) => Pk4Dare(
+    status: PkDareStatus.fromWire(j['status']),
+    cause: j['cause'] as String?,
+    loserRoomIds: [
+      for (final r in (j['loserRoomIds'] as List<dynamic>? ?? const []))
+        r as String,
+    ],
+    winnerRoomIds: [
+      for (final r in (j['winnerRoomIds'] as List<dynamic>? ?? const []))
+        r as String,
+    ],
+    options: [
+      for (final o in (j['options'] as List<dynamic>? ?? const []))
+        PkDareOption.fromJson(o as Map<String, dynamic>),
+    ],
+    drawn: _int(j['drawn']),
+    revealAt: _date(j['revealAt']) ?? DateTime.now(),
+    decideBy: _date(j['decideBy']) ?? DateTime.now(),
+    startedAt: _date(j['startedAt']),
+    endsAt: _date(j['endsAt']),
+    finishedAt: _date(j['finishedAt']),
+    points: _intOrNull(j['points']) ?? 0,
+    refusePoints: _intOrNull(j['refusePoints']) ?? -3,
+  );
+
+  final PkDareStatus status;
+  final String? cause;
+  final List<String> loserRoomIds;
+  final List<String> winnerRoomIds;
+  final List<PkDareOption> options;
+  final int drawn;
+  final DateTime revealAt;
+  final DateTime decideBy;
+  final DateTime? startedAt;
+  final DateTime? endsAt;
+  final DateTime? finishedAt;
+  final int points;
+  final int refusePoints;
+
+  /// PK 1 v 1's [PkDare] as [roomId] sees it: this room's side when it is on
+  /// one (a loser answers, a winner judges), else the first room of each.
+  PkDare forRoom(String roomId) => PkDare(
+    status: status,
+    cause: cause,
+    loserRoomId: loserRoomIds.contains(roomId) || loserRoomIds.isEmpty
+        ? roomId
+        : loserRoomIds.first,
+    winnerRoomId: winnerRoomIds.contains(roomId) || winnerRoomIds.isEmpty
+        ? roomId
+        : winnerRoomIds.first,
+    options: options,
+    drawn: drawn,
+    revealAt: revealAt,
+    decideBy: decideBy,
+    startedAt: startedAt,
+    endsAt: endsAt,
+    finishedAt: finishedAt,
+    points: points,
+    refusePoints: refusePoints,
+  );
+}
+
+/// v1.119-live (D395) `Pk4Rematch`: an open «جولة أخرى» (every present host
+/// must accept).
+@immutable
+class Pk4Rematch {
+  const new({
+    required this.byRoomId,
+    required this.expiresAt,
+    this.acceptedRoomIds = const [],
+    this.waitingRoomIds = const [],
+  });
+
+  factory fromJson(Map<String, dynamic> j) => Pk4Rematch(
+    byRoomId: j['byRoomId']! as String,
+    expiresAt: _date(j['expiresAt']) ?? DateTime.now(),
+    acceptedRoomIds: [
+      for (final r in (j['acceptedRoomIds'] as List<dynamic>? ?? const []))
+        r as String,
+    ],
+    waitingRoomIds: [
+      for (final r in (j['waitingRoomIds'] as List<dynamic>? ?? const []))
+        r as String,
+    ],
+  );
+
+  final String byRoomId;
+  final DateTime expiresAt;
+  final List<String> acceptedRoomIds;
+  final List<String> waitingRoomIds;
 }
 
 /// `Pk4Match`: the server's whole 4-way match.
@@ -277,20 +480,42 @@ class Pk4Match {
     this.roundSeconds = 300,
     this.effective,
     this.boosters = const [],
+    this.format = Pk4Format.teams,
+    this.type = PkType.normal,
+    this.random = false,
+    this.dare,
+    this.rematch,
+    this.rematchOf,
+    this.rematchesLeft,
   });
 
+  /// Two to four places; two teams or none (FREE_FOR_ALL). Anything else is
+  /// refused (the message is ignored), so a future shape never half-draws.
   factory fromJson(Map<String, dynamic> j) {
     final teams = [
-      for (final t in (j['teams']! as List<dynamic>))
+      for (final t in (j['teams'] as List<dynamic>? ?? const []))
         Pk4TeamState.fromJson(t as Map<String, dynamic>),
     ];
     final seats = [
       for (final s in (j['seats']! as List<dynamic>))
         Pk4Seat.fromJson(s as Map<String, dynamic>),
     ];
-    if (teams.length != 2 || seats.length != 4) {
+    if ((teams.length != 2 && teams.isNotEmpty) ||
+        seats.length < 2 ||
+        seats.length > 4) {
       throw const FormatException('PK4 teams and seats');
     }
+    seats.sort((x, y) => x.seat.compareTo(y.seat));
+    // FREE_FOR_ALL has no teams: each side's sum, for the parts of the app
+    // that read a side (the gift panel's booster tab).
+    Pk4TeamState side(Pk4Team t) =>
+        teams.where((x) => x.team == t).firstOrNull ??
+        Pk4TeamState(
+          team: t,
+          score: seats
+              .where((s) => s.team == t)
+              .fold(0, (sum, s) => sum + s.score),
+        );
     return Pk4Match(
       id: j['id']! as String,
       status: PkMatchStatus.fromWire(j['status']),
@@ -306,15 +531,23 @@ class Pk4Match {
       roundSeconds: j['roundSeconds'] == null ? 300 : _int(j['roundSeconds']),
       effective: j['effective'] as bool?,
       organiserRoomId: j['organiserRoomId']! as String,
-      teams: (
-        teams.firstWhere((t) => t.team == Pk4Team.a),
-        teams.firstWhere((t) => t.team == Pk4Team.b),
-      ),
-      seats: seats..sort((x, y) => x.seat.compareTo(y.seat)),
+      teams: (side(Pk4Team.a), side(Pk4Team.b)),
+      seats: seats,
       boosters: [
         for (final b in (j['boosters'] as List<dynamic>? ?? const []))
           PkBoosterRule.fromJson(b as Map<String, dynamic>),
       ],
+      format: Pk4Format.fromWire(j['format']),
+      type: PkType.fromWire(j['type']),
+      random: j['source'] == 'RANDOM',
+      dare: j['dare'] is Map<String, dynamic>
+          ? Pk4Dare.fromJson(j['dare']! as Map<String, dynamic>)
+          : null,
+      rematch: j['rematch'] is Map<String, dynamic>
+          ? Pk4Rematch.fromJson(j['rematch']! as Map<String, dynamic>)
+          : null,
+      rematchOf: j['rematchOf'] as String?,
+      rematchesLeft: _intOrNull(j['rematchesLeft']),
     );
   }
 
@@ -331,12 +564,26 @@ class Pk4Match {
   final bool? effective;
   final String organiserRoomId;
 
-  /// Team A, team B.
+  /// Team A, team B (FREE_FOR_ALL: each side's sum).
   final (Pk4TeamState, Pk4TeamState) teams;
 
-  /// Places 1–4 in order.
+  /// The places in order (two to four).
   final List<Pk4Seat> seats;
   final List<PkBoosterRule> boosters;
+
+  /// v1.119-live (D395).
+  final Pk4Format format;
+  final PkType type;
+  final bool random;
+  final Pk4Dare? dare;
+  final Pk4Rematch? rematch;
+  final String? rematchOf;
+  final int? rematchesLeft;
+
+  bool get ffa => format == Pk4Format.freeForAll;
+
+  /// The hosts playing (2–4).
+  int get playerCount => seats.length;
 
   Pk4Seat? seatOf(String roomId) =>
       seats.where((s) => s.roomId == roomId).firstOrNull;
@@ -346,8 +593,8 @@ class Pk4Match {
   /// The team of [roomId] (a viewer's room), A when it is not in the match.
   Pk4Team teamOf(String roomId) => seatOf(roomId)?.team ?? Pk4Team.a;
 
-  /// The two places of [t]: [first] (this room's when it is one of them)
-  /// then the other.
+  /// The places of [t]: [first] (this room's when it is one of them) then
+  /// the other.
   List<Pk4Seat> seatsOf(Pk4Team t, {String? first}) {
     final list = seats.where((s) => s.team == t).toList();
     if (first != null) {
@@ -356,17 +603,46 @@ class Pk4Match {
     return list;
   }
 
+  /// FREE_FOR_ALL's leader first (the four-part bar), equal scores by place.
+  List<Pk4Seat> get ranked => [...seats]
+    ..sort((x, y) {
+      final byScore = y.score.compareTo(x.score);
+      return byScore != 0 ? byScore : x.seat.compareTo(y.seat);
+    });
+
+  /// The result [roomId]'s room sees (its host's; a viewer of a room in the
+  /// match reads that room's), null while it runs or for a void match.
+  Pk4Result? resultOf(String roomId) {
+    final seat = seatOf(roomId);
+    if (seat?.result case final r?) return r;
+    if (ffa || status == PkMatchStatus.battle || seat == null) return null;
+    if (endReason == PkEndReason.admin || endReason == PkEndReason.cancelled) {
+      return null;
+    }
+    final t = team(seat.team).result;
+    return Pk4Result.fromWire(t);
+  }
+
   PkBoosterRule? rule(PkBoosterKind kind) =>
       boosters.where((b) => b.kind == kind).firstOrNull;
 
   bool get open => status != PkMatchStatus.closed;
 
+  /// «جولة أخرى» may be offered now from the hosts' side (the server checks
+  /// the rest: the hosts present, their lives …).
+  bool get canOfferRematch =>
+      status == PkMatchStatus.result &&
+      rematch == null &&
+      (dare == null || dare!.finishedAt != null) &&
+      (rematchesLeft == null || rematchesLeft! > 0);
+
   /// The booster tab of the gift panel reads a [PkMatch] (PK 1 v 1): the
   /// battle with [roomId]'s team as its own side and the opponents as the
-  /// other (the boosters are the team's).
+  /// other (TEAMS: the boosters are the team's; FREE_FOR_ALL: the host's
+  /// own, the leader of the others as the other side).
   PkMatch boosterView(String roomId) {
     final mine = teamOf(roomId);
-    PkSide side(Pk4Team t) {
+    PkSide teamSide(Pk4Team t) {
       final s = seatsOf(t, first: roomId).first;
       final state = team(t);
       return PkSide(
@@ -379,6 +655,23 @@ class Pk4Match {
       );
     }
 
+    PkSide seatSide(Pk4Seat s) => PkSide(
+      roomId: s.roomId,
+      host: s.host,
+      score: s.score,
+      boost: s.boost,
+      boosterUses: s.boosterUses,
+      supporters: s.supporters,
+    );
+
+    final (PkSide own, PkSide other) = ffa
+        ? (
+            seatSide(seatOf(roomId) ?? seats.first),
+            seatSide(
+              ranked.where((s) => s.roomId != roomId).firstOrNull ?? seats.last,
+            ),
+          )
+        : (teamSide(mine), teamSide(mine.other));
     return PkMatch(
       id: id,
       status: status,
@@ -386,17 +679,82 @@ class Pk4Match {
       battleEndsAt: battleEndsAt,
       seq: seq,
       serverTime: serverTime,
-      sides: (side(mine), side(mine.other)),
+      sides: (own, other),
       boosters: boosters,
       roundSeconds: roundSeconds,
+      type: type,
     );
   }
+
+  /// v1.119-live (D395): PK 1 v 1's match for the «PK أحكام» card and draw
+  /// as [roomId] sees it — the losing side's hosts on one side (their names
+  /// joined), the judges on the other, and the dare from this room's side.
+  PkMatch? dareView(String roomId) {
+    final d = dare;
+    if (d == null) return null;
+    final view = d.forRoom(roomId);
+    UserSummary names(List<String> rooms, String first) {
+      final hosts = [for (final r in rooms) ?seatOf(r)?.host];
+      final lead = seatOf(first)?.host ?? hosts.firstOrNull ?? seats.first.host;
+      return lead.copyWith(
+        displayName: hosts.isEmpty
+            ? lead.displayName
+            : hosts.map((h) => h.displayName).join(' · '),
+      );
+    }
+
+    return PkMatch(
+      id: id,
+      status: status,
+      startedAt: startedAt,
+      battleEndsAt: battleEndsAt,
+      resultEndsAt: resultEndsAt,
+      endReason: endReason,
+      seq: seq,
+      serverTime: serverTime,
+      sides: (
+        PkSide(
+          roomId: view.loserRoomId,
+          host: names(d.loserRoomIds, view.loserRoomId),
+          score: 0,
+        ),
+        PkSide(
+          roomId: view.winnerRoomId,
+          host: names(d.winnerRoomIds, view.winnerRoomId),
+          score: 0,
+        ),
+      ),
+      winnerRoomId: view.winnerRoomId,
+      type: type,
+      dare: view,
+    );
+  }
+}
+
+/// v1.119-live (D395) `Pk4Queue`: the host's wait in the 4-way random queue.
+@immutable
+class Pk4Queue {
+  const new({
+    required this.format,
+    required this.expiresAt,
+    this.type = PkType.normal,
+  });
+
+  factory fromJson(Map<String, dynamic> j) => Pk4Queue(
+    format: Pk4Format.fromWire(j['format']),
+    type: PkType.fromWire(j['type']),
+    expiresAt: _date(j['expiresAt']) ?? DateTime.now(),
+  );
+
+  final Pk4Format format;
+  final PkType type;
+  final DateTime expiresAt;
 }
 
 /// `Pk4State`: the snapshot (`GET /live/rooms/{roomId}/pk4`).
 @immutable
 class Pk4State {
-  const new({this.match, this.lobby, this.invite});
+  const new({this.match, this.lobby, this.invite, this.queue});
 
   factory fromJson(Map<String, dynamic> j) => Pk4State(
     match: j['match'] is Map<String, dynamic>
@@ -408,11 +766,35 @@ class Pk4State {
     invite: j['invite'] is Map<String, dynamic>
         ? Pk4Invite.fromJson(j['invite']! as Map<String, dynamic>)
         : null,
+    queue: j['queue'] is Map<String, dynamic>
+        ? Pk4Queue.fromJson(j['queue']! as Map<String, dynamic>)
+        : null,
   );
 
   final Pk4Match? match;
   final Pk4Lobby? lobby;
   final Pk4Invite? invite;
+
+  /// v1.119-live (D395): the host's 4-way random wait.
+  final Pk4Queue? queue;
+}
+
+/// v1.119-live (D395) `Pk4RandomResult`.
+@immutable
+class Pk4RandomResult {
+  const new({this.match, this.queue});
+
+  factory fromJson(Map<String, dynamic> j) => Pk4RandomResult(
+    match: j['match'] is Map<String, dynamic>
+        ? Pk4Match.fromJson(j['match']! as Map<String, dynamic>)
+        : null,
+    queue: j['queue'] is Map<String, dynamic>
+        ? Pk4Queue.fromJson(j['queue']! as Map<String, dynamic>)
+        : null,
+  );
+
+  final Pk4Match? match;
+  final Pk4Queue? queue;
 }
 
 /// One room of `Pk4MediaAccess`.
@@ -438,7 +820,7 @@ class Pk4MediaRoom {
   final String hostIdentity;
 }
 
-/// `Pk4MediaAccess`: watch-only tokens for the three other rooms.
+/// `Pk4MediaAccess`: watch-only tokens for the other rooms (one to three).
 @immutable
 class Pk4MediaAccess {
   const new({
@@ -466,7 +848,7 @@ class Pk4MediaAccess {
   final List<Pk4MediaRoom> rooms;
 }
 
-/// A `pk4-*` data message on the `pk` topic (CONVENTIONS §10.180).
+/// A `pk4-*` data message on the `pk` topic (CONVENTIONS §10.180, §10.181).
 sealed class Pk4Event {
   const new();
 
@@ -485,6 +867,7 @@ sealed class Pk4Event {
             boostKind: boost is Map
                 ? PkBoosterKind.fromWire(boost['kind'])
                 : null,
+            boostSeat: boost is Map ? _intOrNull(boost['seat']) : null,
           );
         case 'pk4-lobby':
           return Pk4LobbyEvent(
@@ -494,6 +877,11 @@ sealed class Pk4Event {
         case 'pk4-invite':
           return Pk4InviteEvent(
             Pk4Invite.fromJson(json['invite']! as Map<String, dynamic>),
+          );
+        case 'pk4-queue':
+          return Pk4QueueEvent(
+            matched: json['status'] == 'MATCHED',
+            matchId: json['matchId'] as String?,
           );
       }
     } on Object {
@@ -509,13 +897,19 @@ final class Pk4MatchEvent extends Pk4Event {
     required this.match,
     this.boostTeam,
     this.boostKind,
+    this.boostSeat,
   });
 
-  /// connected, started, score, boost, out, ended, closed, mute.
+  /// connected, started, score, boost, out, ended, closed, mute; v1.119-live:
+  /// dare, rematch-offer, rematch-accepted, rematch, rematch-declined,
+  /// rematch-cancelled, rematch-expired.
   final String event;
   final Pk4Match match;
   final Pk4Team? boostTeam;
   final PkBoosterKind? boostKind;
+
+  /// FREE_FOR_ALL: the place whose own booster started.
+  final int? boostSeat;
 }
 
 final class Pk4LobbyEvent extends Pk4Event {
@@ -531,4 +925,12 @@ final class Pk4InviteEvent extends Pk4Event {
   const new(this.invite);
 
   final Pk4Invite invite;
+}
+
+/// v1.119-live (D395) `pk4-queue`: the host's random wait matched, or ran out.
+final class Pk4QueueEvent extends Pk4Event {
+  const new({required this.matched, this.matchId});
+
+  final bool matched;
+  final String? matchId;
 }

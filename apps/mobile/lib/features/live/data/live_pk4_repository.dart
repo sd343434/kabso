@@ -18,8 +18,39 @@ abstract interface class LivePk4Repository {
     bool friends = false,
   });
 
-  /// `POST /live/rooms/{roomId}/pk4/lobby` `{format: TEAMS}`.
-  Future<Pk4Lobby> openLobby(String roomId);
+  /// `POST /live/rooms/{roomId}/pk4/lobby` `{format, type}` (v1.119-live:
+  /// FREE_FOR_ALL and «PK أحكام» too).
+  Future<Pk4Lobby> openLobby(
+    String roomId, {
+    Pk4Format format = Pk4Format.teams,
+    PkType type = PkType.normal,
+  });
+
+  /// v1.119-live (D395) `POST /live/rooms/{roomId}/pk4/lobby/start`
+  /// «ابدأ الآن»: the organiser starts with the hosts in.
+  Future<Pk4State> startLobby(String roomId);
+
+  /// v1.119-live (D395) `POST /live/rooms/{roomId}/pk4/random` (four only).
+  Future<Pk4RandomResult> joinRandom(
+    String roomId, {
+    required Pk4Format format,
+    PkType type = PkType.normal,
+  });
+
+  /// v1.119-live (D395) `DELETE /live/rooms/{roomId}/pk4/random`.
+  Future<void> leaveRandom(String roomId);
+
+  /// v1.119-live (D395) «PK أحكام» for four.
+  Future<Pk4Match> acceptDare(String roomId);
+  Future<Pk4Match> refuseDare(String roomId);
+  Future<Pk4Match> judgeDare(String roomId, {required bool done});
+  Future<void> reportDare(String roomId, String dareId);
+
+  /// v1.119-live (D395) «جولة أخرى» for four.
+  Future<Pk4Match> offerRematch(String roomId);
+  Future<Pk4Match> acceptRematch(String roomId);
+  Future<void> declineRematch(String roomId);
+  Future<Pk4Match> cancelRematch(String roomId);
 
   /// `DELETE /live/rooms/{roomId}/pk4/lobby`: cancel (organiser) or leave.
   Future<void> closeLobby(String roomId);
@@ -91,12 +122,96 @@ class LivePk4RepositoryImpl implements LivePk4Repository {
   });
 
   @override
-  Future<Pk4Lobby> openLobby(String roomId) => guardApiCall(() async {
+  Future<Pk4Lobby> openLobby(
+    String roomId, {
+    Pk4Format format = Pk4Format.teams,
+    PkType type = PkType.normal,
+  }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '${_room(roomId)}/lobby',
-      data: {'format': 'TEAMS'},
+      data: {
+        'format': format.wire,
+        if (type != PkType.normal) 'type': type.wire,
+      },
     );
     return Pk4Lobby.fromJson(res.data!);
+  });
+
+  @override
+  Future<Pk4State> startLobby(String roomId) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/lobby/start',
+    );
+    return Pk4State.fromJson(res.data!);
+  });
+
+  @override
+  Future<Pk4RandomResult> joinRandom(
+    String roomId, {
+    required Pk4Format format,
+    PkType type = PkType.normal,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/random',
+      data: {
+        'format': format.wire,
+        if (type != PkType.normal) 'type': type.wire,
+      },
+    );
+    return Pk4RandomResult.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> leaveRandom(String roomId) => guardApiCall(() async {
+    await _dio.delete<void>('${_room(roomId)}/random');
+  });
+
+  Future<Pk4Match> _post(String roomId, String path, [Object? data]) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '${_room(roomId)}/$path',
+          data: data,
+        );
+        return Pk4Match.fromJson(res.data!);
+      });
+
+  @override
+  Future<Pk4Match> acceptDare(String roomId) => _post(roomId, 'dare/accept');
+
+  @override
+  Future<Pk4Match> refuseDare(String roomId) => _post(roomId, 'dare/refuse');
+
+  @override
+  Future<Pk4Match> judgeDare(String roomId, {required bool done}) =>
+      _post(roomId, 'dare/verdict', {'done': done});
+
+  @override
+  Future<void> reportDare(String roomId, String dareId) =>
+      guardApiCall(() async {
+        await _dio.post<void>(
+          '${_room(roomId)}/dare/report',
+          data: {'dareId': dareId},
+        );
+      });
+
+  @override
+  Future<Pk4Match> offerRematch(String roomId) => _post(roomId, 'rematch');
+
+  @override
+  Future<Pk4Match> acceptRematch(String roomId) =>
+      _post(roomId, 'rematch/accept');
+
+  @override
+  Future<void> declineRematch(String roomId) => guardApiCall(() async {
+    await _dio.post<void>('${_room(roomId)}/rematch/decline');
+  });
+
+  @override
+  Future<Pk4Match> cancelRematch(String roomId) => guardApiCall(() async {
+    final res = await _dio.delete<Map<String, dynamic>>(
+      '${_room(roomId)}/rematch',
+    );
+    return Pk4Match.fromJson(res.data!);
   });
 
   @override

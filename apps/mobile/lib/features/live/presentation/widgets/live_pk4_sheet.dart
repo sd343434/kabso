@@ -51,22 +51,41 @@ String? pk4FailureDetail(Object error) {
   ].join(' · ');
 }
 
-/// The label of a place (1 organiser, 2 teammate, 3–4 opponents).
-String pk4SeatLabel(AppLocalizations l10n, int seat) => switch (seat) {
+/// The label of a place (1 organiser; TEAMS: 2 teammate, 3–4 opponents;
+/// v1.119-live FREE_FOR_ALL: 2–4 players).
+String pk4SeatLabel(
+  AppLocalizations l10n,
+  int seat, [
+  Pk4Format format = Pk4Format.teams,
+]) => switch (seat) {
   1 => l10n.pk4SeatOrganiser,
+  _ when format == Pk4Format.freeForAll => l10n.pk4SeatPlayer,
   2 => l10n.pk4SeatTeammate,
   _ => l10n.pk4SeatOpponent,
 };
 
-/// «PK رباعي» (v1.118-live, D391, §10.180): the host's 4-way panel. D393
-/// (owner: «زر pk رباعي يفتح صفحة اخرى لماذا لا ينتقل من نفس الشريط»): it
-/// is the «PK رباعي» segment of the PK sheet itself ([LivePkSheet]), under
-/// the mode cards — never a sheet of its own. The four places in two team
-/// columns (this team on the reading start), each place's state (empty,
-/// invited with its seconds, ready), the lobby's countdown, the candidates
-/// for the picked place («الأصدقاء» or a search), and cancel / leave; in a
-/// match: start / End. A refused call is written in the panel (D393: a snack
-/// bar sat under the sheet, so the button seemed to do nothing).
+/// The colours of a lobby place: TEAMS by team (this host's team red),
+/// FREE_FOR_ALL one per place.
+List<Color> _placeColors(Pk4Format format, int seat, Pk4Team ownTeam) {
+  if (format == Pk4Format.freeForAll) {
+    return KLivePk4.ffaSeat[(seat - 1).clamp(0, 3)];
+  }
+  return pk4TeamOfSeat(seat) == ownTeam ? KLivePk4.startTeam : KLivePk4.endTeam;
+}
+
+/// «PK رباعي» (v1.118-live, D391, §10.180; v1.119-live, D395, §10.181): the
+/// host's 4-way panel. D393 (owner: «زر pk رباعي يفتح صفحة اخرى لماذا لا
+/// ينتقل من نفس الشريط»): it is the «PK رباعي» segment of the PK sheet itself
+/// ([LivePkSheet]), under the mode cards — never a sheet of its own. Before a
+/// lobby: the format «٢ ضد ٢» / «الكل ضد الكل» and the type (normal / «PK
+/// أحكام»), «افتح PK رباعي» and «مطابقة عشوائية رباعية» (four hosts only;
+/// while waiting: its countdown and «إيقاف البحث»). In a lobby: the four
+/// places in two columns (TEAMS: this team on the reading start; FREE_FOR_ALL:
+/// one colour per place), each place's state, the lobby's countdown, «ابدأ
+/// الآن» for the organiser once one invited host joined (D395, owner «أ»),
+/// the friends for the picked place (D395: the smaller list, as the 1 v 1
+/// tab) or a search, and cancel / leave; in a match: start / End. A refused
+/// call is written in the panel (D393: a snack bar sat under the sheet).
 class LivePk4Panel extends ConsumerStatefulWidget {
   const new({required this.roomId, super.key});
 
@@ -82,6 +101,14 @@ class LivePk4Panel extends ConsumerStatefulWidget {
   static const startKey = Key('pk4.sheet.start');
   static const endKey = Key('pk4.sheet.end');
   static const endConfirmKey = Key('pk4.end.confirm');
+
+  /// v1.119-live (D395).
+  static const startNowKey = Key('pk4.sheet.startNow');
+  static const randomKey = Key('pk4.sheet.random');
+  static const stopRandomKey = Key('pk4.sheet.random.stop');
+  static const searchingKey = Key('pk4.sheet.searching');
+  static const daresKey = Key('pk4.sheet.dares');
+  static Key formatKey(Pk4Format f) => Key('pk4.sheet.format.${f.wire}');
   static Key placeKey(int seat) => Key('pk4.sheet.place.$seat');
   static Key withdrawKey(int seat) => Key('pk4.sheet.withdraw.$seat');
   static Key candidateKey(String roomId) => Key('pk4.sheet.candidate.$roomId');
@@ -99,6 +126,10 @@ class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
   List<PkCandidate>? _list;
   Object? _failure;
   int _reads = 0;
+
+  /// v1.119-live (D395): the format and the type a new lobby or wait uses.
+  Pk4Format _format = Pk4Format.teams;
+  PkType _type = PkType.normal;
 
   /// D393: the last refused action, shown in the panel until the next one.
   Object? _error;
@@ -183,6 +214,9 @@ class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
     // ignore: invalid_use_of_visible_for_testing_member, the goldens' clock pin (D231).
     final now = (LivePkStage.debugNow ?? pk4.now)();
     final error = _error;
+    final format = lobby?.format ?? pk4.queue?.format ?? _format;
+    final queue = pk4.queue;
+    final searching = queue != null && queue.expiresAt.isAfter(now);
     return Column(
       key: LivePk4Panel.panelKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -191,7 +225,9 @@ class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
           children: [
             Expanded(
               child: Text(
-                l10n.pk4Subtitle,
+                format == Pk4Format.freeForAll
+                    ? l10n.pk4SubtitleFfa
+                    : l10n.pk4Subtitle,
                 style: t.caption.copyWith(color: PkSheetMetrics.grey),
               ),
             ),
@@ -253,25 +289,82 @@ class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
             onPressed: () => unawaited(_confirmEnd(match, controller)),
           ),
           const Spacer(),
+        ] else if (searching) ...[
+          // v1.119-live (D395): waiting for three more hosts (four only).
+          const Spacer(),
+          Center(
+            key: LivePk4Panel.searchingKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.shuffle_rounded,
+                  size: 44,
+                  color: PkSheetMetrics.red,
+                ),
+                const SizedBox(height: KSpacing.sm),
+                Text(
+                  l10n.pk4RandomSearching(
+                    KFormat.countdown(_left(queue.expiresAt, now)),
+                  ),
+                  textAlign: TextAlign.center,
+                  style: t.body.copyWith(
+                    color: PkSheetMetrics.ink,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(height: KSpacing.md),
+                KButton(
+                  key: LivePk4Panel.stopRandomKey,
+                  label: l10n.pk4RandomStop,
+                  variant: KButtonVariant.secondary,
+                  expand: false,
+                  loading: _busy,
+                  onPressed: () => unawaited(_run(controller.leaveRandom)),
+                ),
+              ],
+            ),
+          ),
+          const Spacer(),
         ] else if (lobby == null) ...[
-          Text(l10n.pk4LobbyHint, style: t.body),
-          const SizedBox(height: KSpacing.lg),
+          _choices(context),
+          const SizedBox(height: KSpacing.sm),
+          Text(l10n.pk4LobbyHintStart, style: t.caption),
+          const SizedBox(height: KSpacing.md),
           KButton(
             key: LivePk4Panel.openKey,
             label: l10n.pk4OpenLobby,
             loading: _busy,
             onPressed: () => unawaited(
               _run(opening: true, () async {
-                await controller.openLobby();
+                await controller.openLobby(format: _format, type: _type);
                 _place = 2;
                 unawaited(_load());
               }),
             ),
           ),
+          const SizedBox(height: KSpacing.sm),
+          KButton(
+            key: LivePk4Panel.randomKey,
+            label: l10n.pk4Random,
+            icon: Icons.shuffle_rounded,
+            variant: KButtonVariant.secondary,
+            onPressed: _busy
+                ? null
+                : () => unawaited(
+                    _run(
+                      () => controller.joinRandom(format: _format, type: _type),
+                    ),
+                  ),
+          ),
           const Spacer(),
         ] else ...[
           _places(context, lobby, now, organiser, controller),
-          const SizedBox(height: KSpacing.md),
+          if (organiser && lobby.canStart) ...[
+            const SizedBox(height: KSpacing.xs),
+            _startNow(context, lobby, controller),
+          ],
+          const SizedBox(height: KSpacing.sm),
           if (organiser)
             Expanded(child: _candidates(context, lobby, controller))
           else
@@ -302,6 +395,154 @@ class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
     );
   }
 
+  /// v1.119-live (D395): «٢ ضد ٢» / «الكل ضد الكل» (the 4-way panel's choice)
+  /// and the type («PK أحكام»), in the 1 v 1 tab's pill style.
+  Widget _choices(BuildContext context) {
+    final l10n = context.l10n;
+    Widget chip({
+      required Key key,
+      required bool selected,
+      required String label,
+      required IconData icon,
+      required VoidCallback onTap,
+    }) => Expanded(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        child: InkWell(
+          key: key,
+          borderRadius: BorderRadius.circular(KRadius.pill),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            constraints: const BoxConstraints(minHeight: 38),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: selected ? PkSheetMetrics.red : const Color(0xFFF3F3F6),
+              borderRadius: BorderRadius.circular(KRadius.pill),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 17,
+                  color: selected
+                      ? const Color(0xFFFFFFFF)
+                      : PkSheetMetrics.ink,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textStyles.label.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: selected
+                          ? const Color(0xFFFFFFFF)
+                          : PkSheetMetrics.ink,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          label: l10n.pk4FormatSemantics,
+          container: true,
+          child: Row(
+            children: [
+              chip(
+                key: LivePk4Panel.formatKey(Pk4Format.teams),
+                selected: _format == Pk4Format.teams,
+                label: l10n.pk4FormatTeams,
+                icon: Icons.groups_rounded,
+                onTap: () => setState(() => _format = Pk4Format.teams),
+              ),
+              const SizedBox(width: KSpacing.sm),
+              chip(
+                key: LivePk4Panel.formatKey(Pk4Format.freeForAll),
+                selected: _format == Pk4Format.freeForAll,
+                label: l10n.pk4FormatFfa,
+                icon: Icons.grid_view_rounded,
+                onTap: () => setState(() => _format = Pk4Format.freeForAll),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: KSpacing.xs),
+        Row(
+          children: [
+            chip(
+              key: LivePk4Panel.daresKey,
+              selected: _type == PkType.dares,
+              label: l10n.pk4DaresToggle,
+              icon: Icons.gavel_rounded,
+              onTap: () => setState(
+                () => _type = _type == PkType.dares
+                    ? PkType.normal
+                    : PkType.dares,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// v1.119-live (D395, owner «أ»): «ابدأ الآن» once one invited host joined.
+  Widget _startNow(
+    BuildContext context,
+    Pk4Lobby lobby,
+    LivePk4Controller controller,
+  ) {
+    final l10n = context.l10n;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        KSpacing.sm,
+        KSpacing.xs,
+        KSpacing.xs,
+        KSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4E5),
+        borderRadius: BorderRadius.circular(KRadius.md),
+        border: Border.all(color: const Color(0xFFFFC266)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l10n.pk4StartNowHint('${lobby.accepted}'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.caption.copyWith(
+                color: PkSheetMetrics.ink,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: KSpacing.xs),
+          KButton(
+            key: LivePk4Panel.startNowKey,
+            label: l10n.pk4StartNow,
+            icon: Icons.play_arrow_rounded,
+            expand: false,
+            loading: _busy,
+            onPressed: () => unawaited(_run(controller.startLobby)),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// During the battle: «ستغادر المعركة ويكمل زميلك وحده» first; then the
   /// PK sheet closes on the stage.
   Future<void> _confirmEnd(Pk4Match match, LivePk4Controller controller) async {
@@ -326,7 +567,8 @@ class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
     return d.isNegative ? Duration.zero : Duration(seconds: d.inSeconds);
   }
 
-  /// The four places in two team columns: this host's team on the start.
+  /// The four places in two columns: TEAMS this host's team on the start;
+  /// FREE_FOR_ALL places 1–2 and 3–4 (one colour per place).
   Widget _places(
     BuildContext context,
     Pk4Lobby lobby,
@@ -337,14 +579,17 @@ class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
     final mine = lobby.seats
         .where((s) => s.roomId == widget.roomId)
         .firstOrNull;
-    final ownTeam = mine?.team ?? Pk4Team.a;
-    Widget column(Pk4Team team, List<Color> colors) => Column(
+    final ownTeam = lobby.format == Pk4Format.freeForAll
+        ? Pk4Team.a
+        : mine?.team ?? Pk4Team.a;
+    Widget column(Pk4Team team) => Column(
       children: [
         for (final s in lobby.seats.where((s) => s.team == team)) ...[
           _PlaceCard(
             key: LivePk4Panel.placeKey(s.seat),
             seat: s,
-            colors: colors,
+            format: lobby.format,
+            colors: _placeColors(lobby.format, s.seat, ownTeam),
             selected: organiser && _place == s.seat,
             now: now,
             onTap: organiser && s.state == Pk4SeatState.empty
@@ -367,13 +612,15 @@ class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: column(ownTeam, KLivePk4.startTeam)),
+        Expanded(child: column(ownTeam)),
         const SizedBox(width: KSpacing.sm),
-        Expanded(child: column(ownTeam.other, KLivePk4.endTeam)),
+        Expanded(child: column(ownTeam.other)),
       ],
     );
   }
 
+  /// D395: the friends for the picked place — the same smaller list as the
+  /// 1 v 1 tab ([PkFriendsHeader], [PkFriendRow]).
   Widget _candidates(
     BuildContext context,
     Pk4Lobby lobby,
@@ -387,31 +634,47 @@ class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const PkFriendsHeader(),
+        const SizedBox(height: 2),
         Text(
           open
-              ? l10n.pk4InviteTo(pk4SeatLabel(l10n, place))
+              ? l10n.pk4InviteTo(pk4SeatLabel(l10n, place, lobby.format))
               : l10n.pk4PickPlace,
-          style: t.label.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: KSpacing.xs),
-        if (open) ...[
-          TextField(
-            key: LivePk4Panel.searchKey,
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: l10n.pkSearchHint,
-              prefixIcon: const Icon(Icons.search_rounded),
-            ),
-            onChanged: (v) {
-              _query = v;
-              _debounce?.cancel();
-              _debounce = Timer(
-                const Duration(milliseconds: 350),
-                () => unawaited(_load()),
-              );
-            },
+          style: t.caption.copyWith(
+            color: PkSheetMetrics.grey,
+            fontWeight: FontWeight.w700,
           ),
-          const SizedBox(height: KSpacing.xs),
+        ),
+        const SizedBox(height: KSpacing.xxs),
+        if (open) ...[
+          SizedBox(
+            height: 36,
+            child: TextField(
+              key: LivePk4Panel.searchKey,
+              textAlignVertical: TextAlignVertical.center,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: l10n.pkSearchHint,
+                prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                filled: true,
+                fillColor: const Color(0xFFF3F3F6),
+                contentPadding: EdgeInsets.zero,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (v) {
+                _query = v;
+                _debounce?.cancel();
+                _debounce = Timer(
+                  const Duration(milliseconds: 350),
+                  () => unawaited(_load()),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: KSpacing.xxs),
           Expanded(
             child: switch ((_list, _failure)) {
               (_, final Object _?) => Center(
@@ -426,52 +689,34 @@ class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
                 ),
               ),
               (final list?, _) => ListView(
+                padding: EdgeInsets.zero,
                 children: [
                   for (final c in list)
-                    ListTile(
+                    PkFriendRow(
                       key: LivePk4Panel.candidateKey(c.roomId),
-                      contentPadding: EdgeInsets.zero,
-                      leading: KAvatar(
-                        name: c.host.displayName,
-                        imageUrl: c.host.avatarUrl,
-                        size: 40,
-                      ),
-                      title: Text(
-                        c.host.displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        c.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: KButton(
-                        label: l10n.pkInvite,
-                        expand: false,
-                        onPressed: _busy
-                            ? null
-                            : () => unawaited(
-                                _run(() async {
-                                  await controller.invite(c.roomId, place);
-                                  if (!mounted) return;
-                                  final next = ref
-                                      .read(livePk4Provider(widget.roomId))
-                                      .lobby;
-                                  setState(() {
-                                    _place = next?.seats
-                                        .where(
-                                          (s) =>
-                                              s.seat > 1 &&
-                                              s.state == Pk4SeatState.empty,
-                                        )
-                                        .firstOrNull
-                                        ?.seat;
-                                  });
-                                  unawaited(_load());
-                                }),
-                              ),
-                      ),
+                      candidate: c,
+                      onInvite: _busy
+                          ? null
+                          : () => unawaited(
+                              _run(() async {
+                                await controller.invite(c.roomId, place);
+                                if (!mounted) return;
+                                final next = ref
+                                    .read(livePk4Provider(widget.roomId))
+                                    .lobby;
+                                setState(() {
+                                  _place = next?.seats
+                                      .where(
+                                        (s) =>
+                                            s.seat > 1 &&
+                                            s.state == Pk4SeatState.empty,
+                                      )
+                                      .firstOrNull
+                                      ?.seat;
+                                });
+                                unawaited(_load());
+                              }),
+                            ),
                     ),
                 ],
               ),
@@ -487,6 +732,7 @@ class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
 class _PlaceCard extends StatelessWidget {
   const new({
     required this.seat,
+    required this.format,
     required this.colors,
     required this.selected,
     required this.now,
@@ -496,6 +742,7 @@ class _PlaceCard extends StatelessWidget {
   });
 
   final Pk4LobbySeat seat;
+  final Pk4Format format;
   final List<Color> colors;
   final bool selected;
   final DateTime now;
@@ -516,20 +763,17 @@ class _PlaceCard extends StatelessWidget {
       Pk4SeatState.invited => l10n.pk4SeatWaiting('$seconds'),
       Pk4SeatState.empty => l10n.pk4SeatInvite,
     };
+    final role = pk4SeatLabel(l10n, seat.seat, format);
     return Semantics(
       button: onTap != null,
       selected: selected,
-      label: [
-        pk4SeatLabel(l10n, seat.seat),
-        ?host?.displayName,
-        status,
-      ].join(' · '),
+      label: [role, ?host?.displayName, status].join(' · '),
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(KRadius.md),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 56),
+          constraints: const BoxConstraints(minHeight: 52),
           padding: const EdgeInsets.all(KSpacing.xs),
           decoration: BoxDecoration(
             color: colors[1].withValues(alpha: selected ? 0.16 : 0.07),
@@ -545,12 +789,12 @@ class _PlaceCard extends StatelessWidget {
                 KAvatar(
                   name: host.displayName,
                   imageUrl: host.avatarUrl,
-                  size: 36,
+                  size: 34,
                 )
               else
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: colors[1]),
@@ -563,7 +807,7 @@ class _PlaceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      pk4SeatLabel(l10n, seat.seat),
+                      role,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: t.caption.copyWith(
@@ -707,7 +951,11 @@ class _LivePk4IncomingInviteState extends ConsumerState<LivePk4IncomingInvite> {
                       Text(
                         l10n.pk4IncomingBody(
                           KFormat.bidiIsolate(widget.invite.from.displayName),
-                          pk4SeatLabel(l10n, widget.invite.seat),
+                          pk4SeatLabel(
+                            l10n,
+                            widget.invite.seat,
+                            widget.invite.format,
+                          ),
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
