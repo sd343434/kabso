@@ -32662,10 +32662,10 @@ abstract class AppLocalizations {
   /// **'المستويات'**
   String get ambLevelsTitle;
 
-  /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
+  /// D390: «برنامج سفراء Kabso» — a level's name; the owner's «سفراء النجوم» set (2026-11-14): SPARK شرارة, STAR نجم, CONSTELLATION كوكبة, GALAXY مجرّة; the app maps the old codes BRONZE / SILVER / GOLD / DIAMOND to them first (ambassadorLevelName); a level the OWNER added shows its code (CONVENTIONS §10.179.6).
   ///
   /// In ar, this message translates to:
-  /// **'{code, select, BRONZE{برونزي} SILVER{فضي} GOLD{ذهبي} DIAMOND{ماسي} other{{code}}}'**
+  /// **'{code, select, SPARK{شرارة} STAR{نجم} CONSTELLATION{كوكبة} GALAXY{مجرّة} other{{code}}}'**
   String ambLevelName(String code);
 
   /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).

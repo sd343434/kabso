@@ -19365,10 +19365,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String ambLevelName(String code) {
     String _temp0 = intl.Intl.selectLogic(code, {
-      'BRONZE': 'Bronze',
-      'SILVER': 'Silver',
-      'GOLD': 'Gold',
-      'DIAMOND': 'Diamond',
+      'SPARK': 'Spark',
+      'STAR': 'Star',
+      'CONSTELLATION': 'Constellation',
+      'GALAXY': 'Galaxy',
       'other': '$code',
     });
     return '$_temp0';

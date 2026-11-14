@@ -33,6 +33,29 @@ export const ambassadorRewardSchema = z.discriminatedUnion('kind', [
 ]);
 export type AmbassadorReward = z.infer<typeof ambassadorRewardSchema>;
 
+/**
+ * The four default level codes (owner 2026-11-14, «سفراء النجوم»: شرارة / نجم / كوكبة / مجرّة, §10.179.6). Codes are
+ * free-form (the OWNER may add or rename levels); the apps name these four and show any other code as it is.
+ */
+export const DEFAULT_AMBASSADOR_LEVEL_CODES = ['SPARK', 'STAR', 'CONSTELLATION', 'GALAXY'] as const;
+
+/**
+ * The default codes before the owner's renaming and the code each became. Migration
+ * `20270520090000_ambassador_level_names` renames them in the database; [levelIndex] still finds a level by its old
+ * code (an ambassador row or a history value the migration did not rename because the OWNER's list had changed).
+ */
+export const LEGACY_AMBASSADOR_LEVEL_CODES: Readonly<Record<string, string>> = {
+  BRONZE: 'SPARK',
+  SILVER: 'STAR',
+  GOLD: 'CONSTELLATION',
+  DIAMOND: 'GALAXY',
+};
+
+/** A level code with an old default code read as its new one (any other code unchanged). */
+export function canonicalLevelCode(code: string): string {
+  return LEGACY_AMBASSADOR_LEVEL_CODES[code] ?? code;
+}
+
 export const ambassadorLevelSchema = z.strictObject({
   code: z.string().regex(/^[A-Z][A-Z0-9_]{1,15}$/),
   /** The month's referrals that became ACTIVE (§10.179.4). */
@@ -73,9 +96,16 @@ export function parseLevels(raw: unknown): AmbassadorLevel[] {
   return parsed.data;
 }
 
-/** The index of `code` in `levels` (an unknown code — a level removed since — reads as the first). */
+/**
+ * The index of `code` in `levels`: the exact code first, then the same level under its old or new default code
+ * (BRONZE ⇄ SPARK, …); an unknown code — a level removed since — reads as the first.
+ */
 export function levelIndex(levels: readonly AmbassadorLevel[], code: string): number {
-  const i = levels.findIndex((l) => l.code === code);
+  let i = levels.findIndex((l) => l.code === code);
+  if (i < 0) {
+    const canonical = canonicalLevelCode(code);
+    i = levels.findIndex((l) => canonicalLevelCode(l.code) === canonical);
+  }
   return i < 0 ? 0 : i;
 }
 

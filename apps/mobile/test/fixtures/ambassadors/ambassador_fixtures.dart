@@ -1,33 +1,34 @@
 // D390 «برنامج سفراء Kabso»: payloads shaped like `AmbassadorProgramme` and
 // `AmbassadorDashboard` in openapi.yaml (v1.141-social), with the migration's
-// proposed defaults. Test data only (G-26).
+// proposed defaults (the owner's level codes of 2026-11-14). Test data only
+// (G-26).
 
 import 'package:kabso_live/features/ambassadors/data/ambassador_repository.dart';
 
 const List<Map<String, Object>> _levels = [
   {
-    'code': 'BRONZE',
+    'code': 'SPARK',
     'minActiveReferrals': 0,
     'minTopupCoins': 0,
     'commissionBps': 200,
     'reward': {'kind': 'NONE'},
   },
   {
-    'code': 'SILVER',
+    'code': 'STAR',
     'minActiveReferrals': 5,
     'minTopupCoins': 3000000,
     'commissionBps': 300,
     'reward': {'kind': 'COINS', 'amount': 100000},
   },
   {
-    'code': 'GOLD',
+    'code': 'CONSTELLATION',
     'minActiveReferrals': 15,
     'minTopupCoins': 15000000,
     'commissionBps': 400,
     'reward': {'kind': 'VIP_DAYS', 'amount': 7, 'vipTier': 'VIP_1'},
   },
   {
-    'code': 'DIAMOND',
+    'code': 'GALAXY',
     'minActiveReferrals': 40,
     'minTopupCoins': 60000000,
     'commissionBps': 500,
@@ -82,21 +83,25 @@ AmbassadorProgramme ambassadorProgramme({
   ),
 );
 
-/// A Silver ambassador half-way to Gold this month.
+/// A Star ambassador half-way to Constellation this month.
 Map<String, dynamic> ambassadorDashboardJson({bool payoutsHeld = false}) => {
   'enabled': true,
   'payoutsHeld': payoutsHeld,
   'since': '2026-09-02T10:00:00.000Z',
   'code': 'K7M4QX2D',
   'link': 'https://kabsolive.com/i/K7M4QX2D',
-  'level': {'code': 'SILVER', 'commissionBps': 300},
-  'nextLevel': {'code': 'GOLD', 'activeReferrals': 6, 'topupCoins': 6800000},
+  'level': {'code': 'STAR', 'commissionBps': 300},
+  'nextLevel': {
+    'code': 'CONSTELLATION',
+    'activeReferrals': 6,
+    'topupCoins': 6800000,
+  },
   'month': {
     'month': '2026-11',
     'activeReferrals': 9,
     'topupCoins': 8200000,
     'target': {
-      'code': 'GOLD',
+      'code': 'CONSTELLATION',
       'minActiveReferrals': 15,
       'minTopupCoins': 15000000,
       'reward': {'kind': 'VIP_DAYS', 'amount': 7, 'vipTier': 'VIP_1'},
@@ -115,7 +120,7 @@ Map<String, dynamic> ambassadorDashboardJson({bool payoutsHeld = false}) => {
       'activeReferrals': 7,
       'topupCoins': 4100000,
       'commissionCherries': 2050000,
-      'levelAfter': 'SILVER',
+      'levelAfter': 'STAR',
       'rewardStatus': 'GRANTED',
     },
     {
@@ -123,7 +128,7 @@ Map<String, dynamic> ambassadorDashboardJson({bool payoutsHeld = false}) => {
       'activeReferrals': 3,
       'topupCoins': 1500000,
       'commissionCherries': 450000,
-      'levelAfter': 'BRONZE',
+      'levelAfter': 'SPARK',
       'rewardStatus': 'NONE',
     },
   ],

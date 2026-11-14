@@ -414,10 +414,10 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     expect(
       (s.body.levels as { code: string; commissionBps: number }[]).map((l) => [l.code, l.commissionBps]),
     ).toEqual([
-      ['BRONZE', 200],
-      ['SILVER', 300],
-      ['GOLD', 400],
-      ['DIAMOND', 500],
+      ['SPARK', 200],
+      ['STAR', 300],
+      ['CONSTELLATION', 400],
+      ['GALAXY', 500],
     ]);
   });
 
@@ -425,7 +425,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     const bad = await awrite(owner, 'put', '/admin/ambassador-settings', {
       levels: [
         {
-          code: 'BRONZE',
+          code: 'SPARK',
           minActiveReferrals: 1,
           minTopupCoins: 0,
           commissionBps: 300,
@@ -490,7 +490,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       }),
     ).toBe(1);
     const d = await dashboard(u);
-    expect(d.level).toEqual({ code: 'BRONZE', commissionBps: 200 });
+    expect(d.level).toEqual({ code: 'SPARK', commissionBps: 200 });
     expect(d.code).toBe(await codeOf(u));
     const stranger = await signup();
     expect((await ctx.http.get('/api/v1/ambassadors/me').set(auth(stranger))).status).toBe(404);
@@ -530,12 +530,12 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     // No SIGNUP_INVITER, no FIRST_RECHARGE for the ambassador.
     expect(await ctx.prisma.referralReward.count({ where: { userId: amb.id } })).toBe(before);
     const [c] = await commissionsOf(amb);
-    // BRONZE 2 %: 1 000 000 coins × 10 cherries × 200 / 10 000.
+    // SPARK 2 %: 1 000 000 coins × 10 cherries × 200 / 10 000.
     expect(c).toMatchObject({
       status: 'PENDING',
       cherries: 200_000n,
       rateBps: 200,
-      level: 'BRONZE',
+      level: 'SPARK',
       rechargeReason: 'CARD_TOPUP',
     });
     // The D217 hold passes: the referral qualifies but pays the ambassador nothing, and no milestone counts it (a
@@ -755,21 +755,21 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     await settings(owner, {
       levels: [
         {
-          code: 'BRONZE',
+          code: 'SPARK',
           minActiveReferrals: 0,
           minTopupCoins: 0,
           commissionBps: 300,
           reward: { kind: 'NONE' },
         },
         {
-          code: 'SILVER',
+          code: 'STAR',
           minActiveReferrals: 1,
           minTopupCoins: 1_000_000,
           commissionBps: 500,
           reward: { kind: 'COINS', amount: 100_000 },
         },
         {
-          code: 'GOLD',
+          code: 'CONSTELLATION',
           minActiveReferrals: 5,
           minTopupCoins: 50_000_000,
           commissionBps: 700,
@@ -787,14 +787,12 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     const row = await ctx.prisma.ambassadorMonth.findFirstOrThrow({ where: { ambassadorUserId: amb.id } });
     expect(row).toMatchObject({
       activeReferrals: 1,
-      levelBefore: 'BRONZE',
-      metLevel: 'SILVER',
-      levelAfter: 'SILVER',
+      levelBefore: 'SPARK',
+      metLevel: 'STAR',
+      levelAfter: 'STAR',
       rewardStatus: 'GRANTED',
     });
-    expect((await ctx.prisma.ambassador.findUniqueOrThrow({ where: { userId: amb.id } })).level).toBe(
-      'SILVER',
-    );
+    expect((await ctx.prisma.ambassador.findUniqueOrThrow({ where: { userId: amb.id } })).level).toBe('STAR');
     const coin = await ctx.prisma.walletLedgerEntry.findFirstOrThrow({
       where: { userId: amb.id, reason: 'AMBASSADOR_REWARD' },
     });
@@ -808,8 +806,8 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       await ctx.prisma.walletLedgerEntry.count({ where: { userId: amb.id, reason: 'AMBASSADOR_REWARD' } }),
     ).toBe(1);
     const d = await dashboard(amb);
-    expect(d.level.code).toBe('SILVER');
-    expect(d.history[0]).toMatchObject({ levelAfter: 'SILVER', rewardStatus: 'GRANTED' });
+    expect(d.level.code).toBe('STAR');
+    expect(d.history[0]).toMatchObject({ levelAfter: 'STAR', rewardStatus: 'GRANTED' });
   });
 
   it('the panel: SUPPORT sees performance without money; the OWNER sees the totals; campaigns', async () => {
@@ -824,7 +822,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
     expect(asOwner.status).toBe(200);
     expectContract(asOwner, 'getAdminAmbassador');
     expect(asOwner.body.commissions.paidCherries).toBe(300_000);
-    expect(asOwner.body.level).toBe('SILVER');
+    expect(asOwner.body.level).toBe('STAR');
     const detailSupport = await aget(support, `/admin/ambassadors/${amb.id}`);
     expect(detailSupport.body.commissionList.every((c: { cherries: unknown }) => c.cherries === null)).toBe(
       true,
@@ -876,7 +874,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       expectContract(res, 'getPublicProfile');
       return res.body as { ambassador?: { level: string } };
     };
-    expect((await profileOf(amb)).ambassador).toEqual({ level: 'SILVER' });
+    expect((await profileOf(amb)).ambassador).toEqual({ level: 'STAR' });
     expect((await profileOf(viewer)).ambassador).toBeUndefined();
     // Frozen: private, no badge.
     expect(
@@ -888,7 +886,13 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       totpCode: nextCode(owner.secret),
     });
     expect(un.status).toBe(200);
-    expect((await profileOf(amb)).ambassador).toEqual({ level: 'SILVER' });
+    expect((await profileOf(amb)).ambassador).toEqual({ level: 'STAR' });
+    // An ambassador row still holding an old default code (owner 2026-11-14: BRONZE / SILVER / GOLD / DIAMOND became
+    // SPARK / STAR / CONSTELLATION / GALAXY; migration 20270520090000) reads as the renamed level.
+    await ctx.prisma.ambassador.update({ where: { userId: amb.id }, data: { level: 'SILVER' } });
+    expect((await profileOf(amb)).ambassador).toEqual({ level: 'STAR' });
+    expect((await dashboard(amb)).level.code).toBe('STAR');
+    await ctx.prisma.ambassador.update({ where: { userId: amb.id }, data: { level: 'STAR' } });
     // Programme off: no badge for anyone.
     await settings(owner, { enabled: false });
     expect((await profileOf(amb)).ambassador).toBeUndefined();
@@ -957,7 +961,7 @@ describe('D390 «برنامج سفراء Kabso»', { timeout: 900_000 }, () => {
       reason: 'second chance',
     });
     expect(re.status, JSON.stringify(re.body)).toBe(201);
-    expect(re.body).toMatchObject({ status: 'ACTIVE', level: 'BRONZE', endedAt: null });
+    expect(re.body).toMatchObject({ status: 'ACTIVE', level: 'SPARK', endedAt: null });
     const ended = await aget(owner, '/admin/ambassadors?status=ENDED');
     expect(ended.status).toBe(200);
   });

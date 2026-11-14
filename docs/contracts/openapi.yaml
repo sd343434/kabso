@@ -45556,7 +45556,7 @@ components:
       additionalProperties: false
       required: [code, minActiveReferrals, minTopupCoins, commissionBps, reward]
       properties:
-        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,15}$', description: "BRONZE, SILVER, GOLD, DIAMOND by default; the apps name the four defaults and show any other code as is." }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,15}$', description: "SPARK, STAR, CONSTELLATION, GALAXY by default (owner 2026-11-14, «سفراء النجوم»: شرارة / نجم / كوكبة / مجرّة; formerly BRONZE, SILVER, GOLD, DIAMOND, renamed by migration 20270520090000 — clients read an old code as its new level). The apps name and draw the four defaults and show any other code as is." }
         minActiveReferrals: { type: integer, minimum: 0 }
         minTopupCoins: { type: integer, minimum: 0 }
         commissionBps: { type: integer, minimum: 0, maximum: 5000 }

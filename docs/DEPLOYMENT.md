@@ -4657,7 +4657,7 @@ secret, no new host, no new LiveKit room.
 - **Order:** the API image (the migration runs first), then the panel, then the APK. An older app never sees a lobby
   or invitation and shows a 4-way room as a solo live.
 
-### 5.132 «برنامج سفراء Kabso» — the ambassadors programme (D390; migrations `20270519090000`, `20270519090100`, `20270519090200`, `20270519090300`) — [IMPLEMENTED, draft contract v1.141-social; not deployed, not device-tested]
+### 5.132 «برنامج سفراء Kabso» — the ambassadors programme (D390; migrations `20270519090000`, `20270519090100`, `20270519090200`, `20270519090300`, `20270520090000`) — [IMPLEMENTED, draft contract v1.141-social; not deployed, not device-tested]
 
 CONVENTIONS §10.179 (owner's brief via the coordinator, 2026-11-13). Two migrations and one setting; no new secret, no new
 host. **The programme ships OFF**: nothing changes for anyone until the OWNER reviews the proposed defaults and switches
@@ -4680,6 +4680,15 @@ it on in the panel «السفراء › الإعدادات» (PP-95).
   its own transaction) and `20270519090300_ambassador_end` (`ambassadors.ended_at` / `ended_reason` / `ended_by_id`, the
   CHECKs `ambassadors_shape` and `ambassador_months_shape` re-made — small, empty tables). The settings row is seeded with
   the owner's lower-cost defaults («أ»: 2 / 3 / 4 / 5 %, a 60-day window).
+- **Level names** (owner 2026-11-14, «سفراء النجوم»), after the four above: `20270520090000_ambassador_level_names` — the default level
+  codes BRONZE / SILVER / GOLD / DIAMOND become SPARK / STAR / CONSTELLATION / GALAXY (شرارة / نجم / كوكبة / مجرّة): the
+  `ambassador_settings.levels` column default and the stored list (only when it still holds an old default code and none
+  of the new ones), then `ambassadors.level`, `ambassador_commissions.level` and `ambassador_months.level_before` /
+  `level_after` / `met_level` for the codes the list renamed. Idempotent; two helper functions created and dropped in
+  the migration; tiny tables (the programme is OFF on staging: one settings row, no ambassador), no long lock. Ship the
+  API with it: an older API reads a renamed row correctly (it reads the codes from the same list), and the new API and
+  apps still read an old code as its renamed level. The app and the panel show the owner's icons
+  (`apps/mobile/assets/ambassadors/`, PROVENANCE.md; the panel imports them from there at build time).
 - **Setting:** `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (default `300`; `0` is refused in production) — the sweeper that
   activates referrals, credits or voids held commissions, evaluates the finished month and grants held rewards. Every
   amount and rule is in the panel (`ambassador_settings`), never in the environment. The months follow

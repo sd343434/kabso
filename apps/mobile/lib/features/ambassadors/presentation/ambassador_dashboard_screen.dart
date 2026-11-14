@@ -193,7 +193,7 @@ class _LevelCard extends StatelessWidget {
             Text(l10n.ambTopLevel, style: t.caption)
           else ...[
             Text(
-              l10n.ambNextLevel(l10n.ambLevelName(next.code)),
+              l10n.ambNextLevel(ambassadorLevelName(l10n, next.code)),
               style: t.caption.copyWith(fontWeight: FontWeight.w600),
             ),
             Text(

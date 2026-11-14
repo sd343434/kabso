@@ -9328,7 +9328,7 @@ model AmbassadorSettings {
   velocityMaxPerDay     Int      @default(30) @map("velocity_max_per_day")
   ipClusterMax          Int      @default(3) @map("ip_cluster_max")
   ipClusterWindowDays   Int      @default(30) @map("ip_cluster_window_days")
-  levels                Json     @default("[{\"code\":\"BRONZE\",\"minActiveReferrals\":0,\"minTopupCoins\":0,\"commissionBps\":200,\"reward\":{\"kind\":\"NONE\"}},{\"code\":\"SILVER\",\"minActiveReferrals\":5,\"minTopupCoins\":3000000,\"commissionBps\":300,\"reward\":{\"kind\":\"COINS\",\"amount\":100000}},{\"code\":\"GOLD\",\"minActiveReferrals\":15,\"minTopupCoins\":15000000,\"commissionBps\":400,\"reward\":{\"kind\":\"VIP_DAYS\",\"amount\":7,\"vipTier\":\"VIP_1\"}},{\"code\":\"DIAMOND\",\"minActiveReferrals\":40,\"minTopupCoins\":60000000,\"commissionBps\":500,\"reward\":{\"kind\":\"COINS\",\"amount\":1000000}}]") @db.JsonB
+  levels                Json     @default("[{\"code\":\"SPARK\",\"minActiveReferrals\":0,\"minTopupCoins\":0,\"commissionBps\":200,\"reward\":{\"kind\":\"NONE\"}},{\"code\":\"STAR\",\"minActiveReferrals\":5,\"minTopupCoins\":3000000,\"commissionBps\":300,\"reward\":{\"kind\":\"COINS\",\"amount\":100000}},{\"code\":\"CONSTELLATION\",\"minActiveReferrals\":15,\"minTopupCoins\":15000000,\"commissionBps\":400,\"reward\":{\"kind\":\"VIP_DAYS\",\"amount\":7,\"vipTier\":\"VIP_1\"}},{\"code\":\"GALAXY\",\"minActiveReferrals\":40,\"minTopupCoins\":60000000,\"commissionBps\":500,\"reward\":{\"kind\":\"COINS\",\"amount\":1000000}}]") @db.JsonB
   updatedAt             DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
   updatedById           String?  @map("updated_by_id") @db.Uuid
 

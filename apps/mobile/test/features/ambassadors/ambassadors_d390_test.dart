@@ -196,7 +196,7 @@ void main() {
     expect(find.text('K7M4QX2D'), findsOne);
     expect(find.text('https://kabsolive.com/i/K7M4QX2D'), findsOne);
     expect(find.textContaining('3%'), findsOne);
-    expect(find.text('To reach Gold this month'), findsOne);
+    expect(find.text('To reach Constellation this month'), findsOne);
     expect(
       find.textContaining('Active referrals to go: \u20686\u2069'),
       findsOne,
@@ -226,9 +226,9 @@ void main() {
     final handle = tester.ensureSemantics();
     await pumpScreen(
       tester,
-      const Center(child: AmbassadorBadge(level: 'DIAMOND', large: true)),
+      const Center(child: AmbassadorBadge(level: 'GALAXY', large: true)),
     );
-    expect(find.bySemanticsLabel('Kabso ambassador · Diamond'), findsOne);
+    expect(find.bySemanticsLabel('Kabso ambassador · Galaxy'), findsOne);
     handle.dispose();
   });
 
@@ -272,22 +272,79 @@ void main() {
   });
 
   test('PublicProfile.ambassador → the level; absent or malformed → null', () {
-    expect(ambassadorLevelFromJson({'level': 'GOLD'}), 'GOLD');
+    expect(
+      ambassadorLevelFromJson({'level': 'CONSTELLATION'}),
+      'CONSTELLATION',
+    );
     expect(ambassadorLevelFromJson(null), isNull);
     expect(ambassadorLevelFromJson({'level': ''}), isNull);
-    expect(ambassadorLevelFromJson('GOLD'), isNull);
-    expect(ambassadorLevelToJson('SILVER'), {'level': 'SILVER'});
+    expect(ambassadorLevelFromJson('CONSTELLATION'), isNull);
+    expect(ambassadorLevelToJson('STAR'), {'level': 'STAR'});
   });
 
   test('the D389 explainer text for the badge (ar and en)', () {
     expect(
-      ambassadorBadgeExplainer(l10nFor(AppLanguage.ar), 'GOLD'),
-      'سفير Kabso — المستوى ذهبي',
+      ambassadorBadgeExplainer(l10nFor(AppLanguage.ar), 'CONSTELLATION'),
+      'سفير Kabso — المستوى كوكبة',
     );
     expect(
-      ambassadorBadgeExplainer(l10nFor(AppLanguage.en), 'GOLD'),
-      'Kabso ambassador — Gold level',
+      ambassadorBadgeExplainer(l10nFor(AppLanguage.en), 'CONSTELLATION'),
+      'Kabso ambassador — Constellation level',
     );
+  });
+
+  test('the level names «سفراء النجوم» (owner 2026-11-14), ar and en', () {
+    final ar = l10nFor(AppLanguage.ar);
+    final en = l10nFor(AppLanguage.en);
+    for (final (code, arName, enName, art) in [
+      ('SPARK', 'شرارة', 'Spark', 'spark'),
+      ('STAR', 'نجم', 'Star', 'star'),
+      ('CONSTELLATION', 'كوكبة', 'Constellation', 'constellation'),
+      ('GALAXY', 'مجرّة', 'Galaxy', 'galaxy'),
+    ]) {
+      expect(ambassadorLevelName(ar, code), arName);
+      expect(ambassadorLevelName(en, code), enName);
+      expect(ambassadorLevelArt(code), 'assets/ambassadors/$art.webp');
+    }
+  });
+
+  test('an old default code reads as its renamed level; a code the OWNER '
+      'added shows as it is, with no art', () {
+    final ar = l10nFor(AppLanguage.ar);
+    final en = l10nFor(AppLanguage.en);
+    expect(ambassadorLevelCode('BRONZE'), 'SPARK');
+    expect(ambassadorLevelCode('SILVER'), 'STAR');
+    expect(ambassadorLevelCode('GOLD'), 'CONSTELLATION');
+    expect(ambassadorLevelCode('DIAMOND'), 'GALAXY');
+    expect(ambassadorLevelName(ar, 'GOLD'), 'كوكبة');
+    expect(ambassadorLevelName(en, 'DIAMOND'), 'Galaxy');
+    expect(ambassadorLevelArt('BRONZE'), 'assets/ambassadors/spark.webp');
+    expect(
+      ambassadorBadgeExplainer(en, 'SILVER'),
+      'Kabso ambassador — Star level',
+    );
+    expect(ambassadorLevelName(en, 'PLATINUM'), 'PLATINUM');
+    expect(ambassadorLevelArt('PLATINUM'), isNull);
+  });
+
+  testWidgets("the badge: the level's medal, then its name; a level without "
+      'art keeps a crest', (tester) async {
+    for (final (level, name, hasArt) in [
+      ('STAR', 'Star', true),
+      ('DIAMOND', 'Galaxy', true),
+      ('PLATINUM', 'PLATINUM', false),
+    ]) {
+      await pumpScreen(
+        tester,
+        Center(child: AmbassadorBadge(level: level, height: 22)),
+      );
+      expect(find.text(name), findsOne);
+      expect(
+        find.byKey(AmbassadorBadge.artKey),
+        hasArt ? findsOne : findsNothing,
+      );
+      expect(tester.getSize(find.byKey(AmbassadorBadge.badgeKey)).height, 22);
+    }
   });
 
   test('«الربح»: the two ambassador lines have their own labels (D390)', () {

@@ -150,8 +150,9 @@ List<_Case> _cases() => [
   // D390 (§10.179.9): the exclusive ambassador badge.
   (
     name: 'ambassador',
-    badge: const AmbassadorBadge(level: 'GOLD', height: 20),
-    message: (AppLocalizations l) => ambassadorBadgeExplainer(l, 'GOLD'),
+    badge: const AmbassadorBadge(level: 'CONSTELLATION', height: 20),
+    message: (AppLocalizations l) =>
+        ambassadorBadgeExplainer(l, 'CONSTELLATION'),
   ),
   (
     name: 'host target',

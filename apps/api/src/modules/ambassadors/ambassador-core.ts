@@ -18,6 +18,7 @@ import {
   ambassadorMonth,
   capCommission,
   commissionCherries,
+  DEFAULT_AMBASSADOR_LEVEL_CODES,
   levelAfterMonth,
   levelIndex,
   metLevelIndex,
@@ -858,7 +859,7 @@ async function makeAmbassadorIn(
   await tx.ambassador.create({
     data: {
       userId: input.userId,
-      level: settings.levels[0]?.code ?? 'BRONZE',
+      level: settings.levels[0]?.code ?? DEFAULT_AMBASSADOR_LEVEL_CODES[0],
       source: input.source,
       applicationId: input.applicationId,
       appointedById: input.source === 'APPOINTED' ? by.actorUserId : null,
@@ -965,7 +966,7 @@ export async function appointAmbassadorIn(
       where: { userId },
       data: {
         status: 'ACTIVE',
-        level: settings.levels[0]?.code ?? 'BRONZE',
+        level: settings.levels[0]?.code ?? DEFAULT_AMBASSADOR_LEVEL_CODES[0],
         source: 'APPOINTED',
         applicationId: null,
         appointedById: by.actorUserId,

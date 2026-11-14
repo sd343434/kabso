@@ -2795,11 +2795,14 @@ table.events-v2 td .row { flex-wrap: wrap; }
 /* v1.139-social (D387, §10.176.9): «طلب موظف» beside the person. */
 [data-staff-request] { margin-inline-start: 6px; vertical-align: middle; }
 /* v1.141-social (D390): the ambassador level chips (the app's AmbassadorBadge colours). */
-.amb-level { display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 12px; }
-.amb-bronze { background: #f3e1d2; color: #7a4a24; }
-.amb-silver { background: #e6e8ec; color: #4b5563; }
-.amb-gold { background: #fbefc7; color: #7a5a00; }
-.amb-diamond { background: #dceffd; color: #0b5c8f; }
+/* D390 «سفراء النجوم» (owner 2026-11-14): the icon, then the name, in the icon's colours. */
+.amb-level { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 12px; white-space: nowrap; background: var(--overlay); color: var(--text); }
+.amb-level:has(.amb-level-icon) { padding-inline-start: 2px; }
+.amb-level-icon { width: 20px; height: 20px; object-fit: contain; flex: none; }
+.amb-spark { background: #ffe6d1; color: #9a3412; }
+.amb-star { background: #fdf0c2; color: #6b4e00; }
+.amb-constellation { background: #ece1ff; color: #5b21b6; }
+.amb-galaxy { background: #dfe6ff; color: #312e81; }
 .amb-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 12px 0; }
 .amb-stat { border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; }
 .amb-stat .value { font-size: 22px; }

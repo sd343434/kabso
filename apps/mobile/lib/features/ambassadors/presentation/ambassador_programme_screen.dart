@@ -518,8 +518,13 @@ class _Levels extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    AmbassadorBadge(level: l.code),
-                    const Spacer(),
+                    Expanded(
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: AmbassadorBadge(level: l.code),
+                      ),
+                    ),
+                    const SizedBox(width: KSpacing.sm),
                     Text(
                       l10n.ambLevelCommission(
                         KFormat.bidiIsolate(ambassadorPercent(l.commissionBps)),

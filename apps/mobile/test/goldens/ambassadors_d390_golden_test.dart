@@ -2,11 +2,14 @@
 //
 //   ambassadors_d390.programme   the explanation page with the levels, the
 //                                rules and the application form (programme on)
-//   ambassadors_d390.dashboard   a Silver ambassador's dashboard: the badge,
-//                                the commission and the progress to Gold, the
+//   ambassadors_d390.dashboard   a Star ambassador's dashboard: the badge,
+//                                the commission and the progress to
+//                                Constellation, the
 //                                code and link, this month's targets, the
 //                                referrals and commissions, the history
-//   ambassadors_d390.badges      the four level badges, inline and large
+//   ambassadors_d390.badges      the four level badges «سفراء النجوم» (owner
+//                                2026-11-14, the owner's medals), inline and
+//                                large, and a level the OWNER added (no art)
 //
 // 393 wide @3x, tall enough for the whole page (the screens scroll). Regenerate
 // on Linux with the pinned Flutter:
@@ -54,6 +57,7 @@ void main() {
           ],
         );
         await tester.pumpAndSettle();
+        await precacheImages(tester);
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile('png/ambassadors_d390.$screen.$name.phone.png'),
@@ -72,7 +76,13 @@ void main() {
                 spacing: KSpacing.sm,
                 runSpacing: KSpacing.sm,
                 children: [
-                  for (final level in ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND'])
+                  for (final level in [
+                    'SPARK',
+                    'STAR',
+                    'CONSTELLATION',
+                    'GALAXY',
+                    'PLATINUM',
+                  ])
                     AmbassadorBadge(level: level, large: large),
                 ],
               ),

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AmbassadorLevelChip } from '../ambassador-levels';
 import { api } from '../api';
 import { codeField, ErrorAlert, FormDialog, Loading, reasonField, useAsync, UserCell } from '../components';
 import { useApp } from '../context';
@@ -170,7 +171,7 @@ export function AmbassadorTable({ rows }: { rows: AmbassadorRow[] }) {
                 <UserCell username={r.user.username} displayName={r.user.displayName} avatarUrl={r.user.avatarUrl} />
               </td>
               <td>
-                <span className={`amb-level amb-${r.level.toLowerCase()}`}>{r.level}</span>
+                <AmbassadorLevelChip code={r.level} />
               </td>
               <td className="mono">{formatNumber(r.referrals.total, lang)}</td>
               <td className="mono">{formatNumber(r.referrals.active, lang)}</td>
@@ -269,7 +270,7 @@ export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData;
         <div className="amb-kpis">
           <div className="stat amb-stat">
             <div className="label">{t('ambColLevel')}</div>
-            <div className="value"><span className={`amb-level amb-${data.level.toLowerCase()}`}>{data.level}</span></div>
+            <div className="value"><AmbassadorLevelChip code={data.level} /></div>
           </div>
           <div className="stat amb-stat">
             <div className="label">{t('ambColReferrals')}</div>
@@ -366,7 +367,7 @@ export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData;
                   <td className="mono">{formatNumber(m.activeReferrals, lang)}</td>
                   <td className="mono">{formatNumber(m.topupCoins, lang)}</td>
                   <td>
-                    {m.levelBefore} → {m.levelAfter}
+                    <AmbassadorLevelChip code={m.levelBefore} /> → <AmbassadorLevelChip code={m.levelAfter} />
                   </td>
                   <td>{keyed('ambReward', m.rewardStatus)}</td>
                 </tr>
@@ -407,8 +408,8 @@ export function AmbassadorView({ data, onAction }: { data: AmbassadorDetailData;
             {data.commissionList.map((x) => (
               <tr key={x.id}>
                 <td className="mono">{formatNumber(x.coins, lang)}</td>
-                <td className="mono">
-                  {x.level} · {bpsLabel(x.rateBps)}
+                <td>
+                  <AmbassadorLevelChip code={x.level} /> <span className="mono">{bpsLabel(x.rateBps)}</span>
                 </td>
                 <td className="mono">{x.cherries === null ? '—' : formatNumber(x.cherries, lang)}</td>
                 <td className="small">
@@ -810,6 +811,7 @@ export function AmbassadorSettingsForm({ saved, draft, onChange, onSave }: { sav
           <thead>
             <tr>
               <th>{t('ambLevelCode')}</th>
+              <th>{t('ambLevelShown')}</th>
               <th>{t('ambMinActive')}</th>
               <th>{t('ambMinTopup')}</th>
               <th>{t('ambCommissionPct')}</th>
@@ -824,6 +826,9 @@ export function AmbassadorSettingsForm({ saved, draft, onChange, onSave }: { sav
               <tr key={i} data-amb-level={l.code}>
                 <td>
                   <input className="ltr mono" value={l.code} maxLength={16} onChange={(e) => setLevel(i, { ...l, code: e.target.value.toUpperCase() })} />
+                </td>
+                <td>
+                  <AmbassadorLevelChip code={l.code} />
                 </td>
                 <td>
                   <input type="number" min={0} className="ltr mono" value={l.minActiveReferrals} onChange={(e) => setLevel(i, { ...l, minActiveReferrals: num(e.target.value) })} />
@@ -888,6 +893,7 @@ export function AmbassadorSettingsForm({ saved, draft, onChange, onSave }: { sav
           {t('ambAddLevel')}
         </button>
       )}
+      <p className="muted small" data-amb-level-names>{t('ambLevelNamesHint')}</p>
       {!valid && <div className="alert error">{t('ambLevelsInvalid')}</div>}
       <p className="muted small">
         {t('ambUpdatedAt')}: <span className="date">{formatDate(saved.updatedAt, lang)}</span>

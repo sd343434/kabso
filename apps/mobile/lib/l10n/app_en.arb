@@ -5971,7 +5971,7 @@
   "ambGet3": "The exclusive ambassador badge",
   "ambGet4": "Levels with growing rewards",
   "ambLevelsTitle": "Levels",
-  "ambLevelName": "{code, select, BRONZE{Bronze} SILVER{Silver} GOLD{Gold} DIAMOND{Diamond} other{{code}}}",
+  "ambLevelName": "{code, select, SPARK{Spark} STAR{Star} CONSTELLATION{Constellation} GALAXY{Galaxy} other{{code}}}",
   "ambLevelRequirement": "Active referrals: {active} · top-ups: {coins} coins a month",
   "ambLevelCommission": "{pct} commission",
   "ambRewardNone": "No monthly reward",

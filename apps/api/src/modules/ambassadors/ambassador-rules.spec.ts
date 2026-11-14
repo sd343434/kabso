@@ -3,9 +3,11 @@ import { loadConfig } from '../../config/app-config.js';
 import { envSchema } from '../../config/env.schema.js';
 import {
   ambassadorMonth,
+  canonicalLevelCode,
   capCommission,
   commissionCherries,
   commissionEconomics,
+  DEFAULT_AMBASSADOR_LEVEL_CODES,
   levelAfterMonth,
   levelIndex,
   levelsProblem,
@@ -17,25 +19,25 @@ import {
   type AmbassadorLevel,
 } from './ambassador-rules.js';
 
-/** The migration's proposed defaults (CONVENTIONS §10.179.7). */
+/** The migration's proposed defaults (CONVENTIONS §10.179.7; the owner's level names of 2026-11-14). */
 const DEFAULTS: AmbassadorLevel[] = [
-  { code: 'BRONZE', minActiveReferrals: 0, minTopupCoins: 0, commissionBps: 200, reward: { kind: 'NONE' } },
+  { code: 'SPARK', minActiveReferrals: 0, minTopupCoins: 0, commissionBps: 200, reward: { kind: 'NONE' } },
   {
-    code: 'SILVER',
+    code: 'STAR',
     minActiveReferrals: 5,
     minTopupCoins: 3_000_000,
     commissionBps: 300,
     reward: { kind: 'COINS', amount: 100_000 },
   },
   {
-    code: 'GOLD',
+    code: 'CONSTELLATION',
     minActiveReferrals: 15,
     minTopupCoins: 15_000_000,
     commissionBps: 400,
     reward: { kind: 'VIP_DAYS', amount: 7, vipTier: 'VIP_1' },
   },
   {
-    code: 'DIAMOND',
+    code: 'GALAXY',
     minActiveReferrals: 40,
     minTopupCoins: 60_000_000,
     commissionBps: 500,
@@ -54,7 +56,7 @@ describe('D390 ambassador levels', () => {
     expect(levelsProblem(Array.from({ length: 11 }, (_, i) => ({ ...DEFAULTS[0]!, code: `L${i}X` })))).toBe(
       'count',
     );
-    expect(levelsProblem([DEFAULTS[0]!, { ...DEFAULTS[1]!, code: 'BRONZE' }])).toBe('duplicate_code');
+    expect(levelsProblem([DEFAULTS[0]!, { ...DEFAULTS[1]!, code: 'SPARK' }])).toBe('duplicate_code');
     expect(levelsProblem([{ ...DEFAULTS[0]!, minActiveReferrals: 1 }])).toBe('first_not_open');
     expect(levelsProblem([DEFAULTS[0]!, { ...DEFAULTS[1]!, minActiveReferrals: 0, minTopupCoins: 0 }])).toBe(
       'not_increasing',
@@ -72,8 +74,33 @@ describe('D390 ambassador levels', () => {
   });
 
   it('a removed level code reads as the first level', () => {
-    expect(levelIndex(DEFAULTS, 'GOLD')).toBe(2);
+    expect(levelIndex(DEFAULTS, 'CONSTELLATION')).toBe(2);
     expect(levelIndex(DEFAULTS, 'PLATINUM')).toBe(0);
+  });
+
+  it("the default codes are the owner's «سفراء النجوم» (2026-11-14)", () => {
+    expect(DEFAULTS.map((l) => l.code)).toEqual([...DEFAULT_AMBASSADOR_LEVEL_CODES]);
+  });
+
+  it('an old default code reads as its renamed level, both ways; other codes are unchanged', () => {
+    expect(canonicalLevelCode('BRONZE')).toBe('SPARK');
+    expect(canonicalLevelCode('SILVER')).toBe('STAR');
+    expect(canonicalLevelCode('GOLD')).toBe('CONSTELLATION');
+    expect(canonicalLevelCode('DIAMOND')).toBe('GALAXY');
+    expect(canonicalLevelCode('STAR')).toBe('STAR');
+    expect(canonicalLevelCode('PLATINUM')).toBe('PLATINUM');
+    // An ambassador row with an old code, the list renamed.
+    expect(levelIndex(DEFAULTS, 'BRONZE')).toBe(0);
+    expect(levelIndex(DEFAULTS, 'SILVER')).toBe(1);
+    expect(levelIndex(DEFAULTS, 'GOLD')).toBe(2);
+    expect(levelIndex(DEFAULTS, 'DIAMOND')).toBe(3);
+    // A list the migration left with old codes, a row with a new one.
+    const old = DEFAULTS.map((l, i) => ({ ...l, code: ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND'][i]! }));
+    expect(levelIndex(old, 'CONSTELLATION')).toBe(2);
+    // The exact code wins over the mapping (an OWNER list that reuses an old code for another level).
+    const mixed = [DEFAULTS[0]!, { ...DEFAULTS[1]!, code: 'GOLD' }, DEFAULTS[2]!];
+    expect(levelIndex(mixed, 'GOLD')).toBe(1);
+    expect(levelIndex(mixed, 'CONSTELLATION')).toBe(2);
   });
 });
 
@@ -94,7 +121,7 @@ describe('D390 commission and cap', () => {
     expect(capCommission(400n, 9_999n, 0n)).toEqual({ cherries: 400n, capped: 0n });
   });
 
-  it('the worked example of §10.179.5: 1 000 000 coins at Diamond (5 %, the lower-cost defaults) against the platform profit', () => {
+  it('the worked example of §10.179.5: 1 000 000 coins at Galaxy (5 %, the lower-cost defaults) against the platform profit', () => {
     const e = commissionEconomics({
       coins: 1_000_000n,
       bps: 500,
@@ -112,7 +139,7 @@ describe('D390 commission and cap', () => {
     // The commission is 4.4 % of the money paid and ≈ 10.3 % of the platform's profit on those coins.
     expect(e.commissionMinor / e.revenueMinor).toBeCloseTo(0.044, 6);
     expect(e.commissionMinor / e.profitMinor).toBeCloseTo(0.1028, 3);
-    // Bronze (2 %): $0.22, ≈ 4.1 % of the profit.
+    // Spark (2 %): $0.22, ≈ 4.1 % of the profit.
     const d = commissionEconomics({
       ...{ coins: 1_000_000n, cherriesPerCoin: 10, retailMinorPerMillion: 1250 },
       bps: 200,
@@ -144,12 +171,12 @@ describe('D390 monthly evaluation', () => {
 
   it('what is left to reach the next level, none at the top', () => {
     expect(progressToNext(DEFAULTS, 0, { activeReferrals: 2, topupCoins: 1_000_000n })).toEqual({
-      code: 'SILVER',
+      code: 'STAR',
       activeReferrals: 3,
       topupCoins: 2_000_000,
     });
     expect(progressToNext(DEFAULTS, 0, { activeReferrals: 9, topupCoins: 9_000_000n })).toEqual({
-      code: 'SILVER',
+      code: 'STAR',
       activeReferrals: 0,
       topupCoins: 0,
     });
