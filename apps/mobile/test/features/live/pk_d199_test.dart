@@ -64,9 +64,10 @@ AppLocalizations _l10n(WidgetTester tester) =>
 void main() {
   group('PK sheet (refs 276 / 277)', () {
     // D391 (v1.118-live): «PK رباعي» (the former «PK الفرق» card) opens the
-    // 4-way lobby; «PK متعدد» (CP-041 phase 3) still says «قريباً».
-    testWidgets('1v1 is selected and works; 4-way opens its lobby; Multi says '
-        '«قريباً»', (tester) async {
+    // 4-way lobby — D393: in place, as a segment of this sheet; «PK متعدد»
+    // (CP-041 phase 3) still says «قريباً».
+    testWidgets('1v1 is selected and works; 4-way switches to its lobby in '
+        'place; Multi says «قريباً»', (tester) async {
       final repo = await _sheet(tester);
       final l10n = _l10n(tester);
       final one = tester.widget<PkModeCard>(
@@ -87,7 +88,22 @@ void main() {
       expect(find.text(l10n.pkModeSoon(l10n.pkModeMulti)), findsOneWidget);
       await tester.tap(find.byKey(LivePkSheet.modeKey(PkSheetMode.team)));
       await tester.pumpAndSettle();
-      expect(find.byType(LivePk4Sheet), findsOneWidget);
+      // D393: the 4-way panel inside this same sheet, «PK رباعي» selected.
+      expect(
+        find.descendant(
+          of: find.byType(LivePkSheet),
+          matching: find.byType(LivePk4Panel),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<PkModeCard>(
+              find.byKey(LivePkSheet.modeKey(PkSheetMode.team)),
+            )
+            .selected,
+        isTrue,
+      );
       // Still 1v1 for this sheet: nothing was asked of its server.
       expect(
         repo.calls.where((c) => c.startsWith('invite') || c == 'random'),

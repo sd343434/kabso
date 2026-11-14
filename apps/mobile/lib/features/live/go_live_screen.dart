@@ -2953,13 +2953,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 // D346 (owner): no PK button on a streamer live at all.
                 showPk: room.mode != LiveRoomMode.streamer,
                 // v1.43-live (D195): the PK sheet (invite, random, end).
-                // v1.118-live (D391): in a 4-way PK (or its lobby) the
-                // 4-way sheet.
+                // v1.118-live (D391), D393: in a 4-way PK (or its lobby) the
+                // same sheet on its «PK رباعي» segment.
                 onPk: live && room.mode == LiveRoomMode.solo
                     ? () => unawaited(
-                        pk4.match != null || pk4.lobby != null
-                            ? showLivePk4Sheet(context, roomId: room.id)
-                            : showLivePkSheet(context, roomId: room.id),
+                        showLivePkSheet(
+                          context,
+                          roomId: room.id,
+                          initialMode: pk4.match != null || pk4.lobby != null
+                              ? PkSheetMode.team
+                              : PkSheetMode.oneVsOne,
+                        ),
                       )
                     : () => KSnack.info(context, l10n.goLivePkSoon),
                 // D199 (ref 275): the box — the live's games (honest «قريباً»).

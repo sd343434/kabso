@@ -8,6 +8,7 @@ import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
+import 'package:kabso_live/features/live/application/live_pk4_controller.dart';
 import 'package:kabso_live/features/live/application/live_pk_controller.dart';
 import 'package:kabso_live/features/live/data/live_pk_repository.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
@@ -59,12 +60,18 @@ String? pkBoosterFailureMessage(
 /// The host's «PK» sheet — D195's PK in the owner's layout (D199, refs
 /// 276 / 277): the history clock and the settings gear at the start, «PK»
 /// with its help in the middle, ✕ at the end; three mode cards — «PK ثنائي»
-/// works, «PK رباعي» opens the 4-way lobby (D391), «PK متعدد» is not built
-/// and says «قريباً»; the
+/// works, «PK رباعي» switches the sheet to the 4-way panel in place (D391,
+/// D393: a segment of this sheet, never a page of its own), «PK متعدد» is not
+/// built and says «قريباً»; the
 /// «الأصدقاء» tab (mutual follows live now) with Kabi when there is nobody;
 /// search and «مطابقة عشوائية» (D195) at the bottom. During a PK: start (a
-/// connected PK), mute the opponent and End PK.
-Future<void> showLivePkSheet(BuildContext context, {required String roomId}) {
+/// connected PK), mute the opponent and End PK. [initialMode] opens it on a
+/// segment (a 4-way lobby or match opens it on «PK رباعي»).
+Future<void> showLivePkSheet(
+  BuildContext context, {
+  required String roomId,
+  PkSheetMode initialMode = PkSheetMode.oneVsOne,
+}) {
   // The sheet's route lives in the app's navigator: it keeps the room's
   // provider container (the PK state of this room).
   final container = ProviderScope.containerOf(context);
@@ -81,7 +88,7 @@ Future<void> showLivePkSheet(BuildContext context, {required String roomId}) {
           brightness: Brightness.light,
           locale: Localizations.localeOf(sheet),
         ),
-        child: LivePkSheet(roomId: roomId),
+        child: LivePkSheet(roomId: roomId, initialMode: initialMode),
       ),
     ),
   );
@@ -114,9 +121,17 @@ abstract final class PkSheetMetrics {
 enum PkSheetMode { oneVsOne, team, multi }
 
 class LivePkSheet extends ConsumerStatefulWidget {
-  const new({required this.roomId, super.key});
+  const new({
+    required this.roomId,
+    this.initialMode = PkSheetMode.oneVsOne,
+    super.key,
+  });
 
   final String roomId;
+
+  /// D393: the segment shown first — «PK ثنائي» or «PK رباعي» («PK متعدد»
+  /// is not built and is never selected).
+  final PkSheetMode initialMode;
 
   static const sheetKey = Key('pk.sheet');
   static const historyKey = Key('pk.sheet.history');
@@ -176,10 +191,16 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
   Object? _failure;
   int _reads = 0;
 
+  /// D393: the segment under the mode cards — 1 v 1's list or the 4-way
+  /// panel ([LivePk4Panel]); switched in place.
+  late PkSheetMode _mode = widget.initialMode == PkSheetMode.multi
+      ? PkSheetMode.oneVsOne
+      : widget.initialMode;
+
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    if (_mode == PkSheetMode.oneVsOne) unawaited(_load());
     if (LivePkStage.ticks) {
       _tick = Timer.periodic(const Duration(seconds: 1), (_) {
         if (mounted) setState(() {});
@@ -195,7 +216,8 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
   bool _showsList() {
     final pk = ref.read(livePkProvider(widget.roomId));
     final until = pk.queueUntil;
-    return pk.match == null &&
+    return _mode == PkSheetMode.oneVsOne &&
+        pk.match == null &&
         pk.outgoing == null &&
         (until == null || !until.isAfter(pk.now()));
   }
@@ -256,10 +278,14 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
         (p) => p.match == null && p.outgoing == null && p.queueUntil == null,
       ),
       (before, idle) {
-        if (idle && before == false) unawaited(_load());
+        if (idle && before == false && _mode == PkSheetMode.oneVsOne) {
+          unawaited(_load());
+        }
       },
     );
     final match = pk.match;
+    // D393: a 4-way match fills the sheet with its panel (start / End).
+    final pk4Match = ref.watch(livePk4Provider(widget.roomId)).match;
     final height =
         MediaQuery.sizeOf(context).height * PkSheetMetrics.heightFactor;
     return Material(
@@ -307,7 +333,14 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
                   _topRow(context),
                   if (match != null)
                     Expanded(child: _duringMatch(context, match, controller))
-                  else ...[
+                  else if (pk4Match != null)
+                    Expanded(child: _pk4Panel())
+                  else if (_mode == PkSheetMode.team) ...[
+                    const SizedBox(height: 8.4),
+                    _modeCards(context),
+                    const SizedBox(height: 12),
+                    Expanded(child: _pk4Panel()),
+                  ] else ...[
                     const SizedBox(height: 8.4),
                     _modeCards(context),
                     const SizedBox(height: 10),
@@ -421,6 +454,19 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
     );
   }
 
+  /// D393: the «PK رباعي» segment, on the sheet's own margins.
+  Widget _pk4Panel() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: PkSheetMetrics.cardSide),
+    child: LivePk4Panel(roomId: widget.roomId),
+  );
+
+  /// D393: «PK ثنائي» ↔ «PK رباعي» in place; back on 1 v 1 its list is read.
+  void _select(PkSheetMode mode) {
+    if (_mode == mode) return;
+    setState(() => _mode = mode);
+    if (mode == PkSheetMode.oneVsOne) unawaited(_load());
+  }
+
   // D232: the live's card style.
   void _help(String title, String body) =>
       unawaited(showKLiveInfo(context, title: title, message: body));
@@ -435,17 +481,15 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
         PkSheetMode.team => l10n.pkModeTeam,
         PkSheetMode.multi => l10n.pkModeMulti,
       },
-      // 1 v 1 is this sheet's mode (D195): always the selected one.
-      // v1.118-live (D391): «PK رباعي» (2 v 2 by invitation) opens its own
-      // lobby sheet; «PK متعدد» (every host for themselves) is CP-041 phase
-      // 3 and still says «قريباً».
-      selected: m == PkSheetMode.oneVsOne,
+      // D393: «PK ثنائي» (D195) and «PK رباعي» (v1.118-live, D391: 2 v 2 by
+      // invitation) are segments of this sheet — a tap switches the content
+      // under the cards in place; «PK متعدد» (every host for themselves) is
+      // CP-041 phase 3 and still says «قريباً».
+      selected: m == _mode,
       soon: m == PkSheetMode.multi,
       onTap: switch (m) {
-        PkSheetMode.oneVsOne => null,
-        PkSheetMode.team => () => unawaited(
-          showLivePk4Sheet(context, roomId: widget.roomId),
-        ),
+        PkSheetMode.oneVsOne => () => _select(PkSheetMode.oneVsOne),
+        PkSheetMode.team => () => _select(PkSheetMode.team),
         PkSheetMode.multi => () => KSnack.info(
           context,
           l10n.pkModeSoon(l10n.pkModeMulti),

@@ -16296,5 +16296,11 @@
   "pk4ErrorLobbyClosed": "لم تعد غرفة PK الرباعي مفتوحة",
   "@pk4ErrorLobbyClosed": {"description": "v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: 409 PK_LOBBY_CLOSED."},
   "pk4ErrorSeatTaken": "هذا المكان فيه دعوة بالفعل",
-  "@pk4ErrorSeatTaken": {"description": "v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: 409 PK_SEAT_TAKEN."}
+  "@pk4ErrorSeatTaken": {"description": "v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: 409 PK_SEAT_TAKEN."},
+  "pk4ErrorOpenUnavailable": "لا يمكن فتح PK رباعي الآن: يلزم بثّ فردي بالفيديو مباشر وأنت حاضر فيه، أو أن الإدارة أوقفت PK الرباعي.",
+  "@pk4ErrorOpenUnavailable": {"description": "D393 (D391 fix) «PK رباعي»: opening the lobby refused 409 PK_UNAVAILABLE (not a LIVE SOLO video live of the caller, the host away, or PK / PK4 switched off on the server)."},
+  "pk4ErrorOpenBusy": "أنت في تحدّي PK أو دعوة أو بحث عشوائي الآن — أنهِه أولاً ثم افتح PK رباعي.",
+  "@pk4ErrorOpenBusy": {"description": "D393 (D391 fix) «PK رباعي»: opening the lobby refused 409 PK_HOST_BUSY (the caller is in a PK, an open invitation, the random queue or another 4-way lobby)."},
+  "pk4ErrorOpenNotOnServer": "PK رباعي غير متاح على الخادم بعد.",
+  "@pk4ErrorOpenNotOnServer": {"description": "D393 (D391 fix) «PK رباعي»: opening the lobby answered 404 (a server without D391's routes)."}
 }

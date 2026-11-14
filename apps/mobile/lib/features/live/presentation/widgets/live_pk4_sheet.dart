@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
@@ -17,14 +18,37 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The message of a refused 4-way PK call (its two codes, else PK 1 v 1's).
-String pk4FailureMessage(AppLocalizations l10n, Object error) {
+///
+/// D393: [opening] is the organiser's «افتح PK رباعي» — there the caller is
+/// the one refused, so 409 `PK_UNAVAILABLE`, 409 `PK_HOST_BUSY` and 404 say
+/// what the host must do (or that the server does not have it).
+String pk4FailureMessage(
+  AppLocalizations l10n,
+  Object error, {
+  bool opening = false,
+}) {
   final failure = toAppFailure(error);
   final code = failure is ServerFailure ? failure.rawCode : null;
   return switch (code) {
     'PK_LOBBY_CLOSED' => l10n.pk4ErrorLobbyClosed,
     'PK_SEAT_TAKEN' => l10n.pk4ErrorSeatTaken,
+    'PK_UNAVAILABLE' when opening => l10n.pk4ErrorOpenUnavailable,
+    'PK_HOST_BUSY' when opening => l10n.pk4ErrorOpenBusy,
+    'NOT_FOUND' when opening => l10n.pk4ErrorOpenNotOnServer,
     _ => pkFailureMessage(l10n, error),
   };
+}
+
+/// D393: the selectable line under a refusal — the server's code (and the
+/// request id where §10 shows one), so a screenshot names the cause.
+String? pk4FailureDetail(Object error) {
+  final failure = toAppFailure(error);
+  if (failure is! ServerFailure) return null;
+  return [
+    failure.rawCode,
+    if (failure.statusCode case final status?) '$status',
+    ?failureErrorId(failure),
+  ].join(' · ');
 }
 
 /// The label of a place (1 organiser, 2 teammate, 3–4 opponents).
@@ -34,37 +58,22 @@ String pk4SeatLabel(AppLocalizations l10n, int seat) => switch (seat) {
   _ => l10n.pk4SeatOpponent,
 };
 
-/// «PK رباعي» (v1.118-live, D391, §10.180): the host's lobby sheet, opened
-/// from the PK sheet's «PK رباعي» card — the four places in two team columns
-/// (this team on the reading start), each place's state (empty, invited with
-/// its seconds, ready), the lobby's countdown, the candidates for the picked
-/// place («الأصدقاء» or a search), and cancel / leave.
-Future<void> showLivePk4Sheet(BuildContext context, {required String roomId}) {
-  final container = ProviderScope.containerOf(context);
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: const Color(0x00000000),
-    barrierColor: const Color(0x33000000),
-    builder: (sheet) => UncontrolledProviderScope(
-      container: container,
-      child: Theme(
-        data: buildAppTheme(
-          brightness: Brightness.light,
-          locale: Localizations.localeOf(sheet),
-        ),
-        child: LivePk4Sheet(roomId: roomId),
-      ),
-    ),
-  );
-}
-
-class LivePk4Sheet extends ConsumerStatefulWidget {
+/// «PK رباعي» (v1.118-live, D391, §10.180): the host's 4-way panel. D393
+/// (owner: «زر pk رباعي يفتح صفحة اخرى لماذا لا ينتقل من نفس الشريط»): it
+/// is the «PK رباعي» segment of the PK sheet itself ([LivePkSheet]), under
+/// the mode cards — never a sheet of its own. The four places in two team
+/// columns (this team on the reading start), each place's state (empty,
+/// invited with its seconds, ready), the lobby's countdown, the candidates
+/// for the picked place («الأصدقاء» or a search), and cancel / leave; in a
+/// match: start / End. A refused call is written in the panel (D393: a snack
+/// bar sat under the sheet, so the button seemed to do nothing).
+class LivePk4Panel extends ConsumerStatefulWidget {
   const new({required this.roomId, super.key});
 
   final String roomId;
 
-  static const sheetKey = Key('pk4.sheet');
+  static const panelKey = Key('pk4.panel');
+  static const errorKey = Key('pk4.panel.error');
   static const openKey = Key('pk4.sheet.open');
   static const cancelKey = Key('pk4.sheet.cancel');
   static const leaveKey = Key('pk4.sheet.leave');
@@ -78,10 +87,10 @@ class LivePk4Sheet extends ConsumerStatefulWidget {
   static Key candidateKey(String roomId) => Key('pk4.sheet.candidate.$roomId');
 
   @override
-  ConsumerState<LivePk4Sheet> createState() => _LivePk4SheetState();
+  ConsumerState<LivePk4Panel> createState() => _LivePk4PanelState();
 }
 
-class _LivePk4SheetState extends ConsumerState<LivePk4Sheet> {
+class _LivePk4PanelState extends ConsumerState<LivePk4Panel> {
   String _query = '';
   int? _place;
   bool _busy = false;
@@ -90,6 +99,10 @@ class _LivePk4SheetState extends ConsumerState<LivePk4Sheet> {
   List<PkCandidate>? _list;
   Object? _failure;
   int _reads = 0;
+
+  /// D393: the last refused action, shown in the panel until the next one.
+  Object? _error;
+  bool _errorOpening = false;
 
   @override
   void initState() {
@@ -130,13 +143,30 @@ class _LivePk4SheetState extends ConsumerState<LivePk4Sheet> {
     }
   }
 
-  Future<void> _run(Future<void> Function() action) async {
+  /// Runs a host action; a refusal is logged and written in the panel.
+  Future<void> _run(
+    Future<void> Function() action, {
+    bool opening = false,
+  }) async {
     if (_busy) return;
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       await action();
-    } on Object catch (e) {
-      if (mounted) KSnack.error(context, pk4FailureMessage(context.l10n, e));
+    } on Object catch (e, stack) {
+      AppLogger.error('live: PK4 action refused', e, stack);
+      if (mounted) {
+        setState(() {
+          _error = e;
+          _errorOpening = opening;
+        });
+      }
+      // A lobby this room already has (409 PK_HOST_BUSY on open) shows.
+      if (opening) {
+        unawaited(ref.read(livePk4Provider(widget.roomId).notifier).refresh());
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -149,155 +179,131 @@ class _LivePk4SheetState extends ConsumerState<LivePk4Sheet> {
     final controller = ref.read(livePk4Provider(widget.roomId).notifier);
     final lobby = pk4.lobby;
     final organiser = lobby?.organiserRoomId == widget.roomId;
-    final height = MediaQuery.sizeOf(context).height * 0.75;
     final t = context.textStyles;
     // ignore: invalid_use_of_visible_for_testing_member, the goldens' clock pin (D231).
     final now = (LivePkStage.debugNow ?? pk4.now)();
-    return Material(
-      key: LivePk4Sheet.sheetKey,
-      color: context.palette.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(PkSheetMetrics.radius),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        height: height,
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: KSpacing.md),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.pk4Title,
-                            style: t.title.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            l10n.pk4Subtitle,
-                            style: t.caption.copyWith(
-                              color: context.palette.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (lobby != null)
-                      Container(
-                        key: LivePk4Sheet.countdownKey,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: KSpacing.sm,
-                          vertical: KSpacing.xxs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: PkSheetMetrics.red.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(KRadius.pill),
-                        ),
-                        child: Text(
-                          l10n.pk4LobbyEndsIn(
-                            KFormat.countdown(_left(lobby.expiresAt, now)),
-                          ),
-                          style: t.label.copyWith(
-                            color: PkSheetMetrics.red,
-                            fontWeight: FontWeight.w800,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ),
-                    IconButton(
-                      tooltip: MaterialLocalizations.of(context)
-                          .closeButtonLabel,
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ],
+    final error = _error;
+    return Column(
+      key: LivePk4Panel.panelKey,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.pk4Subtitle,
+                style: t.caption.copyWith(color: PkSheetMetrics.grey),
+              ),
+            ),
+            if (lobby != null)
+              Container(
+                key: LivePk4Panel.countdownKey,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: KSpacing.sm,
+                  vertical: KSpacing.xxs,
                 ),
-                const SizedBox(height: KSpacing.md),
-                // In a match: start it (CONNECTED) or leave it (End).
-                if (pk4.match case final match?) ...[
-                  Text(
-                    match.status == PkMatchStatus.connected
-                        ? l10n.pk4ConnectedHint
-                        : l10n.pk4EndConfirmBody,
-                    style: t.body,
+                decoration: BoxDecoration(
+                  color: PkSheetMetrics.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                ),
+                child: Text(
+                  l10n.pk4LobbyEndsIn(
+                    KFormat.countdown(_left(lobby.expiresAt, now)),
                   ),
-                  const SizedBox(height: KSpacing.lg),
-                  if (match.status == PkMatchStatus.connected) ...[
-                    KButton(
-                      key: LivePk4Sheet.startKey,
-                      label: l10n.pkStart,
-                      loading: _busy,
-                      onPressed: () => unawaited(_run(controller.start)),
-                    ),
-                    const SizedBox(height: KSpacing.sm),
-                  ],
-                  KButton(
-                    key: LivePk4Sheet.endKey,
-                    label: l10n.pkEnd,
-                    variant: KButtonVariant.secondary,
-                    onPressed: () => unawaited(_confirmEnd(match, controller)),
+                  style: t.label.copyWith(
+                    color: PkSheetMetrics.red,
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
-                  const Spacer(),
-                ] else if (lobby == null) ...[
-                  Text(l10n.pk4LobbyHint, style: t.body),
-                  const SizedBox(height: KSpacing.lg),
-                  KButton(
-                    key: LivePk4Sheet.openKey,
-                    label: l10n.pk4OpenLobby,
-                    loading: _busy,
-                    onPressed: () => unawaited(
-                      _run(() async {
-                        await controller.openLobby();
-                        _place = 2;
-                        unawaited(_load());
-                      }),
-                    ),
-                  ),
-                  const Spacer(),
-                ] else ...[
-                  _places(context, lobby, now, organiser, controller),
-                  const SizedBox(height: KSpacing.md),
-                  if (organiser)
-                    Expanded(child: _candidates(context, lobby, controller))
-                  else
-                    const Spacer(),
-                  const SizedBox(height: KSpacing.sm),
-                  KButton(
-                    key: organiser
-                        ? LivePk4Sheet.cancelKey
-                        : LivePk4Sheet.leaveKey,
-                    label: organiser ? l10n.pk4CancelLobby : l10n.pk4LeaveLobby,
-                    variant: KButtonVariant.secondary,
-                    onPressed: () => unawaited(
-                      _run(() async {
-                        final navigator = Navigator.of(context);
-                        await controller.closeLobby();
-                        if (mounted) await navigator.maybePop();
-                      }),
-                    ),
-                  ),
-                  const SizedBox(height: KSpacing.sm),
-                ],
-              ],
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: KSpacing.sm),
+        if (error != null) ...[
+          KInlineMessage(
+            key: LivePk4Panel.errorKey,
+            message: pk4FailureMessage(l10n, error, opening: _errorOpening),
+            detail: pk4FailureDetail(error),
+          ),
+          const SizedBox(height: KSpacing.sm),
+        ],
+        // In a match: start it (CONNECTED) or leave it (End).
+        if (pk4.match case final match?) ...[
+          Text(
+            match.status == PkMatchStatus.connected
+                ? l10n.pk4ConnectedHint
+                : l10n.pk4EndConfirmBody,
+            style: t.body,
+          ),
+          const SizedBox(height: KSpacing.lg),
+          if (match.status == PkMatchStatus.connected) ...[
+            KButton(
+              key: LivePk4Panel.startKey,
+              label: l10n.pkStart,
+              loading: _busy,
+              onPressed: () => unawaited(_run(controller.start)),
+            ),
+            const SizedBox(height: KSpacing.sm),
+          ],
+          KButton(
+            key: LivePk4Panel.endKey,
+            label: l10n.pkEnd,
+            variant: KButtonVariant.secondary,
+            onPressed: () => unawaited(_confirmEnd(match, controller)),
+          ),
+          const Spacer(),
+        ] else if (lobby == null) ...[
+          Text(l10n.pk4LobbyHint, style: t.body),
+          const SizedBox(height: KSpacing.lg),
+          KButton(
+            key: LivePk4Panel.openKey,
+            label: l10n.pk4OpenLobby,
+            loading: _busy,
+            onPressed: () => unawaited(
+              _run(opening: true, () async {
+                await controller.openLobby();
+                _place = 2;
+                unawaited(_load());
+              }),
             ),
           ),
-        ),
-      ),
+          const Spacer(),
+        ] else ...[
+          _places(context, lobby, now, organiser, controller),
+          const SizedBox(height: KSpacing.md),
+          if (organiser)
+            Expanded(child: _candidates(context, lobby, controller))
+          else
+            const Spacer(),
+          const SizedBox(height: KSpacing.sm),
+          // D393: the lobby closes in place — the PK sheet stays open on
+          // «PK رباعي» with «افتح PK رباعي» again.
+          KButton(
+            key: organiser ? LivePk4Panel.cancelKey : LivePk4Panel.leaveKey,
+            label: organiser ? l10n.pk4CancelLobby : l10n.pk4LeaveLobby,
+            variant: KButtonVariant.secondary,
+            onPressed: () => unawaited(
+              _run(() async {
+                await controller.closeLobby();
+                if (!mounted) return;
+                setState(() {
+                  _place = null;
+                  _list = null;
+                  _failure = null;
+                  _query = '';
+                });
+              }),
+            ),
+          ),
+          const SizedBox(height: KSpacing.sm),
+        ],
+      ],
     );
   }
 
-  /// During the battle: «ستغادر المعركة ويكمل زميلك وحده» first.
+  /// During the battle: «ستغادر المعركة ويكمل زميلك وحده» first; then the
+  /// PK sheet closes on the stage.
   Future<void> _confirmEnd(Pk4Match match, LivePk4Controller controller) async {
     final l10n = context.l10n;
     if (match.status == PkMatchStatus.battle) {
@@ -305,14 +311,14 @@ class _LivePk4SheetState extends ConsumerState<LivePk4Sheet> {
         context,
         title: l10n.pkEndConfirmTitle,
         message: l10n.pk4EndConfirmBody,
-        confirmKey: LivePk4Sheet.endConfirmKey,
+        confirmKey: LivePk4Panel.endConfirmKey,
         confirmLabel: l10n.pkEnd,
         cancelLabel: l10n.pkCancel,
       );
       if (!ok) return;
     }
     await _run(controller.end);
-    if (mounted) await Navigator.of(context).maybePop();
+    if (mounted && _error == null) await Navigator.of(context).maybePop();
   }
 
   static Duration _left(DateTime until, DateTime now) {
@@ -336,7 +342,7 @@ class _LivePk4SheetState extends ConsumerState<LivePk4Sheet> {
       children: [
         for (final s in lobby.seats.where((s) => s.team == team)) ...[
           _PlaceCard(
-            key: LivePk4Sheet.placeKey(s.seat),
+            key: LivePk4Panel.placeKey(s.seat),
             seat: s,
             colors: colors,
             selected: organiser && _place == s.seat,
@@ -390,7 +396,7 @@ class _LivePk4SheetState extends ConsumerState<LivePk4Sheet> {
         const SizedBox(height: KSpacing.xs),
         if (open) ...[
           TextField(
-            key: LivePk4Sheet.searchKey,
+            key: LivePk4Panel.searchKey,
             decoration: InputDecoration(
               isDense: true,
               hintText: l10n.pkSearchHint,
@@ -423,7 +429,7 @@ class _LivePk4SheetState extends ConsumerState<LivePk4Sheet> {
                 children: [
                   for (final c in list)
                     ListTile(
-                      key: LivePk4Sheet.candidateKey(c.roomId),
+                      key: LivePk4Panel.candidateKey(c.roomId),
                       contentPadding: EdgeInsets.zero,
                       leading: KAvatar(
                         name: c.host.displayName,
@@ -593,7 +599,7 @@ class _PlaceCard extends StatelessWidget {
               ),
               if (onWithdraw != null)
                 IconButton(
-                  key: LivePk4Sheet.withdrawKey(seat.seat),
+                  key: LivePk4Panel.withdrawKey(seat.seat),
                   tooltip: l10n.pk4CancelInvite,
                   visualDensity: VisualDensity.compact,
                   onPressed: onWithdraw,

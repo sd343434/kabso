@@ -19764,4 +19764,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get pk4ErrorSeatTaken => 'هذا المكان فيه دعوة بالفعل';
+
+  @override
+  String get pk4ErrorOpenUnavailable =>
+      'لا يمكن فتح PK رباعي الآن: يلزم بثّ فردي بالفيديو مباشر وأنت حاضر فيه، أو أن الإدارة أوقفت PK الرباعي.';
+
+  @override
+  String get pk4ErrorOpenBusy =>
+      'أنت في تحدّي PK أو دعوة أو بحث عشوائي الآن — أنهِه أولاً ثم افتح PK رباعي.';
+
+  @override
+  String get pk4ErrorOpenNotOnServer => 'PK رباعي غير متاح على الخادم بعد.';
 }
