@@ -275,6 +275,9 @@ class EventDetailScreen extends ConsumerWidget {
               children: [
                 Positioned.fill(child: GiftEventBackdrop(art: art)),
                 SafeArea(child: ProgramGoldFrame(child: list)),
+                // D396: the overlay at the head of the page, over the cards.
+                if (art.overlayUrl != null)
+                  Positioned.fill(child: EventArtOverlayBand(art: art)),
               ],
             ),
       bottomNavigationBar: gift ? GiftEventMyBar(event: event) : null,

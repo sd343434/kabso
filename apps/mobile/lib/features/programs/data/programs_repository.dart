@@ -614,7 +614,7 @@ final class EventArt {
   final String? posterUrl;
   final String? titleUrl;
 
-  /// `SVGA` or `LOTTIE`.
+  /// `SVGA`, `LOTTIE` or `MP4` (D325; not played by this app yet).
   final String? overlayFormat;
   final String? overlayUrl;
 

@@ -86,12 +86,12 @@ class EventDesignedPage extends ConsumerStatefulWidget {
   final DateTime Function()? now;
 
   static const pageKey = Key('event.design.page');
+
   static const rulesButtonKey = Key('event.rulesButton');
   static const rulesSectionKey = Key('event.design.rules');
   static const boardsKey = Key('event.design.boards');
   static const milestonesKey = Key('event.design.milestones');
   static const rewardsKey = Key('event.design.rewards');
-  static const footerKey = Key('event.design.footer');
   static Key sectionKey(EventPageSectionId id) =>
       Key('event.design.section.${id.wire}');
   static Key boardKey(EventBoardKind kind) =>
@@ -564,19 +564,9 @@ class _EventDesignedPageState extends ConsumerState<EventDesignedPage> {
 
   // ---- the three layouts ---------------------------------------------------
 
-  Widget _footer() => const Padding(
-    padding: EdgeInsets.only(top: KSpacing.lg, bottom: 104),
-    child: Center(
-      child: Image(
-        key: EventDesignedPage.footerKey,
-        image: AssetImage(
-          'assets/brand/kabso_live_logo_horizontal_dark_bg.webp',
-        ),
-        width: 160,
-        semanticLabel: 'Kabso Live',
-      ),
-    ),
-  );
+  /// Room under the last section for the sticky «مركزي» bar. D396 (owner:
+  /// «ازل شعارنا من اسفل الفعالية»): no Kabso logo there any more.
+  Widget _footer() => const SizedBox(height: KSpacing.lg + 104);
 
   Widget _heroPodium(BuildContext context) {
     final height = _heroHeight(context, 452);
@@ -593,6 +583,8 @@ class _EventDesignedPageState extends ConsumerState<EventDesignedPage> {
                 titleTop: MediaQuery.paddingOf(context).top + 60,
                 belowCountdown: _pillRules,
                 now: widget.now,
+                overlaySpeed: _d.motion.overlaySpeed,
+                overlayOpacity: _d.motion.overlayOpacity,
               ),
               Positioned.fill(child: HeroChrome(trailing: _linkRules)),
             ],
@@ -687,6 +679,8 @@ class _EventDesignedPageState extends ConsumerState<EventDesignedPage> {
               titleTop: MediaQuery.paddingOf(context).top + 60,
               belowCountdown: _pillRules,
               now: widget.now,
+              overlaySpeed: _d.motion.overlaySpeed,
+              overlayOpacity: _d.motion.overlayOpacity,
             ),
             Positioned.fill(child: HeroChrome(trailing: _linkRules)),
           ],
@@ -745,19 +739,6 @@ class _EventDesignedPageState extends ConsumerState<EventDesignedPage> {
       backgroundColor: kPageBg,
       body: Stack(
         children: [
-          // The event's overlay over the whole page (the hero draws the
-          // background).
-          if (_e.art.overlayUrl != null)
-            Positioned.fill(
-              child: GiftEventBackdrop(
-                art: EventArt(
-                  overlayUrl: _e.art.overlayUrl,
-                  overlayFormat: _e.art.overlayFormat,
-                ),
-                overlaySpeed: _d.motion.overlaySpeed,
-                overlayOpacity: _d.motion.overlayOpacity,
-              ),
-            ),
           RefreshIndicator(onRefresh: widget.onRefresh, child: body),
           ?rules,
         ],
@@ -884,6 +865,8 @@ class _StageHeader extends SliverPersistentHeaderDelegate {
                   titleTop: top + 60,
                   belowCountdown: belowCountdown,
                   now: now,
+                  overlaySpeed: design.motion.overlaySpeed,
+                  overlayOpacity: design.motion.overlayOpacity,
                 ),
                 Positioned.fill(child: HeroChrome(trailing: trailing)),
               ],

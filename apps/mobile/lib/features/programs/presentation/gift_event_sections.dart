@@ -15,6 +15,7 @@ import 'package:kabso_live/features/programs/presentation/event_leaderboard_styl
     show MyRankBar;
 import 'package:kabso_live/features/programs/presentation/event_page_theme.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
+import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:lottie/lottie.dart';
 import 'package:material_ui/material_ui.dart';
@@ -693,21 +694,12 @@ const Color kEventGold = kProgramFrameGold;
 
 /// The event's background (its still: a picture, an animated picture's
 /// first frame is the picture itself, a video's poster), darkened for
-/// legibility, with the title art on top and the Lottie overlay playing over
-/// the page — paused with reduced motion and when the page is hidden.
+/// legibility. D396: the overlay is not drawn here (behind the cards) but at
+/// the head of the page ([EventArtOverlay], [EventArtOverlayBand]).
 class GiftEventBackdrop extends StatelessWidget {
-  const new({
-    required this.art,
-    super.key,
-    this.overlaySpeed = 1,
-    this.overlayOpacity = 1,
-  });
+  const new({required this.art, super.key});
 
   final EventArt art;
-
-  /// v1.115-social (D354): the design's overlay speed and opacity.
-  final double overlaySpeed;
-  final double overlayOpacity;
 
   static const overlayKey = Key('event.art.overlay');
   static const backgroundKey = Key('event.art.background');
@@ -731,7 +723,6 @@ class GiftEventBackdrop extends StatelessWidget {
     final motion =
         !MediaQuery.disableAnimationsOf(context) &&
         TickerMode.valuesOf(context).enabled;
-    final overlay = art.overlayUrl;
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -763,22 +754,84 @@ class GiftEventBackdrop extends StatelessWidget {
             ),
           ),
         ),
-        if (overlay != null &&
-            art.overlayFormat == 'LOTTIE' &&
-            motion &&
-            overlayOpacity > 0)
-          IgnorePointer(
-            key: overlayKey,
-            child: Opacity(
-              opacity: overlayOpacity.clamp(0.0, 1.0),
-              child: overlaySpeed == 1
-                  ? Lottie.network(overlay, repeat: true, fit: BoxFit.cover)
-                  : _PacedLottie(url: overlay, speed: overlaySpeed),
-            ),
-          ),
       ],
     );
   }
+}
+
+/// D396 (owner: «عند اضافة طبقة حركة في الفعاليات لا تظهر في الفعالية» and
+/// «يجب ان تكون في رأس الفعالية»): the event's animation overlay
+/// («طبقة الحركة») at the head of the page — in the hero of a designed page
+/// (`EventHero`), in the top band of today's page ([EventArtOverlayBand]) —
+/// over the background and the title art, never under the cards. It loops,
+/// fills its box from the top ([BoxFit.cover], [Alignment.topCenter]) and
+/// takes no tap. A Lottie JSON or an SVGA 2.x (the panel offers both; before
+/// D396 an SVGA was never drawn). Nothing with reduced motion, while the page
+/// is hidden (its ticker off), at opacity 0, or for a format this app does not
+/// play (an alpha MP4: the panel does not offer it). [speed] paces a Lottie
+/// only: SVGA clips follow the shared VIP clock ([VipSvga]).
+class EventArtOverlay extends StatelessWidget {
+  const new({required this.art, super.key, this.speed = 1, this.opacity = 1});
+
+  final EventArt art;
+  final double speed;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = art.overlayUrl;
+    final motion =
+        !MediaQuery.disableAnimationsOf(context) &&
+        TickerMode.valuesOf(context).enabled;
+    if (url == null || !motion || opacity <= 0) return const SizedBox.shrink();
+    const top = Alignment.topCenter;
+    final Widget clip;
+    switch (art.overlayFormat) {
+      case 'LOTTIE':
+        clip = speed == 1
+            ? Lottie.network(
+                url,
+                repeat: true,
+                fit: BoxFit.cover,
+                alignment: top,
+              )
+            : _PacedLottie(url: url, speed: speed);
+      case 'SVGA':
+        clip = VipSvga(url: url, fit: BoxFit.cover, alignment: top);
+      default:
+        return const SizedBox.shrink();
+    }
+    return IgnorePointer(
+      key: GiftEventBackdrop.overlayKey,
+      child: Opacity(opacity: opacity.clamp(0.0, 1.0), child: clip),
+    );
+  }
+}
+
+/// D396: today's page (no design) — the overlay over the head of the page:
+/// the top quarter of the screen, where the background keeps its title zone
+/// (§10.114.9: the top 480 of 1 920 px), drawn over the list so no card hides
+/// it (it takes no tap).
+class EventArtOverlayBand extends StatelessWidget {
+  const new({required this.art, super.key});
+
+  final EventArt art;
+
+  static const bandKey = Key('event.art.overlayBand');
+
+  /// The band's share of the page's height (480 / 1 920).
+  static const double heightFactor = 480 / 1920;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    key: bandKey,
+    alignment: Alignment.topCenter,
+    child: FractionallySizedBox(
+      widthFactor: 1,
+      heightFactor: heightFactor,
+      child: EventArtOverlay(art: art),
+    ),
+  );
 }
 
 /// A looping Lottie at [speed] × its own pace (D354 motion settings).
@@ -807,6 +860,7 @@ class _PacedLottieState extends State<_PacedLottie>
     widget.url,
     controller: _c,
     fit: BoxFit.cover,
+    alignment: Alignment.topCenter,
     onLoaded: (composition) {
       final ms =
           composition.duration.inMilliseconds / widget.speed.clamp(0.25, 2);
