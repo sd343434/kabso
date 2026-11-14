@@ -33309,6 +33309,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'هذا المكان فيه دعوة بالفعل'**
   String get pk4ErrorSeatTaken;
+
+  /// v1.142-social (D394, CONVENTIONS §10.26): a Kabso Team account taps a promo banner that opens «برنامج سفراء Kabso» (staff are never ambassadors, D390).
+  ///
+  /// In ar, this message translates to:
+  /// **'برنامج سفراء Kabso غير متاح لحسابات فريق Kabso'**
+  String get bannerAmbassadorsStaff;
 }
 
 class _AppLocalizationsDelegate

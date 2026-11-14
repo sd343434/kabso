@@ -14,6 +14,7 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
+import 'package:kabso_live/features/live/presentation/hub/home_banner_open.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
@@ -263,7 +264,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   void _openBanner(HomeBanner banner) {
     switch (HomeBannerTarget.parse(banner.link)) {
       case HomeBannerRoute(:final location):
-        unawaited(context.push<void>(location));
+        unawaited(openHomeBannerRoute(context, ref, location));
       case HomeBannerLiveTab(tab: final target):
         openLiveHub(context, ref, target);
       case null:

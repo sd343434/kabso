@@ -16296,5 +16296,7 @@
   "pk4ErrorLobbyClosed": "لم تعد غرفة PK الرباعي مفتوحة",
   "@pk4ErrorLobbyClosed": {"description": "v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: 409 PK_LOBBY_CLOSED."},
   "pk4ErrorSeatTaken": "هذا المكان فيه دعوة بالفعل",
-  "@pk4ErrorSeatTaken": {"description": "v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: 409 PK_SEAT_TAKEN."}
+  "@pk4ErrorSeatTaken": {"description": "v1.118-live (D391, CONVENTIONS §10.180) «PK رباعي»: 409 PK_SEAT_TAKEN."},
+  "bannerAmbassadorsStaff": "برنامج سفراء Kabso غير متاح لحسابات فريق Kabso",
+  "@bannerAmbassadorsStaff": {"description": "v1.142-social (D394, CONVENTIONS §10.26): a Kabso Team account taps a promo banner that opens «برنامج سفراء Kabso» (staff are never ambassadors, D390)."}
 }

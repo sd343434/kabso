@@ -818,6 +818,9 @@ info:
     D390 follow-up (owner): `PublicProfile.ambassador` (the public badge while ACTIVE), «إنهاء العضوية» `endAdminAmbassador`
     (status ENDED, `AMBASSADOR_MEMBERSHIP_ENDED`, migrations `20270519090200_ambassador_end_enums`,
     `20270519090300_ambassador_end`); the lower-cost defaults (2 / 3 / 4 / 5 %, a 60-day window).
+    **D394 (DRAFT v1.142-social)** a promo banner can open «برنامج سفراء Kabso» (CONVENTIONS §10.26): the banner link
+    allowlist gains `/ambassadors` (exactly that path) in every placement — `createAdminBanner`, the `banner-admin` CLI
+    and `listHomeBanners`. Additive; shapes unchanged.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -9638,7 +9641,8 @@ paths:
         the other language). *(v1.27.4-live, D137)* `placement=room` lists the banners of the promo
         box inside a live instead (3:4 pictures, 600 × 800); the default `home` is the live hub's
         (3:1). *(v1.51-social, D177)* `placement=wallet` lists the wallet page's banners (3:1, 1 500 × 500). `link` is one of the in-app routes `/cp/space`, `/families`,
-        `/live?tab=trending|new|following`, `/home/room/{roomId}`, `/users/{username}` or an
+        `/live?tab=trending|new|following`, `/home/room/{roomId}`, `/users/{username}`, *(v1.97-social, D303)*
+        `/events/{eventId}`, *(v1.142-social, D394)* `/ambassadors` («برنامج سفراء Kabso») or an
         `https://` URL; a stored link that no longer passes these rules is left out. Signed-in
         callers only; the default per-user rate limit. The response carries
         `Cache-Control: private, max-age=60` and `Vary: Authorization, Accept-Language`.
@@ -32517,7 +32521,7 @@ components:
         link:
           type: string
           maxLength: 512
-          description: "`/cp/space`, `/families`, `/live?tab=trending|new|following`, `/home/room/{roomId}`, `/users/{username}` or an `https://` URL."
+          description: "`/cp/space`, `/families`, `/live?tab=trending|new|following`, `/home/room/{roomId}`, `/users/{username}`, (v1.97-social, D303) `/events/{eventId}`, (v1.142-social, D394) `/ambassadors` or an `https://` URL; anything else → 409 `ADMIN_ACTION_REFUSED` with the allowed links."
         titleAr: { type: [string, 'null'], description: "Overlay text, 1–40 code points." }
         titleEn: { type: [string, 'null'] }
         titleSide: { type: string, enum: [LEFT, RIGHT], default: RIGHT }
@@ -36594,8 +36598,9 @@ components:
           maxLength: 512
           description: |
             `/cp/space`, `/families`, `/live?tab=trending|new|following`, `/home/room/{roomId}`,
-            `/users/{username}`, (v1.97-social, D303) `/events/{eventId}` or an `https://` URL. Apps ignore a link
-            they cannot open.
+            `/users/{username}`, (v1.97-social, D303) `/events/{eventId}`, (v1.142-social, D394) `/ambassadors`
+            («برنامج سفراء Kabso»: the app opens the programme page, or the dashboard for an ambassador) or an `https://`
+            URL. Apps ignore a link they cannot open.
         kind:
           type: string
           enum: [IMAGE, ANIMATED, VIDEO]

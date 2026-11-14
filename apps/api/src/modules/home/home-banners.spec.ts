@@ -10,6 +10,9 @@ describe('bannerLinkProblem (D124 allowlist)', () => {
     '/live?tab=following',
     '/home/room/0193a4b2-7c1d-7e2f-8a3b-4c5d6e7f8091',
     '/users/sara.k',
+    '/events/0193a4b2-7c1d-7e2f-8a3b-4c5d6e7f8091',
+    // D394: «برنامج سفراء Kabso».
+    '/ambassadors',
     'https://kabso.app/events/halloween?x=1',
   ])('accepts %s', (link) => {
     expect(bannerLinkProblem(link)).toBeNull();
@@ -32,10 +35,20 @@ describe('bannerLinkProblem (D124 allowlist)', () => {
     '/users/a/medals',
     '/settings',
     '/debug/previews',
+    // D394: only the programme page itself, nothing under it or around it.
+    '/ambassadors/',
+    '/ambassadors/me',
+    '/ambassadors?tab=apply',
+    '/Ambassadors',
+    '/ambassador',
     'https://kabso.app/a b',
     `https://kabso.app/${'a'.repeat(600)}`,
   ])('refuses %s', (link) => {
     expect(bannerLinkProblem(link)).not.toBeNull();
+  });
+
+  it('lists /ambassadors in the refusal message (D394)', () => {
+    expect(bannerLinkProblem('/settings')).toContain('/ambassadors');
   });
 });
 

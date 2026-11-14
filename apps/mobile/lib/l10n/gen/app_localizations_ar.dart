@@ -19764,4 +19764,8 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get pk4ErrorSeatTaken => 'هذا المكان فيه دعوة بالفعل';
+
+  @override
+  String get bannerAmbassadorsStaff =>
+      'برنامج سفراء Kabso غير متاح لحسابات فريق Kabso';
 }

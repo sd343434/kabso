@@ -56,7 +56,8 @@ const UUID = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-
 
 /**
  * The in-app routes a banner may open (D124 allowlist): the CP space, the families page, a live
- * hub tab, one live room, one profile. Anything else must be an https URL.
+ * hub tab, one live room, one profile, (D303) one event, (D394) the ambassadors programme. Anything else must be
+ * an https URL.
  */
 const ROUTE_LINKS: readonly RegExp[] = [
   /^\/cp\/space$/,
@@ -66,6 +67,8 @@ const ROUTE_LINKS: readonly RegExp[] = [
   /^\/users\/[^/?#]+$/,
   // v1.97-social (D303): an event page (set by `eventId`).
   new RegExp(`^/events/${UUID}$`),
+  // v1.142-social (D394): «برنامج سفراء Kabso» (D390; an ambassador's app opens the dashboard).
+  /^\/ambassadors$/,
 ];
 
 /** Why `link` may not be a banner's link, or null when it may. */
@@ -87,7 +90,7 @@ export function bannerLinkProblem(link: string): string | null {
     return null;
   }
   if (!ROUTE_LINKS.some((pattern) => pattern.test(link))) {
-    return 'The link must be /cp/space, /families, /live?tab=trending|new|following, /home/room/<roomId>, /users/<username>, /events/<eventId> or an https:// URL';
+    return 'The link must be /cp/space, /families, /live?tab=trending|new|following, /home/room/<roomId>, /users/<username>, /events/<eventId>, /ambassadors or an https:// URL';
   }
   const user = /^\/users\/(.+)$/.exec(link);
   if (user && !USERNAME_PATTERN.test(user[1]!)) return 'Not a valid username';

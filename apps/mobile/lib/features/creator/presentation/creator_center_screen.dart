@@ -17,6 +17,7 @@ import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cover_picture.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
+import 'package:kabso_live/features/live/presentation/hub/home_banner_open.dart';
 import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -144,7 +145,7 @@ class _CreatorCenterScreenState extends ConsumerState<CreatorCenterScreen> {
   void _openBanner(HomeBanner banner) {
     switch (HomeBannerTarget.parse(banner.link)) {
       case HomeBannerRoute(:final location):
-        _push(location);
+        unawaited(openHomeBannerRoute(context, ref, location));
       case HomeBannerLiveTab(tab: final target):
         openLiveHub(context, ref, target);
       case null:

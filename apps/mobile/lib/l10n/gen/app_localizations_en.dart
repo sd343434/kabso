@@ -19774,4 +19774,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pk4ErrorSeatTaken => 'That place already has an invite';
+
+  @override
+  String get bannerAmbassadorsStaff =>
+      'The Kabso Ambassadors Program isn\'t available to Kabso Team accounts';
 }

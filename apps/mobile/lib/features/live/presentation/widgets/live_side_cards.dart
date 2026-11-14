@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
@@ -12,6 +11,7 @@ import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/presentation/hub/home_banner_open.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -697,7 +697,7 @@ class _LiveRoomPromoBoxState extends ConsumerState<LiveRoomPromoBox> {
 
   void _open(HomeBanner banner) {
     if (HomeBannerTarget.parse(banner.link) case final HomeBannerRoute r) {
-      unawaited(context.push(r.location));
+      unawaited(openHomeBannerRoute(context, ref, r.location));
     }
   }
 
