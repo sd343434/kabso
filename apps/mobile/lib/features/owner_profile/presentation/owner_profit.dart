@@ -491,6 +491,17 @@ class _PeriodView extends StatelessWidget {
                   rate,
                 ),
               }, style: t.caption.copyWith(color: p.textSecondary)),
+              // D390 follow-up (owner 2026-11-14): the ambassadors' rewards
+              // in cherries too, at the payout rate.
+              if (d.key == ProfitDeductionKey.ambassadorRewards &&
+                  (d.cherries ?? 0) != 0)
+                Text(
+                  l10n.ownerProfitCherries(
+                    KFormat.grouped(d.cherries ?? 0),
+                    rate,
+                  ),
+                  style: t.caption.copyWith(color: p.textSecondary),
+                ),
             ],
           ),
         group(

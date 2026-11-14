@@ -136,8 +136,17 @@ export const CHERRY_LINES: Readonly<
   TEAM_ADJUSTMENTS: ['ADMIN_ADJUSTMENT'],
 };
 
-/** Every reason a cherry line reads. */
-export const CHERRY_COST_REASONS: readonly string[] = Object.values(CHERRY_LINES).flat();
+/**
+ * D390 follow-up (owner 2026-11-14): the ambassadors' monthly rewards in cherries — counted in AMBASSADOR_REWARDS (with
+ * the coin rewards), at the cherry payout value like the commissions.
+ */
+export const AMBASSADOR_REWARD_CHERRY_REASONS = ['AMBASSADOR_REWARD_CHERRIES'] as const;
+
+/** Every cherry reason the report reads (the cherry lines and the ambassadors' cherry rewards). */
+export const CHERRY_COST_REASONS: readonly string[] = [
+  ...Object.values(CHERRY_LINES).flat(),
+  ...AMBASSADOR_REWARD_CHERRY_REASONS,
+];
 
 /**
  * COIN_REWARDS: the coins Kabso gives away (event prizes, task and check-in coins), valued conservatively at the lowest
@@ -160,8 +169,9 @@ export const GIFT_OWNER_COIN_REASONS = ['GIFT_OWNER_ROYALTY', 'GIFT_OWNER_ROYALT
 export const STAFF_COMPENSATION_COIN_REASONS = ['STAFF_COMPENSATION'] as const;
 
 /**
- * v1.141-social (D390, §10.179.10): AMBASSADOR_REWARDS — the coins of the ambassadors' monthly target rewards, its own
- * line, valued like STAFF_COMPENSATIONS (the lowest agent price). VIP days and bag items are not coins: not counted.
+ * v1.141-social (D390, §10.179.10): AMBASSADOR_REWARDS — the ambassadors' monthly target rewards, its own line: the
+ * coins valued like STAFF_COMPENSATIONS (the lowest agent price) plus the cherries (AMBASSADOR_REWARD_CHERRY_REASONS)
+ * at the payout rate. VIP days and bag items are not money in a ledger: not counted.
  */
 export const AMBASSADOR_REWARD_COIN_REASONS = ['AMBASSADOR_REWARD'] as const;
 

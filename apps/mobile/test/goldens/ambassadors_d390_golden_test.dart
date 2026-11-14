@@ -1,7 +1,9 @@
 // v1.141-social (D390): «برنامج سفراء Kabso».
 //
-//   ambassadors_d390.programme   the explanation page with the levels, the
-//                                rules and the application form (programme on)
+//   ambassadors_d390.programme   the explanation page with the levels (the
+//                                owner's 1.5 / 2.5 / 3 / 4 % from 0 / 20 M /
+//                                50 M / 250 M coins a month), the rules and
+//                                the application form (programme on)
 //   ambassadors_d390.dashboard   a Star ambassador's dashboard: the badge,
 //                                the commission and the progress to
 //                                Constellation, the

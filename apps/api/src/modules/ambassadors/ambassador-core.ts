@@ -7,7 +7,11 @@ import type {
   PrismaClient,
 } from '../../generated/prisma/client.js';
 import { grantBagItemByAdminIn } from '../bag/bag-admin-rules.js';
-import { creditAmbassadorCommissionIn, reverseAmbassadorCommissionIn } from '../economy/cherry-ledger.js';
+import {
+  creditAmbassadorCommissionIn,
+  creditAmbassadorRewardCherriesIn,
+  reverseAmbassadorCommissionIn,
+} from '../economy/cherry-ledger.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 // D387: the shared «any panel role» check (the OWNER included), §10.179.2.
 import { isPanelStaff } from '../live/live-staff.js';
@@ -19,6 +23,7 @@ import {
   capCommission,
   commissionCherries,
   DEFAULT_AMBASSADOR_LEVEL_CODES,
+  DEFAULT_AMBASSADOR_MONTHLY_CAP_CHERRIES,
   levelAfterMonth,
   levelIndex,
   metLevelIndex,
@@ -95,7 +100,7 @@ export async function ambassadorSettingsIn(db: Db): Promise<AmbassadorSettingsVa
       holdDays: 14,
       minActiveDays: 3,
       minActiveTopupCoins: 100_000n,
-      monthlyCapCherries: 50_000_000n,
+      monthlyCapCherries: DEFAULT_AMBASSADOR_MONTHLY_CAP_CHERRIES,
       velocityMaxPerDay: 30,
       ipClusterMax: 3,
       ipClusterWindowDays: 30,
@@ -380,7 +385,8 @@ export async function ambassadorTopupIn(
   if (await isPanelStaff(tx, amb.userId)) voidReason = 'STAFF';
   else if (await selfPaymentIn(tx, amb.userId, input.reason, input.reference)) voidReason = 'SELF_PAYMENT';
   else {
-    // The month's cap, serialized per ambassador by the row lock.
+    // The month's cap (0 = none, the default since the owner's 2026-11-14 decision), serialized per ambassador by the
+    // row lock. It sums this month's COMMISSIONS only: a monthly target reward never counts toward it (§10.179.5).
     await tx.$executeRaw`SELECT 1 FROM ambassadors WHERE user_id = ${amb.userId}::uuid FOR UPDATE`;
     const [used] = await tx.$queryRaw<{ c: bigint }[]>`
       SELECT COALESCE(sum(cherries), 0)::bigint AS c FROM ambassador_commissions
@@ -630,6 +636,17 @@ async function grantRewardIn(
       return;
     case 'COINS':
       await creditIn(tx, userId, BigInt(reward.amount), 'AMBASSADOR_REWARD', rewardReference(userId, month));
+      break;
+    case 'CHERRIES':
+      // Owner 2026-11-14: withdrawable cherries (sellable to a recharge agent), once per ambassador and month (the
+      // ledger's `cherry_ledger_reference_once`). Not counted toward the commissions' monthly cap.
+      await creditAmbassadorRewardCherriesIn(
+        tx,
+        userId,
+        BigInt(reward.amount),
+        rewardReference(userId, month),
+        now,
+      );
       break;
     case 'VIP_DAYS':
       await grantVipIn(tx, userId, reward.vipTier, reward.amount, now);

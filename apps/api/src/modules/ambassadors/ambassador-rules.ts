@@ -7,7 +7,7 @@ import { addMonths, monthKey } from '../economy/economy-math.js';
  * no Nest: shared by the API, the sweeper and the unit tests.
  */
 
-export const AMBASSADOR_REWARD_KINDS = ['NONE', 'COINS', 'VIP_DAYS', 'BAG_ITEM'] as const;
+export const AMBASSADOR_REWARD_KINDS = ['NONE', 'COINS', 'CHERRIES', 'VIP_DAYS', 'BAG_ITEM'] as const;
 export type AmbassadorRewardKind = (typeof AMBASSADOR_REWARD_KINDS)[number];
 
 /** The most a level may pay (50 %): a commission above the platform's margin would pay out more than Kabso keeps. */
@@ -18,6 +18,11 @@ export const ambassadorRewardSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('NONE') }),
   /** Coins (ledger `AMBASSADOR_REWARD`). */
   z.strictObject({ kind: z.literal('COINS'), amount: z.number().int().min(1).max(100_000_000) }),
+  /**
+   * Owner 2026-11-14 («يجب ان تكون ارباح السفير بالكرز ليتمكن من سحبهم من وكيل شحن»): withdrawable cherries (ledger
+   * `AMBASSADOR_REWARD_CHERRIES`, sellable to a recharge agent, not task-locked), once per ambassador and month.
+   */
+  z.strictObject({ kind: z.literal('CHERRIES'), amount: z.number().int().min(1).max(10_000_000_000) }),
   /** VIP days of a tier (the event-prize path: never lowers a tier held). */
   z.strictObject({
     kind: z.literal('VIP_DAYS'),
@@ -66,6 +71,46 @@ export const ambassadorLevelSchema = z.strictObject({
   reward: ambassadorRewardSchema,
 });
 export type AmbassadorLevel = z.infer<typeof ambassadorLevelSchema>;
+
+/**
+ * The shipped default levels (owner 2026-11-14: «عمولة شرارة ١.٥٪ … ٢.٥٪ … ٣ ٪ ثم ٤٪ — الهدف: شرارة من صفر، نجم ٢٠ مليون،
+ * كوكبة ٥٠ مليون، مجرة ٢٥٠ مليون», §10.179.7): the month's qualifying top-ups alone decide (no active-referral
+ * requirement); the monthly rewards in withdrawable cherries (STAR 5 000 000, CONSTELLATION 15 000 000, GALAXY
+ * 50 000 000 — the coordinator's proposal after the owner's «نعم» to cherry rewards). The same list as the `ambassador_settings.levels` column default (migration
+ * `20270520090000_ambassador_level_names`, `schema.prisma`); the database row is what the API reads, this constant
+ * documents and tests it.
+ */
+export const DEFAULT_AMBASSADOR_LEVELS: readonly AmbassadorLevel[] = [
+  { code: 'SPARK', minActiveReferrals: 0, minTopupCoins: 0, commissionBps: 150, reward: { kind: 'NONE' } },
+  {
+    code: 'STAR',
+    minActiveReferrals: 0,
+    minTopupCoins: 20_000_000,
+    commissionBps: 250,
+    reward: { kind: 'CHERRIES', amount: 5_000_000 },
+  },
+  {
+    code: 'CONSTELLATION',
+    minActiveReferrals: 0,
+    minTopupCoins: 50_000_000,
+    commissionBps: 300,
+    reward: { kind: 'CHERRIES', amount: 15_000_000 },
+  },
+  {
+    code: 'GALAXY',
+    minActiveReferrals: 0,
+    minTopupCoins: 250_000_000,
+    commissionBps: 400,
+    reward: { kind: 'CHERRIES', amount: 50_000_000 },
+  },
+];
+
+/**
+ * The shipped monthly cap on an ambassador's commissions: 0 = none (owner 2026-11-14, «ب) إلغاء الحد تماماً، فيأخذ
+ * السفير عمولته كاملة مهما كانت»). The OWNER may still set one in the panel. The cap limits COMMISSIONS only: the
+ * monthly target reward never counts toward it and is never cut by it (§10.179.5).
+ */
+export const DEFAULT_AMBASSADOR_MONTHLY_CAP_CHERRIES = 0n;
 
 /**
  * Why a level list cannot be saved (null = fine): 1–10 levels, unique codes, the first one open to everyone

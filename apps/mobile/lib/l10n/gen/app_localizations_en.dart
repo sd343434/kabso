@@ -13247,6 +13247,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cherryReasonReferralReversal => 'Referral reward taken back';
 
   @override
+  String get cherryReasonAmbassadorCommission => 'Ambassador commission';
+
+  @override
+  String get cherryReasonAmbassadorCommissionReversal =>
+      'Ambassador commission taken back';
+
+  @override
+  String get cherryReasonAmbassadorReward => 'Ambassador monthly reward';
+
+  @override
   String get notifReferralReversed =>
       'The Kabso team voided an invalid invite and took back its cherries. Open the cherry wallet for details';
 
@@ -19351,7 +19361,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ambGet2 =>
-      'Monthly rewards for reaching targets: coins, VIP days or items';
+      'Monthly rewards for reaching targets: withdrawable cherries, coins, VIP days or items';
 
   @override
   String get ambGet3 => 'The exclusive ambassador badge';
@@ -19380,6 +19390,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String ambLevelRequirementCoins(String coins) {
+    return 'Qualifying top-ups: $coins coins a month';
+  }
+
+  @override
   String ambLevelCommission(String pct) {
     return '$pct commission';
   }
@@ -19390,6 +19405,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String ambRewardCoins(String amount) {
     return 'Reward: $amount coins';
+  }
+
+  @override
+  String ambRewardCherries(String amount) {
+    return 'Reward: $amount cherries';
   }
 
   @override

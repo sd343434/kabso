@@ -23,6 +23,7 @@ import 'package:kabso_live/features/profile/domain/profile_models.dart'
     show ambassadorLevelFromJson, ambassadorLevelToJson;
 import 'package:kabso_live/features/referrals/presentation/invite_friends_screen.dart'
     show InviteSharer, inviteSharerProvider;
+import 'package:kabso_live/features/wallet/data/cherry_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/ambassadors/ambassador_fixtures.dart';
@@ -79,11 +80,23 @@ void main() {
       'rules from the server', (tester) async {
     await pumpProgramme(tester);
     expect(find.byType(AmbassadorBadge), findsNWidgets(4));
-    for (final pct in ['2%', '3%', '4%', '5%']) {
+    // Owner 2026-11-14: 1.5 / 2.5 / 3 / 4 %, the month's qualifying top-ups
+    // alone (no active-referral requirement).
+    for (final pct in ['1.5%', '2.5%', '3%', '4%']) {
       expect(find.textContaining(pct), findsWidgets);
     }
-    expect(find.textContaining('100,000'), findsWidgets);
-    expect(find.textContaining('VIP 1'), findsOne);
+    for (final coins in ['0', '20,000,000', '50,000,000', '250,000,000']) {
+      expect(
+        find.text('Qualifying top-ups: \u2068$coins\u2069 coins a month'),
+        findsOne,
+      );
+    }
+    expect(find.textContaining('Active referrals:'), findsNothing);
+    // The monthly rewards in withdrawable cherries (owner 2026-11-14).
+    for (final cherries in ['5,000,000', '15,000,000', '50,000,000']) {
+      expect(find.text('Reward: \u2068$cherries\u2069 cherries'), findsOne);
+    }
+    expect(find.text('No monthly reward'), findsOne);
     expect(find.textContaining('days): \u206860\u2069'), findsOne);
   });
 
@@ -195,17 +208,26 @@ void main() {
     final sharer = await pumpDashboard(tester);
     expect(find.text('K7M4QX2D'), findsOne);
     expect(find.text('https://kabsolive.com/i/K7M4QX2D'), findsOne);
-    expect(find.textContaining('3%'), findsOne);
+    expect(find.textContaining('2.5%'), findsOne);
     expect(find.text('To reach Constellation this month'), findsOne);
+    // The level asks no active referrals: only the top-ups to go, and the
+    // month's referrals as a count with no target.
     expect(
-      find.textContaining('Active referrals to go: \u20686\u2069'),
+      find.text('Top-ups to go (coins): \u206818,000,000\u2069'),
       findsOne,
     );
-    expect(find.text('\u20689\u2069 / \u206815\u2069'), findsOne);
+    expect(find.textContaining('Active referrals to go'), findsNothing);
+    expect(
+      find.text('\u206832,000,000\u2069 / \u206850,000,000\u2069'),
+      findsOne,
+    );
+    expect(find.textContaining('/ \u20680\u2069'), findsNothing);
     expect(find.text('3,860,000'), findsOne);
     expect(find.text('410,000'), findsOne);
     expect(find.text('23'), findsOne);
     expect(find.text('Reward granted'), findsOne);
+    // This month's target reward in withdrawable cherries (owner 2026-11-14).
+    expect(find.text('Reward: \u206815,000,000\u2069 cherries'), findsOne);
     expect(find.text('Reversed'), findsOne);
     expect(find.byKey(AmbassadorDashboardScreen.heldKey), findsNothing);
     await tester.tap(find.byKey(AmbassadorDashboardScreen.shareKey));
@@ -280,6 +302,31 @@ void main() {
     expect(ambassadorLevelFromJson({'level': ''}), isNull);
     expect(ambassadorLevelFromJson('CONSTELLATION'), isNull);
     expect(ambassadorLevelToJson('STAR'), {'level': 'STAR'});
+  });
+
+  test('a monthly reward in cherries: «مكافأة: 5,000,000 كرز», and its line '
+      'in the cherry history', () {
+    const reward = AmbassadorReward(kind: 'CHERRIES', amount: 5000000);
+    expect(
+      ambassadorRewardText(l10nFor(AppLanguage.ar), reward),
+      'مكافأة: \u20685,000,000\u2069 كرز',
+    );
+    expect(
+      ambassadorRewardText(l10nFor(AppLanguage.en), reward),
+      'Reward: \u20685,000,000\u2069 cherries',
+    );
+    expect(
+      CherryLedgerReason.fromWire('AMBASSADOR_REWARD_CHERRIES'),
+      CherryLedgerReason.ambassadorRewardCherries,
+    );
+    expect(
+      CherryLedgerReason.fromWire('AMBASSADOR_COMMISSION'),
+      CherryLedgerReason.ambassadorCommission,
+    );
+    expect(
+      l10nFor(AppLanguage.ar).cherryReasonAmbassadorReward,
+      'مكافأة السفير الشهرية',
+    );
   });
 
   test('the D389 explainer text for the badge (ar and en)', () {

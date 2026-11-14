@@ -93,7 +93,9 @@ export interface AmbassadorCampaign {
   notes: string;
   ambassadors: { id: string; username: string; displayName: string }[];
 }
-export type RewardKind = 'NONE' | 'COINS' | 'VIP_DAYS' | 'BAG_ITEM';
+/** D390 follow-up (owner 2026-11-14): CHERRIES — withdrawable cherries, the default of the levels above the first. */
+export type RewardKind = 'NONE' | 'COINS' | 'CHERRIES' | 'VIP_DAYS' | 'BAG_ITEM';
+export const REWARD_KINDS: readonly RewardKind[] = ['NONE', 'CHERRIES', 'COINS', 'VIP_DAYS', 'BAG_ITEM'];
 export interface AmbassadorLevel {
   code: string;
   minActiveReferrals: number;
@@ -775,7 +777,7 @@ export function levelsValid(levels: AmbassadorLevel[]): boolean {
 /** A reward as the API takes it (only the fields of its kind). */
 export function rewardOf(kind: RewardKind, amount: number, ref: string): AmbassadorLevel['reward'] {
   if (kind === 'NONE') return { kind };
-  if (kind === 'COINS') return { kind, amount: Math.max(1, amount) };
+  if (kind === 'COINS' || kind === 'CHERRIES') return { kind, amount: Math.max(1, amount) };
   if (kind === 'VIP_DAYS') return { kind, amount: Math.max(1, amount), vipTier: ref || 'VIP_1' };
   return { kind, amount: Math.max(1, amount), itemCode: ref };
 }
@@ -850,7 +852,7 @@ export function AmbassadorSettingsForm({ saved, draft, onChange, onSave }: { sav
                 </td>
                 <td>
                   <select value={l.reward.kind} onChange={(e) => setLevel(i, { ...l, reward: rewardOf(e.target.value as RewardKind, l.reward.amount ?? 1, l.reward.vipTier ?? l.reward.itemCode ?? '') })}>
-                    {(['NONE', 'COINS', 'VIP_DAYS', 'BAG_ITEM'] as const).map((k) => (
+                    {REWARD_KINDS.map((k) => (
                       <option key={k} value={k}>
                         {t(`ambKind${k}`)}
                       </option>
@@ -886,7 +888,7 @@ export function AmbassadorSettingsForm({ saved, draft, onChange, onSave }: { sav
             const last = draft.levels.at(-1)!;
             onChange({
               ...draft,
-              levels: [...draft.levels, { code: `L${draft.levels.length + 1}X`, minActiveReferrals: last.minActiveReferrals + 1, minTopupCoins: last.minTopupCoins, commissionBps: last.commissionBps, reward: { kind: 'NONE' } }],
+              levels: [...draft.levels, { code: `L${draft.levels.length + 1}X`, minActiveReferrals: last.minActiveReferrals, minTopupCoins: Math.max(1_000_000, last.minTopupCoins * 2), commissionBps: last.commissionBps, reward: { kind: 'NONE' } }],
             });
           }}
         >

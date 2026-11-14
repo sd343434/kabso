@@ -25,6 +25,7 @@ import {
   fixedCostShare,
   FREE_COIN_REASONS,
   STAFF_COMPENSATION_COIN_REASONS,
+  AMBASSADOR_REWARD_CHERRY_REASONS,
   AMBASSADOR_REWARD_COIN_REASONS,
   GIFT_OWNER_COIN_REASONS,
   isDayKey,
@@ -336,7 +337,10 @@ export class OwnerProfitService {
       const c = rs.reduce((s, r) => s + (reasons.get(r) ?? 0n), 0n);
       cherryLines.set(k, { cherries: c, minor: cherryMoney(c, e.rateCherries, e.rateMinor) });
     }
-    const cherryTotal = [...cherryLines.values()].reduce((s, v) => s + v.minor, 0n);
+    // D390 follow-up: the ambassadors' cherry rewards (in AMBASSADOR_REWARDS, not a cherry line of their own).
+    const ambCherries = AMBASSADOR_REWARD_CHERRY_REASONS.reduce((s, r) => s + (reasons.get(r) ?? 0n), 0n);
+    const ambCherryMinor = cherryMoney(ambCherries, e.rateCherries, e.rateMinor);
+    const cherryTotal = [...cherryLines.values()].reduce((s, v) => s + v.minor, 0n) + ambCherryMinor;
     const cherryInUsd = e.currency.toUpperCase() === 'USD';
     const before = (l: Money) => l.charged - l.refunds - l.chargebacks + l.agents;
 
@@ -356,7 +360,13 @@ export class OwnerProfitService {
       if (key === 'STAFF_COMPENSATIONS')
         return { key, amountMinor: num(compValue), cherries: null, coins: num(compCoins), orders: null };
       if (key === 'AMBASSADOR_REWARDS')
-        return { key, amountMinor: num(ambValue), cherries: null, coins: num(ambCoins), orders: null };
+        return {
+          key,
+          amountMinor: num(ambValue) + (cherryInUsd ? num(ambCherryMinor) : 0),
+          cherries: num(ambCherries),
+          coins: num(ambCoins),
+          orders: null,
+        };
       const v = cherryLines.get(key)!;
       return {
         key,

@@ -1,6 +1,6 @@
 // D390 «برنامج سفراء Kabso»: payloads shaped like `AmbassadorProgramme` and
 // `AmbassadorDashboard` in openapi.yaml (v1.141-social), with the migration's
-// proposed defaults (the owner's level codes of 2026-11-14). Test data only
+// defaults (the owner's level codes and numbers of 2026-11-14). Test data only
 // (G-26).
 
 import 'package:kabso_live/features/ambassadors/data/ambassador_repository.dart';
@@ -10,29 +10,29 @@ const List<Map<String, Object>> _levels = [
     'code': 'SPARK',
     'minActiveReferrals': 0,
     'minTopupCoins': 0,
-    'commissionBps': 200,
+    'commissionBps': 150,
     'reward': {'kind': 'NONE'},
   },
   {
     'code': 'STAR',
-    'minActiveReferrals': 5,
-    'minTopupCoins': 3000000,
-    'commissionBps': 300,
-    'reward': {'kind': 'COINS', 'amount': 100000},
+    'minActiveReferrals': 0,
+    'minTopupCoins': 20000000,
+    'commissionBps': 250,
+    'reward': {'kind': 'CHERRIES', 'amount': 5000000},
   },
   {
     'code': 'CONSTELLATION',
-    'minActiveReferrals': 15,
-    'minTopupCoins': 15000000,
-    'commissionBps': 400,
-    'reward': {'kind': 'VIP_DAYS', 'amount': 7, 'vipTier': 'VIP_1'},
+    'minActiveReferrals': 0,
+    'minTopupCoins': 50000000,
+    'commissionBps': 300,
+    'reward': {'kind': 'CHERRIES', 'amount': 15000000},
   },
   {
     'code': 'GALAXY',
-    'minActiveReferrals': 40,
-    'minTopupCoins': 60000000,
-    'commissionBps': 500,
-    'reward': {'kind': 'COINS', 'amount': 1000000},
+    'minActiveReferrals': 0,
+    'minTopupCoins': 250000000,
+    'commissionBps': 400,
+    'reward': {'kind': 'CHERRIES', 'amount': 50000000},
   },
 ];
 
@@ -90,21 +90,21 @@ Map<String, dynamic> ambassadorDashboardJson({bool payoutsHeld = false}) => {
   'since': '2026-09-02T10:00:00.000Z',
   'code': 'K7M4QX2D',
   'link': 'https://kabsolive.com/i/K7M4QX2D',
-  'level': {'code': 'STAR', 'commissionBps': 300},
+  'level': {'code': 'STAR', 'commissionBps': 250},
   'nextLevel': {
     'code': 'CONSTELLATION',
-    'activeReferrals': 6,
-    'topupCoins': 6800000,
+    'activeReferrals': 0,
+    'topupCoins': 18000000,
   },
   'month': {
     'month': '2026-11',
     'activeReferrals': 9,
-    'topupCoins': 8200000,
+    'topupCoins': 32000000,
     'target': {
       'code': 'CONSTELLATION',
-      'minActiveReferrals': 15,
-      'minTopupCoins': 15000000,
-      'reward': {'kind': 'VIP_DAYS', 'amount': 7, 'vipTier': 'VIP_1'},
+      'minActiveReferrals': 0,
+      'minTopupCoins': 50000000,
+      'reward': {'kind': 'CHERRIES', 'amount': 15000000},
     },
   },
   'referrals': {'total': 23, 'active': 17, 'pending': 6, 'void': 2},
@@ -118,7 +118,7 @@ Map<String, dynamic> ambassadorDashboardJson({bool payoutsHeld = false}) => {
     {
       'month': '2026-10',
       'activeReferrals': 7,
-      'topupCoins': 4100000,
+      'topupCoins': 24100000,
       'commissionCherries': 2050000,
       'levelAfter': 'STAR',
       'rewardStatus': 'GRANTED',

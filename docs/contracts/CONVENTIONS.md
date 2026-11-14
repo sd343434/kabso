@@ -807,7 +807,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
 | v1.118-live (draft) | 2026-11-13 | **D391 (CP-041 phase 2, approved by the owner 2026-11-13: «PK رباعي»):** PK 2 v 2 (`format` TEAMS) by invitation — `getLivePk4`, `listLivePk4Candidates`, `openLivePk4Lobby` / `closeLivePk4Lobby`, `inviteLivePk4` / `cancelLivePk4Invite`, `acceptLivePk4Invite` / `declineLivePk4Invite`, `startLivePk4`, `endLivePk4`, `muteLivePk4Host`, `createLivePk4MediaToken`; schemas `Pk4*`; `AdminLive.pk4`, `AdminLiveDetail.pk4` (optional) and `endAdminLivePk4`; codes `PK_LOBBY_CLOSED`, `PK_SEAT_TAKEN` (409); data messages `pk4-match`, `pk4-lobby`, `pk4-invite` on topic `pk`; media identities `pk4:`; config `PK4_ENABLED` (true), `PK4_LOBBY_SECONDS` (120), `PK4_INVITE_TTL_SECONDS` (30), `PK4_MAX_WATCHERS_PER_ROOM` (0); migration `20270518090200_pk4_teams`; `pk-admin` accepts 4-way ids. A host busy in either PK is busy for the other (1 v 1 otherwise unchanged). §4, §8, §10.180. | **Additive**: older apps ignore the new messages and see a 4-way room as a solo live; a 1 v 1 host is refused 409 `PK_HOST_BUSY` only while the other host is in a 4-way lobby or match. |
-| v1.141-social (draft) | 2026-11-13 | **D390 (owner's «برنامج سفراء Kabso», via the coordinator 2026-11-13; OFF until the OWNER switches it on):** tag `ambassadors` — `getAmbassadorProgramme` (`GET /ambassadors/programme`, `AmbassadorProgramme`), `applyForAmbassadorProgramme` (`POST /ambassadors/applications`, `AmbassadorApplicationRequest`), `getMyAmbassadorDashboard` (`GET /ambassadors/me`, `AmbassadorDashboard`); panel `listAdminAmbassadors` / `appointAdminAmbassador`, `getAdminAmbassador`, `freezeAdminAmbassador`, `unfreezeAdminAmbassador`, `clearAdminAmbassadorReview`, `listAdminAmbassadorApplications`, `approveAdminAmbassadorApplication`, `rejectAdminAmbassadorApplication`, `getAdminAmbassadorSettings` / `updateAdminAmbassadorSettings`, `listAdminAmbassadorCampaigns`, `createAdminAmbassadorCampaign`, `updateAdminAmbassadorCampaign` (schemas `AmbassadorLevel`, `AmbassadorReward`, `AmbassadorApplication`, `AmbassadorSettings`, `UpdateAmbassadorSettingsRequest`, `AmbassadorReferralCounts`, `AmbassadorCommissionTotals`, `AdminAmbassador*`, `AmbassadorCampaignRequest`); capabilities `ambassadors.view` / `ambassadors.manage` (OWNER, SUPPORT) and `ambassadors.settings` (OWNER); code `AMBASSADOR_APPLICATION_NOT_ALLOWED` (409); `CherryLedgerReason` `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`; `WalletLedgerReason` `AMBASSADOR_REWARD`; `NotificationType` `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`, `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`; config `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (300); migrations `20270519090000_ambassadors_enums`, `20270519090100_ambassadors`. Owner follow-up (2026-11-13): `PublicProfile.ambassador` (optional, the public badge), `endAdminAmbassador` «إنهاء العضوية» (status ENDED, `NotificationType` `AMBASSADOR_MEMBERSHIP_ENDED`, `AmbassadorProgramme.status` / `refusal` ENDED, `AdminAmbassadorRow.endedAt` / `endedReason`; migrations `20270519090200_ambassador_end_enums`, `20270519090300_ambassador_end`), the lower-cost defaults (2 / 3 / 4 / 5 %, 60 days). Owner follow-up (2026-11-14, «سفراء النجوم»): the default level codes SPARK / STAR / CONSTELLATION / GALAXY (formerly BRONZE / SILVER / GOLD / DIAMOND; `AmbassadorLevel.code` description only — codes stay free-form), migration `20270520090000_ambassador_level_names`. §4, §8, §10.179. | **Additive** (new operations, schemas and enum values; clients ignore unknown notification types and ledger reasons). **Behaviour change (D217, §10.71):** while the programme is ON, a referral whose inviter is an ambassador earns no D217 inviter reward (sign-up, first recharge, milestones) — the ambassador's commission replaces it. OFF by default: no change until the OWNER switches it on. |
+| v1.141-social (draft) | 2026-11-13 | **D390 (owner's «برنامج سفراء Kabso», via the coordinator 2026-11-13; OFF until the OWNER switches it on):** tag `ambassadors` — `getAmbassadorProgramme` (`GET /ambassadors/programme`, `AmbassadorProgramme`), `applyForAmbassadorProgramme` (`POST /ambassadors/applications`, `AmbassadorApplicationRequest`), `getMyAmbassadorDashboard` (`GET /ambassadors/me`, `AmbassadorDashboard`); panel `listAdminAmbassadors` / `appointAdminAmbassador`, `getAdminAmbassador`, `freezeAdminAmbassador`, `unfreezeAdminAmbassador`, `clearAdminAmbassadorReview`, `listAdminAmbassadorApplications`, `approveAdminAmbassadorApplication`, `rejectAdminAmbassadorApplication`, `getAdminAmbassadorSettings` / `updateAdminAmbassadorSettings`, `listAdminAmbassadorCampaigns`, `createAdminAmbassadorCampaign`, `updateAdminAmbassadorCampaign` (schemas `AmbassadorLevel`, `AmbassadorReward`, `AmbassadorApplication`, `AmbassadorSettings`, `UpdateAmbassadorSettingsRequest`, `AmbassadorReferralCounts`, `AmbassadorCommissionTotals`, `AdminAmbassador*`, `AmbassadorCampaignRequest`); capabilities `ambassadors.view` / `ambassadors.manage` (OWNER, SUPPORT) and `ambassadors.settings` (OWNER); code `AMBASSADOR_APPLICATION_NOT_ALLOWED` (409); `CherryLedgerReason` `AMBASSADOR_COMMISSION`, `AMBASSADOR_COMMISSION_REVERSAL`; `WalletLedgerReason` `AMBASSADOR_REWARD`; `NotificationType` `AMBASSADOR_APPLICATION_APPROVED`, `AMBASSADOR_APPLICATION_REJECTED`, `AMBASSADOR_LEVEL_UP`, `AMBASSADOR_REWARD_GRANTED`; config `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (300); migrations `20270519090000_ambassadors_enums`, `20270519090100_ambassadors`. Owner follow-up (2026-11-13): `PublicProfile.ambassador` (optional, the public badge), `endAdminAmbassador` «إنهاء العضوية» (status ENDED, `NotificationType` `AMBASSADOR_MEMBERSHIP_ENDED`, `AmbassadorProgramme.status` / `refusal` ENDED, `AdminAmbassadorRow.endedAt` / `endedReason`; migrations `20270519090200_ambassador_end_enums`, `20270519090300_ambassador_end`), the lower-cost defaults (2 / 3 / 4 / 5 %, 60 days). Owner follow-up (2026-11-14, «سفراء النجوم»): the default level codes SPARK / STAR / CONSTELLATION / GALAXY (formerly BRONZE / SILVER / GOLD / DIAMOND; `AmbassadorLevel.code` description only — codes stay free-form), migration `20270520090000_ambassador_level_names`; the owner's numbers (1.5 / 2.5 / 3 / 4 % from 0 / 20 M / 50 M / 250 M coins a month, no referral requirement), the reward kind `CHERRIES` with `CherryLedgerReason` `AMBASSADOR_REWARD_CHERRIES` (migration `20270520085000_ambassador_reward_cherries_enums`; withdrawable; in AMBASSADOR_REWARDS of «الربح») as the default rewards (5 M / 15 M / 50 M cherries), and no monthly cap by default (`monthlyCapCherries` 0). §4, §8, §10.179. | **Additive** (new operations, schemas and enum values; clients ignore unknown notification types and ledger reasons). **Behaviour change (D217, §10.71):** while the programme is ON, a referral whose inviter is an ambassador earns no D217 inviter reward (sign-up, first recharge, milestones) — the ambassador's commission replaces it. OFF by default: no change until the OWNER switches it on. |
 | v1.140-social (draft) | 2026-11-13 | **D388 (owner 2026-11-13: «اريد عندما يرسل الشخص يقوم تلقائي بسؤاله عن لغة التي يتحدثها عربي او انجليزي»; first time only, a confirmation, the language shown to the staff, routed to staff who speak it): «سؤال اللغة» — the WhatsApp language question and language routing.** On a WhatsApp conversation's first message (once ever; `WHATSAPP_ASK_LANGUAGE`, default on) the server sends reply buttons «العربية» / «English»; the button (or a typed «عربي» / «English» …) sets `WaConversation.language` (`WaLanguage` AR / EN; null until answered) and a confirmation is sent in that language. Both automatic messages are OUTBOUND messages with `sentBy` null (audited `whatsapp.language.auto`); they never claim the conversation or change its preview. `?language=` on both conversation lists. A REPLY+ staff member speaks AR, EN or both (none set = both): `setAdminTeamWhatsAppLanguages` (code + reason, audited `admin.team.whatsapp_languages`; `team_languages_level`), `AdminTeam.data[].whatsappLanguages`. The new-message push of an unassigned conversation in a language goes to the staff who speak it (everyone when none of them can answer). Migration `20270518090000_whatsapp_language` (§10.177). | Additive (a new required response field `WaConversation.language`, always sent). |
 | v1.139-social (draft) | 2026-11-12 | **D387 (owner 2026-11-12: operations staff roles as core roles, a 24/7 shift schedule, VIP_CARE compensations, the official social accounts, earnings and revenue for the OWNER only):** `AdminPanelRole` gains `LIVE_OPS`, `TALENT`, `VIP_CARE`, `COMMUNITY` (MODERATION is shown as TRUST_SAFETY «مراقبة المحتوى والأمان»; the wire value stays MODERATION), `KabsoStaffIdentity.role` the same four; capabilities `revenue.view` (OWNER only), `home.*`, `staff.schedule.view` / `.manage`, `compensation.grant` / `.settings` / `.approve`, `social.accounts`, `gifts.manage`, `banners.manage`, `boosts.manage`, `site.public` (the last four moved out of `catalog.manage` / `site.settings`, which only OWNER held); roles added to existing capabilities (§10.176.1). **Revenue OWNER only:** `getAdminDashboard`, `getAdminStatsOverview`, `getAdminStatsSeries`, `getAdminFinanceReport`, `listAdminStoreSales` need `revenue.view`; agency earnings, top-up totals, `AdminGift.coinsSpent` and the smart targets' `profitUsd` are null without it. Tag `admin-panel`: `getAdminLiveOpsHome`, `getAdminTalentHome`, `getAdminTrustSafetyHome`, `getAdminVipCareHome`, `getAdminCommunityHome`; `getAdminStaffSchedule`, `createAdminStaffScheduleSlot`, `updateAdminStaffScheduleSlot`, `deleteAdminStaffScheduleSlot`; `getAdminCompensationSettings`, `updateAdminCompensationSettings`, `listAdminCompensations`, `createAdminCompensation`, `approveAdminCompensation`, `rejectAdminCompensation`; `listAdminSocialAccounts`, `createAdminSocialAccount`, `updateAdminSocialAccount`, `deleteAdminSocialAccount`, `reorderAdminSocialAccounts`; public `listOfficialSocialAccounts` (`GET /social-accounts`). `StaffStatus.scheduledShift`; `WalletLedgerReason.STAFF_COMPENSATION`; audit `staff.schedule.*`, `staff.compensation.*`, `site.social_account.*`, `onShift` / `scheduled` on the report resolve and action rows. Migrations `20270517090000_ops_roles_enums`, `20270517090100_ops_roles`, `20270517090200_staff_withdrawals`, `20270517090300_staff_compensation_profit`. §10.176. **Owner follow-ups (2026-11-12):** `OwnerProfitDeductionKey.STAFF_COMPENSATIONS` (the compensation coins reduce «الربح»); codes `STAFF_GIFT_REFUSED` (403, every gift-send path refuses an employee — not the OWNER) and `STAFF_WITHDRAWAL_COMPANY_ONLY` (403, a staff account's cherries are never sold to an agent); `AdminWithdrawalRow.staffRequest`, capability `withdrawals.staff` (OWNER); §10.176.8–9. | **Additive** for the app (new enum values an older app ignores, one optional field, a new public operation). **Behaviour change** for the panel: FINANCE and every non-OWNER role lose the money dashboards, the financial report and the store sales (403), and see `null` for the masked aggregates; the gift / banner / rocket-price / website-settings writes check the new capabilities (OWNER unchanged). |
 | v1.138-social (draft) | 2026-11-12 | **D386 (owner 2026-11-12: «أن يكون كل شخص تفاصيل صفحته حسب فئة الحساب»; «نعم وأضف أي فئة مقترحة»; «الموثقة»):** `AccountCategory` gains `QURAN_RECITER`, `STORYTELLER`, `WRITER`, `JOURNALIST`, `PHOTOGRAPHER`, `ACTOR`, `COMEDIAN`, `CALLIGRAPHER`, `DESIGNER`, `CHEF`, `TEACHER`, `DJ`, `TRAVELER` (24 in all); `Me.categoryVerified`, `Me.categoryLocked`, `PublicProfile.categoryVerified` (required); `getUserFeatured` (`GET /users/{username}/featured`, `ProfileFeatured`, `FeaturedSection`); featured pins `listMyFeaturedPins` / `setMyFeaturedPins` (`GET` / `PUT /me/featured-pins`, `FeaturedPinList`, `SetFeaturedPinsRequest`), `pinFeaturedPost` / `unpinFeaturedPost` (`PUT` / `DELETE /me/featured-pins/{postId}`); «طلب توثيق الفئة» `getMyCategoryVerification` / `requestCategoryVerification` / `cancelCategoryVerification` (`GET` / `POST` / `DELETE /me/category-verification`, `CategoryVerificationStatus`, `CategoryVerificationRequest`, `CategoryVerificationRequestBody`, `CategoryRequestStatus`); panel `getAdminUserCategory` / `controlAdminUserCategory` (`GET` / `POST /admin/users/{userId}/category`, `AdminUserCategory`, `AdminCategoryControlRequest`), `listAdminCategoryRequests`, `approveAdminCategoryRequest`, `rejectAdminCategoryRequest` (`/admin/category-requests…`, `AdminCategoryRequestRow`, `AdminCategoryRequestPage`); codes `FEATURED_PIN_LIMIT` (409), `CATEGORY_VERIFICATION_PENDING` (409), `ACCOUNT_CATEGORY_LOCKED` (403); notification types `CATEGORY_VERIFIED`, `CATEGORY_REVIEWED` (system, no target); audit `admin.user.category`, `category.request.*`, `user.category_verification.*`; settings `RATE_LIMIT_FEATURED_PINS_USER` (60 / h), `RATE_LIMIT_CATEGORY_REQUEST_USER` (5 / 24 h); migrations `20270516090000_category_profiles_enums`, `20270516090100_category_profiles`. §4, §7, §10.47, §10.160, §10.175. | **Additive** (new enum values: clients show an unknown category as nothing and ignore unknown notification types; new required response fields: strict clients update their models in the same change set). **Behaviour change:** changing one's category clears its verification; a locked category cannot be changed (403). |
@@ -13762,9 +13762,12 @@ Distinct days of activity are not tracked by the server today, so the rule is ac
   `floor(coins × CHERRIES_PER_COIN × level bps / 10 000)` cherries at the ambassador's level **at the time of the
   top-up**, unique per recharge (`(recharge_reason, recharge_reference)`). Gifts, quips, events and coins given away are
   not top-ups and pay nothing.
-- **The monthly cap** (`monthlyCapCherries`, 50 000 000; 0 = none): the month's PENDING + CREDITED commissions; a commission
-  is trimmed to what is left (`capped_cherries` keeps the cut) and the rest of the month pays nothing (VOID
-  `MONTHLY_CAP`, the coins still count for the activity rule and the levels).
+- **The monthly cap** (`monthlyCapCherries`; 0 = none — **the default**, owner 2026-11-14: «ب) إلغاء الحد تماماً، فيأخذ
+  السفير عمولته كاملة مهما كانت»; the shipped 50 000 000 became 0 in `20270520090000_ambassador_level_names` where it was still the shipped value):
+  when the OWNER sets one, it sums the month's PENDING + CREDITED **commissions only** — the monthly target reward
+  (§10.179.6) never counts toward it and is never cut by it; a commission is trimmed to what is left (`capped_cherries`
+  keeps the cut) and the rest of the month pays nothing (VOID `MONTHLY_CAP`, the coins still count for the activity rule
+  and the levels).
 - **Hold and payout.** PENDING for `holdDays` (14). The sweeper then credits it (`AMBASSADOR_COMMISSION`, withdrawable
   cherries — not in the task-cherry lock, §10.46.1; paid by the existing withdrawal flow) only when: the ambassador is not
   FROZEN, not under review, not locked, not staff; the friend's referral is ACTIVE; the top-up was not taken back. A
@@ -13779,22 +13782,25 @@ Distinct days of activity are not tracked by the server today, so the rule is ac
   retail, 10 cherries per coin, 1 000 000 cherries = $1.10, a host keeps 65 % of a gift's cherry value). A referred friend
   tops up **1 000 000 coins** and gifts them to a host:
 
-  | | Spark 2 % | Star 3 % | Constellation 4 % | Galaxy 5 % |
+  | | Spark 1.5 % | Star 2.5 % | Constellation 3 % | Galaxy 4 % |
   | --- | --- | --- | --- | --- |
   | Money paid for the coins | $12.50 | $12.50 | $12.50 | $12.50 |
   | Host's cherries (6 500 000) | $7.15 | $7.15 | $7.15 | $7.15 |
   | Platform profit before the commission | $5.35 | $5.35 | $5.35 | $5.35 |
-  | Commission (cherries) | 200 000 | 300 000 | 400 000 | 500 000 |
-  | Commission ($) | $0.22 | $0.33 | $0.44 | $0.55 |
-  | Share of the money paid | 1.8 % | 2.6 % | 3.5 % | 4.4 % |
-  | Share of the platform profit | 4.1 % | 6.2 % | 8.2 % | 10.3 % |
-  | Platform profit after it | $5.13 | $5.02 | $4.91 | $4.80 |
+  | Commission (cherries) | 150 000 | 250 000 | 300 000 | 400 000 |
+  | Commission ($) | $0.165 | $0.275 | $0.33 | $0.44 |
+  | Share of the money paid | 1.3 % | 2.2 % | 2.6 % | 3.5 % |
+  | Share of the platform profit | 3.1 % | 5.1 % | 6.2 % | 8.2 % |
+  | Platform profit after it | $5.185 | $5.075 | $5.02 | $4.91 |
 
-  (Owner 2026-11-13: the lower-cost option «أ» — 2 / 3 / 4 / 5 % and a 60-day window; the first proposal of 3 / 5 / 7 /
-  10 % and 90 days was not kept.) Through an agency paying 15 % on top (D285's example, profit $4.2775) a Galaxy
-  commission is 12.9 % of the profit. A wholesale top-up bought from a recharge agent ($360 / 30 000 000 coins, $12 per
-  million) leaves less: the same 5 % is 4.6 % of the money. The commission is on the coins' cherry value (`CHERRIES_PER_COIN`), like D217's first-recharge
-  reward, not on the money paid; the cap bounds an ambassador's month at $55 by default. The `«الربح»` report counts it.
+  (Owner 2026-11-14: «عمولة شرارة ١.٥٪ ويلي بعدها ٢.٥٪ ويلي بعدها ٣ ٪ ثم ٤٪» — 1.5 / 2.5 / 3 / 4 %; before it the
+  lower-cost option «أ» of 2026-11-13, 2 / 3 / 4 / 5 %, and the first proposal of 3 / 5 / 7 / 10 % were not kept. The
+  60-day window stays.) Through an agency paying 15 % on top (D285's example, profit $4.2775) a Galaxy commission is
+  10.3 % of the profit. A wholesale top-up bought from a recharge agent ($360 / 30 000 000 coins, $12 per million) leaves
+  less: the same 4 % is 3.7 % of the money. The commission is on the coins' cherry value (`CHERRIES_PER_COIN`), like
+  D217's first-recharge reward, not on the money paid. There is **no monthly cap by default** (owner 2026-11-14): a
+  Galaxy ambassador whose friends top up 250 000 000 coins in a month earns 10 000 000 cherries ($110) in commissions
+  plus the month's reward. The `«الربح»` report counts both.
 
 #### 10.179.6 Levels, monthly targets and the dashboard
 
@@ -13802,8 +13808,30 @@ Distinct days of activity are not tracked by the server today, so the rule is ac
   least as much of both and more of one, and the commission never goes down): a code, the month's requirements — active
   referrals (§10.179.4, counted in the month they became active) and qualifying top-up coins of the month (commissions
   PENDING / CREDITED / capped) —, a commission in basis points (0–5 000) and a **monthly target reward**: NONE, COINS
-  (`AMBASSADOR_REWARD`, reference `AMB:<user>@<YYYY-MM>`), VIP_DAYS of a tier (the event-prize path: never lowers a tier
-  held) or BAG_ITEM for N days (the team's bag-grant path).
+  (`AMBASSADOR_REWARD`, reference `AMB:<user>@<YYYY-MM>`), **CHERRIES** (owner 2026-11-14: «يجب ان تكون ارباح السفير
+  بالكرز ليتمكن من سحبهم من وكيل شحن», «نعم» for the rewards too — cherry ledger `AMBASSADOR_REWARD_CHERRIES`, the same
+  reference, once per ambassador and month by `cherry_ledger_reference_once`; **withdrawable**: not in the task-cherry
+  lock, withdrawn or sold to a recharge agent like a commission), VIP_DAYS of a tier (the event-prize path: never lowers
+  a tier held) or BAG_ITEM for N days (the team's bag-grant path). Every kind follows the same rules: granted at the
+  evaluation, or HELD while the ambassador is frozen, under review or staff (granted by the first sweep after that,
+  VOID at an end, §10.179.11), audited `ambassador.reward.grant`, notified `AMBASSADOR_REWARD_GRANTED`; never counted
+  toward the commissions' monthly cap.
+- **The default levels** *(owner 2026-11-14: «عمولة شرارة ١.٥٪ ويلي بعدها ٢.٥٪ ويلي بعدها ٣ ٪ ثم ٤٪ — الهدف: شرارة من
+  صفر، نجم ٢٠ مليون – ٤٩.٩٩ مليون، كوكبة ٥٠ مليون – ٢٤٩،٩٩ مليون، مجرة ٢٥٠ مليون»)*: the month's qualifying top-ups
+  alone decide — a threshold is the minimum (each level runs up to the next one) and the active-referral requirement is
+  0 at every level (the OWNER may set one in the panel); the rewards in withdrawable cherries (the coordinator's
+  proposal, the owner may change them):
+
+  | Level | Commission | Qualifying top-ups a month | Monthly reward |
+  | --- | --- | --- | --- |
+  | SPARK «شرارة» | 1.5 % (150 bps) | from 0 | none |
+  | STAR «نجم» | 2.5 % (250 bps) | from 20 000 000 coins | 5 000 000 cherries |
+  | CONSTELLATION «كوكبة» | 3 % (300 bps) | from 50 000 000 coins | 15 000 000 cherries |
+  | GALAXY «مجرّة» | 4 % (400 bps) | from 250 000 000 coins | 50 000 000 cherries |
+
+  `20270520090000_ambassador_level_names` sets them as the column default and, in the stored list, replaces a level only while it still
+  equals the shipped default exactly (a level the OWNER edited stays) and only when the resulting list still passes the
+  level rules.
 - **Level names and codes** *(owner 2026-11-14, «سفراء النجوم»; the names برونزي / فضي / ذهبي / ماسي were dropped)*: the
   four default codes are **SPARK** «شرارة» / Spark, **STAR** «نجم» / Star, **CONSTELLATION** «كوكبة» / Constellation and
   **GALAXY** «مجرّة» / Galaxy, each with the owner's icon (`apps/mobile/assets/ambassadors/`, PROVENANCE.md; the panel
@@ -13844,7 +13872,8 @@ Distinct days of activity are not tracked by the server today, so the rule is ac
    D217's one-reward-per-device rule.
 4. **Minimum activity** before a referral counts (§10.179.4) and the **hold** before any payout (§10.179.5).
 5. **Refund / chargeback reversal** (§10.179.5).
-6. **The monthly cap** per ambassador (§10.179.5).
+6. **The monthly cap** per ambassador (§10.179.5) — **off by default** since the owner's 2026-11-14 decision («إلغاء
+   الحد تماماً»); the OWNER may set one in the panel, and it limits commissions only.
 7. **Velocity** — more than `velocityMaxPerDay` (30) new friends in 24 hours: the ambassador goes under review (the
    friends still count; the payouts wait).
 8. **Review and freeze.** Under review (`ambassador_flags`: VELOCITY, IP_CLUSTER, SELF_PAYMENT; audited
@@ -13857,11 +13886,14 @@ Distinct days of activity are not tracked by the server today, so the rule is ac
    void, reverse), freeze, flag, review, level change, reward, setting and campaign change has an audit row; the panel's
    performance page is audited (`ambassador.view`).
 
-**Defaults (owner 2026-11-13: the commissions and the window chosen — option «أ»; the other numbers still proposals for the owner):** `enabled` false; `attributionWindowDays` 60;
-`holdDays` 14; `minActiveDays` 3; `minActiveTopupCoins` 100 000; `monthlyCapCherries` 50 000 000 (≈ $55);
-`velocityMaxPerDay` 30; `ipClusterMax` 3 within `ipClusterWindowDays` 30; levels SPARK (0 / 0, 2 %, no reward), STAR
-(5 active referrals / 3 000 000 coins a month, 3 %, 100 000 coins), CONSTELLATION (15 / 15 000 000, 4 %, 7 days of
-VIP_1), GALAXY (40 / 60 000 000, 5 %, 1 000 000 coins) — formerly BRONZE / SILVER / GOLD / DIAMOND (§10.179.6).
+**Defaults (owner 2026-11-13: the window — option «أ»; owner 2026-11-14: the level names, the commissions and targets,
+the cherry rewards and no cap; the other numbers still proposals for the owner):** `enabled` false; `attributionWindowDays`
+60; `holdDays` 14; `minActiveDays` 3; `minActiveTopupCoins` 100 000; `monthlyCapCherries` **0** (no cap; formerly
+50 000 000 ≈ $55); `velocityMaxPerDay` 30; `ipClusterMax` 3 within `ipClusterWindowDays` 30; levels SPARK (from 0
+coins, 1.5 %, no reward), STAR (from 20 000 000 coins a month, 2.5 %, 5 000 000 cherries), CONSTELLATION (from
+50 000 000, 3 %, 15 000 000 cherries), GALAXY (from 250 000 000, 4 %, 50 000 000 cherries), no active-referral
+requirement — formerly BRONZE / SILVER / GOLD / DIAMOND at 2 / 3 / 4 / 5 % with 5 / 15 / 40 active referrals and coin /
+VIP rewards (§10.179.6).
 Changed only in the panel (`updateAdminAmbassadorSettings`: OWNER,
 the code again and a reason; audited with before / after). The server's only setting is the sweeper's interval
 `AMBASSADOR_SWEEP_INTERVAL_SECONDS` (300; 0 refused in production).
@@ -13908,8 +13940,10 @@ the code again and a reason; audited with before / after). The server's only set
 
 The owner's «الربح» (D301, §10.112.10; OWNER only, D387) counts the programme's costs on **two lines of their own**:
 **AMBASSADOR_COMMISSIONS** — the commissions in cherries, net of their claw-backs (`AMBASSADOR_COMMISSION` −
-`AMBASSADOR_COMMISSION_REVERSAL`), at the payout rate; **AMBASSADOR_REWARDS** — the monthly rewards in coins
-(`AMBASSADOR_REWARD`), valued like STAFF_COMPENSATIONS (the lowest agent price). They are not in REFERRAL_REWARDS or
+`AMBASSADOR_COMMISSION_REVERSAL`), at the payout rate; **AMBASSADOR_REWARDS** — the monthly rewards: the coins
+(`AMBASSADOR_REWARD`), valued like STAFF_COMPENSATIONS (the lowest agent price), plus the cherries
+(`AMBASSADOR_REWARD_CHERRIES`, owner 2026-11-14) at the payout rate like the commissions (the line's `coins` and
+`cherries`). They are not in REFERRAL_REWARDS or
 COIN_REWARDS. VIP days and bag items given as rewards are not money in a ledger and are not counted (as event prizes).
 
 #### 10.179.11 «إنهاء العضوية» — ending a membership *(owner «نعم», 2026-11-13)*

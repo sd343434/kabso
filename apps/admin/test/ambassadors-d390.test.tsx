@@ -113,15 +113,17 @@ const SETTINGS: AmbassadorSettings = {
   holdDays: 14,
   minActiveDays: 3,
   minActiveTopupCoins: 100_000,
-  monthlyCapCherries: 50_000_000,
+  monthlyCapCherries: 0, // owner 2026-11-14: no cap by default
   velocityMaxPerDay: 30,
   ipClusterMax: 3,
   ipClusterWindowDays: 30,
   levels: [
-    { code: 'SPARK', minActiveReferrals: 0, minTopupCoins: 0, commissionBps: 200, reward: { kind: 'NONE' } },
-    { code: 'STAR', minActiveReferrals: 5, minTopupCoins: 3_000_000, commissionBps: 300, reward: { kind: 'COINS', amount: 100_000 } },
-    { code: 'CONSTELLATION', minActiveReferrals: 15, minTopupCoins: 15_000_000, commissionBps: 400, reward: { kind: 'VIP_DAYS', amount: 7, vipTier: 'VIP_1' } },
-    { code: 'GALAXY', minActiveReferrals: 40, minTopupCoins: 60_000_000, commissionBps: 500, reward: { kind: 'COINS', amount: 1_000_000 } },
+    // Owner 2026-11-14: 1.5 / 2.5 / 3 / 4 %, the month's qualifying top-ups alone (0 / 20 M / 50 M / 250 M); the
+    // rewards in withdrawable cherries (5 M / 15 M / 50 M).
+    { code: 'SPARK', minActiveReferrals: 0, minTopupCoins: 0, commissionBps: 150, reward: { kind: 'NONE' } },
+    { code: 'STAR', minActiveReferrals: 0, minTopupCoins: 20_000_000, commissionBps: 250, reward: { kind: 'CHERRIES', amount: 5_000_000 } },
+    { code: 'CONSTELLATION', minActiveReferrals: 0, minTopupCoins: 50_000_000, commissionBps: 300, reward: { kind: 'CHERRIES', amount: 15_000_000 } },
+    { code: 'GALAXY', minActiveReferrals: 0, minTopupCoins: 250_000_000, commissionBps: 400, reward: { kind: 'CHERRIES', amount: 50_000_000 } },
   ],
   updatedAt: '2026-11-13T10:00:00.000Z',
 };
@@ -247,7 +249,11 @@ describe('D390 the settings (OWNER)', () => {
     }
     for (const name of ['شرارة', 'نجم', 'كوكبة', 'مجرّة']) expect(ar).toContain(`>${name}</span>`);
     expect(ar).toContain('data-amb-level-names');
-    expect(ar).toContain('data-bps="500"');
+    for (const bps of [150, 250, 300, 400]) expect(ar).toContain(`data-bps="${bps}"`);
+    expect(ar).toContain('value="250000000"');
+    // The reward kind «كرز» selected, with its amount.
+    expect(ar).toMatch(/<option value="CHERRIES" selected="">كرز<\/option>/);
+    expect(ar).toContain('value="50000000"');
     expect(ar).toContain('value="60"');
     expect(ar).toContain('لا تغييرات');
   });
@@ -261,6 +267,8 @@ describe('D390 the settings (OWNER)', () => {
     const levels = SETTINGS.levels.map((l) => (l.code === 'CONSTELLATION' ? { ...l, commissionBps: 450 } : l));
     expect(ambassadorSettingsChanges(SETTINGS, { ...SETTINGS, levels })).toEqual({ levels });
     expect(rewardOf('NONE', 5, 'x')).toEqual({ kind: 'NONE' });
+    // Owner 2026-11-14: the monthly reward in withdrawable cherries.
+    expect(rewardOf('CHERRIES', 5_000_000, 'x')).toEqual({ kind: 'CHERRIES', amount: 5_000_000 });
     expect(rewardOf('VIP_DAYS', 7, '')).toEqual({ kind: 'VIP_DAYS', amount: 7, vipTier: 'VIP_1' });
     expect(rewardOf('BAG_ITEM', 30, 'frame_gold')).toEqual({ kind: 'BAG_ITEM', amount: 30, itemCode: 'frame_gold' });
     expect(bpsLabel(750)).toBe('7.5%');

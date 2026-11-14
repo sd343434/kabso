@@ -22444,6 +22444,24 @@ abstract class AppLocalizations {
   /// **'استرجاع مكافأة دعوة'**
   String get cherryReasonReferralReversal;
 
+  /// D390: a line of the cherry history — an ambassador's commission (AMBASSADOR_COMMISSION).
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولة سفير'**
+  String get cherryReasonAmbassadorCommission;
+
+  /// D390: that commission taken back after a refund (AMBASSADOR_COMMISSION_REVERSAL).
+  ///
+  /// In ar, this message translates to:
+  /// **'استرجاع عمولة سفير'**
+  String get cherryReasonAmbassadorCommissionReversal;
+
+  /// D390 follow-up (owner 2026-11-14: «يجب ان تكون ارباح السفير بالكرز ليتمكن من سحبهم من وكيل شحن»): the monthly reward in cherries (AMBASSADOR_REWARD_CHERRIES).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة السفير الشهرية'**
+  String get cherryReasonAmbassadorReward;
+
   /// D217 (invite friends «دعوة الأصدقاء»).
   ///
   /// In ar, this message translates to:
@@ -32641,7 +32659,7 @@ abstract class AppLocalizations {
   /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
   ///
   /// In ar, this message translates to:
-  /// **'مكافآت شهرية عند تحقيق الأهداف: كوينز أو أيام VIP أو عناصر'**
+  /// **'مكافآت شهرية عند تحقيق الأهداف: كرز قابل للسحب أو كوينز أو أيام VIP أو عناصر'**
   String get ambGet2;
 
   /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
@@ -32674,6 +32692,12 @@ abstract class AppLocalizations {
   /// **'إحالات نشطة: {active} · شحن: {coins} كوينز شهرياً'**
   String ambLevelRequirement(String active, String coins);
 
+  /// D390 (owner 2026-11-14): a level that asks no active referrals — the month's qualifying top-ups alone decide (the defaults: 0 / 20 000 000 / 50 000 000 / 250 000 000).
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن مؤهل: {coins} كوينز شهرياً'**
+  String ambLevelRequirementCoins(String coins);
+
   /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
   ///
   /// In ar, this message translates to:
@@ -32691,6 +32715,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'مكافأة: {amount} كوينز'**
   String ambRewardCoins(String amount);
+
+  /// D390 follow-up (owner 2026-11-14: «يجب ان تكون ارباح السفير بالكرز ليتمكن من سحبهم من وكيل شحن»): a level's monthly reward in withdrawable cherries.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة: {amount} كرز'**
+  String ambRewardCherries(String amount);
 
   /// D390: «برنامج سفراء Kabso» — the ambassadors programme (CONVENTIONS §10.179).
   ///
