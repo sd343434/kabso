@@ -202,6 +202,7 @@ model User {
   pk4Lobbies             Pk4Lobby[]                  @relation("Pk4LobbyHost")
   pk4Invites             Pk4Invite[]                 @relation("Pk4InviteToHost")
   pk4Seats               Pk4Seat[]                   @relation("Pk4SeatHost")
+  pk4QueueEntry          Pk4QueueEntry?              @relation("Pk4QueueHost")
   pk4Supports            Pk4Supporter[]              @relation("Pk4SupporterUser")
   pk4PointEvents         Pk4PointEvent[]             @relation("Pk4PointEventHost")
   pkInvitesSent          PkInvite[]                  @relation("PkInviteFrom")
@@ -1008,6 +1009,7 @@ model LiveRoom {
   pk4Lobbies         Pk4Lobby[]             @relation("Pk4LobbyRoom")
   pk4Invites         Pk4Invite[]            @relation("Pk4InviteToRoom")
   pk4Seats           Pk4Seat[]              @relation("Pk4SeatRoom")
+  pk4QueueEntries    Pk4QueueEntry[]        @relation("Pk4QueueRoom")
   pkInvitesSent      PkInvite[]             @relation("PkInviteFromRoom")
   pkInvitesGot       PkInvite[]             @relation("PkInviteToRoom")
   pkQueueEntries     PkQueueEntry[]
@@ -6815,8 +6817,9 @@ model PkDare {
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  matches PkMatchDare[]
-  reports PkDareReport[]
+  matches    PkMatchDare[]
+  pk4Matches Pk4MatchDare[]
+  reports    PkDareReport[]
 
   @@index([level], map: "pk_dares_draw_idx", where: raw("active"))
   @@index([reportCount(sort: Desc)], map: "pk_dares_reported_idx", where: raw("report_count > 0"))
@@ -9532,6 +9535,8 @@ model Pk4Lobby {
   expiresAt       DateTime       @map("expires_at") @db.Timestamptz(3)
   closedAt        DateTime?      @map("closed_at") @db.Timestamptz(3)
   matchId         String?        @unique @map("match_id") @db.Uuid
+  /// v1.119-live (D395): «PK أحكام» (DARES) or a normal 4-way PK.
+  type            PkType         @default(NORMAL)
 
   organiserRoom LiveRoom    @relation("Pk4LobbyRoom", fields: [organiserRoomId], references: [id], onDelete: Cascade)
   organiserHost User        @relation("Pk4LobbyHost", fields: [organiserHostId], references: [id], onDelete: Cascade)
@@ -9572,42 +9577,57 @@ model Pk4Invite {
 /// v1.118-live (D391): a 4-way match. Teams A (places 1–2, the organiser's) and B (3–4); one round. `score_a|b` are the
 /// team sums of the places' PK points; money, cherries, live scores, rankings, charm and levels always use the real value.
 model Pk4Match {
-  id              String        @id @default(uuid(7)) @db.Uuid
-  lobbyId         String?       @unique @map("lobby_id") @db.Uuid
-  format          Pk4Format
-  status          PkMatchStatus @default(BATTLE)
-  organiserRoomId String        @map("organiser_room_id") @db.Uuid
-  startedAt       DateTime      @map("started_at") @db.Timestamptz(3)
-  battleEndsAt    DateTime      @map("battle_ends_at") @db.Timestamptz(3)
-  endedAt         DateTime?     @map("ended_at") @db.Timestamptz(3)
-  resultEndsAt    DateTime?     @map("result_ends_at") @db.Timestamptz(3)
-  closedAt        DateTime?     @map("closed_at") @db.Timestamptz(3)
-  endReason       PkEndReason?  @map("end_reason")
+  id               String        @id @default(uuid(7)) @db.Uuid
+  lobbyId          String?       @unique @map("lobby_id") @db.Uuid
+  format           Pk4Format
+  status           PkMatchStatus @default(BATTLE)
+  organiserRoomId  String        @map("organiser_room_id") @db.Uuid
+  startedAt        DateTime      @map("started_at") @db.Timestamptz(3)
+  battleEndsAt     DateTime      @map("battle_ends_at") @db.Timestamptz(3)
+  endedAt          DateTime?     @map("ended_at") @db.Timestamptz(3)
+  resultEndsAt     DateTime?     @map("result_ends_at") @db.Timestamptz(3)
+  closedAt         DateTime?     @map("closed_at") @db.Timestamptz(3)
+  endReason        PkEndReason?  @map("end_reason")
   /// The winning team; null for a draw, a void match or while the battle runs.
-  winnerTeam      PkSide?       @map("winner_team")
+  winnerTeam       PkSide?       @map("winner_team")
   /// The team whose two hosts were out (FORFEIT / DISCONNECT / AWAY).
-  loserCause      PkSide?       @map("loser_cause")
-  scoreA          BigInt        @default(0) @map("score_a")
-  scoreB          BigInt        @default(0) @map("score_b")
-  roundSeconds    Int           @map("round_seconds")
-  connectedAt     DateTime?     @map("connected_at") @db.Timestamptz(3)
-  seq             Int           @default(0)
+  loserCause       PkSide?       @map("loser_cause")
+  scoreA           BigInt        @default(0) @map("score_a")
+  scoreB           BigInt        @default(0) @map("score_b")
+  roundSeconds     Int           @map("round_seconds")
+  connectedAt      DateTime?     @map("connected_at") @db.Timestamptz(3)
+  seq              Int           @default(0)
   /// Set by a moderator's end from the CLI (no media access): the API's PK tick tells the four rooms.
-  pendingNotice   Boolean       @default(false) @map("pending_notice")
-  adminReason     String?       @map("admin_reason") @db.VarChar(200)
+  pendingNotice    Boolean       @default(false) @map("pending_notice")
+  adminReason      String?       @map("admin_reason") @db.VarChar(200)
   /// The top three supporters per team frozen when the battle ended: `[{userId, points}]`.
-  topA            Json?         @map("top_a")
-  topB            Json?         @map("top_b")
-  effective       Boolean?
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  topA             Json?         @map("top_a")
+  topB             Json?         @map("top_b")
+  effective        Boolean?
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// v1.119-live (D395, §10.181): the type, how it started (INVITE | RANDOM | REMATCH), the hosts playing (2–4).
+  type             PkType        @default(NORMAL)
+  source           String        @default("INVITE") @db.VarChar(8)
+  playerCount      Int           @default(4) @map("player_count") @db.SmallInt
+  /// «جولة أخرى» for four: the chain, and an open offer (who asked, until when, the rooms that accepted).
+  rematchOf        String?       @map("rematch_of") @db.Uuid
+  rematchRootId    String?       @map("rematch_root_id") @db.Uuid
+  rematchCount     Int           @default(0) @map("rematch_count")
+  rematchByRoomId  String?       @map("rematch_by_room_id") @db.Uuid
+  rematchExpiresAt DateTime?     @map("rematch_expires_at") @db.Timestamptz(3)
+  rematchAccepted  String[]      @default([]) @map("rematch_accepted") @db.Uuid
+  /// FREE_FOR_ALL: the top three supporters per place frozen when the battle ended: `{"<seat>": [{userId, points}]}`.
+  topSeats         Json?         @map("top_seats")
 
   seats       Pk4Seat[]
   boosts      Pk4Boost[]
   points      Pk4GiftPoint[]
   supporters  Pk4Supporter[]
   pointEvents Pk4PointEvent[]
+  dare        Pk4MatchDare?
 
   @@index([status], map: "pk4_matches_open_idx", where: raw("status <> 'CLOSED'::pk_match_status"))
+  @@index([rematchRootId], map: "pk4_matches_rematch_root_idx")
   @@map("pk4_matches")
 }
 
@@ -9626,6 +9646,8 @@ model Pk4Seat {
   outReason    PkEndReason? @map("out_reason")
   /// The other rooms whose host this host muted for their own room.
   mutedRoomIds String[]     @default([]) @map("muted_room_ids") @db.Uuid
+  /// v1.119-live (D395): FREE_FOR_ALL's final place (1–4, equal scores share one); null in TEAMS and while it runs.
+  place        Int?         @db.SmallInt
 
   match Pk4Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
   room  LiveRoom @relation("Pk4SeatRoom", fields: [roomId], references: [id], onDelete: Cascade)
@@ -9652,11 +9674,14 @@ model Pk4Boost {
   startsAt   DateTime      @map("starts_at") @db.Timestamptz(3)
   endsAt     DateTime      @map("ends_at") @db.Timestamptz(3)
   replaced   Boolean       @default(false)
+  /// v1.119-live (D395): FREE_FOR_ALL — the host's own booster (their place); null in TEAMS (the team's).
+  seat       Int?          @db.SmallInt
 
   match Pk4Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
   gift  Gift     @relation(fields: [giftCode], references: [code], onDelete: Restrict)
 
   @@index([matchId, team, endsAt], map: "pk4_boosts_match_team_idx")
+  @@index([matchId, seat, endsAt], map: "pk4_boosts_match_seat_idx")
   @@index([giftCode], map: "pk4_boosts_gift_code_idx")
   @@map("pk4_boosts")
 }
@@ -9686,12 +9711,14 @@ model Pk4Supporter {
   team    PkSide
   userId  String @map("user_id") @db.Uuid
   points  BigInt @default(0)
+  /// v1.119-live (D395): FREE_FOR_ALL — the host (place) supported; 0 in TEAMS (the team, from both rooms).
+  seat    Int    @default(0) @db.SmallInt
 
   match Pk4Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
   user  User     @relation("Pk4SupporterUser", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@id([matchId, team, userId], map: "pk4_supporters_pkey")
-  @@index([matchId, team, points(sort: Desc)], map: "pk4_supporters_rank_idx")
+  @@id([matchId, team, seat, userId], map: "pk4_supporters_pkey")
+  @@index([matchId, team, seat, points(sort: Desc)], map: "pk4_supporters_rank_idx")
   @@index([userId], map: "pk4_supporters_user_idx")
   @@map("pk4_supporters")
 }
@@ -9710,4 +9737,54 @@ model Pk4PointEvent {
   @@id([matchId, hostId, kind], map: "pk4_point_events_pkey")
   @@index([hostId, createdAt(sort: Desc)], map: "pk4_point_events_host_idx")
   @@map("pk4_point_events")
+}
+
+// ---- v1.119-live (D395, CONVENTIONS §10.181, CP-041 phases 3–4): «PK رباعي» for two to four, FFA, random, dares ----
+
+/// v1.119-live (D395): the dare of a 4-way «PK أحكام» — one dare for the losing side (TEAMS: the losing team;
+/// FREE_FOR_ALL: the lowest place still on air), judged by the winning side. Any losing host answers, any winner judges.
+model Pk4MatchDare {
+  matchId       String       @id @map("match_id") @db.Uuid
+  loserSeats    Int[]        @map("loser_seats") @db.SmallInt
+  loserHostIds  String[]     @map("loser_host_ids") @db.Uuid
+  winnerSeats   Int[]        @map("winner_seats") @db.SmallInt
+  winnerHostIds String[]     @map("winner_host_ids") @db.Uuid
+  optionIds     String[]     @map("option_ids") @db.Uuid
+  drawn         Int          @db.SmallInt
+  dareId        String       @map("dare_id") @db.Uuid
+  status        PkDareStatus @default(DECIDING)
+  cause         PkDareCause?
+  revealAt      DateTime     @map("reveal_at") @db.Timestamptz(3)
+  decideBy      DateTime     @map("decide_by") @db.Timestamptz(3)
+  startedAt     DateTime?    @map("started_at") @db.Timestamptz(3)
+  endsAt        DateTime?    @map("ends_at") @db.Timestamptz(3)
+  finishedAt    DateTime?    @map("finished_at") @db.Timestamptz(3)
+  /// Each losing host's PK points from the dare (the refusal's, else 0).
+  points        Int          @default(0)
+  answeredBy    String?      @map("answered_by") @db.Uuid
+  judgedBy      String?      @map("judged_by") @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  match Pk4Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  dare  PkDare   @relation(fields: [dareId], references: [id], onDelete: Restrict)
+
+  @@index([status], map: "pk4_match_dares_open_idx", where: raw("finished_at IS NULL"))
+  @@map("pk4_match_dares")
+}
+
+/// v1.119-live (D395): a host waiting in the 4-way random queue (PK4_RANDOM_WAIT_SECONDS) for a format and a type.
+model Pk4QueueEntry {
+  hostId    String    @id @map("host_id") @db.Uuid
+  roomId    String    @map("room_id") @db.Uuid
+  format    Pk4Format
+  type      PkType    @default(NORMAL)
+  joinedAt  DateTime  @map("joined_at") @db.Timestamptz(3)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+
+  host User     @relation("Pk4QueueHost", fields: [hostId], references: [id], onDelete: Cascade)
+  room LiveRoom @relation("Pk4QueueRoom", fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([format, type, joinedAt], map: "pk4_queue_wait_idx")
+  @@index([roomId], map: "pk4_queue_room_idx")
+  @@map("pk4_queue")
 }

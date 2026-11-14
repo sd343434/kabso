@@ -195,3 +195,118 @@ export async function drawPkDareIn(
   });
   return { optionIds, drawn, revealAt, decideBy };
 }
+
+/** v1.119-live (D395): one active dare of `level` none of `unseenBy` has been shown (and none of `alsoUnseenBy`). */
+async function pickForManyIn(
+  tx: Tx,
+  level: PkDareLevel,
+  unseenBy: readonly string[],
+  alsoUnseenBy: readonly string[],
+  exclude: readonly number[],
+): Promise<{ id: string; seq_no: number } | null> {
+  const hosts = [...unseenBy, ...alsoUnseenBy];
+  const [row] = await tx.$queryRaw<{ id: string; seq_no: number }[]>`
+    SELECT d.id::text AS id, d.seq_no
+      FROM pk_dares d
+     WHERE d.active AND d.level = ${level}::pk_dare_level
+       AND NOT (d.seq_no = ANY(${[...exclude, -1]}::int[]))
+       AND NOT EXISTS (SELECT 1 FROM pk_dare_seen s
+                        WHERE s.host_id = ANY(${hosts}::uuid[]) AND get_bit(s.bits, d.seq_no) = 1)
+     ORDER BY random() LIMIT 1`;
+  return row ?? null;
+}
+
+/**
+ * v1.119-live (D395, CONVENTIONS §10.181) the server's draw for a 4-way «PK أحكام» — D229's rules with a side of hosts:
+ * one active dare per level (EASY, MEDIUM, HARD), each one no loser and no winner has been shown yet; else one no loser
+ * has seen; a loser who has seen every active dare of a level starts a new cycle; as a last resort any active dare of
+ * the level. One of the three is drawn (crypto random, uniform). The three are marked seen for every host of both
+ * sides. Writes `pk4_match_dares` (once per match). Returns null when a level has no active dare at all. Audited
+ * `live.pk.dare.draw` (target `pk4_match`).
+ */
+export async function drawPk4DareIn(
+  tx: Tx,
+  input: {
+    matchId: string;
+    loserSeats: readonly number[];
+    loserHostIds: readonly string[];
+    winnerSeats: readonly number[];
+    winnerHostIds: readonly string[];
+    now: Date;
+    drawSeconds: number;
+    decideSeconds: number;
+    pick?: () => number;
+  },
+): Promise<{ optionIds: string[]; drawn: number; revealAt: Date; decideBy: Date } | null> {
+  const losers = [...new Set(input.loserHostIds)];
+  const winners = [...new Set(input.winnerHostIds)];
+  await seenRowsIn(tx, [...losers, ...winners], input.now);
+  const picks: { id: string; seq_no: number }[] = [];
+  for (const level of PK_DARE_LEVELS) {
+    const exclude = picks.map((p) => p.seq_no);
+    let row =
+      (await pickForManyIn(tx, level, losers, winners, exclude)) ??
+      (await pickForManyIn(tx, level, losers, [], exclude));
+    if (!row) {
+      const [any] = await tx.$queryRaw<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM pk_dares WHERE active AND level = ${level}::pk_dare_level`;
+      if (!any || any.n === 0) return null;
+      // A loser who has seen every active dare of this level starts a new cycle (this draw's picks stay seen).
+      for (const loser of losers) {
+        const [left] = await tx.$queryRaw<{ n: number }[]>`
+          SELECT count(*)::int AS n FROM pk_dares d JOIN pk_dare_seen s ON s.host_id = ${loser}::uuid
+           WHERE d.active AND d.level = ${level}::pk_dare_level AND get_bit(s.bits, d.seq_no) = 0`;
+        if ((left?.n ?? 0) > 0) continue;
+        await tx.$executeRaw`
+          UPDATE pk_dare_seen SET bits = decode(repeat('00', octet_length(bits)), 'hex'), seen = 0, cycles = cycles + 1
+           WHERE host_id = ${loser}::uuid`;
+        for (const p of picks) {
+          await tx.$executeRaw`UPDATE pk_dare_seen SET bits = set_bit(bits, ${p.seq_no}, 1) WHERE host_id = ${loser}::uuid`;
+        }
+      }
+      row =
+        (await pickForManyIn(tx, level, losers, [], exclude)) ??
+        (await pickForManyIn(tx, level, [], [], exclude));
+      if (!row) return null;
+    }
+    picks.push(row);
+  }
+  for (const host of [...new Set([...losers, ...winners])]) {
+    for (const p of picks) {
+      await tx.$executeRaw`
+        UPDATE pk_dare_seen SET bits = set_bit(bits, ${p.seq_no}, 1),
+               seen = seen + (1 - get_bit(bits, ${p.seq_no})), updated_at = ${input.now.toISOString()}::timestamptz
+         WHERE host_id = ${host}::uuid`;
+    }
+  }
+  const drawn = input.pick ? input.pick() : randomInt(3);
+  if (!Number.isInteger(drawn) || drawn < 0 || drawn > 2) throw new Error('drawn out of range');
+  const optionIds = picks.map((p) => p.id);
+  const revealAt = new Date(input.now.getTime() + input.drawSeconds * 1000);
+  const decideBy = new Date(revealAt.getTime() + input.decideSeconds * 1000);
+  await tx.$executeRaw`
+    INSERT INTO pk4_match_dares (match_id, loser_seats, loser_host_ids, winner_seats, winner_host_ids, option_ids, drawn,
+                                 dare_id, status, reveal_at, decide_by, created_at)
+    VALUES (${input.matchId}::uuid, ${[...input.loserSeats]}::smallint[], ${losers}::uuid[],
+            ${[...input.winnerSeats]}::smallint[], ${winners}::uuid[], ${optionIds}::uuid[], ${drawn},
+            ${optionIds[drawn]!}::uuid, 'DECIDING', ${revealAt.toISOString()}::timestamptz,
+            ${decideBy.toISOString()}::timestamptz, ${input.now.toISOString()}::timestamptz)
+    ON CONFLICT (match_id) DO NOTHING`;
+  await tx.auditLog.create({
+    data: {
+      action: AuditAction.LIVE_PK_DARE_DRAW,
+      actorUserId: null,
+      targetType: 'pk4_match',
+      targetId: input.matchId,
+      metadata: {
+        options: optionIds,
+        drawn,
+        dareId: optionIds[drawn]!,
+        losers,
+        winners,
+        level: PK_DARE_LEVELS[drawn],
+      },
+    },
+  });
+  return { optionIds, drawn, revealAt, decideBy };
+}

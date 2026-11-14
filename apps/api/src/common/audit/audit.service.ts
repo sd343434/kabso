@@ -193,6 +193,14 @@ export enum AuditAction {
   LIVE_PK4_OUT = 'live.pk4.out',
   LIVE_PK4_END = 'live.pk4.end',
   /**
+   * v1.119-live (D395, §10.181): the 4-way random queue — a host joined (format, type) or left it, or four were matched;
+   * «جولة أخرى» for four — an offer, an acceptance, a decline, a withdrawal, an offer that lapsed. The new battle of an
+   * accepted rematch is `live.pk4.start` (source REMATCH); a 4-way dare uses the `live.pk.dare.*` actions (target
+   * `pk4_match`).
+   */
+  LIVE_PK4_QUEUE = 'live.pk4.queue',
+  LIVE_PK4_REMATCH = 'live.pk4.rematch',
+  /**
    * v1.50-live (D229, §10.80): «PK أحكام» — the server's draw {options, drawn, level}, the loser's answer (accepted /
    * refused, or the decision time ran out), the winner's verdict, an end without a verdict (timer, a host gone, a
    * moderator), the PK points written for a match {host, kind, points}, a dare reported by a viewer, and a dare

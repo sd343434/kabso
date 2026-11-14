@@ -80,8 +80,13 @@ async function list(): Promise<void> {
         .filter((x) => x.team === t)
         .map((x) => `@${names.get(x.hostId) ?? '?'}`)
         .join('+');
+    // v1.119-live (D395): FREE_FOR_ALL lists each host's own score; the type and the hosts playing (2–4).
+    const line =
+      m.format === 'FREE_FOR_ALL'
+        ? m.seats.map((x) => `@${names.get(x.hostId) ?? '?'} ${String(x.score)}`).join(' / ')
+        : `${team('A')} ${String(m.scoreA)} – ${String(m.scoreB)} ${team('B')}`;
     process.stdout.write(
-      `${m.id} ${m.status} PK4/${m.format} ${team('A')} ${String(m.scoreA)} – ${String(m.scoreB)} ${team('B')} ` +
+      `${m.id} ${m.status} PK4/${m.format}/${m.type} x${String(m.playerCount)} ${line} ` +
         `started=${m.startedAt.toISOString()} battleEnds=${m.battleEndsAt.toISOString()}\n`,
     );
   }
@@ -130,13 +135,13 @@ async function show4(id: string): Promise<void> {
   if (!m) fail(`No PK match ${id}.`);
   const names = await usernames(m.seats.map((x) => x.hostId));
   process.stdout.write(
-    `${m.id} ${m.status} PK4/${m.format} reason=${m.endReason ?? '-'} winner=${m.winnerTeam ?? '-'} ` +
+    `${m.id} ${m.status} PK4/${m.format}/${m.type} x${String(m.playerCount)} reason=${m.endReason ?? '-'} winner=${m.winnerTeam ?? '-'} ` +
       `A=${String(m.scoreA)} B=${String(m.scoreB)}\n`,
   );
   for (const x of m.seats) {
     process.stdout.write(
       `  ${String(x.seat)} ${x.team} @${names.get(x.hostId) ?? '?'} room=${x.roomId} score=${String(x.score)}` +
-        `${x.outAt ? ` out=${x.outReason ?? '?'}` : ''}\n`,
+        `${x.place !== null ? ` place=${String(x.place)}` : ''}${x.outAt ? ` out=${x.outReason ?? '?'}` : ''}\n`,
     );
   }
   process.stdout.write(

@@ -815,6 +815,11 @@ export const envSchema = z
     PK4_INVITE_TTL_SECONDS: intSetting(30, 5, 120),
     PK4_MAX_WATCHERS_PER_ROOM: intSetting(0, 0, 100_000),
     /**
+     * v1.119-live (D395, CONVENTIONS §10.181, CP-041 §3.2) «PK رباعي» random matching: how long a host waits in the 4-way
+     * random queue for three more hosts (then «لم نجد مضيفين كافيين»). The queue itself follows PK4_ENABLED (on).
+     */
+    PK4_RANDOM_WAIT_SECONDS: intSetting(120, 15, 600),
+    /**
      * CP-016 A (D99): the one region's time zone (IANA name). The popularity boards' day starts at
      * midnight and the week on Monday there; the hour is the same everywhere.
      */

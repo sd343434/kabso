@@ -112,6 +112,9 @@ export class AdminLivesService {
         matchId: string;
         status: 'CONNECTED' | 'BATTLE' | 'RESULT';
         format: 'TEAMS' | 'FREE_FOR_ALL';
+        /** v1.119-live (D395): «PK أحكام» or normal, and the hosts playing (2–4). */
+        type: 'NORMAL' | 'DARES';
+        playerCount: number;
         team: 'A' | 'B';
         hosts: {
           seat: number;
@@ -121,6 +124,8 @@ export class AdminLivesService {
           displayName: string | null;
           score: number;
           out: boolean;
+          /** v1.119-live (D395): FREE_FOR_ALL's place once the battle ended (null otherwise). */
+          place: number | null;
         }[];
       }
     >();
@@ -136,6 +141,8 @@ export class AdminLivesService {
         id: true,
         status: true,
         format: true,
+        type: true,
+        playerCount: true,
         seats: {
           orderBy: { seat: 'asc' },
           select: {
@@ -144,6 +151,7 @@ export class AdminLivesService {
             roomId: true,
             score: true,
             outAt: true,
+            place: true,
             host: { select: { profile: { select: { username: true, displayName: true } } } },
           },
         },
@@ -156,6 +164,8 @@ export class AdminLivesService {
         matchId: match.id,
         status: match.status,
         format: match.format,
+        type: match.type,
+        playerCount: match.playerCount,
         team: m.team,
         hosts: match.seats.map((x) => ({
           seat: x.seat,
@@ -165,6 +175,7 @@ export class AdminLivesService {
           displayName: x.host.profile?.displayName ?? null,
           score: Number(x.score),
           out: x.outAt !== null,
+          place: match.format === 'FREE_FOR_ALL' ? x.place : null,
         })),
       });
     }

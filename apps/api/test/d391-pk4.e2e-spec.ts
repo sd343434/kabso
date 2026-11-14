@@ -334,14 +334,8 @@ describe('D391 PK 2 v 2', { timeout: 600_000 }, () => {
       expect.arrayContaining([t.room, x.room, y.room]),
     );
 
-    // No lobby yet → PK_LOBBY_CLOSED; FREE_FOR_ALL is phase 3.
+    // No lobby yet → PK_LOBBY_CLOSED. (FREE_FOR_ALL, refused in phase 2, is v1.119-live: d395-pk4-phase3.)
     expectError(await invite(o, t, 2), 409, 'PK_LOBBY_CLOSED', 'inviteLivePk4');
-    expectError(
-      await call('post', `live/rooms/${o.room}/pk4/lobby`, o.user, { format: 'FREE_FOR_ALL' }),
-      409,
-      'PK_UNAVAILABLE',
-      'openLivePk4Lobby',
-    );
     const opened = await openLobby(o);
     expect(opened.status).toBe(201);
     expectContract(opened, 'openLivePk4Lobby');
@@ -461,16 +455,16 @@ describe('D391 PK 2 v 2', { timeout: 600_000 }, () => {
     expect(left.status).toBe(204);
     expectContract(left, 'closeLivePk4Lobby');
     expect((await state(o.room, o.user)).lobby!.seats[2]!.state).toBe('EMPTY');
-    // The lobby runs out (120 s) with places missing: EXPIRED, everyone told, no match.
-    const inv4 = await invite(o, x, 4);
-    expect((await accept(x, inviteIdOf(inv4.body as Lobby, 4))).status).toBe(200);
+    // The lobby runs out (120 s) with nobody in but the organiser: EXPIRED, everyone told, no match. (v1.119-live,
+    // D395: two or more in at that time start the match instead — d395-pk4-phase3.)
+    await invite(o, x, 4);
     clock.advance(120);
     await pk4.tick();
     expect(direct(o.room, o.user.id, 'pk4-lobby').at(-1)).toMatchObject({
       event: 'expired',
       lobby: { status: 'EXPIRED' },
     });
-    expect(direct(x.room, x.user.id, 'pk4-lobby').at(-1)).toMatchObject({ event: 'expired' });
+    expect(direct(x.room, x.user.id, 'pk4-invite').at(-1)).toMatchObject({ invite: { status: 'EXPIRED' } });
     expect((await state(o.room, o.user)).lobby).toBeNull();
     expect(await ctx.prisma.pk4Match.count({ where: { organiserRoomId: o.room } })).toBe(0);
     // The organiser cancels a new lobby: the open invitation is cancelled and the invited host told.

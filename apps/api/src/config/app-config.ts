@@ -67,6 +67,8 @@ export interface PkConfig {
     readonly lobbySeconds: number;
     readonly inviteTtlSeconds: number;
     readonly maxWatchersPerRoom: number;
+    /** v1.119-live (D395, §10.181): the 4-way random queue's wait (seconds). */
+    readonly randomWaitSeconds: number;
   };
 }
 
@@ -1211,6 +1213,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
         lobbySeconds: e.PK4_LOBBY_SECONDS,
         inviteTtlSeconds: e.PK4_INVITE_TTL_SECONDS,
         maxWatchersPerRoom: e.PK4_MAX_WATCHERS_PER_ROOM,
+        randomWaitSeconds: e.PK4_RANDOM_WAIT_SECONDS,
       },
     },
     live: {
