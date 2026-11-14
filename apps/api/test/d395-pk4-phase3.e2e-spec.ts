@@ -392,7 +392,7 @@ describe(
     // ---- Starting with two or three -----------------------------------------------------------------------------------
 
     it('«ابدأ الآن»: not before one host accepted; three start TEAMS two v one; open invitations are cancelled', async () => {
-      const [o, t, x, y] = await hosts(4);
+      const [o, t, x, y] = (await hosts(4)) as [Host, Host, Host, Host];
       const opened = await openLobby(o, 'TEAMS');
       expect(opened.status).toBe(201);
       expect(opened.body).toMatchObject({ format: 'TEAMS', type: 'NORMAL', accepted: 1, canStart: false });
@@ -457,7 +457,7 @@ describe(
     });
 
     it('the lobby’s time runs out with two in: it starts by itself; the organiser and the teammate play like a 1 v 1', async () => {
-      const [o, t] = await hosts(2);
+      const [o, t] = (await hosts(2)) as [Host, Host];
       const opened = (await openLobby(o, 'TEAMS')).body as Lobby;
       await join(o, t, 2);
       await advance(121, o, t);
@@ -489,7 +489,7 @@ describe(
     });
 
     it('the lobby’s end with three in starts FREE_FOR_ALL (two stacked, one big tile); with one in it expires', async () => {
-      const [o, a, b] = await hosts(3);
+      const [o, a, b] = (await hosts(3)) as [Host, Host, Host];
       expect((await openLobby(o, 'FREE_FOR_ALL')).status).toBe(201);
       await join(o, a, 3);
       await join(o, b, 4);

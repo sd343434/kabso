@@ -64,8 +64,6 @@ Future<void> _pumpStage(
       ),
     ),
     language: language,
-    viewport: GoldenViewport.phone,
-    brightness: Brightness.dark,
     bare: true,
   );
   // Kabi's Lottie loads in real time.
@@ -126,7 +124,6 @@ Future<LivePk4Controller> _pumpSheet(
       ),
     ),
     language: language,
-    viewport: GoldenViewport.phone,
     brightness: Brightness.light,
     bare: true,
   );
@@ -146,7 +143,7 @@ Future<LivePk4Controller> _pumpSheet(
 void main() {
   setUpAll(loadAppFonts);
 
-  // ---- The stage's layouts ---------------------------------------------------------------------
+  // ---- The stage's layouts ----
   for (final ffa in [false, true]) {
     final format = ffa ? 'ffa' : 'teams';
     for (final players in [2, 3, 4]) {
@@ -154,12 +151,7 @@ void main() {
         await _pumpStage(
           tester,
           language: AppLanguage.ar,
-          match: pk4PlayersFixture(
-            now: _now,
-            players: players,
-            ffa: ffa,
-            scores: const [53200, 12400, 50300, 13000],
-          ),
+          match: pk4PlayersFixture(now: _now, players: players, ffa: ffa),
         );
         expect(tester.takeException(), isNull);
         await expectLater(
@@ -206,7 +198,7 @@ void main() {
     );
   });
 
-  // ---- The result badge (win, loss, draw) -------------------------------------------------------
+  // ---- The result badge (win, loss, draw) ----
   for (final language in [AppLanguage.ar, AppLanguage.en]) {
     final ar = language == AppLanguage.ar;
     for (final (name, winner) in [
@@ -237,7 +229,7 @@ void main() {
     }
   }
 
-  // ---- The PK sheet ------------------------------------------------------------------------------
+  // ---- The PK sheet ----
   for (final language in [AppLanguage.ar, AppLanguage.en]) {
     testWidgets('go_live.pk4p3.friends.one ${language.name}', (tester) async {
       await _pumpSheet(tester, language: language, mode: PkSheetMode.oneVsOne);
