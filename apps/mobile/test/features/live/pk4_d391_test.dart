@@ -8,6 +8,7 @@
 // with text × 1.3 in ar and en, the lobby sheet and the incoming invitation.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_pk4_controller.dart';
@@ -17,8 +18,10 @@ import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:kabso_live/features/live/domain/live_pk4.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk4_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk4_stage.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../helpers/fake_live_pk.dart';
 import '../../helpers/fake_live_pk4.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
@@ -378,7 +381,8 @@ void main() {
     }
   });
 
-  group('the lobby sheet', () {
+  // D393: the lobby is the PK sheet's «PK رباعي» segment (no sheet of its own).
+  group('the lobby (the «PK رباعي» segment of the PK sheet)', () {
     Future<FakeLivePk4Repository> sheet(
       WidgetTester tester, {
       Pk4Lobby? lobby,
@@ -423,7 +427,10 @@ void main() {
               return const Scaffold(
                 body: Align(
                   alignment: Alignment.bottomCenter,
-                  child: LivePk4Sheet(roomId: 'room-0'),
+                  child: LivePkSheet(
+                    roomId: 'room-0',
+                    initialMode: PkSheetMode.team,
+                  ),
                 ),
               );
             },
@@ -433,7 +440,7 @@ void main() {
         brightness: Brightness.light,
         livePk4Repository: repo,
       );
-      final element = tester.element(find.byType(LivePk4Sheet));
+      final element = tester.element(find.byType(LivePk4Panel));
       final container = ProviderScope.containerOf(element);
       final controller = container.read(livePk4Provider('room-0').notifier)
         ..attach(const Stream.empty(), host: true);
@@ -446,17 +453,17 @@ void main() {
       tester,
     ) async {
       final repo = await sheet(tester);
-      await tester.tap(find.byKey(LivePk4Sheet.openKey));
+      await tester.tap(find.byKey(LivePk4Panel.openKey));
       await tester.pumpAndSettle();
       expect(repo.calls, contains('open'));
-      expect(find.byKey(LivePk4Sheet.placeKey(4)), findsOneWidget);
-      await tester.tap(find.byKey(LivePk4Sheet.placeKey(4)));
+      expect(find.byKey(LivePk4Panel.placeKey(4)), findsOneWidget);
+      await tester.tap(find.byKey(LivePk4Panel.placeKey(4)));
       await tester.pumpAndSettle();
-      expect(find.byKey(LivePk4Sheet.candidateKey('room-9')), findsOneWidget);
+      expect(find.byKey(LivePk4Panel.candidateKey('room-9')), findsOneWidget);
       await tester.tap(
         find
             .descendant(
-              of: find.byKey(LivePk4Sheet.candidateKey('room-9')),
+              of: find.byKey(LivePk4Panel.candidateKey('room-9')),
               matching: find.byType(InkWell),
             )
             .last,
@@ -464,15 +471,79 @@ void main() {
       await tester.pumpAndSettle();
       expect(repo.calls, contains('invite:room-9:4'));
       // The returned lobby: place 2 ready, 3 waiting (with withdraw), 4 free.
-      expect(find.byKey(LivePk4Sheet.withdrawKey(3)), findsOneWidget);
+      expect(find.byKey(LivePk4Panel.withdrawKey(3)), findsOneWidget);
       // The snapshot read after the withdrawal still has the lobby.
       repo.snapshot = Pk4State(lobby: repo.lobbyOnInvite);
-      await tester.tap(find.byKey(LivePk4Sheet.withdrawKey(3)));
+      await tester.tap(find.byKey(LivePk4Panel.withdrawKey(3)));
       await tester.pumpAndSettle();
       expect(repo.calls, contains('cancel:invite-3'));
-      await tester.tap(find.byKey(LivePk4Sheet.cancelKey));
+      await tester.tap(find.byKey(LivePk4Panel.cancelKey));
       await tester.pumpAndSettle();
       expect(repo.calls, contains('close'));
+      // D393: cancelled in place — the PK sheet stays on «PK رباعي».
+      expect(find.byType(LivePkSheet), findsOneWidget);
+      expect(find.byKey(LivePk4Panel.openKey), findsOneWidget);
+    });
+
+    // D393 (owner: «زر افتح pk رباعي لا يعمل»): a refused open is written in
+    // the panel, above the button, where the host sees it — never a snack bar
+    // under the sheet — with the server's code; then the snapshot is read
+    // again (a lobby this room already has shows).
+    for (final (code, status, message) in [
+      ('PK_UNAVAILABLE', 409, 'لا يمكن فتح PK رباعي الآن'),
+      ('PK_HOST_BUSY', 409, 'أنت في تحدّي PK أو دعوة أو بحث عشوائي الآن'),
+      ('NOT_FOUND', 404, 'PK رباعي غير متاح على الخادم بعد'),
+    ]) {
+      testWidgets('a refused open ($code) is shown in the panel', (
+        tester,
+      ) async {
+        final repo = await sheet(tester);
+        repo.failWith = ServerFailure(
+          code: ErrorCode.unknown,
+          rawCode: code,
+          debugMessage: 'refused',
+          statusCode: status,
+        );
+        final reads = repo.calls.where((c) => c == 'state').length;
+        await tester.tap(find.byKey(LivePk4Panel.openKey));
+        await tester.pumpAndSettle();
+        expect(repo.calls, contains('open'));
+        final error = find.byKey(LivePk4Panel.errorKey);
+        expect(error.hitTestable(), findsOneWidget);
+        expect(
+          find.descendant(of: error, matching: find.textContaining(message)),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: error, matching: find.text('$code · $status')),
+          findsOneWidget,
+        );
+        expect(repo.calls.where((c) => c == 'state').length, reads + 1);
+        // Still there to try again; a success clears the message.
+        repo.failWith = null;
+        await tester.tap(find.byKey(LivePk4Panel.openKey));
+        await tester.pumpAndSettle();
+        expect(find.byKey(LivePk4Panel.errorKey), findsNothing);
+        expect(find.byKey(LivePk4Panel.placeKey(2)), findsOneWidget);
+      });
+    }
+
+    testWidgets('a refused open caused by a lobby this room already has '
+        'shows that lobby', (tester) async {
+      final repo = await sheet(tester);
+      repo
+        ..failWith = const ServerFailure(
+          code: ErrorCode.unknown,
+          rawCode: 'PK_HOST_BUSY',
+          debugMessage: 'busy',
+          statusCode: 409,
+        )
+        ..snapshot = Pk4State(lobby: pk4LobbyFixture(now: DateTime.now()));
+      await tester.tap(find.byKey(LivePk4Panel.openKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LivePk4Panel.errorKey), findsOneWidget);
+      expect(find.byKey(LivePk4Panel.placeKey(2)), findsOneWidget);
+      expect(find.byKey(LivePk4Panel.cancelKey), findsOneWidget);
     });
 
     for (final language in [AppLanguage.ar, AppLanguage.en]) {
@@ -489,10 +560,158 @@ void main() {
           viewport: GoldenViewport.android,
           textScale: 1.3,
         );
-        expect(find.byKey(LivePk4Sheet.placeKey(2)), findsOneWidget);
+        expect(find.byKey(LivePk4Panel.placeKey(2)), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }
+  });
+
+  // D393 (owner: «زر pk رباعي يفتح صفحة اخرى لماذا لا ينتقل من نفس الشريط»):
+  // the host's real path — the room's PK button opens the PK sheet; «PK
+  // رباعي» switches it in place (one sheet on the navigator, the same mode
+  // cards) and «PK ثنائي» switches back.
+  group('«PK رباعي» in the PK sheet', () {
+    Future<(FakeLivePkRepository, FakeLivePk4Repository)> open(
+      WidgetTester tester, {
+      AppLanguage language = AppLanguage.ar,
+      FakeLivePk4Repository? pk4,
+    }) async {
+      setViewport(tester, GoldenViewport.phone);
+      final now = DateTime.now();
+      final repo = FakeLivePkRepository(
+        list: [
+          PkCandidate(
+            roomId: 'room-b',
+            title: 'Live',
+            viewerCount: 3,
+            host: pk4User('user-b', 'Karim'),
+          ),
+        ],
+      );
+      final repo4 =
+          pk4 ??
+          (FakeLivePk4Repository()
+            ..lobbyOnOpen = pk4LobbyFixture(
+              now: now,
+              ar: language == AppLanguage.ar,
+              states: const [
+                Pk4SeatState.empty,
+                Pk4SeatState.empty,
+                Pk4SeatState.empty,
+              ],
+            ));
+      await pumpScreen(
+        tester,
+        Scaffold(
+          body: Builder(
+            builder: (context) => Center(
+              child: TextButton(
+                onPressed: () => showLivePkSheet(context, roomId: 'room-0'),
+                child: const Text('PK'),
+              ),
+            ),
+          ),
+        ),
+        language: language,
+        livePkRepository: repo,
+        livePk4Repository: repo4,
+        overrides: [currentUserProvider.overrideWithValue(testUser())],
+      );
+      await tester.tap(find.text('PK'));
+      await tester.pumpAndSettle();
+      return (repo, repo4);
+    }
+
+    int sheets(WidgetTester tester) => find
+        .byWidgetPredicate((w) => w is LivePkSheet, skipOffstage: false)
+        .evaluate()
+        .length;
+
+    for (final language in [AppLanguage.ar, AppLanguage.en]) {
+      testWidgets('switches in place and back (${language.name})', (
+        tester,
+      ) async {
+        final (repo, _) = await open(tester, language: language);
+        expect(find.byKey(LivePkSheet.candidateKey('room-b')), findsOneWidget);
+        await tester.tap(find.byKey(LivePkSheet.modeKey(PkSheetMode.team)));
+        await tester.pumpAndSettle();
+        // The same sheet, no second route: the cards stay, «PK رباعي» is
+        // the selected one, the 4-way panel replaces the 1 v 1 list.
+        expect(sheets(tester), 1);
+        expect(find.byType(BottomSheet), findsOneWidget);
+        final panel = find.byKey(LivePk4Panel.panelKey);
+        expect(
+          find.descendant(of: find.byType(LivePkSheet), matching: panel),
+          findsOneWidget,
+        );
+        PkModeCard card(PkSheetMode m) =>
+            tester.widget<PkModeCard>(find.byKey(LivePkSheet.modeKey(m)));
+        expect(card(PkSheetMode.team).selected, isTrue);
+        expect(card(PkSheetMode.oneVsOne).selected, isFalse);
+        expect(find.byKey(LivePk4Panel.openKey).hitTestable(), findsOneWidget);
+        expect(find.byKey(LivePkSheet.candidateKey('room-b')), findsNothing);
+        expect(find.byKey(LivePkSheet.randomKey), findsNothing);
+        expect(tester.takeException(), isNull);
+        // And back.
+        final reads = repo.calls.where((c) => c.startsWith('candidates'));
+        final before = reads.length;
+        await tester.tap(find.byKey(LivePkSheet.modeKey(PkSheetMode.oneVsOne)));
+        await tester.pumpAndSettle();
+        expect(panel, findsNothing);
+        expect(card(PkSheetMode.oneVsOne).selected, isTrue);
+        expect(find.byKey(LivePkSheet.candidateKey('room-b')), findsOneWidget);
+        expect(
+          repo.calls.where((c) => c.startsWith('candidates')).length,
+          greaterThan(before),
+        );
+      });
+    }
+
+    testWidgets('«افتح PK رباعي» opens the lobby in the same sheet', (
+      tester,
+    ) async {
+      final (_, repo4) = await open(tester);
+      await tester.tap(find.byKey(LivePkSheet.modeKey(PkSheetMode.team)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LivePk4Panel.openKey));
+      await tester.pumpAndSettle();
+      expect(repo4.calls, contains('open'));
+      expect(sheets(tester), 1);
+      for (final seat in [1, 2, 3, 4]) {
+        expect(
+          find.byKey(LivePk4Panel.placeKey(seat)).hitTestable(),
+          findsOneWidget,
+        );
+      }
+      expect(find.byKey(LivePk4Panel.countdownKey), findsOneWidget);
+    });
+
+    testWidgets('a refused «افتح PK رباعي» is visible over the room', (
+      tester,
+    ) async {
+      final (_, repo4) = await open(
+        tester,
+        pk4: FakeLivePk4Repository()
+          ..failWith = const ServerFailure(
+            code: ErrorCode.unknown,
+            rawCode: 'PK_UNAVAILABLE',
+            debugMessage: 'refused',
+            statusCode: 409,
+          ),
+      );
+      await tester.tap(find.byKey(LivePkSheet.modeKey(PkSheetMode.team)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LivePk4Panel.openKey));
+      await tester.pumpAndSettle();
+      expect(repo4.calls, contains('open'));
+      // Before D393 the message went to a snack bar under the sheet (in the
+      // tree, not visible); now it is in the panel, in front of the host.
+      expect(
+        find.textContaining('لا يمكن فتح PK رباعي الآن').hitTestable(),
+        findsOneWidget,
+      );
+      expect(sheets(tester), 1);
+    });
   });
 
   group('the incoming invitation', () {

@@ -11342,11 +11342,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pkModeMulti => 'Multi PK';
 
   @override
-  String pkModeSoon(String mode) {
-    return '$mode is coming soon — not built yet';
-  }
-
-  @override
   String get pkFriendsTab => 'Friends';
 
   @override
@@ -19794,4 +19789,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pk4ErrorSeatTaken => 'That place already has an invite';
+
+  @override
+  String get pk4ErrorOpenUnavailable =>
+      'A 4-way PK can’t open now: it needs a solo video live you are on, or the 4-way PK is switched off by the management.';
+
+  @override
+  String get pk4ErrorOpenBusy =>
+      'You are in a PK, an invite or a random match now — finish it first, then open a 4-way PK.';
+
+  @override
+  String get pk4ErrorOpenNotOnServer =>
+      'The 4-way PK is not on the server yet.';
 }

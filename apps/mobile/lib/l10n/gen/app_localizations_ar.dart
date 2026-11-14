@@ -11369,11 +11369,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get pkModeMulti => 'PK متعدد';
 
   @override
-  String pkModeSoon(String mode) {
-    return '$mode قريباً — لم يُبنَ بعد';
-  }
-
-  @override
   String get pkFriendsTab => 'الأصدقاء';
 
   @override
@@ -19783,4 +19778,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get pk4ErrorSeatTaken => 'هذا المكان فيه دعوة بالفعل';
+
+  @override
+  String get pk4ErrorOpenUnavailable =>
+      'لا يمكن فتح PK رباعي الآن: يلزم بثّ فردي بالفيديو مباشر وأنت حاضر فيه، أو أن الإدارة أوقفت PK الرباعي.';
+
+  @override
+  String get pk4ErrorOpenBusy =>
+      'أنت في تحدّي PK أو دعوة أو بحث عشوائي الآن — أنهِه أولاً ثم افتح PK رباعي.';
+
+  @override
+  String get pk4ErrorOpenNotOnServer => 'PK رباعي غير متاح على الخادم بعد.';
 }

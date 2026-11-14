@@ -3,8 +3,9 @@
 // this room's team on the reading start, blazing orange for the opponents),
 // the four panes with each host's own score, the team booster chip, a host
 // who left, the top three supporters per team — at 360 × 800 with text
-// × 1.3, ar and en, dark and light; the result; and the host's lobby sheet
-// with its four places.
+// × 1.3, ar and en, dark and light; the result; and the host's lobby with its
+// four places — D393: on the PK sheet's «PK رباعي» segment (the mode cards
+// above it), no longer a sheet of its own.
 //
 // Regenerate on Linux with the pinned Flutter:
 //   flutter test --update-goldens test/goldens/live_pk4_golden_test.dart
@@ -22,6 +23,7 @@ import 'package:kabso_live/features/live/domain/live_pk4.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk4_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk4_stage.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -153,7 +155,11 @@ void main() {
                 color: Color(0xFF0B0A0F),
                 child: Align(
                   alignment: Alignment.bottomCenter,
-                  child: LivePk4Sheet(roomId: 'room-0'),
+                  // D393: the lobby is the PK sheet's «PK رباعي» segment.
+                  child: LivePkSheet(
+                    roomId: 'room-0',
+                    initialMode: PkSheetMode.team,
+                  ),
                 ),
               ),
             ),
@@ -164,7 +170,7 @@ void main() {
         brightness: Brightness.light,
         bare: true,
       );
-      final element = tester.element(find.byType(LivePk4Sheet));
+      final element = tester.element(find.byType(LivePk4Panel));
       ProviderScope.containerOf(element)
           .read(livePk4Provider('room-0').notifier)
           .debugSetLobby(lobby);

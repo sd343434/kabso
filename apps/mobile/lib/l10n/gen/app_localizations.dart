@@ -19311,12 +19311,6 @@ abstract class AppLocalizations {
   /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
   ///
   /// In ar, this message translates to:
-  /// **'{mode} قريباً — لم يُبنَ بعد'**
-  String pkModeSoon(String mode);
-
-  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
-  ///
-  /// In ar, this message translates to:
   /// **'الأصدقاء'**
   String get pkFriendsTab;
 
@@ -33339,6 +33333,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'هذا المكان فيه دعوة بالفعل'**
   String get pk4ErrorSeatTaken;
+
+  /// D393 (D391 fix) «PK رباعي»: opening the lobby refused 409 PK_UNAVAILABLE (not a LIVE SOLO video live of the caller, the host away, or PK / PK4 switched off on the server).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن فتح PK رباعي الآن: يلزم بثّ فردي بالفيديو مباشر وأنت حاضر فيه، أو أن الإدارة أوقفت PK الرباعي.'**
+  String get pk4ErrorOpenUnavailable;
+
+  /// D393 (D391 fix) «PK رباعي»: opening the lobby refused 409 PK_HOST_BUSY (the caller is in a PK, an open invitation, the random queue or another 4-way lobby).
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت في تحدّي PK أو دعوة أو بحث عشوائي الآن — أنهِه أولاً ثم افتح PK رباعي.'**
+  String get pk4ErrorOpenBusy;
+
+  /// D393 (D391 fix) «PK رباعي»: opening the lobby answered 404 (a server without D391's routes).
+  ///
+  /// In ar, this message translates to:
+  /// **'PK رباعي غير متاح على الخادم بعد.'**
+  String get pk4ErrorOpenNotOnServer;
 }
 
 class _AppLocalizationsDelegate
