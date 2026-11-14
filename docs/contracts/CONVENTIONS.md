@@ -9319,7 +9319,7 @@ panel / app editor show it beside each field. A file outside it → 409 `ADMIN_A
 | `background` | 1 080 × 1 920 (9:16) | PNG, JPEG, WebP; animated WebP / GIF | 3 MB still, 8 MB animated | 10 s | top 0–480 px: title art; 520–1 920 px: cards |
 | `background_video` | 1 080 × 1 920 | MP4 / MOV, H.264 or HEVC, muted, looping | 20 MB | 15 s | + a `background` still as poster |
 | `title` | 1 080 × 480 | PNG, WebP, transparent | 1 MB | — | over the background's top |
-| `overlay` | — | SVGA 2.x or Lottie JSON | 2 MB | 10 s a loop | falling coins / sparkles over the page |
+| `overlay` | — | SVGA 2.x or Lottie JSON | 2 MB | 10 s a loop | falling coins / sparkles at the head of the page (D396: over the background and the title art) |
 | `badge` | 512 × 512 | PNG, WebP, transparent | 1 MB | — | one per medal level |
 
 Pictures are re-encoded to WebP at the spec size (metadata dropped); videos and overlays are stored unchanged. An
@@ -9329,7 +9329,7 @@ is a `banner` / `banner_video` upload named in `createAdminBanner` with `eventId
 
 **The page (app, this pass):** the background still (a picture; an animated picture plays; a video shows its poster —
 the video itself is not played yet), darkened, with the title art on top; the Lottie overlay looping (paused with
-reduced motion and when the page is hidden; an SVGA overlay is not drawn yet); semi-transparent gold-framed cards with
+reduced motion and when the page is hidden; *D396:* an SVGA overlay too, both at the head of the page — in the hero of a designed page, over the background and the title art, never under the cards); semi-transparent gold-framed cards with
 gold headings (`ProgramGoldFrame`); a countdown to the start / end; a tab per board; the board reloads every 30 s
 while shown and running; Kabso's own crowns on ranks 1–3; a sticky «مركزي» bar (the place and points, and the points
 to the next rank or to the minimum); a tap on an event gift explains it is sent from a live's gift panel and opens

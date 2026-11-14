@@ -22,6 +22,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
+import 'package:kabso_live/core/svga/svga_engine.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/programs/data/event_page_design.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
@@ -32,12 +33,14 @@ import 'package:kabso_live/features/programs/presentation/event_hero_countdown.d
 import 'package:kabso_live/features/programs/presentation/event_leaderboard_styles.dart';
 import 'package:kabso_live/features/programs/presentation/event_page_theme.dart';
 import 'package:kabso_live/features/programs/presentation/gift_event_sections.dart';
+import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
+import '../../helpers/svga_fixture.dart';
 
 const _id = '01a1b6a1-0000-7000-8000-000000000354';
 const _media = 'https://media.example.test';
@@ -117,6 +120,7 @@ EventDetail _event(
   bool ar,
   Map<String, Object?>? design, {
   String metric = 'EVENT_GIFTS',
+  Map<String, Object?>? overlay,
 }) => EventDetail.fromJson({
   'id': _id,
   'title': ar ? 'ملك الهدايا' : 'Gift King',
@@ -132,14 +136,14 @@ EventDetail _event(
       : 'Send the event gifts in any live.',
   'prizes': const <Object?>[],
   'timeZone': 'Asia/Riyadh',
-  'art': const {
-    'background': {
+  'art': {
+    'background': const {
       'kind': 'IMAGE',
       'url': '$_media/media/events/bg/a.webp',
       'posterUrl': null,
     },
     'titleUrl': null,
-    'overlay': null,
+    'overlay': overlay,
   },
   'gifts': [
     for (final (i, g) in [
@@ -326,15 +330,21 @@ EventLeaderboard _board(bool ar) {
 }
 
 class _Programs implements ProgramsRepository {
-  new({required this.ar, required this.design, this.metric = 'EVENT_GIFTS'});
+  new({
+    required this.ar,
+    required this.design,
+    this.metric = 'EVENT_GIFTS',
+    this.overlay,
+  });
 
   final bool ar;
   final Map<String, Object?>? design;
   final String metric;
+  final Map<String, Object?>? overlay;
 
   @override
   Future<EventDetail> event(String eventId) async =>
-      _event(ar, design, metric: metric);
+      _event(ar, design, metric: metric, overlay: overlay);
 
   @override
   Future<EventLeaderboard> leaderboard(String eventId, {String? board}) async =>
@@ -346,12 +356,19 @@ class _Programs implements ProgramsRepository {
 
 final _at = DateTime.utc(2026, 11, 12, 9, 30, 5);
 
+/// D396: with `_pump(motion: true)`, whether the page has motion (a golden
+/// turns it on once the page has settled: the page's own motion never does).
+final _overlayMotion = ValueNotifier<bool>(true);
+
 Future<void> _pump(
   WidgetTester tester, {
   Map<String, Object?>? design,
   AppLanguage language = AppLanguage.ar,
   GoldenViewport viewport = GoldenViewport.phone,
   String metric = 'EVENT_GIFTS',
+  Map<String, Object?>? overlay,
+  // D396: the overlay plays only with motion (the goldens turn it off).
+  bool motion = false,
 }) async {
   EventDetailScreen.countdownClock = () => _at;
   EventHeroCountdown.debugClock = () => _at;
@@ -374,10 +391,19 @@ Future<void> _pump(
             ar: language == AppLanguage.ar,
             design: design,
             metric: metric,
+            overlay: overlay,
           ),
         ),
       ],
-      child: const EventDetailScreen(eventId: _id),
+      child: motion
+          ? ValueListenableBuilder<bool>(
+              valueListenable: _overlayMotion,
+              builder: (context, on, _) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(disableAnimations: !on),
+                child: const EventDetailScreen(eventId: _id),
+              ),
+            )
+          : const EventDetailScreen(eventId: _id),
     ),
     language: language,
     viewport: viewport,
@@ -950,6 +976,238 @@ void main() {
         'events.d354.stage.scale13',
         language: AppLanguage.ar,
         viewport: GoldenViewport.android,
+      );
+    });
+  });
+
+  // D396 (owner: «عند اضافة طبقة حركة في الفعاليات لا تظهر في الفعالية»): the
+  // panel offers «طبقة الحركة (SVGA أو Lottie)» and the server stores both, but
+  // the page drew only a Lottie overlay, and the designed page drew it under
+  // the hero's opaque background (a Lottie was hidden there too).
+  group('D396 the animation overlay («طبقة الحركة»)', () {
+    const svga = {
+      'format': 'SVGA',
+      'url':
+          '$_media/media/events/overlay/0b7c2f4e-0000-7000-8000-000000000396.svga',
+    };
+    late Future<Uint8List> Function(String) fetch;
+    setUp(() {
+      fetch = SvgaDocs.fetch;
+      // No network in tests: the clip cannot be read (the player stays empty).
+      SvgaDocs.fetch = (_) => Future.error(StateError('offline'));
+    });
+    tearDown(() {
+      SvgaDocs.fetch = fetch;
+      VipSvgaCache.clear();
+    });
+
+    /// The index of the child of [stack] whose subtree holds [target].
+    int childHolding(Element stack, Element target) {
+      var index = -1;
+      var i = 0;
+      stack.visitChildren((child) {
+        var hit = false;
+        void walk(Element e) {
+          if (identical(e, target)) hit = true;
+          if (!hit) e.visitChildren(walk);
+        }
+
+        walk(child);
+        if (hit) index = i;
+        i++;
+      });
+      return index;
+    }
+
+    Future<void> pumpOverlay(
+      WidgetTester tester,
+      Map<String, Object?> overlay, {
+      double opacity = 1,
+      bool reduceMotion = false,
+    }) => tester.pumpWidget(
+      MediaQuery(
+        data: MediaQueryData(disableAnimations: reduceMotion),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: EventArtOverlay(
+            art: EventArt.fromJson({'overlay': overlay}),
+            opacity: opacity,
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('an SVGA overlay is played (it was never drawn)', (
+      tester,
+    ) async {
+      await pumpOverlay(tester, svga);
+      final overlay = find.byKey(GiftEventBackdrop.overlayKey);
+      expect(overlay, findsOneWidget);
+      expect(
+        find.descendant(of: overlay, matching: find.byType(VipSvga)),
+        findsOneWidget,
+      );
+      expect(
+        find.ancestor(
+          of: find.byType(VipSvga),
+          matching: find.byType(IgnorePointer),
+        ),
+        findsWidgets,
+      );
+    });
+
+    testWidgets('not with reduced motion, at opacity 0, or an unknown format', (
+      tester,
+    ) async {
+      await pumpOverlay(tester, svga, reduceMotion: true);
+      expect(find.byKey(GiftEventBackdrop.overlayKey), findsNothing);
+      await pumpOverlay(tester, svga, opacity: 0);
+      expect(find.byKey(GiftEventBackdrop.overlayKey), findsNothing);
+      await pumpOverlay(tester, {...svga, 'format': 'MP4'});
+      expect(find.byKey(GiftEventBackdrop.overlayKey), findsNothing);
+    });
+
+    for (final layout in ['HERO_PODIUM', 'STAGE', 'DECK']) {
+      testWidgets('$layout: the overlay is in the hero, over the background '
+          'and the title art, not under the cards', (tester) async {
+        await _pump(
+          tester,
+          design: _designJson(layout: layout),
+          overlay: svga,
+        );
+        final hero = find.byKey(EventHero.heroKey);
+        expect(hero, findsOneWidget);
+        final overlay = find.descendant(
+          of: hero,
+          matching: find.byType(EventArtOverlay),
+        );
+        expect(overlay, findsOneWidget);
+        // Drawn after the background picture and the title art in the hero.
+        final stack = find
+            .descendant(of: hero, matching: find.byType(Stack))
+            .first
+            .evaluate()
+            .single;
+        final at = childHolding(stack, overlay.evaluate().single);
+        expect(
+          at,
+          greaterThan(
+            childHolding(
+              stack,
+              find
+                  .descendant(of: hero, matching: find.byType(Image))
+                  .first
+                  .evaluate()
+                  .single,
+            ),
+          ),
+        );
+        expect(
+          at,
+          greaterThan(
+            childHolding(
+              stack,
+              find
+                  .descendant(of: hero, matching: find.byType(EventTitleArt))
+                  .evaluate()
+                  .single,
+            ),
+          ),
+        );
+        // At the head of the page, and nowhere else (not behind the cards).
+        expect(find.byType(EventArtOverlay), findsOneWidget);
+        expect(tester.getTopLeft(overlay).dy, 0);
+        expect(tester.getSize(overlay).height, tester.getSize(hero).height);
+        // The design's speed and opacity reach it.
+        expect(tester.widget<EventArtOverlay>(overlay).opacity, 1);
+      });
+    }
+
+    testWidgets('no Kabso logo at the bottom of a designed page', (
+      tester,
+    ) async {
+      await _pump(tester, design: _designJson());
+      // To the end of the page.
+      for (var i = 0; i < 4; i++) {
+        await tester.drag(
+          find.byType(Scrollable).first,
+          const Offset(0, -3000),
+        );
+        await tester.pumpAndSettle();
+      }
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Image &&
+              w.image is AssetImage &&
+              (w.image as AssetImage).assetName.contains('kabso_live_logo'),
+        ),
+        findsNothing,
+      );
+      expect(find.bySemanticsLabel('Kabso Live'), findsNothing);
+    });
+
+    testWidgets('today’s page (no design) plays the overlay in the top band, '
+        'over the list', (tester) async {
+      await _pump(tester, overlay: svga, motion: true);
+      expect(find.byKey(EventDesignedPage.pageKey), findsNothing);
+      final band = find.byKey(EventArtOverlayBand.bandKey);
+      expect(band, findsOneWidget);
+      final overlay = find.byKey(GiftEventBackdrop.overlayKey);
+      expect(
+        find.descendant(of: band, matching: find.byType(VipSvga)),
+        findsOneWidget,
+      );
+      final stackFinder = find.ancestor(of: band, matching: find.byType(Stack));
+      final page = tester.getRect(stackFinder.first);
+      expect(tester.getTopLeft(overlay).dy, page.top);
+      expect(
+        tester.getSize(overlay).height,
+        moreOrLessEquals(page.height * EventArtOverlayBand.heightFactor),
+      );
+      // Over the list (its cards), not under it.
+      final list = find.byType(RefreshIndicator);
+      final stack = stackFinder.first.evaluate().single;
+      expect(
+        childHolding(stack, band.evaluate().single),
+        greaterThan(childHolding(stack, list.evaluate().single)),
+      );
+    });
+
+    // The golden: a half-transparent red SVGA (the test fixture) plays over
+    // the hero — background and title art — and nowhere under the cards.
+    testWidgets('golden: the overlay at the head of the page', (tester) async {
+      late Uint8List file;
+      await tester.runAsync(() async => file = await svgaFixture(width: 180));
+      final clock = VipSvga.clock;
+      VipSvga.enabled = true;
+      SvgaDocs.fetch = (_) async => file;
+      VipSvga.clock = () => Duration(
+        microseconds: tester.binding.clock.now().microsecondsSinceEpoch,
+      );
+      addTearDown(() {
+        VipSvga.enabled = false;
+        VipSvga.clock = clock;
+        _overlayMotion.value = true;
+      });
+      _overlayMotion.value = false;
+      await _pump(
+        tester,
+        design: _designJson(motion: {'overlayOpacity': .45}),
+        overlay: svga,
+        motion: true,
+      );
+      _overlayMotion.value = true;
+      // Its pictures are decoded in the real zone, as it plays.
+      for (var i = 0; i < 30; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 150)),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await expectScreenGolden(
+        'events.d396.overlay.heroPodium',
+        language: AppLanguage.ar,
       );
     });
   });

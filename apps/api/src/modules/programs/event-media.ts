@@ -126,8 +126,8 @@ export const EVENT_MEDIA_SPECS: Readonly<Record<EventMediaKind, EventMediaSpec>>
     maxDurationMs: 10_000,
     transparent: true,
     safeZone:
-      'Plays looping over the whole page (falling coins, sparkles); pauses off screen and with reduced motion. An MP4 ' +
-      'overlay is at most 8 MB.',
+      'Plays looping at the head of the page, over the background and the title art (falling coins, sparkles); pauses ' +
+      'off screen and with reduced motion. An MP4 overlay is at most 8 MB.',
   },
   badge: {
     kind: 'badge',

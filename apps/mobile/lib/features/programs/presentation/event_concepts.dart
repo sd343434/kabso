@@ -345,7 +345,9 @@ class EventDesignCountdown extends StatelessWidget {
 }
 
 /// The full-bleed hero: background, title art, dates, countdown (and what
-/// goes under it — the gold rules pill).
+/// goes under it — the gold rules pill). D396: the event's animation overlay
+/// («طبقة الحركة») plays here, at the head of the page, over the background
+/// and the title art (it scrolls with the hero; under the countdown).
 class EventHero extends StatelessWidget {
   const new({
     required this.event,
@@ -355,10 +357,16 @@ class EventHero extends StatelessWidget {
     this.titleTop = 92,
     this.belowCountdown,
     this.now,
+    this.overlaySpeed = 1,
+    this.overlayOpacity = 1,
     super.key,
   });
 
   final EventDetail event;
+
+  /// v1.115-social (D354): the design's overlay speed and opacity.
+  final double overlaySpeed;
+  final double overlayOpacity;
   final String dates;
   final EventCountdownKind countdown;
   final double height;
@@ -440,6 +448,11 @@ class EventHero extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          EventArtOverlay(
+            art: event.art,
+            speed: overlaySpeed,
+            opacity: overlayOpacity,
           ),
           Positioned(
             left: KSpacing.lg,
