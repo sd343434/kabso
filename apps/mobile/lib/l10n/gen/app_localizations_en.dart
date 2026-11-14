@@ -19801,4 +19801,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pk4ErrorOpenNotOnServer =>
       'The 4-way PK is not on the server yet.';
+
+  @override
+  String get bannerAmbassadorsStaff =>
+      'The Kabso Ambassadors Program isn\'t available to Kabso Team accounts';
 }

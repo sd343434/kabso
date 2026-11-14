@@ -16303,5 +16303,7 @@
   "pk4ErrorOpenBusy": "أنت في تحدّي PK أو دعوة أو بحث عشوائي الآن — أنهِه أولاً ثم افتح PK رباعي.",
   "@pk4ErrorOpenBusy": {"description": "D393 (D391 fix) «PK رباعي»: opening the lobby refused 409 PK_HOST_BUSY (the caller is in a PK, an open invitation, the random queue or another 4-way lobby)."},
   "pk4ErrorOpenNotOnServer": "PK رباعي غير متاح على الخادم بعد.",
-  "@pk4ErrorOpenNotOnServer": {"description": "D393 (D391 fix) «PK رباعي»: opening the lobby answered 404 (a server without D391's routes)."}
+  "@pk4ErrorOpenNotOnServer": {"description": "D393 (D391 fix) «PK رباعي»: opening the lobby answered 404 (a server without D391's routes)."},
+  "bannerAmbassadorsStaff": "برنامج سفراء Kabso غير متاح لحسابات فريق Kabso",
+  "@bannerAmbassadorsStaff": {"description": "v1.142-social (D394, CONVENTIONS §10.26): a Kabso Team account taps a promo banner that opens «برنامج سفراء Kabso» (staff are never ambassadors, D390)."}
 }

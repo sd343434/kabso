@@ -7,7 +7,10 @@ sealed class HomeBannerTarget {
 
   /// Parses an allowlisted link: `/cp/space`, `/families`,
   /// `/live?tab=trending|new|following`, `/home/room/{roomId}`,
-  /// `/users/{username}`, (D303) `/events/{eventId}`. Anything else is
+  /// `/users/{username}`, (D303) `/events/{eventId}`, (D394)
+  /// `/ambassadors` («برنامج سفراء Kabso»; `openHomeBannerRoute` sends an
+  /// ambassador to the dashboard and a Kabso Team account a note). Anything
+  /// else is
   /// `null`, including `https://`
   /// links: the app has no in-app browser yet, and the contract lets an app
   /// ignore a link it cannot open (the banner is then not a button).
@@ -15,6 +18,8 @@ sealed class HomeBannerTarget {
     switch (link) {
       case '/cp/space':
       case '/families':
+      // v1.142-social (D394): the ambassadors programme (exactly this path).
+      case '/ambassadors':
         return HomeBannerRoute(link);
       case '/live?tab=trending':
         return const HomeBannerLiveTab(FeedTab.popular);

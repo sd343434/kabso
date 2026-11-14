@@ -27,7 +27,7 @@
  * `MEDIA_PUBLIC_BASE_URL` of the API); the picture is owned by the `--owner` account. `--media`
  * takes a `HOME_BANNER` upload made through the API (`POST /media/uploads`) within the last 24 hours.
  * `--link` is `/cp/space`, `/families`, `/live?tab=trending|new|following`, `/home/room/<roomId>`,
- * `/users/<username>` or an `https://` URL. Every change writes an audit_logs row in the same
+ * `/users/<username>`, (D303) `/events/<eventId>`, (D394) `/ambassadors` or an `https://` URL. Every change writes an audit_logs row in the same
  * transaction (`banner.add`, `banner.enable`, `banner.disable`, `banner.remove`). A command that
  * changes nothing exits 0 and says so; a bad argument or an unknown banner exits 1.
  */

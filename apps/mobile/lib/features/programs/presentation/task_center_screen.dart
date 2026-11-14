@@ -11,6 +11,7 @@ import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
+import 'package:kabso_live/features/live/presentation/hub/home_banner_open.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
@@ -1055,7 +1056,9 @@ class _TaskBanners extends ConsumerWidget {
       child: KHomeBannerCarousel(
         banners: banners,
         canOpen: (b) => b.link.startsWith('/'),
-        onOpen: (b) => unawaited(context.push(b.link)),
+        // D394: through the shared opener (`/ambassadors` for an ambassador
+        // or a Kabso Team account); any other link as before.
+        onOpen: (b) => unawaited(openHomeBannerRoute(context, ref, b.link)),
       ),
     );
   }

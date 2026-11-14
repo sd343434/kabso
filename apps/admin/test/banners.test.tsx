@@ -60,6 +60,29 @@ describe('D248 add a banner', () => {
     expect(html).toMatch(/<button class="btn primary" disabled="">/);
   });
 
+  it('D394: the link hint offers «برنامج سفراء Kabso» (/ambassadors) in both languages; the body keeps it', () => {
+    const ar = render('ar');
+    expect(ar).toContain('/ambassadors (برنامج سفراء Kabso)');
+    const en = render('en');
+    expect(en).toContain('/ambassadors (Kabso Ambassadors Program)');
+    for (const placement of BANNER_PLACEMENT_KEYS) {
+      expect(render('en', placement)).toContain('/ambassadors');
+      expect(
+        bannerBody('0193a4b2-7c1d-7e2f-8a3b-4c5d6e7f8091', {
+          placement,
+          link: ' /ambassadors ',
+          titleAr: '',
+          titleEn: '',
+          titleSide: 'RIGHT',
+          startsAt: '',
+          endsAt: '',
+          sortOrder: '0',
+          reason: 'D394',
+        }).link,
+      ).toBe('/ambassadors');
+    }
+  });
+
   it('the hub card: 720 × 805 and a preview in the live card shape', () => {
     const html = render('en', 'hub_card');
     expect(html).toContain('Design the picture at 720 × 805 px');

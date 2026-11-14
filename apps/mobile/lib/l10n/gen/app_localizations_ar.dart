@@ -19789,4 +19789,8 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get pk4ErrorOpenNotOnServer => 'PK رباعي غير متاح على الخادم بعد.';
+
+  @override
+  String get bannerAmbassadorsStaff =>
+      'برنامج سفراء Kabso غير متاح لحسابات فريق Kabso';
 }

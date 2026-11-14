@@ -764,7 +764,7 @@ a `CONNECTION LIMIT`.
   account). Instead of `--image`, `--media <id>` takes a `HOME_BANNER` upload made through the API
   in the last 24 hours.
 - `--link` is `/cp/space`, `/families`, `/live?tab=trending|new|following`, `/home/room/<roomId>`,
-  `/users/<username>` or an `https://` URL. Optional: `--title-ar`, `--title-en` (overlay text,
+  `/users/<username>`, `/events/<eventId>` (D303), `/ambassadors` (D394, «برنامج سفراء Kabso») or an `https://` URL. Optional: `--title-ar`, `--title-en` (overlay text,
   1–40 characters; leave them out when the text is in the picture), `--text-side left|right`,
   `--starts` / `--ends` (ISO times; default now / open), `--sort <n>` (lowest first), `--disabled`.
 - On the server: copy the pictures to the host first (they are not in the image), mount that folder

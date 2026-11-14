@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/domain/live_boost_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
+import 'package:kabso_live/features/live/presentation/hub/home_banner_open.dart';
 import 'package:kabso_live/features/live/presentation/hub/hub_card_banner.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
@@ -735,7 +736,7 @@ class LiveRoomsPage extends ConsumerWidget {
   void _openBanner(BuildContext context, WidgetRef ref, HomeBanner banner) {
     switch (_targetOf(banner)) {
       case HomeBannerRoute(:final location):
-        unawaited(context.push<void>(location));
+        unawaited(openHomeBannerRoute(context, ref, location));
       case HomeBannerLiveTab(tab: final target):
         openLiveHub(context, ref, target);
       case null:
